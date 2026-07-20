@@ -32,7 +32,7 @@ const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => {
   const { t: translate } = useTranslation("common");
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen}>
       <Dialog.Content backdrop>
         <Dialog.Header>{translate("timezoneModal.title")}</Dialog.Header>
         <Dialog.CloseTrigger />

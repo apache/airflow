@@ -42,6 +42,8 @@ type PoolFormProps = {
   readonly setError: (error: unknown) => void;
 };
 
+const POOL_SLOTS_MIN = -1;
+
 const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: PoolFormProps) => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const {
@@ -87,23 +89,41 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
       <Controller
         control={control}
         name="slots"
-        render={({ field }) => (
-          <Field.Root mt={4}>
+        render={({ field, fieldState }) => (
+          <Field.Root invalid={Boolean(fieldState.error)} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
             <Input
-              min={-1}
+              min={POOL_SLOTS_MIN}
+              onBlur={field.onBlur}
               onChange={(event) => {
-                const value = event.target.valueAsNumber;
+                const { value: raw, valueAsNumber } = event.target;
 
-                field.onChange(isNaN(value) ? field.value : value);
+                field.onChange(raw === "" ? Number.NaN : valueAsNumber);
               }}
+              ref={field.ref}
               size="sm"
               type="number"
-              value={field.value}
+              value={Number.isFinite(field.value) ? field.value : ""}
             />
-            <Field.HelperText>{translate("pools.form.slotsHelperText")}</Field.HelperText>
+            {fieldState.error ? (
+              <Field.ErrorText>{fieldState.error.message}</Field.ErrorText>
+            ) : (
+              <Field.HelperText>{translate("pools.form.slotsHelperText")}</Field.HelperText>
+            )}
           </Field.Root>
         )}
+        rules={{
+          validate: (value: number) => {
+            if (!Number.isFinite(value)) {
+              return translate("common:validation.mustBeValidNumber");
+            }
+            if (value < POOL_SLOTS_MIN) {
+              return translate("common:validation.mustBeAtLeast", { min: POOL_SLOTS_MIN });
+            }
+
+            return true;
+          },
+        }}
       />
 
       <Controller
@@ -123,7 +143,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.includeDeferred")}</Field.Label>
-            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange} size="sm">
+            <Checkbox checked={field.value} onChange={field.onChange}>
               {translate("pools.form.checkbox")}
             </Checkbox>
           </Field.Root>
@@ -142,11 +162,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
             </Button>
           ) : undefined}
           <Spacer />
-          <Button
-            colorPalette="brand"
-            disabled={!isValid || isPending || !isDirty}
-            onClick={() => void handleSubmit(onSubmit)()}
-          >
+          <Button disabled={!isValid || isPending || !isDirty} onClick={() => void handleSubmit(onSubmit)()}>
             <FiSave /> {translate("formActions.save")}
           </Button>
         </HStack>

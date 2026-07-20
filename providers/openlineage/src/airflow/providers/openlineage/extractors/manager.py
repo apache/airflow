@@ -30,6 +30,7 @@ from airflow.providers.openlineage.extractors.base import (
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 from airflow.providers.openlineage.utils.utils import (
+    get_runtime_outlet_assets,
     get_unknown_source_attribute_run_facet,
     try_import_from_string,
 )
@@ -131,7 +132,7 @@ class ExtractorManager(LoggingMixin):
                     if hook_lineage is not None:
                         task_metadata = task_metadata.merge(hook_lineage)
                     else:  # Last resort - check manual annotations
-                        self.extract_inlets_and_outlets(task_metadata, task)
+                        self.extract_inlets_and_outlets(task_metadata, task, task_instance)
                 return task_metadata
 
             except Exception as e:
@@ -142,16 +143,32 @@ class ExtractorManager(LoggingMixin):
                     task_info,
                 )
                 self.log.debug("OpenLineage extraction failure details:", exc_info=True)
-        elif (hook_lineage := self.get_hook_lineage(task_instance, task_instance_state)) is not None:
-            return hook_lineage
         else:
+            # No extractor found — fall back to hook lineage. This call must be wrapped in
+            # try/except: it runs emit_lineage_from_sql_extras → _create_ol_event_pair which
+            # is not guarded internally. An uncaught exception here would propagate up to the
+            # listener's @print_warning decorator, silently suppressing the task-level event.
+            try:
+                hook_lineage = self.get_hook_lineage(task_instance, task_instance_state)
+            except Exception as e:
+                self.log.warning(
+                    "Failed to extract hook lineage %s: %s. Task event will be emitted without lineage.",
+                    task_info,
+                    e,
+                )
+                self.log.debug("OpenLineage hook lineage failure details:", exc_info=True)
+                hook_lineage = None
+
+            if hook_lineage is not None:
+                return hook_lineage
+
             self.log.debug("Unable to find an extractor %s", task_info)
 
             # Only include the unknownSourceAttribute facet if there is no extractor
             task_metadata = OperatorLineage(
                 run_facets=get_unknown_source_attribute_run_facet(task=task),
             )
-            self.extract_inlets_and_outlets(task_metadata, task)
+            self.extract_inlets_and_outlets(task_metadata, task, task_instance)
             return task_metadata
 
         return OperatorLineage()
@@ -174,17 +191,29 @@ class ExtractorManager(LoggingMixin):
             return extractor(task)
         return None
 
-    def extract_inlets_and_outlets(self, task_metadata: OperatorLineage, task) -> None:
+    def extract_inlets_and_outlets(
+        self,
+        task_metadata: OperatorLineage,
+        task,
+        task_instance=None,
+    ) -> None:
         if task.inlets or task.outlets:
             self.log.debug("Manually extracting lineage metadata from inlets and outlets")
         for i in task.inlets:
-            d = self.convert_to_ol_dataset(i)
-            if d:
+            if d := self.convert_to_ol_dataset(i):
                 task_metadata.inputs.append(d)
         for o in task.outlets:
-            d = self.convert_to_ol_dataset(o)
-            if d:
+            if d := self.convert_to_ol_dataset(o):
                 task_metadata.outputs.append(d)
+
+        # Add runtime-emitted outlets (alias resolutions + dynamic asset events), deduped
+        # by (namespace, name) against both static outputs and each other.
+        seen = {(d.namespace, d.name) for d in task_metadata.outputs}
+        for asset, _alias in get_runtime_outlet_assets(task_instance):
+            ol = translate_airflow_asset(asset, None)
+            if ol is not None and (ol.namespace, ol.name) not in seen:
+                task_metadata.outputs.append(ol)
+                seen.add((ol.namespace, ol.name))
 
     def get_hook_lineage(
         self,
@@ -333,10 +362,13 @@ class ExtractorManager(LoggingMixin):
     def convert_to_ol_dataset(obj) -> Dataset | None:
         from openlineage.client.event_v2 import Dataset
 
+        from airflow.providers.common.compat.assets import Asset
         from airflow.providers.common.compat.lineage.entities import File, Table
 
         if isinstance(obj, Dataset):
             return obj
+        if isinstance(obj, Asset):
+            return translate_airflow_asset(obj, None)
         if isinstance(obj, Table):
             return ExtractorManager.convert_to_ol_dataset_from_table(obj)
         if isinstance(obj, File):

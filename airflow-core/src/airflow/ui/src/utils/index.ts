@@ -19,8 +19,11 @@
 
 export { capitalize } from "./capitalize";
 export { getDuration, renderDuration } from "./datetimeUtils";
+export { createErrorToaster, getErrorStatus } from "./errorHandling";
 export { getMetaKey } from "./getMetaKey";
 export { useContainerWidth } from "./useContainerWidth";
+export { useDocumentTitle } from "./useDocumentTitle";
+export { DocumentTitleProvider } from "./useDocumentTitleProvider";
 export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
 export * from "./query";
 export { STATE_PRIORITY, sortStateEntries } from "./stateUtils";

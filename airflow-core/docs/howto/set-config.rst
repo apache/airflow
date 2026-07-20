@@ -157,15 +157,20 @@ the example below.
     See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 .. note::
-    Use the same configuration across all the Airflow components. While each component
-    does not require all, some configurations need to be same otherwise they would not
-    work as expected. A good example for that is :ref:`secret_key<config:api__secret_key>` which
-    should be same on the Webserver and Worker to allow Webserver to fetch logs from Worker.
+    Different Airflow components may require different configuration parameters. For improved
+    security, restrict sensitive configuration to only the components that need it rather than
+    sharing all configuration across all components. Some values must be consistent across specific
+    components — for example, the JWT signing key must match between components that generate and
+    validate tokens. However, sensitive parameters such as database connection strings, Fernet keys,
+    and secrets backend credentials should only be provided to components that actually need them.
 
-    The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
-    generated using the secret key has a short expiry time though - make sure that time on ALL the machines
-    that you run Airflow components on is synchronized (for example using ntpd) otherwise you might get
-    "forbidden" errors when the logs are accessed.
+    For security-sensitive deployments, pass configuration values via environment variables scoped
+    to individual components. See :doc:`/security/security_model` for detailed guidance on
+    restricting configuration parameters.
+
+    Make sure that time on ALL the machines that you run Airflow components on is synchronized
+    (for example using ntpd) otherwise you might get "forbidden" errors when the logs are
+    accessed or API calls are made.
 
 .. _set-config:configuring-local-settings:
 

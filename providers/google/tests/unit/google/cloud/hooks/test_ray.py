@@ -19,11 +19,15 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.google.cloud.hooks.ray import RayJobHook
+import pytest
 
 from unit.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
 )
+
+# Remove the below workaround once https://github.com/ray-project/ray/issues/56434 is resolved
+pytest.importorskip("airflow.providers.google.cloud.hooks.ray")
+from airflow.providers.google.cloud.hooks.ray import RayJobHook
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_CLUSTER_NAME: str = "test-cluster-name"

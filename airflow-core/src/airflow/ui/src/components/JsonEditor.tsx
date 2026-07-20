@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useRef } from "react";
 
-import { useColorMode } from "src/context/colorMode";
+import Editor, { type EditorProps } from "src/components/MonacoEditor";
+import { useMonacoTheme } from "src/context/colorMode";
 
 type JsonEditorProps = {
   readonly editable?: boolean;
@@ -39,7 +39,7 @@ export const JsonEditor = ({
   value,
   ...rest
 }: JsonEditorProps) => {
-  const { colorMode } = useColorMode();
+  const { beforeMount, theme } = useMonacoTheme();
   const onBlurRef = useRef(onBlur);
 
   onBlurRef.current = onBlur;
@@ -54,8 +54,6 @@ export const JsonEditor = ({
     renderLineHighlight: "none",
     scrollBeyondLastLine: false,
   };
-
-  const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
 
   const handleChange = (val: string | undefined) => {
     onChange?.(val ?? "");
@@ -72,6 +70,7 @@ export const JsonEditor = ({
       {...rest}
     >
       <Editor
+        beforeMount={beforeMount}
         height={height}
         language="json"
         onChange={handleChange}

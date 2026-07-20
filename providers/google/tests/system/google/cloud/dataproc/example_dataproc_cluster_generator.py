@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG testing Dataproc
+Example Airflow DAG testing Managed Spark
 operators for managing a cluster and submitting jobs.
 """
 
@@ -81,6 +81,7 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     internal_ip_only=False,
     cluster_tier="CLUSTER_TIER_STANDARD",
     cluster_type="STANDARD",
+    engine="DEFAULT",
 ).make()
 
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
@@ -91,7 +92,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "managed-spark"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
@@ -151,5 +152,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

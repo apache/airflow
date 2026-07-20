@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 
 import pytest
@@ -30,10 +31,26 @@ from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from tests_common.test_utils.config import conf_vars
 
 
+@pytest.fixture(autouse=True)
+def isolated_password_file(tmp_path):
+    """
+    Point the SimpleAuthManager generated-password file at a per-test path.
+
+    By default the file lives under ``AIRFLOW_HOME``, a single path shared by every
+    test process. Fixtures and tests here create, overwrite, and delete it, so under
+    parallel (xdist) runs one process can delete the file another is mid-read on,
+    raising ``FileNotFoundError``. Giving each test its own ``tmp_path`` file removes
+    that cross-process race.
+    """
+    password_file = tmp_path / "simple_auth_manager_passwords.json.generated"
+    with conf_vars({("core", "simple_auth_manager_passwords_file"): str(password_file)}):
+        yield
+
+
 @pytest.fixture
 def auth_manager():
     auth_manager = SimpleAuthManager()
-    if os.path.exists(auth_manager.get_generated_password_file()):
+    with contextlib.suppress(FileNotFoundError):
         os.remove(auth_manager.get_generated_password_file())
     return auth_manager
 

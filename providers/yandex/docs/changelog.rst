@@ -27,6 +27,50 @@
 Changelog
 ---------
 
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multi-team lookup to Lockbox backend (#65695)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+* ``Remove the lxml workaround (#64554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix pytest in Yandexcloud if 0.384.0 (#64696)``
+
+4.4.1
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Migrate yandex connection UI metadata to YAML (#63506)``
+* ``Add 'PydanticAIHook' to 'common.ai' provider (#62546)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 4.4.0
 .....
 

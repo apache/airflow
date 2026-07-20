@@ -271,20 +271,18 @@ Example:
 
     ExecuteTask(
         token="mock",
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
             task_id="mock",
             dag_id="mock",
             run_id="mock",
             try_number=1,
+            dag_version_id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
             map_index=-1,
             pool_slots=1,
             queue="default",
             priority_weight=1,
             executor_config=None,
-            parent_context_carrier=None,
-            context_carrier=None,
-            queued_dttm=None,
         ),
         dag_rel_path=PurePosixPath("mock.py"),
         bundle_info=BundleInfo(name="n/a", version="no matter"),
@@ -312,6 +310,7 @@ The following methods must be overridden at minimum to have your executor suppor
 
 * ``sync``: Sync will get called periodically during executor heartbeats. Implement this method to update the state of the tasks which the executor knows about. Optionally, attempting to execute queued tasks that have been received from the scheduler.
 * ``execute_async``: Executes a *workload* asynchronously. This method is called (after a few layers) during executor heartbeat which is run periodically by the scheduler. In practice, this method often just enqueues tasks into an internal or external queue of tasks to be run (e.g. ``KubernetesExecutor``). But can also execute the tasks directly as well (e.g. ``LocalExecutor``). This will depend on the executor.
+* ``_process_workloads``: Processes a list of workloads that have been queued via ``queue_workload``. This method is called during executor heartbeat and defines how the executor handles the execution of workloads (e.g., queuing them to workers, submitting to external systems, etc.).
 
 
 Optional Interface Methods to Implement

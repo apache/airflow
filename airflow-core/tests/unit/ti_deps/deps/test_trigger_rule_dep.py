@@ -620,12 +620,18 @@ class TestTriggerRuleDep:
         )
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
-    @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
+    @pytest.mark.parametrize(
+        ("flag_upstream_failed", "expected_ti_state", "expected_reason"),
+        [
+            (True, SKIPPED, "requires at least one upstream task success"),
+            (False, None, "requires at least one upstream task success"),
+        ],
+    )
     def test_none_failed_min_one_success_tr_skipped(
-        self, session, get_task_instance, flag_upstream_failed, expected_ti_state
+        self, session, get_task_instance, flag_upstream_failed, expected_ti_state, expected_reason
     ):
         """
-        None failed min one success trigger rule success with all skipped
+        None failed min one success trigger rule with all skipped upstreams
         """
         ti = get_task_instance(
             TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
@@ -642,6 +648,7 @@ class TestTriggerRuleDep:
             session=session,
             flag_upstream_failed=flag_upstream_failed,
             expected_ti_state=expected_ti_state,
+            expected_reason=expected_reason,
         )
 
     @pytest.mark.parametrize(
@@ -857,6 +864,193 @@ class TestTriggerRuleDep:
             expected_reason=exp_reason,
             expected_ti_state=exp_state if exp_state and flag_upstream_failed else None,
         )
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    def test_teardown_waits_for_in_scope_tasks(self, session, dag_maker, flag_upstream_failed):
+        """
+        Teardown should not run until all tasks between setup and teardown are done.
+
+        Regression test for https://github.com/apache/airflow/issues/29332
+        """
+        with dag_maker(session=session):
+            setup = EmptyOperator(task_id="setup").as_setup()
+            t1 = EmptyOperator(task_id="t1")
+            t2 = EmptyOperator(task_id="t2")
+            t3 = EmptyOperator(task_id="t3")
+            teardown_task = EmptyOperator(task_id="teardown").as_teardown(setups=setup)
+            setup >> t1 >> t2 >> t3 >> teardown_task
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+
+        for task_id in ("setup", "t2", "t3"):
+            tis[task_id].state = SUCCESS
+            session.merge(tis[task_id])
+        session.flush()
+
+        teardown_ti = tis["teardown"]
+        teardown_ti.task = dag_maker.dag.get_task("teardown")
+        assert teardown_ti.state is None
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=teardown_ti,
+                dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+                session=session,
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+        assert "in-scope" in dep_statuses[0].reason
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    def test_teardown_runs_when_all_in_scope_tasks_done(self, session, dag_maker, flag_upstream_failed):
+        """
+        Teardown should run when all tasks between setup and teardown are done.
+        """
+        with dag_maker(session=session):
+            setup = EmptyOperator(task_id="setup").as_setup()
+            t1 = EmptyOperator(task_id="t1")
+            t2 = EmptyOperator(task_id="t2")
+            t3 = EmptyOperator(task_id="t3")
+            teardown_task = EmptyOperator(task_id="teardown").as_teardown(setups=setup)
+            setup >> t1 >> t2 >> t3 >> teardown_task
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+
+        for task_id in ("setup", "t1", "t2", "t3"):
+            tis[task_id].state = SUCCESS
+            session.merge(tis[task_id])
+        session.flush()
+
+        teardown_ti = tis["teardown"]
+        teardown_ti.task = dag_maker.dag.get_task("teardown")
+        assert teardown_ti.state is None
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=teardown_ti,
+                dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+                session=session,
+            )
+        )
+        assert not dep_statuses
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    def test_teardown_waits_for_multiple_cleared_in_scope_tasks(
+        self, session, dag_maker, flag_upstream_failed
+    ):
+        """
+        Teardown should wait when multiple in-scope tasks are not done.
+        """
+        with dag_maker(session=session):
+            setup = EmptyOperator(task_id="setup").as_setup()
+            t1 = EmptyOperator(task_id="t1")
+            t2 = EmptyOperator(task_id="t2")
+            t3 = EmptyOperator(task_id="t3")
+            teardown_task = EmptyOperator(task_id="teardown").as_teardown(setups=setup)
+            setup >> t1 >> t2 >> t3 >> teardown_task
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+
+        tis["setup"].state = SUCCESS
+        tis["t3"].state = SUCCESS
+        session.merge(tis["setup"])
+        session.merge(tis["t3"])
+        session.flush()
+
+        teardown_ti = tis["teardown"]
+        teardown_ti.task = dag_maker.dag.get_task("teardown")
+        assert teardown_ti.state is None
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=teardown_ti,
+                dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+                session=session,
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    def test_teardown_waits_for_parallel_branches(self, session, dag_maker, flag_upstream_failed):
+        """
+        Teardown should wait when parallel branches have incomplete tasks.
+
+        Reproduces the DAG shape from https://github.com/apache/airflow/issues/29332:
+        setup >> [t_fail, t_slow] >> downstream >> teardown
+        where t_slow is still running when teardown is evaluated.
+        """
+        with dag_maker(session=session):
+            setup = EmptyOperator(task_id="setup").as_setup()
+            t_fail = EmptyOperator(task_id="t_fail")
+            t_slow = EmptyOperator(task_id="t_slow")
+            downstream = EmptyOperator(task_id="downstream")
+            teardown_task = EmptyOperator(task_id="teardown").as_teardown(setups=setup)
+            setup >> [t_fail, t_slow] >> downstream >> teardown_task
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+
+        tis["setup"].state = SUCCESS
+        tis["t_fail"].state = FAILED
+        # t_slow is still running (state=None)
+        session.merge(tis["setup"])
+        session.merge(tis["t_fail"])
+        session.flush()
+
+        teardown_ti = tis["teardown"]
+        teardown_ti.task = dag_maker.dag.get_task("teardown")
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=teardown_ti,
+                dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+                session=session,
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    def test_teardown_runs_when_in_scope_tasks_failed(self, session, dag_maker, flag_upstream_failed):
+        """
+        Teardown should run when all in-scope tasks are done, even if some FAILED.
+
+        Teardowns must run regardless of upstream failure state to clean up resources.
+        """
+        with dag_maker(session=session):
+            setup = EmptyOperator(task_id="setup").as_setup()
+            t1 = EmptyOperator(task_id="t1")
+            t2 = EmptyOperator(task_id="t2")
+            teardown_task = EmptyOperator(task_id="teardown").as_teardown(setups=setup)
+            setup >> t1 >> t2 >> teardown_task
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+
+        tis["setup"].state = SUCCESS
+        tis["t1"].state = FAILED
+        tis["t2"].state = UPSTREAM_FAILED
+        for tid in ("setup", "t1", "t2"):
+            session.merge(tis[tid])
+        session.flush()
+
+        teardown_ti = tis["teardown"]
+        teardown_ti.task = dag_maker.dag.get_task("teardown")
+
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=teardown_ti,
+                dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+                session=session,
+            )
+        )
+        # All in-scope tasks are in terminal states, teardown should proceed
+        assert not dep_statuses
 
     @pytest.mark.parametrize(("flag_upstream_failed", "expected_ti_state"), [(True, SKIPPED), (False, None)])
     def test_all_skipped_tr_failure(
@@ -1320,6 +1514,141 @@ class TestTriggerRuleDep:
         )
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
+        _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
+
+    @pytest.mark.flaky(reruns=5)
+    @pytest.mark.parametrize(
+        ("flag_upstream_failed", "expected_ti_state"),
+        [(True, UPSTREAM_FAILED), (False, None)],
+    )
+    def test_mapped_task_upstream_all_removed_with_none_failed_min_one_success_trigger_rule(
+        self,
+        monkeypatch,
+        session,
+        get_mapped_task_dagrun,
+        flag_upstream_failed,
+        expected_ti_state,
+    ):
+        """
+        Test NONE_FAILED_MIN_ONE_SUCCESS trigger rule with all mapped upstream tasks removed.
+        """
+        dr, task, _ = get_mapped_task_dagrun(
+            trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+            state=REMOVED,
+        )
+
+        # ti with removed upstream ti
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
+        ti.task = task
+
+        upstream_states = _UpstreamTIStates(
+            success=0,
+            skipped=0,
+            failed=0,
+            removed=5,
+            upstream_failed=0,
+            done=5,
+            skipped_setup=0,
+            success_setup=0,
+        )
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
+
+        _test_trigger_rule(
+            ti=ti,
+            session=session,
+            flag_upstream_failed=flag_upstream_failed,
+            expected_reason="requires at least one upstream task success",
+            expected_ti_state=expected_ti_state,
+        )
+
+    @pytest.mark.parametrize("flag_upstream_failed", [True, False])
+    @pytest.mark.parametrize(
+        ("trigger_rule", "upstream_states"),
+        [
+            (
+                TriggerRule.ALL_SUCCESS,
+                _UpstreamTIStates(
+                    success=3,
+                    skipped=0,
+                    failed=0,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+            (
+                TriggerRule.ALL_FAILED,
+                _UpstreamTIStates(
+                    success=0,
+                    skipped=0,
+                    failed=3,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+            (
+                TriggerRule.NONE_FAILED,
+                _UpstreamTIStates(
+                    success=3,
+                    skipped=0,
+                    failed=0,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+            (
+                TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+                _UpstreamTIStates(
+                    success=3,
+                    skipped=0,
+                    failed=0,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+            (
+                TriggerRule.ALL_DONE_MIN_ONE_SUCCESS,
+                _UpstreamTIStates(
+                    success=3,
+                    skipped=0,
+                    failed=0,
+                    upstream_failed=0,
+                    removed=2,
+                    done=5,
+                    skipped_setup=0,
+                    success_setup=0,
+                ),
+            ),
+        ],
+    )
+    def test_non_mapped_task_ignores_removed_upstream_tis(
+        self,
+        monkeypatch,
+        session,
+        get_task_instance,
+        flag_upstream_failed,
+        trigger_rule,
+        upstream_states,
+    ):
+        """
+        Non-mapped trigger-rule checks should exclude removed upstream task instances.
+        """
+        ti = get_task_instance(
+            trigger_rule,
+            normal_tasks=["upstream_1", "upstream_2", "upstream_3", "upstream_4", "upstream_5"],
+        )
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
 

@@ -25,6 +25,81 @@
 Changelog
 ---------
 
+0.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement 'get_cli_user' in the Keycloak auth manager so airflowctl CLI commands can authenticate via a service account (#68175)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.7.3
+.....
+
+Misc
+~~~~
+
+* ``Replace Sphinx Redoc with Swagger API Docs (#67390)``
+* ``Add prek hook to enforce HTTPException is imported from fastapi (#67367)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+0.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Attach default role policies (#67031)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update Keycloak documentation to mention '[api] base_url' (#66023)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Isolate non-provider mypy hooks per distribution with dedicated .build/ venvs (#65492)``
+
+0.7.1
+.....
+
+Misc
+~~~~
+
+* ``Compat sdk conf follow-up for multiple providers (#64161)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add TTL cache with single-flight dedup to Keycloak filter_authorized_dag_ids (#63184)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Adds a state param into keycloak login (#64114)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+
 0.6.0
 .....
 

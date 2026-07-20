@@ -47,18 +47,13 @@ def get_extra_links(
     session: SessionDep,
     dag_bag: DagBagDep,
     map_index: int = -1,
+    try_number: int | None = None,
 ) -> ExtraLinkCollectionResponse:
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
 
     dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
-
-    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
-
-    try:
-        task = dag.get_task(task_id)
-    except TaskNotFound:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with ID = {task_id} not found")
 
     ti = session.scalar(
         select(TaskInstance).where(
@@ -75,8 +70,38 @@ def get_extra_links(
             "TaskInstance not found",
         )
 
+    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
+
+    try:
+        task = dag.get_task(task_id)
+    except TaskNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with ID = {task_id} not found")
+
+    # Resolve which object to use for link generation. For the current try we use
+    # the live TI; for past tries we fetch the immutable TaskInstanceHistory record,
+    # which also validates that the requested try_number actually exists.
+    if try_number is not None and try_number != ti.try_number:
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == dag_id,
+                TaskInstanceHistory.task_id == task_id,
+                TaskInstanceHistory.run_id == dag_run_id,
+                TaskInstanceHistory.map_index == map_index,
+                TaskInstanceHistory.try_number == try_number,
+            )
+        )
+        if not tih:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"TaskInstanceHistory not found for try_number={try_number}",
+            )
+        ti_for_links = tih
+    else:
+        ti_for_links = ti
+
     all_extra_link_pairs = (
-        (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
+        (link_name, task.get_extra_links(ti_for_links, link_name))
+        for link_name in task.extra_links  # type: ignore[arg-type]
     )
     all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
 

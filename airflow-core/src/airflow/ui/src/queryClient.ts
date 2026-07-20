@@ -16,15 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryClient } from "@tanstack/react-query";
 
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
+import { toaster } from "src/components/ui";
+import i18n from "src/i18n/config";
+import { getErrorStatus } from "src/utils";
 
 // Dynamically set the base URL for XHR requests based on the meta tag.
 OpenAPI.BASE = document.querySelector("head>base")?.getAttribute("href") ?? "";
 if (OpenAPI.BASE.endsWith("/")) {
   OpenAPI.BASE = OpenAPI.BASE.slice(0, -1);
 }
+
+// Encode path params as full URI components so values containing "/" (e.g. a variable key like
+// "/foo") become "%2Ffoo" rather than a literal "//", which proxies may collapse. The generated
+// client otherwise defaults to encodeURI, which leaves "/" untouched.
+// The backend automatically decodes path params.
+OpenAPI.ENCODE_PATH = encodeURIComponent;
 
 const RETRY_COUNT = 3;
 
@@ -37,6 +46,28 @@ const retryFunction = (failureCount: number, error: unknown) => {
   }
 
   return failureCount < RETRY_COUNT;
+};
+
+// Track active 403 toast to prevent duplicates when multiple mutations fail
+let active403ToastId: string | undefined;
+
+// Error handler for 403 (Forbidden) responses on user-initiated actions
+const handle403Error = (error: unknown) => {
+  // Check for 403 (Forbidden) only to avoid interfering with 401 (Auth) logic
+  const status = getErrorStatus(error);
+
+  if (status === 403) {
+    // Only show one 403 toast at a time to prevent toast spam
+    // when multiple mutations fail simultaneously
+    if (active403ToastId === undefined || !toaster.isActive(active403ToastId)) {
+      active403ToastId = toaster.create({
+        description: i18n.t("errors.forbidden.description"),
+        title: i18n.t("errors.forbidden.title"),
+        type: "error",
+      });
+    }
+  }
+  // For other errors, let them bubble up to individual mutation handlers
 };
 
 export const client = new QueryClient({
@@ -52,4 +83,7 @@ export const client = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
     },
   },
+  mutationCache: new MutationCache({
+    onError: handle403Error,
+  }),
 });

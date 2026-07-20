@@ -28,6 +28,65 @@
 Changelog
 ---------
 
+4.5.7
+.....
+
+Misc
+~~~~
+
+* ``Bump aiohttp>=3.14.0 (#67978)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.5.6
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Include endpoint_prefix in LivyTrigger serialization (#66966)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``refactor: word changed from DAG to Dag in providers/apache/ (#66153)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
+4.5.5
+.....
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.5.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow override of HTTP method in run_method of LivyAsyncHook (#64150)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Refactor HttpAsyncHook to support session-based async HTTP operations and simplify LivyAsyncHook (#60458)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Remove Connection dependency from shared secrets backend (#61523)``
+   * ``Prepare documentation for next release of providers (2026-02-24) (#62495)``
+   * ``Add 'lifecycle' field to provider.yaml schema and all providers per AIP-95 (#62190)``
+   * ``Standardize connection docs labels across providers (#63455)``
+
 4.5.3
 .....
 

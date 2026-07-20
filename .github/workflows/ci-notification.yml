@@ -36,12 +36,14 @@ jobs:
   workflow-status:
     strategy:
       matrix:
-        branch: ["v3-1-test"]
-        workflow-id: ["ci-amd-arm.yml"]
+        branch: ["v3-3-test"]
+        # Track AMD; ARM is the canary slot and is reported separately by
+        # `ci-arm.yml`'s notify-slack job on schedule events.
+        workflow-id: ["ci-amd.yml"]
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
 
@@ -58,14 +60,17 @@ jobs:
       - name: "Determine notification action"
         id: notification
         shell: bash
-        run: python3 scripts/ci/slack_notification_state.py
+        run: |
+          command -v gh >/dev/null 2>&1 || { echo "::error::gh CLI is not installed"; exit 1; }
+          gh auth status || gh auth login --with-token <<< "${GITHUB_TOKEN}"
+          python3 scripts/ci/slack_notification_state.py
         env:
           ARTIFACT_NAME: "slack-state-ci-${{ matrix.branch }}-${{ matrix.workflow-id }}"
           CURRENT_FAILURES: "${{ steps.find-workflow-run-status.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "Upload notification state"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: "slack-state-ci-${{ matrix.branch }}-${{ matrix.workflow-id }}"
           path: ./slack-state/
@@ -74,7 +79,7 @@ jobs:
 
       - name: "Send Slack notification (new/changed failures)"
         if: steps.notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -95,7 +100,7 @@ jobs:
 
       - name: "Send Slack notification (still not fixed)"
         if: steps.notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -116,7 +121,7 @@ jobs:
 
       - name: "Send Slack notification (all passing)"
         if: steps.notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@91efab103c0de0a537f72a35f6b8cda0ee76bf0a  # v2.1.1
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}

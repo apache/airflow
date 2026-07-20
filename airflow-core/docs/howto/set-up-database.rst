@@ -20,7 +20,7 @@
 Set up a Database Backend
 =========================
 
-Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/14/>`__.
+Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/20/>`__.
 
 The document below describes the database engine configurations, the necessary changes to their configuration to be used with Airflow, as well as changes to the Airflow configurations to connect to these databases.
 
@@ -66,7 +66,7 @@ the example below.
     $ airflow config get-value database sql_alchemy_conn
     sqlite:////tmp/airflow/airflow.db
 
-The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/14/core/engines.html>`__. We will also show you some examples below.
+The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/20/core/engines.html>`__. We will also show you some examples below.
 
 Setting up a SQLite Database
 ----------------------------
@@ -198,7 +198,7 @@ in the Postgres documentation to learn more.
    If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
    1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
 
-   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
+   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/20/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
 
 We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
 
@@ -218,7 +218,7 @@ If you use a current Postgres user with custom search_path, search_path can be c
 
    ALTER USER airflow_user SET search_path = public;
 
-For more information regarding setup of the PostgreSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/14/dialects/postgresql.html>`__ in SQLAlchemy documentation.
+For more information regarding setup of the PostgreSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html>`__ in SQLAlchemy documentation.
 
 .. note::
 
@@ -307,7 +307,7 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
     The integration of MySQL backend has only been validated using the ``mysqlclient`` driver
     during Apache Airflow's continuous integration (CI) process.
 
-If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/14/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
+If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/20/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
 and setup of the SqlAlchemy connection.
 
 In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
@@ -454,7 +454,7 @@ engine configuration).
 - Suitable for non-production environments like staging systems.
 
 You can do it with ``echo=True`` as sqlalchemy engine configuration as explained in the
-`SQLAlchemy logging documentation <https://docs.sqlalchemy.org/en/14/core/engines.html#configuring-logging>`_.
+`SQLAlchemy logging documentation <https://docs.sqlalchemy.org/en/20/core/engines.html#configuring-logging>`_.
 
 Use :ref:`config:database__sql_alchemy_engine_args` configuration parameter to set echo arg to True.
 

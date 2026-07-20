@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import platform
 import re
@@ -59,7 +60,7 @@ STATIC_MODULES: list[str] = [
     "dev/breeze",
     "docker-tests",
     "kubernetes-tests",
-    "helm-tests",
+    "chart/tests",
     "scripts",
     "task-sdk-integration-tests",
 ]
@@ -101,6 +102,7 @@ EXCLUDE_PATTERNS: list[str] = [
     ".ruff-cache",
     ".hypothesis",
     ".cache",
+    ".claude",
     ".tox",
     "htmlcov",
     # Node / frontend
@@ -132,6 +134,7 @@ EXCLUDE_PATTERNS: list[str] = [
 # Derived from root-anchored .gitignore entries (those starting with /).
 ROOT_EXCLUDE_FOLDERS: list[str] = [
     ".build",
+    ".claude",
     ".kube",
     ".venv",
     ".uv-cache",
@@ -479,10 +482,8 @@ def _kill_jetbrains_ides(*, confirm: bool = False) -> bool:
         if not should_kill:
             return True
     for pid, _comm in pids:
-        try:
+        with contextlib.suppress(OSError):
             os.kill(pid, signal.SIGTERM)
-        except OSError:
-            pass
     # Wait up to 5 seconds for graceful shutdown.
     for _ in range(10):
         remaining = _find_jetbrains_pids()
@@ -493,10 +494,8 @@ def _kill_jetbrains_ides(*, confirm: bool = False) -> bool:
     # Force-kill any remaining processes.
     remaining = _find_jetbrains_pids()
     for pid, _comm in remaining:
-        try:
+        with contextlib.suppress(OSError):
             os.kill(pid, signal.SIGKILL)
-        except OSError:
-            pass
     print("[green]JetBrains IDE processes force-killed.[/]\n")
     return True
 

@@ -53,23 +53,15 @@ on:  # yamllint disable-line rule:truthy
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
-  build-and-publish-registry:
-    timeout-minutes: 30
-    name: "Build & Publish Registry"
-    runs-on: ubuntu-latest
-    env:
-      EXISTING_REGISTRY_DIR: /tmp/existing-registry
-      REGISTRY_DATA_DIR: dev/registry
-      REGISTRY_PROVIDERS_JSON: providers.json
-      REGISTRY_MODULES_JSON: modules.json
-      REGISTRY_SITE_DATA_DIR: registry/src/_data
-      REGISTRY_SITE_VERSIONS_DIR: registry/src/_data/versions
-      REGISTRY_SITE_LOGOS_DIR: registry/public/logos
-      REGISTRY_CACHE_CONTROL: public, max-age=300
+  build-ci-image:
+    name: "Build CI image"
+    uses: ./.github/workflows/ci-image-build.yml
     permissions:
       contents: read
+      packages: write
     if: >
       github.event_name == 'workflow_call' ||
       contains(fromJSON('[
@@ -86,35 +78,56 @@ jobs:
         "utkarsharma2",
         "vincbeck"
         ]'), github.event.sender.login)
+    with:
+      runners: '["ubuntu-22.04"]'
+      platform: "linux/amd64"
+      push-image: "false"
+      upload-image-artifact: "true"
+      upload-mount-cache-artifact: "false"
+      python-versions: '["3.12"]'
+      branch: "main"
+      constraints-branch: "constraints-main"
+      use-uv: "true"
+      upgrade-to-newer-dependencies: "false"
+      docker-cache: "registry"
+      disable-airflow-repo-cache: "false"
+
+  build-and-publish-registry:
+    timeout-minutes: 45
+    name: "Build & Publish Registry"
+    needs: [build-ci-image]
+    runs-on: ubuntu-latest
+    env:
+      SCARF_ANALYTICS: "false"
+      DO_NOT_TRACK: "1"
+      EXISTING_REGISTRY_DIR: /tmp/existing-registry
+      REGISTRY_DATA_DIR: dev/registry
+      REGISTRY_PROVIDERS_JSON: providers.json
+      REGISTRY_MODULES_JSON: modules.json
+      REGISTRY_SITE_DATA_DIR: registry/src/_data
+      REGISTRY_SITE_VERSIONS_DIR: registry/src/_data/versions
+      REGISTRY_SITE_LOGOS_DIR: registry/public/logos
+      REGISTRY_CACHE_CONTROL: public, max-age=300
+    permissions:
+      contents: read
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           persist-credentials: false
+          # Tags drive the phantom-version filter in extract_metadata.py
+          # (only versions with a real `providers-<id>/<ver>` tag are
+          # treated as released). Without this, the filter silently
+          # falls back to `versions[0]` and ships phantom versions.
+          fetch-tags: true
 
-      # --- Breeze setup ---
-      # All three extraction scripts run inside breeze so that
-      # extract_parameters.py and extract_connections.py can import provider
-      # classes at runtime.  extract_metadata.py also runs in breeze for
-      # consistency — it writes to dev/registry/ (mounted) so the other two
-      # scripts can read providers.json / modules.json from there.
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
+      - name: "Prepare breeze & CI image"
+        uses: ./.github/actions/prepare_breeze_and_image
         with:
-          python-version: "3.12"
-
-      - name: "Build CI image"
-        # Fallback to raw docker buildx when breeze cache is stale — same
-        # pattern as publish-docs-to-s3.yml.
-        run: >
-          breeze ci-image build --python 3.12 ||
-          docker buildx build --load --builder default --progress=auto --pull
-          --build-arg AIRFLOW_EXTRAS=devel-ci --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES=false
-          --build-arg AIRFLOW_USE_UV=true --build-arg BUILD_PROGRESS=auto
-          --build-arg INSTALL_MYSQL_CLIENT_TYPE=mariadb
-          --build-arg VERSION_SUFFIX_FOR_PYPI=dev0
-          -t ghcr.io/apache/airflow/main/ci/python3.12:latest --target main .
-          -f Dockerfile.ci --platform linux/amd64
+          python: "3.12"
+          platform: "linux/amd64"
+          use-uv: "true"
+          make-mnt-writeable-and-cleanup: "true"
 
       - name: "Install AWS CLI v2"
         run: |
@@ -125,7 +138,7 @@ jobs:
           rm -rf /tmp/aws/
 
       - name: "Configure AWS credentials"
-        uses: aws-actions/configure-aws-credentials@8df5847569e6427dd6c4fb1cf565c83acfa8afa7  # v6.0.0
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b  # v6.2.0
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -168,11 +181,20 @@ jobs:
       - name: "Extract registry data (breeze)"
         env:
           PROVIDER: ${{ inputs.provider }}
+          DESTINATION: ${{ inputs.destination }}
         run: |
+          # Staging dispatches preview unreleased providers (maintainers want to
+          # verify newly-bumped versions look right before tagging). Live builds
+          # filter them so the production registry never ships pointers to
+          # non-existent PyPI releases / GitHub tags / docs pages.
+          ALLOW_UNRELEASED=""
+          if [[ "${DESTINATION}" == "staging" ]]; then
+            ALLOW_UNRELEASED="--allow-unreleased"
+          fi
           if [[ -n "${PROVIDER}" ]]; then
-            breeze registry extract-data --python 3.12 --provider "${PROVIDER}"
+            breeze registry extract-data --python 3.12 --provider "${PROVIDER}" ${ALLOW_UNRELEASED}
           else
-            breeze registry extract-data --python 3.12
+            breeze registry extract-data --python 3.12 ${ALLOW_UNRELEASED}
           fi
 
       # --- Incremental: merge new data with existing ---
@@ -209,14 +231,14 @@ jobs:
           fi
 
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061  # v4.2.0
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
         with:
-          version: 9
+          version: 10
 
       - name: "Setup Node.js"
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f  # v6.3.0
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
         with:
-          node-version: 20
+          node-version: 24
           cache: 'pnpm'
           cache-dependency-path: 'registry/pnpm-lock.yaml'
 
@@ -231,20 +253,97 @@ jobs:
         run: pnpm build
 
       - name: "Upload registry artifact"
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: registry-site
           path: registry/_site
           retention-days: 7
           if-no-files-found: error
 
+      - name: "Verify build emitted expected content"
+        env:
+          PROVIDER: ${{ inputs.provider }}
+        run: |
+          # Guard against silent no-op syncs. `aws s3 sync` exits 0 when the
+          # source dir is missing or empty, so without this a partial build
+          # (e.g. extract_metadata.py errored mid-run) would report green
+          # while uploading nothing or stale state. Mirrors the per-provider
+          # guard in the "Sync backfilled version pages to S3" step in
+          # registry-backfill.yml.
+          if [[ -n "${PROVIDER}" ]]; then
+            # Incremental: verify each target provider's pages and versions JSON exist.
+            for pid in ${PROVIDER}; do
+              LOCAL_PROV_DIR="registry/_site/providers/${pid}/"
+              LOCAL_API_DIR="registry/_site/api/providers/${pid}/"
+              LOCAL_VERSIONS_JSON="${LOCAL_API_DIR}versions.json"
+              if [ ! -d "${LOCAL_PROV_DIR}" ] || [ -z "$(ls -A "${LOCAL_PROV_DIR}" 2>/dev/null)" ]; then
+                echo "::error::Build did not emit ${LOCAL_PROV_DIR} -- aborting sync."
+                exit 1
+              fi
+              if [ ! -d "${LOCAL_API_DIR}" ] || [ -z "$(ls -A "${LOCAL_API_DIR}" 2>/dev/null)" ]; then
+                echo "::error::Build did not emit ${LOCAL_API_DIR} -- aborting sync."
+                exit 1
+              fi
+              if [ ! -s "${LOCAL_VERSIONS_JSON}" ]; then
+                echo "::error::${LOCAL_VERSIONS_JSON} missing or empty -- aborting sync."
+                exit 1
+              fi
+            done
+          else
+            # Full build: verify the top-level homepage and provider listing.
+            if [ ! -s "registry/_site/index.html" ]; then
+              echo "::error::Full build did not emit registry/_site/index.html -- aborting sync."
+              exit 1
+            fi
+            if [ ! -s "registry/_site/api/providers.json" ]; then
+              echo "::error::registry/_site/api/providers.json missing or empty -- aborting sync."
+              exit 1
+            fi
+            API_PROVIDERS_DIR="registry/_site/api/providers/"
+            if [ ! -d "${API_PROVIDERS_DIR}" ] || [ -z "$(ls -A "${API_PROVIDERS_DIR}" 2>/dev/null)" ]; then
+              echo "::error::${API_PROVIDERS_DIR} is missing or empty -- aborting sync."
+              exit 1
+            fi
+          fi
+
       - name: "Sync registry to S3"
         env:
           S3_BUCKET: ${{ steps.destination.outputs.bucket }}
+          PROVIDER: ${{ inputs.provider }}
         run: |
+          # Incremental builds only extract data for the target provider(s).
+          # Eleventy rebuilds all pages, but non-target providers have
+          # incomplete data (no connections/parameters, wrong version info).
+          # Exclude both per-provider API JSON and HTML pages from the main
+          # sync, then selectively upload only the target provider's files.
+          EXCLUDE_PROVIDERS=()
+          if [[ -n "${PROVIDER}" ]]; then
+            # Exclude per-provider subtrees but re-include global listing
+            # pages. AWS CLI processes filters in order — later rules win.
+            EXCLUDE_PROVIDERS=(
+              --exclude "api/providers/*"
+              --exclude "providers/*"
+              --include "providers/index.html"
+            )
+          fi
+
           aws s3 sync registry/_site/ "${S3_BUCKET}" \
             --cache-control "${REGISTRY_CACHE_CONTROL}" \
-            --exclude "pagefind/*"
+            --exclude "pagefind/*" \
+            "${EXCLUDE_PROVIDERS[@]}"
+
+          # For incremental builds, sync only the target provider's files.
+          if [[ -n "${PROVIDER}" ]]; then
+            for pid in ${PROVIDER}; do
+              aws s3 sync "registry/_site/api/providers/${pid}/" \
+                "${S3_BUCKET}api/providers/${pid}/" \
+                --cache-control "${REGISTRY_CACHE_CONTROL}"
+              aws s3 sync "registry/_site/providers/${pid}/" \
+                "${S3_BUCKET}providers/${pid}/" \
+                --cache-control "${REGISTRY_CACHE_CONTROL}"
+            done
+          fi
+
           # Pagefind generates content-hashed filenames (e.g. en_181da6f.pf_index).
           # Each rebuild produces new hashes, so --delete is needed to remove stale
           # index files. This is separate from the main sync which intentionally

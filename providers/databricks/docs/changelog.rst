@@ -26,6 +26,102 @@
 Changelog
 ---------
 
+7.16.1
+......
+
+.. note::
+   ``DatabricksCreateJobsOperator``, ``DatabricksSubmitRunOperator`` and ``DatabricksRunNowOperator``
+   now assemble and validate their Databricks request payload at task **execution** time instead of
+   at operator construction time. This is required so that templated ``json`` payloads and templated
+   named parameters (including values pulled from XCom) are rendered before the payload is built.
+   As a result, payload-validation errors that previously surfaced while the Dag was parsed — e.g.
+   ``git_source is required for dbt_task``, ``'pipeline_name' is not allowed in conjunction with
+   'pipeline_id'``, ``Argument 'job_name' is not allowed with argument 'job_id'`` and invalid
+   payload types — now surface when the task runs. A templated ``json`` payload may now also resolve
+   to a Python-dict-literal string (what classic Jinja produces when rendering a dict pulled from
+   XCom), in addition to a mapping or a JSON string.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks operators with templated json payloads (#68519)``
+
+Misc
+~~~~
+
+* ``Bump aiohttp>=3.14.0 (#67978)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment hint about pandas 3.0.0 (#67961)``
+
+7.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Fail fast for non-serializable retry_args in deferrable operators and triggers (#64960)``
+* ``Forward Airflow Dag params to Databricks job parameters in CreateJobs/SubmitRun/RunNow (#66613)``
+* ``Add session-level query tags to Databricks SQL operators (#66895)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Lock in Databricks workflow depends_on parent-key behavior (#66681)``
+
+Misc
+~~~~
+
+* ``Remove further findings from positional session check (#67712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+7.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+* ``Support user-assigned managed identity for Azure VM auth (#66072)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Repair action missing job parameters in 'DatabricksRunNowOperator' (#67055)``
+* ``Preserve Databricks deferrable trigger caller across triggerer restarts (#66965)``
+* ``Fix 'DatabricksWorkflowTaskGroup' leaking TaskGroupContext on internal exception (#66582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky databricks token-expiry test by freezing time_machine (#66660)``
+   * ``Enable plugin tests in test_databricks_workflow.py for Airflow 3.0+ (#66442)``
+
+7.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'access_control_list' to 'DatabricksWorkflowTaskGroup' (#64538)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add 'task_config' to 'template_fields' for 'DatabricksTaskOperator' (#65858)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+7.13.0
+......
+
 .. note:: **Security fix — TLS verification for Kubernetes TokenRequest API (affects Kubernetes OIDC token federation)**
 
    The Kubernetes TokenRequest API call made during ``federated_k8s`` authentication now verifies the
@@ -43,6 +139,61 @@ Changelog
    **Potentially impacted:** Non-compliant or highly customized Kubernetes distributions that do not
    mount ``ca.crt`` at ``/var/run/secrets/kubernetes.io/serviceaccount/ca.crt``. If you are affected,
    please open an issue so support for a configurable CA path can be added.
+
+Features
+~~~~~~~~
+
+* ``Implement on_kill() trigger hook for Databricks triggers (#65672)``
+
+Doc-only
+~~~~~~~~
+
+* ``Cleanup databricks docs for 'DatabricksWorkflowTaskGroup' (#65135)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+7.12.1
+......
+
+Misc
+~~~~
+
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add new hook method (#62822)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix typo in 'monitor_databricks_job' (#63651)``
+* ``Enable TLS certificate verification for K8s token exchange in 'DatabricksHook' (#63704)``
+* ``Map Airflow trigger_rule to Databricks run_if in 'DatabricksWorkflowTaskGroup' (#63420)``
+* ``Fix broken import of 'aiofiles' in 'BaseDatabricksHook' (#63518)``
+* ``Fail deferrable runs that terminate before defer (#62917)``
+* ``Fix sql_warehouse_name resolution: handle 'warehouses' API response key (#63286)``
+* ``Handle concurrent create race in DatabricksReposCreateOperator when ignore_existing_repo=True. If create_repo() fails, the operator now re-checks repository existence and proceeds if the repository was created concurrently; otherwise, the original exception is re-raised. Add unit tests covering recovery and failure propagation under concurrent create scenarios. (#62422)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+* ``Fix AIR004* in multiple example DAGs (#62529)``
+* ``Refactor timeout handling in DatabricksSqlHook to use explicit signaling (#62623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
 
 7.11.0
 ......

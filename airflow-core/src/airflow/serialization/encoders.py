@@ -27,6 +27,8 @@ import pendulum
 
 from airflow._shared.module_loading import qualname
 from airflow.partition_mappers.base import PartitionMapper as CorePartitionMapper
+from airflow.partition_mappers.wait_policy import WaitPolicy as CoreWaitPolicy
+from airflow.partition_mappers.window import Window as CoreWindow
 from airflow.sdk import (
     AllowedKeyMapper,
     Asset,
@@ -34,27 +36,42 @@ from airflow.sdk import (
     AssetAll,
     AssetAny,
     AssetOrTimeSchedule,
+    ChainMapper,
     CronDataIntervalTimetable,
     CronTriggerTimetable,
-    DailyMapper,
+    DayWindow,
     DeltaDataIntervalTimetable,
     DeltaTriggerTimetable,
     EventsTimetable,
+    FanOutMapper,
+    FixedKeyMapper,
+    HourWindow,
     IdentityMapper,
-    MonthlyMapper,
+    MinimumCount,
+    MonthWindow,
     MultipleCronTriggerTimetable,
     PartitionMapper,
     ProductMapper,
-    QuarterlyMapper,
-    WeeklyMapper,
-    YearlyMapper,
+    QuarterWindow,
+    RollupMapper,
+    SegmentWindow,
+    StartOfDayMapper,
+    StartOfHourMapper,
+    StartOfMonthMapper,
+    StartOfQuarterMapper,
+    StartOfWeekMapper,
+    StartOfYearMapper,
+    WaitForAll,
+    WeekWindow,
+    Window,
+    YearWindow,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.partition_mappers.temporal import HourlyMapper
 from airflow.sdk.definitions.timetables.assets import (
     AssetTriggeredTimetable,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.sdk.definitions.timetables.trigger import CronPartitionTimetable
@@ -70,10 +87,14 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.deadline import SerializedDeadlineAlert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import (
+    WaitPolicyNotSupported,
     find_registered_custom_partition_mapper,
     find_registered_custom_timetable,
+    find_registered_custom_window,
     is_core_partition_mapper_import_path,
     is_core_timetable_import_path,
+    is_core_wait_policy_import_path,
+    is_core_window_import_path,
 )
 from airflow.timetables.base import Timetable as CoreTimetable
 from airflow.utils.docs import get_docs_url
@@ -84,6 +105,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
     from airflow.sdk.definitions.deadline import DeadlineAlert
+    from airflow.sdk.definitions.partition_mappers.wait_policy import WaitPolicy
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
@@ -161,6 +183,14 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
     if isinstance(trigger, dict):
         classpath = trigger["classpath"]
         kwargs = trigger["kwargs"]
+        # unwrap any kwargs that are themselves serialized objects, to avoid double-serialization in the trigger's own serialize() method.
+        unwrapped = {}
+        for k, v in kwargs.items():
+            if isinstance(v, dict) and Encoding.TYPE in v:
+                unwrapped[k] = BaseSerialization.deserialize(v)
+            else:
+                unwrapped[k] = v
+        kwargs = unwrapped
     else:
         classpath, kwargs = trigger.serialize()
     return {
@@ -181,6 +211,21 @@ def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
             d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group, "extra": a.extra}
             if a.watchers:
                 d["watchers"] = [{"name": w.name, "trigger": encode_trigger(w.trigger)} for w in a.watchers]
+            ac = a.access_control
+            if isinstance(ac, dict):
+                # SerializedAsset stores access_control as a plain dict.
+                if ac:
+                    d["access_control"] = ac
+            else:
+                # Asset stores access_control as an AssetAccessControl instance.
+                if ac.producer_teams or ac.consumer_teams is not None or not ac.allow_global:
+                    ac_dict: dict[str, Any] = {
+                        "producer_teams": ac.producer_teams,
+                        "allow_global": ac.allow_global,
+                    }
+                    if ac.consumer_teams is not None:
+                        ac_dict["consumer_teams"] = ac.consumer_teams
+                    d["access_control"] = ac_dict
             return d
         case AssetAlias() | SerializedAssetAlias():
             return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
@@ -202,8 +247,9 @@ def encode_deadline_alert(d: DeadlineAlert | SerializedDeadlineAlert) -> dict[st
     from airflow.sdk.serde import serialize
 
     return {
+        "name": d.name,
         "reference": encode_deadline_reference(d.reference),
-        "interval": d.interval.total_seconds(),
+        "interval": serialize(d.interval),
         "callback": serialize(d.callback),
     }
 
@@ -283,6 +329,7 @@ class _Serializer:
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
+        PartitionedAtRuntime: "airflow.timetables.simple.PartitionedAtRuntime",
         PartitionedAssetTimetable: "airflow.timetables.simple.PartitionedAssetTimetable",
     }
 
@@ -308,7 +355,10 @@ class _Serializer:
     @serialize_timetable.register(ContinuousTimetable)
     @serialize_timetable.register(NullTimetable)
     @serialize_timetable.register(OnceTimetable)
-    def _(self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable) -> dict[str, Any]:
+    @serialize_timetable.register(PartitionedAtRuntime)
+    def _(
+        self, timetable: ContinuousTimetable | NullTimetable | OnceTimetable | PartitionedAtRuntime
+    ) -> dict[str, Any]:
         return {}
 
     @serialize_timetable.register
@@ -392,15 +442,19 @@ class _Serializer:
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
-        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
-        HourlyMapper: "airflow.partition_mappers.temporal.HourlyMapper",
-        DailyMapper: "airflow.partition_mappers.temporal.DailyMapper",
-        WeeklyMapper: "airflow.partition_mappers.temporal.WeeklyMapper",
-        MonthlyMapper: "airflow.partition_mappers.temporal.MonthlyMapper",
-        QuarterlyMapper: "airflow.partition_mappers.temporal.QuarterlyMapper",
-        YearlyMapper: "airflow.partition_mappers.temporal.YearlyMapper",
-        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
         AllowedKeyMapper: "airflow.partition_mappers.allowed_key.AllowedKeyMapper",
+        ChainMapper: "airflow.partition_mappers.chain.ChainMapper",
+        FanOutMapper: "airflow.partition_mappers.temporal.FanOutMapper",
+        FixedKeyMapper: "airflow.partition_mappers.fixed_key.FixedKeyMapper",
+        IdentityMapper: "airflow.partition_mappers.identity.IdentityMapper",
+        ProductMapper: "airflow.partition_mappers.product.ProductMapper",
+        RollupMapper: "airflow.partition_mappers.base.RollupMapper",
+        StartOfDayMapper: "airflow.partition_mappers.temporal.StartOfDayMapper",
+        StartOfHourMapper: "airflow.partition_mappers.temporal.StartOfHourMapper",
+        StartOfMonthMapper: "airflow.partition_mappers.temporal.StartOfMonthMapper",
+        StartOfQuarterMapper: "airflow.partition_mappers.temporal.StartOfQuarterMapper",
+        StartOfWeekMapper: "airflow.partition_mappers.temporal.StartOfWeekMapper",
+        StartOfYearMapper: "airflow.partition_mappers.temporal.StartOfYearMapper",
     }
 
     @functools.singledispatchmethod
@@ -412,39 +466,142 @@ class _Serializer:
         return partition_mapper.serialize()
 
     @serialize_partition_mapper.register
-    def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
-        return {}
+    def _(self, partition_mapper: ChainMapper) -> dict[str, Any]:
+        data: dict[str, Any] = {"mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers]}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
-    @serialize_partition_mapper.register(HourlyMapper)
-    @serialize_partition_mapper.register(DailyMapper)
-    @serialize_partition_mapper.register(WeeklyMapper)
-    @serialize_partition_mapper.register(MonthlyMapper)
-    @serialize_partition_mapper.register(QuarterlyMapper)
-    @serialize_partition_mapper.register(YearlyMapper)
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
+        data: dict[str, Any] = {}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: FixedKeyMapper) -> dict[str, Any]:
+        data: dict[str, Any] = {"downstream_key": partition_mapper.downstream_key}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
+
+    @serialize_partition_mapper.register(StartOfHourMapper)
+    @serialize_partition_mapper.register(StartOfDayMapper)
+    @serialize_partition_mapper.register(StartOfWeekMapper)
+    @serialize_partition_mapper.register(StartOfMonthMapper)
+    @serialize_partition_mapper.register(StartOfQuarterMapper)
+    @serialize_partition_mapper.register(StartOfYearMapper)
     def _(
         self,
-        partition_mapper: HourlyMapper
-        | DailyMapper
-        | WeeklyMapper
-        | MonthlyMapper
-        | QuarterlyMapper
-        | YearlyMapper,
+        partition_mapper: StartOfHourMapper
+        | StartOfDayMapper
+        | StartOfWeekMapper
+        | StartOfMonthMapper
+        | StartOfQuarterMapper
+        | StartOfYearMapper,
     ) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
+            "timezone": encode_timezone(partition_mapper._timezone),
             "input_format": partition_mapper.input_format,
             "output_format": partition_mapper.output_format,
         }
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: ProductMapper) -> dict[str, Any]:
-        return {
+        data: dict[str, Any] = {
             "delimiter": partition_mapper.delimiter,
             "mappers": [encode_partition_mapper(m) for m in partition_mapper.mappers],
         }
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: AllowedKeyMapper) -> dict[str, Any]:
-        return {"allowed_keys": partition_mapper.allowed_keys}
+        data: dict[str, Any] = {"allowed_keys": partition_mapper.allowed_keys}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: RollupMapper) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "upstream_mapper": encode_partition_mapper(partition_mapper.upstream_mapper),
+            "window": encode_window(partition_mapper.window),
+            "wait_policy": encode_wait_policy(partition_mapper.wait_policy),
+        }
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
+
+    @serialize_partition_mapper.register
+    def _(self, partition_mapper: FanOutMapper) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "upstream_mapper": encode_partition_mapper(partition_mapper.upstream_mapper),
+            "window": encode_window(partition_mapper.window),
+            "downstream_mapper": encode_partition_mapper(partition_mapper.downstream_mapper),
+        }
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
+
+    BUILTIN_WINDOWS: dict[type, str] = {
+        HourWindow: "airflow.partition_mappers.window.HourWindow",
+        DayWindow: "airflow.partition_mappers.window.DayWindow",
+        WeekWindow: "airflow.partition_mappers.window.WeekWindow",
+        MonthWindow: "airflow.partition_mappers.window.MonthWindow",
+        QuarterWindow: "airflow.partition_mappers.window.QuarterWindow",
+        SegmentWindow: "airflow.partition_mappers.window.SegmentWindow",
+        YearWindow: "airflow.partition_mappers.window.YearWindow",
+    }
+
+    @functools.singledispatchmethod
+    def serialize_window(self, window: Window | CoreWindow) -> dict[str, Any]:
+        if not isinstance(window, CoreWindow):
+            raise NotImplementedError(f"can not serialize window {type(window).__name__}")
+        return window.serialize()
+
+    @serialize_window.register(HourWindow)
+    @serialize_window.register(DayWindow)
+    @serialize_window.register(WeekWindow)
+    @serialize_window.register(MonthWindow)
+    @serialize_window.register(QuarterWindow)
+    @serialize_window.register(YearWindow)
+    def _(
+        self,
+        window: HourWindow | DayWindow | WeekWindow | MonthWindow | QuarterWindow | YearWindow,
+    ) -> dict[str, Any]:
+        return window.serialize()
+
+    @serialize_window.register
+    def _(self, window: SegmentWindow) -> dict[str, Any]:
+        return {"segments": sorted(window._segments)}
+
+    # SDK classes are what user Dag files instantiate; after deserialization a
+    # re-encoded WaitPolicy may be the core class, in which case the
+    # qualname-prefix check in encode_wait_policy() accepts it.
+    BUILTIN_WAIT_POLICIES: dict[type, str] = {
+        WaitForAll: "airflow.partition_mappers.wait_policy.WaitForAll",
+        MinimumCount: "airflow.partition_mappers.wait_policy.MinimumCount",
+    }
+
+    @functools.singledispatchmethod
+    def serialize_wait_policy(self, policy: WaitPolicy | CoreWaitPolicy) -> dict[str, Any]:
+        if not isinstance(policy, CoreWaitPolicy):
+            raise NotImplementedError(f"can not serialize wait policy {type(policy).__name__!r}")
+        return policy.serialize()
+
+    @serialize_wait_policy.register(WaitForAll)
+    def _(self, policy: WaitForAll) -> dict[str, Any]:
+        return {}
+
+    @serialize_wait_policy.register(MinimumCount)
+    def _(self, policy: MinimumCount) -> dict[str, Any]:
+        return {"n": policy.n}
 
 
 _serializer = _Serializer()
@@ -534,4 +691,66 @@ def encode_partition_mapper(var: PartitionMapper | CorePartitionMapper) -> dict[
     return {
         Encoding.TYPE: qn,
         Encoding.VAR: _serializer.serialize_partition_mapper(var),
+    }
+
+
+def encode_window(var: Window | CoreWindow) -> dict[str, Any]:
+    """
+    Encode a :class:`Window` instance.
+
+    Custom subclasses must be registered via the ``windows`` plugin attribute;
+    unregistered classes raise :class:`WindowNotSupported` so the scheduler
+    never deserializes an attacker-controlled import path.
+
+    The ``BUILTIN_WINDOWS`` fast path maps the SDK classes user code instantiates
+    (e.g. ``from airflow.sdk import WeekWindow``); after deserialization a
+    re-encoded Window may be the core class, in which case the qualname-prefix
+    check accepts it.
+
+    :meta private:
+    """
+    var_type = type(var)
+    importable_string = _serializer.BUILTIN_WINDOWS.get(var_type)
+    if importable_string is not None:
+        return {
+            Encoding.TYPE: importable_string,
+            Encoding.VAR: _serializer.serialize_window(var),
+        }
+
+    qn = qualname(var)
+    if is_core_window_import_path(qn) is False:
+        # This raises if not found.
+        find_registered_custom_window(qn)
+
+    return {
+        Encoding.TYPE: qn,
+        Encoding.VAR: _serializer.serialize_window(var),
+    }
+
+
+def encode_wait_policy(var: WaitPolicy | CoreWaitPolicy) -> dict[str, Any]:
+    """
+    Encode a :class:`WaitPolicy` instance.
+
+    Only built-in ``WaitPolicy`` subclasses are accepted. Custom subclasses
+    raise :class:`WaitPolicyNotSupported`. The ``BUILTIN_WAIT_POLICIES``
+    fast path maps the SDK classes user code instantiates; after
+    deserialization a re-encoded WaitPolicy may be the core class, in which
+    case the qualname-prefix check accepts it.
+
+    :meta private:
+    """
+    var_type = type(var)
+    importable_string = _serializer.BUILTIN_WAIT_POLICIES.get(var_type)
+    if importable_string is not None:
+        return {
+            Encoding.TYPE: importable_string,
+            Encoding.VAR: _serializer.serialize_wait_policy(var),
+        }
+    qn = qualname(var)
+    if not is_core_wait_policy_import_path(qn):
+        raise WaitPolicyNotSupported(qn)
+    return {
+        Encoding.TYPE: qn,
+        Encoding.VAR: _serializer.serialize_wait_policy(var),
     }

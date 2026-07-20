@@ -115,7 +115,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.3": "fe199e1abd77",
     "3.1.0": "cc92b33c6709",
     "3.1.8": "509b94a1042d",
-    "3.2.0": "888b59e02a5b",
+    "3.2.0": "1d6611b6ab7c",
+    "3.3.0": "d2f4e1b3c5a7",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -151,19 +152,28 @@ def timeout_with_traceback(seconds, message="Operation timed out"):
         raise TimeoutException(message)
 
     # Set the signal handler
-    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(seconds)
+    timeout_supported = False
+    try:
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(seconds)
+        timeout_supported = True
+    except (AttributeError, ValueError):
+        log.warning(
+            "timeout_with_traceback requires signal.SIGALRM and the main thread. "
+            "Proceeding without a timeout."
+        )
 
     try:
         yield
     finally:
-        # Cancel the alarm and restore the old handler
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
+        if timeout_supported:
+            # Cancel the alarm and restore the old handler
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
 
 @provide_session
-def merge_conn(conn: Connection, session: Session = NEW_SESSION):
+def merge_conn(conn: Connection, *, session: Session = NEW_SESSION):
     """Add new Connection."""
     if not session.scalar(select(1).where(conn.__class__.conn_id == conn.conn_id)):
         session.add(conn)
@@ -171,7 +181,7 @@ def merge_conn(conn: Connection, session: Session = NEW_SESSION):
 
 
 @provide_session
-def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
+def add_default_pool_if_not_exists(*, session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     from airflow.models.pool import Pool
 
@@ -187,12 +197,12 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
 
 
 @provide_session
-def create_default_connections(session: Session = NEW_SESSION):
+def create_default_connections(*, session: Session = NEW_SESSION):
     """Create default Airflow connections."""
     conns = get_default_connections()
 
     for c in conns:
-        merge_conn(c, session)
+        merge_conn(c, session=session)
 
 
 def get_default_connections():
@@ -826,7 +836,7 @@ def _single_connection_pool() -> Generator[None, None, None]:
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION, use_migration_files: bool = False):
+def initdb(*, session: Session = NEW_SESSION, use_migration_files: bool = False):
     """
     Initialize Airflow database.
 
@@ -1094,7 +1104,7 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
 
 
 @provide_session
-def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
+def _check_migration_errors(*, session: Session = NEW_SESSION) -> Iterable[str]:
     """:session: session of the sqlalchemy."""
     check_functions: Iterable[Callable[..., Iterable[str]]] = ()
     for check_fn in check_functions:
@@ -1193,6 +1203,13 @@ def _run_upgradedb(
         current_revision = _get_current_revision(session=work_session)
         with _configured_alembic_environment() as env:
             source_heads = env.script.get_heads()
+
+        # End the read-only transaction from _get_current_revision before
+        # external DB manager migrations, which may run DDL that is blocked by
+        # open transactions (e.g. CREATE INDEX CONCURRENTLY). The advisory lock
+        # from create_global_lock() is unaffected: it is session-level and held
+        # on a separate connection.
+        work_session.rollback()
 
         if current_revision == source_heads[0] and not _SKIP_EXTERNAL_DB_MANAGERS_UPGRADE.get():
             external_db_manager = RunDBManager()
@@ -1317,7 +1334,7 @@ def _resetdb_default(session: Session) -> None:
 
 
 @provide_session
-def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
+def resetdb(*, session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
     """
     Clear out the database.
 
@@ -1504,7 +1521,7 @@ def drop_airflow_moved_tables(connection):
 
 
 @provide_session
-def check(session: Session = NEW_SESSION):
+def check(*, session: Session = NEW_SESSION):
     """
     Check if the database works.
 

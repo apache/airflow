@@ -18,18 +18,18 @@
  */
 import { QueryClient } from "@tanstack/react-query";
 
-import { OpenAPI } from "openapi/requests/core/OpenAPI";
 import { client } from "openapi/requests/services.gen";
 
 // Dynamically set the base URL for XHR requests based on the meta tag.
-OpenAPI.BASE = document.querySelector("head>base")?.getAttribute("href") ?? "";
-if (OpenAPI.BASE.endsWith("/")) {
-  OpenAPI.BASE = OpenAPI.BASE.slice(0, -1);
+let base = document.querySelector("head>base")?.getAttribute("href") ?? "";
+
+if (base.endsWith("/")) {
+  base = base.slice(0, -1);
 }
 
 // Configure the generated API client so requests include the subpath prefix
 // when Airflow runs behind a reverse proxy (e.g. /team-a/auth/token instead of /auth/token).
-client.setConfig({ baseURL: OpenAPI.BASE });
+client.setConfig({ baseURL: base, throwOnError: true });
 
 export const queryClient = new QueryClient({
   defaultOptions: {

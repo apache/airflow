@@ -19,9 +19,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { useDagServiceDeleteDag, useDagServiceGetDagsUiKey } from "openapi/queries";
-import { useDagServiceGetDagKey } from "openapi/queries";
+import { useDagServiceDeleteDag, useDagServiceGetDagsUiKey, useDagServiceGetDagKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
+import { gridQueryKeys } from "src/queries/gridViewQueryKeys";
+import { createErrorToaster } from "src/utils";
 
 export const useDeleteDag = ({
   dagId,
@@ -33,18 +34,23 @@ export const useDeleteDag = ({
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
 
-  const onError = (error: Error) => {
-    toaster.create({
-      description: error.message,
-      title: translate("toaster.delete.error", {
-        resourceName: translate("dag_one"),
-      }),
-      type: "error",
-    });
+  const onError = (error: unknown) => {
+    createErrorToaster(
+      error,
+      {
+        params: { resourceName: translate("dag_one") },
+        titleKey: "toaster.delete.error",
+      },
+      translate,
+    );
   };
 
   const onSuccess = async () => {
-    const queryKeys = [[useDagServiceGetDagKey, { dagId }], [useDagServiceGetDagsUiKey]];
+    const queryKeys = [
+      [useDagServiceGetDagKey, { dagId }],
+      [useDagServiceGetDagsUiKey],
+      ...gridQueryKeys(dagId),
+    ];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 

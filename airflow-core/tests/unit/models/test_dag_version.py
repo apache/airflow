@@ -16,14 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 from sqlalchemy import func, select
 
+from airflow._shared.timezones import timezone
+from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.db import clear_db_dags
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -31,9 +36,12 @@ pytestmark = pytest.mark.db_test
 class TestDagVersion:
     def setup_method(self):
         clear_db_dags()
+        clear_db_dag_bundles()
 
     def teardown_method(self):
+        # clear_db_dags() first: DagModel.bundle_name has an FK to dag_bundle.
         clear_db_dags()
+        clear_db_dag_bundles()
 
     @pytest.mark.need_serialized_dag
     def test_writing_dag_version(self, dag_maker, session):
@@ -58,6 +66,57 @@ class TestDagVersion:
         latest_version = DagVersion.get_latest_version(dag.dag_id)
         assert latest_version.version_number == 2
         assert session.scalar(select(func.count()).where(DagVersion.dag_id == dag.dag_id)) == 2
+
+    @staticmethod
+    def _seed_two_versions_with_inverted_created_at(session, *, dag_id):
+        """Create versions 1 and 2 where version 2 has an *earlier* created_at than version 1.
+
+        This makes created_at ordering disagree with version_number ordering, modelling the
+        timestamp tie / clock-skew case the ordering must be robust to. Returns the bundle name.
+        """
+        bundle_name = f"bundle-{dag_id}"
+        session.add(DagBundleModel(name=bundle_name))
+        session.flush()
+        session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+        session.flush()
+
+        base = timezone.utcnow()
+        for version_number, created_at in ((1, base), (2, base - timedelta(minutes=1))):
+            session.add(
+                DagVersion(
+                    dag_id=dag_id,
+                    version_number=version_number,
+                    bundle_name=bundle_name,
+                    created_at=created_at,
+                    last_updated=created_at,
+                )
+            )
+        session.commit()
+        return bundle_name
+
+    def test_latest_version_uses_version_number_not_created_at(self, session):
+        """The latest version is the one with the highest version_number, not the latest created_at."""
+        dag_id = "test_latest_ordering"
+        self._seed_two_versions_with_inverted_created_at(session, dag_id=dag_id)
+
+        assert DagVersion.get_latest_version(dag_id, session=session).version_number == 2
+        assert DagVersion.get_version(dag_id, session=session).version_number == 2
+
+    def test_write_dag_increments_from_max_version_number(self, session):
+        """write_dag must increment from the max version_number, not the latest-created row.
+
+        Otherwise, when created_at ordering disagrees with version_number ordering, it would
+        recompute an already-used version_number and violate the (dag_id, version_number) unique
+        constraint.
+        """
+        dag_id = "test_write_dag_increment"
+        bundle_name = self._seed_two_versions_with_inverted_created_at(session, dag_id=dag_id)
+
+        new_version = DagVersion.write_dag(dag_id=dag_id, bundle_name=bundle_name, session=session)
+        session.commit()
+
+        assert new_version.version_number == 3
+        assert session.scalar(select(func.count()).where(DagVersion.dag_id == dag_id)) == 3
 
     @pytest.mark.need_serialized_dag
     def test_get_version(self, dag_maker, session):
@@ -84,3 +143,41 @@ class TestDagVersion:
 
         latest_version = DagVersion.get_latest_version(dag.dag_id)
         assert latest_version.version == f"{dag.dag_id}-1"
+
+    @pytest.mark.db_test
+    def test_write_dag_with_version_data(self, dag_maker, session):
+        """Test that version_data is stored and retrievable."""
+        with dag_maker("test_version_data"):
+            pass
+
+        manifest = {"schema_version": 1, "files": {"dags/my_dag.py": "S3VersionId123"}}
+        DagVersion.write_dag(
+            dag_id="test_version_data",
+            bundle_name="testing",
+            bundle_version="sha256abc",
+            version_data=manifest,
+            session=session,
+        )
+        session.flush()
+
+        retrieved = DagVersion.get_latest_version("test_version_data", session=session)
+        assert retrieved.version_data == manifest
+        assert retrieved.bundle_version == "sha256abc"
+
+    @pytest.mark.db_test
+    def test_write_dag_without_version_data(self, dag_maker, session):
+        """Test that version_data defaults to None for bundles that don't use it."""
+        with dag_maker("test_no_version_data"):
+            pass
+
+        DagVersion.write_dag(
+            dag_id="test_no_version_data",
+            bundle_name="testing",
+            bundle_version="abc123",
+            session=session,
+        )
+        session.flush()
+
+        retrieved = DagVersion.get_latest_version("test_no_version_data", session=session)
+        assert retrieved.version_data is None
+        assert retrieved.bundle_version == "abc123"

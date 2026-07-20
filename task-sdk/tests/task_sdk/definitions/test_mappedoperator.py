@@ -680,14 +680,14 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
         ("tg.t2", 0): ["a", "b"],
         ("tg.t2", 1): [4],
         ("tg.t2", 2): ["z"],
-        ("t3", None): [["a", "b"], [4], ["z"]],
+        ("t3", -1): [["a", "b"], [4], ["z"]],
     }
 
     # We hard-code the number of expansions here as the server is in charge of that.
     expansion_per_task_id = {
         "tg.t1": range(3),
         "tg.t2": range(3),
-        "t3": [None],
+        "t3": [-1],
     }
     for task in dag.tasks:
         for map_index in expansion_per_task_id[task.task_id]:

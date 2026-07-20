@@ -140,6 +140,16 @@ class TestHelpers:
                 AirflowException,
             ),
             (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", AirflowException),
+            (
+                "my..key",
+                "The key 'my..key' must not contain consecutive dots ('..') to prevent path traversal",
+                AirflowException,
+            ),
+            (
+                "..",
+                "The key '..' must not contain consecutive dots ('..') to prevent path traversal",
+                AirflowException,
+            ),
         ],
     )
     def test_validate_key(self, key_id, message, exception):

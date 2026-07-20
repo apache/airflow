@@ -34,6 +34,7 @@ except ImportError:
     from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import (  # type: ignore[no-redef]
         ContainerState,
     )
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.providers.google.cloud.triggers.kubernetes_engine import (
     GKEJobTrigger,
     GKEOperationTrigger,
@@ -54,6 +55,7 @@ IN_CLUSTER = False
 SHOULD_DELETE_POD = True
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
+SCHEDULE_TIMEOUT_SECS = 60
 TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
 CLUSTER_URL = "https://test-host"
 SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
@@ -81,6 +83,7 @@ def trigger():
         in_cluster=IN_CLUSTER,
         get_logs=GET_LOGS,
         startup_timeout=STARTUP_TIMEOUT_SECS,
+        schedule_timeout=SCHEDULE_TIMEOUT_SECS,
         trigger_start_time=TRIGGER_START_TIME,
         cluster_url=CLUSTER_URL,
         ssl_ca_cert=SSL_CA_CERT,
@@ -130,6 +133,7 @@ class TestGKEStartPodTrigger:
             "in_cluster": IN_CLUSTER,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
+            "schedule_timeout": SCHEDULE_TIMEOUT_SECS,  # issue-66352: schedule_timeout properly serialized
             "trigger_start_time": TRIGGER_START_TIME,
             "cluster_url": CLUSTER_URL,
             "ssl_ca_cert": SSL_CA_CERT,
@@ -140,6 +144,7 @@ class TestGKEStartPodTrigger:
             "impersonation_chain": IMPERSONATION_CHAIN,
             "last_log_time": None,
             "logging_interval": None,
+            "use_dns_endpoint": False,
         }
 
     @pytest.mark.asyncio
@@ -265,7 +270,7 @@ class TestGKEStartPodTrigger:
 
         generator = trigger.run()
         await generator.asend(None)
-        assert "Waiting until 120s to get the POD scheduled..." in caplog.text
+        assert "Waiting up to 60s to get the POD scheduled..." in caplog.text
 
     @pytest.mark.parametrize(
         ("container_state", "expected_state"),
@@ -341,6 +346,7 @@ class TestGKEOperationTrigger:
             "gcp_conn_id": GCP_CONN_ID,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "poll_interval": POLL_INTERVAL,
+            "use_dns_endpoint": False,
         }
 
     @pytest.mark.asyncio
@@ -494,6 +500,7 @@ class TestGKEStartJobTrigger:
             "impersonation_chain": IMPERSONATION_CHAIN,
             "get_logs": GET_LOGS,
             "do_xcom_push": XCOM_PUSH,
+            "use_dns_endpoint": False,
         }
 
     @pytest.mark.asyncio
@@ -587,5 +594,69 @@ class TestGKEStartJobTrigger:
             ssl_ca_cert=SSL_CA_CERT,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            use_dns_endpoint=False,
         )
         assert hook_actual == hook_expected
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{GKE_TRIGGERS_PATH}.ProvidersManager")
+    @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.hook")
+    async def test_run_do_xcom_push_uses_succeeded_retry_pod_not_original_failed_pod(
+        self, mock_hook, mock_pod_manager_prop, mock_providers_manager, job_trigger
+    ):
+        """When a job has a failed pod and a succeeded retry pod, use the succeeded pod for XCom."""
+        mock_providers_manager.return_value.providers = {
+            "apache-airflow-providers-cncf-kubernetes": mock.MagicMock(
+                data={"package-name": "apache-airflow-providers-cncf-kubernetes"},
+                version="8.4.1",
+            )
+        }
+
+        failed_pod = mock.MagicMock()
+        failed_pod.metadata.name = "original-failed-pod"
+        failed_pod.status.phase = "Failed"
+
+        succeeded_pod = mock.MagicMock()
+        succeeded_pod.metadata.name = "retry-succeeded-pod"
+        succeeded_pod.status.phase = "Succeeded"
+
+        mock_hook.list_pods = mock.AsyncMock(return_value=[failed_pod, succeeded_pod])
+
+        mock_hook.wait_until_container_complete = mock.AsyncMock()
+        mock_hook.wait_until_container_started = mock.AsyncMock()
+        mock_hook.wait_until_job_complete = mock.AsyncMock()
+
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = NAMESPACE
+        mock_job.to_dict.return_value = {"job": "dict"}
+
+        mock_hook.wait_until_job_complete.return_value = mock_job
+        mock_hook.is_job_failed = mock.MagicMock(return_value=False)
+
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager.extract_xcom.return_value = {"xcom": "result"}
+        mock_pod_manager_prop.return_value = mock_pod_manager
+
+        job_trigger.do_xcom_push = True
+        event = await job_trigger.run().asend(None)
+
+        mock_hook.list_pods.assert_awaited_once_with(
+            namespace=NAMESPACE,
+            label_selector=f"job-name={JOB_NAME}",
+        )
+        mock_pod_manager.extract_xcom.assert_called_once_with(succeeded_pod)
+        assert event.payload["xcom_result"] == [{"xcom": "result"}]
+        mock_hook.wait_until_container_complete.assert_called_once_with(
+            name="retry-succeeded-pod",
+            namespace=NAMESPACE,
+            container_name=BASE_CONTAINER_NAME,
+            poll_interval=POLL_INTERVAL,
+        )
+        mock_hook.wait_until_container_started.assert_called_once_with(
+            name="retry-succeeded-pod",
+            namespace=NAMESPACE,
+            container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
+            poll_interval=POLL_INTERVAL,
+        )

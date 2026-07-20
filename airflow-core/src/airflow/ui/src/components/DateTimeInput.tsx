@@ -19,12 +19,25 @@
 import { Input, type InputProps } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import tz from "dayjs/plugin/timezone";
-import { forwardRef } from "react";
+import { forwardRef, type ChangeEvent, type ClipboardEvent, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import { useTimezone } from "src/context/timezone";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 dayjs.extend(tz);
+
+const debounceDelay = 1000;
+
+// Strings with an explicit timezone (`Z` or `+09:00`) are parsed as their
+// absolute instant. Strings without one are treated as being in the selected
+// Airflow UI timezone — consistent between manual input and paste.
+const parseInput = (raw: string, timezone: string) => {
+  const hasExplicitTz = /(?:[Zz]|[+-]\d{2}:?\d{2})$/u.test(raw);
+  const parsed = hasExplicitTz ? dayjs(raw) : dayjs.tz(raw, timezone);
+
+  return parsed.isValid() ? parsed : undefined;
+};
 
 type Props = {
   readonly value: string;
@@ -32,30 +45,57 @@ type Props = {
 
 export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, value, ...rest }, ref) => {
   const { selectedTimezone } = useTimezone();
+  const [displayDate, setDisplayDate] = useState(value);
 
-  // Convert UTC value to local time for display
-  const displayValue =
-    Boolean(value) && dayjs(value).isValid()
-      ? dayjs(value).tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT)
-      : "";
+  const emit = (event: ChangeEvent<HTMLInputElement> | ClipboardEvent<HTMLInputElement>, utc: string) => {
+    onChange?.({
+      ...event,
+      target: { ...event.currentTarget, value: utc },
+    });
+  };
+
+  const onDateChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseInput(event.target.value, selectedTimezone);
+
+    // Set display value via UTC -> local to avoid year mismatch for years
+    // before 1000 (dayjs/issues/1237).
+    setDisplayDate(parsed ? parsed.tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT) : "");
+    emit(event, parsed ? parsed.toISOString() : "");
+  };
+
+  const debouncedOnDateChange = useDebouncedCallback(
+    (event: ChangeEvent<HTMLInputElement>) => onDateChange(event),
+    debounceDelay,
+  );
+
+  const onPaste = (event: ClipboardEvent<HTMLInputElement>) => {
+    const parsed = parseInput(event.clipboardData.getData("text").trim(), selectedTimezone);
+
+    if (!parsed) {
+      return;
+    }
+
+    event.preventDefault();
+    // Drop any debounced call queued by prior typing so it cannot fire after
+    // this paste and trigger a redundant onChange on the parent form.
+    debouncedOnDateChange.cancel();
+    // datetime-local input requires YYYY-MM-DDTHH:mm format in the selected
+    // Airflow UI timezone (not the browser's local timezone).
+    setDisplayDate(parsed.tz(selectedTimezone).format("YYYY-MM-DDTHH:mm"));
+    emit(event, parsed.toISOString());
+  };
 
   return (
     <Input
       data-testid="datetime-input"
-      onChange={(event) =>
-        onChange?.({
-          ...event,
-          target: {
-            ...event.target,
-            value: dayjs(event.target.value).isValid()
-              ? dayjs.tz(event.target.value, selectedTimezone).toISOString() // UI Timezone -> Utc -> yyyy-mm-ddThh:mm
-              : "",
-          },
-        })
-      }
+      onChange={(event) => {
+        setDisplayDate(dayjs(event.target.value).isValid() ? event.target.value : "");
+        debouncedOnDateChange(event);
+      }}
+      onPaste={onPaste}
       ref={ref}
       type="datetime-local"
-      value={displayValue}
+      value={displayDate}
       {...rest}
     />
   );

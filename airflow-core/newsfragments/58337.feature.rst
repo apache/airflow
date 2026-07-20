@@ -1,1 +1,0 @@
-Enable FIPS Support by making Python LTO configurable via ``PYTHON_LTO`` build argument

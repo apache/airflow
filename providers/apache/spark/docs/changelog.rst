@@ -28,6 +28,77 @@
 
 Changelog
 ---------
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add crash recovery ability to SparkSubmitOperator against Kubernetes (#68067)``
+* ``Crash recovery for YARN cluster mode in SparkSubmitOperator built on AIP-103 (#67473)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Align spark provider with the task state store terminology (#68430)``
+   * ``fix: fix missing rename in test_spark_submit (#68565)``
+   * ``Rename task_store/asset_store to task_state_store/asset_state_store (#68438)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'ResumableJobMixin' with 'SparkSubmitOperator' as a case study for surviving worker failures (standalone) (#67118)``
+* ``Track Spark job status for YARN cluster mode via RM REST API to free JVM (#65991)``
+* ``Use K8s API to track Spark on K8s instead of JVM based spark-submit (#67715)``
+* ``Enhance 'ResumableJobMixin.get_job_status' with context for better job status tracking (#68009)``
+
+Misc
+~~~~
+
+* ``Rename resumablemixin file to match class name (#68137)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+* ``Document REST scheme and port connection fields for Spark (#67682)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename task_state/asset_state to task_state_store/asset_state_store across the codebase (#67833)``
+
+
+6.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SparkPipelinesHook for Spark Connect (sc://) connections (#66498)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
+6.0.1
+.....
+
+Misc
+~~~~
+
+* ``Add post_submit_commands to SparkSubmitHook for sidecar lifecycle management (#64391)``
+* ``Load hook metadata from YAML without importing Hook class (#63826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.0.0
+.....
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -41,6 +112,23 @@ Breaking changes
     Because the package ``pyspark`` is more than 400mb and is not necessary if only using spark-connect to trigger a job
 
   - The minimum pyspark and spark-connect version is now 4.0.0
+
+* ``[breaking] Make pyspark-client as default and  pyspark package optional (#60031)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix unclear error when pyspark is not installed for JDBC script (#64174)``
+
+Misc
+~~~~
+
+* ``Add Python 3.14 Support (#63520)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add *.iml to .gitignore in all distributions (#63636)``
+   * ``Standardize connection docs labels across providers (#63455)``
 
 5.6.0
 .....

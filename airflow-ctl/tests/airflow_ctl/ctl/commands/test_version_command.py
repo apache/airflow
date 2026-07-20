@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflowctl.api.client import Client
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands.version_command import version_info
 
@@ -30,16 +30,12 @@ from airflowctl.ctl.commands.version_command import version_info
 @pytest.fixture
 def mock_client():
     """create a mock client"""
-    with mock.patch("airflowctl.api.client.get_client") as mock_get_client:
-        client = mock.MagicMock(spec=Client)
-        mock_get_client.return_value.__enter__.return_value = client
-
+    client = mock.MagicMock(spec=Client)
     client.version.get.return_value.model_dump.return_value = {
         "version": "3.1.0",
         "git_version": None,
         "airflowctl_version": "0.1.0",
     }
-
     return client
 
 
@@ -49,15 +45,24 @@ class TestVersionCommand:
     parser = cli_parser.get_parser()
 
     def test_ctl_version_remote(self, mock_client):
-        with redirect_stdout(StringIO()) as stdout:
-            version_info(self.parser.parse_args(["version", "--remote"]), api_client=mock_client)
+        with mock.patch("airflowctl.ctl.commands.version_command.get_client") as mock_get_client:
+            mock_get_client.return_value.__enter__.return_value = mock_client
+            with redirect_stdout(StringIO()) as stdout:
+                version_info(self.parser.parse_args(["version", "--remote"]))
             assert "version" in stdout.getvalue()
             assert "git_version" in stdout.getvalue()
             assert "airflowctl_version" in stdout.getvalue()
+            mock_get_client.assert_called_once_with(kind=ClientKind.NO_AUTH)
+
+    def test_ctl_version_remote_with_api_token(self, mock_client):
+        with mock.patch("airflowctl.ctl.commands.version_command.get_client") as mock_get_client:
+            mock_get_client.return_value.__enter__.return_value = mock_client
+            version_info(self.parser.parse_args(["version", "--remote", "--api-token", "TOKEN"]))
+            mock_get_client.assert_called_once_with(kind=ClientKind.NO_AUTH)
 
     def test_ctl_version_only_local_version(self, mock_client):
-        """Test the version command with an exception."""
+        """Test the version command without --remote does not touch credentials."""
         with redirect_stdout(StringIO()) as stdout:
-            version_info(self.parser.parse_args(["version"]), api_client=mock_client)
+            version_info(self.parser.parse_args(["version"]))
             output = stdout.getvalue()
         assert "airflowctl_version" in output

@@ -19,7 +19,7 @@
 # /// script
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
-#   "hatchling==1.29.0",
+#   "hatchling==1.30.1",
 #   "rich>=13.6.0",
 #   "tabulate>=0.9.0",
 # ]
@@ -39,7 +39,7 @@ from tabulate import tabulate
 try:
     import tomllib
 except ImportError:
-    import tomli as tomllib
+    import tomli as tomllib  # type: ignore[no-redef]
 
 EXTRA_PACKAGES_REF_FILE = AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "extra-packages-ref.rst"
 PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"

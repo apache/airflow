@@ -17,22 +17,25 @@
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from operator import attrgetter
 
 import pendulum
 import pytest
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -150,7 +153,7 @@ def examples_dag_bag():
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(dag_maker, session=None):
+def setup(dag_maker, *, session: Session = NEW_SESSION):
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
@@ -566,9 +569,9 @@ class TestGetGridDataEndpoint:
 
         # Also verify that TI summaries include a leaf entry for the removed task
         with assert_queries_count(4):
-            ti_resp = test_client.get(f"/grid/ti_summaries/{DAG_ID_3}/run_3")
+            ti_resp = test_client.get(f"/grid/ti_summaries/{DAG_ID_3}?run_ids=run_3")
         assert ti_resp.status_code == 200
-        ti_payload = ti_resp.json()
+        [ti_payload] = self._parse_ndjson(ti_resp)
         assert ti_payload["dag_id"] == DAG_ID_3
         assert ti_payload["run_id"] == "run_3"
         # Find the removed task summary; it should exist even if not in current serialized DAG structure
@@ -640,6 +643,31 @@ class TestGetGridDataEndpoint:
         assert response.status_code == 200
         assert _strip_dag_version_ids(response.json()) == [GRID_RUN_1, GRID_RUN_2]
 
+    def test_get_grid_runs_multiple_dag_versions(self, session, test_client):
+        # run_5_2 is created after version 2 exists, so its task instances run on version 2.
+        # Reassign one of them to version 1 so the run spans two versions.
+        first_dag_version = session.scalar(
+            select(DagVersion).where(DagVersion.dag_id == DAG_ID_5, DagVersion.version_number == 1)
+        )
+        task_instance = session.scalar(
+            select(TaskInstance)
+            .where(TaskInstance.dag_id == DAG_ID_5, TaskInstance.run_id == "run_5_2")
+            .limit(1)
+        )
+        task_instance.dag_version = first_dag_version
+        session.commit()
+
+        response = test_client.get(f"/grid/runs/{DAG_ID_5}?limit=5")
+        assert response.status_code == 200
+        dag_versions_by_run_id = {
+            run["run_id"]: [dag_version["version_number"] for dag_version in run["dag_versions"]]
+            for run in response.json()
+        }
+        assert dag_versions_by_run_id == {
+            "run_5_1": [1],
+            "run_5_2": [1, 2],
+        }
+
     @pytest.mark.parametrize(
         ("endpoint", "run_type", "expected"),
         [
@@ -697,9 +725,9 @@ class TestGetGridDataEndpoint:
         session.commit()
 
         with assert_queries_count(4):
-            response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/{run_id}")
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}?run_ids={run_id}")
         assert response.status_code == 200
-        actual = response.json()
+        [actual] = self._parse_ndjson(response)
         expected = {
             "dag_id": "test_dag_4",
             "run_id": "run_4-1",
@@ -797,9 +825,9 @@ class TestGetGridDataEndpoint:
         session.commit()
 
         with assert_queries_count(4):
-            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids={run_id}")
         assert response.status_code == 200
-        data = response.json()
+        [data] = self._parse_ndjson(response)
         actual = data["task_instances"]
 
         def sort_dict(in_dict):
@@ -812,7 +840,7 @@ class TestGetGridDataEndpoint:
 
         expected = [
             {
-                "child_states": {"None": 1},
+                "child_states": {"none": 1},
                 "dag_version_number": 1,
                 "task_id": "mapped_task_2",
                 "task_display_name": "mapped_task_2",
@@ -821,7 +849,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"success": 1, "running": 1, "None": 1},
+                "child_states": {"success": 1, "running": 1, "none": 1},
                 "dag_version_number": 1,
                 "max_end_date": "2024-12-30T01:02:03Z",
                 "min_start_date": "2024-12-30T01:00:00Z",
@@ -848,7 +876,7 @@ class TestGetGridDataEndpoint:
                 "min_start_date": None,
             },
             {
-                "child_states": {"None": 6},
+                "child_states": {"none": 6},
                 "dag_version_number": 1,
                 "task_id": "task_group",
                 "task_display_name": "task_group",
@@ -857,7 +885,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"none": 2},
                 "dag_version_number": 1,
                 "task_id": "task_group.inner_task_group",
                 "task_display_name": "task_group.inner_task_group",
@@ -866,7 +894,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"none": 2},
                 "dag_version_number": 1,
                 "task_id": "task_group.inner_task_group.inner_task_group_sub_task",
                 "task_display_name": "Inner Task Group Sub Task Label",
@@ -875,7 +903,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"None": 4},
+                "child_states": {"none": 4},
                 "dag_version_number": 1,
                 "task_id": "task_group.mapped_task",
                 "task_display_name": "task_group.mapped_task",
@@ -1114,3 +1142,58 @@ class TestGetGridDataEndpoint:
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
         assert task_ids == expected_task_ids, description
+
+    @staticmethod
+    def _parse_ndjson(response) -> list[dict]:
+        """Parse NDJSON streaming response into a list of dicts."""
+        return [json.loads(line) for line in response.text.splitlines() if line.strip()]
+
+    def test_grid_ti_summaries_stream_returns_all_runs(self, session, test_client):
+        """Streaming endpoint returns one NDJSON line per requested run_id."""
+        session.commit()
+
+        run_ids = ["run_1", "run_2"]
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": run_ids})
+        assert response.status_code == 200
+        assert "ndjson" in response.headers.get("content-type", "")
+
+        summaries = self._parse_ndjson(response)
+        assert len(summaries) == len(run_ids)
+        returned_run_ids = {s["run_id"] for s in summaries}
+        assert returned_run_ids == set(run_ids)
+
+        for summary in summaries:
+            assert summary["dag_id"] == DAG_ID
+            assert len(summary["task_instances"]) > 0
+
+    def test_grid_ti_summaries_stream_skips_missing_runs(self, session, test_client):
+        """Streaming endpoint silently skips run_ids that have no task instances."""
+        session.commit()
+
+        response = test_client.get(
+            f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": ["run_1", "nonexistent_run"]}
+        )
+        assert response.status_code == 200
+        summaries = self._parse_ndjson(response)
+        assert len(summaries) == 1
+        assert summaries[0]["run_id"] == "run_1"
+
+    def test_grid_ti_summaries_stream_empty_run_ids(self, session, test_client):
+        """Streaming endpoint with no run_ids returns an empty body."""
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}")
+        assert response.status_code == 200
+        assert self._parse_ndjson(response) == []
+
+    def test_grid_ti_summaries_stream_deduplicates_serdag_loads(self, session, test_client):
+        """Serialized Dag is loaded once even when multiple runs share the same version."""
+        session.commit()
+
+        run_ids = ["run_1", "run_2"]
+        # 2 auth queries + 1 serdag query shared across both runs
+        # + 1 TI query per run = 5 total (not 1 serdag per run which would be 6+).
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}", params={"run_ids": run_ids})
+        assert response.status_code == 200
+        assert len(self._parse_ndjson(response)) == len(run_ids)

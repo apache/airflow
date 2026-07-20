@@ -24,9 +24,11 @@ import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
+from opentelemetry import trace
 from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
 
+from airflow._shared.observability.traces import new_task_run_carrier
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
@@ -38,6 +40,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.mappedoperator import Operator
+tracer = trace.get_tracer(__name__)
 
 
 class TaskMapVariant(enum.Enum):
@@ -197,6 +200,7 @@ class TaskMap(TaskInstanceDependencies):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
+                dr = unmapped_ti.dag_run
                 zero_index_ti_exists = exists_query(
                     TaskInstance.dag_id == task.dag_id,
                     TaskInstance.task_id == task.task_id,
@@ -211,7 +215,7 @@ class TaskMap(TaskInstanceDependencies):
                     task.log.debug("Updated in place to become %s", unmapped_ti)
                     all_expanded_tis.append(unmapped_ti)
                     # execute hook for task instance map index 0
-                    task_instance_mutation_hook(unmapped_ti)
+                    task_instance_mutation_hook(unmapped_ti, dag_run=dr)
                     session.flush()
                 else:
                     task.log.debug("Deleting the original task instance: %s", unmapped_ti)
@@ -242,6 +246,16 @@ class TaskMap(TaskInstanceDependencies):
         else:
             dag_version_id = None
 
+        if not unmapped_ti:
+            from airflow.models import DagRun
+
+            dr = session.scalar(
+                select(DagRun).where(
+                    DagRun.dag_id == task.dag_id,
+                    DagRun.run_id == run_id,
+                )
+            )
+
         for index in indexes_to_map:
             # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             ti = TaskInstance(
@@ -252,9 +266,10 @@ class TaskMap(TaskInstanceDependencies):
                 dag_version_id=dag_version_id,
             )
             task.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti)
+            task_instance_mutation_hook(ti, dag_run=dr)
             ti = session.merge(ti)
-            ti.refresh_from_task(task)  # session.merge() loses task information.
+            ti.context_carrier = new_task_run_carrier(dr.context_carrier)
+            ti.refresh_from_task(task, dag_run=dr)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 
         # Coerce the None case to 0 -- these two are almost treated identically,

@@ -453,8 +453,10 @@ class AsyncHttpSession(LoggingMixin):
         hook: HttpAsyncHook,
         request: Callable[..., Awaitable[ClientResponse]],
         config: SessionConfig,
+        method: str | None = None,
     ) -> None:
         super().__init__()
+        self.method = method or hook.method
         self._hook = hook
         self._request = request
         self.config = config
@@ -466,10 +468,6 @@ class AsyncHttpSession(LoggingMixin):
     @property
     def base_url(self) -> str:
         return self.config.base_url
-
-    @property
-    def method(self) -> str:
-        return self._hook.method
 
     @property
     def retry_limit(self) -> int:
@@ -587,23 +585,25 @@ class HttpAsyncHook(BaseHook):
         self.retry_delay = retry_delay
         self._config: SessionConfig | None = None
 
-    def _get_request_func(self, session: aiohttp.ClientSession) -> Callable[..., Any]:
-        method = self.method
-        if method == "GET":
+    def _get_request_func(
+        self, session: aiohttp.ClientSession, method: str | None = None
+    ) -> Callable[..., Any]:
+        http_method = method or self.method
+        if http_method == "GET":
             return session.get
-        if method == "POST":
+        if http_method == "POST":
             return session.post
-        if method == "PATCH":
+        if http_method == "PATCH":
             return session.patch
-        if method == "HEAD":
+        if http_method == "HEAD":
             return session.head
-        if method == "PUT":
+        if http_method == "PUT":
             return session.put
-        if method == "DELETE":
+        if http_method == "DELETE":
             return session.delete
-        if method == "OPTIONS":
+        if http_method == "OPTIONS":
             return session.options
-        raise HttpMethodException(f"Unexpected HTTP Method: {method}")
+        raise HttpMethodException(f"Unexpected HTTP Method: {http_method}")
 
     async def config(self) -> SessionConfig:
         if not self._config:
@@ -644,16 +644,19 @@ class HttpAsyncHook(BaseHook):
         return self._config
 
     @asynccontextmanager
-    async def session(self) -> AsyncGenerator[AsyncHttpSession, None]:
+    async def session(self, method: str | None = None) -> AsyncGenerator[AsyncHttpSession, None]:
         """
         Create an ``AsyncHttpSession`` bound to a single ``aiohttp.ClientSession``.
 
         Airflow connection resolution happens exactly once here.
+
+        :param method: Optional HTTP method to be used for requests made by the returned session.
+            If provided, this value overrides the hook's configured default method.
         """
         async with aiohttp.ClientSession() as session:
-            request = self._get_request_func(session=session)
+            request = self._get_request_func(session=session, method=method)
             config = await self.config()
-            yield AsyncHttpSession(hook=self, request=request, config=config)
+            yield AsyncHttpSession(hook=self, request=request, config=config, method=method)
 
     async def run(
         self,

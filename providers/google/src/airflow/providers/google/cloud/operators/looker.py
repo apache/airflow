@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Cloud Looker operators."""
+"""This module contains Google Cloud Looker operators and Data Studio aliases."""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.looker import LookerHook
@@ -103,3 +103,6 @@ class LookerStartPdtBuildOperator(GoogleCloudBaseOperator):
     def on_kill(self):
         if self.materialization_id and self.cancel_on_kill:
             self.hook.stop_pdt_build(materialization_id=self.materialization_id)
+
+
+DataStudioStartPdtBuildOperator: TypeAlias = LookerStartPdtBuildOperator

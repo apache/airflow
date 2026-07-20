@@ -81,6 +81,7 @@ The following parameters can be passed via ``backend_kwargs`` as a JSON dictiona
 * ``connections_label``: Label key used to discover connection secrets. Default: ``"airflow.apache.org/connection-id"``
 * ``variables_label``: Label key used to discover variable secrets. Default: ``"airflow.apache.org/variable-key"``
 * ``config_label``: Label key used to discover config secrets. Default: ``"airflow.apache.org/config-key"``
+* ``team_label``: Label key used to discover team-scoped secrets in multi-team mode. Default: ``"airflow.apache.org/team"``
 * ``connections_data_key``: The data key in the Kubernetes secret that holds the connection value. Default: ``"value"``
 * ``variables_data_key``: The data key in the Kubernetes secret that holds the variable value. Default: ``"value"``
 * ``config_data_key``: The data key in the Kubernetes secret that holds the config value. Default: ``"value"``
@@ -206,6 +207,65 @@ You can create a variable secret with ``kubectl``:
     kubectl label secret my-var-secret \
         airflow.apache.org/variable-key=my_var \
         --namespace=airflow
+
+Multi-team lookup
+"""""""""""""""""
+
+In multi-team mode, when ``team_name`` is provided, this backend first looks for a secret whose
+identifier label matches the requested connection or variable and whose ``team_label`` matches the
+current team. If no team-scoped secret is found, it falls back to a global secret with the same
+identifier label and no team label.
+
+To use this mode, keep the backend enabled as usual and make sure your Kubernetes secrets include
+both:
+
+* the regular identifier label (for example ``airflow.apache.org/connection-id=my_db``)
+* the configured ``team_label`` with the team name (for example ``airflow.apache.org/team=team_a``)
+
+For example, this configuration keeps the default team label:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.cncf.kubernetes.secrets.kubernetes_secrets_backend.KubernetesSecretsBackend
+    backend_kwargs = {"team_label": "airflow.apache.org/team"}
+
+If you use a custom team label instead, configure it in ``backend_kwargs`` and apply the same label
+to your Kubernetes secrets.
+
+For example, with ``team_label="airflow.apache.org/team"``, ``team_name="team_a"``, and
+``conn_id="my_db"``, the backend queries:
+
+* Team-scoped: ``airflow.apache.org/connection-id=my_db,airflow.apache.org/team=team_a``
+* Global fallback: ``airflow.apache.org/connection-id=my_db,!airflow.apache.org/team``
+
+Example team-scoped connection secret:
+
+.. code-block:: yaml
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: my-team-db-secret
+      labels:
+        airflow.apache.org/connection-id: my_db
+        airflow.apache.org/team: team_a
+    data:
+      value: <base64-encoded-connection-uri>
+
+If you also want a default value for workloads that do not run with a team context, create a second
+secret with the same connection identifier label but without ``airflow.apache.org/team``:
+
+.. code-block:: yaml
+
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: my-global-db-secret
+      labels:
+        airflow.apache.org/connection-id: my_db
+    data:
+      value: <base64-encoded-global-connection-uri>
 
 Using with External Secrets Operator
 """""""""""""""""""""""""""""""""""""

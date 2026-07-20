@@ -110,6 +110,7 @@ class ManagedKafkaHook(GoogleBaseHook):
         return ManagedKafkaClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):

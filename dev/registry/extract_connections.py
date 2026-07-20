@@ -162,7 +162,7 @@ def main():
     parser.add_argument(
         "--provider",
         default=None,
-        help="Only output connections for this provider ID (e.g. 'amazon').",
+        help="Only output connections for these provider ID(s) (space-separated, e.g. 'amazon common-io').",
     )
     parser.add_argument(
         "--providers-json",
@@ -212,11 +212,20 @@ def main():
     total_with_custom = 0
     total_with_ui = 0
 
+    # Parse space-separated provider filter (matches extract_metadata.py behaviour)
+    provider_filter: set[str] | None = None
+    if args.provider:
+        provider_filter = {pid.strip() for pid in args.provider.split() if pid.strip()}
+        print(f"Filtering to provider(s): {', '.join(sorted(provider_filter))}")
+
     for conn_type, hook_info in sorted(hooks.items()):
         if hook_info is None or not hook_info.package_name:
             continue
 
         provider_id = package_name_to_provider_id(hook_info.package_name)
+
+        if provider_filter and provider_id not in provider_filter:
+            continue
 
         standard_fields = build_standard_fields(field_behaviours.get(conn_type))
         custom_fields = build_custom_fields(form_widgets, conn_type)
@@ -243,13 +252,6 @@ def main():
     print(f"\nExtracted {total_conn_types} connection types across {len(provider_connections)} providers")
     print(f"  {total_with_custom} have custom fields")
     print(f"  {total_with_ui} have UI field customisation")
-
-    # Filter to single provider if requested
-    if args.provider:
-        provider_connections = {
-            pid: conns for pid, conns in provider_connections.items() if pid == args.provider
-        }
-        print(f"Filtering output to provider: {args.provider}")
 
     # Write per-provider files to versions/{pid}/{version}/connections.json
     for output_dir in OUTPUT_DIRS:

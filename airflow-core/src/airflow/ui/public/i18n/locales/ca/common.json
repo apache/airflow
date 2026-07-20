@@ -18,16 +18,21 @@
   "asset_other": "Assets",
   "assetEvent_one": "Esdeveniment d'Asset",
   "assetEvent_other": "Esdeveniments d'Asset",
+  "assetInactive": {
+    "tooltip": "L'Asset aigües amunt s'ha desactivat; el programador reté l'avaluació de particions fins que es torni a activar."
+  },
   "backfill_one": "Reompliment",
   "backfill_other": "Reompliments",
   "browse": {
     "auditLog": "Registre d'auditoria",
+    "deadlines": "Terminis",
     "jobs": "Processos",
     "requiredActions": "Accions requerides",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "Col·lapsar tots els camps extra json",
   "collapseDetailsPanel": "Col·lapsar el panell de detalls",
+  "consumingAsset": "Asset consumidor",
   "createdAssetEvent_one": "Esdeveniment d'Asset creat",
   "createdAssetEvent_other": "Esdeveniments d'Asset creats",
   "dag_one": "Dag",
@@ -60,6 +65,11 @@
     "dagVersions": "Versió/ns del Dag",
     "dataIntervalEnd": "Fi de l'interval de dades",
     "dataIntervalStart": "Inici de l'interval de dades",
+    "durationStats": {
+      "mean": "Mitjana",
+      "mode": "Moda"
+    },
+    "expectedDuration": "Durada esperada",
     "lastSchedulingDecision": "Última decisió de programació",
     "mappedPartitionKey": "Clau de partició mapejada",
     "partitionKey": "Clau de partició",
@@ -103,6 +113,12 @@
     "notFound": "Pàgina no trobada",
     "title": "Error"
   },
+  "errors": {
+    "forbidden": {
+      "description": "No teniu permisos per a realitzar aquesta acció.",
+      "title": "Accés denegat"
+    }
+  },
   "expand": {
     "collapse": "Col·lapsar",
     "expand": "Expandir",
@@ -125,9 +141,12 @@
     "logicalDateTo": "Data Lògica Fins a",
     "runAfterFrom": "Executar Després de",
     "runAfterTo": "Executar Després de",
+    "searchAsset": "Cercar Asset",
     "selectDateRange": "Seleccionar interval de dates",
     "startTime": "Hora d'inici"
   },
+  "generateToken": "Generar token",
+  "key": "Clau",
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",
   "logoutConfirmation": "Està a punt de tancar sessió de l'aplicació.",
@@ -171,6 +190,7 @@
   "reset": "Restablir",
   "runId": "ID de l'execució",
   "runTypes": {
+    "asset_materialization": "Materialització d'Asset",
     "asset_triggered": "Executat per Asset",
     "backfill": "Reomplir",
     "manual": "Manual",
@@ -183,6 +203,12 @@
     },
     "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Coincidir en qualsevol lloc del valor (recerca de subcadena). Més lent en instàncies grans perquè no pot utilitzar l'índex B-tree predeterminat. Més detalls a la secció de documentació sobre índexs de metadades personalitzats.",
+      "title": "Coincidir en qualsevol lloc"
+    }
+  },
   "security": {
     "actions": "Accions",
     "permissions": "Permisos",
@@ -191,6 +217,7 @@
     "users": "Usuaris"
   },
   "selectLanguage": "Seleccionar idioma",
+  "selected": "Seleccionat",
   "showDetailsPanel": "Mostrar panell de detalls",
   "signedInAs": "Sessió iniciada com a",
   "source": {
@@ -203,6 +230,7 @@
   "startDate": "Data d'inici",
   "state": "Estat",
   "states": {
+    "awaiting_input": "Esperant entrada",
     "deferred": "Diferit",
     "failed": "Fallit",
     "no_status": "Sense estat",
@@ -235,7 +263,8 @@
       "any": "Qualsevol"
     },
     "tagPlaceholder": "Filtrar per etiqueta",
-    "to": "A"
+    "to": "A",
+    "updatedAt": "Actualitzat a"
   },
   "task": {
     "documentation": "Documentació de la tasca",
@@ -245,7 +274,11 @@
   },
   "task_one": "Tasca",
   "task_other": "Tasques",
-  "taskGroup": "Grup de tasques",
+  "taskGroup": {
+    "documentation": "Documentació del grup de tasques"
+  },
+  "taskGroup_one": "Grup de tasques",
+  "taskGroup_other": "Grups de tasques",
   "taskId": "ID de la tasca",
   "taskInstance": {
     "dagVersion": "Versió del Dag",
@@ -259,6 +292,7 @@
     "priorityWeight": "Pes de prioritat",
     "queue": "Cua",
     "queuedWhen": "Enviat a cua a les",
+    "renderedMapIndex": "Índex del mapa renderitzat",
     "scheduledWhen": "Programat a les",
     "triggerer": {
       "assigned": "Triggerer assignat",
@@ -291,11 +325,25 @@
     "utc": "UTC (Temps Universal Coordinat)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Error en la sol·licitud de neteja massiva de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} s'han netejat correctament. Claus: {{keys}}",
+        "title": "Sol·licitud de neteja massiva de {{resourceName}} enviada"
+      }
+    },
     "bulkDelete": {
       "error": "Error en la sol·licitud de supressió massiva de {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} s'han suprimit correctament. Claus: {{keys}}",
         "title": "Sol·licitud de supressió massiva de {{resourceName}} enviada"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Error en la sol·licitud d'actualització massiva de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} s'han actualitzat correctament. Claus: {{keys}}",
+        "title": "Sol·licitud d'actualització massiva de {{resourceName}} enviada"
       }
     },
     "create": {
@@ -327,10 +375,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "Token d'API",
+    "cliToken": "Token de CLI",
+    "errorDescription": "S'ha produït un error en generar el token. Torneu-ho a provar.",
+    "errorTitle": "Ha fallat la generació del token",
+    "generate": "Generar",
+    "selectType": "Seleccioneu el tipus de token que voleu generar.",
+    "title": "Generar token",
+    "tokenExpiresIn": "Aquest token caduca en {{duration}}.",
+    "tokenGenerated": "S'ha generat el vostre token.",
+    "tokenShownOnce": "Aquest token només es mostrarà una vegada. Copieu-lo ara."
+  },
   "total": "Total {{state}}",
   "triggered": "Executat",
   "tryNumber": "Número d'intent",
   "user": "Usuari",
+  "validation": {
+    "mustBeAtLeast": "Ha de ser com a mínim {{min}}.",
+    "mustBeValidNumber": "Ha de ser un número vàlid."
+  },
+  "value": "Valor",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Premeu {{hotkey}} per alternar l'ajust de línia",

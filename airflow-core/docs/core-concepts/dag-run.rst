@@ -76,6 +76,24 @@ scheduled one interval after ``start_date``.
     For more information on ``logical date``, see :ref:`concepts-dag-run` and
     :ref:`faq:what-does-execution-date-mean`
 
+Manual Triggering and Data Intervals
+'''''''''''''''''''''''''''''''''''''
+
+When you manually trigger a Dag (for example from the UI, CLI, REST API, or
+``TriggerDagRunOperator``), do not assume the run's ``data_interval`` is
+derived from, or equal to, the supplied ``logical_date``.
+
+For scheduled runs, the timetable defines the data interval directly. For
+manually triggered runs, the resulting ``data_interval`` depends on the
+timetable and the trigger path, and may differ from the run's
+``logical_date``.
+
+If your Dag logic needs the user-specified date for a manual run, use
+``logical_date`` explicitly instead of assuming it matches
+``data_interval_start`` or ``data_interval_end``.
+
+For upgrade guidance, see :ref:`data-interval-manual-triggering`.
+
 Re-run Dag
 ''''''''''
 There can be cases where you will want to execute your Dag again. One such case is when the scheduled
@@ -165,9 +183,9 @@ For CLI usage, run the command below:
 .. code-block:: bash
 
     airflow backfill create --dag-id DAG_ID \
-        --start-date START_DATE \
-        --end-date END_DATE \
-        --reprocessing-behavior failed \
+        --from-date START_DATE \
+        --to-date END_DATE \
+        --reprocess-behavior failed \
         --max-active-runs 3 \
         --run-backwards \
         --dag-run-conf '{"my": "param"}'
@@ -271,7 +289,8 @@ Example of a parameterized Dag:
 
     parameterized_task = BashOperator(
         task_id="parameterized_task",
-        bash_command="echo value: {{ dag_run.conf['conf1'] }}",
+        bash_command="echo \"here is the message: '$message'\"",
+        env={"message": '{{ dag_run.conf["message"] if dag_run else "" }}'},
         dag=dag,
     )
 

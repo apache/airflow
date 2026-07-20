@@ -28,10 +28,8 @@ from airflow.providers.cncf.kubernetes.executors import kubernetes_executor
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.stream_capture_manager import (
-    CombinedCaptureManager,
     StderrCaptureManager,
     StdoutCaptureManager,
-    StreamCaptureManager,
 )
 
 # Create custom executors here because conftest is imported first
@@ -56,7 +54,7 @@ def load_examples():
 
 @pytest.fixture(scope="session")
 def dagbag():
-    return DagBag(include_examples=True)
+    return DagBag()
 
 
 @pytest.fixture(scope="session")
@@ -66,7 +64,7 @@ def parser():
     return cli_parser.get_parser()
 
 
-# The "*_capture" fixtures all ensure that the `caplog` fixture is loaded so that they dont get polluted with
+# The "*_capture" fixtures all ensure that the `caplog` fixture is loaded so that they don't get polluted with
 # log messages
 
 
@@ -82,21 +80,3 @@ def stderr_capture(request):
     """Fixture that captures stderr only."""
     request.getfixturevalue("caplog")
     return StderrCaptureManager()
-
-
-@pytest.fixture
-def stream_capture(request):
-    """Fixture that returns a configurable stream capture manager."""
-
-    def _capture(stdout=True, stderr=False):
-        request.getfixturevalue("caplog")
-        return StreamCaptureManager(capture_stdout=stdout, capture_stderr=stderr)
-
-    return _capture
-
-
-@pytest.fixture
-def combined_capture(request):
-    """Fixture that captures both stdout and stderr."""
-    request.getfixturevalue("caplog")
-    return CombinedCaptureManager()

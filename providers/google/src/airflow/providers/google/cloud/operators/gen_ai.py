@@ -27,8 +27,8 @@ from typing import TYPE_CHECKING, Any
 from google.genai.errors import ClientError
 from google.genai.types import BatchJob
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.cloud.hooks.gen_ai import (
     BatchJobStatus,
     GenAIGeminiAPIHook,
@@ -164,7 +164,7 @@ class GenAIGenerateContentOperator(GoogleCloudBaseOperator):
         *,
         project_id: str,
         location: str,
-        contents: ContentListUnionDict,
+        contents: ContentListUnionDict | list[str],
         model: str,
         generation_config: GenerateContentConfig | dict[str, Any] | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -311,7 +311,7 @@ class GenAICountTokensOperator(GoogleCloudBaseOperator):
         *,
         project_id: str,
         location: str,
-        contents: ContentListUnion | ContentListUnionDict,
+        contents: ContentListUnion | ContentListUnionDict | list[str],
         model: str,
         config: CountTokensConfigOrDict | None = None,
         gcp_conn_id: str = "google_cloud_default",

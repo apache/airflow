@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.operators.dms import (
     DmsCreateTaskOperator,
     DmsDeleteTaskOperator,
     DmsDescribeTasksOperator,
+    DmsModifyTaskOperator,
     DmsStartTaskOperator,
     DmsStopTaskOperator,
 )
@@ -374,6 +375,24 @@ with DAG(
     )
     # [END howto_operator_dms_stop_task]
 
+    # [START howto_operator_dms_modify_task]
+    modify_task = DmsModifyTaskOperator(
+        task_id="modify_task",
+        replication_task_arn=task_arn,
+        table_mappings={
+            "rules": [
+                {
+                    "rule-type": "selection",
+                    "rule-id": "1",
+                    "rule-name": "1",
+                    "object-locator": {"schema-name": "%", "table-name": "%"},
+                    "rule-action": "include",
+                }
+            ]
+        },
+    )
+    # [END howto_operator_dms_modify_task]
+
     # TaskCompletedSensor actually waits until task reaches the "Stopped" state, so it will work here.
     # [START howto_sensor_dms_task_completed]
     await_task_stop = DmsTaskCompletedSensor(
@@ -432,6 +451,7 @@ with DAG(
         await_task_start,
         stop_task,
         await_task_stop,
+        modify_task,
         # TEST TEARDOWN
         delete_task,
         delete_assets,
@@ -448,5 +468,5 @@ with DAG(
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Needed to run the example DAG with pytest (see: contributing-docs/testing/system_tests.rst)
 test_run = get_test_run(dag)

@@ -20,7 +20,7 @@ import logging
 
 from fastapi import Query
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
 

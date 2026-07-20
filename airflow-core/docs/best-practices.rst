@@ -296,6 +296,8 @@ When you execute that code you will see:
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
 
+.. _best_practices/code_quality_and_linting:
+
 Code Quality and Linting
 ------------------------
 
@@ -317,7 +319,7 @@ Installing and Using ruff
 
    .. code-block:: bash
 
-      pip install "ruff>=0.15.6"
+      pip install "ruff>=0.15.17"
 
 2. **Running ruff**: Execute ``ruff`` to check your Dags for potential issues:
 
@@ -353,6 +355,16 @@ Running ``ruff`` will produce:
    dags/legacy_dag.py:19:5: AIR303 airflow.sensors.filesystem.FileSensor is moved into ``standard`` provider in Airflow 3.0
 
 By integrating ``ruff`` into your development workflow, you can proactively address deprecations and maintain code quality, facilitating smoother transitions between Airflow versions.
+
+.. _best_practices/static_type_checking:
+
+Static Type Checking for Dags
+-----------------------------
+
+If you type-check your Dags with ``mypy``, the optional
+`apache-airflow-mypy <https://pypi.org/project/apache-airflow-mypy/>`_ plugins give accurate results for
+Airflow-specific patterns such as typed decorators and operator outputs. See
+:doc:`/howto/static-type-checking` for installation and configuration.
 
 .. _best_practices/dynamic_dag_generation:
 
@@ -853,6 +865,8 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
 
 .. code-block:: python
 
+    from airflow.sdk import Connection
+
     conn = Connection(
         conn_type="gcpssh",
         login="cat",
@@ -860,7 +874,7 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     )
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
-        assert "cat" == Connection.get_connection_from_secrets("my_conn").login
+        assert "cat" == Connection.get("my_conn").login
 
 Metadata DB maintenance
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -1094,8 +1108,10 @@ The benefits of using those operators are:
   environment is optimized for the case where you have multiple similar, but different environments.
 * The dependencies can be pre-vetted by the admins and your security team, no unexpected, new code will
   be added dynamically. This is good for both, security and stability.
-* Complete isolation between tasks. They cannot influence one another in other ways than using standard
-  Airflow XCom mechanisms.
+* Strong process-level isolation between tasks. Tasks run in separate containers/pods and cannot
+  influence one another at the process or filesystem level. They can still interact through standard
+  Airflow mechanisms (XComs, connections, variables) via the Execution API. See
+  :doc:`/security/security_model` for the full isolation model.
 
 The drawbacks:
 

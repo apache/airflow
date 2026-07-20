@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-informatica``
 
-Release: ``0.1.1``
+Release: ``0.2.0``
 
 
 `Informatica <https://www.informatica.com//>`__
@@ -36,7 +36,7 @@ This is a provider package for ``informatica`` provider. All classes for this pr
 are in ``airflow.providers.informatica`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-informatica/0.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-informatica/0.2.0/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-informatica``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13
+The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -56,6 +56,7 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-http``           ``>=4.13.2``
+``sqlglot``                                 ``>=30.0.0``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -75,6 +76,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                   Extra
 ==================================================================================================================  =================
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
 ==================================================================================================================  =================
 
@@ -85,7 +87,8 @@ Optional dependencies
 Extra              Dependencies
 =================  ==========================================
 ``common.compat``  ``apache-airflow-providers-common-compat``
+``common.sql``     ``apache-airflow-providers-common-sql``
 =================  ==========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-informatica/0.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-informatica/0.2.0/changelog.html>`_.

@@ -19,8 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.assets import Asset
+
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
+
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
 def sanitize_uri(uri: SplitResult) -> SplitResult:
@@ -32,3 +36,20 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
     if len(uri.path.split("/")) != 3:  # Leading slash, database name, and table name.
         raise ValueError("URI format mysql:// must contain database and table names")
     return uri._replace(scheme="mysql")
+
+
+def create_asset(
+    *, host: str, database: str, table: str, port: int = 3306, extra: dict | None = None
+) -> Asset:
+    return Asset(uri=f"mysql://{host}:{port}/{database}/{table}", extra=extra)
+
+
+def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:
+    """Translate Asset with valid AIP-60 uri to OpenLineage with assistance from the hook."""
+    from urllib.parse import urlsplit
+
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+
+    parsed = urlsplit(asset.uri)
+    _, database, table = parsed.path.split("/")  # Leading slash, database name, and table name.
+    return OpenLineageDataset(namespace=f"mysql://{parsed.netloc}", name=f"{database}.{table}")

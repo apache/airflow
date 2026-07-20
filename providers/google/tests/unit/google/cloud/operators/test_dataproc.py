@@ -85,6 +85,7 @@ cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
 DATAPROC_TRIGGERS_PATH = "airflow.providers.google.cloud.triggers.dataproc.{}"
 
+
 TASK_ID = "task-id"
 GCP_PROJECT = "test-project"
 GCP_REGION = "test-location"
@@ -134,6 +135,7 @@ CONFIG = {
     "autoscaling_config": {"policy_uri": "autoscaling_policy"},
     "config_bucket": "storage_bucket",
     "cluster_tier": "CLUSTER_TIER_STANDARD",
+    "engine": "DEFAULT",
     "cluster_type": "STANDARD",
     "initialization_actions": [
         {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
@@ -323,6 +325,120 @@ CONFIG_WITH_GPU_ACCELERATOR = {
     "endpoint_config": {},
 }
 
+CONFIG_WITH_MASTER_AND_WORKER_FLEX_MIG = {
+    "gce_cluster_config": {
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
+        "metadata": {"metadata": "data"},
+        "network_uri": "network_uri",
+        "subnetwork_uri": "subnetwork_uri",
+        "internal_ip_only": True,
+        "tags": ["tags"],
+        "service_account": "service_account",
+        "service_account_scopes": ["service_account_scopes"],
+    },
+    "master_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
+        "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+        "instance_flexibility_policy": {
+            "instance_selection_list": [
+                {
+                    "machine_types": [
+                        "projects/project_id/zones/zone/machineTypes/machine1",
+                        "projects/project_id/zones/zone/machineTypes/machine2",
+                    ],
+                    "rank": 0,
+                },
+                {"machine_types": ["projects/project_id/zones/zone/machineTypes/machine3"], "rank": 1},
+            ],
+        },
+    },
+    "worker_config": {
+        "num_instances": 3,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+        "instance_flexibility_policy": {
+            "instance_selection_list": [
+                {
+                    "machine_types": [
+                        "projects/project_id/zones/zone/machineTypes/machine1",
+                        "projects/project_id/zones/zone/machineTypes/machine2",
+                    ],
+                    "rank": 0,
+                },
+                {"machine_types": ["projects/project_id/zones/zone/machineTypes/machine3"], "rank": 1},
+            ],
+        },
+    },
+    "secondary_worker_config": {
+        "num_instances": 4,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "is_preemptible": True,
+        "preemptibility": "SPOT",
+    },
+    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "lifecycle_config": {},
+    "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
+    "autoscaling_config": {"policy_uri": "autoscaling_policy"},
+    "config_bucket": "storage_bucket",
+    "initialization_actions": [
+        {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
+    ],
+    "endpoint_config": {},
+}
+
+
+CONFIG_WITH_STOP_TTL = {
+    "gce_cluster_config": {
+        "zone_uri": "https://www.googleapis.com/compute/v1/projects/project_id/zones/zone",
+        "metadata": {"metadata": "data"},
+        "network_uri": "network_uri",
+        "subnetwork_uri": "subnetwork_uri",
+        "internal_ip_only": True,
+        "tags": ["tags"],
+        "service_account": "service_account",
+        "service_account_scopes": ["service_account_scopes"],
+    },
+    "master_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
+        "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+    },
+    "worker_config": {
+        "num_instances": 2,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "image_uri": "https://www.googleapis.com/compute/beta/projects/"
+        "custom_image_project_id/global/images/custom_image",
+    },
+    "secondary_worker_config": {
+        "num_instances": 4,
+        "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
+        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
+        "is_preemptible": True,
+        "preemptibility": "SPOT",
+    },
+    "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
+    "lifecycle_config": {
+        "idle_stop_ttl": {"seconds": 300},
+        "auto_stop_time": "2019-09-12T00:00:00.000000Z",
+    },
+    "encryption_config": {"gce_pd_kms_key_name": "customer_managed_key"},
+    "autoscaling_config": {"policy_uri": "autoscaling_policy"},
+    "config_bucket": "storage_bucket",
+    "initialization_actions": [
+        {"executable_file": "init_actions_uris", "execution_timeout": {"seconds": 600}}
+    ],
+    "endpoint_config": {},
+}
+
 LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION_LABEL}
 
 LABELS.update({"airflow-version": AIRFLOW_VERSION_LABEL})
@@ -459,7 +575,7 @@ def assert_warning(msg: str, warnings):
 class DataprocTestBase:
     @classmethod
     def setup_class(cls):
-        cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
+        cls.dagbag = DagBag(dag_folder="/dev/null")
         cls.dag = DAG(
             dag_id=TEST_DAG_ID,
             schedule=None,
@@ -603,6 +719,7 @@ class TestsClusterGenerator:
             driver_pool_size=2,
             cluster_tier="CLUSTER_TIER_STANDARD",
             cluster_type="STANDARD",
+            engine="DEFAULT",
         )
         cluster = generator.make()
         assert cluster == CONFIG
@@ -696,6 +813,102 @@ class TestsClusterGenerator:
         cluster = generator.make()
         assert cluster == CONFIG_WITH_FLEX_MIG
 
+    def test_build_with_master_and_worker_flex_migs(self):
+        generator = ClusterGenerator(
+            project_id="project_id",
+            num_workers=3,
+            zone="zone",
+            network_uri="network_uri",
+            subnetwork_uri="subnetwork_uri",
+            internal_ip_only=True,
+            tags=["tags"],
+            storage_bucket="storage_bucket",
+            init_actions_uris=["init_actions_uris"],
+            init_action_timeout="10m",
+            metadata={"metadata": "data"},
+            custom_image="custom_image",
+            custom_image_project_id="custom_image_project_id",
+            autoscaling_policy="autoscaling_policy",
+            properties={"properties": "data"},
+            optional_components=["optional_components"],
+            num_masters=2,
+            master_machine_type="master_machine_type",
+            master_disk_type="master_disk_type",
+            master_disk_size=128,
+            worker_machine_type="worker_machine_type",
+            worker_disk_type="worker_disk_type",
+            worker_disk_size=256,
+            num_preemptible_workers=4,
+            preemptibility="Spot",
+            region="region",
+            service_account="service_account",
+            service_account_scopes=["service_account_scopes"],
+            customer_managed_key="customer_managed_key",
+            master_instance_flexibility_policy=InstanceFlexibilityPolicy(
+                [
+                    InstanceSelection(
+                        [
+                            "projects/project_id/zones/zone/machineTypes/machine1",
+                            "projects/project_id/zones/zone/machineTypes/machine2",
+                        ],
+                        0,
+                    ),
+                    InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
+                ]
+            ),
+            worker_instance_flexibility_policy=InstanceFlexibilityPolicy(
+                [
+                    InstanceSelection(
+                        [
+                            "projects/project_id/zones/zone/machineTypes/machine1",
+                            "projects/project_id/zones/zone/machineTypes/machine2",
+                        ],
+                        0,
+                    ),
+                    InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
+                ]
+            ),
+        )
+        cluster = generator.make()
+        assert cluster == CONFIG_WITH_MASTER_AND_WORKER_FLEX_MIG
+
+    def test_build_with_stop_ttl(self):
+        generator = ClusterGenerator(
+            project_id="project_id",
+            num_workers=2,
+            zone="zone",
+            network_uri="network_uri",
+            subnetwork_uri="subnetwork_uri",
+            internal_ip_only=True,
+            tags=["tags"],
+            storage_bucket="storage_bucket",
+            init_actions_uris=["init_actions_uris"],
+            init_action_timeout="10m",
+            metadata={"metadata": "data"},
+            custom_image="custom_image",
+            custom_image_project_id="custom_image_project_id",
+            autoscaling_policy="autoscaling_policy",
+            properties={"properties": "data"},
+            optional_components=["optional_components"],
+            num_masters=2,
+            master_machine_type="master_machine_type",
+            master_disk_type="master_disk_type",
+            master_disk_size=128,
+            worker_machine_type="worker_machine_type",
+            worker_disk_type="worker_disk_type",
+            worker_disk_size=256,
+            num_preemptible_workers=4,
+            preemptibility="Spot",
+            region="region",
+            service_account="service_account",
+            service_account_scopes=["service_account_scopes"],
+            idle_stop_ttl=300,
+            auto_stop_time=timezone.datetime(2019, 9, 12),
+            customer_managed_key="customer_managed_key",
+        )
+        cluster = generator.make()
+        assert cluster == CONFIG_WITH_STOP_TTL
+
     def test_build_with_gpu_accelerator(self):
         generator = ClusterGenerator(
             project_id="project_id",
@@ -763,6 +976,11 @@ class TestsClusterGenerator:
         generator = ClusterGenerator(project_id="project_id", cluster_type="STANDARD")
         cluster = generator.make()
         assert cluster["cluster_type"] == "STANDARD"
+
+    def test_build_with_engine(self):
+        generator = ClusterGenerator(project_id="project_id", engine="DEFAULT")
+        cluster = generator.make()
+        assert cluster["engine"] == "DEFAULT"
 
 
 class TestDataprocCreateClusterOperator(DataprocClusterTestBase):

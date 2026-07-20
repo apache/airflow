@@ -23,12 +23,11 @@ from airflow.sdk._shared.observability.metrics.base_stats_logger import NoStatsL
 from airflow.sdk.configuration import conf
 
 
-def get_stats_factory(stats_cls) -> Callable:
+def get_stats_factory() -> Callable:
     if conf.getboolean("metrics", "statsd_datadog_enabled"):
         from airflow.sdk.observability.metrics import datadog_logger
 
-        # Datadog needs the 'stats_cls' param, so wrap it into a 0-arg factory.
-        return lambda: datadog_logger.get_dogstatsd_logger(stats_cls)
+        return datadog_logger.get_dogstatsd_logger
     if conf.getboolean("metrics", "statsd_on"):
         from airflow.sdk.observability.metrics import statsd_logger
 

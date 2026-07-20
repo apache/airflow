@@ -36,6 +36,30 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Task SDK integration tests (true/false)"
         required: true
         type: string
+      run-remote-logging-s3-e2e-tests:
+        description: "Whether to run S3 remote logging e2e tests (true/false)"
+        required: true
+        type: string
+      run-remote-logging-elasticsearch-e2e-tests:
+        description: "Whether to run Elasticsearch remote logging e2e tests (true/false)"
+        required: true
+        type: string
+      run-remote-logging-opensearch-e2e-tests:
+        description: "Whether to run OpenSearch remote logging e2e tests (true/false)"
+        required: true
+        type: string
+      run-event-driven-e2e-tests:
+        description: "Whether to run event driven e2e tests (true/false)"
+        required: true
+        type: string
+      run-java-sdk-e2e-tests:
+        description: "Whether to run Java SDK e2e tests (true/false)"
+        required: true
+        type: string
+      run-go-sdk-e2e-tests:
+        description: "Whether to run Go SDK e2e tests (true/false)"
+        required: true
+        type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
@@ -117,9 +141,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -155,9 +179,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -186,9 +210,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -225,6 +249,31 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log"
+    if: inputs.canary-run == 'true' || inputs.run-remote-logging-s3-e2e-tests == 'true'
+
+  test-e2e-integration-tests-remote-log-elasticsearch:
+    name: "Elasticsearch remote logging tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "Elasticsearch remote logging e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "remote_log_elasticsearch"
+    if: inputs.canary-run == 'true' || inputs.run-remote-logging-elasticsearch-e2e-tests == 'true'
+
+  test-e2e-integration-tests-remote-log-opensearch:
+    name: "OpenSearch remote logging tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "OpenSearch remote logging e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "remote_log_opensearch"
+    if: inputs.canary-run == 'true' || inputs.run-remote-logging-opensearch-e2e-tests == 'true'
 
   test-e2e-integration-tests-xcom-object-storage:
     name: "XCom object storage backend tests with PROD image"
@@ -236,6 +285,41 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "xcom_object_storage"
+
+  test-e2e-integration-tests-event-driven:
+    name: "Event driven tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "Event driven e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "event_driven"
+    if: inputs.canary-run == 'true' || inputs.run-event-driven-e2e-tests == 'true'
+
+  test-e2e-integration-tests-java-sdk:
+    name: "Java SDK e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "Java SDK e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "java_sdk"
+    if: inputs.canary-run == 'true' || inputs.run-java-sdk-e2e-tests == 'true'
+  test-e2e-integration-tests-go-sdk:
+    name: "Go SDK e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "Go SDK e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "go_sdk"
+    if: inputs.canary-run == 'true' || inputs.run-go-sdk-e2e-tests == 'true'
 
   test-ui-e2e-chromium:
     name: "Chromium UI e2e tests with PROD image"
@@ -286,9 +370,9 @@ jobs:
     steps:
       - name: "Cleanup repo"
         shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
         with:
           fetch-depth: 2
           persist-credentials: false

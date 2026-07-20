@@ -41,7 +41,7 @@ from flask_appbuilder.views import IndexView, UtilView
 
 from airflow import settings
 from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.views import FabIndexView, redirect
 
@@ -165,6 +165,8 @@ class AirflowAppBuilder:
         :param app:
         :param session: The SQLAlchemy session
         """
+        from airflow.providers.fab.www.utils import get_fab_auth_manager
+
         log.info("Initializing AppBuilder")
         app.config.setdefault("APP_NAME", "F.A.B.")
         app.config.setdefault("APP_THEME", "")
@@ -193,10 +195,12 @@ class AirflowAppBuilder:
             self.menu = dynamic_class_import(_menu)
         else:
             self.menu = self.menu or Menu()
-
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        auth_manager = create_auth_manager()
+        try:
+            auth_manager = get_fab_auth_manager()
+        except RuntimeError:
+            auth_manager = create_auth_manager()
         with _init_app_lock:
             auth_manager.appbuilder = self
             # Invalidate cached security_manager so it binds to the current Flask app.

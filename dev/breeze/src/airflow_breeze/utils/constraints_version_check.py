@@ -24,7 +24,7 @@ import sys
 import tempfile
 import urllib.request
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.error import HTTPError, URLError
@@ -62,6 +62,13 @@ def parse_constraints_generation_date(lines):
     return None
 
 
+def is_yanked_release(release_files: list[dict] | None) -> bool:
+    """Return True if the release has files and all of them are yanked on PyPI."""
+    if not release_files:
+        return False
+    return all(f.get("yanked", False) for f in release_files)
+
+
 def is_valid_version(version_str: str, latest_version: Version) -> bool:
     """Check if the version string is a valid one.
 
@@ -92,29 +99,57 @@ def count_versions_between(releases: dict[str, Any], current_version: str, lates
         v
         for v in releases.keys()
         if releases[v]
+        and not is_yanked_release(releases[v])
         and is_valid_version(version_str=v, latest_version=latest)
         and current < version.parse(v) <= latest
     ]
     return len(versions_between)
 
 
-def get_status_emoji(constraint_date, latest_date, is_latest_version):
-    """Determine status emoji based on how outdated the package is"""
-    if is_latest_version:
-        return "✅ OK             "  # Package is up to date (15 chars padding)
+def get_status_emoji(constraint_date, latest_date, is_latest_version, cooldown_days: int = 0):
+    """Determine status emoji based on how outdated the package is.
 
+    The ``cooldown_days`` value shifts the thresholds so that time a package
+    spent in the cooldown window is not counted against its staleness — a
+    package that was released just after the cooldown period should still be
+    reported as "new" rather than immediately as "warning".
+
+    All emojis used here (✅, 📢, 🔶, 🚨) are single Python chars with ~2 visual cells,
+    so ljust produces consistent alignment without any offset workarounds.
+
+    Returns a tuple of (formatted_status_string, status_category) where status_category
+    is one of "ok", "new", "warning", "critical".
+    """
+    col_target = 11
+    if is_latest_version:
+        return "✅ OK".ljust(col_target), "ok"
+
+    new_threshold = 5 + cooldown_days
+    warning_threshold = 30 + cooldown_days
     try:
         constraint_dt = datetime.strptime(constraint_date, "%Y-%m-%d")
         latest_dt = datetime.strptime(latest_date, "%Y-%m-%d")
         days_diff = (latest_dt - constraint_dt).days
 
-        if days_diff <= 5:
-            return "📢 <5d          "
-        if days_diff <= 30:
-            return "⚠️ <30d           "
-        return f"🚨 >{days_diff}d".ljust(15)
+        if days_diff <= new_threshold:
+            return f"📢 <{new_threshold}d".ljust(col_target), "new"
+        if days_diff <= warning_threshold:
+            return f"🔶 <{warning_threshold}d".ljust(col_target), "warning"
+        return f"🚨 >{days_diff}d".ljust(col_target), "critical"
     except Exception:
-        return "📢 N/A           "
+        return "📢 N/A".ljust(col_target), "new"
+
+
+def get_days_stale(latest_release_date: str) -> str:
+    """Return the number of days since the latest release if >365, else empty string."""
+    try:
+        latest_release_dt = datetime.strptime(latest_release_date, "%Y-%m-%d")
+        days_since = (datetime.now() - latest_release_dt).days
+        if days_since > 365:
+            return str(days_since)
+    except Exception:
+        pass
+    return ""
 
 
 def get_max_package_length(packages: list[tuple[str, str]]) -> int:
@@ -136,6 +171,8 @@ def should_show_package(releases, latest_version, constraints_date, mode, is_lat
     for version_info in releases.values():
         if not version_info:
             continue
+        if is_yanked_release(version_info):
+            continue
         try:
             release_date = datetime.fromisoformat(
                 version_info[0]["upload_time_iso_8601"].replace("Z", "+00:00")
@@ -148,18 +185,52 @@ def should_show_package(releases, latest_version, constraints_date, mode, is_lat
     return True
 
 
+def get_latest_version_with_cooldown(releases: dict[str, Any], cooldown_days: int) -> str | None:
+    """Find the latest non-prerelease version whose release date is outside the cooldown period.
+
+    Returns the version string, or None if no version qualifies.
+    """
+    from packaging import version
+
+    cutoff = datetime.now() - timedelta(days=cooldown_days)
+    candidates: list[tuple[version.Version, str]] = []
+    for v, release_files in releases.items():
+        if not release_files:
+            continue
+        if is_yanked_release(release_files):
+            continue
+        try:
+            parsed_v = version.parse(v)
+        except version.InvalidVersion:
+            continue
+        if parsed_v.is_prerelease or parsed_v.is_devrelease:
+            continue
+        try:
+            upload_time = datetime.fromisoformat(
+                release_files[0]["upload_time_iso_8601"].replace("Z", "+00:00")
+            ).replace(tzinfo=None)
+        except (KeyError, IndexError, ValueError):
+            continue
+        if upload_time <= cutoff:
+            candidates.append((parsed_v, v))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    return candidates[0][1]
+
+
 def get_first_newer_release_date_str(releases, current_version):
     from packaging import version
 
     try:
         current = version.parse(current_version)
 
-        # Filter and parse versions, excluding pre-releases and invalid versions
+        # Filter and parse versions, excluding pre-releases, yanked, and invalid versions
         valid_versions = []
         for v in releases:
             try:
                 parsed_v = version.parse(v)
-                if not parsed_v.is_prerelease and releases[v]:  # Check if release data exists
+                if not parsed_v.is_prerelease and releases[v] and not is_yanked_release(releases[v]):
                     valid_versions.append(parsed_v)
             except version.InvalidVersion:
                 continue
@@ -190,9 +261,11 @@ def constraints_version_check(
     explain_why: bool = False,
     github_token: str | None = None,
     github_repository: str | None = None,
+    cooldown_days: int = 4,
 ):
     console_print(f"[bold cyan]Python version:[/] [white]{python}[/]")
-    console_print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]\n")
+    console_print(f"[bold cyan]Constraints mode:[/] [white]{airflow_constraints_mode}[/]")
+    console_print(f"[bold cyan]Cooldown period:[/] [white]{cooldown_days} days[/]\n")
     with tempfile.TemporaryDirectory() as temp_dir:
         constraints_file = Path(temp_dir) / "constraints.txt"
         download_constraints_file(
@@ -218,7 +291,7 @@ def constraints_version_check(
     col_widths, format_str, headers, total_width = get_table_format(packages)
     print_table_header(format_str, headers, total_width)
 
-    outdated_count, skipped_count, explanations = process_packages(
+    outdated_count, skipped_count, explanations, status_counts = process_packages(
         packages=packages,
         constraints_date=constraints_date,
         mode=diff_mode,
@@ -228,6 +301,7 @@ def constraints_version_check(
         python_version=python,
         airflow_constraints_mode=airflow_constraints_mode,
         github_repository=github_repository,
+        cooldown_days=cooldown_days,
     )
 
     print_table_footer(
@@ -236,6 +310,8 @@ def constraints_version_check(
         outdated_count=outdated_count,
         skipped_count=skipped_count,
         mode=diff_mode,
+        status_counts=status_counts,
+        cooldown_days=cooldown_days,
     )
     if explain_why and explanations:
         print_explanations(explanations)
@@ -269,7 +345,8 @@ def get_table_format(packages: list[tuple[str, str]]):
         "Constraint Date": 15,
         "Latest Version": 15,
         "Latest Date": 12,
-        "📢 Status": 17,
+        "📢 Status": 12,
+        "# Days Stale": 12,
         "# Versions Behind": 19,
         "PyPI Link": 60,
     }
@@ -280,6 +357,7 @@ def get_table_format(packages: list[tuple[str, str]]):
         f"{{:<{col_widths['Latest Version']}}} | "
         f"{{:<{col_widths['Latest Date']}}} | "
         f"{{:<{col_widths['📢 Status']}}} | "
+        f"{{:<{col_widths['# Days Stale']}}} | "
         f"{{:<{col_widths['# Versions Behind']}}} | "
         f"{{:<{col_widths['PyPI Link']}}}"
     )
@@ -290,6 +368,7 @@ def get_table_format(packages: list[tuple[str, str]]):
         "Latest Version",
         "Latest Date",
         "📢 Status",
+        "# Days Stale",
         "# Versions Behind",
         "PyPI Link",
     ]
@@ -302,9 +381,23 @@ def print_table_header(format_str: str, headers: list[str], total_width: int):
     console_print(f"[magenta]{'=' * total_width}[/]")
 
 
-def print_table_footer(total_width: int, total_pkgs: int, outdated_count: int, skipped_count: int, mode: str):
+def print_table_footer(
+    total_width: int,
+    total_pkgs: int,
+    outdated_count: int,
+    skipped_count: int,
+    mode: str,
+    status_counts: dict[str, int],
+    cooldown_days: int = 0,
+):
+    new_threshold = 5 + cooldown_days
+    warning_threshold = 30 + cooldown_days
     console_print(f"[magenta]{'=' * total_width}[/]")
     console_print(f"[bold cyan]\nTotal packages checked:[/] [white]{total_pkgs}[/]")
+    console_print(f"  [green]✅ Up to date:[/] [white]{status_counts['ok']}[/]")
+    console_print(f"  [yellow]📢 New (<{new_threshold}d):[/] [white]{status_counts['new']}[/]")
+    console_print(f"  [magenta]🔶 Warning (<{warning_threshold}d):[/] [white]{status_counts['warning']}[/]")
+    console_print(f"  [red]🚨 Critical (>{warning_threshold}d):[/] [white]{status_counts['critical']}[/]")
     console_print(f"[bold yellow]Outdated packages found:[/] [white]{outdated_count}[/]")
     if mode == "diff-constraints":
         console_print(
@@ -351,7 +444,8 @@ def process_packages(
     python_version: str,
     airflow_constraints_mode: str,
     github_repository: str | None,
-) -> tuple[int, int, list[str]]:
+    cooldown_days: int = 4,
+) -> tuple[int, int, list[str], dict[str, int]]:
     @contextmanager
     def preserve_pyproject_file(pyproject_path: Path):
         original_content = pyproject_path.read_text()
@@ -377,19 +471,21 @@ def process_packages(
     outdated_count = 0
     skipped_count = 0
     explanations = []
+    status_counts: dict[str, int] = {"ok": 0, "new": 0, "warning": 0, "critical": 0}
 
     for pkg, pinned_version in packages:
         try:
             data = fetch_pypi_data(pkg)
-            latest_version = data["info"]["version"]
             releases = data["releases"]
+            latest_version_with_cooldown = get_latest_version_with_cooldown(releases, cooldown_days)
+            latest_version = latest_version_with_cooldown or data["info"]["version"]
             latest_release_date = get_release_dates(releases, latest_version)
             constraint_release_date = get_release_dates(releases, pinned_version)
             is_latest_version = pinned_version == latest_version
             versions_behind = count_versions_between(releases, pinned_version, latest_version)
             versions_behind_str = str(versions_behind) if versions_behind > 0 else ""
             if should_show_package(releases, latest_version, constraints_date, mode, is_latest_version):
-                print_package_table_row(
+                status_category = print_package_table_row(
                     pkg=pkg,
                     pinned_version=pinned_version,
                     constraint_release_date=constraint_release_date,
@@ -400,7 +496,9 @@ def process_packages(
                     format_str=format_str,
                     is_latest_version=is_latest_version,
                     versions_behind_str=versions_behind_str,
+                    cooldown_days=cooldown_days,
                 )
+                status_counts[status_category] += 1
                 if not is_latest_version:
                     outdated_count += 1
             else:
@@ -422,7 +520,7 @@ def process_packages(
         except URLError as e:
             console_print(f"[bold red]Error fetching {pkg} from PyPI: {e.reason}[/]")
             continue
-    return outdated_count, skipped_count, explanations
+    return outdated_count, skipped_count, explanations, status_counts
 
 
 def print_package_table_row(
@@ -436,31 +534,99 @@ def print_package_table_row(
     format_str: str,
     is_latest_version: bool,
     versions_behind_str: str,
-):
+    cooldown_days: int = 0,
+) -> str:
     first_newer_date_str = get_first_newer_release_date_str(releases, pinned_version)
-    status = get_status_emoji(
+    status, status_category = get_status_emoji(
         first_newer_date_str or constraint_release_date,
         datetime.now().strftime("%Y-%m-%d"),
         is_latest_version,
+        cooldown_days=cooldown_days,
     )
+    days_stale_str = get_days_stale(latest_release_date)
     pypi_link = f"https://pypi.org/project/{pkg}/{latest_version}"
-    color = (
-        "green"
-        if is_latest_version
-        else ("yellow" if status.startswith("📢") or status.startswith("⚠️") else "red")
-    )
-    offset = 1 if status.startswith("⚠️") else 0
+    if status_category == "ok":
+        color = "green"
+    elif status_category == "new":
+        color = "yellow"
+    elif status_category == "warning":
+        color = "magenta"
+    elif status_category == "critical":
+        color = "red"
+    else:
+        color = "white"
     string_to_print = format_str.format(
         pkg,
         pinned_version[: col_widths["Constraint Version"]],
         constraint_release_date[: col_widths["Constraint Date"]],
         latest_version[: col_widths["Latest Version"]],
         latest_release_date[: col_widths["Latest Date"]],
-        status[: (col_widths["📢 Status"] + offset)],
+        status[: col_widths["📢 Status"]],
+        days_stale_str,
         versions_behind_str,
         pypi_link,
     )
     console_print(f"[{color}]{string_to_print}[/]")
+    return status_category
+
+
+def parse_freeze(freeze_text: str) -> dict[str, str]:
+    """Parse ``uv pip freeze`` output into a ``{canonical_name: version}`` mapping.
+
+    Lines that are not simple ``name==version`` pins (editable installs, ``@`` URLs,
+    log noise emitted by uv) are ignored.
+    """
+    from packaging.utils import canonicalize_name
+
+    versions: dict[str, str] = {}
+    for line in freeze_text.splitlines():
+        match = re.match(r"^([A-Za-z0-9_.\-]+)==([\w.\-]+)$", line.strip())
+        if match:
+            versions[str(canonicalize_name(match.group(1)))] = match.group(2)
+    return versions
+
+
+def extract_uv_conflict(text: str) -> str:
+    """Slice uv's resolver-conflict narrative out of a noisy command log.
+
+    uv prints unsatisfiable resolutions as a block that starts with a line containing
+    ``No solution found`` followed by ``Because ... we can conclude ...`` lines. The breeze
+    shell wraps every command with an Airflow (re)install, so the conflict is buried in a lot
+    of unrelated build/install output — this returns just the conflict block (with ANSI color
+    codes stripped), or an empty string if no conflict was reported.
+    """
+    ansi_re = re.compile(r"\x1b\[[0-9;]*m")
+    clean = ansi_re.sub("", text)
+    lines = clean.splitlines()
+    for index, line in enumerate(lines):
+        if "No solution found" in line:
+            return "\n".join(lines[index:]).strip()
+    return ""
+
+
+def find_downgrades(
+    before: dict[str, str], after: dict[str, str], exclude: str
+) -> list[tuple[str, str, str]]:
+    """Return ``(name, before_version, after_version)`` for packages that went *down*.
+
+    ``exclude`` is the canonical name of the package being explained (it is expected
+    to go up, so it is never reported as a downgrade).
+    """
+    from packaging import version
+
+    downgrades: list[tuple[str, str, str]] = []
+    for name, before_version in before.items():
+        if name == exclude:
+            continue
+        after_version = after.get(name)
+        if after_version is None:
+            continue
+        try:
+            if version.parse(after_version) < version.parse(before_version):
+                downgrades.append((name, before_version, after_version))
+        except version.InvalidVersion:
+            continue
+    return sorted(downgrades)
 
 
 def explain_package_upgrade(
@@ -486,21 +652,39 @@ def explain_package_upgrade(
     additional_args = []
     if airflow_constraints_mode == "constraints-source-providers":
         # In case of source constraints we also need to add all development dependencies
-        # to reflect exactly what is installed in the CI image by default
-        additional_args.extend(
-            ["--group", "dev", "--group", "docs", "--group", "docs-gen", "--group", "leveldb"]
-        )
-    with preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject:
+        # to reflect exactly what is installed in the CI image by default. The ``ci-image``
+        # group aggregates dev/docs/docs-gen plus any hard-to-install provider extras
+        # (see root pyproject.toml).
+        additional_args.extend(["--group", "ci-image"])
+    with (
+        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "pyproject.toml") as airflow_pyproject,
+        preserve_pyproject_file(AIRFLOW_ROOT_PATH / "uv.lock"),
+    ):
+        from packaging.utils import canonicalize_name
+
+        canonical_pkg = str(canonicalize_name(pkg))
+
         shell_params = ShellParams(
             github_repository=github_repository,
             python=python_version,
             mount_sources=MOUNT_SELECTED,
         )
-        output_before = Output(title="output_before", file_name=get_temp_file_name())
-        execute_command_in_shell(
-            shell_params,
-            project_name="constraints",
-            command=shlex.join(
+
+        # Marker echoed between ``uv sync`` and ``uv pip freeze`` so the freeze output can be
+        # sliced out of the combined shell log.
+        freeze_marker = "===BREEZE_RESOLVED_FREEZE==="
+
+        def sync_and_freeze(title: str):
+            """Resolve at --resolution highest and, in the *same* shell, freeze the result.
+
+            Each ``execute_command_in_shell`` call is a fresh ``docker compose run --rm``
+            container, so running ``uv pip freeze`` as a separate call would not reliably see
+            the environment the sync just populated. Chaining both in one ``bash -c`` keeps
+            the freeze in the same shell/venv as the sync. ``&&`` ensures the freeze only runs
+            when the sync succeeds and that a sync failure is still reflected in the return
+            code. Returns ``(result, combined_output_text, {canonical_name: version})``.
+            """
+            sync = shlex.join(
                 [
                     "uv",
                     "sync",
@@ -512,40 +696,123 @@ def explain_package_upgrade(
                     "--python",
                     python_version,
                 ]
-            ),
-            output=output_before,
-            signal_error=False,
-        )
+            )
+            output = Output(title=title, file_name=get_temp_file_name())
+            result = execute_command_in_shell(
+                shell_params,
+                project_name="breeze-constraints",
+                command=shlex.join(["bash", "-c", f"{sync} && echo {freeze_marker} && uv pip freeze"]),
+                output=output,
+                signal_error=False,
+            )
+            text = Path(output.file_name).read_text()
+            versions = parse_freeze(text.split(freeze_marker, 1)[1]) if freeze_marker in text else {}
+            return result, text, versions
+
+        # Baseline: resolve the workspace at --resolution highest *without* any pin and
+        # record what version that resolution naturally selects for the package. This is
+        # the resolution that actually generates the constraints, so it is the ground truth
+        # for "what would the constraints pick".
+        _, before_text, before_versions = sync_and_freeze("output_before")
+        baseline_version = before_versions.get(canonical_pkg)
+
         update_pyproject_dependency(airflow_pyproject, pkg, latest_version, python_version)
         if get_verbose():
             syntax = Syntax(
                 airflow_pyproject.read_text(), "toml", theme="monokai", line_numbers=True, word_wrap=False
             )
             explanation += "\n" + str(syntax)
-        output_after = Output(title="output_after", file_name=get_temp_file_name())
-        after_result = execute_command_in_shell(
-            shell_params,
-            project_name="constraints",
-            command=shlex.join(
-                [
-                    "uv",
-                    "sync",
-                    "--all-packages",
-                    "--resolution",
-                    "highest",
-                    "--refresh",
-                    "--python",
-                    python_version,
-                ],
-            ),
-            output=output_after,
-            signal_error=False,
-        )
-        if after_result.returncode == 0:
-            explanation += f"\n[bold yellow]Package {pkg} can be upgraded from {pinned_version} to {latest_version} without conflicts.[/]."
-            if airflow_constraints_mode == "constraints-source-providers":
-                explanation += Path(output_after.file_name).read_text()
-        if after_result.returncode != 0 or get_verbose():
-            explanation += f"\n[yellow]uv sync output for {pkg}=={latest_version}:[/]\n"
-            explanation += Path(output_after.file_name).read_text()
+        after_result, after_text, after_versions = sync_and_freeze("output_after")
+
+        # A zero exit code only proves that *some* valid resolution exists with the pin — not
+        # that --resolution highest would ever select it. Inspect what was actually resolved:
+        # if honouring the pin forced *other* packages to be downgraded, the unpinned highest
+        # resolution (i.e. the constraints) keeps the package at its lower version, so this is
+        # NOT a clean upgrade.
+        resolved_version = after_versions.get(canonical_pkg)
+        downgrades = find_downgrades(before_versions, after_versions, exclude=canonical_pkg)
+
+        if after_result.returncode != 0:
+            # Forcing the package to its latest version produced no valid resolution at all:
+            # a genuine hard conflict. Surface uv's own conflict narrative from the sync log.
+            explanation += (
+                f"\n[bold red]Package {pkg} CANNOT be upgraded to {latest_version}: "
+                f"uv could not resolve the workspace with {pkg}=={latest_version} pinned "
+                f"(hard conflict).[/]"
+            )
+            conflict = extract_uv_conflict(after_text)
+            if conflict:
+                explanation += f"\n\n[bold yellow]Conflict as reported by uv:[/]\n{conflict}"
+        elif not before_versions or not after_versions:
+            # Without the resolved version lists we cannot tell a clean upgrade apart from one
+            # that only works by downgrading other packages — never silently claim success.
+            explanation += (
+                f"\n[bold yellow]uv sync succeeded but the resolved package versions could not "
+                f"be read (empty freeze output), so the upgrade of {pkg} to {latest_version} "
+                f"could not be classified.[/]"
+            )
+        elif baseline_version == latest_version:
+            explanation += (
+                f"\n[bold green]Package {pkg} already resolves to {latest_version} under "
+                f"--resolution highest. The constraints file appears to be stale.[/]"
+            )
+        elif resolved_version != latest_version:
+            explanation += (
+                f"\n[bold yellow]uv sync succeeded but {pkg} still resolved to "
+                f"{resolved_version or 'an unknown version'}, not {latest_version} — "
+                f"the pin did not take effect, so this is not a real upgrade.[/]"
+            )
+        elif downgrades:
+            explanation += (
+                f"\n[bold yellow]Package {pkg} can reach {latest_version} only by DOWNGRADING "
+                f"other packages, so --resolution highest keeps it at "
+                f"{baseline_version or pinned_version}. Required downgrades:[/]"
+            )
+            for name, before_version, after_version in downgrades:
+                explanation += f"\n  - {name}: {before_version} -> {after_version}"
+            # Reproduce the conflict explicitly so uv's own resolver narrative is visible.
+            # A fresh `uv pip compile` of just the package at its target version plus the
+            # packages it would otherwise displace (held at their current versions) is a
+            # contradiction, so uv fails and prints exactly why they cannot coexist. Running
+            # it from scratch (rather than against the workspace) keeps the output to the
+            # conflict itself, and we filter to uv's narrative regardless of shell noise.
+            conflict_pins = [f"{pkg}=={latest_version}"]
+            conflict_pins += [f"{name}=={before_version}" for name, before_version, _ in downgrades]
+            printf_cmd = "printf '%s\\n' " + " ".join(shlex.quote(pin) for pin in conflict_pins)
+            probe_output = Output(title="conflict_probe", file_name=get_temp_file_name())
+            execute_command_in_shell(
+                shell_params,
+                project_name="breeze-constraints",
+                command=shlex.join(
+                    [
+                        "bash",
+                        "-c",
+                        f"{printf_cmd} | uv pip compile - --python {shlex.quote(python_version)}",
+                    ]
+                ),
+                output=probe_output,
+                signal_error=False,
+            )
+            conflict = extract_uv_conflict(Path(probe_output.file_name).read_text())
+            explanation += (
+                f"\n\n[bold yellow]Conflict as reported by uv "
+                f"(uv pip compile {' '.join(conflict_pins)}):[/]\n"
+            )
+            explanation += conflict or "[dim](uv did not emit a conflict narrative)[/]"
+        else:
+            explanation += (
+                f"\n[bold green]Package {pkg} can be upgraded from {pinned_version} to "
+                f"{latest_version} without conflicts and without downgrading other packages.[/]"
+                f"\n[dim]If this result is unexpected, run 'uv cache clean' and retry — a stale "
+                f"uv cache can make breeze resolve against an out-of-date environment.[/]"
+            )
+
+        if get_verbose():
+            # Full resolver logs of both phases — only when explicitly requested, since they
+            # are very long (each is a complete uv sync plus freeze).
+            explanation += (
+                f"\n\n[yellow]--- uv resolver output: phase 1, baseline (no pin) ---[/]\n{before_text}"
+                f"\n[yellow]--- uv resolver output: phase 2, with {pkg}=={latest_version} pinned ---[/]"
+                f"\n{after_text}"
+            )
     return explanation

@@ -54,7 +54,9 @@ export const useBulkDeleteConnections = ({ clearSelections, onSuccessConfirm }: 
             keys: success.join(", "),
             resourceName: translate("admin:connections.connection_other"),
           }),
-          title: translate("toaster.bulkDelete.success.title"),
+          title: translate("toaster.bulkDelete.success.title", {
+            resourceName: translate("admin:connections.connection_other"),
+          }),
           type: "success",
         });
         clearSelections();

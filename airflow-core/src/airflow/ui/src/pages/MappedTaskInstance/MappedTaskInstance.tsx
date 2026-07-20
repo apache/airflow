@@ -18,18 +18,29 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { MdOutlineTask } from "react-icons/md";
+import { MdDetails, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
+import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 
 import { Header } from "./Header";
 
 export const MappedTaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
   const { t: translate } = useTranslation("dag");
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
+  // Pass the run state so the summaries stream keeps auto-refreshing while the run is running;
+  // without it the Header and Details tab would freeze on the first fetch.
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId: runId }, undefined, {
+    enabled: Boolean(runId),
+  });
+  const { summariesByRunId } = useGridTiSummariesStream({
+    dagId,
+    runIds: runId ? [runId] : [],
+    states: dagRun ? [dagRun.state] : undefined,
+  });
+  const gridTISummaries = summariesByRunId.get(runId);
 
   const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
   let taskCount: number = 0;
@@ -40,11 +51,12 @@ export const MappedTaskInstance = () => {
 
   const tabs = [
     { icon: <MdOutlineTask />, label: `${translate("tabs.taskInstances")} [${taskCount}]`, value: "" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
   ];
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout tabs={tabs}>
+      <DetailsLayout outletContext={taskInstance} tabs={tabs}>
         {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
       </DetailsLayout>
     </ReactFlowProvider>

@@ -37,6 +37,8 @@ try:
         AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
         AirflowRescheduleException as AirflowRescheduleException,
         AirflowTimetableInvalid as AirflowTimetableInvalid,
+        NodeNotFound as NodeNotFound,
+        ParamValidationError as ParamValidationError,
         TaskNotFound as TaskNotFound,
     )
 except ModuleNotFoundError:
@@ -53,6 +55,12 @@ except ModuleNotFoundError:
 
     class TaskNotFound(AirflowException):  # type: ignore[no-redef]
         """Raise when a Task is not available in the system."""
+
+    class NodeNotFound(TaskNotFound, KeyError):  # type: ignore[no-redef]
+        """Raise when attempting to access an invalid node (task or task group) using [] notation."""
+
+        def __str__(self) -> str:
+            return str(self.args[0]) if self.args else ""
 
     class AirflowRescheduleException(AirflowException):  # type: ignore[no-redef]
         """
@@ -71,6 +79,9 @@ except ModuleNotFoundError:
 
     class AirflowOptionalProviderFeatureException(AirflowException):  # type: ignore[no-redef]
         """Raise by providers when imports are missing for optional provider features."""
+
+    class ParamValidationError(AirflowException, ValueError):  # type: ignore[no-redef]
+        """Raise when DAG params fail validation."""
 
 
 class AirflowBadRequest(AirflowException):
@@ -130,6 +141,19 @@ class DagRunNotFound(AirflowNotFoundException):
     """Raise when a DAG Run is not available in the system."""
 
 
+class DagNotPartitionedError(ValueError):
+    """Raise when a partition_key is supplied for a Dag that is not partitioned."""
+
+
+class InvalidPartitionKeyError(ValueError):
+    """
+    Raise when a partition_key value is invalid.
+
+    1. empty or exceeds the maximum allowed length
+    2. cannot be decoded to a partition_date by the timetable
+    """
+
+
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 
@@ -179,7 +203,7 @@ class FileSyntaxError(NamedTuple):
     message: str
 
     def __str__(self):
-        return f"{self.message}. Line number: s{str(self.line_no)},"
+        return f"{self.message}. Line number: {str(self.line_no)},"
 
 
 class AirflowFileParseException(AirflowException):

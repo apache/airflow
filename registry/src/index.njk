@@ -99,13 +99,13 @@ title: Discover Providers, Operators & Hooks for Apache Airflow
 </section>
 
 <!-- New Providers -->
-{% set allWithDate = [] %}
-{% for provider in providers.providers %}
-  {% if provider.first_released %}
-    {% set allWithDate = (allWithDate.push(provider), allWithDate) %}
-  {% endif %}
-{% endfor %}
-{% set newProviders = allWithDate | sort(false, false, 'first_released') | reverse | slice(0, 4) %}
+{%- set allWithDate = [] -%}
+{%- for provider in providers.providers -%}
+  {%- if provider.first_released -%}
+    {%- set allWithDate = (allWithDate.push(provider), allWithDate) -%}
+  {%- endif -%}
+{%- endfor -%}
+{%- set newProviders = allWithDate | sort(false, false, 'first_released') | reverse | slice(0, 4) -%}
 {% if newProviders.length > 0 %}
 <section id="new-providers">
   <div class="container">

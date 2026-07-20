@@ -33,8 +33,10 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     SortParam,
+    _PrefixSearchParam,
     _SearchParam,
     filter_param_factory,
+    prefix_search_param_factory,
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -44,9 +46,8 @@ from airflow.api_fastapi.core_api.datamodels.event_logs import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
-    DagAccessEntity,
     ReadableEventLogsFilterDep,
-    requires_access_dag,
+    requires_access_event_log,
 )
 from airflow.models import Log
 
@@ -56,14 +57,22 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 @event_logs_router.get(
     "/{event_log_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
-    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.AUDIT_LOG))],
+    dependencies=[Depends(requires_access_event_log("GET"))],
 )
 def get_event_log(
     event_log_id: int,
     session: SessionDep,
 ) -> EventLogResponse:
     event_log = session.scalar(
-        select(Log).where(Log.id == event_log_id).options(joinedload(Log.task_instance))
+        # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
+        # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
+        # exclude them here. Such rows can exist in legacy installs or via direct DB inserts
+        # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
+        # Making EventLogResponse.when nullable would be a breaking API contract change for
+        # clients that currently rely on `when` always being present.
+        select(Log)
+        .where(Log.id == event_log_id, Log.dttm.is_not(None))
+        .options(joinedload(Log.task_instance))
     )
     if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
@@ -72,7 +81,7 @@ def get_event_log(
 
 @event_logs_router.get(
     "",
-    dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.AUDIT_LOG))],
+    dependencies=[Depends(requires_access_event_log("GET"))],
 )
 def get_event_logs(
     limit: QueryLimit,
@@ -124,16 +133,47 @@ def get_event_logs(
         FilterParam[datetime | None],
         Depends(filter_param_factory(Log.dttm, datetime | None, FilterOptionEnum.GREATER_THAN, "after")),
     ],
-    # Pattern search filters (new - for partial matching)
+    # Pattern search filters (substring match, ILIKE)
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.dag_id, "dag_id_pattern"))],
     task_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.task_id, "task_id_pattern"))],
     run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.run_id, "run_id_pattern"))],
     owner_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.owner, "owner_pattern"))],
     event_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.event, "event_pattern"))],
+    # Prefix pattern search filters (index-friendly, case-sensitive)
+    dag_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.dag_id, "dag_id_prefix_pattern")),
+    ],
+    task_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.task_id, "task_id_prefix_pattern")),
+    ],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.run_id, "run_id_prefix_pattern")),
+    ],
+    owner_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.owner, "owner_prefix_pattern")),
+    ],
+    event_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(Log.event, "event_prefix_pattern")),
+    ],
     readable_event_logs_filter: ReadableEventLogsFilterDep,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
-    query = select(Log).options(joinedload(Log.task_instance), joinedload(Log.dag_model))
+    query = (
+        # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
+        # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
+        # exclude them here. Such rows can exist in legacy installs or via direct DB inserts
+        # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
+        # Making EventLogResponse.when nullable would be a breaking API contract change for
+        # clients that currently rely on `when` always being present.
+        select(Log)
+        .where(Log.dttm.is_not(None))
+        .options(joinedload(Log.task_instance), joinedload(Log.dag_model))
+    )
     event_logs_select, total_entries = paginated_select(
         statement=query,
         order_by=order_by,
@@ -152,10 +192,15 @@ def get_event_logs(
             after,
             # Pattern search filters
             dag_id_pattern,
+            dag_id_prefix_pattern,
             task_id_pattern,
+            task_id_prefix_pattern,
             run_id_pattern,
+            run_id_prefix_pattern,
             owner_pattern,
+            owner_prefix_pattern,
             event_pattern,
+            event_prefix_pattern,
             # Permission
             readable_event_logs_filter,
         ],

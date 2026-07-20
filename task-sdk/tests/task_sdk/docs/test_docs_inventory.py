@@ -25,7 +25,6 @@ import importlib
 import shutil
 import subprocess
 import zlib
-from pathlib import Path
 
 import pytest
 

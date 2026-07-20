@@ -30,13 +30,14 @@ import {
 } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
-import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { dagRunsLimitKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { DagDeadlines } from "./DagDeadlines";
 
 const FailedLogs = lazy(() => import("./FailedLogs"));
 
@@ -60,7 +61,10 @@ export const Overview = () => {
     state: ["failed"],
   });
 
+  const failedTaskCount = failedTasks?.total_entries ?? 0;
+
   const [limit] = useLocalStorage<number>(dagRunsLimitKey(dagId ?? ""), 10);
+
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
     dagId: dagId ?? "",
     limit,
@@ -82,7 +86,6 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
-      <NeedsReviewButton dagId={dagId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -94,14 +97,14 @@ export const Overview = () => {
       </Box>
       <HStack flexWrap="wrap">
         <TrendCountButton
-          colorPalette={(failedTasks?.total_entries ?? 0) === 0 ? "green" : "failed"}
-          count={failedTasks?.total_entries ?? 0}
+          colorPalette={failedTaskCount === 0 ? "green" : "failed"}
+          count={failedTaskCount}
           endDate={endDate}
           events={(failedTasks?.task_instances ?? []).map((ti) => ({
             timestamp: ti.start_date ?? ti.logical_date,
           }))}
           isLoading={isLoading}
-          label={translate("overview.buttons.failedTask", { count: failedTasks?.total_entries ?? 0 })}
+          label={translate("overview.buttons.failedTask", { count: failedTaskCount })}
           route={{
             pathname: "tasks",
             search: `${SearchParamsKeys.STATE}=failed`,
@@ -146,6 +149,7 @@ export const Overview = () => {
           />
         ) : undefined}
       </HStack>
+      {dagId === undefined ? undefined : <DagDeadlines dagId={dagId} />}
       <Suspense fallback={<Skeleton height="100px" width="full" />}>
         <FailedLogs failedTasks={failedTasks} />
       </Suspense>

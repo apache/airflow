@@ -29,14 +29,17 @@ export class DagCodePage extends BasePage {
   public constructor(page: Page) {
     super(page);
     this.editorContainer = page.locator('[role="code"]');
-    this.lineNumbers = page.locator(".monaco-editor .line-numbers");
+    this.lineNumbers = page.locator(".monaco-editor .margin-view-overlays .line-numbers");
     this.editorScrollable = page.locator(".monaco-scrollable-element");
     this.syntaxTokens = page.locator(".monaco-editor .view-line span span");
     this.viewLines = page.locator(".monaco-editor .view-line");
   }
 
   public async navigateToCodeTab(dagId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}/code`);
+    await expect(async () => {
+      await this.navigateTo(`/dags/${dagId}/code`);
+      await expect(this.editorContainer).toBeVisible();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForCodeReady();
   }
 
@@ -47,11 +50,7 @@ export class DagCodePage extends BasePage {
 
     await expect(scrollable).toBeVisible({ timeout: 30_000 });
 
-    await expect
-      .poll(async () => scrollable.evaluate((el) => el.scrollHeight > el.clientHeight), {
-        timeout: 10_000,
-      })
-      .toBe(true);
+    await expect.poll(async () => scrollable.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   }
 
   public async verifyLineNumbersDisplayed(): Promise<void> {

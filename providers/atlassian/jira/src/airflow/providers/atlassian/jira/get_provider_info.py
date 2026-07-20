@@ -55,6 +55,7 @@ def get_provider_info():
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.atlassian.jira.hooks.jira.JiraHook",
+                "hook-name": "JIRA",
                 "connection-type": "jira",
             }
         ],

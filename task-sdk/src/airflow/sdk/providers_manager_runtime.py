@@ -24,7 +24,7 @@ import inspect
 import traceback
 import warnings
 from collections.abc import Callable, MutableMapping
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import SplitResult
 
 import structlog
@@ -53,6 +53,14 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset
 
 log = structlog.getLogger(__name__)
+
+
+class RemoteLoggingInfo(NamedTuple):
+    """Remote logging IO handler registered by a provider."""
+
+    classpath: str
+    scheme: str
+    package_name: str
 
 
 def _correctness_check(provider_package: str, class_name: str, provider_info: ProviderInfo) -> Any:
@@ -150,8 +158,12 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
         self._plugins_set: set[PluginInfo] = set()
+        self._remote_logging_info_list: list[RemoteLoggingInfo] = []
+        self._remote_logging_by_scheme: dict[str, RemoteLoggingInfo] = {}
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._init_airflow_core_hooks()
+        # Populated by initialize_provider_configs(); holds provider-contributed config sections.
+        self._provider_configs: dict[str, dict[str, Any]] = {}
 
     def _init_airflow_core_hooks(self):
         """Initialize the hooks dict with default hooks from Airflow core."""
@@ -212,11 +224,29 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self.initialize_providers_list()
         self._discover_plugins()
 
+    @provider_info_cache("remote_logging")
+    def initialize_providers_remote_logging(self):
+        """Lazy initialization of providers remote logging IO handlers."""
+        self.initialize_providers_list()
+        self._discover_remote_logging()
+
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
         """Lazy initialization of providers taskflow decorators."""
         self.initialize_providers_list()
         self._discover_taskflow_decorators()
+
+    @provider_info_cache("provider_configs")
+    def initialize_provider_configs(self):
+        """Lazy initialization of provider configuration metadata and merge it into SDK ``conf``."""
+        self.initialize_providers_list()
+        self._discover_config()
+
+    def _discover_config(self) -> None:
+        """Retrieve all configs defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if config := provider.data.get("config"):
+                self._provider_configs[provider_package] = config
 
     def _discover_hooks_from_connection_types(
         self,
@@ -520,6 +550,31 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
                     )
                 )
 
+    def _discover_remote_logging(self) -> None:
+        """Retrieve all remote logging IO handlers defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            entries = provider.data.get("remote-logging") or []
+            for entry in entries:
+                classpath = entry["classpath"]
+                if not _correctness_check(provider_package, classpath, provider):
+                    continue
+                info = RemoteLoggingInfo(
+                    classpath=classpath,
+                    scheme=entry["scheme"],
+                    package_name=provider_package,
+                )
+                if (existing := self._remote_logging_by_scheme.get(info.scheme)) is not None:
+                    log.warning(
+                        "Remote logging scheme '%s' is already registered by %s; ignoring "
+                        "duplicate registration from %s.",
+                        info.scheme,
+                        existing.package_name,
+                        info.package_name,
+                    )
+                    continue
+                self._remote_logging_info_list.append(info)
+                self._remote_logging_by_scheme[info.scheme] = info
+
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
             for taskflow_decorator in info.data.get("task-decorators", []):
@@ -597,6 +652,38 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self.initialize_providers_plugins()
         return sorted(self._plugins_set, key=lambda x: x.plugin_class)
 
+    @property
+    def remote_logging_handlers(self) -> list[RemoteLoggingInfo]:
+        """Return all remote logging IO handlers contributed by providers."""
+        self.initialize_providers_remote_logging()
+        return list(self._remote_logging_info_list)
+
+    def remote_logging_handler_by_scheme(self, scheme: str) -> RemoteLoggingInfo | None:
+        """Return the remote logging IO handler registered for the given URL scheme, if any."""
+        self.initialize_providers_remote_logging()
+        return self._remote_logging_by_scheme.get(scheme)
+
+    @property
+    def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        self.initialize_provider_configs()
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    @property
+    def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        """
+        Return provider configs that have already been initialized.
+
+        .. deprecated:: 3.2.0
+            Use ``provider_configs`` instead.  This property is kept for backwards
+            compatibility and will be removed in a future version.
+        """
+        warnings.warn(
+            "already_initialized_provider_configs is deprecated. Use `provider_configs` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
     def _cleanup(self):
         self._initialized_cache.clear()
         self._provider_dict.clear()
@@ -605,9 +692,17 @@ class ProvidersManagerTaskRuntime(LoggingMixin):
         self._hook_provider_dict.clear()
         self._hooks_lazy_dict.clear()
         self._plugins_set.clear()
+        self._remote_logging_info_list.clear()
+        self._remote_logging_by_scheme.clear()
         self._asset_uri_handlers.clear()
         self._asset_factories.clear()
         self._asset_to_openlineage_converters.clear()
+        self._provider_configs.clear()
+
+        # Imported lazily to preserve SDK conf lazy initialization and avoid a configuration/runtime cycle.
+        from airflow.sdk.configuration import conf
+
+        conf.invalidate_cache()
 
         self._initialized = False
         self._initialization_stack_trace = None

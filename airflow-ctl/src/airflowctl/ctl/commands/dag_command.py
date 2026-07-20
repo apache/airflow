@@ -33,7 +33,7 @@ def update_dag_state(
     api_client,
     output: str,
 ):
-    """Update DAG state (pause/unpause)."""
+    """Update Dag state (pause/unpause)."""
     try:
         response = api_client.dags.update(
             dag_id=dag_id, dag_body=DAGPatchBody(is_paused=operation == "pause")
@@ -54,7 +54,7 @@ def update_dag_state(
 
 @provide_api_client(kind=ClientKind.CLI)
 def pause(args, api_client=NEW_API_CLIENT) -> None:
-    """Pause a DAG."""
+    """Pause a Dag."""
     return update_dag_state(
         dag_id=args.dag_id,
         operation="pause",
@@ -65,10 +65,41 @@ def pause(args, api_client=NEW_API_CLIENT) -> None:
 
 @provide_api_client(kind=ClientKind.CLI)
 def unpause(args, api_client=NEW_API_CLIENT) -> None:
-    """Unpause a DAG."""
+    """Unpause a Dag."""
     return update_dag_state(
         dag_id=args.dag_id,
         operation="unpause",
         api_client=api_client,
         output=args.output,
     )
+
+
+_NEXT_EXECUTION_FIELDS = (
+    "next_dagrun_logical_date",
+    "next_dagrun_data_interval_start",
+    "next_dagrun_data_interval_end",
+    "next_dagrun_run_after",
+)
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def next_execution(args, api_client=NEW_API_CLIENT) -> dict | None:
+    """Show next scheduled execution time for a DAG."""
+    try:
+        response = api_client.dags.get(dag_id=args.dag_id)
+    except ServerResponseError as e:
+        rich.print(f"[red]Error retrieving DAG {args.dag_id}: {e}[/red]")
+        sys.exit(1)
+
+    next_exec_data = {field: getattr(response, field) for field in _NEXT_EXECUTION_FIELDS}
+
+    if all(value is None for value in next_exec_data.values()):
+        rich.print(f"[yellow]No upcoming run scheduled for DAG {args.dag_id}.[/yellow]")
+        return None
+
+    result = next_exec_data
+    AirflowConsole().print_as(
+        data=[result],
+        output=args.output,
+    )
+    return result

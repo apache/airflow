@@ -29,6 +29,8 @@ from airflow.exceptions import AirflowConfigException
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
+from airflow.utils.memray_utils import MemrayTraceComponents, enable_memray_trace
+from airflow.utils.process_utils import set_component_mp_start_method
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
@@ -49,12 +51,18 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
             sub_proc.terminate()
 
 
+@enable_memray_trace(component=MemrayTraceComponents.triggerer)
 def triggerer_run(
-    skip_serve_logs: bool, capacity: int, triggerer_heartrate: float, queues: set[str] | None = None
+    skip_serve_logs: bool,
+    capacity: int,
+    triggerer_heartrate: float,
+    queues: set[str] | None = None,
+    team_name: str | None = None,
 ):
+    set_component_mp_start_method("triggerer")
     with _serve_logs(skip_serve_logs):
         triggerer_job_runner = TriggererJobRunner(
-            job=Job(heartrate=triggerer_heartrate), capacity=capacity, queues=queues
+            job=Job(heartrate=triggerer_heartrate), capacity=capacity, queues=queues, team_name=team_name
         )
         run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
 
@@ -73,6 +81,18 @@ def triggerer(args):
             "--queues option may only be used when triggerer.queues_enabled is `True`."
         )
 
+    multi_team = conf.getboolean("core", "multi_team")
+    team_name: str | None = getattr(args, "team_name", None)
+
+    if team_name and not multi_team:
+        raise AirflowConfigException("--team-name option may only be used when core.multi_team is enabled.")
+
+    if team_name:
+        from airflow.models.team import Team
+
+        if Team.get_name_if_exists(team_name) is None:
+            raise AirflowConfigException(f"Team {team_name!r} does not exist.")
+
     queues = set(args.queues) if args.queues else None
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
 
@@ -80,7 +100,9 @@ def triggerer(args):
         from airflow.cli.hot_reload import run_with_reloader
 
         run_with_reloader(
-            lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate, queues),
+            lambda: triggerer_run(
+                args.skip_serve_logs, args.capacity, triggerer_heartrate, queues, team_name
+            ),
             process_name="triggerer",
         )
         return
@@ -88,6 +110,8 @@ def triggerer(args):
     run_command_with_daemon_option(
         args=args,
         process_name="triggerer",
-        callback=lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate, queues),
+        callback=lambda: triggerer_run(
+            args.skip_serve_logs, args.capacity, triggerer_heartrate, queues, team_name
+        ),
         should_setup_logging=True,
     )

@@ -40,6 +40,7 @@ class TestLoginRouter:
     def test_login_callback(self, mock_get_keycloak_client, mock_get_auth_manager, client):
         code = "code"
         token = "token"
+        state = "state"
         mock_keycloak_client = Mock()
         mock_keycloak_client.token.return_value = {
             "access_token": "access_token",
@@ -55,7 +56,9 @@ class TestLoginRouter:
         mock_get_auth_manager.return_value = mock_auth_manager
         mock_auth_manager.generate_jwt.return_value = token
         response = client.get(
-            AUTH_MANAGER_FASTAPI_APP_PREFIX + f"/login_callback?code={code}", follow_redirects=False
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + f"/login_callback?code={code}&state={state}",
+            follow_redirects=False,
+            cookies={"_oauth_state": state},
         )
         mock_keycloak_client.token.assert_called_once_with(
             grant_type="authorization_code",

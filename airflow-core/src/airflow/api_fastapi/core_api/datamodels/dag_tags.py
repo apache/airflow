@@ -23,7 +23,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class DagTagResponse(BaseModel):
-    """DAG Tag serializer for responses."""
+    """Dag Tag serializer for responses."""
 
     name: str
     dag_id: str
@@ -31,7 +31,7 @@ class DagTagResponse(BaseModel):
 
 
 class DAGTagCollectionResponse(BaseModel):
-    """DAG Tags Collection serializer for responses."""
+    """Dag Tags Collection serializer for responses."""
 
     tags: list[str]
     total_entries: int

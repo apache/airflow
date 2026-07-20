@@ -404,7 +404,10 @@ The registry is built in the `apache/airflow` repo and served at `airflow.apache
    Supports two modes:
    - **Full build** (no `provider` input): extracts all ~99 providers (~12 min)
    - **Incremental build** (`provider=amazon`): extracts one provider (~30s), merges
-     with existing data from S3 via `merge_registry_data.py`, then builds the full site
+     with existing data from S3 via `merge_registry_data.py`, then builds the full site.
+     The S3 sync step excludes the entire `api/providers/` subtree for non-target
+     providers to avoid overwriting real data with Eleventy's incomplete/empty
+     stubs (Eleventy 3.x `permalink: false` does not work with pagination).
 2. **S3 buckets**: `{live|staging}-docs-airflow-apache-org/registry/` (same bucket as docs, different prefix)
 3. **Serving**: Apache HTTPD at `airflow.apache.org` rewrites `/registry/*` to CloudFront, which serves from S3
 4. **Auto-trigger**: When `publish-docs-to-s3.yml` publishes provider docs, its
