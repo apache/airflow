@@ -1280,6 +1280,17 @@ metrics:
       type: boolean
       example: ~
       default: "False"
+    dag_tags_in_metrics:
+      description: |
+        Set to ``True`` to include Dag tags as metric tags on all Dag-run and task-instance metrics.
+        Tags that contain a colon (e.g. ``env:prod``) are split into a key/value pair. Plain tags
+        (e.g. ``production``) are emitted as standalone DogStatsd tags, or as ``tag=true`` in InfluxDB
+        line-protocol format. Disabled by default to avoid unexpected cardinality increases, since Dag
+        tags are free-form, user-defined strings.
+      version_added: 3.4.0
+      type: boolean
+      example: ~
+      default: "False"
     otel_on:
       description: |
         Enables sending metrics to OpenTelemetry.
