@@ -1,0 +1,1 @@
+``airflow db clean`` now supports schema-qualified table names, and a new ``[celery] result_backend_schema`` config option lets deployments point the built-in ``celery_taskmeta``/``celery_tasksetmeta`` cleanup at a Celery result backend provisioned into its own database schema, instead of silently skipping those tables.
