@@ -402,8 +402,7 @@ def add_worker_queues(args) -> None:
         add_worker_queues(args.edge_hostname, queues)
         logger.info("Added queues %s to Edge Worker host %s by %s.", queues, args.edge_hostname, getuser())
     except TypeError as e:
-        logger.error(str(e))
-        raise SystemExit
+        raise SystemExit(str(e))
 
 
 @cli_utils.action_cli(check_db=False)
@@ -424,8 +423,7 @@ def remove_worker_queues(args) -> None:
             "Removed queues %s from Edge Worker host %s by %s.", queues, args.edge_hostname, getuser()
         )
     except TypeError as e:
-        logger.error(str(e))
-        raise SystemExit
+        raise SystemExit(str(e))
 
 
 @cli_utils.action_cli(check_db=False)
@@ -448,5 +446,4 @@ def set_remote_worker_concurrency(args) -> None:
             getuser(),
         )
     except TypeError as e:
-        logger.error(str(e))
-        raise SystemExit
+        raise SystemExit(str(e))
