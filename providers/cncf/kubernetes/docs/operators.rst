@@ -195,7 +195,7 @@ worker is preempted or crashes) and the task is retried, the operator can reatta
 that is already running instead of creating a duplicate. This is controlled by the ``durable``
 parameter, which defaults to ``True``.
 
-On Airflow 3.3+, ``durable=True`` persists the running pod's identity (name, namespace, uid) to
+On Airflow 3.3+, ``durable=True`` persists the running pod's identity (name, namespace) to
 :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before the operator starts
 waiting on it. On retry, the operator reads this identity back and reconnects directly to that
 specific pod -- no label search, and no possibility of the ambiguity failure

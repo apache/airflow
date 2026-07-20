@@ -335,6 +335,7 @@ class KubernetesPodOperator(BaseOperator):
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         labels: dict | None = None,
+        reattach_on_restart: bool | None = None,
         durable: bool = True,
         startup_timeout_seconds: int = 120,
         startup_check_interval_seconds: int = 5,
@@ -394,10 +395,8 @@ class KubernetesPodOperator(BaseOperator):
         log_formatter: Callable[[str, str], str] | None = None,
         **kwargs,
     ) -> None:
-        if "reattach_on_restart" in kwargs:
-            # Dropped from the named signature entirely so the warning fires on any explicit use,
-            # `True` or `False`.
-            reattach_on_restart = kwargs.pop("reattach_on_restart")
+        if reattach_on_restart is not None:
+            # Kept as a real named parameter (not **kwargs) so `default_args` still applies correctly.
             if AIRFLOW_V_3_3_PLUS:
                 warnings.warn(
                     "`reattach_on_restart` is deprecated and will be removed in a future release. "
@@ -681,7 +680,7 @@ class KubernetesPodOperator(BaseOperator):
             return
         task_state_store.set(
             POD_IDENTIFIER_STATE_KEY,
-            {"name": pod.metadata.name, "namespace": pod.metadata.namespace, "uid": pod.metadata.uid},
+            {"name": pod.metadata.name, "namespace": pod.metadata.namespace},
         )
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:

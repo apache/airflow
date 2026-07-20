@@ -2572,7 +2572,6 @@ class TestKubernetesPodOperatorDurableExecution:
         created_pod = MagicMock()
         created_pod.metadata.name = "test-pod"
         created_pod.metadata.namespace = "default"
-        created_pod.metadata.uid = "abc-uid"
         self.create_mock.return_value = created_pod
 
         with patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None) as mock_find:
@@ -2582,7 +2581,7 @@ class TestKubernetesPodOperatorDurableExecution:
         self.create_mock.assert_called_once_with(pod=mock_pod_request_obj)
         task_state_store.set.assert_called_once_with(
             POD_IDENTIFIER_STATE_KEY,
-            {"name": "test-pod", "namespace": "default", "uid": "abc-uid"},
+            {"name": "test-pod", "namespace": "default"},
         )
         assert result == mock_pod_request_obj
 
@@ -2597,7 +2596,7 @@ class TestKubernetesPodOperatorDurableExecution:
         )
         context = create_context(k)
         task_state_store = MagicMock()
-        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default", "uid": "abc"}
+        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default"}
         context["task_state_store"] = task_state_store
 
         running_pod = MagicMock()
@@ -2632,7 +2631,7 @@ class TestKubernetesPodOperatorDurableExecution:
         )
         context = create_context(k)
         task_state_store = MagicMock()
-        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default", "uid": "abc"}
+        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default"}
         context["task_state_store"] = task_state_store
 
         terminal_pod = MagicMock()
@@ -2690,7 +2689,7 @@ class TestKubernetesPodOperatorDurableExecution:
         )
         context = create_context(k)
         task_state_store = MagicMock()
-        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default", "uid": "abc"}
+        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default"}
         context["task_state_store"] = task_state_store
 
         mock_pod_request_obj = MagicMock()
@@ -2724,6 +2723,13 @@ class TestKubernetesPodOperatorDurableExecution:
             )
         assert k.durable is True
         assert k.reattach_on_restart is True
+
+    def test_reattach_on_restart_via_default_args_reaches_durable(self, dag_maker):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="reattach_on_restart"):
+            with dag_maker(dag_id="test_reattach_default_args", default_args={"reattach_on_restart": False}):
+                k = KubernetesPodOperator(task_id="task")
+        assert k.durable is False
+        assert k.reattach_on_restart is False
 
 
 class TestSuppress:
