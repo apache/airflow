@@ -129,6 +129,9 @@ external_view_with_metadata = {
     "url_route": "test_iframe_plugin",
     "destination": "nav",
     "category": "browse",
+    "dag_tags": ["ml", "production"],
+    "dag_ids": ["example_dag"],
+    "dag_id_pattern": "etl_*",
 }
 
 react_app_with_metadata = {

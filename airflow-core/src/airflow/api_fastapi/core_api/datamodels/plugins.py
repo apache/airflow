@@ -83,6 +83,15 @@ class BaseUIResponse(BaseModel):
     url_route: str | None = None
     category: str | None = None
     nav_top_level: bool | None = False
+    # Dag-scoped visibility filters (destinations "dag", "dag_run", "task",
+    # "task_instance"). When any are set, the tab is shown only on Dags that match
+    # at least one filter (OR). All unset/None means shown on every Dag; ignored on
+    # non-Dag destinations. Display gating only, not an authorization boundary.
+    # `dag_id_pattern` is a client-side shell glob (`*`/`?`), not the SQL-LIKE
+    # (`%`/`_`) syntax used by the platform's `dag_id_pattern` query params.
+    dag_tags: list[str] | None = None
+    dag_ids: list[str] | None = None
+    dag_id_pattern: str | None = None
 
 
 class ExternalViewResponse(BaseUIResponse):
