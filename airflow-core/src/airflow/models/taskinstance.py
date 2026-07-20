@@ -465,6 +465,8 @@ def clear_task_instances(
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state
                 dr.start_date = timezone.utcnow()
+                # Re-running a finished run starts its TaskGroup retry budget fresh.
+                dr.task_group_retries = None
                 if run_on_latest_version:
                     dr_dag = scheduler_dagbag.get_latest_version_of_dag(dr.dag_id, session=session)
                     dag_version = DagVersion.get_latest_version(dr.dag_id, session=session)
