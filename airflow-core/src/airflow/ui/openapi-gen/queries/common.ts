@@ -37,7 +37,7 @@ export const UseAssetServiceGetAssetAliasKeyFn = ({ assetAliasId }: {
 export type AssetServiceGetAssetEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetEvents>>;
 export type AssetServiceGetAssetEventsQueryResult<TData = AssetServiceGetAssetEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetEventsKey = "AssetServiceGetAssetEvents";
-export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
   extra?: string[];
   limit?: number;
@@ -45,6 +45,8 @@ export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, name
   namePrefixPattern?: string;
   offset?: number;
   orderBy?: string[];
+  partitionKey?: string;
+  partitionKeyRegexpPattern?: string;
   sourceDagId?: string;
   sourceMapIndex?: number;
   sourceRunId?: string;
@@ -53,7 +55,7 @@ export const UseAssetServiceGetAssetEventsKeyFn = ({ assetId, extra, limit, name
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetEventsKey, ...(queryKey ?? [{ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }])];
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetEventsKey, ...(queryKey ?? [{ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }])];
 export type AssetServiceGetAssetQueuedEventsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetQueuedEvents>>;
 export type AssetServiceGetAssetQueuedEventsQueryResult<TData = AssetServiceGetAssetQueuedEventsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceGetAssetQueuedEventsKey = "AssetServiceGetAssetQueuedEvents";
@@ -103,6 +105,15 @@ export const useBackfillServiceGetBackfillKey = "BackfillServiceGetBackfill";
 export const UseBackfillServiceGetBackfillKeyFn = ({ backfillId }: {
   backfillId: number;
 }, queryKey?: Array<unknown>) => [useBackfillServiceGetBackfillKey, ...(queryKey ?? [{ backfillId }])];
+export type BackfillServiceListBackfillDagRunsDefaultResponse = Awaited<ReturnType<typeof BackfillService.listBackfillDagRuns>>;
+export type BackfillServiceListBackfillDagRunsQueryResult<TData = BackfillServiceListBackfillDagRunsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useBackfillServiceListBackfillDagRunsKey = "BackfillServiceListBackfillDagRuns";
+export const UseBackfillServiceListBackfillDagRunsKeyFn = ({ backfillId, limit, offset, orderBy }: {
+  backfillId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}, queryKey?: Array<unknown>) => [useBackfillServiceListBackfillDagRunsKey, ...(queryKey ?? [{ backfillId, limit, offset, orderBy }])];
 export type BackfillServiceListBackfillsUiDefaultResponse = Awaited<ReturnType<typeof BackfillService.listBackfillsUi>>;
 export type BackfillServiceListBackfillsUiQueryResult<TData = BackfillServiceListBackfillsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useBackfillServiceListBackfillsUiKey = "BackfillServiceListBackfillsUi";
