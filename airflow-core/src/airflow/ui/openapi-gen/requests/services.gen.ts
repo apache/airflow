@@ -1101,6 +1101,7 @@ export class DagRunService {
      * @param data.state
      * @param data.dagVersion
      * @param data.bundleVersion
+     * @param data.teams
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
@@ -1164,6 +1165,7 @@ export class DagRunService {
                 state: data.state,
                 dag_version: data.dagVersion,
                 bundle_version: data.bundleVersion,
+                teams: data.teams,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
                 run_id_prefix_pattern: data.runIdPrefixPattern,
@@ -2722,6 +2724,7 @@ export class TaskInstanceService {
      * @param data.queueNamePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @param data.executor
      * @param data.versionNumber
+     * @param data.teams
      * @param data.tryNumber
      * @param data.operator
      * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
@@ -2790,6 +2793,7 @@ export class TaskInstanceService {
                 queue_name_prefix_pattern: data.queueNamePrefixPattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
+                teams: data.teams,
                 try_number: data.tryNumber,
                 operator: data.operator,
                 operator_name_pattern: data.operatorNamePattern,

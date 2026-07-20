@@ -76,6 +76,35 @@ DEFAULT_DATETIME_1 = dt.datetime.fromisoformat(DEFAULT_DATETIME_STR_1)
 DEFAULT_DATETIME_2 = dt.datetime.fromisoformat(DEFAULT_DATETIME_STR_2)
 
 
+def _attach_dag_to_team(session, dag_id: str, *, bundle_name: str, team_name: str) -> str:
+    """
+    Associate a Dag with a team via a team-scoped bundle for multi-team tests.
+
+    Returns the Dag's original bundle name so the caller can restore it during cleanup
+    (``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action).
+    """
+    original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
+    bundle = DagBundleModel(name=bundle_name)
+    bundle.teams.append(Team(name=team_name))
+    session.add(bundle)
+    session.flush()
+    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+    session.commit()
+    return original_bundle_name
+
+
+def _detach_dag_from_team(
+    session, dag_id: str, *, bundle_name: str, team_name: str, original_bundle_name: str
+) -> None:
+    """Undo :func:`_attach_dag_to_team`, restoring the Dag's original bundle."""
+    session.execute(
+        update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=original_bundle_name)
+    )
+    session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
+    session.execute(delete(Team).where(Team.name == team_name))
+    session.commit()
+
+
 class TestTaskInstanceEndpoint:
     @staticmethod
     def clear_db():
@@ -242,6 +271,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
 
     def test_should_respond_200_with_decorator(self, test_client, session):
@@ -318,6 +348,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": mock.ANY,
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
             "dag_version": {
                 "id": response_data["dag_version"]["id"],
                 "version_number": expected_version_number,
@@ -411,6 +442,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "unixname": getuser(),
             },
+            "team_name": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -464,6 +496,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
 
     def test_should_respond_200_task_instance_with_rendered(self, test_client, session):
@@ -520,6 +553,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
 
     def test_raises_404_for_nonexistent_task_instance(self, test_client):
@@ -640,6 +674,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
             }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -2255,6 +2290,60 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         all_backward = backward_ids + [ti["id"] for ti in forward_pages[-1]["task_instances"]]
         assert all_backward == forward_ids, "Backward walk + last page must match the forward walk exactly"
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        original_bundle_name = _attach_dag_to_team(
+            session, "example_python_operator", bundle_name="team-bundle-tis", team_name="team-tis"
+        )
+        try:
+            response = test_client.get(f"/dags/{'example_python_operator'}/dagRuns/~/taskInstances")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["task_instances"]
+            assert all(ti["team_name"] == "team-tis" for ti in body["task_instances"])
+        finally:
+            _detach_dag_from_team(
+                session,
+                "example_python_operator",
+                bundle_name="team-bundle-tis",
+                team_name="team-tis",
+                original_bundle_name=original_bundle_name,
+            )
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_filter_by_team(self, test_client, session):
+        self.create_task_instances(session)
+        original_bundle_name = _attach_dag_to_team(
+            session,
+            "example_python_operator",
+            bundle_name="team-bundle-tis-filter",
+            team_name="team-tis-filter",
+        )
+        try:
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances", params={"teams": ["team-tis-filter"]}
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] > 0
+            assert all(ti["dag_id"] == "example_python_operator" for ti in body["task_instances"])
+
+            # A team with no Dags returns nothing.
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances", params={"teams": ["nonexistent-team"]}
+            )
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+        finally:
+            _detach_dag_from_team(
+                session,
+                "example_python_operator",
+                bundle_name="team-bundle-tis-filter",
+                team_name="team-tis-filter",
+                original_bundle_name=original_bundle_name,
+            )
+
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
     def setup_method(self):
@@ -3817,6 +3906,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "task_display_name": "print_the_context",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
                 "try_number": 0,
                 "unixname": getuser(),
             },
@@ -4757,6 +4847,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
@@ -5033,6 +5124,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "run_after": "2020-01-01T00:00:00Z",
                             "trigger": None,
                             "triggerer_job": None,
+                            "team_name": None,
                         }
                     ],
                     "total_entries": 1,
@@ -5171,6 +5263,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
@@ -5234,6 +5327,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
@@ -5329,6 +5423,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "run_after": "2020-01-01T00:00:00Z",
                         "trigger": None,
                         "triggerer_job": None,
+                        "team_name": None,
                     }
                 ],
                 "total_entries": 1,
@@ -5412,6 +5507,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
             }
 
             _check_task_instance_note(
@@ -5607,6 +5703,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
@@ -5895,6 +5992,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "run_after": "2020-01-01T00:00:00Z",
                             "trigger": None,
                             "triggerer_job": None,
+                            "team_name": None,
                         }
                     ],
                     "total_entries": 1,

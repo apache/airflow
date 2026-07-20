@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
@@ -26,10 +27,12 @@ from airflow.api_fastapi.common.db.common import (
     apply_filters_to_select,
 )
 from airflow.api_fastapi.common.parameters import BaseParam, RangeFilter, SortParam
+from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
 
@@ -93,3 +96,20 @@ def generate_dag_with_latest_run_query(
         )
 
     return query
+
+
+def attach_team_names(objects: Sequence, *, session: Session) -> None:
+    """
+    Attach the owning team name to each object exposing a ``dag_id``.
+
+    Only performs a database lookup when multi-team mode is enabled; otherwise every
+    object keeps its default ``team_name`` of ``None``. The resolved name is set as the
+    ``team_name`` attribute on each object so the response serializer can read it.
+    """
+    if not objects or not conf.getboolean("core", "multi_team"):
+        return
+
+    dag_ids = list({obj.dag_id for obj in objects})
+    team_names_by_dag_id = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+    for obj in objects:
+        obj.team_name = team_names_by_dag_id.get(obj.dag_id)
