@@ -22,8 +22,8 @@ from typing import Any
 
 import pytest
 
-from airflow.providers.common.compat.sdk import DAG
-from airflow.providers.standard.decorators.stub import ArgBindingDataType, _data_type_from_annotation, stub
+from airflow.providers.common.compat.sdk import DAG, task_group
+from airflow.providers.standard.decorators.stub import _infer_data_type, stub
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
@@ -104,7 +104,13 @@ class TestStubTaskflowArgs:
         assert op._arg_bindings == [
             {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
             {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "fn_extract"},
-            {"name": "retries_num", "kind": "literal", "data_type": "integer", "value": 3},
+            {
+                "name": "retries_num",
+                "kind": "literal",
+                "data_type": "integer",
+                "value": 3,
+                "from_default": True,
+            },
         ]
         assert op.upstream_task_ids == {"fn_extract"}
 
@@ -150,19 +156,33 @@ class TestStubTaskflowArgs:
 
     def test_varargs_rejected(self):
         with pytest.raises(ValueError, match="fixed number of parameters"):
-            stub(fn_varargs)()
+            stub(fn_varargs)(1, 2)
 
     def test_varkw_rejected(self):
         with pytest.raises(ValueError, match="fixed number of parameters"):
-            stub(fn_kwonly_varkw)()
+            stub(fn_kwonly_varkw)(x=1)
 
     def test_context_key_param_rejected(self):
         with pytest.raises(ValueError, match="is an Airflow context key"):
             stub(fn_context_key)(1)
 
+    @pytest.mark.parametrize("fn", [fn_varargs, fn_kwonly_varkw, fn_context_key], ids=lambda f: f.__name__)
+    def test_argless_call_skips_signature_checks(self, fn):
+        """Pre-TaskFlow stub Dags never passed arguments; their signatures must keep parsing."""
+        assert stub(fn)().operator._arg_bindings is None
+
+    def test_argless_call_captures_no_spec_for_defaulted_params(self):
+        def fn(limit: int = 10): ...
+
+        assert stub(fn)().operator._arg_bindings is None
+
     def test_non_json_literal_rejected(self):
         with DAG(dag_id="d"), pytest.raises(ValueError, match="not JSON-serializable"):
             stub(fn_transform)("uk", object())
+
+    def test_nan_literal_rejected(self):
+        with DAG(dag_id="d"), pytest.raises(ValueError, match="not JSON-serializable"):
+            stub(fn_transform)("uk", {"ratio": float("nan")})
 
     def test_mapped_xcom_arg_rejected(self):
         with DAG(dag_id="d"):
@@ -185,7 +205,13 @@ class TestStubTaskflowArgs:
         assert round_tripped.task_dict["fn_transform"]._arg_bindings == [
             {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
             {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "fn_extract"},
-            {"name": "retries_num", "kind": "literal", "data_type": "integer", "value": 3},
+            {
+                "name": "retries_num",
+                "kind": "literal",
+                "data_type": "integer",
+                "value": 3,
+                "from_default": True,
+            },
         ]
 
     @pytest.mark.skipif(
@@ -196,39 +222,56 @@ class TestStubTaskflowArgs:
             with pytest.raises(TypeError, match="do not support dynamic task mapping"):
                 stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
 
+    def test_stub_with_args_inside_mapped_task_group_rejected(self):
+        @task_group
+        def group(n):
+            stub(fn_transform)("uk", {})
+
+        with DAG(dag_id="d"):
+            with pytest.raises(ValueError, match="mapped task group"):
+                group.expand(n=[1, 2])
+
+    def test_argless_stub_inside_mapped_task_group_allowed(self):
+        @task_group
+        def group(n):
+            stub(fn_extract)()
+
+        with DAG(dag_id="d"):
+            group.expand(n=[1, 2])
+
 
 @pytest.mark.parametrize(
     ("annotation", "expected"),
     [
-        pytest.param(str, ArgBindingDataType.STRING, id="str"),
-        pytest.param(bool, ArgBindingDataType.BOOLEAN, id="bool"),
-        pytest.param(int, ArgBindingDataType.INTEGER, id="int"),
-        pytest.param(float, ArgBindingDataType.NUMBER, id="float"),
-        pytest.param(dict, ArgBindingDataType.OBJECT, id="dict"),
-        pytest.param(dict[str, int], ArgBindingDataType.OBJECT, id="dict-parameterized"),
-        pytest.param(typing.Mapping[str, int], ArgBindingDataType.OBJECT, id="mapping"),
-        pytest.param(list, ArgBindingDataType.ARRAY, id="list"),
-        pytest.param(list[int], ArgBindingDataType.ARRAY, id="list-parameterized"),
-        pytest.param(tuple, ArgBindingDataType.ARRAY, id="tuple"),
-        pytest.param(set, ArgBindingDataType.ARRAY, id="set"),
-        pytest.param(typing.Sequence[int], ArgBindingDataType.ARRAY, id="sequence"),
-        pytest.param(Any, ArgBindingDataType.ANY, id="any"),
-        pytest.param(None, ArgBindingDataType.ANY, id="none"),
-        pytest.param(bytes, ArgBindingDataType.ANY, id="bytes"),
+        pytest.param(str, "string", id="str"),
+        pytest.param(bool, "boolean", id="bool"),
+        pytest.param(int, "integer", id="int"),
+        pytest.param(float, "number", id="float"),
+        pytest.param(dict, "object", id="dict"),
+        pytest.param(dict[str, int], "object", id="dict-parameterized"),
+        pytest.param(typing.Mapping[str, int], "object", id="mapping"),
+        pytest.param(list, "array", id="list"),
+        pytest.param(list[int], "array", id="list-parameterized"),
+        pytest.param(tuple, "array", id="tuple"),
+        pytest.param(set, "array", id="set"),
+        pytest.param(typing.Sequence[int], "array", id="sequence"),
+        pytest.param(Any, "any", id="any"),
+        pytest.param(None, "any", id="none"),
+        pytest.param(bytes, "any", id="bytes"),
         pytest.param(
             typing.Optional[str],  # noqa: UP045 -- legacy form on purpose
-            ArgBindingDataType.STRING,
+            "string",
             id="optional-str",
         ),
         pytest.param(
             typing.Union[int, str],  # noqa: UP007 -- legacy form on purpose
-            ArgBindingDataType.ANY,
+            "any",
             id="union",
         ),
-        pytest.param(str | None, ArgBindingDataType.STRING, id="pep604-optional"),
-        pytest.param(int | str, ArgBindingDataType.ANY, id="pep604-union"),
-        pytest.param(contextlib.AbstractContextManager, ArgBindingDataType.ANY, id="custom-class"),
+        pytest.param(str | None, "string", id="pep604-optional"),
+        pytest.param(int | str, "any", id="pep604-union"),
+        pytest.param(contextlib.AbstractContextManager, "any", id="custom-class"),
     ],
 )
-def test_data_type_from_annotation(annotation, expected):
-    assert _data_type_from_annotation(annotation) is expected
+def test_infer_data_type(annotation, expected):
+    assert _infer_data_type(annotation) == expected

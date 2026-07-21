@@ -28,7 +28,8 @@
 //     stub Dag captured at parse time from the TaskFlow call
 //     (“transform("uk", extract())“) and delivered in StartupDetails. A
 //     literal argument decodes directly; an XCom argument is pulled from the
-//     named upstream task in the current dag run first.
+//     named upstream task in the current Dag run first (independent pulls run
+//     concurrently).
 //   - TaskInput structs: a struct that anonymously embeds sdk.TaskInput opts
 //     into per-field, name-based binding instead of consuming one positional
 //     slot as a whole-value decode target. Each exported field binds by name
@@ -48,7 +49,13 @@
 // binding: fields match by name, and a field whose name has no corresponding
 // TaskFlow call argument is simply left at its Go zero value instead of
 // failing the task -- the same way an unpassed keyword argument falls back
-// to its default in a kwargs-style call.
+// to its default in a kwargs-style call. The check runs both ways: an
+// explicitly passed argument that no field claims fails the task (catching
+// typo'd field names), while spec entries the Python side captured from the
+// stub signature's defaults (from_default on the wire) may go unclaimed. And
+// a TaskInput struct with bindable fields fails loudly when no argument spec
+// arrives at all (e.g. the Edge Worker path, where nothing could ever fill
+// them), matching the flat-parameter arity check.
 //
 // Analyze inspects a function once at registration and returns a Plan; Resolve
 // builds the call arguments for each execution from that Plan and the
@@ -65,10 +72,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
@@ -181,9 +190,6 @@ type Plan struct {
 	hasTaskInput bool
 }
 
-// NumData returns how many data parameters the analyzed function declares.
-func (p *Plan) NumData() int { return p.numData }
-
 // Analyze inspects the parameters of a task function type and builds a Plan.
 // fnName appears in error messages only. Every parameter must be an injectable
 // runtime type or a type that can receive a task argument (JSON-decodable);
@@ -241,77 +247,7 @@ func (p *Plan) Resolve(
 	client sdk.Client,
 	args []Arg,
 ) ([]reflect.Value, error) {
-	byName := make(map[string]int, len(args))
-	for i, a := range args {
-		// A nil entry can claim no name; it stays unclaimed and fails loudly in
-		// resolveOne when the flat-parameter cursor reaches it.
-		if a != nil {
-			byName[a.ArgName()] = i
-		}
-	}
-	claimed := make([]bool, len(args))
-
 	out := make([]reflect.Value, len(p.params))
-	for i, plan := range p.params {
-		if plan.kind != paramTaskInput {
-			continue
-		}
-		v, err := p.resolveTaskInput(ctx, client, plan, args, byName, claimed)
-		if err != nil {
-			return nil, err
-		}
-		out[i] = v
-	}
-
-	remaining := 0
-	for _, c := range claimed {
-		if !c {
-			remaining++
-		}
-	}
-	if remaining != p.numData {
-		if p.hasTaskInput {
-			names := make([]string, 0, remaining)
-			for i, c := range claimed {
-				if c {
-					continue
-				}
-				name := "<nil>"
-				if args[i] != nil {
-					name = fmt.Sprintf("%q", args[i].ArgName())
-				}
-				names = append(names, name)
-			}
-			return nil, fmt.Errorf(
-				"task function %s: %d TaskFlow call argument(s) not claimed by any TaskInput "+
-					"field: %s",
-				p.fnName, remaining, strings.Join(names, ", "),
-			)
-		}
-		return nil, fmt.Errorf(
-			"task function %s: argument count mismatch: the Dag passes %d positional argument(s) "+
-				"but the Go function declares %d data parameter(s)",
-			p.fnName, remaining, p.numData,
-		)
-	}
-
-	argCursor := 0
-	nextUnclaimed := func() (Arg, bool) {
-		for argCursor < len(args) {
-			i := argCursor
-			argCursor++
-			if !claimed[i] {
-				return args[i], true
-			}
-		}
-		// Unreachable in practice: the remaining/numData check above guarantees
-		// enough unclaimed args exist for every flat parameter still to be
-		// filled. Reported as an error rather than a panic so a bookkeeping bug
-		// fails one task instead of crashing the worker.
-		return nil, false
-	}
-
-	flatIdx := 0
 	for i, plan := range p.params {
 		switch plan.kind {
 		case paramTIRunContext:
@@ -329,158 +265,272 @@ func (p *Plan) Resolve(
 			out[i] = reflect.ValueOf(logger)
 		case paramClient:
 			out[i] = reflect.ValueOf(client)
-		case paramTaskInput:
-			// Already resolved above.
-		case paramData:
-			arg, ok := nextUnclaimed()
-			if !ok {
-				return nil, fmt.Errorf(
-					"task function %s: internal error: exhausted unclaimed args despite a passing arity check",
-					p.fnName,
-				)
-			}
-			v, err := p.resolveData(ctx, client, plan, arg, flatIdx)
-			if err != nil {
-				return nil, err
-			}
-			out[i] = v
-			flatIdx++
+		case paramData, paramTaskInput:
+			// Filled below, once the spec is matched and XComs are pulled.
 		}
+	}
+	if p.hasTaskInput {
+		return p.resolveTaskInputParam(ctx, client, args, out)
+	}
+	return p.resolveFlatParams(ctx, client, args, out)
+}
+
+// resolveFlatParams fills the plain data parameters positionally -- args[0]
+// onto the first data parameter, and so on -- with strict arity (see the
+// package doc comment).
+func (p *Plan) resolveFlatParams(
+	ctx context.Context,
+	c sdk.XComClient,
+	args []Arg,
+	out []reflect.Value,
+) ([]reflect.Value, error) {
+	if len(args) != p.numData {
+		return nil, fmt.Errorf(
+			"task function %s: argument count mismatch: the Dag passes %d positional argument(s) "+
+				"but the Go function declares %d data parameter(s)",
+			p.fnName, len(args), p.numData,
+		)
+	}
+	raws, err := p.fetchArgValues(ctx, c, args, nil)
+	if err != nil {
+		return nil, err
+	}
+	flatIdx := 0
+	for i, plan := range p.params {
+		if plan.kind != paramData {
+			continue
+		}
+		v, err := p.decodeArg(
+			args[flatIdx], raws[flatIdx], plan.typ,
+			fmt.Sprintf("argument %d (parameter %d)", flatIdx, plan.index),
+		)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = v
+		flatIdx++
 	}
 	return out, nil
 }
 
-// resolveData produces the value for one flat data parameter from its
-// argument spec.
-func (p *Plan) resolveData(
+// resolveTaskInputParam fills the single TaskInput struct parameter by name
+// (kwarg-style). Every explicitly passed spec entry must be claimed by some
+// field; entries the Python side captured from the stub signature's defaults
+// (FromDefault) may go unclaimed, the same way an unpassed keyword argument
+// never reaches the callee.
+func (p *Plan) resolveTaskInputParam(
 	ctx context.Context,
 	c sdk.XComClient,
-	plan paramPlan,
-	arg Arg,
-	argIdx int,
-) (reflect.Value, error) {
-	return p.resolveOne(
-		ctx, c, plan.typ, arg,
-		fmt.Sprintf("argument %d (parameter %d)", argIdx, plan.index),
-		fmt.Sprintf("argument %d", argIdx),
-	)
-}
-
-// resolveTaskInput builds the struct value for one TaskInput parameter. A
-// field claiming an argument spec entry by name marks it claimed so the
-// later flat-parameter cursor skips it. A field whose name claims nothing
-// (kwarg-style: it was never "passed") is left unset at its Go zero value
-// rather than failing the task.
-func (p *Plan) resolveTaskInput(
-	ctx context.Context,
-	c sdk.XComClient,
-	plan paramPlan,
 	args []Arg,
-	byName map[string]int,
-	claimed []bool,
-) (reflect.Value, error) {
+	out []reflect.Value,
+) ([]reflect.Value, error) {
+	var paramIdx int
+	var plan paramPlan
+	for i, pl := range p.params {
+		if pl.kind == paramTaskInput {
+			paramIdx, plan = i, pl
+			break
+		}
+	}
+
+	if len(args) == 0 && len(plan.fields) > 0 {
+		return nil, fmt.Errorf(
+			"task function %s: no TaskFlow arg bindings arrived but the TaskInput struct declares "+
+				"%d bindable field(s); nothing can fill them on this execution path",
+			p.fnName, len(plan.fields),
+		)
+	}
+
+	byName := make(map[string]int, len(args))
+	for i, a := range args {
+		if a != nil {
+			byName[a.ArgName()] = i
+		}
+	}
+
+	claimed := make([]bool, len(args))
+	type fieldBind struct {
+		field  taskInputField
+		argIdx int
+	}
+	binds := make([]fieldBind, 0, len(plan.fields))
+	for _, tif := range plan.fields {
+		idx, ok := byName[tif.argName]
+		if !ok {
+			// No TaskFlow call argument carries this name -- kwarg-style, an
+			// unpassed name leaves the field at its Go zero value rather than
+			// failing the task (see the package doc comment).
+			continue
+		}
+		claimed[idx] = true
+		binds = append(binds, fieldBind{field: tif, argIdx: idx})
+	}
+
+	var unclaimed []string
+	for i, c := range claimed {
+		if c {
+			continue
+		}
+		if lit, ok := args[i].(LiteralArg); ok && lit.FromDefault {
+			// The Dag author never passed this argument; the Python side filled
+			// it from the stub signature's default. A struct that does not
+			// mirror the defaulted parameter is fine.
+			continue
+		}
+		name := "<nil>"
+		if args[i] != nil {
+			name = fmt.Sprintf("%q", args[i].ArgName())
+		}
+		unclaimed = append(unclaimed, name)
+	}
+	if len(unclaimed) > 0 {
+		return nil, fmt.Errorf(
+			"task function %s: %d TaskFlow call argument(s) not claimed by any TaskInput "+
+				"field: %s",
+			p.fnName, len(unclaimed), strings.Join(unclaimed, ", "),
+		)
+	}
+
+	raws, err := p.fetchArgValues(ctx, c, args, claimed)
+	if err != nil {
+		return nil, err
+	}
+
 	structType := plan.typ
 	isPtr := structType.Kind() == reflect.Pointer
 	if isPtr {
 		structType = structType.Elem()
 	}
 	structVal := reflect.New(structType).Elem()
-
-	for _, tif := range plan.fields {
-		idx, ok := byName[tif.argName]
-		if !ok {
-			// No TaskFlow call argument carries this name -- kwarg-style, an
-			// unpassed name leaves the field at its Go zero value rather than
-			// failing the task (unlike a flat data parameter, where arity is
-			// checked strictly; see the package doc comment).
-			continue
-		}
-		claimed[idx] = true
-
-		v, err := p.resolveOne(
-			ctx, c, tif.fieldType, args[idx],
-			fmt.Sprintf("TaskInput field %s (parameter %d)", tif.goName, plan.index),
-			fmt.Sprintf("TaskInput field %s", tif.goName),
+	for _, b := range binds {
+		v, err := p.decodeArg(
+			args[b.argIdx], raws[b.argIdx], b.field.fieldType,
+			fmt.Sprintf("TaskInput field %s (parameter %d)", b.field.goName, plan.index),
 		)
 		if err != nil {
-			return reflect.Value{}, err
+			return nil, err
 		}
-		structVal.Field(tif.structIndex).Set(v)
+		structVal.Field(b.field.structIndex).Set(v)
 	}
 
 	if isPtr {
-		return structVal.Addr(), nil
+		out[paramIdx] = structVal.Addr()
+	} else {
+		out[paramIdx] = structVal
 	}
-	return structVal, nil
+	return out, nil
 }
 
-// resolveOne decodes one argument-spec entry into a value assignable to
-// targetType: type-check against the declared Dag type, then decode a
-// literal or pull-and-decode an XCom. Shared by resolveData (one flat
-// parameter) and resolveTaskInput (one TaskInput struct field) so a literal-
-// or xcom-kind entry resolves identically regardless of which parameter
-// shape it fills. typeCheckCtx/generalCtx are error-message prefixes: the
-// former (used only for the type-check error) additionally names the
-// parameter index, matching this package's existing error conventions.
-func (p *Plan) resolveOne(
+// fetchArgValues produces the raw (pre-decode) value for each argument the
+// caller will consume: a literal's inline value, or the upstream task's
+// return-value XCom pulled over the API -- independent pulls run
+// concurrently. needed selects which entries to fetch; nil means all.
+func (p *Plan) fetchArgValues(
 	ctx context.Context,
 	c sdk.XComClient,
-	targetType reflect.Type,
-	arg Arg,
-	typeCheckCtx string,
-	generalCtx string,
-) (reflect.Value, error) {
-	if arg == nil {
-		return reflect.Value{}, fmt.Errorf(
-			"task function %s: %s: nil argument binding", p.fnName, generalCtx,
+	args []Arg,
+	needed []bool,
+) ([]any, error) {
+	raws := make([]any, len(args))
+	var xcomIdxs []int
+	for i, a := range args {
+		if needed != nil && !needed[i] {
+			continue
+		}
+		switch a := a.(type) {
+		case LiteralArg:
+			raws[i] = a.Value
+		case XComArg:
+			xcomIdxs = append(xcomIdxs, i)
+		}
+		// A nil or foreign Arg implementation fails in decodeArg, which names
+		// the destination parameter/field in the error.
+	}
+	if len(xcomIdxs) == 0 {
+		return raws, nil
+	}
+
+	workload, ok := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
+	if !ok {
+		return nil, fmt.Errorf(
+			"task function %s: no workload in context, cannot resolve xcom arguments", p.fnName,
 		)
 	}
-	if err := checkDataType(arg.DeclaredType(), targetType); err != nil {
-		return reflect.Value{}, fmt.Errorf("task function %s: %s: %w", p.fnName, typeCheckCtx, err)
-	}
-	switch a := arg.(type) {
-	case LiteralArg:
-		v, err := decodeValue(a.Value, targetType)
-		if err != nil {
-			return reflect.Value{}, fmt.Errorf(
-				"task function %s: %s: decoding literal value into %s: %w",
-				p.fnName, generalCtx, targetType, err,
-			)
-		}
-		return v, nil
-	case XComArg:
-		workload, ok := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
-		if !ok {
-			return reflect.Value{}, fmt.Errorf(
-				"task function %s: %s: no workload in context, cannot resolve xcom argument",
-				p.fnName, generalCtx,
-			)
-		}
-		// Always the return-value XCom -- a stub Dag cannot reference any other
-		// key. Pull from the upstream's unmapped instance (map_index nil);
-		// mapped upstream fan-in is out of scope for now.
+	// Always the return-value XCom -- a stub Dag cannot reference any other
+	// key. Pull from the upstream's unmapped instance (map_index nil); mapped
+	// upstream fan-in is out of scope for now.
+	pull := func(i int) error {
+		a := args[i].(XComArg)
 		raw, err := c.GetXCom(
 			ctx, workload.TI.DagId, workload.TI.RunId, a.TaskID, nil, api.XComReturnValueKey, nil,
 		)
 		if err != nil {
-			return reflect.Value{}, fmt.Errorf(
-				"task function %s: %s: pulling xcom from task %q: %w",
-				p.fnName, generalCtx, a.TaskID, err,
+			return fmt.Errorf(
+				"task function %s: argument %q: pulling xcom from task %q: %w",
+				p.fnName, a.Name, a.TaskID, err,
 			)
 		}
-		v, err := decodeValue(raw, targetType)
-		if err != nil {
-			return reflect.Value{}, fmt.Errorf(
-				"task function %s: %s: decoding xcom from task %q into %s: %w",
-				p.fnName, generalCtx, a.TaskID, targetType, err,
-			)
+		raws[i] = raw
+		return nil
+	}
+	if len(xcomIdxs) == 1 {
+		if err := pull(xcomIdxs[0]); err != nil {
+			return nil, err
 		}
-		return v, nil
-	default:
+		return raws, nil
+	}
+	var wg sync.WaitGroup
+	errs := make([]error, len(xcomIdxs))
+	for j, i := range xcomIdxs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs[j] = pull(i)
+		}()
+	}
+	wg.Wait()
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+	return raws, nil
+}
+
+// decodeArg decodes one argument-spec entry's raw value into targetType:
+// type-check against the declared Dag type, then a strict decode. errCtx
+// names the destination parameter or TaskInput field for error messages.
+func (p *Plan) decodeArg(
+	arg Arg,
+	raw any,
+	targetType reflect.Type,
+	errCtx string,
+) (reflect.Value, error) {
+	if arg == nil {
 		return reflect.Value{}, fmt.Errorf(
-			"task function %s: %s: unsupported argument binding %T", p.fnName, generalCtx, arg,
+			"task function %s: %s: nil argument binding", p.fnName, errCtx,
 		)
 	}
+	if err := checkDataType(arg.DeclaredType(), targetType); err != nil {
+		return reflect.Value{}, fmt.Errorf("task function %s: %s: %w", p.fnName, errCtx, err)
+	}
+	var source string
+	switch a := arg.(type) {
+	case LiteralArg:
+		source = "literal value"
+	case XComArg:
+		source = fmt.Sprintf("xcom from task %q", a.TaskID)
+	default:
+		return reflect.Value{}, fmt.Errorf(
+			"task function %s: %s: unsupported argument binding %T", p.fnName, errCtx, arg,
+		)
+	}
+	v, err := decodeValue(raw, targetType)
+	if err != nil {
+		return reflect.Value{}, fmt.Errorf(
+			"task function %s: %s: decoding %s into %s: %w",
+			p.fnName, errCtx, source, targetType, err,
+		)
+	}
+	return v, nil
 }
 
 // classifyParam decides how a single parameter is filled. Injectable runtime

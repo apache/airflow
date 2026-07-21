@@ -21,6 +21,7 @@ import (
 	"context"
 	"log/slog"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -40,10 +41,12 @@ func TestBindingSuite(t *testing.T) {
 }
 
 // fakeXComClient records GetXCom calls and returns preconfigured values.
+// Resolve pulls XComs concurrently, so recording is mutex-guarded.
 type fakeXComClient struct {
 	sdk.Client
 
 	values map[string]any // "<task_id>/<key>" -> raw value
+	mu     sync.Mutex
 	calls  []fakeXComCall
 	err    error
 }
@@ -60,7 +63,9 @@ func (f *fakeXComClient) GetXCom(
 	key string,
 	_ any,
 ) (any, error) {
+	f.mu.Lock()
 	f.calls = append(f.calls, fakeXComCall{dagID, runID, taskID, key, mapIndex})
+	f.mu.Unlock()
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -68,7 +73,7 @@ func (f *fakeXComClient) GetXCom(
 }
 
 // workloadCtx returns a context carrying an ExecuteTaskWorkload the resolver
-// reads the dag/run identifiers from.
+// reads the Dag/run identifiers from.
 func workloadCtx() context.Context {
 	return context.WithValue(
 		context.Background(),
@@ -102,12 +107,12 @@ func (s *BindingSuite) TestAnalyzeClassification() {
 			return nil
 		},
 	)
-	s.Equal(2, plan.NumData())
+	s.Equal(2, plan.numData)
 
-	s.Zero(analyze(s, func() error { return nil }).NumData())
+	s.Zero(analyze(s, func() error { return nil }).numData)
 	s.Equal(
 		1,
-		analyze(s, func(x any) error { return nil }).NumData(),
+		analyze(s, func(x any) error { return nil }).numData,
 		"an `any` parameter is a data parameter",
 	)
 }
@@ -350,16 +355,20 @@ func (s *BindingSuite) TestResolveXComArgs() {
 	s.Equal("probe-value", got[1].Interface())
 
 	s.Require().Len(client.calls, 2)
-	s.Equal("dag1", client.calls[0].dagID)
-	s.Equal("run1", client.calls[0].runID)
-	s.Equal("extract", client.calls[0].taskID)
-	s.Equal(
-		api.XComReturnValueKey,
-		client.calls[0].key,
-		"an XCom argument always pulls the return-value key",
-	)
-	s.Nil(client.calls[0].mapIndex, "v1 always pulls the unmapped upstream instance")
-	s.Equal(api.XComReturnValueKey, client.calls[1].key)
+	taskIDs := make([]string, 0, 2)
+	for _, call := range client.calls {
+		// Pulls run concurrently, so assert per-call properties order-independently.
+		taskIDs = append(taskIDs, call.taskID)
+		s.Equal("dag1", call.dagID)
+		s.Equal("run1", call.runID)
+		s.Equal(
+			api.XComReturnValueKey,
+			call.key,
+			"an XCom argument always pulls the return-value key",
+		)
+		s.Nil(call.mapIndex, "v1 always pulls the unmapped upstream instance")
+	}
+	s.ElementsMatch([]string{"extract", "probe"}, taskIDs)
 }
 
 func (s *BindingSuite) TestResolveXComStrictStructDecode() {
@@ -458,14 +467,14 @@ func (s *BindingSuite) TestResolveTIRunContextRebuild() {
 
 func (s *BindingSuite) TestAnalyzeTaskInputClassification() {
 	plan := analyze(s, func(input simpleTaskInput) error { return nil })
-	s.Zero(plan.NumData(), "a TaskInput struct claims by name, not by position")
+	s.Zero(plan.numData, "a TaskInput struct claims by name, not by position")
 
 	ptrPlan := analyze(s, func(input *simpleTaskInput) error { return nil })
-	s.Zero(ptrPlan.NumData(), "a pointer to a TaskInput struct is detected the same way")
+	s.Zero(ptrPlan.numData, "a pointer to a TaskInput struct is detected the same way")
 
 	plainPlan := analyze(s, func(cfg nonEmbeddingStruct) error { return nil })
 	s.Equal(
-		1, plainPlan.NumData(),
+		1, plainPlan.numData,
 		"a plain struct without the TaskInput sentinel stays a whole-value data parameter",
 	)
 }
@@ -572,6 +581,43 @@ func (s *BindingSuite) TestResolveTaskInputUnclaimedArgFailsLoudly() {
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), `not claimed by any TaskInput field: "different_name"`)
 	}
+}
+
+func (s *BindingSuite) TestResolveTaskInputUnclaimedFromDefaultAllowed() {
+	fn := func(input simpleTaskInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
+		// The Dag author never passed "threshold"; Python captured it from the
+		// stub signature's default. The struct need not mirror it.
+		LiteralArg{Name: "threshold", Value: 0.75, DataType: DataTypeNumber, FromDefault: true},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal("widget", got[0].Interface().(simpleTaskInput).Name)
+}
+
+func (s *BindingSuite) TestResolveTaskInputEmptySpecFailsLoudly() {
+	fn := func(input simpleTaskInput) error { return nil }
+	for name, args := range map[string][]Arg{"nil-spec": nil, "empty-spec": {}} {
+		s.Run(name, func() {
+			_, err := s.resolve(fn, args, &fakeXComClient{})
+			// The Edge Worker path delivers no arg bindings; a struct with
+			// bindable fields must fail rather than run fully zero-valued.
+			if s.Assert().Error(err) {
+				s.Contains(err.Error(), "no TaskFlow arg bindings arrived")
+			}
+		})
+	}
+}
+
+func (s *BindingSuite) TestResolveTaskInputOnlyDefaultsSpecZeroValuesUnmatchedFields() {
+	fn := func(input twoFieldTaskInput) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "threshold", Value: 0.75, DataType: DataTypeNumber, FromDefault: true},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	input := got[0].Interface().(twoFieldTaskInput)
+	s.Equal("", input.Name, "no explicit entry arrived; fields keep kwarg-style zero values")
+	s.Equal("", input.Missing)
 }
 
 func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameZeroValuedAlongsideMatch() {

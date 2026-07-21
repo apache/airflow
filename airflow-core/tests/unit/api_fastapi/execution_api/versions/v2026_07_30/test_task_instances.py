@@ -63,7 +63,7 @@ class TestArgBindingsFieldBackwardCompat:
             def extract(): ...
 
             @task.stub
-            def transform(country: str, extracted: dict): ...
+            def transform(country: str, extracted: dict, limit: int = 10): ...
 
             transform("uk", extract())
 
@@ -85,4 +85,5 @@ class TestArgBindingsFieldBackwardCompat:
         assert response.json()["arg_bindings"] == [
             {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
             {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
+            {"name": "limit", "kind": "literal", "data_type": "integer", "value": 10, "from_default": True},
         ]

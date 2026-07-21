@@ -54,6 +54,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -372,14 +373,14 @@ class TestTIRunState:
         assert extras["sub"] == str(ti.id)
 
     def test_ti_run_returns_arg_bindings_for_stub_task(self, client, dag_maker):
-        """A stub task's TaskFlow arg spec is extracted from the serialized dag and returned."""
+        """A stub task's TaskFlow arg spec is extracted from the serialized Dag and returned."""
         with dag_maker("test_arg_bindings_dag", serialized=True):
 
             @task.stub
             def extract(): ...
 
             @task.stub
-            def transform(country: str, extracted: dict): ...
+            def transform(country: str, extracted: dict, limit: int = 10): ...
 
             transform("uk", extract())
 
@@ -402,12 +403,47 @@ class TestTIRunState:
         assert response.json()["arg_bindings"] == [
             {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
             {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
+            {"name": "limit", "kind": "literal", "data_type": "integer", "value": 10, "from_default": True},
         ]
 
         # An argless stub has no captured spec, so the field stays unset.
         response = client.patch(f"/execution/task-instances/{tis['extract'].id}/run", json=payload)
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
+
+    @mock.patch.object(
+        LazyDeserializedDAG,
+        "get_task_arg_bindings",
+        autospec=True,
+        return_value=[{"name": "country", "kind": "hologram", "value": "uk"}],
+    )
+    def test_ti_run_reports_invalid_arg_bindings_spec(self, _, client, dag_maker):
+        """A serialized spec this core version cannot validate fails with a structured error, not a bare 500."""
+        with dag_maker("test_invalid_arg_bindings_dag", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 500
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
 
     def test_arg_bindings_adapter_rejects_unknown_kind(self):
         """The discriminated union refuses serialized specs with an unrecognised kind."""

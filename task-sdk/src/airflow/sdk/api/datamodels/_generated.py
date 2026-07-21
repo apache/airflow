@@ -241,6 +241,7 @@ class LiteralArgBinding(BaseModel):
     name: Annotated[str, Field(title="Name")]
     data_type: ArgBindingDataType | None = ArgBindingDataType.ANY
     value: JsonValue | None = None
+    from_default: Annotated[bool | None, Field(title="From Default")] = False
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):

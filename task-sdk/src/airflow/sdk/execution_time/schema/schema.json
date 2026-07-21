@@ -4603,6 +4603,11 @@
             }
           ],
           "default": null
+        },
+        "from_default": {
+          "default": false,
+          "title": "From Default",
+          "type": "boolean"
         }
       },
       "required": [

@@ -108,12 +108,13 @@ the task failed.
 Any other parameter is a **data parameter**: in declaration order, data parameters receive the
 positional arguments of the Python stub Dag's TaskFlow call. A JSON-serializable literal in the Dag
 file (`transform("uk", ...)`) decodes straight into the parameter; an upstream task output
-(`transform(..., extract())`) is pulled from that task's XCom in the current dag run and decoded into
-the parameter's type. The runtime fails the task loudly when the argument count doesn't match the
-number of data parameters or a declared type can't bind to the Go type. Data parameters must be
-JSON-decodable (no func/chan/unsafe-pointer, no non-empty interfaces) — checked once at registration.
-TaskFlow argument binding arrives over the coordinator protocol, so it is coordinator-mode only today;
-on the Edge Worker path a task with data parameters fails with the arity error.
+(`transform(..., extract())`) is pulled from that task's XCom in the current Dag run and decoded into
+the parameter's type (independent XCom pulls run concurrently). The runtime fails the task loudly when
+the argument count doesn't match the number of data parameters or a declared type can't bind to the Go
+type. Data parameters must be JSON-decodable (no func/chan/unsafe-pointer, no non-empty interfaces) —
+checked once at registration. TaskFlow argument binding arrives over the coordinator protocol, so it is
+coordinator-mode only today; on the Edge Worker path a task with data parameters fails with the arity
+error (and a `TaskInput` struct with bindable fields fails the same way, since nothing can fill them).
 
 ```go
 func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
@@ -174,6 +175,15 @@ either side). With no tag, the field's own Go name is matched verbatim — an un
 only binds an argument literally spelled `Threshold`, so a snake_case Python parameter needs an
 explicit tag. If no TaskFlow call argument carries that name, the field is simply left at its Go
 zero value — it does not fail the task, kwarg-style (see `ViaStructUnmatchedArg` below).
+
+The matching is checked in the other direction too: every argument the Dag author **explicitly
+passed** in the TaskFlow call must be claimed by some field, so a typo'd field name fails the task
+instead of silently dropping the value. Stub parameters the author left at their Python defaults
+are the exception — the Python side captures them into the spec (marked `from_default` on the
+wire), and the struct is free not to mirror them, the same way a Python callee never sees which
+defaulted kwargs went unpassed. And when no argument spec arrives at all (an argless stub call, or
+the Edge Worker path) a `TaskInput` struct with bindable fields fails loudly rather than running
+fully zero-valued.
 
 A plain custom struct type *without* the `sdk.TaskInput` embed is unaffected by any of
 this — it keeps working as a single flat data parameter, JSON-decoded whole from one TaskFlow

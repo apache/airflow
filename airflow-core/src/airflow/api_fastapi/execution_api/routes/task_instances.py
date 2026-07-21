@@ -32,7 +32,7 @@ from fastapi import Body, HTTPException, Query, Response, Security, status
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from pydantic import JsonValue
+from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
@@ -81,6 +81,7 @@ from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
@@ -90,6 +91,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -113,25 +115,33 @@ tracer = trace.get_tracer(__name__)
 
 # Task type recorded on the TI row (``TaskInstance.operator``) for
 # ``airflow.providers.standard.decorators.stub._StubOperator``. Used to gate the
-# serialized-dag lookup for ``arg_bindings`` so regular tasks never pay for it.
+# serialized-Dag lookup for ``arg_bindings`` so regular tasks never pay for it.
+# The gate matches the exact class name; a subclass would need its own entry here.
 _STUB_TASK_TYPE = "_StubOperator"
+
+# Specs are immutable per (Dag version, task): a re-serialized Dag gets a new
+# version id, so entries never go stale and the cap only bounds memory.
+_ARG_BINDINGS_CACHE: dict[tuple[UUID, str], list[dict] | None] = {}
+_ARG_BINDINGS_CACHE_MAX_ENTRIES = 4096
 
 
 def _get_arg_bindings(dag_version_id: UUID | None, task_id: str, *, session) -> list[dict] | None:
     """Extract the stub task's serialized arg spec from its Dag version's serialized blob."""
-    # Imported here on purpose: only the Multi-Lang stub-task path touches the
-    # serialized-dag machinery, so keep it off the module's top-level imports.
-    from airflow.models.dag_version import DagVersion
-    from airflow.serialization.serialized_objects import LazyDeserializedDAG
-
     if dag_version_id is None:
         return None
-    dag_version = session.get(DagVersion, dag_version_id)
+    cache_key = (dag_version_id, task_id)
+    if cache_key in _ARG_BINDINGS_CACHE:
+        return _ARG_BINDINGS_CACHE[cache_key]
+    dag_version = session.get(DagVersion, dag_version_id, options=[joinedload(DagVersion.serialized_dag)])
     if dag_version is None or dag_version.serialized_dag is None:
         return None
     if not (data := dag_version.serialized_dag.data):
         return None
-    return LazyDeserializedDAG(data=data).get_task_arg_bindings(task_id)
+    bindings = LazyDeserializedDAG(data=data).get_task_arg_bindings(task_id)
+    if len(_ARG_BINDINGS_CACHE) >= _ARG_BINDINGS_CACHE_MAX_ENTRIES:
+        _ARG_BINDINGS_CACHE.clear()
+    _ARG_BINDINGS_CACHE[cache_key] = bindings
+    return bindings
 
 
 @ti_id_router.patch(
@@ -340,7 +350,24 @@ def ti_run(
         if ti.operator == _STUB_TASK_TYPE and (
             arg_bindings := _get_arg_bindings(ti.dag_version_id, ti.task_id, session=session)
         ):
-            context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+            try:
+                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+            except ValidationError:
+                log.exception(
+                    "Serialized arg_bindings spec failed validation",
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "reason": "invalid_arg_bindings",
+                        "message": (
+                            "The serialized TaskFlow arg spec for this stub task is not valid on "
+                            "this Airflow version; it may come from a newer providers release."
+                        ),
+                    },
+                )
 
         # Only set if they are non-null
         if ti.next_method:

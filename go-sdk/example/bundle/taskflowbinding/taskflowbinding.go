@@ -224,11 +224,15 @@ func ViaStructArgTag(
 	}, nil
 }
 
-// ViaStructUnmatchedArgInput demonstrates that a field whose name has no
-// corresponding TaskFlow call argument at all is left at its Go zero value
-// rather than failing the task: Region binds normally, but Missing's arg
-// name is never among this call's arguments -- conceptually, an unpassed
-// keyword argument falling back to its default in a kwargs-style call.
+// ViaStructUnmatchedArgInput demonstrates the mismatch tolerance in both
+// directions. A field whose name has no corresponding TaskFlow call argument
+// at all is left at its Go zero value rather than failing the task: Region
+// binds normally, but Missing's arg name is never among this call's
+// arguments -- conceptually, an unpassed keyword argument falling back to
+// its default in a kwargs-style call. The reverse also holds: the stub's
+// defaulted sample_rate parameter arrives marked from_default, so this
+// struct is free not to mirror it (an explicitly passed argument no field
+// claims would fail the task instead).
 type ViaStructUnmatchedArgInput struct {
 	sdk.TaskInput
 	Region  string `arg:"region_code"`
@@ -239,9 +243,11 @@ type ViaStructUnmatchedArgInput struct {
 //
 //	via_struct_unmatched_arg(region_code=make_region())
 //
-// -- the stub only declares region_code (bound from make_region's XCom), so
-// Missing's arg name never appears among the call's arguments and stays at
-// its Go zero value ("").
+// -- the stub declares region_code (bound from make_region's XCom) plus a
+// defaulted sample_rate this struct deliberately omits, so Missing's arg
+// name never appears among the call's arguments and stays at its Go zero
+// value (""), while sample_rate's from_default entry goes unclaimed without
+// failing the task.
 func ViaStructUnmatchedArg(
 	ctx sdk.TIRunContext, log *slog.Logger, input ViaStructUnmatchedArgInput,
 ) (any, error) {

@@ -56,7 +56,12 @@ func NewTaskFunction(fn any) (Task, error) {
 	v := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(v.Pointer()).Name()
 	f := &taskFunction{fn: v, fullName: fullName}
-	return f, f.validateFn(v.Type())
+	if err := f.validateFn(v.Type()); err != nil {
+		// A half-built task (nil binding plan) would panic in Execute; a caller
+		// that mishandles the error must not be able to run it.
+		return nil, err
+	}
+	return f, nil
 }
 
 func (f *taskFunction) Execute(ctx context.Context, logger *slog.Logger) error {

@@ -157,7 +157,7 @@ def via_struct_arg_tag(region_code: str, threshold: float): ...
 
 
 @task.stub(queue="golang")
-def via_struct_unmatched_arg(region_code: str): ...
+def via_struct_unmatched_arg(region_code: str, sample_rate: float = 0.1): ...
 
 
 @dag(dag_id="taskflow_binding_dag")
@@ -194,9 +194,12 @@ def taskflow_binding_dag():
       ``arg:`` tag -- ``Region`` is genuinely renamed to ``region_code``, and
       ``Threshold`` is tagged ``threshold`` to pull the snake_case argument its
       verbatim field name would miss.
-    * ``via_struct_unmatched_arg``: the Go struct declares a field with no
-      corresponding argument in this TaskFlow call at all -- it stays at its Go
-      zero value rather than failing the task.
+    * ``via_struct_unmatched_arg``: the mismatch tolerance in both directions.
+      The Go struct declares a field with no corresponding argument in this
+      TaskFlow call at all -- it stays at its Go zero value rather than failing
+      the task. And the stub's defaulted ``sample_rate`` is never passed, so its
+      captured-from-default entry needs no matching struct field (an explicitly
+      passed argument no field claims would fail the task instead).
     """
     via_flat_args(
         "summary",

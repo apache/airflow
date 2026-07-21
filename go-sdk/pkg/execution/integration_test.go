@@ -373,6 +373,55 @@ func TestTaskRunnerBindsTaskInputStructArgs(t *testing.T) {
 	assert.Equal(t, "eu-west-1", got.Region)
 }
 
+// TestTaskRunnerTaskInputIgnoresUnclaimedDefault: convertArgBindings must
+// propagate from_default so a spec entry the Python side filled from the stub
+// signature's default may go unclaimed by the TaskInput struct.
+func TestTaskRunnerTaskInputIgnoresUnclaimedDefault(t *testing.T) {
+	var got combineInput
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(input combineInput) error {
+				got = input
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{
+					"name":      "region",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "eu-west-1",
+				},
+				map[string]any{
+					"name":         "threshold",
+					"kind":         "literal",
+					"data_type":    "number",
+					"value":        0.75,
+					"from_default": true,
+				},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+	assert.Equal(t, "eu-west-1", got.Region)
+}
+
 // TestTaskRunnerArgBindingsTypeMismatch: a declared Dag type that cannot bind to
 // the Go parameter type fails the task loudly before the body runs.
 func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
@@ -528,6 +577,39 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 			assert.False(t, ran, "the task body must not run on an incomplete binding spec")
 		})
 	}
+}
+
+// TestTaskRunnerMalformedSpecHonorsShouldRetry: a spec that fails
+// convertArgBindings terminates with the same retry semantics as a binding
+// failure inside executeTask, not an unconditional FAILED.
+func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(country string) error { return nil })
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ShouldRetry: true,
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{"name": "country", "kind": "template", "value": "x"},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertRetryTask(t, result, `unknown kind "template"`)
 }
 
 func TestRunTaskHonorsContextCancellation(t *testing.T) {

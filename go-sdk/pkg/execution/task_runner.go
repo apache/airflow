@@ -132,6 +132,14 @@ func RunTask(
 			"task_id", details.TI.TaskID,
 			"error", err,
 		)
+		// Same retry semantics as a binding failure inside executeTask: an
+		// equally permanent spec error must not terminate differently.
+		if details.TIContext.ShouldRetry {
+			return genmodels.RetryTask{
+				EndDate:     time.Now().UTC(),
+				RetryReason: err.Error(),
+			}
+		}
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateFailed,
 			EndDate: time.Now().UTC(),
@@ -177,11 +185,13 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 			}
 			args[i] = binding.XComArg{Kind: kind, Name: name, TaskID: taskID, DataType: dataType}
 		case "literal":
+			fromDefault, _ := m["from_default"].(bool)
 			args[i] = binding.LiteralArg{
-				Kind:     kind,
-				Name:     name,
-				Value:    m["value"],
-				DataType: dataType,
+				Kind:        kind,
+				Name:        name,
+				Value:       m["value"],
+				DataType:    dataType,
+				FromDefault: fromDefault,
 			}
 		default:
 			return nil, fmt.Errorf("arg_bindings[%d]: unknown kind %q", i, kind)

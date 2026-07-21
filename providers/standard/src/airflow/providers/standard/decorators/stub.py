@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import ast
-import enum
 import inspect
 import json
 import types
@@ -35,61 +34,47 @@ from airflow.providers.common.compat.sdk import (
     task_decorator_factory,
 )
 
-try:
-    from airflow.sdk.api.datamodels._generated import ArgBindingDataType
-except ImportError:  # Airflow < 3.4 -- the generated models do not carry the enum yet
-
-    class ArgBindingDataType(str, enum.Enum):  # type: ignore[no-redef]
-        """Language-neutral value type a stub-task argument binds to in the foreign runtime."""
-
-        STRING = "string"
-        INTEGER = "integer"
-        NUMBER = "number"
-        BOOLEAN = "boolean"
-        OBJECT = "object"
-        ARRAY = "array"
-        ANY = "any"
-
-
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-def _data_type_from_annotation(annotation: Any) -> ArgBindingDataType:
+def _infer_data_type(annotation: Any) -> str:
     """
     Map a stub function parameter annotation to the language-neutral arg-type vocabulary.
 
-    The foreign runtime type-checks the bound value against the returned name; anything we
-    cannot classify confidently maps to ``ANY`` so binding falls back to a decode-only check.
+    The returned name is one of the execution API's ``ArgBindingDataType`` values
+    (``string``/``integer``/``number``/``boolean``/``object``/``array``/``any``); the foreign
+    runtime type-checks the bound value against it. Anything we cannot classify confidently
+    maps to ``any`` so binding falls back to a decode-only check.
     """
     if annotation is inspect.Parameter.empty or annotation is None or annotation is Any:
-        return ArgBindingDataType.ANY
+        return "any"
     origin = typing.get_origin(annotation)
     if origin is not None:
         if origin is Union or origin is types.UnionType:
             members = [a for a in typing.get_args(annotation) if a is not type(None)]
             if len(members) == 1:
-                return _data_type_from_annotation(members[0])
-            return ArgBindingDataType.ANY
+                return _infer_data_type(members[0])
+            return "any"
         annotation = origin
     if not isinstance(annotation, type):
-        return ArgBindingDataType.ANY
+        return "any"
     # bool subclasses int, and str/bytes are Sequences -- order matters.
     if issubclass(annotation, bool):
-        return ArgBindingDataType.BOOLEAN
+        return "boolean"
     if issubclass(annotation, int):
-        return ArgBindingDataType.INTEGER
+        return "integer"
     if issubclass(annotation, float):
-        return ArgBindingDataType.NUMBER
+        return "number"
     if issubclass(annotation, str):
-        return ArgBindingDataType.STRING
+        return "string"
     if issubclass(annotation, bytes):
-        return ArgBindingDataType.ANY
+        return "any"
     if issubclass(annotation, (dict, Mapping)):
-        return ArgBindingDataType.OBJECT
+        return "object"
     if issubclass(annotation, (list, tuple, set, frozenset, Sequence)):
-        return ArgBindingDataType.ARRAY
-    return ArgBindingDataType.ANY
+        return "array"
+    return "any"
 
 
 def _build_arg_bindings(
@@ -106,8 +91,13 @@ def _build_arg_bindings(
     outputs, or a ``LiteralArgBinding`` (``kind="literal"``) for everything else. ``name`` is
     always the stub function's parameter name, so a foreign runtime can bind by name (e.g. the
     Go SDK's ``sdk.TaskInput`` struct fields) in addition to the existing positional order.
-    Returns ``None`` for parameterless stubs.
+    Returns ``None`` for argless calls: the binding contract (including the signature checks
+    below) applies only once a TaskFlow call actually passes arguments, so pre-TaskFlow stub
+    Dags whose call arguments were always ignored keep parsing.
     """
+    if not op_args and not op_kwargs:
+        return None
+
     signature = inspect.signature(python_callable)
 
     for param in signature.parameters.values():
@@ -123,10 +113,8 @@ def _build_arg_bindings(
                 "own task context natively (e.g. the Go SDK's sdk.TIRunContext parameter)"
             )
 
-    if not signature.parameters:
-        return None
-
     bound = signature.bind(*op_args, **op_kwargs)
+    explicitly_bound = set(bound.arguments)
     bound.apply_defaults()
 
     try:
@@ -136,7 +124,7 @@ def _build_arg_bindings(
         # TYPE_CHECKING with ``from __future__ import annotations``) degrade to "any".
         hints = {}
 
-    def annotation_for(name: str, param: inspect.Parameter) -> Any:
+    def get_annotation_for(name: str, param: inspect.Parameter) -> Any:
         if name in hints:
             return hints[name]
         if isinstance(param.annotation, str):
@@ -146,7 +134,7 @@ def _build_arg_bindings(
     spec: list[dict[str, Any]] = []
     for name, param in signature.parameters.items():
         value = bound.arguments[name]
-        data_type = _data_type_from_annotation(annotation_for(name, param))
+        data_type = _infer_data_type(get_annotation_for(name, param))
         if isinstance(value, PlainXComArg):
             if value.key != "return_value":
                 raise ValueError(
@@ -170,14 +158,17 @@ def _build_arg_bindings(
                 "language boundary -- .map()/.zip()/.concat() results are not supported"
             )
         try:
-            json.dumps(value)
+            json.dumps(value, allow_nan=False)
         except (TypeError, ValueError):
             raise ValueError(
                 f"@task.stub task {task_id!r} parameter {name!r} received a literal of type "
                 f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
                 "to the foreign runtime"
             )
-        spec.append({"name": name, "kind": "literal", "data_type": data_type, "value": value})
+        entry: dict[str, Any] = {"name": name, "kind": "literal", "data_type": data_type, "value": value}
+        if name not in explicitly_bound:
+            entry["from_default"] = True
+        spec.append(entry)
     return spec
 
 
@@ -185,8 +176,10 @@ class _StubOperator(DecoratedOperator):
     custom_operator_name: str = "@task.stub"
 
     # Mapped stubs would need per-map-index arg specs, which the foreign runtime cannot
-    # receive yet; the task-sdk decorator machinery rejects .expand() at parse time for
-    # operator classes that opt out.
+    # receive yet. The task-sdk decorator machinery rejects direct .expand() at parse time
+    # for operator classes that opt out on Airflow >= 3.4 (older cores cannot enforce it,
+    # and never serialize a spec for the mapped stub); stubs called with arguments inside
+    # a mapped task group are rejected in __init__ below.
     supports_expand: bool = False
 
     def __init__(
@@ -234,6 +227,17 @@ class _StubOperator(DecoratedOperator):
         # key defaults, which stubs reject anyway) and persist the ordered arg spec so the
         # execution API can hand it to the foreign runtime via StartupDetails.
         self._arg_bindings = _build_arg_bindings(python_callable, self.op_args, self.op_kwargs, self.task_id)
+
+        # supports_expand only blocks direct .expand() on the stub itself; a mapped task
+        # group still creates per-map-index instances of every task inside it, and the
+        # captured spec has no map-index dimension to bind against.
+        in_mapped_group = getattr(self, "get_closest_mapped_task_group", lambda: None)() is not None
+        if self._arg_bindings is not None and in_mapped_group:
+            raise ValueError(
+                f"@task.stub task {self.task_id!r} passes TaskFlow call arguments inside a mapped "
+                "task group; per-map-index arg specs cannot cross the language boundary yet, so "
+                "stub tasks with arguments are not supported under a task group's .expand()"
+            )
 
     @classmethod
     def get_serialized_fields(cls):

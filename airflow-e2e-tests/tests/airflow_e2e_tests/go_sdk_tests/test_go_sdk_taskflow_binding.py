@@ -134,9 +134,12 @@ def test_via_struct_arg_tag_reflects_bound_arguments(completed_run: _CompletedRu
 
 
 def test_via_struct_unmatched_arg_reflects_zero_valued_field(completed_run: _CompletedRun):
-    """``via_struct_unmatched_arg`` demonstrates that a struct field whose name has
-    no corresponding TaskFlow call argument stays at its Go zero value instead of
-    failing the task -- kwarg-style, an unpassed name simply isn't bound."""
+    """``via_struct_unmatched_arg`` demonstrates mismatch tolerance in both directions:
+    a struct field whose name has no corresponding TaskFlow call argument stays at its
+    Go zero value instead of failing the task (kwarg-style, an unpassed name simply
+    isn't bound), and the stub's defaulted ``sample_rate`` -- captured into the spec as
+    ``from_default`` -- needs no matching struct field. The task succeeding at all
+    proves the second half."""
     assert completed_run.xcom("via_struct_unmatched_arg") == {
         "region": "eu-west-1",
         "missing_was_empty": True,

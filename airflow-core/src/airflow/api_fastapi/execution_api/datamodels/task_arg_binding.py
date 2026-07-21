@@ -75,6 +75,9 @@ class LiteralArgBinding(BaseModel):
     value: JsonValue | None = None
     """The literal value from the Dag file."""
 
+    from_default: bool = False
+    """True when the value was filled from the stub signature's default rather than passed in the call."""
+
 
 # A named alias (TypeAliasType, not a bare Annotated) so the union lands in every
 # schema as its own named definition instead of an anonymous field-title-derived one.
