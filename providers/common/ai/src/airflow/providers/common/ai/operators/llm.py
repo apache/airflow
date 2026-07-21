@@ -27,9 +27,13 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
+from airflow.providers.common.ai.triggers.llm import LLMTrigger, serialize_usage_limits
 from airflow.providers.common.ai.utils.logging import log_run_summary
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.ai.utils.output_type import (
+    rehydrate_pydantic_output,
+    serialize_output_type,
+)
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 
 try:
     # New enough cores register an operator's declared ``output_type`` classes for
@@ -94,6 +98,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         the Pydantic instance flows through XCom unchanged. Set to ``True``
         when a downstream consumer needs the dict shape (e.g. sending to an
         external system that expects JSON-style payloads).
+    :param deferrable: When ``True``, run the LLM call in the triggerer via
+        :class:`~airflow.providers.common.ai.triggers.llm.LLMTrigger` instead
+        of blocking a worker slot. ``agent_params`` must be JSON-serializable.
+        Default follows ``[operators] default_deferrable``.
     """
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
@@ -120,6 +128,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         approval_timeout: timedelta | None = None,
         allow_modifications: bool = False,
         serialize_output: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -129,6 +138,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         self.system_prompt = system_prompt
         self.output_type = output_type
         self.serialize_output = serialize_output
+        self.deferrable = deferrable
         # Return the Pydantic instance when the core can register ``output_type``
         # for deserialization (its worker-side DAG walk); otherwise, or when the
         # user opts in, dump to a dict so the value is deserializable anywhere.
@@ -154,6 +164,25 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
+    def _finalize_output(self, output: Any) -> Any:
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            return output.model_dump()
+        return output
+
+    def _defer_llm_call(self) -> None:
+        self.defer(
+            trigger=LLMTrigger(
+                prompt=self.prompt,
+                llm_conn_id=self.llm_conn_id,
+                model_id=self.model_id,
+                system_prompt=self.system_prompt,
+                output_type_path=serialize_output_type(self.output_type),
+                agent_params=self.agent_params,
+                usage_limits=serialize_usage_limits(self.usage_limits),
+            ),
+            method_name="execute_complete",
+        )
+
     def execute(self, context: Context) -> Any:
         if self.require_approval and not isinstance(self.prompt, str):
             raise TypeError(
@@ -162,6 +191,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
                 f"The approval review body renders the prompt as text. Return a "
                 f"str prompt, or disable require_approval."
             )
+
+        if self.deferrable:
+            self._defer_llm_call()
+            return None
 
         agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type, instructions=self.system_prompt, **self.agent_params
@@ -173,17 +206,31 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            # ``serialize_output=True``, or a core without the worker-side
-            # deserialization-class walk: dump to a dict so XCom carries a plain
-            # JSON payload that deserializes without an allow-list entry.
-            output = output.model_dump()
+        return self._finalize_output(output)
 
-        return output
+    def execute_complete(
+        self,
+        context: Context,
+        event: dict[str, Any],
+        generated_output: str | None = None,
+    ) -> Any:
+        """Resume after deferrable LLM execution or human review."""
+        if generated_output is not None:
+            output = super().execute_complete(context, generated_output, event)
+            return rehydrate_pydantic_output(
+                self.output_type, output, serialize_output=self._serialize_model_output
+            )
 
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
-        """Resume after human review and restore the Pydantic model for XCom consumers."""
-        output = super().execute_complete(context, generated_output, event)
-        return rehydrate_pydantic_output(
-            self.output_type, output, serialize_output=self._serialize_model_output
+        if event.get("status") == "error":
+            raise AirflowException(event.get("message", "LLM call failed in deferrable mode"))
+
+        output = rehydrate_pydantic_output(
+            self.output_type,
+            event["output"],
+            serialize_output=self._serialize_model_output,
         )
+
+        if self.require_approval:
+            self.defer_for_approval(context, output)  # type: ignore[misc]
+
+        return self._finalize_output(output)

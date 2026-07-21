@@ -28,6 +28,8 @@ from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.triggers.llm import LLMTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -35,8 +37,6 @@ try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
 except ImportError:
     _CORE_WALKER = False
-
-from airflow.providers.common.compat.sdk import TaskDeferred
 
 if AIRFLOW_V_3_3_PLUS:
     # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer
@@ -424,3 +424,46 @@ class TestLLMOperatorMultimodalPromptGuard:
             op.execute(context=_make_context())
 
         mock_agent.run_sync.assert_not_called()
+
+
+class TestLLMOperatorDeferrable:
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_defers_to_llm_trigger(self, mock_hook_cls):
+        op = LLMOperator(
+            task_id="test",
+            prompt="Summarize",
+            llm_conn_id="my_llm",
+            deferrable=True,
+        )
+
+        with patch.object(op, "defer") as mock_defer:
+            op.execute(context=MagicMock())
+
+        mock_hook_cls.get_hook.assert_not_called()
+        mock_defer.assert_called_once()
+        assert mock_defer.call_args.kwargs["method_name"] == "execute_complete"
+        trigger = mock_defer.call_args.kwargs["trigger"]
+        assert isinstance(trigger, LLMTrigger)
+        assert trigger.prompt == "Summarize"
+        assert trigger.output_type_path == "builtins.str"
+
+    @requires_typed_xcom
+    def test_execute_complete_rehydrates_structured_output(self):
+        op = LLMOperator(
+            task_id="test",
+            prompt="Extract",
+            llm_conn_id="my_llm",
+            output_type=Entities,
+            deferrable=True,
+        )
+        result = op.execute_complete(
+            context=MagicMock(),
+            event={"status": "success", "output": '{"names": ["Alice"]}'},
+        )
+        assert isinstance(result, Entities)
+        assert result.names == ["Alice"]
+
+    def test_execute_complete_raises_on_error(self):
+        op = LLMOperator(task_id="test", prompt="p", llm_conn_id="c", deferrable=True)
+        with pytest.raises(AirflowException, match="LLM call failed"):
+            op.execute_complete(context=MagicMock(), event={"status": "error", "message": "LLM call failed"})

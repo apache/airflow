@@ -19,7 +19,12 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
-from airflow.providers.common.ai.utils.output_type import rehydrate_pydantic_output
+from airflow.providers.common.ai.utils.output_type import (
+    deserialize_output_type,
+    rehydrate_pydantic_output,
+    serialize_llm_output,
+    serialize_output_type,
+)
 
 
 class A(BaseModel):
@@ -60,3 +65,18 @@ class TestRehydratePydanticOutput:
         # ``A`` requires ``x: int`` -- this payload should fail validation
         result = rehydrate_pydantic_output(A, '{"y": "no-x-field"}', serialize_output=False)
         assert result == '{"y": "no-x-field"}'
+
+
+class TestOutputTypeSerialization:
+    def test_serialize_and_deserialize_str(self):
+        assert serialize_output_type(str) == "builtins.str"
+        assert deserialize_output_type("builtins.str") is str
+
+    def test_serialize_and_deserialize_model(self):
+        path = serialize_output_type(A)
+        assert path.endswith(".A")
+        assert deserialize_output_type(path) is A
+
+    def test_serialize_llm_output_model_and_str(self):
+        assert serialize_llm_output("hello") == "hello"
+        assert serialize_llm_output(A(x=3)) == '{"x":3}'

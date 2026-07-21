@@ -77,6 +77,11 @@ hooks:
     python-modules:
       - airflow.providers.common.ai.hooks.llamaindex
 
+triggers:
+  - integration-name: Common AI
+    python-modules:
+      - airflow.providers.common.ai.triggers.llm
+
 plugins:
   - name: hitl_review
     plugin-class: airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin

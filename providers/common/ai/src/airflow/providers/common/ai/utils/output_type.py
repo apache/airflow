@@ -22,6 +22,8 @@ from typing import Any
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
+_STR_OUTPUT_TYPE_PATH = "builtins.str"
+
 
 def rehydrate_pydantic_output(
     output_type: Any,
@@ -52,3 +54,28 @@ def rehydrate_pydantic_output(
     if serialize_output and isinstance(rehydrated, BaseModel):
         return rehydrated.model_dump()
     return rehydrated
+
+
+def serialize_output_type(output_type: type) -> str:
+    """Return a trigger-serializable reference to an ``output_type`` class."""
+    if output_type is str:
+        return _STR_OUTPUT_TYPE_PATH
+    return f"{output_type.__module__}.{output_type.__qualname__}"
+
+
+def deserialize_output_type(output_type_path: str) -> type:
+    """Resolve an ``output_type`` reference stored on a deferrable trigger."""
+    if output_type_path == _STR_OUTPUT_TYPE_PATH:
+        return str
+    from airflow.utils.module_loading import import_string
+
+    return import_string(output_type_path)
+
+
+def serialize_llm_output(output: Any) -> str:
+    """Serialize LLM output for transport in a trigger event."""
+    if isinstance(output, BaseModel):
+        return output.model_dump_json()
+    if isinstance(output, str):
+        return output
+    return TypeAdapter(type(output)).dump_json(output).decode()
