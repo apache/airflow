@@ -21,7 +21,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 > **Note:** This ADR records a *negative* decision. It exists so that future feature requests
 > or PRs proposing multi-file / multi-language source display for stub-backed Dags can be
