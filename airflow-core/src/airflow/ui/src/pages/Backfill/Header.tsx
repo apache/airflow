@@ -25,6 +25,8 @@ import { RiArrowGoBackFill } from "react-icons/ri";
 import {
   useBackfillServiceCancelBackfill,
   useBackfillServiceGetBackfillKey,
+  useBackfillServiceListBackfillDagRunsKey,
+  useBackfillServiceListBackfillsUiKey,
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
@@ -38,7 +40,11 @@ export const Header = ({ backfill }: { readonly backfill: BackfillResponse }) =>
   const isCompleted = backfill.completed_at !== null;
   const queryClient = useQueryClient();
   const onSuccess = async () => {
-    await queryClient.invalidateQueries({ queryKey: [useBackfillServiceGetBackfillKey] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [useBackfillServiceGetBackfillKey] }),
+      queryClient.invalidateQueries({ queryKey: [useBackfillServiceListBackfillDagRunsKey] }),
+      queryClient.invalidateQueries({ queryKey: [useBackfillServiceListBackfillsUiKey] }),
+    ]);
   };
   const { isPending: isCancelPending, mutate: cancelBackfill } = useBackfillServiceCancelBackfill({
     onSuccess,
