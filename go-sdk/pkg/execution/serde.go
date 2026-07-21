@@ -27,14 +27,6 @@ import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 )
 
-// Per-DAG defaults that Python resolves from [core] config when the DAG does
-// not override them. The serializer always emits these fields (they have no
-// JSON-schema default to omit against), so we fall back to the same values.
-const (
-	defaultMaxActiveTasksPerDag = 16 // [core] max_active_tasks_per_dag
-	defaultMaxActiveRunsPerDag  = 16 // [core] max_active_runs_per_dag
-)
-
 // serializeValue recursively serializes a value with Airflow's type/var encoding.
 // This matches Python's BaseSerialization.serialize() output:
 //   - primitives (string, bool, int, float) pass through unchanged
@@ -223,72 +215,14 @@ func serializeTask(info bundlev1.TaskInfo) map[string]any {
 	}
 }
 
-// applyDagSpec writes DAG-level fields onto data. Fields with a JSON-schema
-// default (description, dates, tags, fail_fast, …) are omitted when unset, as
-// in applyTaskSpec. Fields with no schema default (catchup,
-// disable_bundle_versioning, max_active_tasks, max_active_runs,
-// max_consecutive_failed_dag_runs) are always emitted, because Python's
-// serializer never omits them.
+// applyDagSpec writes DAG-level fields onto data. The emit policy — which
+// keys are omitted when unset, always emitted, or fall back to a [core]
+// config default — lives in the generated DagSpec.SchemaFields; this only
+// converts the returned values to the wire encoding, as serializeTask does
+// for TaskSpec.
 func applyDagSpec(data map[string]any, s bundlev1.DagSpec) {
-	if s.Description != "" {
-		data["description"] = s.Description
-	}
-	if !s.StartDate.IsZero() {
-		data["start_date"] = unwrapTypeEncoding(serializeValue(s.StartDate))
-	}
-	if !s.EndDate.IsZero() {
-		data["end_date"] = unwrapTypeEncoding(serializeValue(s.EndDate))
-	}
-	if len(s.Tags) > 0 {
-		// Python stores tags in a set and serializes them sorted (for stable
-		// dag_hash); mirror that here regardless of registration order.
-		sorted := make([]string, len(s.Tags))
-		copy(sorted, s.Tags)
-		sort.Strings(sorted)
-		tags := make([]any, len(sorted))
-		for i, t := range sorted {
-			tags[i] = t
-		}
-		data["tags"] = tags
-	}
-	if s.DagDisplayName != "" {
-		data["dag_display_name"] = s.DagDisplayName
-	}
-	if s.DocMD != "" {
-		data["doc_md"] = s.DocMD
-	}
-	// max_active_tasks / max_active_runs / max_consecutive_failed_dag_runs and
-	// the catchup / disable_bundle_versioning booleans have no schema default,
-	// so Python's serializer never omits them — it always writes the resolved
-	// value (the per-DAG default falls back to the matching [core] config).
-	// Emit them unconditionally to match, using the config defaults for unset
-	// (zero) fields.
-	maxActiveTasks := s.MaxActiveTasks
-	if maxActiveTasks == 0 {
-		maxActiveTasks = defaultMaxActiveTasksPerDag
-	}
-	data["max_active_tasks"] = maxActiveTasks
-	maxActiveRuns := s.MaxActiveRuns
-	if maxActiveRuns == 0 {
-		maxActiveRuns = defaultMaxActiveRunsPerDag
-	}
-	data["max_active_runs"] = maxActiveRuns
-	data["max_consecutive_failed_dag_runs"] = s.MaxConsecutiveFailedDagRuns
-	data["catchup"] = s.Catchup
-	data["disable_bundle_versioning"] = s.DisableBundleVersioning
-	if s.DagrunTimeout != 0 {
-		data["dagrun_timeout"] = unwrapTypeEncoding(serializeValue(s.DagrunTimeout))
-	}
-	// fail_fast and render_template_as_native_obj both have schema default
-	// false, so Python omits them when false; keep that behavior.
-	if s.FailFast {
-		data["fail_fast"] = true
-	}
-	if s.RenderTemplateAsNativeObj {
-		data["render_template_as_native_obj"] = true
-	}
-	if s.IsPausedUponCreation != nil {
-		data["is_paused_upon_creation"] = *s.IsPausedUponCreation
+	for key, value := range s.SchemaFields() {
+		data[key] = unwrapTypeEncoding(serializeValue(value))
 	}
 }
 
@@ -336,7 +270,8 @@ func serializeParams(params map[string]any) []any {
 
 // SerializeDag converts a bundlev1.DagInfo to Airflow DagSerialization v3
 // format. Required fields are always present; spec-driven fields are emitted
-// per the rules in applyDagSpec (some always, some only when set).
+// per the generated DagSpec.SchemaFields policy (some always, some only when
+// set).
 func SerializeDag(info bundlev1.DagInfo, fileloc, relativeFileloc string) map[string]any {
 	taskIDs := make([]string, len(info.Tasks))
 	tasks := make([]any, len(info.Tasks))

@@ -17,42 +17,11 @@
 
 package bundlev1
 
-import "time"
-
 // This file holds the hand-written companions of the generated spec.gen.go:
-// DagSpec (whose Schedule field and always-emit/config-fallback keys the
-// schema cannot express mechanically) and the registration Info structs that
-// carry Go-side identity the schema knows nothing about.
+// the registration Info structs that carry Go-side identity the schema knows
+// nothing about.
 
 type (
-	// DagSpec is the optional configuration applied to a DAG at registration
-	// time. Every field is optional: a zero value means "unset" and the
-	// scheduler falls back to its serialization-schema default. The field
-	// names mirror the keys defined under "dag" in
-	// airflow-core/src/airflow/serialization/schema.json.
-	DagSpec struct {
-		// Schedule is "@once", "@continuous", a cron expression, or "" for
-		// NullTimetable (no schedule).
-		Schedule                    string
-		Description                 string
-		StartDate                   time.Time
-		EndDate                     time.Time
-		Tags                        []string
-		DagDisplayName              string
-		DocMD                       string
-		MaxActiveTasks              int
-		MaxActiveRuns               int
-		MaxConsecutiveFailedDagRuns int
-		DagrunTimeout               time.Duration
-		Catchup                     bool
-		FailFast                    bool
-		RenderTemplateAsNativeObj   bool
-		DisableBundleVersioning     bool
-		// IsPausedUponCreation has no schema default. nil means "unset"; pass
-		// Bool(true) or Bool(false) to set it explicitly.
-		IsPausedUponCreation *bool
-	}
-
 	// TaskInfo describes a registered task. Coordinator-mode DAG parsing uses
 	// it to render the per-task block of a DagFileParsingResult.
 	TaskInfo struct {

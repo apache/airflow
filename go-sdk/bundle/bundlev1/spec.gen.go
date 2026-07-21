@@ -18,7 +18,10 @@
 
 package bundlev1
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // TaskSpec is the optional configuration applied to a task at registration
 // time. Every field is optional: the zero value (nil for the *bool fields)
@@ -164,5 +167,120 @@ func (s TaskSpec) SchemaFields() map[string]any {
 	if s.MaxActiveTisPerDagrun != 0 {
 		m["max_active_tis_per_dagrun"] = s.MaxActiveTisPerDagrun
 	}
+	return m
+}
+
+// DagSpec is the optional configuration applied to a Dag at registration
+// time. Every field is optional: the zero value (nil for the *bool fields)
+// means "unset", which either omits the key or, for the always-serialized
+// keys, emits its resolved default. Except for Schedule, each field maps to
+// the same-named key of the "dag" definition in
+// airflow-core/src/airflow/serialization/schema.json.
+type DagSpec struct {
+	// Schedule is "@once", "@continuous", a cron expression, or "" for
+	// NullTimetable (no schedule). It has no schema key: the serializer
+	// derives the timetable object from it, so SchemaFields never emits it.
+	Schedule string
+	// Catchup maps to the schema key "catchup"; it has no schema default and
+	// is always serialized.
+	Catchup bool
+	// FailFast maps to the schema key "fail_fast" (schema default false).
+	FailFast bool
+	// DagDisplayName maps to the schema key "dag_display_name".
+	DagDisplayName string
+	// Description maps to the schema key "description".
+	Description string
+	// MaxActiveTasks maps to the schema key "max_active_tasks"; it has no
+	// schema default and is always serialized, falling back to 16 (the [core]
+	// max_active_tasks_per_dag default) when unset.
+	MaxActiveTasks int
+	// MaxActiveRuns maps to the schema key "max_active_runs"; it has no schema
+	// default and is always serialized, falling back to 16 (the [core]
+	// max_active_runs_per_dag default) when unset.
+	MaxActiveRuns int
+	// MaxConsecutiveFailedDagRuns maps to the schema key
+	// "max_consecutive_failed_dag_runs"; it has no schema default and is
+	// always serialized.
+	MaxConsecutiveFailedDagRuns int
+	// StartDate maps to the schema key "start_date".
+	StartDate time.Time
+	// EndDate maps to the schema key "end_date".
+	EndDate time.Time
+	// DagrunTimeout maps to the schema key "dagrun_timeout".
+	DagrunTimeout time.Duration
+	// DocMD maps to the schema key "doc_md".
+	DocMD string
+	// IsPausedUponCreation maps to the schema key "is_paused_upon_creation";
+	// it has no schema default: nil means "unset", Bool(true) / Bool(false)
+	// set it explicitly.
+	IsPausedUponCreation *bool
+	// RenderTemplateAsNativeObj maps to the schema key "render_template_as_native_obj" (schema default false).
+	RenderTemplateAsNativeObj bool
+	// Tags maps to the schema key "tags"; serialized as a sorted copy (Python
+	// stores this value in a set).
+	Tags []string
+	// DisableBundleVersioning maps to the schema key
+	// "disable_bundle_versioning"; it has no schema default and is always
+	// serialized.
+	DisableBundleVersioning bool
+}
+
+// SchemaFields returns the schema-keyed value of every field that is set and
+// differs from its schema default, mirroring Python BaseSerialization's
+// omission of values the scheduler re-derives. time.Duration and time.Time
+// values are returned as-is; the serializer owns the wire encoding.
+//
+// Keys with no schema default (catchup, max_active_tasks, max_active_runs,
+// max_consecutive_failed_dag_runs and disable_bundle_versioning) are always
+// emitted; max_active_tasks and max_active_runs fall back to their [core]
+// config defaults when unset. is_paused_upon_creation is emitted whenever
+// non-nil, so an explicit false still serializes. tags is emitted as a sorted
+// copy, matching Python's set-backed serialization. Schedule has no schema key
+// and is never emitted here.
+func (s DagSpec) SchemaFields() map[string]any {
+	m := map[string]any{}
+	m["catchup"] = s.Catchup
+	if s.FailFast {
+		m["fail_fast"] = s.FailFast
+	}
+	if s.DagDisplayName != "" {
+		m["dag_display_name"] = s.DagDisplayName
+	}
+	if s.Description != "" {
+		m["description"] = s.Description
+	}
+	if s.MaxActiveTasks != 0 {
+		m["max_active_tasks"] = s.MaxActiveTasks
+	} else {
+		m["max_active_tasks"] = 16 // [core] max_active_tasks_per_dag
+	}
+	if s.MaxActiveRuns != 0 {
+		m["max_active_runs"] = s.MaxActiveRuns
+	} else {
+		m["max_active_runs"] = 16 // [core] max_active_runs_per_dag
+	}
+	m["max_consecutive_failed_dag_runs"] = s.MaxConsecutiveFailedDagRuns
+	if !s.StartDate.IsZero() {
+		m["start_date"] = s.StartDate
+	}
+	if !s.EndDate.IsZero() {
+		m["end_date"] = s.EndDate
+	}
+	if s.DagrunTimeout != 0 {
+		m["dagrun_timeout"] = s.DagrunTimeout
+	}
+	if s.DocMD != "" {
+		m["doc_md"] = s.DocMD
+	}
+	if s.IsPausedUponCreation != nil {
+		m["is_paused_upon_creation"] = *s.IsPausedUponCreation
+	}
+	if s.RenderTemplateAsNativeObj {
+		m["render_template_as_native_obj"] = s.RenderTemplateAsNativeObj
+	}
+	if len(s.Tags) > 0 {
+		m["tags"] = slices.Sorted(slices.Values(s.Tags))
+	}
+	m["disable_bundle_versioning"] = s.DisableBundleVersioning
 	return m
 }

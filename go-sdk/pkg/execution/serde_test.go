@@ -308,11 +308,13 @@ func TestSerializeDagMinimal(t *testing.T) {
 	assert.False(t, hasTags)
 
 	// Python always serializes these (no schema default to omit against), so
-	// a minimal Dag still carries them at their resolved [core] defaults.
+	// a minimal Dag still carries them at their resolved [core] defaults —
+	// 16 is [core] max_active_tasks_per_dag / max_active_runs_per_dag, pinned
+	// in the generated DagSpec.SchemaFields.
 	assert.Equal(t, false, result["catchup"])
 	assert.Equal(t, false, result["disable_bundle_versioning"])
-	assert.Equal(t, defaultMaxActiveTasksPerDag, result["max_active_tasks"])
-	assert.Equal(t, defaultMaxActiveRunsPerDag, result["max_active_runs"])
+	assert.Equal(t, 16, result["max_active_tasks"])
+	assert.Equal(t, 16, result["max_active_runs"])
 	assert.Equal(t, 0, result["max_consecutive_failed_dag_runs"])
 }
 
@@ -413,8 +415,10 @@ func TestApplyDagSpec_AlwaysEmitsNonSchemaDefaultFields(t *testing.T) {
 
 	assert.Equal(t, false, data["catchup"])
 	assert.Equal(t, false, data["disable_bundle_versioning"])
-	assert.Equal(t, defaultMaxActiveTasksPerDag, data["max_active_tasks"])
-	assert.Equal(t, defaultMaxActiveRunsPerDag, data["max_active_runs"])
+	// 16 is [core] max_active_tasks_per_dag / max_active_runs_per_dag, pinned
+	// in the generated DagSpec.SchemaFields.
+	assert.Equal(t, 16, data["max_active_tasks"])
+	assert.Equal(t, 16, data["max_active_runs"])
 	assert.Equal(t, 0, data["max_consecutive_failed_dag_runs"])
 
 	// Fields with a false/empty schema default stay omitted when unset.
@@ -437,6 +441,90 @@ func TestApplyDagSpec_OmitsFalseSchemaDefaultBooleans(t *testing.T) {
 	assert.False(t, hasFailFast)
 	_, hasNative := data["render_template_as_native_obj"]
 	assert.False(t, hasNative)
+}
+
+func TestDagSpecSchemaFields_EmitsAllSetFields(t *testing.T) {
+	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	spec := bundlev1.DagSpec{
+		Schedule:                    "@daily",
+		Catchup:                     true,
+		FailFast:                    true,
+		DagDisplayName:              "ETL Pipeline",
+		Description:                 "Extract, transform, load",
+		MaxActiveTasks:              32,
+		MaxActiveRuns:               4,
+		MaxConsecutiveFailedDagRuns: 3,
+		StartDate:                   start,
+		EndDate:                     end,
+		DagrunTimeout:               2 * time.Hour,
+		DocMD:                       "## ETL",
+		IsPausedUponCreation:        bundlev1.Bool(true),
+		RenderTemplateAsNativeObj:   true,
+		Tags:                        []string{"prod", "etl"},
+		DisableBundleVersioning:     true,
+	}
+	m := spec.SchemaFields()
+
+	assert.Equal(t, true, m["catchup"])
+	assert.Equal(t, true, m["fail_fast"])
+	assert.Equal(t, "ETL Pipeline", m["dag_display_name"])
+	assert.Equal(t, "Extract, transform, load", m["description"])
+	assert.Equal(t, 32, m["max_active_tasks"])
+	assert.Equal(t, 4, m["max_active_runs"])
+	assert.Equal(t, 3, m["max_consecutive_failed_dag_runs"])
+	// time values come back raw; the serializer owns the wire encoding.
+	assert.Equal(t, start, m["start_date"])
+	assert.Equal(t, end, m["end_date"])
+	assert.Equal(t, 2*time.Hour, m["dagrun_timeout"])
+	assert.Equal(t, "## ETL", m["doc_md"])
+	assert.Equal(t, true, m["is_paused_upon_creation"])
+	assert.Equal(t, true, m["render_template_as_native_obj"])
+	assert.Equal(t, []string{"etl", "prod"}, m["tags"])
+	assert.Equal(t, true, m["disable_bundle_versioning"])
+	// Schedule has no schema key; the serializer derives the timetable from it.
+	_, hasSchedule := m["schedule"]
+	assert.False(t, hasSchedule)
+}
+
+func TestDagSpecSchemaFields_EmptySpecEmitsOnlyAlwaysKeys(t *testing.T) {
+	// 16 is [core] max_active_tasks_per_dag / max_active_runs_per_dag.
+	assert.Equal(t, map[string]any{
+		"catchup":                         false,
+		"disable_bundle_versioning":       false,
+		"max_active_tasks":                16,
+		"max_active_runs":                 16,
+		"max_consecutive_failed_dag_runs": 0,
+	}, bundlev1.DagSpec{}.SchemaFields())
+}
+
+func TestDagSpecSchemaFields_NullableIsPausedUponCreation(t *testing.T) {
+	tests := []struct {
+		name  string
+		value *bool
+		want  any // nil means the key must be absent
+	}{
+		{"nil is omitted", nil, nil},
+		{"explicit false serializes", bundlev1.Bool(false), false},
+		{"explicit true serializes", bundlev1.Bool(true), true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := bundlev1.DagSpec{IsPausedUponCreation: tt.value}.SchemaFields()["is_paused_upon_creation"]
+			if tt.want == nil {
+				assert.False(t, ok)
+				return
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestDagSpecSchemaFields_TagsSortedCopy(t *testing.T) {
+	tags := []string{"prod", "etl", "hourly"}
+	m := bundlev1.DagSpec{Tags: tags}.SchemaFields()
+	assert.Equal(t, []string{"etl", "hourly", "prod"}, m["tags"])
+	assert.Equal(t, []string{"prod", "etl", "hourly"}, tags, "input slice must not be mutated")
 }
 
 func TestComputeRelativeFileloc(t *testing.T) {
