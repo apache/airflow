@@ -70,9 +70,14 @@ def generate_dag_with_latest_run_query(
             break
 
     requested_order_by_set = set(order_by.value) if order_by.value is not None else set()
-    dag_run_order_by_set = set(
-        ["last_run_state", "last_run_start_date", "-last_run_state", "-last_run_start_date"],
-    )
+    dag_run_order_by_set = {
+        "last_run_state",
+        "-last_run_state",
+        "last_run_start_date",
+        "-last_run_start_date",
+        "last_run_run_after",
+        "-last_run_run_after",
+    }
 
     if has_max_run_filter or (requested_order_by_set & dag_run_order_by_set):
         query = query.join(
