@@ -73,6 +73,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -805,6 +806,17 @@ class ProvidersOperations(BaseOperations):
     def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
+
+
+class TaskInstancesOperations(BaseOperations):
+    """Task instance operations."""
+
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances for a Dag run."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+        )
 
 
 class VariablesOperations(BaseOperations):
