@@ -1,1 +1,1 @@
-Add a backfill detail page with Dag run status and live progress.
+Add a backfill detail page for inspecting associated Dag runs and skipped slots.

@@ -23,12 +23,14 @@ import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BackfillResponse } from "openapi/requests/types.gen";
+import type * as Utils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Backfill } from "./Backfill";
 
 const mocks = vi.hoisted(() => ({
   useBackfillServiceGetBackfill: vi.fn(),
+  useParams: vi.fn(),
 }));
 
 vi.mock("openapi/queries", () => ({
@@ -45,7 +47,7 @@ vi.mock("react-i18next", () => ({
 vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof ReactRouterDom>();
 
-  return { ...actual, useParams: () => ({ backfillId: "7" }) };
+  return { ...actual, useParams: mocks.useParams };
 });
 
 vi.mock("src/layouts/Details/DetailsLayout", () => ({
@@ -74,6 +76,12 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: () => undefined,
 }));
 
+vi.mock("src/utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof Utils>();
+
+  return { ...actual, useAutoRefresh: () => 5000 };
+});
+
 const backfill: BackfillResponse = {
   completed_at: null,
   created_at: "2026-07-01T00:00:00Z",
@@ -90,7 +98,10 @@ const backfill: BackfillResponse = {
 };
 
 describe("Backfill page", () => {
-  beforeEach(() => mocks.useBackfillServiceGetBackfill.mockReset());
+  beforeEach(() => {
+    mocks.useBackfillServiceGetBackfill.mockReset();
+    mocks.useParams.mockReturnValue({ backfillId: "7", dagId: "example_dag" });
+  });
 
   it("loads the requested backfill and renders its header", () => {
     mocks.useBackfillServiceGetBackfill.mockReturnValue({
@@ -101,7 +112,24 @@ describe("Backfill page", () => {
 
     render(<Backfill />, { wrapper: Wrapper });
 
-    expect(mocks.useBackfillServiceGetBackfill).toHaveBeenCalledWith({ backfillId: 7 });
+    const [parameters, queryKey, options] = mocks.useBackfillServiceGetBackfill.mock.calls[0] as [
+      { backfillId: number },
+      undefined,
+      {
+        enabled: boolean;
+        refetchInterval: (query: { state: { data?: BackfillResponse } }) => number | false;
+      },
+    ];
+
+    expect(parameters).toEqual({ backfillId: 7 });
+    expect(queryKey).toBeUndefined();
+    expect(options.enabled).toBe(true);
+    expect(options.refetchInterval({ state: { data: backfill } })).toBe(5000);
+    expect(
+      options.refetchInterval({
+        state: { data: { ...backfill, completed_at: "2026-07-02T00:00:00Z" } },
+      }),
+    ).toBe(false);
     expect(screen.getByText("backfill header")).toBeInTheDocument();
     expect(screen.getByText("example_dag")).toBeInTheDocument();
     expect(screen.getByText("show-banner-false")).toBeInTheDocument();
@@ -117,5 +145,22 @@ describe("Backfill page", () => {
     render(<Backfill />, { wrapper: Wrapper });
 
     expect(screen.queryByText("backfill header")).not.toBeInTheDocument();
+  });
+
+  it("does not request an invalid backfill ID", () => {
+    mocks.useParams.mockReturnValue({ backfillId: "not-a-number", dagId: "example_dag" });
+    mocks.useBackfillServiceGetBackfill.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isLoading: false,
+    });
+
+    render(<Backfill />, { wrapper: Wrapper });
+
+    expect(mocks.useBackfillServiceGetBackfill).toHaveBeenCalledWith(
+      { backfillId: 0 },
+      undefined,
+      expect.objectContaining({ enabled: false }),
+    );
   });
 });

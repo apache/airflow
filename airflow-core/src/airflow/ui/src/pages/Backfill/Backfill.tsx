@@ -23,12 +23,16 @@ import { useParams } from "react-router-dom";
 
 import { useBackfillServiceGetBackfill } from "openapi/queries";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 export const Backfill = () => {
   const { t: translate } = useTranslation("dag");
-  const { backfillId = "" } = useParams();
+  const { backfillId = "", dagId = "" } = useParams();
+  const parsedBackfillId = Number(backfillId);
+  const hasValidBackfillId = Number.isInteger(parsedBackfillId) && parsedBackfillId > 0;
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const tabs = [
     { icon: <MdOutlineTask />, label: translate("tabs.dagRuns"), value: "" },
@@ -39,7 +43,11 @@ export const Backfill = () => {
     data: backfill,
     error,
     isLoading,
-  } = useBackfillServiceGetBackfill({ backfillId: Number(backfillId) });
+  } = useBackfillServiceGetBackfill({ backfillId: hasValidBackfillId ? parsedBackfillId : 0 }, undefined, {
+    enabled: hasValidBackfillId,
+    refetchInterval: (query) =>
+      query.state.data?.completed_at === null && !query.state.data.is_paused ? refetchInterval : false,
+  });
 
   return (
     <ReactFlowProvider>

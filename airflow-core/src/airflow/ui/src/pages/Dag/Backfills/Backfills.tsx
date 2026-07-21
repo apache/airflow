@@ -47,9 +47,9 @@ const getColumns = (
   {
     accessorKey: "date_to",
     cell: ({ row }) => (
-      <RouterLink fontWeight="bold" to={`/dags/${dagId}/backfills/${row.original.id}`}>
+      <Text>
         <Time datetime={row.original.to_date} />
-      </RouterLink>
+      </Text>
     ),
     enableSorting: false,
     header: translate("table.to"),

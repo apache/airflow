@@ -19,10 +19,10 @@
 import { Badge, Box, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useOutletContext, useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillDagRuns } from "openapi/queries";
-import type { BackfillDagRunResponse } from "openapi/requests/types.gen";
+import type { BackfillDagRunResponse, BackfillResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -32,6 +32,7 @@ import { RouterLink } from "src/components/ui";
 import { useAutoRefresh } from "src/utils";
 
 const translateExceptionReason = (reason: string, translate: (key: string) => string) => {
+  // Keep this mapping in sync with BackfillDagRunExceptionReason in airflow.models.backfill.
   switch (reason) {
     case "already exists":
       return translate("components:backfill.exceptionReason.alreadyExists");
@@ -115,16 +116,23 @@ export const BackfillDagRuns = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
   const { backfillId = "", dagId = "" } = useParams();
+  const backfill = useOutletContext<BackfillResponse | undefined>();
+  const parsedBackfillId = Number(backfillId);
+  const hasValidBackfillId = Number.isInteger(parsedBackfillId) && parsedBackfillId > 0;
   const refetchInterval = useAutoRefresh({ dagId });
+  const shouldPoll = backfill?.completed_at === null && !backfill.is_paused;
 
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillDagRuns(
     {
-      backfillId: Number(backfillId),
+      backfillId: hasValidBackfillId ? parsedBackfillId : 0,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
     },
     undefined,
-    { refetchInterval },
+    {
+      enabled: hasValidBackfillId,
+      refetchInterval: shouldPoll ? refetchInterval : false,
+    },
   );
 
   const columns = getColumns(translate);
