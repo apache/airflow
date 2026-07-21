@@ -52,5 +52,4 @@ class AddDagSkippedIntervalsCallbackRequest(VersionChange):
                 )
                 continue
             filtered.append(callback)
-
         response.body["callback_requests"] = filtered
