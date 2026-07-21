@@ -51,9 +51,14 @@ var _ sdk.VariableClient = (*mockVars)(nil)
 
 func Test_transform(t *testing.T) {
 	log := slog.Default()
-	// This is not the best test, but it is a good proof of concept -- you can just call the function.
+	// This is not the best test, but it is a good proof of concept -- you can
+	// just call the function, passing the upstream result directly instead of
+	// letting the runtime pull it from XCom.
 	// sdk.NewTIRunContext wraps any context to build a TIRunContext in a test.
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	err := transform(ctx, &mockVars{}, log)
+	in := ExtractResult{GoVersion: "go1.24", Timestamp: 42}
+	got, err := transform(ctx, &mockVars{}, log, in)
 	assert.NoError(t, err)
+	assert.Equal(t, "value1", got.Variable)
+	assert.Equal(t, in, got.Extracted)
 }

@@ -20,12 +20,14 @@ package bundlev1
 
 import "time"
 
-// TaskSpec is the optional configuration applied to a task at registration
-// time. Every field is optional: the zero value (nil for the *bool fields)
-// means "unset" and the scheduler falls back to the schema default. Each
-// field maps to the same-named key of the "operator" definition in
+// TaskSpec describes a task at registration time. Every field is optional:
+// the zero value (nil for the *bool fields) means "unset" and the scheduler
+// falls back to the schema default. Each field maps to the same-named key of
+// the "operator" definition in
 // airflow-core/src/airflow/serialization/schema.json.
 type TaskSpec struct {
+	// TaskId sets the task id explicitly; empty derives it from the task function's name. Maps to the schema key "task_id".
+	TaskId string
 	// Owner maps to the schema key "owner" (schema default "airflow").
 	Owner string
 	// StartDate maps to the schema key "start_date".
@@ -80,10 +82,12 @@ type TaskSpec struct {
 	MaxActiveTisPerDagrun int
 }
 
-// SchemaFields returns the schema-keyed value of every field that is set and
-// differs from its schema default, mirroring Python BaseSerialization's
-// omission of values the scheduler re-derives. time.Duration and time.Time
-// values are returned as-is; the serializer owns the wire encoding.
+// SchemaFields returns the schema-keyed value of every configuration field
+// that is set and differs from its schema default, mirroring Python
+// BaseSerialization's omission of values the scheduler re-derives. Identity
+// fields (TaskId) are excluded: the serializer emits the id from the
+// registry's resolved TaskInfo. time.Duration and time.Time values are
+// returned as-is; the serializer owns the wire encoding.
 func (s TaskSpec) SchemaFields() map[string]any {
 	m := map[string]any{}
 	if s.Owner != "" && s.Owner != "airflow" {

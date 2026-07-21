@@ -20,6 +20,7 @@ package bundlev1
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -29,7 +30,7 @@ import (
 
 type (
 	// Task is one registered task: something the runtime can Execute. Bundle
-	// authors do not implement this directly; Dag.AddTask wraps a plain Go
+	// authors do not implement this directly; Dag.Task wraps a plain Go
 	// function into a Task for you.
 	Task = worker.Task
 
@@ -41,31 +42,28 @@ type (
 	// Dag is the handle returned by Registry.AddDag. Use it to attach the Go
 	// functions that implement the dag's tasks.
 	Dag interface {
-		// AddTask registers fn as a task in this Dag using fn's Go name as
-		// the task id (so it must match the @task.stub name in the Python
-		// dag). spec carries optional per-task configuration (pass TaskSpec{}
-		// for defaults). depends lists task ids in the same Dag that must run
-		// before this one; each must already be registered. Pass nil for no
-		// dependencies.
+		// Task registers fn as a task and returns its TaskRef, the handle
+		// downstream registrations pass to Inputs or After. The task id is
+		// TaskSpec.TaskId when a spec sets it, otherwise fn's own Go name.
 		//
-		// fn is an ordinary Go function whose parameters are injected by type
-		// and may appear in any order. Recognised parameters are:
-		//   - context.Context: cancelled when the task is asked to stop
-		//   - *slog.Logger: writes to the task's Airflow log
-		//   - sdk.Client (or a narrower sdk.VariableClient / sdk.ConnectionClient /
-		//     sdk.XComClient): access to Variables, Connections, and XCom
+		// fn is an ordinary Go function whose parameters are filled by kind:
 		//
-		// fn must return either error or (result, error): a non-nil error fails
-		// the task, and a non-nil first result is pushed as the task's
-		// return-value XCom. Passing a non-function, or a function whose return
-		// signature does not match, panics at registration time.
-		AddTask(fn any, spec TaskSpec, depends []string)
-
-		// AddTaskWithName is like AddTask but sets task_id explicitly instead
-		// of deriving it from the function name. Use it when the Go function
-		// name cannot match the Python @task.stub id, for example for an
-		// anonymous function or a differing name.
-		AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string)
+		//   - Injected runtime values, matched by type in any order:
+		//     context.Context (or sdk.TIRunContext), *slog.Logger, and
+		//     sdk.Client (or a narrower sdk.VariableClient /
+		//     sdk.ConnectionClient / sdk.XComClient).
+		//   - Data parameters: every other parameter, bound positionally to
+		//     the Inputs refs. At run time each receives the return value of
+		//     its upstream task, pulled from that task's return-value XCom
+		//     and decoded into the parameter's type.
+		//
+		// fn must return either error or (result, error): a non-nil error
+		// fails the task, and a non-nil first result is pushed as the task's
+		// return-value XCom (feeding any downstream Inputs). Passing a
+		// non-function, a function whose signature does not match, a spec /
+		// Inputs mismatch, or a ref from another dag panics at registration
+		// (i.e. dag-parse) time.
+		Task(fn any, opts ...TaskOption) *TaskRef
 	}
 
 	// Registry is the recorder passed to BundleProvider.RegisterDags. Use it to
@@ -73,11 +71,10 @@ type (
 	// object serves task lookups at execution time.
 	Registry interface {
 		Bundle
-		// AddDag registers a dag by its dag_id (matching the Python stub dag)
-		// and returns a Dag handle for attaching tasks. An optional DagSpec
-		// configures dag-level attributes such as schedule and tags; passing
-		// more than one spec panics. Registering the same dag_id twice panics.
-		AddDag(dagId string, spec ...DagSpec) Dag
+		// AddDag registers a dag described by spec (spec.DagId is required)
+		// and returns a Dag handle for attaching tasks. A missing DagId or a
+		// duplicate registration panics.
+		AddDag(spec DagSpec) Dag
 	}
 
 	// EnumerableBundle exposes the dag/task identity recorded by
@@ -85,6 +82,12 @@ type (
 	// runtime relies on it for the DAG-parse one-shot.
 	EnumerableBundle interface {
 		OrderedDags() []DagInfo
+	}
+
+	// TaskOption configures one Dag.Task registration. A TaskSpec value,
+	// Inputs, and After all implement it.
+	TaskOption interface {
+		applyTask(*taskConfig)
 	}
 
 	registry struct {
@@ -97,30 +100,46 @@ type (
 	}
 )
 
-type dagShim struct {
-	dagId    string
-	registry *registry
+// TaskRef is the handle Dag.Task returns for a registered task. Pass it to
+// Inputs (data dependency: the upstream's return value feeds a data
+// parameter) or After (ordering-only dependency) when registering downstream
+// tasks in the same dag.
+type TaskRef struct {
+	id    string
+	out   reflect.Type // fn's first return type; nil when fn returns only error
+	reg   *registry
+	dagID string
 }
 
-func (d dagShim) AddTask(fn any, spec TaskSpec, depends []string) {
-	d.registry.registerTask(d.dagId, fn, spec, depends)
+// ID returns the registered task id.
+func (r *TaskRef) ID() string { return r.id }
+
+// taskConfig accumulates the options of one Dag.Task call.
+type taskConfig struct {
+	spec    TaskSpec
+	specSet bool
+	inputs  []*TaskRef
+	after   []*TaskRef
 }
 
-func (d dagShim) AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string) {
-	d.registry.registerTaskWithName(d.dagId, taskId, fn, spec, depends)
-}
+type inputsOption []*TaskRef
 
-func optionalSpec[T any](specs []T, caller string) T {
-	switch len(specs) {
-	case 0:
-		var zero T
-		return zero
-	case 1:
-		return specs[0]
-	default:
-		panic(fmt.Errorf("%s accepts at most one spec, got %d", caller, len(specs)))
-	}
-}
+func (o inputsOption) applyTask(c *taskConfig) { c.inputs = append(c.inputs, o...) }
+
+// Inputs declares data dependencies: each ref's task must run first, and its
+// return value is pulled from XCom and passed to the matching data parameter
+// of the task function, in order. The number of refs must equal the number of
+// data parameters, and each upstream's return type must fit the parameter it
+// feeds (checked at registration).
+func Inputs(refs ...*TaskRef) TaskOption { return inputsOption(refs) }
+
+type afterOption []*TaskRef
+
+func (o afterOption) applyTask(c *taskConfig) { c.after = append(c.after, o...) }
+
+// After declares ordering-only dependencies: each ref's task must complete
+// before this one runs, without feeding it any value.
+func After(refs ...*TaskRef) TaskOption { return afterOption(refs) }
 
 // New returns an empty Registry on which dags and tasks can be registered. The
 // runtime creates one and hands it to BundleProvider.RegisterDags, so bundle
@@ -135,6 +154,28 @@ func New() Registry {
 	}
 }
 
+type dagShim struct {
+	dagId    string
+	registry *registry
+}
+
+func (d dagShim) Task(fn any, opts ...TaskOption) *TaskRef {
+	return d.registry.registerTask(d.dagId, fn, opts)
+}
+
+// Bool returns a pointer to b. Use it for the *bool fields on TaskSpec /
+// DagSpec where nil means "leave at schema default":
+//
+//	v1.TaskSpec{DoXComPush: v1.Bool(false)}
+func Bool(b bool) *bool {
+	return &b
+}
+
+// anonFnName matches the names the Go runtime gives anonymous functions once
+// splitFullName has taken the segment after the last dot: "funcN" for a
+// top-level closure, or a bare number for a nested one ("pkg.fn.func1.2").
+var anonFnName = regexp.MustCompile(`^(func)?\d+$`)
+
 func splitFullName(fullName string) (typeName, pkgPath string) {
 	// fullName looks like "main.extract" or "github.com/x/y.MyTask"; method
 	// values get a "-fm" suffix.
@@ -145,96 +186,185 @@ func splitFullName(fullName string) (typeName, pkgPath string) {
 	return strings.TrimSuffix(fullName[lastDot+1:], "-fm"), fullName[:lastDot]
 }
 
-func getFnName(fn reflect.Value) string {
-	fullName := runtime.FuncForPC(fn.Pointer()).Name()
-	name, _ := splitFullName(fullName)
-	return name
-}
-
-func (r *registry) AddDag(dagId string, spec ...DagSpec) Dag {
-	dagSpec := optionalSpec(spec, "AddDag")
+func (r *registry) AddDag(spec DagSpec) Dag {
+	if spec.DagId == "" {
+		panic(fmt.Errorf("AddDag requires DagSpec.DagId to be set"))
+	}
 	r.RWMutex.Lock()
 	defer r.RWMutex.Unlock()
-	if _, exists := r.taskFuncMap[dagId]; exists {
-		panic(fmt.Errorf("Dag %q already exists in bundle", dagId))
+	if _, exists := r.taskFuncMap[spec.DagId]; exists {
+		panic(fmt.Errorf("Dag %q already exists in bundle", spec.DagId))
 	}
-	r.taskFuncMap[dagId] = make(map[string]Task)
-	r.taskInfo[dagId] = make(map[string]TaskInfo)
-	r.dagSpec[dagId] = dagSpec
-	r.dagOrder = append(r.dagOrder, dagId)
-	return dagShim{dagId, r}
+	r.taskFuncMap[spec.DagId] = make(map[string]Task)
+	r.taskInfo[spec.DagId] = make(map[string]TaskInfo)
+	r.dagSpec[spec.DagId] = spec
+	r.dagOrder = append(r.dagOrder, spec.DagId)
+	return dagShim{spec.DagId, r}
 }
 
-func (r *registry) registerTask(dagId string, fn any, spec TaskSpec, depends []string) {
-	val := reflect.ValueOf(fn)
+func (r *registry) registerTask(dagId string, fn any, opts []TaskOption) *TaskRef {
+	var cfg taskConfig
+	for _, o := range opts {
+		o.applyTask(&cfg)
+	}
 
+	val := reflect.ValueOf(fn)
 	if val.Kind() != reflect.Func {
 		panic(fmt.Errorf("task fn was a %s, not a func", val.Kind()))
 	}
+	fullName := runtime.FuncForPC(val.Pointer()).Name()
+	typeName, pkgPath := splitFullName(fullName)
 
-	fnName := getFnName(val)
+	taskId := cfg.spec.TaskId
+	if taskId == "" {
+		if anonFnName.MatchString(typeName) {
+			panic(fmt.Errorf(
+				"task function in DAG %q is anonymous (its derived name would be %q); set TaskSpec.TaskId explicitly",
+				dagId,
+				typeName,
+			))
+		}
+		taskId = typeName
+	}
 
-	r.registerTaskWithName(dagId, fnName, fn, spec, depends)
-}
+	// Pair the fn's data parameters with the Inputs refs before wrapping, so
+	// every mismatch is a registration (dag-parse) error, not a runtime one.
+	dataParams := dataParamTypes(val.Type())
+	if len(cfg.inputs) != len(dataParams) {
+		panic(fmt.Errorf(
+			"task %q in DAG %q declares %d data parameter(s) but Inputs supplies %d",
+			taskId, dagId, len(dataParams), len(cfg.inputs),
+		))
+	}
+	bindings := make([]InputBinding, len(cfg.inputs))
+	for i, ref := range cfg.inputs {
+		r.validateRef(ref, dagId, taskId, "Inputs")
+		if ref.out == nil {
+			panic(fmt.Errorf(
+				"task %q in DAG %q: input task %q returns no value; use After for an ordering-only dependency",
+				taskId,
+				dagId,
+				ref.id,
+			))
+		}
+		if !inputCompatible(ref.out, dataParams[i]) {
+			panic(fmt.Errorf(
+				"task %q in DAG %q: input %d: task %q returns %s, which cannot fill parameter type %s",
+				taskId,
+				dagId,
+				i,
+				ref.id,
+				ref.out,
+				dataParams[i],
+			))
+		}
+		bindings[i] = InputBinding{TaskID: ref.id}
+	}
+	for _, ref := range cfg.after {
+		r.validateRef(ref, dagId, taskId, "After")
+	}
 
-func (r *registry) registerTaskWithName(
-	dagId, taskId string,
-	fn any,
-	spec TaskSpec,
-	depends []string,
-) {
-	task, err := NewTaskFunction(fn)
+	task, err := NewTaskFunction(fn, bindings...)
 	if err != nil {
 		panic(fmt.Errorf("error registering task %q for DAG %q: %w", taskId, dagId, err))
 	}
 
-	val := reflect.ValueOf(fn)
-	fullName := runtime.FuncForPC(val.Pointer()).Name()
-	typeName, pkgPath := splitFullName(fullName)
+	var outType reflect.Type
+	if fnType := val.Type(); fnType.NumOut() > 1 {
+		outType = fnType.Out(0)
+	}
 
-	info := TaskInfo{ID: taskId, TypeName: typeName, PkgPath: pkgPath, Spec: spec}
+	var inputIDs []string
+	if len(cfg.inputs) > 0 {
+		inputIDs = make([]string, len(cfg.inputs))
+		for i, ref := range cfg.inputs {
+			inputIDs[i] = ref.id
+		}
+	}
+
+	info := TaskInfo{
+		ID:       taskId,
+		TypeName: typeName,
+		PkgPath:  pkgPath,
+		Spec:     cfg.spec,
+		Inputs:   inputIDs,
+	}
 
 	r.RWMutex.Lock()
 	defer r.RWMutex.Unlock()
 
 	dagTasks, exists := r.taskFuncMap[dagId]
 	if !exists {
-		dagTasks = make(map[string]Task)
-		r.taskFuncMap[dagId] = dagTasks
-		r.taskInfo[dagId] = make(map[string]TaskInfo)
-		r.dagOrder = append(r.dagOrder, dagId)
+		panic(fmt.Errorf("DAG %q is not registered", dagId))
 	}
-
 	if _, exists := dagTasks[taskId]; exists {
 		panic(fmt.Errorf("taskId %q is already registered for DAG %q", taskId, dagId))
 	}
 
-	// Resolve depends to upstream TaskInfo entries, validating each exists.
-	// We dedupe so a repeated id in `depends` only records one downstream
-	// edge on the parent.
-	seen := make(map[string]bool, len(depends))
-	for _, dep := range depends {
-		if dep == taskId {
-			panic(fmt.Errorf("task %q cannot depend on itself in DAG %q", taskId, dagId))
-		}
-		if seen[dep] {
+	// Record one downstream edge on each distinct upstream, whether the
+	// dependency carries data (Inputs) or only ordering (After).
+	seen := make(map[string]bool, len(cfg.inputs)+len(cfg.after))
+	for _, ref := range append(append([]*TaskRef{}, cfg.inputs...), cfg.after...) {
+		if seen[ref.id] {
 			continue
 		}
-		seen[dep] = true
-		parent, ok := r.taskInfo[dagId][dep]
-		if !ok {
-			panic(fmt.Errorf(
-				"task %q depends on unknown task %q in DAG %q; register upstream tasks first",
-				taskId, dep, dagId,
-			))
-		}
+		seen[ref.id] = true
+		parent := r.taskInfo[dagId][ref.id]
 		parent.Downstream = append(parent.Downstream, taskId)
-		r.taskInfo[dagId][dep] = parent
+		r.taskInfo[dagId][ref.id] = parent
 	}
 
 	dagTasks[taskId] = task
 	r.taskInfo[dagId][taskId] = info
 	r.taskOrder[dagId] = append(r.taskOrder[dagId], taskId)
+
+	return &TaskRef{id: taskId, out: outType, reg: r, dagID: dagId}
+}
+
+// validateRef panics unless ref was returned by this registry for the same
+// dag. A nil ref, a ref from another registry, or a ref from a different dag
+// is a registration error.
+func (r *registry) validateRef(ref *TaskRef, dagId, taskId, opt string) {
+	switch {
+	case ref == nil:
+		panic(fmt.Errorf("task %q in DAG %q: %s got a nil TaskRef", taskId, dagId, opt))
+	case ref.reg != r:
+		panic(fmt.Errorf(
+			"task %q in DAG %q: %s ref %q belongs to a different registry",
+			taskId, dagId, opt, ref.id,
+		))
+	case ref.dagID != dagId:
+		panic(fmt.Errorf(
+			"task %q in DAG %q: %s ref %q belongs to DAG %q; dependencies cannot cross dags",
+			taskId, dagId, opt, ref.id, ref.dagID,
+		))
+	}
+}
+
+// inputCompatible reports whether an upstream return type can fill a data
+// parameter. Identical or assignable types always fit; a map or empty
+// interface parameter opts into loose decoding of any shape; an upstream that
+// returns any is accepted and checked structurally when the value is decoded
+// at run time. Pointers are stripped from both sides: the value crosses XCom
+// as its JSON shape, so *T and T are interchangeable in either position.
+func inputCompatible(out, param reflect.Type) bool {
+	if out.Kind() == reflect.Pointer {
+		out = out.Elem()
+	}
+	if param.Kind() == reflect.Pointer {
+		param = param.Elem()
+	}
+	switch {
+	case out.AssignableTo(param):
+		return true
+	case param.Kind() == reflect.Interface && param.NumMethod() == 0:
+		return true
+	case param.Kind() == reflect.Map:
+		return true
+	case out.Kind() == reflect.Interface && out.NumMethod() == 0:
+		return true
+	}
+	return false
 }
 
 func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
@@ -250,8 +380,8 @@ func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
 }
 
 // OrderedDags returns the registered dags in the order AddDag was called,
-// each with its tasks in the order AddTask / AddTaskWithName was called. The
-// returned slice is freshly allocated; callers may mutate it freely.
+// each with its tasks in the order Dag.Task was called. The returned slice is
+// freshly allocated; callers may mutate it freely.
 func (r *registry) OrderedDags() []DagInfo {
 	r.RLock()
 	defer r.RUnlock()

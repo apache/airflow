@@ -28,7 +28,8 @@
 //
 //   - "_"-prefixed keys are serializer internals (_task_module, _is_mapped, ...)
 //   - keys in the definition's "required" list are always written by the
-//     serializer itself (task_type, task_id, ui_color, ...)
+//     serializer itself (task_type, ui_color, ...), except those re-exposed
+//     as identity fields by a fieldOverrides entry (task_id)
 //   - "has_on_*" keys are flags derived from Python callbacks, not settable
 //   - non-scalar keys (arrays, objects, refs other than timedelta/datetime,
 //     anyOf) cannot be expressed as a scalar spec field
@@ -74,12 +75,31 @@ var excludedFields = map[string]string{
 	"on_failure_fail_dagrun": "only valid on teardown tasks, which the SDK does not model yet",
 }
 
-// goTypeOverrides forces the Go type for keys whose schema type is too loose
-// for the mechanical mapping. retry_exponential_backoff is "number" with an
-// integral default, but Python declares it float (a backoff multiplier), so
-// the mechanical mapping would pick int.
-var goTypeOverrides = map[string]string{
-	"retry_exponential_backoff": "float64",
+// fieldOverride carries the per-key tweaks the schema cannot express. goType
+// forces the Go type when the schema type is too loose. goName overrides the
+// mechanical snake_case→CamelCase name; doc overrides the generated field
+// comment. identity marks a field that names the task rather than configuring
+// it: it is exposed on the spec even though the schema lists it as required
+// (serializer-owned), and it is kept out of SchemaFields because the
+// serializer emits it from the registry's resolved TaskInfo.ID instead.
+type fieldOverride struct {
+	goType   string
+	goName   string
+	doc      string
+	identity bool
+}
+
+// fieldOverrides is keyed by schema key; an entry that no longer matches a
+// generated field fails generation. retry_exponential_backoff is "number"
+// with an integral default, but Python declares it float (a backoff
+// multiplier), so the mechanical mapping would pick int.
+var fieldOverrides = map[string]fieldOverride{
+	"retry_exponential_backoff": {goType: "float64"},
+	"task_id": {
+		goName:   "TaskId",
+		identity: true,
+		doc:      "TaskId sets the task id explicitly; empty derives it from the task function's name",
+	},
 }
 
 // initialisms maps snake_case segments that must keep non-Title capitalization
@@ -139,12 +159,14 @@ type schemaDoc struct {
 // field is one resolved spec field: schema key + default joined with the Go
 // name and type the generated struct uses.
 type field struct {
-	key     string
-	goName  string
-	goType  string
-	def     any  // schema default (nil when absent)
-	hasDef  bool // schema declares a default
-	refName string
+	key      string
+	goName   string
+	goType   string
+	doc      string // doc-comment override (empty = generated wording)
+	identity bool   // named-identity field, excluded from SchemaFields
+	def      any    // schema default (nil when absent)
+	hasDef   bool   // schema declares a default
+	refName  string
 }
 
 func main() {
@@ -194,7 +216,9 @@ func selectFields(op definition) ([]field, error) {
 	excludedSeen := make(map[string]bool, len(excludedFields))
 	fields := make([]field, 0, len(op.Properties.keys))
 	for _, key := range op.Properties.keys {
-		if strings.HasPrefix(key, "_") || required[key] || strings.HasPrefix(key, "has_on_") {
+		serializerOwned := strings.HasPrefix(key, "_") || required[key] ||
+			strings.HasPrefix(key, "has_on_")
+		if serializerOwned && !fieldOverrides[key].identity {
 			continue
 		}
 		if _, ok := excludedFields[key]; ok {
@@ -216,10 +240,10 @@ func selectFields(op definition) ([]field, error) {
 			)
 		}
 	}
-	for key := range goTypeOverrides {
+	for key := range fieldOverrides {
 		if !containsKey(fields, key) {
 			return nil, fmt.Errorf(
-				"goTypeOverrides entry %q matches no generated field; remove or fix it",
+				"fieldOverrides entry %q matches no generated field; remove or fix it",
 				key,
 			)
 		}
@@ -240,19 +264,25 @@ func containsKey(fields []field, key string) bool {
 // property is not a scalar the spec can express (array, object, anyOf, or a
 // ref other than timedelta/datetime).
 func resolveField(key string, prop propSchema) (field, bool) {
+	ov := fieldOverrides[key]
 	f := field{
-		key:    key,
-		goName: goName(key),
-		def:    prop.Default,
-		hasDef: prop.Default != nil,
+		key:      key,
+		goName:   ov.goName,
+		doc:      ov.doc,
+		identity: ov.identity,
+		def:      prop.Default,
+		hasDef:   prop.Default != nil,
+	}
+	if f.goName == "" {
+		f.goName = goName(key)
 	}
 	if ref := strings.TrimPrefix(prop.Ref, "#/definitions/"); ref != prop.Ref {
 		f.refName = ref
 	}
 
 	switch {
-	case goTypeOverrides[key] != "":
-		f.goType = goTypeOverrides[key]
+	case ov.goType != "":
+		f.goType = ov.goType
 	case f.refName == "timedelta":
 		f.goType = "time.Duration"
 	case f.refName == "datetime":
@@ -322,31 +352,40 @@ func render(pkg string, fields []field) ([]byte, error) {
 	fmt.Fprintf(&b, "\npackage %s\n\n", pkg)
 	b.WriteString("import \"time\"\n\n")
 
-	b.WriteString(`// TaskSpec is the optional configuration applied to a task at registration
-// time. Every field is optional: the zero value (nil for the *bool fields)
-// means "unset" and the scheduler falls back to the schema default. Each
-// field maps to the same-named key of the "operator" definition in
+	b.WriteString(`// TaskSpec describes a task at registration time. Every field is optional:
+// the zero value (nil for the *bool fields) means "unset" and the scheduler
+// falls back to the schema default. Each field maps to the same-named key of
+// the "operator" definition in
 // airflow-core/src/airflow/serialization/schema.json.
 type TaskSpec struct {
 `)
 	for _, f := range fields {
-		fmt.Fprintf(&b, "\t// %s maps to the schema key %q", f.goName, f.key)
-		if f.hasDef {
-			fmt.Fprintf(&b, " (schema default %s)", defaultDoc(f))
+		if f.doc != "" {
+			fmt.Fprintf(&b, "\t// %s. Maps to the schema key %q.\n", f.doc, f.key)
+		} else {
+			fmt.Fprintf(&b, "\t// %s maps to the schema key %q", f.goName, f.key)
+			if f.hasDef {
+				fmt.Fprintf(&b, " (schema default %s)", defaultDoc(f))
+			}
+			b.WriteString(".\n")
 		}
-		b.WriteString(".\n")
 		fmt.Fprintf(&b, "\t%s %s\n", f.goName, f.goType)
 	}
 	b.WriteString("}\n\n")
 
-	b.WriteString(`// SchemaFields returns the schema-keyed value of every field that is set and
-// differs from its schema default, mirroring Python BaseSerialization's
-// omission of values the scheduler re-derives. time.Duration and time.Time
-// values are returned as-is; the serializer owns the wire encoding.
+	b.WriteString(`// SchemaFields returns the schema-keyed value of every configuration field
+// that is set and differs from its schema default, mirroring Python
+// BaseSerialization's omission of values the scheduler re-derives. Identity
+// fields (TaskId) are excluded: the serializer emits the id from the
+// registry's resolved TaskInfo. time.Duration and time.Time values are
+// returned as-is; the serializer owns the wire encoding.
 func (s TaskSpec) SchemaFields() map[string]any {
 	m := map[string]any{}
 `)
 	for _, f := range fields {
+		if f.identity {
+			continue
+		}
 		emitCondition(&b, f)
 	}
 	b.WriteString("\treturn m\n}\n")
