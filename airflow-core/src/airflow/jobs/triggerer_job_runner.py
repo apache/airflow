@@ -1345,6 +1345,12 @@ class TriggerRunner:
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
+        # Emit batch creation duration only when triggers were processed.
+        has_work = bool(self.to_create)
+
+        if has_work:
+            creation_start = time.monotonic()
+
         while self.to_create:
             await asyncio.sleep(0)
             context: Context | None = None
@@ -1418,6 +1424,13 @@ class TriggerRunner:
                 "name": trigger_name,
                 "events": 0,
             }
+
+        if has_work:
+            stats.timing(
+                "triggerer.batch_trigger_creation_duration",
+                (time.monotonic() - creation_start) * 1000,
+                tags=prune_dict({"team_name": self.team_name}),
+            )
 
     async def cancel_triggers(self):
         """
