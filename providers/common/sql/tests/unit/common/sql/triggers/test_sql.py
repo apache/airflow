@@ -90,6 +90,7 @@ class TestSQLExecuteQueryTrigger:
             "fetch_results": True,
             "split_statements": True,
             "return_last": False,
+            "read_only": False,
         }
 
     def test_run_fetch_results_returns_rows_and_descriptions(self):

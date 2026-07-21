@@ -29,7 +29,7 @@ import polars as pl
 import pytest
 from sqlalchemy import event
 
-from airflow.exceptions import AirflowNotFoundException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
@@ -511,7 +511,7 @@ class TestDbApiHook:
     @pytest.mark.asyncio
     async def test_aget_cursor_raises_without_cursor_method(self):
         hook = mock_db_hook(DbApiHook)
-        with pytest.raises(AirflowNotFoundException, match="has no cursor\\(\\) method"):
+        with pytest.raises(TypeError, match="has no cursor\\(\\) method"):
             async with hook._aget_cursor(MagicMock(spec=[])):
                 pass
 

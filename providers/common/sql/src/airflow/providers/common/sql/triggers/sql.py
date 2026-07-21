@@ -200,13 +200,13 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         """
         hook = await get_async_hook(self.conn_id)
         if not isinstance(hook, DbApiHook) or not hasattr(hook, "arun"):
-            raise AirflowException(
+            raise TypeError(
                 f"You are trying to use the SqlExecuteQueryOperator in deferrable mode with {hook.__class__.__name__},"
                 f" but its provider does not support this. Please set deferrable=False"
                 f" Got {hook.__class__.__name__} with class hierarchy: {hook.__class__.mro()}"
             )
         if self.read_only and not hook.supports_readonly_execution():
-            raise AirflowException(
+            raise NotImplementedError(
                 f"{hook.__class__.__name__} does not support read-only execution, so it cannot run a"
                 " deferred query safely (a triggerer restart could re-run it). Set"
                 " enforce_read_only=False to run without the read-only guard if the query is"

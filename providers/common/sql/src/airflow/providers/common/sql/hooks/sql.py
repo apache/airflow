@@ -59,7 +59,6 @@ from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowException,
-    AirflowNotFoundException,
     AirflowOptionalProviderFeatureException,
     BaseHook,
     conf,
@@ -1227,7 +1226,7 @@ class DbApiHook(BaseHook):
     async def _aget_cursor(self, conn):
         cursor = getattr(conn, "cursor", None)
         if cursor is None:
-            raise AirflowNotFoundException(
+            raise TypeError(
                 f"{type(conn).__name__} has no cursor() method. "
                 "Override _aget_cursor in the DB-specific hook."
             )
