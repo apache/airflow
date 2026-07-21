@@ -1221,3 +1221,34 @@ class TestSerializedDagModel:
         session.commit()
 
         assert lazy_dag.data["dag"]["deadline"] == original_deadline
+
+    def test_sync_dag_to_db_returns_db_normalized_deadline_ids(self, testing_dag_bundle, session):
+        """sync_dag_to_db must return a SerializedDAG with the DB-normalized deadline UUIDs. Basically just verify that the UUIDs returned by sync_dag_to_db match the persisted deadline_alert rows in the DB."""
+        dag_id = "test_sync_dag_to_db_deadline_ids"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        latest_serdag = session.scalar(
+            select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc())
+        )
+        assert latest_serdag is not None
+
+        persisted_alerts = session.scalars(select(DAM).where(DAM.serialized_dag_id == latest_serdag.id)).all()
+
+        persisted_uuids = {str(alert.id) for alert in persisted_alerts}
+        returned_uuids = scheduler_dag.deadline or []
+
+        assert returned_uuids
+        assert all(isinstance(ref, str) for ref in returned_uuids)
+        assert len(returned_uuids) == len(set(returned_uuids))
+        assert set(returned_uuids) == persisted_uuids
