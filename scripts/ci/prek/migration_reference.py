@@ -23,6 +23,8 @@
 # ///
 from __future__ import annotations
 
+import sys
+
 from common_prek_utils import (
     initialize_breeze_prek,
     run_command_via_breeze_run,
@@ -32,7 +34,7 @@ from common_prek_utils import (
 initialize_breeze_prek(__name__, __file__)
 
 cmd_result = run_command_via_breeze_run(
-    ["python3", "/opt/airflow/scripts/in_container/run_migration_reference.py"],
+    ["python3", "/opt/airflow/scripts/in_container/run_migration_reference.py", *sys.argv[1:]],
     backend="sqlite",
 )
 
