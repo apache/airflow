@@ -34,7 +34,9 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/oracle>
+    Oracle Database connection <connections/oracle>
+    Oracle Cloud Infrastructure connection <connections/oci>
+    OCI Generative AI <generative_ai>
     Operators <operators>
 
 .. toctree::
@@ -74,7 +76,8 @@
 apache-airflow-providers-oracle package
 ------------------------------------------------------
 
-`Oracle <https://www.oracle.com/database/technologies/>`__
+`Oracle Database <https://www.oracle.com/database/technologies/>`__ and
+`Oracle Cloud Infrastructure <https://www.oracle.com/cloud/>`__ integrations.
 
 
 Release: 4.6.2
@@ -133,12 +136,13 @@ Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-oracle[numpy]
+    pip install apache-airflow-providers-oracle[oci]
 
 
 ===============  ============================================================================================================================================================================================================================================
 Extra            Dependencies
 ===============  ============================================================================================================================================================================================================================================
+``oci``          ``oci>=2.182.0``
 ``numpy``        ``numpy>=1.22.4; python_version<'3.11'``, ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'``, ``numpy>=2.4.3; python_version>='3.14'``
 ``openlineage``  ``apache-airflow-providers-openlineage``
 ===============  ============================================================================================================================================================================================================================================
