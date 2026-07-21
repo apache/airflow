@@ -81,11 +81,14 @@ class TestJWTRefreshMiddleware:
         connection) must not turn the request into a bare 500: the request proceeds
         without the refreshed user and the existing cookie is left untouched so a
         later request can refresh once the backend recovers.
+
+        Failing open must not make a genuine bug quieter than the 500 it replaces,
+        so the swallowed exception is logged at ERROR with its traceback.
         """
         mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "valid_token"}
         call_next = AsyncMock(return_value=Response(status_code=200))
 
-        with caplog.at_level("WARNING"):
+        with caplog.at_level("ERROR"):
             response = await middleware.dispatch(mock_request, call_next)
 
         call_next.assert_called_once_with(mock_request)
@@ -93,6 +96,9 @@ class TestJWTRefreshMiddleware:
         # No forced logout: the cookie must not be cleared or rewritten
         assert "set-cookie" not in response.headers
         assert "proceeding without refresh" in caplog.text
+        record = next(r for r in caplog.records if "proceeding without refresh" in r.message)
+        assert record.levelname == "ERROR"
+        assert record.exc_info is not None
 
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")

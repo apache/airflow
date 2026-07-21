@@ -76,9 +76,10 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
                     # Proceed without injecting the user (the route's own auth dependency
                     # revalidates the token) and leave the cookie untouched so a later
                     # request can refresh once the backend recovers.
-                    log.warning(
-                        "Unexpected error refreshing user from JWT token; proceeding without refresh",
-                        exc_info=True,
+                    # Logged at ERROR with the traceback: failing open here must not make a
+                    # genuine bug in the auth manager quieter than the bare 500 it replaces.
+                    log.exception(
+                        "Unexpected error refreshing user from JWT token; proceeding without refresh"
                     )
 
             response = await call_next(request)
