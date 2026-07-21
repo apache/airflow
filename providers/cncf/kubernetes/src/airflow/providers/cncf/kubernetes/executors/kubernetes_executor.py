@@ -434,13 +434,14 @@ class KubernetesExecutor(BaseExecutor):
             )
             return True
 
+        task_instance_id = str(workload_ti.id)
         ti = session.execute(
             select(
                 TaskInstance.id,
                 TaskInstance.state,
                 TaskInstance.try_number,
                 TaskInstance.queued_by_job_id,
-            ).where(TaskInstance.id == workload_ti.id)
+            ).where(TaskInstance.id == task_instance_id)
         ).one_or_none()
         if ti is None:
             self.log.info(
