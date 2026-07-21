@@ -37,6 +37,7 @@ from airflow.cli.commands import (
     dag_command,
     pool_command,
     provider_command,
+    task_command,
     variable_command,
 )
 
@@ -74,6 +75,7 @@ MIGRATED_CLI_COMMANDS = [
     (provider_command.providers_list, "airflowctl providers list"),
     (config_command.get_value, "airflowctl config get"),
     (config_command.show_config, "airflowctl config list"),
+    (task_command.task_states_for_dag_run, "airflowctl tasks states-for-dag-run"),
 ]
 
 

@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createContext } from "react";
+import { describe, it, expect } from "vitest";
 
-export type HoverContextType = {
-  hoveredRunId: string | undefined;
-  hoveredTaskId: string | undefined;
-  setHoveredRunId: (runId: string | undefined) => void;
-  setHoveredTaskId: (taskId: string | undefined) => void;
-};
+import { toNullablePartitionKey } from "./partitionKey";
 
-export const HoverContext = createContext<HoverContextType | undefined>(undefined);
+describe("toNullablePartitionKey", () => {
+  it.each([
+    { description: "undefined", expected: null, input: undefined },
+    { description: "empty string", expected: null, input: "" },
+    { description: "a non-empty string", expected: "2026-07-15", input: "2026-07-15" },
+  ])("returns $expected for $description", ({ expected, input }) => {
+    expect(toNullablePartitionKey(input)).toBe(expected);
+  });
+});

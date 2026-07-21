@@ -192,6 +192,91 @@ code is never executed in the context of the *scheduler*.
     bundle version when dispatching each task. If needed, the cadence of sync and scan
     of the *Dag bundle* can be configured.
 
+Task execution architecture
+---------------------------
+
+The diagrams above show how Airflow's components are *deployed*. The diagrams below instead show what happens
+*inside a worker when a task actually runs* — how the Task SDK, the Supervisor and Coordinator processes, and
+the language runtimes work together: which processes are involved, and the classes and protocols they use to
+communicate.
+
+.. _overview-task-sdk-execution-architecture:
+
+Python Task SDK execution
+.........................
+
+When a *worker* actually runs a task, it does not run the user's code directly. Instead it starts a
+lightweight **Supervisor** that runs in its own **native operating-system process** and
+*forks* a second native process in which the **Task SDK** runtime (``task_runner``) executes the user code.
+The two processes talk over a socket, and the Supervisor is the only side that ever holds the short-lived
+task JWT or talks to the *Execution API* — the user's code never sees the token and never touches the
+database.
+
+The same runtime can also run *in-process* (a single Python process, no fork, no sockets, no HTTP) for
+``dag.test()`` and local runs. The diagram below contrasts the two paths and marks where each Python process
+lives:
+
+.. image:: ../img/diagram_task_sdk_execution_architecture.png
+
+The message flow of a supervised run — startup, running the user code, proxied Connection/Variable/XCom
+lookups, heartbeats, and reporting the final state — is shown below as a sequence diagram, with each process
+on its own lifeline. The **Supervisor** sits in the middle, so the Task ↔ Supervisor request/response
+round-trip (the task asks for a Connection/Variable/XCom and gets the answer back) reads as arrows going back
+and forth between neighboring lifelines. Each arrow is numbered, colored by its sender, and labeled with the
+message class or protocol used:
+
+.. image:: ../img/diagram_task_sdk_execution_sequence.png
+
+.. _overview-non-python-language-sdks:
+
+Non-Python language SDKs (Go and Java)
+......................................
+
+The Task Execution Interface (TEI) introduced in AIP-72 is language-agnostic, so a task can also be written in
+a **compiled, non-Python language**. A Python Dag still declares the task with ``@task.stub(queue=...)`` (so
+Python and non-Python tasks can be mixed in one Dag), but the actual work is delegated to the matching runtime.
+There are currently **two different integration styles** — the Go SDK runs a standalone worker, while the Java
+SDK plugs into the existing Python Supervisor.
+
+.. _overview-go-sdk-architecture:
+
+**Go SDK — standalone edge worker.** The `Go Task SDK
+<https://github.com/apache/airflow/blob/main/go-sdk/README.md>`_ has **no Python Supervisor and no msgpack
+stdin socket**. A long-running, compiled **edge worker** (``airflow-go-edge-worker``) *pulls* work from the
+**Edge Executor API**, launches the user's compiled Dag bundle as a **go-plugin (gRPC) subprocess**, and
+invokes the task over gRPC. The task then uses the **native TEI client** to reach the **Execution API**
+directly over HTTPS — so, unlike the Python task, it holds the task JWT itself:
+
+.. image:: ../img/diagram_native_language_sdk_architecture.png
+
+.. _overview-java-sdk-architecture:
+
+**Java (JVM) SDK — Coordinator plugged into the Supervisor.** The `Java Task SDK
+<https://github.com/apache/airflow/blob/main/java-sdk/README.md>`_ takes the opposite approach: it *reuses* the
+existing Python Supervisor through a new **Coordinator** layer. ``CoordinatorManager`` resolves the task's
+``queue`` to a ``BaseCoordinator`` — ``JavaCoordinator`` for the ``java`` queue, or the built-in
+``_PythonCoordinator`` otherwise. ``JavaCoordinator`` opens two loopback-TCP servers, spawns a **JVM bundle
+process** with ``subprocess.Popen``, and drives it with ``_JavaActivitySubprocess`` (a subclass of the shared
+``ActivitySubprocess``). The JVM connects *back* over TCP and speaks the **same msgpack protocol** as a Python
+task, so the Python side heartbeats, manages state, and **proxies every Execution-API call** — meaning the JVM
+task, like a Python task, never holds the task JWT itself:
+
+.. image:: ../img/diagram_java_sdk_execution_architecture.png
+
+The end-to-end workflow of a Java task — from ``@task.stub`` through the coordinator, the JVM subprocess, the
+proxied Connection/Variable/XCom lookups, and reporting the final state — is shown below as a sequence diagram.
+As above, the **Supervisor** is the central lifeline, so the JVM ↔ Supervisor round-trip over loopback TCP is
+drawn as arrows going back and forth to its neighbours:
+
+.. image:: ../img/diagram_java_sdk_execution_sequence.png
+
+.. note::
+
+    Both the Go and Java SDKs are **experimental** and under active development. See the `Go Task SDK
+    documentation <https://github.com/apache/airflow/blob/main/go-sdk/README.md>`_ and the `Java Task SDK
+    documentation <https://github.com/apache/airflow/blob/main/java-sdk/README.md>`_ for current status,
+    quick-starts, and known limitations.
+
 .. _overview:workloads:
 
 Workloads

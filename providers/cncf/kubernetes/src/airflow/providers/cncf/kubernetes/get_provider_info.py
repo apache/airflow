@@ -108,6 +108,10 @@ def get_provider_info():
                         "label": "XCom sidecar resources (JSON format)",
                         "schema": {"type": ["string", "null"]},
                     },
+                    "xcom_sidecar_container_security_context": {
+                        "label": "XCom sidecar security context (JSON format)",
+                        "schema": {"type": ["string", "null"]},
+                    },
                 },
                 "ui-field-behaviour": {
                     "hidden-fields": ["host", "schema", "login", "password", "port", "extra"]
@@ -153,6 +157,13 @@ def get_provider_info():
                         "type": "boolean",
                         "example": None,
                         "default": "False",
+                    },
+                    "running_pod_log_lines": {
+                        "description": "Number of lines read from the end of a running task's pod log when the task log\nis served through the kube API, e.g. when viewing logs of a running task in the UI.\nThe value must be greater than 0.\n",
+                        "version_added": "10.20.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "100",
                     },
                     "pod_template_file": {
                         "description": "Path to the YAML pod file that forms the basis for KubernetesExecutor workers.\n",
@@ -308,6 +319,20 @@ def get_provider_info():
                         "type": "integer",
                         "example": None,
                         "default": "0",
+                    },
+                    "pod_launch_failure_retries": {
+                        "description": "The number of times the executor will transparently requeue a task whose worker pod\nfailed before the task process started running (for example a node drain, autoscaler\nscale-down, node boot race, or transient image pull failure). The task instance is\nstill in ``queued`` state in these cases, meaning no task code ran, so requeuing does\nnot consume a task-level retry.\n\nThis changes the previous default behavior: such tasks are now requeued once before\nfailing instead of failing on the first pod failure. Set this to 0 to restore the\nprevious behavior (fail immediately, no requeue).\n\nUse -1 for unlimited requeues, but with caution: a pod that fails on every launch\n(for example a misconfigured image that can never be pulled) will be requeued forever,\nand with the default ``delete_worker_pods_on_failure = False`` the failed pods are not\ncleaned up, so they accumulate.\n",
+                        "version_added": "10.20.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "1",
+                    },
+                    "pod_launch_failure_excluded_container_reasons": {
+                        "description": "Comma-separated list of container termination reasons that are excluded from the\n``pod_launch_failure_retries`` requeue path even when the task instance is still in\n``queued`` state. Pods that fail with an excluded reason consume a normal task retry\ninstead of being transparently requeued. The default ``Error`` covers the case where\nthe container started executing but the worker process exited before writing\n``running`` to the database, which is most likely an Airflow-specific startup error\nrather than a transient infrastructure event. Set to an empty value to requeue these\ncases as well.\n",
+                        "version_added": "10.20.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "Error",
                     },
                 },
             },

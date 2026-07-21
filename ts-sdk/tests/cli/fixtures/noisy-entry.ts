@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,16 +17,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useContext } from "react";
 
-import { HoverContext } from "./Context";
+import { registerTask, startCoordinator } from "../../../src/index.js";
 
-export const useHover = () => {
-  const context = useContext(HoverContext);
+console.log("noise from an import-time dependency");
 
-  if (context === undefined) {
-    throw new Error("useHover must be used within a HoverProvider");
-  }
+registerTask({ dagId: "noisy_dag", taskId: "only" }, async () => undefined);
 
-  return context;
-};
+await startCoordinator();

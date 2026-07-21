@@ -28,6 +28,7 @@ from sqlalchemy.orm import Mapped
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -181,12 +182,11 @@ def set_metrics(
         "free_concurrency",
     }
     metric_tags = prune_dict({"worker_name": worker_name, "team_name": team_name})
+    status = sysinfo.get("status", logging.NOTSET)
+    if not isinstance(status, (int, float)):
+        status = logging.NOTSET
 
-    Stats.gauge(
-        "edge_worker.status",
-        sysinfo.get("status", logging.NOTSET),  # type: ignore
-        tags=metric_tags,
-    )
+    Stats.gauge("edge_worker.status", status, tags=metric_tags)
     Stats.gauge("edge_worker.connected", int(connected), tags=metric_tags)
     Stats.gauge("edge_worker.maintenance", int(maintenance), tags=metric_tags)
     Stats.gauge("edge_worker.jobs_active", jobs_active, tags=metric_tags)
@@ -202,6 +202,21 @@ def set_metrics(
         value = sysinfo.get(key)
         if isinstance(value, (int, float)):
             Stats.gauge(f"edge_worker.{key}", value, tags=metric_tags)
+
+    if not AIRFLOW_V_3_3_PLUS:
+        # Airflow < 3.3: export legacy per-worker metrics (no auto-tag expansion).
+        Stats.gauge(f"edge_worker.status.{worker_name}", int(status))
+        Stats.gauge(f"edge_worker.connected.{worker_name}", int(connected))
+        Stats.gauge(f"edge_worker.maintenance.{worker_name}", int(maintenance))
+        Stats.gauge(f"edge_worker.jobs_active.{worker_name}", jobs_active)
+        Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
+        Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
+        Stats.gauge(f"edge_worker.num_queues.{worker_name}", len(queues))
+
+        for key in additional_keys:
+            value = sysinfo.get(key)
+            if isinstance(value, (int, float)):
+                Stats.gauge(f"edge_worker.{key}.{worker_name}", value)
 
 
 def reset_metrics(worker_name: str, team_name: str | None = None) -> None:
@@ -224,11 +239,23 @@ def get_query_filter_by_worker_name(worker_name: str):
     return select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
 
 
+def _glob_to_like_pattern(pattern: str) -> str:
+    r"""
+    Convert a shell-style glob (``*``, ``?``) to a SQL ``LIKE`` pattern.
+
+    Literal ``LIKE`` metacharacters in the input are escaped with a backslash so
+    only glob wildcards are treated as special; the caller must pass ``escape="\"``.
+    """
+    escaped = pattern.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return escaped.replace("*", "%").replace("?", "_")
+
+
 @providers_configuration_loaded
 @provide_session
 def _fetch_edge_hosts_from_db(
     hostname: str | None = None,
     states: list | None = None,
+    worker_name_pattern: str | None = None,
     *,
     session: Session = NEW_SESSION,
 ) -> Sequence[EdgeWorkerModel]:
@@ -237,14 +264,20 @@ def _fetch_edge_hosts_from_db(
         query = query.where(EdgeWorkerModel.state.in_(states))
     if hostname:
         query = query.where(EdgeWorkerModel.worker_name == hostname)
+    if worker_name_pattern:
+        query = query.where(
+            EdgeWorkerModel.worker_name.like(_glob_to_like_pattern(worker_name_pattern), escape="\\")
+        )
     query = query.order_by(EdgeWorkerModel.worker_name)
     return session.scalars(query).all()
 
 
 @providers_configuration_loaded
 @provide_session
-def get_registered_edge_hosts(*, states: list | None = None, session: Session = NEW_SESSION):
-    return _fetch_edge_hosts_from_db(states=states, session=session)
+def get_registered_edge_hosts(
+    *, states: list | None = None, worker_name_pattern: str | None = None, session: Session = NEW_SESSION
+):
+    return _fetch_edge_hosts_from_db(states=states, worker_name_pattern=worker_name_pattern, session=session)
 
 
 @provide_session
