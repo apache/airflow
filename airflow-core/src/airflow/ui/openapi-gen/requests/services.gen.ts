@@ -5000,7 +5000,6 @@ export class GridService {
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
-     * @param data.runIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -5027,8 +5026,7 @@ export class GridService {
                 state: data.state,
                 triggering_user: data.triggeringUser,
                 triggering_user_prefix: data.triggeringUserPrefix,
-                run_id_pattern: data.runIdPattern,
-                run_id_prefix_pattern: data.runIdPrefixPattern
+                run_id_pattern: data.runIdPattern
             },
             errors: {
                 400: 'Bad Request',
@@ -5059,7 +5057,6 @@ export class GridService {
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
-     * @param data.runIdPrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */
@@ -5082,8 +5079,7 @@ export class GridService {
                 state: data.state,
                 triggering_user: data.triggeringUser,
                 triggering_user_prefix: data.triggeringUserPrefix,
-                run_id_pattern: data.runIdPattern,
-                run_id_prefix_pattern: data.runIdPrefixPattern
+                run_id_pattern: data.runIdPattern
             },
             errors: {
                 400: 'Bad Request',

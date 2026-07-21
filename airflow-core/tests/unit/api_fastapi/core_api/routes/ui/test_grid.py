@@ -737,23 +737,6 @@ class TestGetGridDataEndpoint:
         assert _strip_dag_version_ids(response.json()) == expected
 
     @pytest.mark.parametrize(
-        ("endpoint", "run_id_prefix_pattern", "expected"),
-        [
-            ("runs", "run_1", [GRID_RUN_1]),
-            ("runs", "run_2", [GRID_RUN_2]),
-            ("runs", "nonexistent", []),
-            ("structure", "run_1", GRID_NODES),
-        ],
-    )
-    def test_filter_by_run_id_prefix_pattern(
-        self, session, test_client, endpoint, run_id_prefix_pattern, expected
-    ):
-        session.commit()
-        response = test_client.get(f"/grid/{endpoint}/{DAG_ID}?run_id_prefix_pattern={run_id_prefix_pattern}")
-        assert response.status_code == 200
-        assert _strip_dag_version_ids(response.json()) == expected
-
-    @pytest.mark.parametrize(
         ("endpoint", "state", "expected"),
         [
             ("runs", "success", [GRID_RUN_1]),
