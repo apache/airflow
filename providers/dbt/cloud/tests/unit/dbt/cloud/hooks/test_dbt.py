@@ -979,6 +979,84 @@ class TestDbtCloudHook:
         )
         hook._paginate.assert_not_called()
 
+    def test_format_run_step_failure(self):
+        step = {
+            "index": 2,
+            "name": "Run dbt",
+            "status": DbtCloudJobRunStatus.ERROR.value,
+            "status_humanized": "Error",
+            "status_message": "dbt run failed",
+        }
+        formatted = DbtCloudHook._format_run_step_failure(step)
+        assert "step 2: Run dbt" in formatted
+        assert "status=Error" in formatted
+        assert "status_message=dbt run failed" in formatted
+
+    @pytest.mark.parametrize(
+        argnames=("conn_id", "account_id"),
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    def test_log_job_run_failure_details_with_error_steps(self, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        job_run = {
+            "status": DbtCloudJobRunStatus.ERROR.value,
+            "status_message": "Run failed",
+            "run_steps": [
+                {"index": 1, "name": "Clone git repo", "status": 10, "status_humanized": "Success"},
+                {
+                    "index": 2,
+                    "name": "Run dbt",
+                    "status": DbtCloudJobRunStatus.ERROR.value,
+                    "status_humanized": "Error",
+                    "status_message": "Compilation Error",
+                },
+            ],
+        }
+
+        with patch.object(hook.log, "error") as mock_log_error:
+            hook.log_job_run_failure_details(run_id=RUN_ID, account_id=account_id, job_run=job_run)
+
+        mock_log_error.assert_any_call(
+            "dbt Cloud job run %s ended with status %s.", RUN_ID, "ERROR"
+        )
+        mock_log_error.assert_any_call("dbt Cloud job run %s: %s", RUN_ID, "Run failed")
+        mock_log_error.assert_any_call(
+            "dbt Cloud failed step — %s",
+            DbtCloudHook._format_run_step_failure(job_run["run_steps"][1]),
+        )
+
+    @pytest.mark.parametrize(
+        argnames=("conn_id", "account_id"),
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    @patch.object(DbtCloudHook, "get_job_run")
+    def test_log_job_run_failure_details_fetches_run_steps(self, mock_get_job_run, conn_id, account_id):
+        hook = DbtCloudHook(conn_id)
+        job_run = {
+            "status": DbtCloudJobRunStatus.ERROR.value,
+            "run_steps": [
+                {
+                    "index": 1,
+                    "name": "Run dbt",
+                    "status": DbtCloudJobRunStatus.ERROR.value,
+                    "status_humanized": "Error",
+                }
+            ],
+        }
+        mock_get_job_run.return_value.json.return_value = {"data": job_run}
+
+        with patch.object(hook.log, "error"):
+            hook.log_job_run_failure_details(run_id=RUN_ID, account_id=account_id)
+
+        _account_id = account_id or DEFAULT_ACCOUNT_ID
+        mock_get_job_run.assert_called_once_with(
+            run_id=RUN_ID,
+            account_id=_account_id,
+            include_related=["run_steps"],
+        )
+
     wait_for_job_run_status_test_args = [
         (DbtCloudJobRunStatus.SUCCESS.value, DbtCloudJobRunStatus.SUCCESS.value, True),
         (DbtCloudJobRunStatus.ERROR.value, DbtCloudJobRunStatus.SUCCESS.value, "exception"),
@@ -1016,15 +1094,23 @@ class TestDbtCloudHook:
 
         with (
             patch.object(DbtCloudHook, "get_job_run_status") as mock_job_run_status,
+            patch.object(DbtCloudHook, "log_job_run_failure_details") as mock_log_failure_details,
             patch("airflow.providers.dbt.cloud.hooks.dbt.time.sleep", side_effect=fake_sleep),
         ):
             mock_job_run_status.return_value = job_run_status
 
             if expected_output not in ("timeout", "exception"):
                 assert hook.wait_for_job_run_status(**config) == expected_output
+                mock_log_failure_details.assert_not_called()
             else:
                 with pytest.raises(DbtCloudJobRunException):
                     hook.wait_for_job_run_status(**config)
+                if expected_output == "exception":
+                    mock_log_failure_details.assert_called_once_with(
+                        run_id=RUN_ID, account_id=None
+                    )
+                else:
+                    mock_log_failure_details.assert_not_called()
 
     @pytest.mark.parametrize(
         argnames=("conn_id", "account_id"),

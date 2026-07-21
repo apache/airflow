@@ -796,6 +796,62 @@ class DbtCloudHook(HttpHook):
 
         return job_run_status
 
+    @staticmethod
+    def _format_run_step_failure(step: dict[str, Any]) -> str:
+        details = [f"step {step.get('index')}: {step.get('name', '<unknown>')}"]
+        if status_humanized := step.get("status_humanized"):
+            details.append(f"status={status_humanized}")
+        elif status := step.get("status"):
+            details.append(f"status_code={status}")
+        for field in ("status_message", "log", "logs", "debug_logs"):
+            if value := step.get(field):
+                details.append(f"{field}={value}")
+        return " | ".join(details)
+
+    @fallback_to_default_account
+    def log_job_run_failure_details(
+        self,
+        run_id: int,
+        account_id: int | None = None,
+        job_run: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Log dbt Cloud run failure context in Airflow task logs.
+
+        Fetches run metadata (including run steps) when ``job_run`` is not provided.
+        """
+        if job_run is None:
+            job_run = self.get_job_run(
+                run_id=run_id,
+                account_id=account_id,
+                include_related=["run_steps"],
+            ).json()["data"]
+
+        run_status = job_run.get("status")
+        if run_status is not None:
+            try:
+                status_name = DbtCloudJobRunStatus(run_status).name
+            except ValueError:
+                status_name = str(run_status)
+            self.log.error("dbt Cloud job run %s ended with status %s.", run_id, status_name)
+
+        for field in ("status_message", "status_humanized", "status_msg"):
+            if message := job_run.get(field):
+                self.log.error("dbt Cloud job run %s: %s", run_id, message)
+                break
+
+        run_steps = job_run.get("run_steps") or []
+        error_steps = [step for step in run_steps if step.get("status") == DbtCloudJobRunStatus.ERROR.value]
+
+        if error_steps:
+            for step in error_steps:
+                self.log.error("dbt Cloud failed step — %s", self._format_run_step_failure(step))
+        elif run_steps:
+            self.log.error(
+                "dbt Cloud last run step — %s",
+                self._format_run_step_failure(run_steps[-1]),
+            )
+
     def wait_for_job_run_status(
         self,
         run_id: int,
@@ -834,6 +890,7 @@ class DbtCloudHook(HttpHook):
 
             # Reached terminal failure before expected state.
             if DbtCloudJobRunStatus.is_terminal(job_run_status):
+                self.log_job_run_failure_details(run_id=run_id, account_id=account_id)
                 raise DbtCloudJobRunException(
                     f"Job run {run_id} reached terminal status "
                     f"{DbtCloudJobRunStatus(job_run_status).name} "
