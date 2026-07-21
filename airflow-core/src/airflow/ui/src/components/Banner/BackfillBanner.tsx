@@ -33,8 +33,8 @@ import type { BackfillResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
 import { useAutoRefresh } from "src/utils";
 
+import { BackfillProgress } from "../BackfillProgress";
 import Time from "../Time";
-import { ProgressBar } from "../ui";
 
 type Props = {
   readonly dagId: string;
@@ -119,7 +119,12 @@ const BackfillBanner = ({ dagId }: Props) => {
         </Text>
 
         <Spacer flex="max-content" />
-        <ProgressBar size="xs" visibility="visible" />
+        <BackfillProgress
+          backfillId={backfill.id}
+          isCompleted={false}
+          refetchInterval={refetchInterval}
+          trackColor="whiteAlpha.400"
+        />
         <Button
           aria-label={backfill.is_paused ? translate("banner.unpause") : translate("banner.pause")}
           loading={isPausePending || isUnPausePending}

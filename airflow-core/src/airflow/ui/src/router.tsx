@@ -27,6 +27,7 @@ import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
 import { AssetStateStore } from "src/pages/Asset/AssetStateStore";
 import { AssetsList } from "src/pages/AssetsList";
+import { Backfill, BackfillDagRuns, BackfillDetails } from "src/pages/Backfill";
 import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
@@ -200,6 +201,14 @@ export const routerConfig = [
         ],
         element: <Dag />,
         path: "dags/:dagId",
+      },
+      {
+        children: [
+          { element: <BackfillDagRuns />, index: true },
+          { element: <BackfillDetails />, path: "details" },
+        ],
+        element: <Backfill />,
+        path: "dags/:dagId/backfills/:backfillId",
       },
       {
         children: [
