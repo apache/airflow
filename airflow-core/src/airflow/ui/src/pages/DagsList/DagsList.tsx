@@ -113,7 +113,7 @@ const createColumns = (
     header: () => translate("dagDetails.nextRun"),
   },
   {
-    accessorKey: "last_run_start_date",
+    accessorKey: "last_run_run_after",
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <RouterLink
