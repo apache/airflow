@@ -32,7 +32,7 @@ from fastapi import Body, HTTPException, Query, Response, Security, status
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from pydantic import JsonValue, TypeAdapter
+from pydantic import JsonValue
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
@@ -49,7 +49,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
@@ -115,10 +115,6 @@ tracer = trace.get_tracer(__name__)
 # ``airflow.providers.standard.decorators.stub._StubOperator``. Used to gate the
 # serialized-dag lookup for ``arg_bindings`` so regular tasks never pay for it.
 _STUB_TASK_TYPE = "_StubOperator"
-
-# Validates the serialized-dag arg-binding dicts into the kind-discriminated
-# TaskArgBinding union; built once at import, not per request.
-_arg_bindings_adapter: TypeAdapter[list[TaskArgBinding]] = TypeAdapter(list[TaskArgBinding])
 
 
 def _get_arg_bindings(dag_version_id: UUID | None, task_id: str, *, session) -> list[dict] | None:
@@ -352,7 +348,7 @@ def ti_run(
         if ti.operator == _STUB_TASK_TYPE and (
             arg_bindings := _get_arg_bindings(ti.dag_version_id, ti.task_id, session=session)
         ):
-            context.arg_bindings = _arg_bindings_adapter.validate_python(arg_bindings)
+            context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
 
         # Only set if they are non-null
         if ti.next_method:

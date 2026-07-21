@@ -417,10 +417,12 @@ class TestTIRunState:
 
     def test_arg_bindings_adapter_rejects_unknown_kind(self):
         """The discriminated union refuses serialized specs with an unrecognised kind."""
-        from airflow.api_fastapi.execution_api.routes.task_instances import _arg_bindings_adapter
+        from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 
         with pytest.raises(ValidationError, match="does not match any of the expected tags"):
-            _arg_bindings_adapter.validate_python([{"name": "country", "kind": "template", "value": "x"}])
+            get_arg_bindings_adapter().validate_python(
+                [{"name": "country", "kind": "template", "value": "x"}]
+            )
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""

@@ -31,9 +31,10 @@ consuming the supervisor schema.
 from __future__ import annotations
 
 from enum import Enum
+from functools import cache
 from typing import Annotated, Literal
 
-from pydantic import Field, JsonValue
+from pydantic import Field, JsonValue, TypeAdapter
 from typing_extensions import TypeAliasType
 
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -97,3 +98,15 @@ TaskArgBinding = TypeAliasType(
     Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")],
 )
 """One positional argument of a stub (foreign-runtime) task, in declaration order."""
+
+
+@cache
+def get_arg_bindings_adapter() -> TypeAdapter[list[TaskArgBinding]]:
+    """
+    Validate serialized arg-binding dicts into the kind-discriminated ``TaskArgBinding`` union.
+
+    Constructed lazily on first use (then cached): only the stub-task path in the
+    execution API ever needs the adapter, and most workloads are not stub operators,
+    so regular task runs never pay for building it.
+    """
+    return TypeAdapter(list[TaskArgBinding])
