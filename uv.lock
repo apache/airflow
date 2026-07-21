@@ -2010,7 +2010,7 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 codegen = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.33.0" },
+    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.41.0" },
 ]
 dev = [
     { name = "apache-airflow-ctl", extras = ["dev"], editable = "airflow-ctl" },
@@ -8210,7 +8210,7 @@ provides-extras = ["all", "datadog", "otel", "sentry", "statsd"]
 
 [package.metadata.requires-dev]
 codegen = [
-    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.33.0" },
+    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.41.0" },
     { name = "openapi-spec-validator", specifier = ">=0.7.1" },
     { name = "rich", specifier = ">=13.6.0" },
     { name = "svcs", specifier = ">=25.1.0" },
@@ -10300,7 +10300,7 @@ wheels = [
 
 [[package]]
 name = "datamodel-code-generator"
-version = "0.33.0"
+version = "0.41.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argcomplete" },
@@ -10314,9 +10314,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "tomli", marker = "python_full_version < '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/a0/3f81c5c0c31d6f25f459e370e04553810f096e5dbd3cf7eda2a67709cd78/datamodel_code_generator-0.33.0.tar.gz", hash = "sha256:7635ef788201d69bd3e98ba88ce6afe479400dc2737fe9d5e21f87408f352c08", size = 458695, upload-time = "2025-08-14T13:50:36.965Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/a0/f3a08b0e2068eae40a170c8485d0a68bfe54210df4b8a67ee4fe27bae681/datamodel_code_generator-0.41.0.tar.gz", hash = "sha256:f5ded2baab48488c09ce91c564e486dee9145029c53016f1befb732313d66411", size = 473910, upload-time = "2025-12-05T16:50:19.049Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/d0/acd7a19dad4dc4118d2b6ba06df9a4a3725729e91fa3f2c63a765d4e7d44/datamodel_code_generator-0.33.0-py3-none-any.whl", hash = "sha256:e229264aa612b2d5bb4901bcd6c520a799ae0d5c19262577a0f876eb48afaaa3", size = 121148, upload-time = "2025-08-14T13:50:35.306Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/11/9cec012b7764443a7b03bf3725ea56481a3f6d45c363a15406d57d048cf9/datamodel_code_generator-0.41.0-py3-none-any.whl", hash = "sha256:02caf2372d298844d6080fe805770161cac9aa720f143f349cee6ca76b50e5bf", size = 158701, upload-time = "2025-12-05T16:50:17.796Z" },
 ]
 
 [package.optional-dependencies]
