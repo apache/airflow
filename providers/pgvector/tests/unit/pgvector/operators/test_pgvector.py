@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -32,25 +32,37 @@ def pg_vector_ingest_operator():
     )
 
 
-@patch("airflow.providers.pgvector.operators.pgvector.register_vector")
+@patch("airflow.providers.pgvector.operators.pgvector.USE_PSYCOPG3", False)
 @patch("airflow.providers.pgvector.operators.pgvector.PgVectorIngestOperator.get_db_hook")
-def test_register_vector(mock_get_db_hook, mock_register_vector, pg_vector_ingest_operator):
-    # Create a mock database connection
+def test_register_vector_psycopg2(mock_get_db_hook, pg_vector_ingest_operator):
+    """With psycopg2, the psycopg2 flavour of ``register_vector`` is used."""
     mock_db_hook = Mock()
     mock_get_db_hook.return_value = mock_db_hook
+    mock_register_vector = MagicMock()
 
-    pg_vector_ingest_operator._register_vector()
-    mock_register_vector.assert_called_with(mock_db_hook.get_conn())
+    with patch.dict("sys.modules", {"pgvector.psycopg2": MagicMock(register_vector=mock_register_vector)}):
+        pg_vector_ingest_operator._register_vector()
+
+    mock_register_vector.assert_called_once_with(mock_db_hook.get_conn())
 
 
-@patch("airflow.providers.pgvector.operators.pgvector.register_vector")
+@patch("airflow.providers.pgvector.operators.pgvector.USE_PSYCOPG3", True)
+@patch("airflow.providers.pgvector.operators.pgvector.PgVectorIngestOperator.get_db_hook")
+def test_register_vector_psycopg3(mock_get_db_hook, pg_vector_ingest_operator):
+    """With psycopg3, the psycopg flavour of ``register_vector`` is used."""
+    mock_db_hook = Mock()
+    mock_get_db_hook.return_value = mock_db_hook
+    mock_register_vector = MagicMock()
+
+    with patch.dict("sys.modules", {"pgvector.psycopg": MagicMock(register_vector=mock_register_vector)}):
+        pg_vector_ingest_operator._register_vector()
+
+    mock_register_vector.assert_called_once_with(mock_db_hook.get_conn())
+
+
+@patch("airflow.providers.pgvector.operators.pgvector.PgVectorIngestOperator._register_vector")
 @patch("airflow.providers.pgvector.operators.pgvector.SQLExecuteQueryOperator.execute")
-@patch("airflow.providers.pgvector.operators.pgvector.PgVectorIngestOperator.get_db_hook")
-def test_execute(
-    mock_get_db_hook, mock_execute_query_operator_execute, mock_register_vector, pg_vector_ingest_operator
-):
-    mock_db_hook = Mock()
-    mock_get_db_hook.return_value = mock_db_hook
-
+def test_execute(mock_execute_query_operator_execute, mock_register_vector, pg_vector_ingest_operator):
     pg_vector_ingest_operator.execute(None)
+    mock_register_vector.assert_called_once()
     mock_execute_query_operator_execute.assert_called_once()

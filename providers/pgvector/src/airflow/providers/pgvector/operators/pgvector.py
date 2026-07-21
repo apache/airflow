@@ -17,9 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from pgvector.psycopg2 import register_vector
-
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.postgres.hooks.postgres import USE_PSYCOPG3
 
 
 class PgVectorIngestOperator(SQLExecuteQueryOperator):
@@ -42,6 +41,12 @@ class PgVectorIngestOperator(SQLExecuteQueryOperator):
     def _register_vector(self) -> None:
         """Register the vector type with your connection."""
         conn = self.get_db_hook().get_conn()
+        # ``PostgresHook`` selects psycopg2 or psycopg3 depending on the runtime environment, so the
+        # matching pgvector registration helper must be used for the connection object it returns.
+        if USE_PSYCOPG3:
+            from pgvector.psycopg import register_vector
+        else:
+            from pgvector.psycopg2 import register_vector
         register_vector(conn)
 
     def execute(self, context):
