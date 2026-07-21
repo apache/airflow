@@ -32,10 +32,10 @@
 - Keep React, React DOM, React Router, and the JSX runtime external in `vite.config.ts`. They are
   shared with the Airflow host application and bundling another copy can break hooks or routing.
 - Keep the `AirflowPlugin` UMD global name unless the host integration changes with it.
-- Use `globalThis.ChakraUISystem` in production and retain the local theme fallback for development.
 - Build UI with Chakra components and semantic theme tokens. Avoid raw color values and styling that
   bypasses the inherited Airflow theme.
-- Integrate through Airflow's documented public plugin and REST API surfaces. Do not import private
-  modules from the Airflow Core UI into the plugin bundle.
+- Integrate through Airflow's documented public plugin and REST API surfaces. Plugins should use the
+  Public API, not private APIs such as the UI API, which is intended for Airflow's Core UI and does
+  not follow SemVer.
 - Treat the React plugin interface as experimental and verify compatibility when upgrading external
   dependencies shared with Airflow.
