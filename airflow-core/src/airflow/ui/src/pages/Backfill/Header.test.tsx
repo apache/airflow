@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type * as ReactQuery from "@tanstack/react-query";
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,18 +29,38 @@ import { Header } from "./Header";
 
 const mocks = vi.hoisted(() => ({
   cancelBackfill: vi.fn(),
+  invalidateQueries: vi.fn<() => Promise<void>>(),
   pauseBackfill: vi.fn(),
+  runMutationSuccess: vi.fn<() => Promise<void>>(),
   unpauseBackfill: vi.fn(),
 }));
+
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof ReactQuery>();
+
+  return { ...actual, useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries }) };
+});
 
 vi.mock("openapi/queries", async (importOriginal) => {
   const actual = await importOriginal<typeof Queries>();
 
   return {
     ...actual,
-    useBackfillServiceCancelBackfill: () => ({ isPending: false, mutate: mocks.cancelBackfill }),
-    useBackfillServicePauseBackfill: () => ({ isPending: false, mutate: mocks.pauseBackfill }),
-    useBackfillServiceUnpauseBackfill: () => ({ isPending: false, mutate: mocks.unpauseBackfill }),
+    useBackfillServiceCancelBackfill: (options: { onSuccess: () => Promise<void> }) => {
+      mocks.runMutationSuccess.mockImplementation(options.onSuccess);
+
+      return { isPending: false, mutate: mocks.cancelBackfill };
+    },
+    useBackfillServicePauseBackfill: (options: { onSuccess: () => Promise<void> }) => {
+      mocks.runMutationSuccess.mockImplementation(options.onSuccess);
+
+      return { isPending: false, mutate: mocks.pauseBackfill };
+    },
+    useBackfillServiceUnpauseBackfill: (options: { onSuccess: () => Promise<void> }) => {
+      mocks.runMutationSuccess.mockImplementation(options.onSuccess);
+
+      return { isPending: false, mutate: mocks.unpauseBackfill };
+    },
     useDagServiceGetDag: () => ({ data: undefined }),
   };
 });
@@ -79,7 +100,9 @@ const backfill: BackfillResponse = {
 describe("Backfill header", () => {
   beforeEach(() => {
     mocks.cancelBackfill.mockReset();
+    mocks.invalidateQueries.mockReset();
     mocks.pauseBackfill.mockReset();
+    mocks.runMutationSuccess.mockReset();
     mocks.unpauseBackfill.mockReset();
   });
 
@@ -114,5 +137,22 @@ describe("Backfill header", () => {
     fireEvent.click(screen.getByRole("button", { name: "Unpause" }));
 
     expect(mocks.unpauseBackfill).toHaveBeenCalledWith({ backfillId: 7 });
+  });
+
+  it("refreshes every affected view after a successful mutation", async () => {
+    render(<Header backfill={backfill} />, { wrapper: Wrapper });
+
+    await mocks.runMutationSuccess();
+
+    expect(mocks.invalidateQueries).toHaveBeenCalledTimes(3);
+    expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(1, {
+      queryKey: ["BackfillServiceGetBackfill"],
+    });
+    expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(2, {
+      queryKey: ["BackfillServiceListBackfillDagRuns"],
+    });
+    expect(mocks.invalidateQueries).toHaveBeenNthCalledWith(3, {
+      queryKey: ["BackfillServiceListBackfillsUi"],
+    });
   });
 });
