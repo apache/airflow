@@ -285,6 +285,62 @@ class TestGitDagBundle:
         assert_repo_is_closed(bundle2)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_initialize_without_refresh_falls_back_when_existing_repo_is_unusable(
+        self, mock_githook, git_repo
+    ):
+        """
+        Reusing the on-disk repo is best-effort: when it cannot be reused for a reason that
+        is not a git error - e.g. a filesystem failure on the shared bundle storage - the
+        reuse attempt falls through to full initialization instead of propagating.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        bundle.initialize()
+        starting_version = _version_str(bundle.get_current_version())
+
+        # The remote moves ahead. Reuse would keep the old state, so ending up on the new
+        # commit is what proves the fallback ran instead of the reuse path.
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        repo.index.commit("Another commit")
+
+        opened = []
+
+        def unusable_on_first_open(*args, **kwargs):
+            opened.append(args)
+            if len(opened) == 1:
+                raise PermissionError("bundle storage temporarily unavailable")
+            return Repo(*args, **kwargs)
+
+        bundle2 = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            refresh_on_initialize=False,
+        )
+        with mock.patch(
+            "airflow.providers.git.bundles.git.Repo", wraps=Repo, side_effect=unusable_on_first_open
+        ):
+            bundle2.initialize()
+
+        # The failed reuse attempt was not the last open: initialization continued past it
+        assert len(opened) > 1
+        assert _version_str(bundle2.get_current_version()) != starting_version
+        files_in_repo = {f.name for f in bundle2.path.iterdir() if f.is_file()}
+        assert files_in_repo == {"test_dag.py", "new_test.py"}
+
+        assert_repo_is_closed(bundle2)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_initialize_with_refresh_default_fetches_latest(self, mock_githook, git_repo):
         """Default behavior is unchanged: a second initialize fetches the latest commit."""
         repo_path, repo = git_repo
