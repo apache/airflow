@@ -454,6 +454,7 @@ operators:
 toolsets:
   - integration-name: Common AI
     python-modules:
+      - airflow.providers.common.ai.toolsets.aws
       - airflow.providers.common.ai.toolsets.hook
       - airflow.providers.common.ai.toolsets.sql
       - airflow.providers.common.ai.toolsets.datafusion
