@@ -22,7 +22,6 @@ from unittest import mock
 
 import pytest
 from oci.generative_ai import GenerativeAiClient
-from wtforms import PasswordField
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -331,6 +330,10 @@ class TestOciBaseHook:
             self.hook.get_compartment_id()
 
     def test_connection_form_widgets(self):
+        pytest.importorskip("flask_appbuilder")
+        pytest.importorskip("flask_babel")
+        password_field = pytest.importorskip("wtforms").PasswordField
+
         widgets = self.hook.get_connection_form_widgets()
 
         assert set(widgets) == {
@@ -340,7 +343,7 @@ class TestOciBaseHook:
             "region",
             "compartment_id",
         }
-        assert widgets["key_content"].field_class is PasswordField
+        assert widgets["key_content"].field_class is password_field
 
     def test_ui_field_behaviour(self):
         assert self.hook.get_ui_field_behaviour() == {
