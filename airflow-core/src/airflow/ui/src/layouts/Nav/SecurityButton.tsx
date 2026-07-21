@@ -33,27 +33,29 @@ export const SecurityButton = () => {
     return undefined;
   }
 
-  const securityPaths = authLinks.extra_menu_items.map(
-    ({ text }) => `security/${text.toLowerCase().replace(" ", "-")}`,
-  );
+  const securityItems = authLinks.extra_menu_items.map(({ text }) => {
+    const securityKey = text.toLowerCase().replace(" ", "-");
+
+    return { path: `security/${securityKey}`, securityKey, text };
+  });
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={FiLock} title={translate("nav.security")} to={securityPaths} />
+        <NavButton
+          icon={FiLock}
+          title={translate("nav.security")}
+          to={securityItems.map(({ path }) => path)}
+        />
       </Menu.Trigger>
       <Menu.Content>
-        {authLinks.extra_menu_items.map(({ text }) => {
-          const securityKey = text.toLowerCase().replace(" ", "-");
-
-          return (
-            <Menu.Item asChild key={text} value={text}>
-              <Link aria-label={text} to={`security/${securityKey}`}>
-                {translate(`security.${securityKey}`)}
-              </Link>
-            </Menu.Item>
-          );
-        })}
+        {securityItems.map(({ path, securityKey, text }) => (
+          <Menu.Item asChild key={text} value={text}>
+            <Link aria-label={text} to={path}>
+              {translate(`security.${securityKey}`)}
+            </Link>
+          </Menu.Item>
+        ))}
       </Menu.Content>
     </Menu.Root>
   );
