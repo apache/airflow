@@ -98,7 +98,7 @@ By default, Airflow adds a ``LocalDagBundle`` pointing at the configured Dags fo
 
     ``LocalDagBundle`` does not support versioning. Tasks always run against the latest code on disk.
 
-``LocalDagBundle`` also works with a directory that an external synchronization process keeps up to date -- for example the kubernetes `git-sync <https://github.com/kubernetes/git-sync>`_ sidecar, matching the Airflow 2 Dags folder + git-sync pattern. git-sync publishes each synced commit as a separate worktree directory and atomically swaps a symlink to point at the current one. Set ``pin_symlink_on_refresh`` to resolve that symlink on each refresh and pin the resolved target until the next refresh, so a swap happening mid-way cannot mix files from two different commits within a single parse round. Each component (dag processor, worker, triggerer) resolves and pins independently when it initializes the bundle:
+``LocalDagBundle`` also works with a directory that an external synchronization process keeps up to date -- for example the kubernetes `git-sync <https://github.com/kubernetes/git-sync>`_ sidecar, matching the Airflow 2 Dags folder + git-sync pattern. git-sync publishes each synced commit as a separate ``worktree`` directory and atomically swaps a symlink to point at the current one. Set ``pin_symlink_on_refresh`` to resolve that symlink on each refresh and pin the resolved target until the next refresh, so a swap happening mid-way cannot mix files from two different commits within a single parse round. Each component (dag processor, worker, triggerer) resolves and pins independently when it initializes the bundle:
 
 .. code-block:: ini
 
@@ -116,7 +116,7 @@ By default, Airflow adds a ``LocalDagBundle`` pointing at the configured Dags fo
 
 .. note::
 
-    When pinning is enabled together with git-sync, run git-sync with ``--stale-worktree-timeout`` set to a value comfortably larger than your longest parse loop or task duration, so a previously pinned worktree remains readable after a swap.
+    When pinning is enabled together with git-sync, run git-sync with ``--stale-worktree-timeout`` set to a value comfortably larger than your longest parse loop or task duration, so a previously pinned ``worktree`` remains readable after a swap.
 
 For a Git Dag bundle, the only required kwarg is ``tracking_ref`` (a branch, tag, or commit SHA). Use ``git_conn_id`` to reference an Airflow connection that holds the repository credentials, or supply ``repo_url`` directly. You can also narrow the checkout to a subdirectory with ``subdir``, or use ``sparse_dirs`` to enable a sparse checkout of specific directories:
 
