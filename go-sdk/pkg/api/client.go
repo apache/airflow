@@ -20,12 +20,15 @@ package api
 import (
 	"fmt"
 	"maps"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 	"resty.dev/v3"
 )
 
 const API_VERSION = "2025-05-20"
+
+const refreshedAPITokenHeader = "Refreshed-API-Token"
 
 //go:generate -command openapi-gen go run github.com/ashb/oapi-resty-codegen@latest --config oapi-codegen.yml
 
@@ -59,10 +62,19 @@ func (c *Client) WithBearerToken(token string) (ClientInterface, error) {
 	rc.SetDebug(c.Client.IsDebug())
 	rc.SetLogger(c.Client.Logger())
 
-	// We don't use SetAuthToken/SetAuthScheme, as that produces a (valid, but annoying) warning about using Auth
-	// over HTTP: "Using sensitive credentials in HTTP mode is not secure." It's a time-limited-token though, so we
-	// can reasonably ignore that here and setting the header directly bypasses that
-	rc.SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
+	// Keep the token outside Resty's shared header map because task API calls and heartbeats use this client concurrently.
+	var authorization atomic.Value
+	authorization.Store(fmt.Sprintf("Bearer %s", token))
+	rc.AddRequestMiddleware(func(_ *resty.Client, req *resty.Request) error {
+		req.Header.Set("Authorization", authorization.Load().(string))
+		return nil
+	})
+	rc.AddResponseMiddleware(func(_ *resty.Client, response *resty.Response) error {
+		if refreshedToken := response.Header().Get(refreshedAPITokenHeader); refreshedToken != "" {
+			authorization.Store(fmt.Sprintf("Bearer %s", refreshedToken))
+		}
+		return nil
+	})
 
 	opts := []ClientOption{
 		WithClient(rc),
