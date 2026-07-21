@@ -63,6 +63,10 @@ If release name contains chart name it will be used as a full name.
   # Hard Coded Airflow Envs
   - name: AIRFLOW_HOME
     value: {{ .Values.airflowHome }}
+  {{- if .Values.mountConfigAsDir }}
+  - name: AIRFLOW_CONFIG
+    value: {{ printf "%s/config/airflow.cfg" .Values.airflowHome | quote }}
+  {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__FERNET_KEY }}
   - name: AIRFLOW__CORE__FERNET_KEY
     valueFrom:
@@ -645,7 +649,16 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- printf "%s-config" (include "airflow.fullname" .) }}
 {{- end }}
 
+{{- define "airflow_config_dir" -}}
+  {{- printf "%s/config" .Values.airflowHome | quote }}
+{{- end }}
+
 {{- define "airflow_config_mount" -}}
+{{- if .Values.mountConfigAsDir }}
+- name: config
+  mountPath: {{ template "airflow_config_dir" . }}
+  readOnly: true
+{{- else }}
 - name: config
   mountPath: {{ template "airflow_config_path" . }}
   subPath: airflow.cfg
@@ -656,6 +669,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   subPath: airflow_local_settings.py
   readOnly: true
   {{- end }}
+{{- end }}
 {{- end }}
 
 {{/* Helper for service account name generation */}}

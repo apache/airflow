@@ -416,6 +416,44 @@ class TestAirflowCommon:
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.initContainers[0].volumeMounts", doc)
 
+    def test_mount_config_as_dir(self):
+        components = [
+            "templates/scheduler/scheduler-deployment.yaml",
+            "templates/workers/worker-deployment.yaml",
+            "templates/api-server/api-server-deployment.yaml",
+            "templates/triggerer/triggerer-deployment.yaml",
+            "templates/dag-processor/dag-processor-deployment.yaml",
+        ]
+        docs = render_chart(
+            values={"mountConfigAsDir": True, "airflowLocalSettings": "# local settings"},
+            show_only=components,
+        )
+        assert len(docs) == len(components)
+        dir_mount = {"name": "config", "mountPath": "/opt/airflow/config", "readOnly": True}
+        for doc in docs:
+            mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
+            # airflow.cfg / airflow_local_settings.py are now served from the mounted directory
+            assert dir_mount in mounts
+            assert not [
+                m for m in mounts if m.get("subPath") in ("airflow.cfg", "airflow_local_settings.py")
+            ]
+            # AIRFLOW_CONFIG points Airflow at the config in the mounted directory
+            env = jmespath.search("spec.template.spec.containers[0].env", doc)
+            assert {"name": "AIRFLOW_CONFIG", "value": "/opt/airflow/config/airflow.cfg"} in env
+
+    def test_config_mounted_via_subpath_by_default(self):
+        docs = render_chart(
+            values={"airflowLocalSettings": "# local settings"},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert {
+            "name": "config",
+            "mountPath": "/opt/airflow/airflow.cfg",
+            "subPath": "airflow.cfg",
+            "readOnly": True,
+        } in mounts
+
     def test_priority_class_name(self):
         docs = render_chart(
             values={

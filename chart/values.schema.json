@@ -685,6 +685,12 @@
             "x-docsSection": "Common",
             "default": "See values.yaml"
         },
+        "mountConfigAsDir": {
+            "description": "Mount the Airflow config ConfigMap as a directory (at ``{airflowHome}/config``) and set ``AIRFLOW_CONFIG`` accordingly, instead of mounting ``airflow.cfg`` via ``subPath``. Avoids the Kubernetes ``subPath`` + ConfigMap stale-inode race that can fail containers at init with a runc ``StartError``. Opt-in; the default preserves the historical ``subPath`` mount.",
+            "type": "boolean",
+            "x-docsSection": "Kubernetes",
+            "default": false
+        },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "object",
