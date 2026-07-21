@@ -286,7 +286,7 @@ class FakeSession:
 
 
 class TestHttpOpSensor:
-    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http._ConnectionSession", FakeSession)
     def test_get(self):
         op = HttpOperator(
             task_id="get_op",
@@ -297,7 +297,7 @@ class TestHttpOpSensor:
         )
         op.execute({})
 
-    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http._ConnectionSession", FakeSession)
     def test_get_response_check(self):
         op = HttpOperator(
             task_id="get_op",
@@ -310,7 +310,7 @@ class TestHttpOpSensor:
         op.execute({})
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
-    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http._ConnectionSession", FakeSession)
     def test_sensor(self, run_task):
         sensor = HttpSensor(
             task_id="http_sensor_check",
@@ -328,7 +328,7 @@ class TestHttpOpSensor:
         assert run_task.error is None
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow < 3.0")
-    @mock.patch("airflow.providers.http.hooks.http.Session", FakeSession)
+    @mock.patch("airflow.providers.http.hooks.http._ConnectionSession", FakeSession)
     def test_sensor_af2(self):
         dag = DAG(TEST_DAG_ID, schedule=None)
         sensor = HttpSensor(

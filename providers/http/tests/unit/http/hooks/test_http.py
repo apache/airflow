@@ -338,6 +338,34 @@ class TestHttpHook:
         assert history[0].method == "POST"
 
     @pytest.mark.parametrize(
+        ("location", "expected_forwarded_key"),
+        [
+            pytest.param("http://another.host/v1/redirected", None, id="cross-host"),
+            pytest.param("http://test:8080/v1/redirected", "secret-key", id="same-host"),
+        ],
+    )
+    def test_connection_header_is_only_forwarded_on_a_same_host_redirect(
+        self, requests_mock, create_connection_without_db, location, expected_forwarded_key
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="http_conn_with_api_key",
+                conn_type="http",
+                host="test:8080/",
+                extra='{"X-API-Key": "secret-key"}',
+            )
+        )
+        requests_mock.get("http://test:8080/v1/test", status_code=302, headers={"Location": location})
+        requests_mock.get(location, status_code=200, text='{"message": "OK"}')
+
+        HttpHook(method="GET", http_conn_id="http_conn_with_api_key").run("v1/test")
+
+        history = requests_mock.request_history
+        assert len(history) == 2
+        assert history[0].headers["X-API-Key"] == "secret-key"
+        assert history[1].headers.get("X-API-Key") == expected_forwarded_key
+
+    @pytest.mark.parametrize(
         "setup_connections_with_extras", [{"bearer": "test", "check_response": False}], indirect=True
     )
     def test_post_request_do_not_raise_for_status_if_check_response_is_false_within_extra(
