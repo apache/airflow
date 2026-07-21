@@ -763,7 +763,8 @@ class TestTaskInstance:
 
     def test_next_retry_datetime_with_none_end_date(self, dag_maker):
         """A task instance with end_date=None (e.g. up_for_retry without a recorded end date)
-        must fall back to the current time instead of raising a TypeError."""
+        must anchor end_date to the current time instead of raising a TypeError, and that
+        anchor must stick so later calls don't keep sliding forward with the wall clock."""
         delay = datetime.timedelta(seconds=30)
 
         with dag_maker(dag_id="fail_dag"):
@@ -781,6 +782,31 @@ class TestTaskInstance:
         with time_machine.travel(now, tick=False):
             date = ti.next_retry_datetime()
         assert date == now + delay
+        assert ti.end_date == now
+
+        with time_machine.travel(now + datetime.timedelta(minutes=10), tick=False):
+            later_date = ti.next_retry_datetime()
+        assert later_date == date
+
+    def test_next_retry_datetime_with_retry_delay_override_and_none_end_date(self, dag_maker):
+        """The retry_delay_override branch must also anchor end_date when it is None."""
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_retry_override_no_end_date",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=datetime.timedelta(minutes=5),
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = None
+        ti.retry_delay_override = 10.0
+
+        now = timezone.utcnow()
+        with time_machine.travel(now, tick=False):
+            date = ti.next_retry_datetime()
+        assert date == now + datetime.timedelta(seconds=10)
+        assert ti.end_date == now
 
     @pytest.mark.usefixtures("test_pool")
     def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):
