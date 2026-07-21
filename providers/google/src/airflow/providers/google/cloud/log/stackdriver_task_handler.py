@@ -43,6 +43,7 @@ from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesR
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -326,7 +327,7 @@ class StackdriverTaskHandler(logging.Handler):
     LABEL_DAG_ID = LABEL_DAG_ID
     LABEL_LOGICAL_DATE = LABEL_LOGICAL_DATE
     LABEL_TRY_NUMBER = LABEL_TRY_NUMBER
-    LOG_VIEWER_BASE_URL = "https://console.cloud.google.com/logs/viewer"
+    LOG_VIEWER_BASE_URL = "https://console.cloud.{domain}/logs/viewer"
     LOG_NAME = "Google Stackdriver"
 
     trigger_supported = True
@@ -509,7 +510,8 @@ class StackdriverTaskHandler(logging.Handler):
             "advancedFilter": log_filter,
         }
 
-        url = f"{self.LOG_VIEWER_BASE_URL}?{urlencode(url_query_string)}"
+        log_viewer_url = self.LOG_VIEWER_BASE_URL.format(domain=GoogleBaseHook.get_high_value_cookie_domain())
+        url = f"{log_viewer_url}?{urlencode(url_query_string)}"
         return url
 
     def close(self) -> None:
