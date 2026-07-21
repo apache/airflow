@@ -198,9 +198,7 @@ parameter, which defaults to ``True``.
 On Airflow 3.3+, ``durable=True`` persists the running pod's identity (name, namespace) to
 :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before the operator starts
 waiting on it. On retry, the operator reads this identity back and reconnects directly to that
-specific pod -- no label search, and no possibility of the ambiguity failure
-(``FoundMoreThanOnePodFailure``) that a label search can hit when more than one matching pod
-exists.
+specific pod -- the reconnect step uses this persisted identity instead of a label search.
 
 If no identity has been persisted yet to the task state store - either because this is the first attempt, or because the
 worker crashed in the narrow window after the pod was created but before its identity could be

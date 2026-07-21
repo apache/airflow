@@ -668,6 +668,16 @@ class KubernetesPodOperator(BaseOperator):
                 name,
             )
             return None
+        if (pod.metadata.labels or {}).get(self.POD_CHECKED_KEY) == "True":
+            # A prior attempt already fully processed this pod, it belongs to a previous
+            # try_number, not one to reattach to. Fall through to fresh pod creation.
+            self.log.info(
+                "Pod %s/%s from task state store was already checked by a prior attempt, "
+                "creating a fresh pod instead of reattaching.",
+                namespace,
+                name,
+            )
+            return None
         self.log.info(
             "Reconnecting to pod %s/%s via identity persisted in task state store.", namespace, name
         )

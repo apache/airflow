@@ -2653,6 +2653,51 @@ class TestKubernetesPodOperatorDurableExecution:
         self.create_mock.assert_called_once_with(pod=mock_pod_request_obj)
         assert result == mock_pod_request_obj
 
+    def test_durable_reconnect_skips_already_checked_pod_and_creates_fresh(self):
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            task_id="task",
+            name="hello",
+            log_pod_spec_on_failure=False,
+            on_finish_action="keep_pod",
+        )
+        context = create_context(k)
+        task_state_store = MagicMock()
+        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default"}
+        context["task_state_store"] = task_state_store
+
+        stale_pod = MagicMock()
+        stale_pod.status.phase = PodPhase.FAILED
+        stale_pod.status.reason = None
+        stale_pod.metadata.name = "prior-pod"
+        stale_pod.metadata.labels = {"try_number": "1", "already_checked": "True"}
+        k.hook.get_pod = MagicMock(return_value=stale_pod)
+
+        created_pod = MagicMock()
+        created_pod.metadata.name = "new-pod"
+        created_pod.metadata.namespace = "default"
+        self.create_mock.return_value = created_pod
+
+        mock_pod_request_obj = MagicMock()
+        mock_pod_request_obj.to_dict.return_value = {"metadata": {"name": "new-pod"}}
+
+        with (
+            patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None) as mock_find,
+            patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion") as mock_process_pod_deletion,
+        ):
+            result = k.get_or_create_pod(pod_request_obj=mock_pod_request_obj, context=context)
+
+        mock_find.assert_called_once()
+        mock_process_pod_deletion.assert_not_called()
+        self.create_mock.assert_called_once_with(pod=mock_pod_request_obj)
+        task_state_store.set.assert_called_once_with(
+            POD_IDENTIFIER_STATE_KEY,
+            {"name": "new-pod", "namespace": "default"},
+        )
+        assert result == mock_pod_request_obj
+
     def test_durable_true_without_state_store_fallsback(self):
         """No task_state_store key in context (e.g. Airflow <3.3): unchanged label-search behavior."""
         k = KubernetesPodOperator(
