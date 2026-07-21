@@ -756,6 +756,12 @@ export const UseProviderServiceGetProvidersKeyFn = ({ limit, offset }: {
   limit?: number;
   offset?: number;
 } = {}, queryKey?: Array<unknown>) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
+export type ProviderServiceGetProviderDefaultResponse = Awaited<ReturnType<typeof ProviderService.getProvider>>;
+export type ProviderServiceGetProviderQueryResult<TData = ProviderServiceGetProviderDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useProviderServiceGetProviderKey = "ProviderServiceGetProvider";
+export const UseProviderServiceGetProviderKeyFn = ({ providerName }: {
+  providerName: string;
+}, queryKey?: Array<unknown>) => [useProviderServiceGetProviderKey, ...(queryKey ?? [{ providerName }])];
 export type AssetStateStoreServiceListAssetStateStoreDefaultResponse = Awaited<ReturnType<typeof AssetStateStoreService.listAssetStateStore>>;
 export type AssetStateStoreServiceListAssetStateStoreQueryResult<TData = AssetStateStoreServiceListAssetStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetStateStoreServiceListAssetStateStoreKey = "AssetStateStoreServiceListAssetStateStore";
