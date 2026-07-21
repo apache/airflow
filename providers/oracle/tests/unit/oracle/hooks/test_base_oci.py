@@ -21,7 +21,6 @@ import sys
 from unittest import mock
 
 import pytest
-from oci.generative_ai import GenerativeAiClient
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -33,6 +32,8 @@ from airflow.providers.oracle.hooks.base_oci import (
     OciBaseHook,
     _get_oci_sdk,
 )
+
+GenerativeAiClient = pytest.importorskip("oci.generative_ai").GenerativeAiClient
 
 
 class TestOciBaseHook:
