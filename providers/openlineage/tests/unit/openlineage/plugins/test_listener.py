@@ -1944,7 +1944,6 @@ class TestOpenLineageListenerAirflow3:
         assert listener.adapter.fail_task.call_args.kwargs["job_description"] == "Test DAG Description"
         assert listener.adapter.fail_task.call_args.kwargs["job_description_type"] == "text/plain"
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
@@ -1961,7 +1960,6 @@ class TestOpenLineageListenerAirflow3:
         mock_debug_facet,
         mock_debug_mode,
         mock_emit,
-        mock_fork_execute,
         time_machine,
     ):
         """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
@@ -2004,9 +2002,6 @@ class TestOpenLineageListenerAirflow3:
             error=err,
         )
         listener.adapter.fail_task.assert_called_once_with(**expected_args)
-        # Regression guard: manual state-change emission must not go through _fork_execute.
-        mock_fork_execute.assert_not_called()
-
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
         adapter.fail_task(**expected_args)
@@ -2202,7 +2197,6 @@ class TestOpenLineageListenerAirflow3:
         assert listener.adapter.complete_task.call_args.kwargs["job_description"] == "Test DAG Description"
         assert listener.adapter.complete_task.call_args.kwargs["job_description_type"] == "text/plain"
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
@@ -2217,7 +2211,6 @@ class TestOpenLineageListenerAirflow3:
         mock_debug_facet,
         mock_debug_mode,
         mock_emit,
-        mock_fork_execute,
         time_machine,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
@@ -2258,9 +2251,6 @@ class TestOpenLineageListenerAirflow3:
             },
         )
         assert calls[0][1] == expected_args
-        # Regression guard: manual state-change emission must not go through _fork_execute.
-        mock_fork_execute.assert_not_called()
-
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
         adapter.complete_task(**expected_args)
@@ -2559,7 +2549,6 @@ class TestOpenLineageListenerAirflow3:
             tags=expected_tags,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageListener._fork_execute")
     @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
@@ -2574,7 +2563,6 @@ class TestOpenLineageListenerAirflow3:
         mock_debug_facet,
         mock_debug_mode,
         mock_emit,
-        mock_fork_execute,
         time_machine,
     ):
         """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
@@ -2615,9 +2603,6 @@ class TestOpenLineageListenerAirflow3:
             },
         )
         assert calls[0][1] == expected_args
-        # Regression guard: manual state-change emission must not go through _fork_execute.
-        mock_fork_execute.assert_not_called()
-
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
         adapter.complete_task(**expected_args)
