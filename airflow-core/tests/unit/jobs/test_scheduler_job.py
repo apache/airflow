@@ -8689,9 +8689,9 @@ class TestSchedulerJob:
 
         dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
 
-        mock_executor = MagicMock()
+        executor = MockExecutor(do_update=False)
         scheduler_job = Job()
-        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
 
         ti = dag_run.get_task_instance(task_id="test_task")
         ti.state = TaskInstanceState.RUNNING
@@ -8712,7 +8712,7 @@ class TestSchedulerJob:
 
         self.job_runner._find_and_purge_task_instances_without_heartbeats()
 
-        mock_executor.send_callback.assert_called_once()
+        self.job_runner.executor.callback_sink.send.assert_called_once()
 
     @pytest.mark.parametrize(
         ("retries", "callback_kind", "expected"),

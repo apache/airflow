@@ -191,11 +191,11 @@ def _resolve_ti_callback_bundle_info(ti: TaskInstance) -> tuple[str, str | None,
     """
     Resolve the bundle name/version/version-data needed to build a TaskCallbackRequest or EmailRequest.
 
-    Shared by the executor-reported "task finished but TI still looked queued" path and the
-    heartbeat-timeout purge path, both of which need identical bundle-pinning semantics: fall back
+    Used by the heartbeat-timeout purge path. Encapsulates the bundle-pinning semantics: fall back
     to ``dag_model`` for legacy tasks with no ``dag_version`` (pre-AIP-66 migrations), and leave the
     bundle version unpinned when the dag run itself wasn't pinned (``disable_bundle_versioning``),
-    so the callback runs against the same code as the task did.
+    so the callback runs against the same code as the task did. ``process_executor_events`` inlines
+    the same resolution for its externally-killed-task path.
     """
     bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
     bundle_version = (
