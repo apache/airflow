@@ -57,7 +57,7 @@ from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -404,8 +404,7 @@ class KubernetesExecutor(BaseExecutor):
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
-    @provide_session
-    def _should_create_pod_for_job(self, task: KubernetesJob, *, session: Session = NEW_SESSION) -> bool:
+    def _should_create_pod_for_job(self, task: KubernetesJob, *, session: Session | None = None) -> bool:
         """Check whether a queued Kubernetes job still owns the current task launch token."""
         try:
             from airflow.executors.workloads import ExecuteTask
@@ -420,6 +419,10 @@ class KubernetesExecutor(BaseExecutor):
         workload = task.command[0]
         workload_ti = workload.ti
         launch_token = getattr(workload_ti, "external_executor_id", None)
+
+        if session is None:
+            with create_session() as session:
+                return self._should_create_pod_for_job(task, session=session)
 
         try:
             scheduler_job_id = int(self.scheduler_job_id) if self.scheduler_job_id is not None else None
