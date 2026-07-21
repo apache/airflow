@@ -154,6 +154,14 @@ class KubernetesExecutor(BaseExecutor):
         # instead of requeuing. The orphaned task instance itself is still recovered by the
         # scheduler's adopt_or_reset_orphaned_tasks(), which re-queues it with a fresh attempt.
         self.pod_launch_attempts: dict[TaskInstanceKey, _PodLaunchAttempt] = {}
+        self.RUNNING_POD_LOG_LINES = self.conf.getint(
+            "kubernetes_executor", "running_pod_log_lines", fallback=KubernetesExecutor.RUNNING_POD_LOG_LINES
+        )
+        if self.RUNNING_POD_LOG_LINES <= 0:
+            raise ValueError(
+                "The [kubernetes_executor] running_pod_log_lines configuration must be greater than 0, "
+                f"got {self.RUNNING_POD_LOG_LINES}."
+            )
         self.completed: dict[tuple[str, str], KubernetesResults] = {}
         self.create_pods_after: datetime | None = None
 

@@ -518,8 +518,13 @@ class TestSchedulerJob:
                     "scheduler.tasks.killed_externally",
                     tags={"dag_id": dag_id, "task_id": ti1.task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
+                mock.call(
+                    "operator_failures_EmptyOperator",
+                    tags={"dag_id": dag_id, "task_id": ti1.task_id, "run_type": "manual"},
+                ),
+                mock.call(
+                    "ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id, "run_type": "manual"}
+                ),
             ],
             any_order=True,
         )
@@ -645,8 +650,11 @@ class TestSchedulerJob:
                     "scheduler.tasks.killed_externally",
                     tags={"dag_id": dag_id, "task_id": task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": task_id}),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id}),
+                mock.call(
+                    "operator_failures_EmptyOperator",
+                    tags={"dag_id": dag_id, "task_id": task_id, "run_type": "manual"},
+                ),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id, "run_type": "manual"}),
             ],
             any_order=True,
         )
@@ -9882,8 +9890,10 @@ class TestSchedulerJob:
             assert result2 == mock_executors[1]  # Matched by executor name
 
     @conf_vars({("core", "multi_team"): "true"})
-    def test_multi_team_sets_team_name_on_task_instances(self, dag_maker, mock_executors, session):
-        """Test that _team_name is set on TaskInstance objects during the scheduling loop."""
+    @mock.patch("airflow._shared.observability.metrics.stats.timing")
+    def test_multi_team_sets_team_name_on_task_instances(self, mock_timing, dag_maker, session):
+        """The scheduling loop resolves the bundle's team onto the dag run, so the QUEUED
+        state-change metric (emitted via TaskInstance.stats_tags) carries team_name."""
         clear_db_teams()
         clear_db_dag_bundles()
 
@@ -9902,19 +9912,21 @@ class TestSchedulerJob:
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("task_a", session=session)
         ti.state = State.SCHEDULED
+        ti.scheduled_dttm = timezone.utcnow()
+        session.merge(ti)
         session.flush()
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
-        self.job_runner._multi_team = True
 
-        # Simulate what _executable_task_instances_to_queued does
-        dag_id_to_team_name = self.job_runner._get_team_names_for_dag_ids(["dag_a"], session)
-        if team_name := dag_id_to_team_name.get(ti.dag_id):
-            ti._team_name = team_name
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert ti._team_name == "team_a"
-        assert ti.stats_tags == {"dag_id": "dag_a", "task_id": "task_a", "team_name": "team_a"}
+        assert {t.key for t in queued_tis} == {ti.key}
+        scheduled_calls = [
+            c for c in mock_timing.call_args_list if c.args and c.args[0] == "task.scheduled_duration"
+        ]
+        assert scheduled_calls, "expected a task.scheduled_duration metric on QUEUED transition"
+        assert scheduled_calls[0].kwargs["tags"]["team_name"] == "team_a"
 
     @conf_vars({("core", "multi_team"): "true"})
     def test_do_scheduling_multi_team_schedules_task_instances(self, dag_maker, session):

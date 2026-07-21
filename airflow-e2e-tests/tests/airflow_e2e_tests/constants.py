@@ -90,6 +90,16 @@ GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
 # and module fetches go through the HTTPS proxy (no git/gcc needed).
 GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
 
+# TypeScript SDK E2E test paths
+TS_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "ts-sdk"
+TS_SDK_EXAMPLE_PATH = TS_SDK_ROOT_PATH / "example"
+TS_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "ts.yml"
+# Builds the bundle and provides the worker's node binary (ts.yml), so the
+# bundle runs on the runtime it was built for.
+NODE_IMAGE = os.environ.get("NODE_IMAGE", "node:22-slim")
+# Writable HOME for the containerized pnpm build; gitignored, caches persist.
+TS_SDK_BUILD_HOME_PATH = AIRFLOW_ROOT_PATH / "files" / "pnpm-home"
+
 # Local provider sources are mounted into the airflow containers under this directory so
 # ``_PIP_ADDITIONAL_REQUIREMENTS`` can install the in-tree (latest, possibly unreleased)
 # provider rather than the published one from PyPI.

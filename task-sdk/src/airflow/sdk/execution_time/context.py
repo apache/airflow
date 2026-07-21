@@ -1114,6 +1114,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     _before: str | datetime | None
     _ascending: bool
     _limit: int | None
+    _partition_key: str | None
+    _partition_key_regexp_pattern: str | None
     _extra: dict[str, str]
     _asset_name: str | None
     _asset_uri: str | None
@@ -1129,6 +1131,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._before = None
         self._ascending = True
         self._limit = None
+        self._partition_key = None
+        self._partition_key_regexp_pattern = None
         self._extra: dict[str, str] = {}
 
     def after(self, after: str) -> Self:
@@ -1151,6 +1155,18 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._reset_cache()
         return self
 
+    def partition_key(self, key: str) -> Self:
+        """Filter by exact partition key match."""
+        self._partition_key = key
+        self._reset_cache()
+        return self
+
+    def partition_key_regexp_pattern(self, pattern: str) -> Self:
+        """Filter by partition key regexp pattern."""
+        self._partition_key_regexp_pattern = pattern
+        self._reset_cache()
+        return self
+
     def extra(self, key: str, value: str) -> Self:
         self._extra[key] = value
         self._reset_cache()
@@ -1165,6 +1181,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             "before": self._before,
             "ascending": self._ascending,
             "limit": self._limit,
+            "partition_key": self._partition_key,
+            "partition_key_regexp_pattern": self._partition_key_regexp_pattern,
             "extra": self._extra or None,
         }
 
