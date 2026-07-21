@@ -68,6 +68,9 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+"oci" = [
+    "oci>=2.182.0",
+]
 "numpy" = [
     "numpy>=1.22.4; python_version<'3.11'",
     "numpy>=1.23.2; python_version=='3.11'",
@@ -88,6 +91,7 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
+    "apache-airflow-providers-oracle[oci]",
     "numpy>=1.22.4; python_version<'3.11'",
     "numpy>=1.23.2; python_version=='3.11'",
     "numpy>=1.26.0; python_version=='3.12'",
