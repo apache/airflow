@@ -21,8 +21,8 @@ from datetime import timedelta
 import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
-from airflow.timetables.base import DataInterval
+from airflow.sdk import DAG, CronTriggerTimetable
+from airflow.timetables.base import DagRunInfo, DataInterval
 
 from tests_common.test_utils.dag import create_scheduler_dag
 
@@ -41,8 +41,10 @@ def test_summarize_skipped_intervals_between_returns_gap_summary():
 
     prev_end = DEFAULT_DATE + timedelta(days=1)
     new_start = DEFAULT_DATE + timedelta(days=4)
+    prev_info = DagRunInfo.interval(DEFAULT_DATE, prev_end)
+    new_info = DagRunInfo.interval(new_start, new_start + timedelta(days=1))
 
-    summary = scheduler_dag.summarize_skipped_intervals_between(prev_end, new_start)
+    summary = scheduler_dag.summarize_skipped_intervals_between(prev_info, new_info)
 
     assert summary is not None
     assert summary.skipped_range == DataInterval(start=prev_end, end=new_start)
@@ -59,4 +61,43 @@ def test_summarize_skipped_intervals_between_returns_none_without_gap():
     scheduler_dag = create_scheduler_dag(dag)
 
     boundary = DEFAULT_DATE + timedelta(days=1)
-    assert scheduler_dag.summarize_skipped_intervals_between(boundary, boundary) is None
+    prev_info = DagRunInfo.interval(DEFAULT_DATE, boundary)
+    new_info = DagRunInfo.interval(boundary, boundary + timedelta(days=1))
+    assert scheduler_dag.summarize_skipped_intervals_between(prev_info, new_info) is None
+
+
+def test_summarize_skipped_intervals_between_returns_none_for_consecutive_trigger_runs():
+    """Zero-width consecutive CronTriggerTimetable runs must not look like a skip."""
+    dag = DAG(
+        dag_id="test_summarize_consecutive_trigger",
+        schedule=CronTriggerTimetable("@daily", timezone="UTC"),
+        start_date=DEFAULT_DATE,
+        catchup=False,
+    )
+    EmptyOperator(task_id="dummy", dag=dag)
+    scheduler_dag = create_scheduler_dag(dag)
+
+    prev_info = DagRunInfo.exact(DEFAULT_DATE)
+    new_info = DagRunInfo.exact(DEFAULT_DATE + timedelta(days=1))
+    assert scheduler_dag.summarize_skipped_intervals_between(prev_info, new_info) is None
+
+
+def test_summarize_skipped_intervals_between_returns_gap_for_skipped_trigger_runs():
+    """A real multi-period jump on CronTriggerTimetable must still report a skip."""
+    dag = DAG(
+        dag_id="test_summarize_skipped_trigger",
+        schedule=CronTriggerTimetable("@daily", timezone="UTC"),
+        start_date=DEFAULT_DATE,
+        catchup=False,
+    )
+    EmptyOperator(task_id="dummy", dag=dag)
+    scheduler_dag = create_scheduler_dag(dag)
+
+    prev_info = DagRunInfo.exact(DEFAULT_DATE)
+    new_start = DEFAULT_DATE + timedelta(days=3)
+    new_info = DagRunInfo.exact(new_start)
+
+    summary = scheduler_dag.summarize_skipped_intervals_between(prev_info, new_info)
+
+    assert summary is not None
+    assert summary.skipped_range == DataInterval(start=DEFAULT_DATE, end=new_start)
