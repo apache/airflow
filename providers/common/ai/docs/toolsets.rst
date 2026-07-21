@@ -24,17 +24,20 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Three toolsets are included:
+Four toolsets are included:
 
+- :class:`~airflow.providers.common.ai.toolsets.aws.AWSToolset` — configured
+  AWS services toolset for agent access to AWS APIs through Airflow-managed
+  AWS connections.
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
-- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
-  4-tool database toolset.
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
+- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
+  4-tool database toolset.
 
-All three implement pydantic-ai's
+All four implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -263,6 +266,69 @@ Parameters
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
 
+``AWSToolset``
+--------------
+
+Curated toolset that gives an agent allow-listed access to AWS APIs with
+three tools:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 50
+
+   * - Tool
+     - Description
+   * - ``list_aws_operations``
+     - Lists the operations the toolset allows, grouped by service
+   * - ``describe_aws_operation``
+     - Returns an operation's parameter and response shapes (from the
+       botocore service model), so the agent can check what a call expects
+       before making it
+   * - ``call_aws``
+     - Executes an allowed operation and returns the response as JSON,
+       aggregating paginated results
+
+Credentials, region, and session configuration come from the Airflow
+connection (``aws_conn_id``) via the amazon provider — the model cannot
+override them through tool arguments. Requires the ``aws`` extra::
+
+    pip install "apache-airflow-providers-common-ai[aws]"
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_aws_toolset.py
+    :language: python
+    :start-after: [START howto_operator_agent_aws]
+    :end-before: [END howto_operator_agent_aws]
+
+Access is deny-by-default: ``allowed_actions`` is required and supports ``*``
+wildcards in the operation part only (``"athena:*"``, ``"s3:List*"``).
+Operations that return credentials or decrypted secrets — ``sts:AssumeRole``,
+``secretsmanager:GetSecretValue``, ``kms:Decrypt``, and similar — are never
+matched by a wildcard and must be listed verbatim to be callable.
+
+.. warning::
+    ``allowed_actions`` bounds what the agent can ask for, not what the
+    credentials can do. Point ``aws_conn_id`` at a least-privilege IAM role
+    scoped to the same operations.
+
+Parameters
+^^^^^^^^^^
+
+- ``aws_conn_id``: Airflow connection ID for AWS credentials. Default
+  ``aws_default``.
+- ``allowed_actions``: Operations the agent may call, in
+  ``"<service>:<Operation>"`` form using boto3 service names and API
+  operation names. Required — there is no auto-discovery. Matching is case-
+  and underscore-insensitive, so ``"s3:list_buckets"`` equals
+  ``"s3:ListBuckets"``. Validated against botocore's bundled service
+  definitions at instantiation time (local metadata only — no network, no
+  credentials).
+- ``region_name``: AWS region for API calls. Default ``None`` — use the
+  region configured on the connection.
+- ``max_items``: Upper bound on items aggregated from paginated operations.
+  Default ``1000``.
+- ``max_output_bytes``: Upper bound on the serialized response returned to
+  the agent; larger payloads are clipped and flagged. Default ``65536``.
+
 ``LoggingToolset``
 ------------------
 
@@ -364,7 +430,7 @@ For prototyping or when you want full PydanticAI control, you can pass
     )
 
 This works because PydanticAI's ``MCPToolset`` implements ``AbstractToolset``.
-The tradeoff: URLs and credentials are hardcoded in DAG code instead of being
+The tradeoff: URLs and credentials are hardcoded in Dag code instead of being
 managed through Airflow connections and secret backends.
 
 
@@ -392,8 +458,8 @@ extra to use it:
 
 Each source is a local directory or a connection-resolved
 :class:`~airflow.providers.common.ai.skills.GitSkills`. Sources are resolved when
-the agent enters the toolset, on the worker -- never while the DAG processor
-parses the file -- so a Git token is never baked into the serialized DAG, and
+the agent enters the toolset, on the worker -- never while the Dag processor
+parses the file -- so a Git token is never baked into the serialized Dag, and
 cloned repositories are removed when the run ends.
 
 A local directory of ``SKILL.md`` bundles:
@@ -425,7 +491,7 @@ need strict isolation.
 
     Skill bundles can contain scripts that the agent may run on the worker via
     the ``run_skill_script`` tool. For a remote source, anyone who can modify the
-    repository can introduce code that executes on your worker, outside DAG
+    repository can introduce code that executes on your worker, outside Dag
     review and versioning. Point ``GitSkills`` at a trusted repository, pin
     ``branch`` to a trusted ref, and treat skill contents as code that runs in
     your environment.
@@ -437,6 +503,16 @@ Parameters
   :class:`~airflow.providers.common.ai.skills.GitSkills`.
 - ``exclude_tools``: Optional set of skill tool names to hide from the agent
   (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
+- ``exclude_resources``: Optional glob patterns to exclude from resource
+  discovery, added on top of the built-in defaults (``__pycache__``, ``*.pyc``,
+  ``*.pyo``, ``.DS_Store``, ``.git``). A skill exposes every readable text file
+  it contains as a resource; these patterns keep matched files out of the
+  resource list and the ``read_skill_resource`` tool (e.g.
+  ``["*.env", "secrets/*"]``). Each pattern matches the full skill-relative path
+  or any single path component. This hides files from resource discovery only --
+  it does not stop a skill's ``run_skill_script`` from reading them off disk, so
+  pair it with ``exclude_tools={"run_skill_script"}`` when the files are
+  genuinely sensitive.
 
 Using Agent Skills with other frameworks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -544,8 +620,8 @@ before it runs. If no registered tool can read the environment, the
 filesystem, or other connections, the model cannot reach them, regardless of
 what the prompt instructs it to do.
 
-This is what "untrusted" means in this context. The DAG file itself is
-author-written and trusted, exactly like any other DAG. What is untrusted is
+This is what "untrusted" means in this context. The Dag file itself is
+author-written and trusted, exactly like any other Dag. What is untrusted is
 the model's *output*: the tool-call requests and text it generates. That output
 is confined to your registered tools and bounded by the tool-call budget. An
 agent cannot create a new connection, read another connection's credentials, or
@@ -570,13 +646,13 @@ No single layer is sufficient — they work together.
      - What it does
      - What it does NOT do
    * - **Airflow Connections**
-     - Credentials are stored in Airflow's secret backend, never in DAG code.
+     - Credentials are stored in Airflow's secret backend, never in Dag code.
        The LLM agent cannot see API keys or database passwords.
      - Does not prevent the agent from using the connection to access data
        the connection has access to.
    * - **HookToolset: explicit allow-list**
      - Only methods listed in ``allowed_methods`` are exposed as tools.
-       Auto-discovery is not supported. Methods are validated at DAG parse
+       Auto-discovery is not supported. Methods are validated at Dag parse
        time.
      - Does not restrict what arguments the agent passes to allowed methods.
    * - **SQLToolset: read-only by default**
@@ -719,7 +795,7 @@ Production Checklist
 Before deploying an agent task to production:
 
 1. **Connection credentials**: Use Airflow's secret backend. Never hardcode
-   API keys in DAG files.
+   API keys in Dag files.
 2. **Database permissions**: Create a dedicated database user with minimum
    required grants. Don't reuse the admin connection.
 3. **Tool allow-list**: Review ``allowed_methods`` / ``allowed_tables``. The

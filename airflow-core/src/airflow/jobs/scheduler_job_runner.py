@@ -334,6 +334,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
+        self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
@@ -684,12 +685,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ranked_query.c.map_index_for_ordering,
                 )
                 .options(selectinload(TI.dag_model))
-                # Eager-load dag_version: TIs become transient (via make_transient) before
-                # ExecuteTask.make() reads ti.dag_version.version_data. Lazy loads on
-                # transient objects silently return None instead of raising DetachedInstanceError.
-                # Scope the second SELECT to version_data (the PK is auto-included) so we read
-                # two columns rather than the full DagVersion row.
-                .options(selectinload(TI.dag_version).load_only(DagVersion.version_data))
+                # Eager-load the run's pinned DagVersion (dag_run.created_dag_version): TIs become
+                # transient (via make_transient) before ExecuteTask.make() reads
+                # ti.dag_run.created_dag_version.version_data to ship the bundle manifest matching
+                # the run's pinned bundle_version. Lazy loads on transient objects silently return
+                # None instead of raising DetachedInstanceError. Scope the SELECT to version_data
+                # (the PK is auto-included) so we read two columns rather than the full row.
+                .options(
+                    joinedload(TI.dag_run)
+                    .selectinload(DagRun.created_dag_version)
+                    .load_only(DagVersion.version_data)
+                )
             )
 
             query = query.limit(max_tis)
@@ -736,10 +742,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     list(unique_dag_ids),
                 )
                 for ti in task_instances_to_examine:
-                    # Set team as a transient attribute; team lives on the Bundle, not
-                    # on the TI/DagRun schema, so we resolve it at scheduling time.
+                    # Team lives on the Bundle, not the TI/DagRun schema, so resolve it at scheduling
+                    # time and stash it on the dag run, where stats_tags reads it for metric tagging.
                     if team := dag_id_to_team_name.get(ti.dag_id):
-                        ti._team_name = team
+                        ti.dag_run._team_name = team
 
             executor_slots_available: dict[ExecutorName, int] = {}
             # First get a mapping of executor names to slots they have available
@@ -1260,6 +1266,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 job_id=self.job.id,
                 scheduler_dag_bag=self.scheduler_dag_bag,
                 session=session,
+                eagerly_load_dag_tags=self._dag_tags_in_metrics,
             )
         except Exception as exc:
             stats.incr("scheduler.executor_events.failed", tags={"exception_class": type(exc).__name__})
@@ -1272,7 +1279,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def process_executor_events(
-        cls, executor: BaseExecutor, job_id: int | None, scheduler_dag_bag: DBDagBag, session: Session
+        cls,
+        executor: BaseExecutor,
+        job_id: int | None,
+        scheduler_dag_bag: DBDagBag,
+        session: Session,
+        eagerly_load_dag_tags: bool = False,
     ) -> int:
         """
         Process task completion events from the executor and update task instance states.
@@ -1295,6 +1307,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param job_id: The scheduler job ID, used to detect task requeuing by other schedulers
         :param scheduler_dag_bag: Serialized DAG bag for retrieving task definitions
         :param session: Database session for task instance updates
+        :param eagerly_load_dag_tags: When True, eager-load dag_model.tags so the per-finished-task
+            metrics carry Dag tags without a per-TI lazy load. The scheduler passes its cached flag so
+            the hot path never reads conf; other callers (e.g. ``dag.test()``) leave it at the default.
 
         :return: Number of events processed from the executor event buffer
 
@@ -1386,6 +1401,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(joinedload(TI.dag_version))
         )
+        # When emitting Dag tags as metric tags, eager-load dag_model.tags so the per-finished-task
+        # ti_failures / operator_failures / task.*_duration metrics carry them without a per-TI lazy load.
+        # TI already joins DagModel by dag_id, so warm tags off that relationship directly rather than
+        # via the dag_run hop; the DagModel is shared in the identity map, so dag_run.dag_model.tags is free.
+        if eagerly_load_dag_tags:
+            query = query.options(selectinload(TI.dag_model).selectinload(DagModel.tags))
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
@@ -1922,7 +1943,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # examining, rather than making one query per DagRun.
             # Materialize into a list because the multi-team block below iterates
             # the result and ScalarResult is a one-pass iterator.
-            dag_runs = list(DagRun.get_running_dag_runs_to_examine(session=session))
+            dag_runs = list(
+                DagRun.get_running_dag_runs_to_examine(
+                    session=session, eagerly_load_dag_tags=self._dag_tags_in_metrics
+                )
+            )
 
             if self._multi_team and dag_runs:
                 unique_dag_ids = {dr.dag_id for dr in dag_runs}
@@ -2417,19 +2442,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate DagRuns
-        existing_dagrun_objects = (
-            session.scalars(
-                select(DagRun)
-                .where(
-                    tuple_(DagRun.dag_id, DagRun.logical_date).in_(
-                        (dm.dag_id, dm.next_dagrun) for dm in dag_models
-                    )
+        existing_dagrun_objects = session.scalars(
+            select(DagRun)
+            .where(
+                tuple_(DagRun.dag_id, DagRun.logical_date).in_(
+                    (dm.dag_id, dm.next_dagrun) for dm in dag_models
                 )
-                .options(load_only(DagRun.dag_id, DagRun.logical_date))
             )
-            .unique()
-            .all()
-        )
+            .options(load_only(DagRun.dag_id, DagRun.logical_date))
+        ).all()
         existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
 
         # backfill runs are not created by scheduler and their concurrency is separate
@@ -3557,9 +3578,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if self._multi_team:
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
-            for ti in task_instances_without_heartbeats:
-                if team := dag_id_to_team_name.get(ti.dag_id):
-                    ti._team_name = team
         else:
             dag_id_to_team_name = {}
 
