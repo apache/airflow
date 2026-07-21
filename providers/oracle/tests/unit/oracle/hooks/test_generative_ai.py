@@ -18,9 +18,11 @@ from __future__ import annotations
 
 from unittest import mock
 
-from oci.generative_ai import GenerativeAiClient
+import pytest
 
 from airflow.providers.oracle.hooks.generative_ai import OciGenerativeAIHook
+
+GenerativeAiClient = pytest.importorskip("oci.generative_ai").GenerativeAiClient
 
 
 class TestOciGenerativeAIHook:
