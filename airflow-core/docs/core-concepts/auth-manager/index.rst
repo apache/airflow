@@ -140,12 +140,47 @@ These authorization methods are:
 * ``is_authorized_asset_alias``: Return whether the user is authorized to access Airflow asset aliases. Some details about the asset alias can be provided (e.g. the asset alias ID).
 * ``is_authorized_pool``: Return whether the user is authorized to access Airflow pools. Some details about the pool can be provided (e.g. the pool name).
 * ``is_authorized_variable``: Return whether the user is authorized to access Airflow variables. Some details about the variable can be provided (e.g. the variable key).
-* ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``). An optional ``team_name`` scopes the check to a team; auth managers without multi-team support accept it and ignore it, which authorizes the view globally.
+* ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``). An optional ``team_name`` scopes the check to a team -- see :ref:`team-scoped-view-authorization` below.
 * ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
 * ``filter_authorized_menu_items``: Given the list of menu items in the UI, return the list of menu items the user has access to.
 
 It should be noted that the ``method`` parameter listed above may only have relevance for a specific subset of the auth manager's authorization methods.
 For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` parameter is relevant in the context of ``is_authorized_configuration``.
+
+.. _team-scoped-view-authorization:
+
+Team-scoped view authorization
+""""""""""""""""""""""""""""""
+
+.. versionadded:: 3.4.0
+   ``is_authorized_view`` accepts an optional ``team_name`` argument.
+
+In a multi-team deployment, access to a read-only view can be restricted to the users of a
+specific team. ``is_authorized_view`` accepts an optional ``team_name`` for that purpose. An
+auth manager that implements multi-team isolation honors it and only authorizes users who
+belong to ``team_name``; an auth manager without multi-team support accepts the argument and
+ignores it, which authorizes the view across all teams (the same behaviour it had before the
+argument existed).
+
+Core never calls ``is_authorized_view`` with ``team_name`` directly. It goes through
+``BaseAuthManager.authorize_view``, which first checks whether the auth manager's
+``is_authorized_view`` accepts ``team_name``. This keeps auth managers that predate the
+argument working: a custom or out-of-tree auth manager whose ``is_authorized_view`` still has
+the old ``(access_view, user)`` signature is called *without* ``team_name`` -- it does not
+raise -- and a ``RemovedInAirflow4Warning`` is emitted, warning that some views that should be
+restricted to a single team are instead authorized across all teams until the auth manager is
+upgraded.
+
+To make an auth manager team-aware, add ``team_name`` to the override (managers without
+multi-team support may accept and ignore it):
+
+.. code-block:: python
+
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: MyUser, team_name: str | None = None
+    ) -> bool: ...
+
+The fallback for the older signature is removed in Airflow 4, which requires ``team_name``.
 
 JWT token management by auth managers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
