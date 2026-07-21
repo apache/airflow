@@ -31,7 +31,7 @@ class OciGenerativeAIHook(OciBaseHook["GenerativeAiClient"]):
 
     The hook exposes the native OCI Generative AI management client through ``conn`` and
     ``get_conn()``. Client methods return OCI SDK responses so callers retain response data,
-    ETags, request identifiers, and work request identifiers.
+    ``ETags``, request identifiers, and work request identifiers.
 
     :param oci_conn_id: The :ref:`OCI connection id <howto/connection:oci>`.
     :param service_endpoint: Optional Generative AI service endpoint selected by the Dag author.
