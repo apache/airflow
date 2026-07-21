@@ -33,6 +33,92 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+DBT_CLOUD_NAMESPACE = "dbt-cloud"
+
+
+def _dbt_cloud_job_name(job_id: int) -> str:
+    return f"job.{job_id}"
+
+
+def _dbt_cloud_run_id(run_id: int) -> str:
+    return str(run_id)
+
+
+def _get_dbt_cloud_run_metadata(
+    operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor,
+    task_instance: TaskInstance,
+    job_id: int,
+):
+    """
+    Build ParentRunMetadata for the dbt Cloud job run layer.
+
+    Child dbt model/test events should parent to this run, not directly to the Airflow task.
+    """
+    from openlineage.common.provider.dbt import ParentRunMetadata
+
+    airflow_parent = _get_parent_run_metadata(task_instance)
+    return ParentRunMetadata(
+        run_id=_dbt_cloud_run_id(operator.run_id),
+        job_name=_dbt_cloud_job_name(job_id),
+        job_namespace=DBT_CLOUD_NAMESPACE,
+        root_parent_run_id=airflow_parent.root_parent_run_id,
+        root_parent_job_name=airflow_parent.root_parent_job_name,
+        root_parent_job_namespace=airflow_parent.root_parent_job_namespace,
+    )
+
+
+def _emit_dbt_cloud_job_lifecycle_event(
+    adapter,
+    *,
+    event_type,
+    operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor,
+    task_instance: TaskInstance,
+    job_id: int,
+    event_time: str,
+) -> None:
+    """Emit START or COMPLETE for the dbt Cloud job run itself."""
+    from openlineage.client.facet import job_type_job
+    from openlineage.client.run import Job, Run, RunEvent
+
+    from airflow.providers.openlineage.plugins.adapter import _JOB_TYPE_TASK, _PRODUCER
+    from airflow.providers.openlineage.utils.utils import get_processing_engine_facet, get_task_parent_run_facet
+
+    airflow_parent = _get_parent_run_metadata(task_instance)
+    run_facets = {
+        **get_task_parent_run_facet(
+            parent_run_id=airflow_parent.run_id,
+            parent_job_name=airflow_parent.job_name,
+            parent_job_namespace=airflow_parent.job_namespace,
+            root_parent_run_id=airflow_parent.root_parent_run_id,
+            root_parent_job_name=airflow_parent.root_parent_job_name,
+            root_parent_job_namespace=airflow_parent.root_parent_job_namespace,
+        ),
+        **get_processing_engine_facet(),
+    }
+
+    job = Job(
+        namespace=DBT_CLOUD_NAMESPACE,
+        name=_dbt_cloud_job_name(job_id),
+        facets={
+            "jobType": job_type_job.JobTypeJobFacet(
+                jobType=_JOB_TYPE_TASK,
+                integration="DBT",
+                processingType="BATCH",
+                producer=_PRODUCER,
+            )
+        },
+    )
+    event = RunEvent(
+        eventType=event_type,
+        eventTime=event_time,
+        run=Run(_dbt_cloud_run_id(operator.run_id), run_facets),
+        job=job,
+        inputs=[],
+        outputs=[],
+        producer=_PRODUCER,
+    )
+    adapter.emit(event)
+
 
 def _get_logical_date(task_instance):
     # todo: remove when min airflow version >= 3.0
@@ -115,11 +201,13 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
     :return: An empty OperatorLineage object indicating the completion of events generation.
     """
+    from openlineage.client.run import RunState
     from openlineage.common.provider.dbt import DbtCloudArtifactProcessor
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.plugins.adapter import _PRODUCER
     from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
+    from airflow.utils import timezone
 
     # if no account_id set this will fallback
     log.debug("Retrieving information about DBT job run.")
@@ -127,12 +215,26 @@ def generate_openlineage_events_from_dbt_cloud_run(
         run_id=operator.run_id, account_id=operator.account_id, include_related=["run_steps,job"]
     ).json()["data"]
     job = job_run["job"]
+    job_id = job["id"]
     # retrieve account_id from job and use that starting from this line
     account_id = job["account_id"]
     project = operator.hook.get_project(project_id=job["project_id"], account_id=account_id).json()["data"]
     connection = project["connection"]
     execute_steps = job["execute_steps"]
     run_steps = job_run["run_steps"]
+
+    adapter = get_openlineage_listener().adapter
+    start_time = job_run.get("started_at") or job_run.get("created_at") or timezone.utcnow().isoformat()
+    end_time = job_run.get("finished_at") or timezone.utcnow().isoformat()
+
+    _emit_dbt_cloud_job_lifecycle_event(
+        adapter,
+        event_type=RunState.START,
+        operator=operator,
+        task_instance=task_instance,
+        job_id=job_id,
+        event_time=start_time,
+    )
 
     log.debug("Filtering only DBT invocation steps for further processing.")
     # filter only dbt invocation steps
@@ -177,8 +279,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
     )
 
     log.debug("Preparing OpenLineage parent job information to be included in DBT events.")
-    parent_metadata = _get_parent_run_metadata(task_instance)
-    adapter = get_openlineage_listener().adapter
+    dbt_cloud_parent = _get_dbt_cloud_run_metadata(operator, task_instance, job_id)
 
     # process each step in loop, sending generated events in the same order as steps
     for counter, artifacts in enumerate(step_artifacts, 1):
@@ -193,7 +294,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
         processor = DbtCloudArtifactProcessor(
             producer=_PRODUCER,
-            job_namespace=parent_metadata.job_namespace,
+            job_namespace=dbt_cloud_parent.job_namespace,
             skip_errors=False,
             logger=operator.log,
             manifest=manifest,
@@ -202,7 +303,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
             catalog=catalog,
         )
 
-        processor.dbt_run_metadata = parent_metadata
+        processor.dbt_run_metadata = dbt_cloud_parent
 
         events = processor.parse().events()
         log.debug("Found %s OpenLineage events for artifact no. %s.", len(events), counter)
@@ -210,6 +311,15 @@ def generate_openlineage_events_from_dbt_cloud_run(
         for event in events:
             adapter.emit(event=event)
         log.debug("Emitted all OpenLineage events for artifact no. %s.", counter)
+
+    _emit_dbt_cloud_job_lifecycle_event(
+        adapter,
+        event_type=RunState.COMPLETE,
+        operator=operator,
+        task_instance=task_instance,
+        job_id=job_id,
+        event_time=end_time,
+    )
 
     log.info("OpenLineage has successfully finished processing information about DBT job run.")
     return OperatorLineage()

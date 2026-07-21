@@ -28,6 +28,8 @@ from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureEx
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
 from airflow.providers.dbt.cloud.utils.openlineage import (
+    DBT_CLOUD_NAMESPACE,
+    _get_dbt_cloud_run_metadata,
     _get_parent_run_metadata,
     generate_openlineage_events_from_dbt_cloud_run,
 )
@@ -53,11 +55,13 @@ class MockResponse:
 def emit_event(event):
     # since 1.15.0 there was v2 facets introduced
     if parse(__version__) >= parse("1.15.0"):
-        assert event.run.facets["parent"].run.runId == TASK_UUID
-        assert event.run.facets["parent"].job.name == f"{DAG_ID}.{TASK_ID}"
+        assert event.run.facets["parent"].run.runId == "188471607"
+        assert event.run.facets["parent"].job.name == "job.408411"
+        assert event.run.facets["parent"].job.namespace == DBT_CLOUD_NAMESPACE
     else:
-        assert event.run.facets["parent"].run["runId"] == TASK_UUID
-        assert event.run.facets["parent"].job["name"] == f"{DAG_ID}.{TASK_ID}"
+        assert event.run.facets["parent"].run["runId"] == "188471607"
+        assert event.run.facets["parent"].job["name"] == "job.408411"
+        assert event.run.facets["parent"].job["namespace"] == DBT_CLOUD_NAMESPACE
     assert event.job.namespace == "default"
     assert event.job.name.startswith("SANDBOX.TEST_SCHEMA.test_project")
 
@@ -157,6 +161,31 @@ def test_get_parent_run_metadata():
     assert result.root_parent_job_name == "dag_id"
 
 
+def test_get_dbt_cloud_run_metadata():
+    logical_date = timezone.datetime(2025, 1, 1)
+    dr = MagicMock(logical_date=logical_date, clear_number=0)
+    mock_ti = MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        map_index=1,
+        try_number=1,
+        logical_date=logical_date,
+        state=TaskInstanceState.SUCCESS,
+        dag_run=dr,
+    )
+    mock_ti.get_template_context.return_value = {"dag_run": dr}
+
+    mock_operator = MagicMock(spec=DbtCloudRunJobOperator)
+    mock_operator.run_id = 188471607
+
+    result = _get_dbt_cloud_run_metadata(mock_operator, mock_ti, job_id=408411)
+
+    assert result.run_id == "188471607"
+    assert result.job_name == "job.408411"
+    assert result.job_namespace == DBT_CLOUD_NAMESPACE
+    assert result.root_parent_job_name == "dag_id"
+
+
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
     @patch("importlib.metadata.version", return_value="3.0.0")
     @patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
@@ -217,7 +246,13 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_build_task_instance_run_id.return_value = TASK_UUID
         mock_build_dag_run_id.return_value = DAG_UUID
         generate_openlineage_events_from_dbt_cloud_run(mock_operator, task_instance=mock_task_instance)
-        assert mock_adapter.emit.call_count == 4
+        assert mock_adapter.emit.call_count == 6
+        first_event = mock_adapter.emit.call_args_list[0][0][0]
+        last_event = mock_adapter.emit.call_args_list[-1][0][0]
+        assert str(first_event.eventType) == "START"
+        assert first_event.job.namespace == DBT_CLOUD_NAMESPACE
+        assert str(last_event.eventType) == "COMPLETE"
+        assert last_event.job.namespace == DBT_CLOUD_NAMESPACE
 
     def test_do_not_raise_error_if_runid_not_set_on_operator(self):
         operator = DbtCloudRunJobOperator(task_id="dbt-job-runid-taskid", job_id=1500)
