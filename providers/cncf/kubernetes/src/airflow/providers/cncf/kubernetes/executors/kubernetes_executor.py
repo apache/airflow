@@ -38,7 +38,7 @@ from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
-from sqlalchemy import select
+from sqlalchemy import String, cast, select
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
@@ -434,14 +434,13 @@ class KubernetesExecutor(BaseExecutor):
             )
             return True
 
-        task_instance_id = str(workload_ti.id)
         ti = session.execute(
             select(
                 TaskInstance.id,
                 TaskInstance.state,
                 TaskInstance.try_number,
                 TaskInstance.queued_by_job_id,
-            ).where(TaskInstance.id == task_instance_id)
+            ).where(cast(TaskInstance.id, String) == str(workload_ti.id))
         ).one_or_none()
         if ti is None:
             self.log.info(
