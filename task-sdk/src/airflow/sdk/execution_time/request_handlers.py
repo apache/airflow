@@ -384,8 +384,10 @@ def handle_get_asset_event_by_asset(
         name=msg.name,
         after=msg.after,
         before=msg.before,
-        ascending=msg.ascending,
         limit=msg.limit,
+        ascending=msg.ascending,
+        partition_key=msg.partition_key,
+        partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
         extra=msg.extra,
     )
     asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
@@ -400,8 +402,10 @@ def handle_get_asset_event_by_asset_alias(
         alias_name=msg.alias_name,
         after=msg.after,
         before=msg.before,
-        ascending=msg.ascending,
         limit=msg.limit,
+        ascending=msg.ascending,
+        partition_key=msg.partition_key,
+        partition_key_regexp_pattern=msg.partition_key_regexp_pattern,
         extra=msg.extra,
     )
     asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
