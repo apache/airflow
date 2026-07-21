@@ -409,6 +409,39 @@ class TestXComGet:
             json.dumps({"key": "dag_1_earlier"}),
         ]
 
+    def test_xcom_get_many_from_prior_dates_cross_dag(
+        self, session, task_instance_factory, push_simple_json_xcom
+    ):
+        """Cross-DAG ``include_prior_dates`` pull (regression for #70173).
+
+        The caller lives in ``dag_B`` and resolves its own run date, passing it as
+        ``prior_dates_before``. ``get_many`` must return the upstream ``dag_A`` XCom even though
+        the caller's ``run_id`` does not exist under ``dag_A`` (the correlated-subquery reference
+        would yield NULL and drop every row).
+        """
+        upstream_date = timezone.datetime(2021, 12, 3, 4, 56)
+        caller_date = upstream_date + datetime.timedelta(days=1)
+
+        upstream_ti = task_instance_factory(
+            dag_id="dag_A", task_id="push_to_xcom", logical_date=upstream_date
+        )
+        # The caller lives in a different DAG *and* a different run.
+        caller_ti = task_instance_factory(dag_id="dag_B", task_id="pull_from_xcom", logical_date=caller_date)
+        push_simple_json_xcom(ti=upstream_ti, key="return_value", value={"key": "Hello!"})
+
+        stored_xcoms = session.scalars(
+            XComModel.get_many(
+                run_id=caller_ti.run_id,
+                key="return_value",
+                dag_ids="dag_A",
+                task_ids="push_to_xcom",
+                include_prior_dates=True,
+                prior_dates_before=caller_date,
+            )
+        ).all()
+
+        assert [x.value for x in stored_xcoms] == [json.dumps({"key": "Hello!"})]
+
     def test_xcom_get_invalid_key(self, session, task_instance):
         """Test that getting an XCom with an invalid key raises a ValueError."""
         with pytest.raises(ValueError, match="XCom key must be a non-empty string. Received: ''"):

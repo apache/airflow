@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -36,6 +36,13 @@ from airflow.api_fastapi.execution_api.security import CurrentTIToken
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 
 
 async def has_xcom_access(
@@ -75,6 +82,31 @@ router = APIRouter(
 )
 
 log = logging.getLogger(__name__)
+
+
+def _resolve_prior_dates_reference(token: TIToken, session: Session) -> datetime | None:
+    """
+    Resolve the reference datetime bounding ``include_prior_dates`` from the caller's own DAG run.
+
+    ``include_prior_dates`` historically means "include XComs whose run date is on or before the
+    *pulling* task instance's own run date". The caller is identified by the TI token, independent
+    of the ``dag_id``/``run_id`` being pulled from, so cross-DAG pulls resolve correctly (see #70173).
+
+    Returns *None* if the caller task instance (or its DAG run) cannot be found, in which case
+    :meth:`XComModel.get_many` falls back to its own run-id based reference derivation.
+    """
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
+
+    return session.scalar(
+        select(func.coalesce(DagRun.logical_date, DagRun.run_after))
+        .select_from(TaskInstance)
+        .join(
+            DagRun,
+            and_(DagRun.dag_id == TaskInstance.dag_id, DagRun.run_id == TaskInstance.run_id),
+        )
+        .where(TaskInstance.id == token.id)
+    )
 
 
 async def xcom_query(
@@ -150,13 +182,18 @@ def get_mapped_xcom_by_slice(
     key: Annotated[str, Path(min_length=1)],
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
+    token=CurrentTIToken,
 ) -> XComSequenceSliceResponse:
+    prior_dates_before = (
+        _resolve_prior_dates_reference(token, session) if params.include_prior_dates else None
+    )
     query = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
         include_prior_dates=params.include_prior_dates,
+        prior_dates_before=prior_dates_before,
     )
     query = query.order_by(None)
 
@@ -274,14 +311,19 @@ def get_xcom(
     key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
+    token=CurrentTIToken,
 ) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
+    prior_dates_before = (
+        _resolve_prior_dates_reference(token, session) if params.include_prior_dates else None
+    )
     xcom_query = XComModel.get_many(
         run_id=run_id,
         key=key,
         task_ids=task_id,
         dag_ids=dag_id,
         include_prior_dates=params.include_prior_dates,
+        prior_dates_before=prior_dates_before,
     )
     if params.offset is not None:
         xcom_query = xcom_query.where(XComModel.value.is_not(None)).order_by(None)
