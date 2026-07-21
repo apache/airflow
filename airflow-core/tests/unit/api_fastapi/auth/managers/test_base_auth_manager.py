@@ -132,7 +132,11 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
         raise NotImplementedError()
 
     def is_authorized_view(
-        self, *, access_view: AccessView, user: BaseAuthManagerUserTest | None = None
+        self,
+        *,
+        access_view: AccessView,
+        user: BaseAuthManagerUserTest | None = None,
+        team_name: str | None = None,
     ) -> bool:
         raise NotImplementedError()
 
@@ -156,22 +160,6 @@ def auth_manager():
 class TestBaseAuthManager:
     def test_init_non_multi_team_mode(self, auth_manager):
         assert auth_manager.init() is None
-
-    @patch.object(EmptyAuthManager, "is_authorized_view")
-    def test_is_authorized_view_for_team_defaults_to_is_authorized_view(
-        self, mock_is_authorized_view, auth_manager
-    ):
-        # Managers that do not override the team-aware variant (including
-        # out-of-tree ones) must keep working: the default ignores team_name and
-        # falls back to is_authorized_view.
-        mock_is_authorized_view.return_value = True
-
-        result = auth_manager.is_authorized_view_for_team(
-            access_view=AccessView.DOCS, user=None, team_name="team_a"
-        )
-
-        assert result is True
-        mock_is_authorized_view.assert_called_once_with(access_view=AccessView.DOCS, user=None)
 
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.parametrize(

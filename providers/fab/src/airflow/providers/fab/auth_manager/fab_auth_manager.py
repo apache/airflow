@@ -520,7 +520,11 @@ class FabAuthManager(BaseAuthManager[User]):
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
-    def is_authorized_view(self, *, access_view: AccessView, user: User) -> bool:
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: User, team_name: str | None = None
+    ) -> bool:
+        # ``team_name`` is accepted for interface parity and ignored: FAB has no multi-team
+        # support, so a team-scoped view authorizes exactly as the global one does.
         # "Docs" are only links in the menu, there is no page associated
         method: ExtendedResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(

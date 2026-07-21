@@ -112,7 +112,7 @@ def get_import_error(
         team_name = (
             DagBundleModel.get_team_name(error.bundle_name, session=session) if error.bundle_name else None
         )
-        if not auth_manager.is_authorized_view_for_team(
+        if not auth_manager.is_authorized_view(
             access_view=AccessView.IMPORT_ERRORS_ALL, user=user, team_name=team_name
         ):
             raise HTTPException(
@@ -195,7 +195,7 @@ def get_import_errors(
     authorized_unregistered_ids = {
         error_id
         for error_id, bundle_name in unregistered_errors
-        if auth_manager.is_authorized_view_for_team(
+        if auth_manager.is_authorized_view(
             access_view=AccessView.IMPORT_ERRORS_ALL,
             user=user,
             team_name=team_name_by_bundle.get(bundle_name) if bundle_name else None,

@@ -313,10 +313,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             team_name=team_name,
         )
 
-    def is_authorized_view(self, *, access_view: AccessView, user: KeycloakAuthManagerUser) -> bool:
-        return self.is_authorized_view_for_team(access_view=access_view, user=user)
-
-    def is_authorized_view_for_team(
+    def is_authorized_view(
         self, *, access_view: AccessView, user: KeycloakAuthManagerUser, team_name: str | None = None
     ) -> bool:
         return self._is_authorized(
