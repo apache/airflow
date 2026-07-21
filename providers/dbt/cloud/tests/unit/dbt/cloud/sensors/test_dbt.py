@@ -87,8 +87,11 @@ class TestDbtCloudJobRunSensor:
             (30, "exception"),  # CANCELLED
         ],
     )
+    @patch.object(DbtCloudHook, "log_job_run_failure_details")
     @patch.object(DbtCloudHook, "get_job_run_status")
-    def test_poke_with_exception(self, mock_job_run_status, job_run_status, expected_poke_result):
+    def test_poke_with_exception(
+        self, mock_job_run_status, mock_log_failure_details, job_run_status, expected_poke_result
+    ):
         mock_job_run_status.return_value = job_run_status
 
         # The sensor should fail if the job run status is 20 (aka Error) or 30 (aka Cancelled).
@@ -99,6 +102,8 @@ class TestDbtCloudJobRunSensor:
 
         with pytest.raises(DbtCloudJobRunException, match=error_message):
             self.sensor.poke({})
+
+        mock_log_failure_details.assert_called_once_with(run_id=RUN_ID, account_id=None)
 
     @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudHook")
     @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor.defer")
