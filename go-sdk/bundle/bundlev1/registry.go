@@ -29,12 +29,8 @@ type (
 	// Dag is the handle returned by Registry.AddDag. Use it to attach the Go
 	// functions that implement the dag's tasks.
 	Dag interface {
-		// AddTask registers fn as a task in this Dag using fn's Go name as
-		// the task id (so it must match the @task.stub name in the Python
-		// dag). spec carries optional per-task configuration (pass TaskSpec{}
-		// for defaults). depends lists task ids in the same Dag that must run
-		// before this one; each must already be registered. Pass nil for no
-		// dependencies.
+		// AddTask registers fn under its Go name. spec configures the task;
+		// depends names already-registered upstream tasks.
 		//
 		// fn is an ordinary Go function whose parameters are injected by type
 		// and may appear in any order. Recognised parameters are:
@@ -49,10 +45,10 @@ type (
 		// signature does not match, panics at registration time.
 		AddTask(fn any, spec TaskSpec, depends []string)
 
-		// AddTaskWithName is like AddTask but sets task_id explicitly instead
-		// of deriving it from the function name. Use it when the Go function
-		// name cannot match the Python @task.stub id, for example for an
-		// anonymous function or a differing name.
+		// AddTaskWithName is like AddTask but sets task_id explicitly instead of
+		// deriving it from the function name. Use it when the Go function name
+		// cannot match the Python @task.stub id, for example for an anonymous
+		// function or a differing name.
 		AddTaskWithName(taskId string, fn any, spec TaskSpec, depends []string)
 	}
 
@@ -61,16 +57,11 @@ type (
 	// object serves task lookups at execution time.
 	Registry interface {
 		Bundle
-		// AddDag registers a dag by its dag_id (matching the Python stub dag)
-		// and returns a Dag handle for attaching tasks. An optional DagSpec
-		// configures dag-level attributes such as schedule and tags; passing
-		// more than one spec panics. Registering the same dag_id twice panics.
+		// AddDag registers dagId with one optional spec. Duplicates and extra specs panic.
 		AddDag(dagId string, spec ...DagSpec) Dag
 	}
 
-	// EnumerableBundle exposes the dag/task identity recorded by
-	// RegisterDags. The default registry implements it; the coordinator-mode
-	// runtime relies on it for the DAG-parse one-shot.
+	// EnumerableBundle exposes registered Dag and task metadata.
 	EnumerableBundle interface {
 		OrderedDags() []DagInfo
 	}
@@ -124,8 +115,7 @@ func New() Registry {
 }
 
 func splitFullName(fullName string) (typeName, pkgPath string) {
-	// fullName looks like "main.extract" or "github.com/x/y.MyTask"; method
-	// values get a "-fm" suffix.
+	// Method values end in "-fm".
 	lastDot := strings.LastIndex(fullName, ".")
 	if lastDot < 0 {
 		return strings.TrimSuffix(fullName, "-fm"), ""
@@ -197,9 +187,7 @@ func (r *registry) registerTaskWithName(
 		panic(fmt.Errorf("taskId %q is already registered for DAG %q", taskId, dagId))
 	}
 
-	// Resolve depends to upstream TaskInfo entries, validating each exists.
-	// We dedupe so a repeated id in `depends` only records one downstream
-	// edge on the parent.
+	// Record one downstream edge per dependency.
 	seen := make(map[string]bool, len(depends))
 	for _, dep := range depends {
 		if dep == taskId {
@@ -237,9 +225,7 @@ func (r *registry) LookupTask(dagId, taskId string) (task Task, exists bool) {
 	return task, exists
 }
 
-// OrderedDags returns the registered dags in the order AddDag was called,
-// each with its tasks in the order AddTask / AddTaskWithName was called. The
-// returned slice is freshly allocated; callers may mutate it freely.
+// OrderedDags returns a mutable copy of Dags and tasks in registration order.
 func (r *registry) OrderedDags() []DagInfo {
 	r.RLock()
 	defer r.RUnlock()

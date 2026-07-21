@@ -56,16 +56,31 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	)
 
 	bindingDag := dagbag.AddDag("taskflow_binding_dag")
-	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig)
-	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers)
-	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion)
-	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs)
-	bindingDag.AddTaskWithName("via_struct_no_tags", taskflowbinding.ViaStructNoTags)
-	bindingDag.AddTaskWithName("via_struct_arg_tag", taskflowbinding.ViaStructArgTag)
-	bindingDag.AddTaskWithName("via_struct_unmatched_arg", taskflowbinding.ViaStructUnmatchedArg)
-	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap)
-	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap)
-	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap)
+	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig, v1.TaskSpec{}, nil)
+	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers, v1.TaskSpec{}, nil)
+	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion, v1.TaskSpec{}, nil)
+	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs, v1.TaskSpec{}, nil)
+	bindingDag.AddTaskWithName(
+		"via_struct_no_tags",
+		taskflowbinding.ViaStructNoTags,
+		v1.TaskSpec{},
+		nil,
+	)
+	bindingDag.AddTaskWithName(
+		"via_struct_arg_tag",
+		taskflowbinding.ViaStructArgTag,
+		v1.TaskSpec{},
+		nil,
+	)
+	bindingDag.AddTaskWithName(
+		"via_struct_unmatched_arg",
+		taskflowbinding.ViaStructUnmatchedArg,
+		v1.TaskSpec{},
+		nil,
+	)
+	bindingDag.AddTaskWithName("via_flat_map", taskflowbinding.ViaFlatMap, v1.TaskSpec{}, nil)
+	bindingDag.AddTaskWithName("via_struct_map", taskflowbinding.ViaStructMap, v1.TaskSpec{}, nil)
+	bindingDag.AddTaskWithName("via_plain_map", taskflowbinding.ViaPlainMap, v1.TaskSpec{}, nil)
 
 	return nil
 }

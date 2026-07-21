@@ -27,21 +27,7 @@ import (
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 )
 
-// Per-DAG defaults that Python resolves from [core] config when the DAG does
-// not override them. The serializer always emits these fields (they have no
-// JSON-schema default to omit against), so we fall back to the same values.
-const (
-	defaultMaxActiveTasksPerDag = 16 // [core] max_active_tasks_per_dag
-	defaultMaxActiveRunsPerDag  = 16 // [core] max_active_runs_per_dag
-)
-
-// serializeValue recursively serializes a value with Airflow's type/var encoding.
-// This matches Python's BaseSerialization.serialize() output:
-//   - primitives (string, bool, int, float) pass through unchanged
-//   - time.Time -> {"__type": "datetime", "__var": epoch_seconds_float}
-//   - time.Duration -> {"__type": "timedelta", "__var": total_seconds_float}
-//   - map[string]any -> {"__type": "dict", "__var": {k: serialize(v), ...}}
-//   - []any -> direct array with each element serialized
+// serializeValue matches Python's type/var encoding.
 func serializeValue(value any) any {
 	if value == nil {
 		return nil
@@ -96,8 +82,6 @@ func serializeValue(value any) any {
 		}
 		return result
 	default:
-		// Use reflection to handle typed maps and slices that don't match
-		// the concrete types above (e.g., map[string]map[string][]string).
 		rv := reflect.ValueOf(v)
 		switch rv.Kind() {
 		case reflect.Map:
@@ -121,8 +105,7 @@ func serializeValue(value any) any {
 	}
 }
 
-// unwrapTypeEncoding extracts the "__var" part from a type-encoded value.
-// In Python's serialize_to_json, non-decorated fields are serialized then unwrapped.
+// unwrapTypeEncoding strips type/var metadata.
 func unwrapTypeEncoding(value any) any {
 	m, ok := value.(map[string]any)
 	if !ok {
@@ -138,16 +121,7 @@ func unwrapTypeEncoding(value any) any {
 }
 
 // serializeTimetable converts a schedule string to the Airflow timetable format.
-//
-// TODO: respect [scheduler] create_cron_data_intervals (and, once timedelta
-// schedules are supported, create_delta_data_intervals). Python's
-// _create_timetable selects CronDataIntervalTimetable when
-// create_cron_data_intervals is True and CronTriggerTimetable when False; we
-// hardcode CronTriggerTimetable, which matches only the default (False). The
-// Go bundle binary cannot read airflow.cfg, so the supervisor (Python
-// ExecutableCoordinator) must send these scheduler flags to the lang-SDK over
-// the coordinator protocol (e.g. on DagFileParseRequest) before we can honor
-// non-default deployments. Until that channel exists this stays default-only.
+// TODO: honor scheduler interval flags once the supervisor sends them.
 // Tracked at https://github.com/apache/airflow/issues/67938
 func serializeTimetable(schedule *string) map[string]any {
 	if schedule == nil {
@@ -180,9 +154,7 @@ func serializeTimetable(schedule *string) map[string]any {
 	}
 }
 
-// serializeTask converts a task to the Airflow serialization format. The
-// downstream_task_ids slice is read from info.Downstream (populated by the
-// registry from each task's `depends` argument) and sorted for stable JSON.
+// serializeTask builds a serialized task.
 func serializeTask(info bundlev1.TaskInfo) map[string]any {
 	typeName := info.TypeName
 	if typeName == "" {
@@ -197,17 +169,9 @@ func serializeTask(info bundlev1.TaskInfo) map[string]any {
 		"task_type":    typeName,
 		"_task_module": pkgPath,
 		"language":     "go",
-		// Python's operator serializer always emits template_fields (its
-		// list value never matches the tuple default it is compared against),
-		// so it is unconditional here too. Go tasks have no template fields.
+		// Python always emits this; Go tasks have no template fields.
 		"template_fields": []any{},
 	}
-	// TaskSpec.SchemaFields (generated from schema.json) returns only the
-	// fields that are set and differ from their schema default, so this
-	// mirrors Python BaseSerialization's "omit hard-coded default" behavior.
-	// serializeValue converts time.Duration / time.Time to their wire floats;
-	// unwrapTypeEncoding strips the __type wrapper because operator fields are
-	// stored unwrapped.
 	for key, value := range info.Spec.SchemaFields() {
 		data[key] = unwrapTypeEncoding(serializeValue(value))
 	}
@@ -223,72 +187,10 @@ func serializeTask(info bundlev1.TaskInfo) map[string]any {
 	}
 }
 
-// applyDagSpec writes DAG-level fields onto data. Fields with a JSON-schema
-// default (description, dates, tags, fail_fast, …) are omitted when unset, as
-// in applyTaskSpec. Fields with no schema default (catchup,
-// disable_bundle_versioning, max_active_tasks, max_active_runs,
-// max_consecutive_failed_dag_runs) are always emitted, because Python's
-// serializer never omits them.
+// applyDagSpec writes serialized Dag fields.
 func applyDagSpec(data map[string]any, s bundlev1.DagSpec) {
-	if s.Description != "" {
-		data["description"] = s.Description
-	}
-	if !s.StartDate.IsZero() {
-		data["start_date"] = unwrapTypeEncoding(serializeValue(s.StartDate))
-	}
-	if !s.EndDate.IsZero() {
-		data["end_date"] = unwrapTypeEncoding(serializeValue(s.EndDate))
-	}
-	if len(s.Tags) > 0 {
-		// Python stores tags in a set and serializes them sorted (for stable
-		// dag_hash); mirror that here regardless of registration order.
-		sorted := make([]string, len(s.Tags))
-		copy(sorted, s.Tags)
-		sort.Strings(sorted)
-		tags := make([]any, len(sorted))
-		for i, t := range sorted {
-			tags[i] = t
-		}
-		data["tags"] = tags
-	}
-	if s.DagDisplayName != "" {
-		data["dag_display_name"] = s.DagDisplayName
-	}
-	if s.DocMD != "" {
-		data["doc_md"] = s.DocMD
-	}
-	// max_active_tasks / max_active_runs / max_consecutive_failed_dag_runs and
-	// the catchup / disable_bundle_versioning booleans have no schema default,
-	// so Python's serializer never omits them — it always writes the resolved
-	// value (the per-DAG default falls back to the matching [core] config).
-	// Emit them unconditionally to match, using the config defaults for unset
-	// (zero) fields.
-	maxActiveTasks := s.MaxActiveTasks
-	if maxActiveTasks == 0 {
-		maxActiveTasks = defaultMaxActiveTasksPerDag
-	}
-	data["max_active_tasks"] = maxActiveTasks
-	maxActiveRuns := s.MaxActiveRuns
-	if maxActiveRuns == 0 {
-		maxActiveRuns = defaultMaxActiveRunsPerDag
-	}
-	data["max_active_runs"] = maxActiveRuns
-	data["max_consecutive_failed_dag_runs"] = s.MaxConsecutiveFailedDagRuns
-	data["catchup"] = s.Catchup
-	data["disable_bundle_versioning"] = s.DisableBundleVersioning
-	if s.DagrunTimeout != 0 {
-		data["dagrun_timeout"] = unwrapTypeEncoding(serializeValue(s.DagrunTimeout))
-	}
-	// fail_fast and render_template_as_native_obj both have schema default
-	// false, so Python omits them when false; keep that behavior.
-	if s.FailFast {
-		data["fail_fast"] = true
-	}
-	if s.RenderTemplateAsNativeObj {
-		data["render_template_as_native_obj"] = true
-	}
-	if s.IsPausedUponCreation != nil {
-		data["is_paused_upon_creation"] = *s.IsPausedUponCreation
+	for key, value := range s.SchemaFields() {
+		data[key] = unwrapTypeEncoding(serializeValue(value))
 	}
 }
 
@@ -313,7 +215,7 @@ func serializeTaskGroup(taskIDs []string) map[string]any {
 	}
 }
 
-// serializeParams converts DAG params to Airflow's serialization format.
+// serializeParams builds serialized Dag params.
 func serializeParams(params map[string]any) []any {
 	if len(params) == 0 {
 		return []any{}
@@ -334,9 +236,7 @@ func serializeParams(params map[string]any) []any {
 	return result
 }
 
-// SerializeDag converts a bundlev1.DagInfo to Airflow DagSerialization v3
-// format. Required fields are always present; spec-driven fields are emitted
-// per the rules in applyDagSpec (some always, some only when set).
+// SerializeDag converts DagInfo to DagSerialization v3.
 func SerializeDag(info bundlev1.DagInfo, fileloc, relativeFileloc string) map[string]any {
 	taskIDs := make([]string, len(info.Tasks))
 	tasks := make([]any, len(info.Tasks))
@@ -352,7 +252,6 @@ func SerializeDag(info bundlev1.DagInfo, fileloc, relativeFileloc string) map[st
 	}
 
 	result := map[string]any{
-		// Required fields (always present)
 		"dag_id":            info.DagID,
 		"fileloc":           fileloc,
 		"relative_fileloc":  relativeFileloc,
@@ -370,7 +269,7 @@ func SerializeDag(info bundlev1.DagInfo, fileloc, relativeFileloc string) map[st
 	return result
 }
 
-// computeRelativeFileloc computes the relative file location from the bundle path.
+// computeRelativeFileloc returns a path relative to the bundle.
 func computeRelativeFileloc(fileloc, bundlePath string) string {
 	if fileloc == "" {
 		return ""

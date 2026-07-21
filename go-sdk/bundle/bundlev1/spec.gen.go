@@ -18,13 +18,12 @@
 
 package bundlev1
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
-// TaskSpec is the optional configuration applied to a task at registration
-// time. Every field is optional: the zero value (nil for the *bool fields)
-// means "unset" and the scheduler falls back to the schema default. Each
-// field maps to the same-named key of the "operator" definition in
-// airflow-core/src/airflow/serialization/schema.json.
+// TaskSpec configures a registered task. Zero values use schema defaults.
 type TaskSpec struct {
 	// Owner maps to the schema key "owner" (schema default "airflow").
 	Owner string
@@ -32,15 +31,20 @@ type TaskSpec struct {
 	StartDate time.Time
 	// EndDate maps to the schema key "end_date".
 	EndDate time.Time
-	// TriggerRule maps to the schema key "trigger_rule" (schema default "all_success").
+	// TriggerRule maps to the schema key "trigger_rule" (schema default
+	// "all_success").
 	TriggerRule string
-	// DependsOnPast maps to the schema key "depends_on_past" (schema default false).
+	// DependsOnPast maps to the schema key "depends_on_past" (schema default
+	// false).
 	DependsOnPast bool
-	// IgnoreFirstDependsOnPast maps to the schema key "ignore_first_depends_on_past" (schema default false).
+	// IgnoreFirstDependsOnPast maps to the schema key
+	// "ignore_first_depends_on_past" (schema default false).
 	IgnoreFirstDependsOnPast bool
-	// WaitForPastDependsBeforeSkipping maps to the schema key "wait_for_past_depends_before_skipping" (schema default false).
+	// WaitForPastDependsBeforeSkipping maps to the schema key
+	// "wait_for_past_depends_before_skipping" (schema default false).
 	WaitForPastDependsBeforeSkipping bool
-	// WaitForDownstream maps to the schema key "wait_for_downstream" (schema default false).
+	// WaitForDownstream maps to the schema key "wait_for_downstream" (schema
+	// default false).
 	WaitForDownstream bool
 	// Retries maps to the schema key "retries" (schema default 0).
 	Retries int
@@ -52,23 +56,29 @@ type TaskSpec struct {
 	PoolSlots int
 	// ExecutionTimeout maps to the schema key "execution_timeout".
 	ExecutionTimeout time.Duration
-	// RetryDelay maps to the schema key "retry_delay" (schema default 300 seconds).
+	// RetryDelay maps to the schema key "retry_delay" (schema default 300
+	// seconds).
 	RetryDelay time.Duration
-	// RetryExponentialBackoff maps to the schema key "retry_exponential_backoff" (schema default 0).
+	// RetryExponentialBackoff maps to the schema key
+	// "retry_exponential_backoff" (schema default 0).
 	RetryExponentialBackoff float64
 	// MaxRetryDelay maps to the schema key "max_retry_delay".
 	MaxRetryDelay time.Duration
-	// PriorityWeight maps to the schema key "priority_weight" (schema default 1).
+	// PriorityWeight maps to the schema key "priority_weight" (schema default
+	// 1).
 	PriorityWeight int
-	// WeightRule maps to the schema key "weight_rule" (schema default "downstream").
+	// WeightRule maps to the schema key "weight_rule" (schema default
+	// "downstream").
 	WeightRule string
 	// Executor maps to the schema key "executor".
 	Executor string
 	// DoXComPush maps to the schema key "do_xcom_push" (schema default true).
 	DoXComPush *bool
-	// EmailOnFailure maps to the schema key "email_on_failure" (schema default true).
+	// EmailOnFailure maps to the schema key "email_on_failure" (schema default
+	// true).
 	EmailOnFailure *bool
-	// EmailOnRetry maps to the schema key "email_on_retry" (schema default true).
+	// EmailOnRetry maps to the schema key "email_on_retry" (schema default
+	// true).
 	EmailOnRetry *bool
 	// DocMD maps to the schema key "doc_md".
 	DocMD string
@@ -76,14 +86,12 @@ type TaskSpec struct {
 	MapIndexTemplate string
 	// MaxActiveTisPerDag maps to the schema key "max_active_tis_per_dag".
 	MaxActiveTisPerDag int
-	// MaxActiveTisPerDagrun maps to the schema key "max_active_tis_per_dagrun".
+	// MaxActiveTisPerDagrun maps to the schema key
+	// "max_active_tis_per_dagrun".
 	MaxActiveTisPerDagrun int
 }
 
-// SchemaFields returns the schema-keyed value of every field that is set and
-// differs from its schema default, mirroring Python BaseSerialization's
-// omission of values the scheduler re-derives. time.Duration and time.Time
-// values are returned as-is; the serializer owns the wire encoding.
+// SchemaFields returns set fields that differ from schema defaults.
 func (s TaskSpec) SchemaFields() map[string]any {
 	m := map[string]any{}
 	if s.Owner != "" && s.Owner != "airflow" {
@@ -164,5 +172,96 @@ func (s TaskSpec) SchemaFields() map[string]any {
 	if s.MaxActiveTisPerDagrun != 0 {
 		m["max_active_tis_per_dagrun"] = s.MaxActiveTisPerDagrun
 	}
+	return m
+}
+
+// DagSpec configures a registered Dag. Zero values use schema defaults.
+type DagSpec struct {
+	// Schedule accepts "@once", "@continuous", a cron expression, or "".
+	Schedule string
+	// Catchup maps to the schema key "catchup"; always serialized.
+	Catchup bool
+	// FailFast maps to the schema key "fail_fast" (schema default false).
+	FailFast bool
+	// DagDisplayName maps to the schema key "dag_display_name".
+	DagDisplayName string
+	// Description maps to the schema key "description".
+	Description string
+	// MaxActiveTasks maps to the schema key "max_active_tasks"; always
+	// serialized, defaulting to 16 from [core] max_active_tasks_per_dag.
+	MaxActiveTasks int
+	// MaxActiveRuns maps to the schema key "max_active_runs"; always
+	// serialized, defaulting to 16 from [core] max_active_runs_per_dag.
+	MaxActiveRuns int
+	// MaxConsecutiveFailedDagRuns maps to the schema key
+	// "max_consecutive_failed_dag_runs"; always serialized.
+	MaxConsecutiveFailedDagRuns int
+	// StartDate maps to the schema key "start_date".
+	StartDate time.Time
+	// EndDate maps to the schema key "end_date".
+	EndDate time.Time
+	// DagrunTimeout maps to the schema key "dagrun_timeout".
+	DagrunTimeout time.Duration
+	// DocMD maps to the schema key "doc_md".
+	DocMD string
+	// IsPausedUponCreation maps to the schema key "is_paused_upon_creation";
+	// nil omits it.
+	IsPausedUponCreation *bool
+	// RenderTemplateAsNativeObj maps to the schema key
+	// "render_template_as_native_obj" (schema default false).
+	RenderTemplateAsNativeObj bool
+	// Tags maps to the schema key "tags"; serialized sorted.
+	Tags []string
+	// DisableBundleVersioning maps to the schema key
+	// "disable_bundle_versioning"; always serialized.
+	DisableBundleVersioning bool
+}
+
+// SchemaFields returns set fields that differ from schema defaults.
+func (s DagSpec) SchemaFields() map[string]any {
+	m := map[string]any{}
+	m["catchup"] = s.Catchup
+	if s.FailFast {
+		m["fail_fast"] = s.FailFast
+	}
+	if s.DagDisplayName != "" {
+		m["dag_display_name"] = s.DagDisplayName
+	}
+	if s.Description != "" {
+		m["description"] = s.Description
+	}
+	if s.MaxActiveTasks != 0 {
+		m["max_active_tasks"] = s.MaxActiveTasks
+	} else {
+		m["max_active_tasks"] = 16 // [core] max_active_tasks_per_dag
+	}
+	if s.MaxActiveRuns != 0 {
+		m["max_active_runs"] = s.MaxActiveRuns
+	} else {
+		m["max_active_runs"] = 16 // [core] max_active_runs_per_dag
+	}
+	m["max_consecutive_failed_dag_runs"] = s.MaxConsecutiveFailedDagRuns
+	if !s.StartDate.IsZero() {
+		m["start_date"] = s.StartDate
+	}
+	if !s.EndDate.IsZero() {
+		m["end_date"] = s.EndDate
+	}
+	if s.DagrunTimeout != 0 {
+		m["dagrun_timeout"] = s.DagrunTimeout
+	}
+	if s.DocMD != "" {
+		m["doc_md"] = s.DocMD
+	}
+	if s.IsPausedUponCreation != nil {
+		m["is_paused_upon_creation"] = *s.IsPausedUponCreation
+	}
+	if s.RenderTemplateAsNativeObj {
+		m["render_template_as_native_obj"] = s.RenderTemplateAsNativeObj
+	}
+	if len(s.Tags) > 0 {
+		m["tags"] = slices.Sorted(slices.Values(s.Tags))
+	}
+	m["disable_bundle_versioning"] = s.DisableBundleVersioning
 	return m
 }

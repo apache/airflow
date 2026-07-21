@@ -43,6 +43,6 @@ docs port="6060":
 generate-models:
   go generate ./pkg/execution/genmodels/...
 
-# Regenerate the bundle spec structs from the Airflow dag-serialization schema
+# Regenerate bundle specs
 generate-specs:
   go generate ./bundle/bundlev1/...

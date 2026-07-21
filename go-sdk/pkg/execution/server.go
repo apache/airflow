@@ -20,11 +20,7 @@
 // the Airflow supervisor (Python ExecutableCoordinator), bundlev1server.Serve
 // dispatches here.
 //
-// The first inbound frame on the comm socket selects between two
-// sub-protocols:
-//
-//   - DagFileParseRequest: one-shot, returns DagFileParsingResult and exits.
-//   - StartupDetails:       multi-round task execution.
+// The first frame is either DagFileParseRequest or StartupDetails.
 //
 // See go-sdk/adr/0003-coordinator-protocol-msgpack-ipc.md.
 package execution
@@ -169,7 +165,6 @@ func Serve(provider bundlev1.BundleProvider, commAddr, logsAddr string) error {
 	case *genmodels.DagFileParseRequest:
 		logger.Debug("DAG parsing mode", "file", msg.File)
 		result := ParseDags(bundle, msg)
-		// Bound the terminal write so a wedged socket cannot hang shutdown.
 		_ = commConn.SetWriteDeadline(time.Now().Add(terminalSendTimeout))
 		if err := comm.SendRequest(frame.ID, result); err != nil {
 			return fmt.Errorf("sending parse result: %w", err)

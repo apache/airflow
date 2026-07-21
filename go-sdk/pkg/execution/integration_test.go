@@ -260,7 +260,7 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 				gotCountry = country
 				gotMeta = meta
 				return nil
-			})
+			}, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := newStartupDetails(
@@ -295,7 +295,7 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 			func(country string, meta map[string]any) error {
 				ran = true
 				return nil
-			})
+			}, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := newStartupDetails(
@@ -327,7 +327,7 @@ func TestTaskRunnerBindsStructArgs(t *testing.T) {
 			func(input regionInput) error {
 				got = input
 				return nil
-			})
+			}, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := newStartupDetails(
@@ -355,7 +355,7 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 			func(input regionInput) error {
 				got = input
 				return nil
-			})
+			}, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := newStartupDetails(
@@ -386,7 +386,7 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(count int) error { return nil })
+			func(count int) error { return nil }, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := newStartupDetails(
@@ -413,7 +413,7 @@ func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 			func(country string) error {
 				ran = true
 				return nil
-			})
+			}, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := newStartupDetails(
@@ -436,7 +436,7 @@ func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
 			func(country string) error {
 				ran = true
 				return nil
-			})
+			}, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := newStartupDetails(
@@ -485,7 +485,7 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 					func(country string) error {
 						ran = true
 						return nil
-					})
+					}, bundlev1.TaskSpec{}, nil)
 			})
 
 			details := newStartupDetails("transform", tc.spec)
@@ -503,7 +503,7 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(country string) error { return nil })
+			func(country string) error { return nil }, bundlev1.TaskSpec{}, nil)
 	})
 
 	details := newStartupDetails(
@@ -695,7 +695,6 @@ func TestServeDagFileParseEndToEnd(t *testing.T) {
 	require.NotNil(t, logsConn)
 	defer logsConn.Close()
 
-	// Send DagFileParseRequest as a request frame.
 	payload, err := encodeRequest(0, map[string]any{
 		"type":        "DagFileParseRequest",
 		"file":        "/bundle/main.go",

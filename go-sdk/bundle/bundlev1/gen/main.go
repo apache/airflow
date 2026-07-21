@@ -15,34 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-// Command gen generates spec.gen.go from the Airflow dag-serialization schema
-// (airflow-core/src/airflow/serialization/schema.json).
-//
-// It reads the "operator" definition and emits the TaskSpec struct plus its
-// SchemaFields method, so the exposed fields, their Go types, and the
-// omit-if-default rules the serializer relies on cannot drift from the schema.
-// The field set is derived from the schema rather than hand-listed: every
-// scalar property (string/integer/number/boolean, or a timedelta/datetime ref)
-// becomes a TaskSpec field, in schema order, unless one of these rules skips
-// it:
-//
-//   - "_"-prefixed keys are serializer internals (_task_module, _is_mapped, ...)
-//   - keys in the definition's "required" list are always written by the
-//     serializer itself (task_type, task_id, ui_color, ...)
-//   - "has_on_*" keys are flags derived from Python callbacks, not settable
-//   - non-scalar keys (arrays, objects, refs other than timedelta/datetime,
-//     anyOf) cannot be expressed as a scalar spec field
-//   - excludedFields entries are Python-only concerns, documented per key
-//
-// A new scalar key added to the schema therefore shows up in the regenerated
-// spec — visible in the spec.gen.go diff — or must gain an excludedFields
-// entry, instead of going silently missing.
-//
-// Field defaults are read from the schema, never hard-coded here: a field is
-// serialized only when it is set (non-zero) and differs from its schema
-// default, mirroring Python BaseSerialization's behaviour of omitting values
-// the scheduler will re-derive. Booleans whose schema default is true become
-// *bool so nil can mean "unset" while an explicit false still serializes.
+// Command gen generates bundle specs from the Dag serialization schema.
 package main
 
 import (
@@ -57,33 +30,97 @@ import (
 	"strings"
 )
 
-// excludedFields lists the scalar "operator" keys deliberately not exposed on
-// TaskSpec, each with the reason; every other eligible scalar key becomes a
-// field. An entry that no longer matches an eligible schema key fails
-// generation, so the list cannot go stale.
-var excludedFields = map[string]string{
-	"doc":                    "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
-	"doc_json":               "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
-	"doc_yaml":               "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
-	"doc_rst":                "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
-	"allow_nested_operators": "Python runtime concern: warns when an operator executes inside another operator",
-	"multiple_outputs":       "TaskFlow (@task) dict-unpacking concern, meaningless outside Python",
-	"start_from_trigger":     "deferrable-operator machinery; its start_trigger_args counterpart is an object the spec cannot express",
-	"is_setup":               "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
-	"is_teardown":            "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
-	"on_failure_fail_dagrun": "only valid on teardown tasks, which the SDK does not model yet",
+type behaviorKind int
+
+const (
+	behaviorAlwaysEmit behaviorKind = iota + 1
+	behaviorEmitWhenSet
+)
+
+type fieldBehavior struct {
+	kind         behaviorKind
+	zeroFallback string
+	fallbackDoc  string
 }
 
-// goTypeOverrides forces the Go type for keys whose schema type is too loose
-// for the mechanical mapping. retry_exponential_backoff is "number" with an
-// integral default, but Python declares it float (a backoff multiplier), so
-// the mechanical mapping would pick int.
-var goTypeOverrides = map[string]string{
-	"retry_exponential_backoff": "float64",
+type extraField struct {
+	goName string
+	goType string
+	doc    []string
 }
 
-// initialisms maps snake_case segments that must keep non-Title capitalization
-// in Go names (do_xcom_push -> DoXComPush, doc_md -> DocMD).
+type specConfig struct {
+	defName       string
+	typeName      string
+	structDoc     string
+	excluded      map[string]string
+	typeOverrides map[string]string
+	behaviors     map[string]fieldBehavior
+	extraFields   []extraField
+}
+
+var specConfigs = []specConfig{
+	{
+		defName:   "operator",
+		typeName:  "TaskSpec",
+		structDoc: `TaskSpec configures a registered task. Zero values use schema defaults.`,
+		excluded: map[string]string{
+			"doc":                    "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
+			"doc_json":               "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
+			"doc_yaml":               "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
+			"doc_rst":                "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
+			"allow_nested_operators": "Python runtime concern: warns when an operator executes inside another operator",
+			"multiple_outputs":       "TaskFlow (@task) dict-unpacking concern, meaningless outside Python",
+			"start_from_trigger":     "deferrable-operator machinery; its start_trigger_args counterpart is an object the spec cannot express",
+			"is_setup":               "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
+			"is_teardown":            "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
+			"on_failure_fail_dagrun": "only valid on teardown tasks, which the SDK does not model yet",
+		},
+		// Python treats this integral schema default as a float multiplier.
+		typeOverrides: map[string]string{
+			"retry_exponential_backoff": "float64",
+		},
+	},
+	{
+		defName:   "dag",
+		typeName:  "DagSpec",
+		structDoc: `DagSpec configures a registered Dag. Zero values use schema defaults.`,
+		excluded: map[string]string{
+			"relative_fileloc": "computed by the serializer from fileloc and the bundle path",
+		},
+		// Python stores tags as a set.
+		typeOverrides: map[string]string{
+			"tags": "[]string",
+		},
+		behaviors: map[string]fieldBehavior{
+			"catchup":                         {kind: behaviorAlwaysEmit},
+			"disable_bundle_versioning":       {kind: behaviorAlwaysEmit},
+			"max_consecutive_failed_dag_runs": {kind: behaviorAlwaysEmit},
+			"max_active_tasks": {
+				kind:         behaviorAlwaysEmit,
+				zeroFallback: "16",
+				fallbackDoc:  "[core] max_active_tasks_per_dag",
+			},
+			"max_active_runs": {
+				kind:         behaviorAlwaysEmit,
+				zeroFallback: "16",
+				fallbackDoc:  "[core] max_active_runs_per_dag",
+			},
+			"is_paused_upon_creation": {kind: behaviorEmitWhenSet},
+		},
+		extraFields: []extraField{
+			{
+				goName: "Schedule",
+				goType: "string",
+				doc: []string{
+					`Schedule accepts "@once", "@continuous", a cron expression, or "".`,
+				},
+			},
+		},
+	},
+}
+
+// initialisms preserves Go capitalization in schema names.
 var initialisms = map[string]string{
 	"id":   "ID",
 	"md":   "MD",
@@ -98,8 +135,7 @@ type propSchema struct {
 	Default any    `json:"default"`
 }
 
-// orderedProps keeps schema property order, which encoding/json's map
-// decoding discards; the generated struct follows the schema's field order.
+// orderedProps preserves schema field order.
 type orderedProps struct {
 	keys  []string
 	props map[string]propSchema
@@ -136,15 +172,18 @@ type schemaDoc struct {
 	Definitions map[string]definition `json:"definitions"`
 }
 
-// field is one resolved spec field: schema key + default joined with the Go
-// name and type the generated struct uses.
 type field struct {
 	key     string
 	goName  string
 	goType  string
-	def     any  // schema default (nil when absent)
-	hasDef  bool // schema declares a default
+	def     any
+	hasDef  bool
 	refName string
+}
+
+type resolvedSpec struct {
+	cfg    specConfig
+	fields []field
 }
 
 func main() {
@@ -164,17 +203,21 @@ func main() {
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		log.Fatalf("gen: parsing schema: %v", err)
 	}
-	operator, ok := doc.Definitions["operator"]
-	if !ok {
-		log.Fatal(`gen: schema has no "operator" definition`)
+
+	specs := make([]resolvedSpec, 0, len(specConfigs))
+	for _, cfg := range specConfigs {
+		def, ok := doc.Definitions[cfg.defName]
+		if !ok {
+			log.Fatalf("gen: schema has no %q definition", cfg.defName)
+		}
+		fields, err := selectFields(cfg, def)
+		if err != nil {
+			log.Fatalf("gen: %s: %v", cfg.typeName, err)
+		}
+		specs = append(specs, resolvedSpec{cfg: cfg, fields: fields})
 	}
 
-	fields, err := selectFields(operator)
-	if err != nil {
-		log.Fatalf("gen: %v", err)
-	}
-
-	src, err := render(*pkg, fields)
+	src, err := render(*pkg, specs)
 	if err != nil {
 		log.Fatalf("gen: rendering: %v", err)
 	}
@@ -183,48 +226,97 @@ func main() {
 	}
 }
 
-// selectFields derives the TaskSpec fields from the operator definition, in
-// schema order, applying the selection rules in the package comment.
-func selectFields(op definition) ([]field, error) {
-	required := make(map[string]bool, len(op.Required))
-	for _, key := range op.Required {
+func selectFields(cfg specConfig, def definition) ([]field, error) {
+	required := make(map[string]bool, len(def.Required))
+	for _, key := range def.Required {
 		required[key] = true
 	}
 
-	excludedSeen := make(map[string]bool, len(excludedFields))
-	fields := make([]field, 0, len(op.Properties.keys))
-	for _, key := range op.Properties.keys {
+	excludedSeen := make(map[string]bool, len(cfg.excluded))
+	fields := make([]field, 0, len(def.Properties.keys))
+	for _, key := range def.Properties.keys {
 		if strings.HasPrefix(key, "_") || required[key] || strings.HasPrefix(key, "has_on_") {
 			continue
 		}
-		if _, ok := excludedFields[key]; ok {
+		if _, ok := cfg.excluded[key]; ok {
 			excludedSeen[key] = true
 			continue
 		}
-		f, ok := resolveField(key, op.Properties.props[key])
+		f, ok := resolveField(cfg, key, def.Properties.props[key])
 		if !ok {
 			continue
 		}
 		fields = append(fields, f)
 	}
 
-	for key := range excludedFields {
+	for key := range cfg.excluded {
 		if !excludedSeen[key] {
 			return nil, fmt.Errorf(
-				"excludedFields entry %q matches no eligible schema property; remove or fix it",
+				"excluded entry %q matches no eligible schema property; remove or fix it",
 				key,
 			)
 		}
 	}
-	for key := range goTypeOverrides {
+	for key := range cfg.typeOverrides {
 		if !containsKey(fields, key) {
 			return nil, fmt.Errorf(
-				"goTypeOverrides entry %q matches no generated field; remove or fix it",
+				"typeOverrides entry %q matches no generated field; remove or fix it",
 				key,
 			)
 		}
 	}
+	if err := validateBehaviors(cfg, fields); err != nil {
+		return nil, err
+	}
 	return fields, nil
+}
+
+func validateBehaviors(cfg specConfig, fields []field) error {
+	byKey := make(map[string]field, len(fields))
+	for _, f := range fields {
+		byKey[f.key] = f
+	}
+	for key, beh := range cfg.behaviors {
+		f, ok := byKey[key]
+		if !ok {
+			return fmt.Errorf(
+				"behaviors entry %q matches no generated field; remove or fix it",
+				key,
+			)
+		}
+		switch beh.kind {
+		case behaviorAlwaysEmit:
+			if strings.HasPrefix(f.goType, "*") || strings.HasPrefix(f.goType, "[]") {
+				return fmt.Errorf(
+					"behaviors entry %q: always-emit requires a non-pointer scalar field, got %s",
+					key,
+					f.goType,
+				)
+			}
+			if beh.zeroFallback != "" && f.goType != "int" && f.goType != "float64" {
+				return fmt.Errorf(
+					"behaviors entry %q: zeroFallback requires a numeric field, got %s",
+					key,
+					f.goType,
+				)
+			}
+		case behaviorEmitWhenSet:
+			if beh.zeroFallback != "" {
+				return fmt.Errorf(
+					"behaviors entry %q: zeroFallback is only valid with always-emit",
+					key,
+				)
+			}
+			if f.goType != "*bool" {
+				return fmt.Errorf(
+					"behaviors entry %q: emit-when-set requires a boolean key, got %s",
+					key,
+					f.goType,
+				)
+			}
+		}
+	}
+	return nil
 }
 
 func containsKey(fields []field, key string) bool {
@@ -236,10 +328,8 @@ func containsKey(fields []field, key string) bool {
 	return false
 }
 
-// resolveField maps one schema property to a spec field; ok is false when the
-// property is not a scalar the spec can express (array, object, anyOf, or a
-// ref other than timedelta/datetime).
-func resolveField(key string, prop propSchema) (field, bool) {
+// resolveField rejects unsupported schema properties.
+func resolveField(cfg specConfig, key string, prop propSchema) (field, bool) {
 	f := field{
 		key:    key,
 		goName: goName(key),
@@ -251,8 +341,8 @@ func resolveField(key string, prop propSchema) (field, bool) {
 	}
 
 	switch {
-	case goTypeOverrides[key] != "":
-		f.goType = goTypeOverrides[key]
+	case cfg.typeOverrides[key] != "":
+		f.goType = cfg.typeOverrides[key]
 	case f.refName == "timedelta":
 		f.goType = "time.Duration"
 	case f.refName == "datetime":
@@ -272,13 +362,16 @@ func resolveField(key string, prop propSchema) (field, bool) {
 		case "boolean":
 			f.goType = "bool"
 			if d, ok := prop.Default.(bool); ok && d {
-				// A plain bool cannot distinguish "unset" from an explicit
-				// false when the schema default is true.
+				// Preserve false against a true default.
 				f.goType = "*bool"
 			}
 		default:
 			return field{}, false
 		}
+	}
+	if beh, ok := cfg.behaviors[key]; ok && beh.kind == behaviorEmitWhenSet && f.goType == "bool" {
+		// Preserve explicit false.
+		f.goType = "*bool"
 	}
 	return f, true
 }
@@ -313,48 +406,129 @@ const licenseHeader = `// Licensed to the Apache Software Foundation (ASF) under
 // under the License.
 `
 
-func render(pkg string, fields []field) ([]byte, error) {
+func render(pkg string, specs []resolvedSpec) ([]byte, error) {
 	var b bytes.Buffer
 	b.WriteString(
 		"// Code generated by bundlev1/gen from airflow-core/src/airflow/serialization/schema.json, DO NOT EDIT.\n",
 	)
 	b.WriteString(licenseHeader)
 	fmt.Fprintf(&b, "\npackage %s\n\n", pkg)
-	b.WriteString("import \"time\"\n\n")
+	writeImports(&b, specs)
 
-	b.WriteString(`// TaskSpec is the optional configuration applied to a task at registration
-// time. Every field is optional: the zero value (nil for the *bool fields)
-// means "unset" and the scheduler falls back to the schema default. Each
-// field maps to the same-named key of the "operator" definition in
-// airflow-core/src/airflow/serialization/schema.json.
-type TaskSpec struct {
-`)
-	for _, f := range fields {
-		fmt.Fprintf(&b, "\t// %s maps to the schema key %q", f.goName, f.key)
-		if f.hasDef {
-			fmt.Fprintf(&b, " (schema default %s)", defaultDoc(f))
+	for i, sp := range specs {
+		if i > 0 {
+			b.WriteString("\n")
 		}
-		b.WriteString(".\n")
-		fmt.Fprintf(&b, "\t%s %s\n", f.goName, f.goType)
+		renderSpec(&b, sp)
 	}
-	b.WriteString("}\n\n")
-
-	b.WriteString(`// SchemaFields returns the schema-keyed value of every field that is set and
-// differs from its schema default, mirroring Python BaseSerialization's
-// omission of values the scheduler re-derives. time.Duration and time.Time
-// values are returned as-is; the serializer owns the wire encoding.
-func (s TaskSpec) SchemaFields() map[string]any {
-	m := map[string]any{}
-`)
-	for _, f := range fields {
-		emitCondition(&b, f)
-	}
-	b.WriteString("\treturn m\n}\n")
-
 	return format.Source(b.Bytes())
 }
 
-// defaultDoc renders a field's schema default for its doc comment.
+func writeImports(b *bytes.Buffer, specs []resolvedSpec) {
+	usesTime, usesSlices := false, false
+	for _, sp := range specs {
+		for _, f := range sp.fields {
+			switch f.goType {
+			case "time.Duration", "time.Time":
+				usesTime = true
+			case "[]string":
+				usesSlices = true
+			}
+		}
+	}
+	switch {
+	case usesTime && usesSlices:
+		b.WriteString("import (\n\t\"slices\"\n\t\"time\"\n)\n\n")
+	case usesTime:
+		b.WriteString("import \"time\"\n\n")
+	case usesSlices:
+		b.WriteString("import \"slices\"\n\n")
+	}
+}
+
+func renderSpec(b *bytes.Buffer, sp resolvedSpec) {
+	cfg := sp.cfg
+	for _, line := range strings.Split(cfg.structDoc, "\n") {
+		fmt.Fprintf(b, "// %s\n", line)
+	}
+	fmt.Fprintf(b, "type %s struct {\n", cfg.typeName)
+	for _, ef := range cfg.extraFields {
+		for _, line := range ef.doc {
+			fmt.Fprintf(b, "\t// %s\n", line)
+		}
+		fmt.Fprintf(b, "\t%s %s\n", ef.goName, ef.goType)
+	}
+	for _, f := range sp.fields {
+		writeFieldDoc(b, cfg, f)
+		fmt.Fprintf(b, "\t%s %s\n", f.goName, f.goType)
+	}
+	b.WriteString("}\n\n")
+
+	b.WriteString("// SchemaFields returns set fields that differ from schema defaults.\n")
+	fmt.Fprintf(
+		b,
+		"func (s %s) SchemaFields() map[string]any {\n\tm := map[string]any{}\n",
+		cfg.typeName,
+	)
+	for _, f := range sp.fields {
+		emitCondition(b, cfg, f)
+	}
+	b.WriteString("\treturn m\n}\n")
+}
+
+func writeFieldDoc(b *bytes.Buffer, cfg specConfig, f field) {
+	text := fmt.Sprintf("%s maps to the schema key %q", f.goName, f.key)
+	if f.hasDef {
+		text += fmt.Sprintf(" (schema default %s)", defaultDoc(f))
+	}
+	for _, line := range wrapComment(text+fieldDocExtra(cfg, f)+".", 72) {
+		fmt.Fprintf(b, "\t// %s\n", line)
+	}
+}
+
+func fieldDocExtra(cfg specConfig, f field) string {
+	if beh, ok := cfg.behaviors[f.key]; ok {
+		switch beh.kind {
+		case behaviorAlwaysEmit:
+			extra := "; always serialized"
+			if beh.zeroFallback != "" {
+				extra += fmt.Sprintf(
+					", defaulting to %s from %s",
+					beh.zeroFallback,
+					beh.fallbackDoc,
+				)
+			}
+			return extra
+		case behaviorEmitWhenSet:
+			return `; nil omits it`
+		}
+	}
+	if f.goType == "[]string" {
+		return "; serialized sorted"
+	}
+	return ""
+}
+
+func wrapComment(text string, width int) []string {
+	var lines []string
+	cur := ""
+	for _, word := range strings.Fields(text) {
+		switch {
+		case cur == "":
+			cur = word
+		case len(cur)+1+len(word) > width:
+			lines = append(lines, cur)
+			cur = word
+		default:
+			cur += " " + word
+		}
+	}
+	if cur != "" {
+		lines = append(lines, cur)
+	}
+	return lines
+}
+
 func defaultDoc(f field) string {
 	if f.refName == "timedelta" {
 		return fmt.Sprintf("%v seconds", f.def)
@@ -365,11 +539,40 @@ func defaultDoc(f field) string {
 	return fmt.Sprintf("%v", f.def)
 }
 
-// emitCondition writes the "set and not schema default" guard for one field.
-func emitCondition(b *bytes.Buffer, f field) {
+func emitCondition(b *bytes.Buffer, cfg specConfig, f field) {
 	name := "s." + f.goName
 	key := f.key
+	if beh, ok := cfg.behaviors[key]; ok {
+		switch beh.kind {
+		case behaviorAlwaysEmit:
+			if beh.zeroFallback == "" {
+				fmt.Fprintf(b, "\tm[%q] = %s\n", key, name)
+				return
+			}
+			fmt.Fprintf(
+				b,
+				"\tif %s != 0 {\n\t\tm[%q] = %s\n\t} else {\n\t\tm[%q] = %s // %s\n\t}\n",
+				name,
+				key,
+				name,
+				key,
+				beh.zeroFallback,
+				beh.fallbackDoc,
+			)
+		case behaviorEmitWhenSet:
+			fmt.Fprintf(b, "\tif %s != nil {\n\t\tm[%q] = *%s\n\t}\n", name, key, name)
+		}
+		return
+	}
 	switch {
+	case f.goType == "[]string":
+		fmt.Fprintf(
+			b,
+			"\tif len(%s) > 0 {\n\t\tm[%q] = slices.Sorted(slices.Values(%s))\n\t}\n",
+			name,
+			key,
+			name,
+		)
 	case f.goType == "time.Time":
 		fmt.Fprintf(b, "\tif !%s.IsZero() {\n\t\tm[%q] = %s\n\t}\n", name, key, name)
 	case f.goType == "time.Duration":
@@ -412,8 +615,6 @@ func emitCondition(b *bytes.Buffer, f field) {
 	}
 }
 
-// durationLit renders a schema timedelta default (seconds) as a Go duration
-// expression, e.g. 300 -> "300 * time.Second".
 func durationLit(secs float64) string {
 	if secs == math.Trunc(secs) {
 		return fmt.Sprintf("%d * time.Second", int64(secs))
