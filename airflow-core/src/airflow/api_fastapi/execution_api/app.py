@@ -36,6 +36,7 @@ from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy.exc import SQLAlchemyError
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
@@ -44,6 +45,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.api_fastapi.common.exceptions import ERROR_HANDLERS
 
 if TYPE_CHECKING:
     import httpx
@@ -323,6 +325,17 @@ def create_task_execution_api_app(lifespan: svcs.fastapi.lifespan = lifespan) ->
         if correlation_id := request.headers.get("correlation-id"):
             content["correlation-id"] = correlation_id
         return JSONResponse(status_code=500, content=content)
+
+    @app.exception_handler(SQLAlchemyError)
+    def handle_sqlalchemy_exceptions(request: Request, exc: SQLAlchemyError):
+        logger.error("Database error occurred", exc_info=(type(exc), exc, exc.__traceback__))
+        content = {"detail": "Database error occurred"}
+        if correlation_id := request.headers.get("correlation-id"):
+            content["correlation-id"] = correlation_id
+        return JSONResponse(status_code=500, content=content)
+
+    for handler in ERROR_HANDLERS:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)
 
     return app
 
