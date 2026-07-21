@@ -1,0 +1,1 @@
+Do not fail an API request with a bare 500 when refreshing the user from the JWT cookie hits an unexpected error.
