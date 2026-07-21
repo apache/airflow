@@ -2277,6 +2277,21 @@ class LazyDeserializedDAG(pydantic.BaseModel):
     def timetable(self) -> Timetable:
         return decode_timetable(self.data["dag"]["timetable"])
 
+    def get_task_arg_bindings(self, task_id: str) -> list | None:
+        """
+        Extract one task's serialized ``_arg_bindings`` spec without deserializing the Dag.
+
+        The spec is captured at parse time from a stub task's TaskFlow call; ``None`` for
+        tasks that carry no spec (regular tasks, and stub tasks with no parameters).
+        """
+        for task in self.data["dag"]["tasks"]:
+            var = task.get(Encoding.VAR) or {}
+            if var.get("task_id") == task_id:
+                if encoded := var.get("_arg_bindings"):
+                    return BaseSerialization.deserialize(encoded)
+                return None
+        return None
+
     @property
     def has_task_concurrency_limits(self) -> bool:
         return any(

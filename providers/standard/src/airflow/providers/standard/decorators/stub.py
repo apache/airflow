@@ -27,24 +27,17 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Union
 
 from airflow.providers.common.compat.sdk import (
+    KNOWN_CONTEXT_KEYS,
     DecoratedOperator,
+    PlainXComArg,
     TaskDecorator,
+    XComArg,
     task_decorator_factory,
 )
 
 try:
-    from airflow.sdk.definitions.xcom_arg import PlainXComArg, XComArg
-except ImportError:  # Airflow 2
-    from airflow.models.xcom_arg import PlainXComArg, XComArg  # type: ignore[attr-defined,no-redef]
-
-try:
-    from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
-except ImportError:  # Airflow 2, and 3.0 where the SDK does not export it yet
-    from airflow.utils.context import KNOWN_CONTEXT_KEYS  # type: ignore[attr-defined,no-redef]
-
-try:
     from airflow.sdk.api.datamodels._generated import ArgBindingDataType
-except ImportError:  # Airflow 2 -- no task-sdk execution-API generated models
+except ImportError:  # Airflow < 3.4 -- the generated models do not carry the enum yet
 
     class ArgBindingDataType(str, enum.Enum):  # type: ignore[no-redef]
         """Language-neutral value type a stub-task argument binds to in the foreign runtime."""
@@ -73,7 +66,7 @@ def _data_type_from_annotation(annotation: Any) -> ArgBindingDataType:
         return ArgBindingDataType.ANY
     origin = typing.get_origin(annotation)
     if origin is not None:
-        if origin is Union or origin is getattr(types, "UnionType", None):
+        if origin is Union or origin is types.UnionType:
             members = [a for a in typing.get_args(annotation) if a is not type(None)]
             if len(members) == 1:
                 return _data_type_from_annotation(members[0])
@@ -138,7 +131,7 @@ def _build_arg_bindings(
 
     try:
         hints = typing.get_type_hints(python_callable)
-    except Exception:
+    except (NameError, TypeError):
         # Annotations that cannot be resolved at parse time (e.g. names behind
         # TYPE_CHECKING with ``from __future__ import annotations``) degrade to "any".
         hints = {}
@@ -222,10 +215,10 @@ class _StubOperator(DecoratedOperator):
         module = ast.parse(self.get_python_source())
 
         if len(module.body) != 1:
-            raise RuntimeError("Expected a single statement")
+            raise ValueError("Expected a single statement")
         fn = module.body[0]
         if not isinstance(fn, ast.FunctionDef):
-            raise RuntimeError("Expected a single sync function")
+            raise ValueError("Expected a single sync function")
         for stmt in fn.body:
             if isinstance(stmt, ast.Pass):
                 continue
@@ -266,8 +259,9 @@ def stub(
     environment via the Task Execution Interface.
 
     Stub functions may declare parameters and be called TaskFlow-style with upstream task
-    outputs or JSON-serializable literals; the resulting positional-argument spec is delivered
-    to the foreign runtime, which binds the values onto the native task function.
+    outputs or JSON-serializable literals; the resulting argument-binding spec (parameter
+    names, declared types, and values, in declaration order) is delivered to the foreign
+    runtime, which binds the values onto the native task function.
     """
     return task_decorator_factory(
         decorated_operator_class=_StubOperator,

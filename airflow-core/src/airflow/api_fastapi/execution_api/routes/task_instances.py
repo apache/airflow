@@ -118,12 +118,11 @@ _STUB_TASK_TYPE = "_StubOperator"
 
 
 def _get_arg_bindings(dag_version_id: UUID | None, task_id: str, *, session) -> list[dict] | None:
-    """Extract the stub task's serialized positional-arg spec from the serialized Dag blob."""
+    """Extract the stub task's serialized arg spec from its Dag version's serialized blob."""
     # Imported here on purpose: only the Multi-Lang stub-task path touches the
     # serialized-dag machinery, so keep it off the module's top-level imports.
     from airflow.models.dag_version import DagVersion
-    from airflow.serialization.enums import Encoding
-    from airflow.serialization.serialized_objects import BaseSerialization
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
     if dag_version_id is None:
         return None
@@ -132,13 +131,7 @@ def _get_arg_bindings(dag_version_id: UUID | None, task_id: str, *, session) -> 
         return None
     if not (data := dag_version.serialized_dag.data):
         return None
-    for task in data.get("dag", {}).get("tasks", []):
-        var = task.get(Encoding.VAR) or {}
-        if var.get("task_id") == task_id:
-            if encoded := var.get("_arg_bindings"):
-                return BaseSerialization.deserialize(encoded)
-            return None
-    return None
+    return LazyDeserializedDAG(data=data).get_task_arg_bindings(task_id)
 
 
 @ti_id_router.patch(

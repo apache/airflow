@@ -25,10 +25,6 @@ from cadwyn import (
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import (
-    LiteralArgBinding,
-    XComArgBinding,
-)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
     TaskInstance,
@@ -145,20 +141,3 @@ class AddPartitionDateField(VersionChange):
         """Strip ``partition_date`` from the nested ``dag_run`` payload for older clients."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("partition_date", None)
-
-
-class AddArgBindingsToTIRunContext(VersionChange):
-    """Add the ``arg_bindings`` positional-argument binding spec for stub (foreign-runtime) tasks."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        schema(TIRunContext).field("arg_bindings").didnt_exist,
-        schema(XComArgBinding).field("name").didnt_exist,
-        schema(LiteralArgBinding).field("name").didnt_exist,
-    )
-
-    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Strip ``arg_bindings`` from the run context for older clients."""
-        response.body.pop("arg_bindings", None)

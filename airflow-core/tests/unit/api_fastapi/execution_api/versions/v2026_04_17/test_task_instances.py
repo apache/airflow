@@ -20,7 +20,6 @@ from __future__ import annotations
 import pytest
 
 from airflow._shared.timezones import timezone
-from airflow.sdk import task
 from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.config import conf_vars
@@ -85,47 +84,3 @@ class TestTeamNameFieldBackwardCompat:
             response = client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
         assert response.json()["dag_run"]["team_name"] is None
-
-
-class TestArgBindingsFieldBackwardCompat:
-    @pytest.fixture(autouse=True)
-    def _freeze_time(self, time_machine):
-        time_machine.move_to(TIMESTAMP_STR, tick=False)
-
-    def setup_method(self):
-        clear_db_runs()
-
-    def teardown_method(self):
-        clear_db_runs()
-
-    @pytest.fixture
-    def stub_ti(self, dag_maker):
-        with dag_maker("test_arg_bindings_compat_dag", serialized=True):
-
-            @task.stub
-            def extract(): ...
-
-            @task.stub
-            def transform(country: str, extracted: dict): ...
-
-            transform("uk", extract())
-
-        dr = dag_maker.create_dagrun()
-        tis = {ti.task_id: ti for ti in dr.get_task_instances()}
-        for ti in tis.values():
-            ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
-        return tis["transform"]
-
-    def test_old_version_strips_arg_bindings_even_when_set(self, old_ver_client, stub_ti):
-        response = old_ver_client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
-        assert response.status_code == 200
-        assert "arg_bindings" not in response.json()
-
-    def test_head_version_includes_arg_bindings(self, client, stub_ti):
-        response = client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
-        assert response.status_code == 200
-        assert response.json()["arg_bindings"] == [
-            {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-            {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
-        ]

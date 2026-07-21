@@ -372,7 +372,7 @@ class TestRealBundleArgBindingsDowngrade:
     """
     Drive the *real* supervisor bundle through the ``arg_bindings`` migration.
 
-    ``AddArgBindingsToTIRunContext`` is the bundle's first ``schema(...)``
+    ``AddArgBindingsToSupervisorTIRunContext`` is the bundle's first ``schema(...)``
     instruction on a model *nested* inside a registered body
     (``StartupDetails.ti_context``); this pins that the downgrade
     re-validation strips the nested field on the wire for a runtime

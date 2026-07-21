@@ -17,20 +17,24 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import (
+    ResponseInfo,
+    VersionChange,
+    convert_response_to_previous_version_for,
+    schema,
+)
 
-from airflow.sdk.api.datamodels._generated import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
 
 
-class AddArgBindingsToSupervisorTIRunContext(VersionChange):
-    """
-    Add the ``arg_bindings`` argument-binding spec for stub (foreign-runtime) tasks.
-
-    Each entry is a discriminated union of ``XComArgBinding`` and ``LiteralArgBinding``
-    keyed on ``kind``. The supervisor-schema mirror of the execution API's
-    ``AddArgBindingsToTIRunContext``, named apart so the two migrations are not confused.
-    """
+class AddArgBindingsToTIRunContext(VersionChange):
+    """Add the ``arg_bindings`` argument-binding spec for stub (foreign-runtime) tasks."""
 
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``arg_bindings`` from the run context for older clients."""
+        response.body.pop("arg_bindings", None)

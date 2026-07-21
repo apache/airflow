@@ -111,13 +111,13 @@ type Arg interface {
 }
 
 // XComArg sources the argument from an upstream task's return-value XCom.
-// Kind is carried by the generated shape but unused here: the Go type itself
-// is the discriminant.
+// Kind carries the wire discriminant ("xcom") from the generated shape; the
+// resolve path dispatches on the Go type itself and never reads it.
 type XComArg genmodels.XComArgBinding
 
-// LiteralArg carries an inline value from the Dag file. Kind is carried by
-// the generated shape but unused here: the Go type itself is the
-// discriminant.
+// LiteralArg carries an inline value from the Dag file. Kind carries the wire
+// discriminant ("literal") from the generated shape; the resolve path
+// dispatches on the Go type itself and never reads it.
 type LiteralArg genmodels.LiteralArgBinding
 
 func (a XComArg) ArgName() string    { return a.Name }
@@ -231,6 +231,10 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 // struct's fields claim entries out of args by name; plain flat data
 // parameters consume args in declaration order (the two shapes are mutually
 // exclusive; see Analyze). An error fails the task before its body runs.
+//
+// client must be the full sdk.Client -- not just the sdk.XComClient the
+// resolve helpers narrow to -- because a paramClient parameter receives the
+// client itself, verbatim.
 func (p *Plan) Resolve(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -292,17 +296,19 @@ func (p *Plan) Resolve(
 	}
 
 	argCursor := 0
-	nextUnclaimed := func() Arg {
+	nextUnclaimed := func() (Arg, bool) {
 		for argCursor < len(args) {
 			i := argCursor
 			argCursor++
 			if !claimed[i] {
-				return args[i]
+				return args[i], true
 			}
 		}
-		// Unreachable: the remaining/numData check above guarantees enough
-		// unclaimed args exist for every flat parameter still to be filled.
-		panic("binding: exhausted unclaimed args despite a passing arity check")
+		// Unreachable in practice: the remaining/numData check above guarantees
+		// enough unclaimed args exist for every flat parameter still to be
+		// filled. Reported as an error rather than a panic so a bookkeeping bug
+		// fails one task instead of crashing the worker.
+		return nil, false
 	}
 
 	flatIdx := 0
@@ -326,7 +332,14 @@ func (p *Plan) Resolve(
 		case paramTaskInput:
 			// Already resolved above.
 		case paramData:
-			v, err := p.resolveData(ctx, client, plan, nextUnclaimed(), flatIdx)
+			arg, ok := nextUnclaimed()
+			if !ok {
+				return nil, fmt.Errorf(
+					"task function %s: internal error: exhausted unclaimed args despite a passing arity check",
+					p.fnName,
+				)
+			}
+			v, err := p.resolveData(ctx, client, plan, arg, flatIdx)
 			if err != nil {
 				return nil, err
 			}
@@ -360,7 +373,7 @@ func (p *Plan) resolveData(
 // rather than failing the task.
 func (p *Plan) resolveTaskInput(
 	ctx context.Context,
-	client sdk.Client,
+	c sdk.XComClient,
 	plan paramPlan,
 	args []Arg,
 	byName map[string]int,
@@ -385,7 +398,7 @@ func (p *Plan) resolveTaskInput(
 		claimed[idx] = true
 
 		v, err := p.resolveOne(
-			ctx, client, tif.fieldType, args[idx],
+			ctx, c, tif.fieldType, args[idx],
 			fmt.Sprintf("TaskInput field %s (parameter %d)", tif.goName, plan.index),
 			fmt.Sprintf("TaskInput field %s", tif.goName),
 		)

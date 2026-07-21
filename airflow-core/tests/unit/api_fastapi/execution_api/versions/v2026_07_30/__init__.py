@@ -14,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from cadwyn import VersionChange, schema
-
-from airflow.sdk.api.datamodels._generated import TIRunContext
-
-
-class AddArgBindingsToSupervisorTIRunContext(VersionChange):
-    """
-    Add the ``arg_bindings`` argument-binding spec for stub (foreign-runtime) tasks.
-
-    Each entry is a discriminated union of ``XComArgBinding`` and ``LiteralArgBinding``
-    keyed on ``kind``. The supervisor-schema mirror of the execution API's
-    ``AddArgBindingsToTIRunContext``, named apart so the two migrations are not confused.
-    """
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)

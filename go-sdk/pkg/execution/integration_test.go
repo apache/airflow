@@ -479,6 +479,57 @@ func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
 	assert.False(t, ran, "the task body must not run on a malformed binding element")
 }
 
+// TestTaskRunnerArgBindingsMissingRequiredFields: a wire spec entry without a
+// usable name, or an xcom entry without a task_id, fails the task before the
+// body runs instead of silently binding empty strings.
+func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
+	cases := []struct {
+		name string
+		spec map[string]any
+	}{
+		{name: "missing name", spec: map[string]any{"kind": "literal", "value": "x"}},
+		{name: "empty name", spec: map[string]any{"name": "", "kind": "literal", "value": "x"}},
+		{name: "xcom missing task_id", spec: map[string]any{"name": "country", "kind": "xcom"}},
+		{
+			name: "xcom empty task_id",
+			spec: map[string]any{"name": "country", "kind": "xcom", "task_id": ""},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ran := false
+			bundle := buildBundle(t, func(r bundlev1.Registry) {
+				r.AddDag("test_dag").AddTaskWithName("transform",
+					func(country string) error {
+						ran = true
+						return nil
+					})
+			})
+
+			details := &genmodels.StartupDetails{
+				TI: genmodels.TaskInstance{
+					ID:       "550e8400-e29b-41d4-a716-446655440000",
+					DagID:    "test_dag",
+					TaskID:   "transform",
+					RunID:    "run1",
+					MapIndex: ptr(-1),
+				},
+				BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+				TIContext: genmodels.TIRunContext{
+					ArgBindings: &genmodels.ArgBindings{tc.spec},
+				},
+			}
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+			result := RunTask(context.Background(), bundle, details, comm, logger)
+			assertTaskState(t, result, genmodels.TaskStateStateFailed)
+			assert.False(t, ran, "the task body must not run on an incomplete binding spec")
+		})
+	}
+}
+
 func TestRunTaskHonorsContextCancellation(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxcheck",

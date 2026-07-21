@@ -158,6 +158,7 @@ dags:
     tasks:
       - "make_config"
       - "make_numbers"
+      - "make_region"
       - "via_flat_args"
       - "via_struct_no_tags"
       - "via_struct_arg_tag"

@@ -157,17 +157,32 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		if !ok {
 			return nil, fmt.Errorf("arg_bindings[%d]: unexpected wire shape %T", i, raw)
 		}
-		name, _ := m["name"].(string)
+		name, ok := m["name"].(string)
+		if !ok || name == "" {
+			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
+		}
 		dataType := binding.DataTypeAny
 		if s, ok := m["data_type"].(string); ok && s != "" {
 			dataType = binding.DataType(s)
 		}
 		switch kind, _ := m["kind"].(string); kind {
 		case "xcom":
-			taskID, _ := m["task_id"].(string)
-			args[i] = binding.XComArg{Name: name, TaskID: taskID, DataType: dataType}
+			taskID, ok := m["task_id"].(string)
+			if !ok || taskID == "" {
+				return nil, fmt.Errorf(
+					"arg_bindings[%d] (%q): missing or empty task_id for xcom kind",
+					i,
+					name,
+				)
+			}
+			args[i] = binding.XComArg{Kind: kind, Name: name, TaskID: taskID, DataType: dataType}
 		case "literal":
-			args[i] = binding.LiteralArg{Name: name, Value: m["value"], DataType: dataType}
+			args[i] = binding.LiteralArg{
+				Kind:     kind,
+				Name:     name,
+				Value:    m["value"],
+				DataType: dataType,
+			}
 		default:
 			return nil, fmt.Errorf("arg_bindings[%d]: unknown kind %q", i, kind)
 		}
