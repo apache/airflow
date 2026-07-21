@@ -289,6 +289,47 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             response = test_client.get("/dags")
         assert response.status_code == 403
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_orders_latest_runs_by_run_after(self, test_client, session):
+        running_run_after = pendulum.datetime(2026, 1, 1, tz="UTC")
+        queued_run_after = pendulum.datetime(2026, 1, 2, tz="UTC")
+        session.add_all(
+            [
+                DagRun(
+                    dag_id=DAG1_ID,
+                    run_id="manual__running_latest",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=running_run_after,
+                    run_after=running_run_after,
+                    start_date=pendulum.datetime(2026, 1, 3, tz="UTC"),
+                    state=DagRunState.RUNNING,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+                DagRun(
+                    dag_id=DAG2_ID,
+                    run_id="manual__queued_latest",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=queued_run_after,
+                    run_after=queued_run_after,
+                    start_date=None,
+                    state=DagRunState.QUEUED,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={
+                "dag_ids": [DAG1_ID, DAG2_ID],
+                "order_by": "-last_run_run_after",
+            },
+        )
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG2_ID, DAG1_ID]
+
     def test_get_dags_no_n_plus_one_queries(self, session, test_client):
         """Test that fetching DAGs with tags doesn't trigger n+1 queries."""
         num_dags = 5

@@ -170,6 +170,23 @@ class TestGetJobs(TestJobEndpoint):
             }
             assert resp_job == expected_job
 
+    def test_get_jobs_filters_by_dag_id(self, test_client, session: Session):
+        clear_db_jobs()
+        session.add_all(
+            [
+                Job(dag_id="target_dag", state=JobState.RUNNING, job_type="SchedulerJob"),
+                Job(dag_id="other_dag", state=JobState.SUCCESS, job_type="SchedulerJob"),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get("/jobs", params={"dag_id": "target_dag"})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert response_json["jobs"][0]["dag_id"] == "target_dag"
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/jobs")
         assert response.status_code == 401

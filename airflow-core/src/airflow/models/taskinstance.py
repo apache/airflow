@@ -100,7 +100,6 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -200,6 +199,27 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)
+
+
+def _add_and_prime_mapped_ti(
+    ti: TaskInstance,
+    task: Operator,
+    dag_run: DagRun,
+    *,
+    session: Session,
+    context_carrier: dict | None = None,
+) -> None:
+    """
+    Attach a newly-created mapped TI to the session and prime its ``dag_run`` cache.
+
+    :meta private:
+    """
+    task_instance_mutation_hook(ti, dag_run=dag_run)
+    session.add(ti)
+    if context_carrier is not None:
+        ti.context_carrier = context_carrier
+    ti.refresh_from_task(task, dag_run=dag_run)
+    set_committed_value(ti, "dag_run", dag_run)
 
 
 def _recalculate_dagrun_queued_at_deadlines(
@@ -736,9 +756,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return prune_dict(
-            {"dag_id": self.dag_id, "task_id": self.task_id, "team_name": getattr(self, "_team_name", None)}
-        )
+        # Reuse the dag run's tags and add the task-level ones.
+        return {**self.dag_run.stats_tags, "task_id": self.task_id}
 
     @staticmethod
     def insert_mapping(

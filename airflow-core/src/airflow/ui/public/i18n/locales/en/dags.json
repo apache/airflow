@@ -95,9 +95,9 @@
       "asc": "Sort by Display Name (A-Z)",
       "desc": "Sort by Display Name (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Sort by Latest Run Start Date (Earliest-Latest)",
-      "desc": "Sort by Latest Run Start Date (Latest-Earliest)"
+    "lastRunAfter": {
+      "asc": "Sort by Latest Run After (Earliest-Latest)",
+      "desc": "Sort by Latest Run After (Latest-Earliest)"
     },
     "lastRunState": {
       "asc": "Sort by Latest Run State (A-Z)",

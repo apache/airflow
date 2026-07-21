@@ -1003,6 +1003,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
                 dag_data=ANY,
+                queued_at=ANY,
             )
         )
         # OK, now remove it from the DB
@@ -1544,6 +1545,106 @@ class TestTriggerRunner:
 
         # The test passes if no exceptions were raised during trigger creation
         trigger_instance.cancel()
+        await runner.cleanup_finished_triggers()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.stats.timing")
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    async def test_create_triggers_emits_queue_delay_metric(
+        self,
+        mock_get_trigger_by_classpath,
+        mock_decrypt_kwargs,
+        mock_timing,
+        team_name,
+        expected_tags,
+    ):
+        mock_decrypt_kwargs.return_value = {"moment": timezone.utcnow() + datetime.timedelta(hours=1)}
+
+        workload = workloads.RunTrigger.model_construct(
+            id=1,
+            classpath="abc",
+            encrypted_kwargs="fake",
+            queued_at=100.0,
+        )
+
+        runner = TriggerRunner()
+        runner.team_name = team_name
+        runner.to_create.append(workload)
+
+        with (
+            patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=101.5),
+            patch("airflow.jobs.triggerer_job_runner.time.time", return_value=90.0),
+        ):
+            await runner.create_triggers()
+
+        mock_timing.assert_any_call(
+            "triggerer.trigger_queue_delay",
+            1500,
+            tags=expected_tags,
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.stats.timing")
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    async def test_create_triggers_emits_creation_duration_metric(
+        self,
+        mock_get_trigger_by_classpath,
+        mock_decrypt_kwargs,
+        mock_timing,
+        team_name,
+        expected_tags,
+    ):
+        mock_decrypt_kwargs.return_value = {"moment": timezone.utcnow() + datetime.timedelta(hours=1)}
+
+        workload = workloads.RunTrigger.model_construct(
+            id=1,
+            classpath="abc",
+            encrypted_kwargs="fake",
+        )
+
+        runner = TriggerRunner()
+        runner.team_name = team_name
+        runner.to_create.append(workload)
+
+        await runner.create_triggers()
+
+        mock_timing.assert_called_once()
+
+        metric_name, metric_value = mock_timing.call_args.args
+
+        assert metric_name == "triggerer.batch_trigger_creation_duration"
+
+        # Specific metric_value is not being asserted here as time.monotonic is difficult
+        # to mock deterministically.
+        assert metric_value >= 0
+        assert mock_timing.call_args.kwargs == {"tags": expected_tags}
+
+        task = runner.triggers[workload.id]["task"]
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
         await runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio
@@ -2243,6 +2344,8 @@ def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker)
     supervisor = supervisor_builder()
     supervisor.running_triggers = {1, 3}
     workload = workloads.RunTrigger(id=2, classpath="some.trigger", encrypted_kwargs="", ti=None)
+    monotonic = mocker.patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=100.0)
+    mocker.patch("airflow.jobs.triggerer_job_runner.time.time", return_value=90.0)
     build_trigger_workloads = mocker.patch.object(
         TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[workload]
     )
@@ -2251,6 +2354,8 @@ def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker)
 
     build_trigger_workloads.assert_called_once_with(supervisor, {2})
     assert list(supervisor.creating_triggers) == [workload]
+    assert workload.queued_at == 100.0
+    monotonic.assert_called_once_with()
     assert supervisor.cancelling_triggers == {1}
 
 

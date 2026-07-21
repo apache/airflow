@@ -858,6 +858,8 @@ class AssetEventOperations:
         before: datetime | None = None,
         ascending: bool = True,
         limit: int | None = None,
+        partition_key: str | None = None,
+        partition_key_regexp_pattern: str | None = None,
         extra: dict[str, str] | None = None,
     ) -> AssetEventsResponse:
         """Get Asset event from the API server."""
@@ -869,6 +871,10 @@ class AssetEventOperations:
         common_params["ascending"] = ascending
         if limit is not None:
             common_params["limit"] = limit
+        if partition_key is not None:
+            common_params["partition_key"] = partition_key
+        if partition_key_regexp_pattern is not None:
+            common_params["partition_key_regexp_pattern"] = partition_key_regexp_pattern
         extra_params: list[tuple[str, str]] = []
         if extra:
             extra_params = [("extra", f"{k}={v}") for k, v in extra.items()]

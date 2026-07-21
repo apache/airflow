@@ -69,7 +69,7 @@ class AppBuilderMenuItemResponse(BaseModel):
     category: str | None = None
 
 
-BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "base"]
+BaseDestinationLiteral = Literal["nav", "dag", "dag_run", "task", "task_instance", "asset", "base"]
 
 
 class BaseUIResponse(BaseModel):
@@ -107,6 +107,7 @@ class PluginResponse(BaseModel):
     """Plugin serializer."""
 
     name: str
+    team_name: str | None = None
     macros: list[str]
     flask_blueprints: list[str]
     fastapi_apps: list[FastAPIAppResponse]

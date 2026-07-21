@@ -698,6 +698,12 @@ metrics:
     legacy_name: "dagrun.schedule_delay.{dag_id}"
     name_variables: ["dag_id"]
 
+  - name: "triggerer.batch_trigger_creation_duration"
+    description: "Time in milliseconds spent creating a batch of pending triggers."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "scheduler.critical_section_duration"
     description: "Milliseconds spent in the critical section of scheduler loop"
     type: "timer"
@@ -719,6 +725,13 @@ metrics:
   - name: "scheduler.executor_heartbeat_duration"
     description: "Milliseconds spent in ``executor.heartbeat()`` per scheduler loop iteration, tagged
       by executor class name so each configured executor is reported separately."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "triggerer.trigger_queue_delay"
+    description: "Time in milliseconds between a trigger workload being queued and being processed by
+      the TriggerRunner."
     type: "timer"
     legacy_name: "-"
     name_variables: []

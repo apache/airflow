@@ -24,17 +24,20 @@ Airflow's 350+ provider hooks already have typed methods, rich docstrings,
 and managed credentials. Toolsets expose them as pydantic-ai tools so that
 LLM agents can call them during multi-turn reasoning.
 
-Three toolsets are included:
+Four toolsets are included:
 
+- :class:`~airflow.providers.common.ai.toolsets.aws.AWSToolset` — configured
+  AWS services toolset for agent access to AWS APIs through Airflow-managed
+  AWS connections.
 - :class:`~airflow.providers.common.ai.toolsets.hook.HookToolset` — generic
   adapter for any Airflow Hook.
-- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
-  4-tool database toolset.
 - :class:`~airflow.providers.common.ai.toolsets.mcp.MCPToolset` — connect to
   `MCP servers <https://modelcontextprotocol.io/>`__ configured via Airflow
   connections.
+- :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset` — curated
+  4-tool database toolset.
 
-All three implement pydantic-ai's
+All four implement pydantic-ai's
 `AbstractToolset <https://ai.pydantic.dev/toolsets/>`__ interface and can be
 passed to any pydantic-ai ``Agent``, including via
 :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`.
@@ -192,6 +195,11 @@ Parameters
   ``check_query`` as well as discovery -- every table a query references must be
   on it. See :ref:`allowed-tables-enforcement` for what this does and does not
   guarantee.
+- ``allowed_functions``: Names of functions that sqlglot does not recognize as
+  builtins but are safe to run while ``allowed_tables`` is active (e.g.
+  ``["json_build_object"]`` or a project UDF). ``None`` (default) rejects every
+  unrecognized function. Matching is case-insensitive. Only consulted when
+  ``allowed_tables`` is set.
 - ``schema``: Default schema/namespace for unqualified table listing and
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
@@ -262,6 +270,69 @@ Parameters
   permitted. DataFusion on object stores is mostly read-only, but it does
   support DDL for in-memory tables; this guard blocks those by default.
 - ``max_rows``: Maximum rows returned from the ``query`` tool. Default ``50``.
+
+``AWSToolset``
+--------------
+
+Curated toolset that gives an agent allow-listed access to AWS APIs with
+three tools:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 50
+
+   * - Tool
+     - Description
+   * - ``list_aws_operations``
+     - Lists the operations the toolset allows, grouped by service
+   * - ``describe_aws_operation``
+     - Returns an operation's parameter and response shapes (from the
+       botocore service model), so the agent can check what a call expects
+       before making it
+   * - ``call_aws``
+     - Executes an allowed operation and returns the response as JSON,
+       aggregating paginated results
+
+Credentials, region, and session configuration come from the Airflow
+connection (``aws_conn_id``) via the amazon provider — the model cannot
+override them through tool arguments. Requires the ``aws`` extra::
+
+    pip install "apache-airflow-providers-common-ai[aws]"
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_aws_toolset.py
+    :language: python
+    :start-after: [START howto_operator_agent_aws]
+    :end-before: [END howto_operator_agent_aws]
+
+Access is deny-by-default: ``allowed_actions`` is required and supports ``*``
+wildcards in the operation part only (``"athena:*"``, ``"s3:List*"``).
+Operations that return credentials or decrypted secrets — ``sts:AssumeRole``,
+``secretsmanager:GetSecretValue``, ``kms:Decrypt``, and similar — are never
+matched by a wildcard and must be listed verbatim to be callable.
+
+.. warning::
+    ``allowed_actions`` bounds what the agent can ask for, not what the
+    credentials can do. Point ``aws_conn_id`` at a least-privilege IAM role
+    scoped to the same operations.
+
+Parameters
+^^^^^^^^^^
+
+- ``aws_conn_id``: Airflow connection ID for AWS credentials. Default
+  ``aws_default``.
+- ``allowed_actions``: Operations the agent may call, in
+  ``"<service>:<Operation>"`` form using boto3 service names and API
+  operation names. Required — there is no auto-discovery. Matching is case-
+  and underscore-insensitive, so ``"s3:list_buckets"`` equals
+  ``"s3:ListBuckets"``. Validated against botocore's bundled service
+  definitions at instantiation time (local metadata only — no network, no
+  credentials).
+- ``region_name``: AWS region for API calls. Default ``None`` — use the
+  region configured on the connection.
+- ``max_items``: Upper bound on items aggregated from paginated operations.
+  Default ``1000``.
+- ``max_output_bytes``: Upper bound on the serialized response returned to
+  the agent; larger payloads are clipped and flagged. Default ``65536``.
 
 ``LoggingToolset``
 ------------------
@@ -437,6 +508,16 @@ Parameters
   :class:`~airflow.providers.common.ai.skills.GitSkills`.
 - ``exclude_tools``: Optional set of skill tool names to hide from the agent
   (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
+- ``exclude_resources``: Optional glob patterns to exclude from resource
+  discovery, added on top of the built-in defaults (``__pycache__``, ``*.pyc``,
+  ``*.pyo``, ``.DS_Store``, ``.git``). A skill exposes every readable text file
+  it contains as a resource; these patterns keep matched files out of the
+  resource list and the ``read_skill_resource`` tool (e.g.
+  ``["*.env", "secrets/*"]``). Each pattern matches the full skill-relative path
+  or any single path component. This hides files from resource discovery only --
+  it does not stop a skill's ``run_skill_script`` from reading them off disk, so
+  pair it with ``exclude_tools={"run_skill_script"}`` when the files are
+  genuinely sensitive.
 
 Using Agent Skills with other frameworks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -596,9 +677,10 @@ No single layer is sufficient — they work together.
        ``get_schema``, ``query``, and ``check_query``. Queries are parsed and
        every referenced table (including via subqueries, CTEs, JOINs, and
        ``DESCRIBE``) is checked against the list before execution.
-     - Cannot police data reached through side-effecting scalar functions
-       (e.g. ``pg_read_file``), and is only as exact as the SQL parser. Pair it
-       with least-privilege database grants. See
+     - Rejects ``COPY`` and every function sqlglot cannot type (the channel for
+       ``pg_read_file`` / ``query_to_xml`` / ``dblink``) unless named in
+       ``allowed_functions``. Fail-closed, but only as exact as the SQL parser. Not a
+       security boundary -- always pair it with least-privilege database grants. See
        :ref:`allowed-tables-enforcement` below.
    * - **SQLToolset: max_rows**
      - Truncates query results to ``max_rows`` (default 50), preventing the
@@ -634,27 +716,48 @@ When ``allowed_tables`` is set it governs every tool, not just discovery:
   cross-database reference like ``otherdb.public.orders`` is refused.
 - Constructs the list cannot describe are rejected outright while it is active:
   table-valued functions (``dblink``), ``TABLE('name')`` row sources, the
-  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), and **inline
-  comments** -- the last because parser-vs-engine differences hide in comments
-  (MySQL executes ``/*! ... */`` while sqlglot and other engines ignore it).
+  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), ``COPY``
+  (file/program I/O), and **inline comments** -- because parser-vs-engine differences
+  hide in comments (MySQL executes ``/*! ... */`` while sqlglot and other engines
+  ignore it).
+- **Any function sqlglot does not recognize is rejected (fail-closed).** A function
+  whose string argument reaches data outside the table graph --
+  ``pg_read_file('/etc/passwd')`` (a file), ``query_to_xml('SELECT * FROM other_table', ...)``
+  (SQL over another table), a scalar ``dblink`` (a remote database) -- carries no table
+  reference for the parser to catch. Rather than maintain a denylist of such functions
+  (unbounded, engine-specific, and it would fail *open* on anything missed), the toolset
+  rejects every function sqlglot cannot type. Ordinary builtins (``count``, ``lower``,
+  ``sum``) are recognized and pass. A legitimate function sqlglot does not type
+  (``json_build_object``, ``jsonb_agg``) or a project UDF is rejected until you list it
+  in ``allowed_functions``:
+
+  .. code-block:: python
+
+      SQLToolset(
+          db_conn_id="analytics_db",
+          allowed_tables=["orders"],
+          allowed_functions=["json_build_object"],  # opt in per function you trust
+      )
 
 So ``SELECT * FROM secrets`` with ``allowed_tables=["orders"]`` is refused, and
 the rejection is handed back to the agent so it can re-target an allowed table.
 
-This is a strong **application-level guardrail**, but it is not a substitute for
-database permissions. It cannot police data reached through a function whose
-argument is itself SQL or a path: ``pg_read_file('/etc/passwd')`` reads a file,
-and ``query_to_xml('SELECT * FROM other_table', ...)`` or a scalar ``dblink``
-reads a table through a string the parser cannot inspect. Any query the engine
-parses differently from sqlglot is also a residual gap. For a hard boundary, also
-run the connection as a least-privilege role:
+.. warning::
 
-.. code-block:: sql
+    This is a strong **application-level guardrail, not a security boundary.** The
+    fail-closed function check raises the bar, but any query the engine parses
+    differently from sqlglot is a residual gap, and ``allowed_functions`` is a trust
+    decision you own. **Always** point the connection at a least-privilege database
+    role -- that is the boundary that holds even when the parser cannot see through a
+    function, and it is what actually keeps an agent (which may be under prompt
+    injection) away from data and files you have not granted it:
 
-    -- Create a read-only role with access to specific tables only
-    CREATE ROLE airflow_agent_reader;
-    GRANT SELECT ON orders, customers TO airflow_agent_reader;
-    -- Use this role's credentials in the Airflow connection
+    .. code-block:: sql
+
+        -- Create a read-only role with access to specific tables only
+        CREATE ROLE airflow_agent_reader;
+        GRANT SELECT ON orders, customers TO airflow_agent_reader;
+        -- Use this role's credentials in the Airflow connection
 
 Defense in depth: the allow-list contains the agent's *intent* (and gives it a
 correctable error), while the database role is the boundary that holds even if
