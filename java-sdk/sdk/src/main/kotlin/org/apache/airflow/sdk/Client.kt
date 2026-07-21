@@ -79,7 +79,9 @@ class Client internal constructor(
         schema = schema as String?,
         login = login as String?,
         password = password as String?,
-        port = port as Int?,
+        // The msgpack decoder yields Long for wire integers, so convert
+        // numerically instead of casting.
+        port = (port as Number?)?.toInt(),
         extra = extra,
       )
     }
@@ -149,5 +151,21 @@ class Client internal constructor(
     taskId = details.ti.taskId,
     runId = details.ti.runId,
     mapIndex = details.ti.mapIndex ?: -1,
+  )
+}
+
+/**
+ * Thrown when a task parameter with a primitive type reads an XCom that was never pushed.
+ */
+class MissingXComException(
+  message: String,
+) : IllegalStateException(message) {
+  constructor(
+    taskId: String,
+    paramName: String,
+  ) : this(
+    "Task parameter '$paramName' requires an XCom from task '$taskId', but none was pushed. " +
+      "This parameter has a primitive type that cannot be null; declare it with a boxed type " +
+      "(e.g. Integer instead of int) to receive null.",
   )
 }

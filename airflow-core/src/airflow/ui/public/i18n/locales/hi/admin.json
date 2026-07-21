@@ -120,7 +120,8 @@
       "includeDeferred": "स्थगित शामिल करें",
       "nameMaxLength": "नाम में अधिकतम 256 वर्ण हो सकते हैं",
       "nameRequired": "नाम आवश्यक है",
-      "slots": "स्लॉट्स"
+      "slots": "स्लॉट्स",
+      "slotsHelperText": "असीमित स्लॉट के लिए -1 का उपयोग करें।"
     },
     "noPoolsFound": "कोई पूल नहीं मिले",
     "pool_one": "पूल",
@@ -176,6 +177,7 @@
           "title": "छोड़ें"
         }
       },
+      "parsingFile": "फ़ाइल पार्स हो रही है...",
       "title": "वेरिएबल आयात करें",
       "upload": "JSON फ़ाइल अपलोड करें",
       "uploadPlaceholder": "वेरिएबल वाली JSON फ़ाइल अपलोड करें (जैसे, {\"key\": \"value\", ...})"

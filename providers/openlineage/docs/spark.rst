@@ -94,11 +94,21 @@ to manually configure these properties in every Spark operator.
 
 Automatic injection is supported for the following operators:
 
+- :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator`
 - :class:`~airflow.providers.apache.livy.operators.livy.LivyOperator`
 - :class:`~airflow.providers.apache.spark.operators.spark_submit.SparkSubmitOperator`
+- :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`
 - :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`
+
+.. note::
+
+    :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator` receives the injected properties
+    through the Glue job's ``--conf`` argument (in ``script_args``) rather than a Spark ``conf`` dictionary.
+    As with the other operators, injection only propagates the parent job and transport information; the Glue
+    job itself must still have the Spark OpenLineage integration (the ``OpenLineageSparkListener``) enabled for
+    lineage to be emitted.
 
 
 .. _options:spark_inject_parent_job_info:

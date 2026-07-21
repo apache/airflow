@@ -137,6 +137,8 @@ def find_task_relatives(
             yield task.task_id
         if downstream:
             for relative in task.get_flat_relatives(upstream=False):
+                if relative.is_teardown:
+                    continue
                 yield relative.task_id
         if upstream:
             for relative in task.get_flat_relatives(upstream=True):
@@ -191,7 +193,7 @@ def get_run_ids(
         dates.update(
             info.logical_date
             for info in dag.iter_dagrun_infos_between(start_date, end_date)
-            if info.logical_date  # todo: AIP-76 this will not find anything where logical date is null
+            if info.logical_date  # runs with a null logical_date are not matched here
         )
         run_ids = [dr.run_id for dr in DagRun.find(dag_id=dag.dag_id, logical_date=dates, session=session)]
     return run_ids
@@ -213,80 +215,26 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
     session.merge(dag_run)
 
 
-@provide_session
-def set_dag_run_state_to_success(
+def _set_dag_run_terminal_state(
     *,
     dag: SerializedDAG,
-    run_id: str | None = None,
-    commit: bool = False,
-    session: SASession = NEW_SESSION,
+    run_id: str | None,
+    run_state: DagRunState,
+    ti_state: TaskInstanceState,
+    commit: bool,
+    session: SASession,
 ) -> list[TaskInstance]:
     """
-    Set the dag run's state to success.
+    Set the dag run's state to the given terminal state.
 
-    Set for a specific logical date and its task instances to success.
-
-    :param dag: the Dag of which to alter state
-    :param run_id: the run_id to start looking from
-    :param commit: commit Dag and tasks to be altered to the database
-    :param session: database session
-    :return: If commit is true, list of tasks that have been updated,
-             otherwise list of tasks that will be updated
-    :raises: ValueError if dag or logical_date is invalid
-    """
-    if not dag:
-        return []
-    if not run_id:
-        raise ValueError(f"Invalid dag_run_id: {run_id}")
-
-    tasks = dag.tasks
-
-    # Mark all task instances of the dag run to success - except for unfinished teardown as they need to complete work.
-    teardown_tasks = [task for task in tasks if task.is_teardown]
-    unfinished_teardown_task_ids = set(
-        session.scalars(
-            select(TaskInstance.task_id).where(
-                TaskInstance.dag_id == dag.dag_id,
-                TaskInstance.run_id == run_id,
-                TaskInstance.task_id.in_(task.task_id for task in teardown_tasks),
-                or_(TaskInstance.state.is_(None), TaskInstance.state.in_(State.unfinished)),
-            )
-        )
-    )
-
-    # Mark the dag run to success if there are no unfinished teardown tasks.
-    if commit and len(unfinished_teardown_task_ids) == 0:
-        _set_dag_run_state(dag.dag_id, run_id, DagRunState.SUCCESS, session)
-
-    tasks_to_mark_success = [task for task in tasks if not task.is_teardown] + [
-        task for task in teardown_tasks if task.task_id not in unfinished_teardown_task_ids
-    ]
-    for task in tasks_to_mark_success:
-        task.dag = dag
-    return set_state(
-        tasks=tasks_to_mark_success,
-        run_id=run_id,
-        state=TaskInstanceState.SUCCESS,
-        commit=commit,
-        session=session,
-    )
-
-
-@provide_session
-def set_dag_run_state_to_failed(
-    *,
-    dag: SerializedDAG,
-    run_id: str | None = None,
-    commit: bool = False,
-    session: SASession = NEW_SESSION,
-) -> list[TaskInstance]:
-    """
-    Set the dag run's state to failed.
-
-    Set for a specific logical date and its task instances to failed.
+    Running task instances are set to ``ti_state`` and non-finished ones to
+    SKIPPED; finished task instances keep their state. Teardown tasks are left
+    untouched so they can complete their work.
 
     :param dag: the Dag of which to alter state
     :param run_id: the Dag run_id to start looking from
+    :param run_state: terminal state to set on the dag run
+    :param ti_state: state to set on running task instances
     :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
@@ -301,6 +249,7 @@ def set_dag_run_state_to_failed(
         TaskInstanceState.RUNNING,
         TaskInstanceState.DEFERRED,
         TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.AWAITING_INPUT,
     )
 
     # Mark only RUNNING task instances.
@@ -349,14 +298,75 @@ def set_dag_run_state_to_failed(
         for ti in pending_normal_tis:
             ti.set_state(TaskInstanceState.SKIPPED)
 
-        # Mark the dag run to failed if there is no pending teardown (else this would not be scheduled later).
+        # Set the dag run state only if there is no pending teardown (else this would not be scheduled later).
         if not any(dag.task_dict[ti.task_id].is_teardown for ti in (running_tis + pending_tis)):
-            _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
+            _set_dag_run_state(dag.dag_id, run_id, run_state, session)
 
     return pending_normal_tis + set_state(
         tasks=running_tasks,
         run_id=run_id,
-        state=TaskInstanceState.FAILED,
+        state=ti_state,
+        commit=commit,
+        session=session,
+    )
+
+
+@provide_session
+def set_dag_run_state_to_success(
+    *,
+    dag: SerializedDAG,
+    run_id: str | None = None,
+    commit: bool = False,
+    session: SASession = NEW_SESSION,
+) -> list[TaskInstance]:
+    """
+    Set the dag run's state to success.
+
+    Set for a specific logical date and its task instances to success.
+
+    :param dag: the Dag of which to alter state
+    :param run_id: the run_id to start looking from
+    :param commit: commit Dag and tasks to be altered to the database
+    :param session: database session
+    :return: If commit is true, list of tasks that have been updated,
+             otherwise list of tasks that will be updated
+    :raises: ValueError if dag or logical_date is invalid
+    """
+    return _set_dag_run_terminal_state(
+        dag=dag,
+        run_id=run_id,
+        run_state=DagRunState.SUCCESS,
+        ti_state=TaskInstanceState.SUCCESS,
+        commit=commit,
+        session=session,
+    )
+
+
+@provide_session
+def set_dag_run_state_to_failed(
+    *,
+    dag: SerializedDAG,
+    run_id: str | None = None,
+    commit: bool = False,
+    session: SASession = NEW_SESSION,
+) -> list[TaskInstance]:
+    """
+    Set the dag run's state to failed.
+
+    Set for a specific logical date and its task instances to failed.
+
+    :param dag: the Dag of which to alter state
+    :param run_id: the Dag run_id to start looking from
+    :param commit: commit Dag and tasks to be altered to the database
+    :param session: database session
+    :return: If commit is true, list of tasks that have been updated,
+             otherwise list of tasks that will be updated
+    """
+    return _set_dag_run_terminal_state(
+        dag=dag,
+        run_id=run_id,
+        run_state=DagRunState.FAILED,
+        ti_state=TaskInstanceState.FAILED,
         commit=commit,
         session=session,
     )

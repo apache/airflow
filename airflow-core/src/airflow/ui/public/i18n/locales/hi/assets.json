@@ -2,7 +2,22 @@
   "additional_data": "अतिरिक्त डेटा",
   "asset_many": "एसेट्स",
   "asset_one": "एसेट",
-  "asset_other": "एसेट्स",
+  "assetStateStore": {
+    "add": "Asset State Store जोड़ें",
+    "clearAll": {
+      "resource": "सभी asset state store",
+      "title": "सभी Asset State Store साफ़ करें",
+      "warning": "सभी asset state store मिटा दिए जाएंगे। जो टास्क काम का समन्वय करने के लिए इस स्टोर का उपयोग करते हैं, वे अपनी सहेजी गई मेमोरी खो देंगे।"
+    },
+    "delete": "Asset State Store हटाएं",
+    "deleteWarning": "एसेट इस सहेजी गई state store प्रविष्टि को खो देगा।",
+    "edit": "Asset State Store संपादित करें",
+    "emptyState": "Asset state store ऐसे मान संग्रहीत करता है जो किसी एसेट पहचान तक सीमित होते हैं और सभी Dag रन में साझा किए जाते हैं। वर्कर Task SDK के माध्यम से asset state store में लिख सकते हैं।",
+    "lastUpdatedBy": "अंतिम बार अपडेट किया गया",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Asset State Store"
+  },
   "consumingDags": "उपभोग करने वाले डैग्स",
   "consumingTasks": "उपभोग करने वाले टास्क्स",
   "createEvent": {
@@ -26,6 +41,7 @@
     },
     "title": "{{name}} के लिए एसेट इवेंट बनाएं"
   },
+  "events": "इवेंट",
   "extra": "अतिरिक्त",
   "group": "ग्रुप",
   "lastAssetEvent": "अंतिम एसेट इवेंट",

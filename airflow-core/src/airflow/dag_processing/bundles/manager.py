@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import logging
+import os
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
@@ -29,6 +32,7 @@ from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -36,6 +40,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from sqlalchemy.orm import Session
+
+log = logging.getLogger(__name__)
 
 _example_dag_bundle_name = "example_dags"
 
@@ -104,6 +110,61 @@ def _add_example_dag_bundle(bundle_config_list: list[_ExternalBundleConfig]):
             },
         )
     )
+
+
+def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundleConfig]):
+    """
+    Add an ``example_dags`` folder of every installed provider as a bundle.
+
+    Provider locations are resolved through ``ProvidersManager`` instead of
+    walking ``airflow.providers.__path__`` so that:
+
+    - nested providers (e.g. ``apache-airflow-providers-common-sql`` whose
+      module path is ``airflow.providers.common.sql``) are discovered;
+    - providers installed outside the ``airflow.providers`` namespace package
+      are discovered via their entry point.
+    """
+    # Dedup on the resolved on-disk folder rather than the bundle name: distributions
+    # under ``airflow.providers.common.*`` use ``pkgutil.extend_path``, so when several
+    # ``common-*`` packages are installed ``airflow.providers.common.__path__`` has
+    # multiple entries and the inner loop iterates more than once. Path-based dedup
+    # only skips when the same folder is seen twice; distinct folders are preserved.
+    seen: set[str] = set()
+
+    for package_name in ProvidersManager().providers:
+        # Heuristic: derive the import path from the canonical
+        # ``apache-airflow-providers-*`` distribution name. Tracked as a follow-up
+        # to record the provider module path on ``ProviderInfo`` (see
+        # https://github.com/apache/airflow/issues/66305).
+        if package_name.startswith("apache-airflow-providers-"):
+            suffix = package_name[len("apache-airflow-providers-") :]
+            module_name = "airflow.providers." + suffix.replace("-", ".")
+        else:
+            module_name = package_name.replace("-", "_")
+        try:
+            module = importlib.import_module(module_name)
+            module_paths = list(getattr(module, "__path__", []))
+        except Exception:
+            log.exception("Could not load provider module %s for example DAG discovery", module_name)
+            continue
+
+        for module_path in module_paths:
+            example_dag_folder = os.path.join(module_path, "example_dags")
+            if not os.path.isdir(example_dag_folder):
+                continue
+            if example_dag_folder in seen:
+                continue
+            seen.add(example_dag_folder)
+            bundle_name = f"{package_name}-example-dags"
+            bundle_config_list.append(
+                _ExternalBundleConfig(
+                    name=bundle_name,
+                    classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
+                    kwargs={
+                        "path": example_dag_folder,
+                    },
+                )
+            )
 
 
 def _is_safe_bundle_url(url: str) -> bool:
@@ -191,6 +252,7 @@ class DagBundlesManager(LoggingMixin):
         bundle_config_list = _parse_bundle_config(config_list)
         if conf.getboolean("core", "LOAD_EXAMPLES"):
             _add_example_dag_bundle(bundle_config_list)
+            _add_provider_example_dags_to_bundle(bundle_config_list)
 
         for bundle_config in bundle_config_list:
             if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
@@ -209,7 +271,24 @@ class DagBundlesManager(LoggingMixin):
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
     @provide_session
-    def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
+    def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
+        """
+        Persist the configured DAG bundles into ``DagBundleModel`` rows.
+
+        This only reconciles bundle metadata, not the DAGs contained in them.
+        Parsing each bundle's DAG files and writing the resulting
+        ``DagModel`` / ``SerializedDagModel`` rows is the responsibility of
+        ``DagBag`` plus ``sync_bag_to_db`` (or, in production, the DAG
+        processor); calling this method does not trigger that work.
+
+        :param deactivate_missing: When ``True`` (the default), any bundle stored in
+            the database that is not present in this manager's config is marked
+            inactive. This is only correct when the calling process sees the
+            *complete* bundle configuration. When multiple dag-processors each run
+            with a partial config (e.g. one bundle per processor), pass ``False`` so a
+            processor does not disable bundles owned by other processors -- otherwise
+            the processors repeatedly deactivate each other and never converge.
+        """
         self.log.debug("Syncing DAG bundles to the database")
 
         def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
@@ -285,6 +364,11 @@ class DagBundlesManager(LoggingMixin):
                 )
                 bundle.teams = []
 
+        if not deactivate_missing:
+            # This process only owns a subset of the bundles, so the remaining stored
+            # bundles may well be owned by another dag-processor. Leave them alone.
+            return
+
         # Import here to avoid circular import
         from airflow.models.errors import ParseImportError
 
@@ -324,19 +408,24 @@ class DagBundlesManager(LoggingMixin):
 
         return params
 
-    def get_bundle(self, name: str, version: str | None = None) -> BaseDagBundle:
+    def get_bundle(
+        self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None
+    ) -> BaseDagBundle:
         """
         Get a DAG bundle by name.
 
         :param name: The name of the DAG bundle.
         :param version: The version of the DAG bundle you need (optional). If not provided, ``tracking_ref`` will be used instead.
+        :param version_data: Optional structured data associated with this version (e.g., S3 manifest).
 
         :return: The DAG bundle.
         """
         cfg_bundle = self._bundle_config.get(name)
         if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
-        return cfg_bundle.bundle_class(name=name, version=version, **cfg_bundle.kwargs)
+        return cfg_bundle.bundle_class(
+            name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
+        )
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """

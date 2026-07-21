@@ -112,11 +112,6 @@
     "viewInExternal": "Zobacz logi w {{name}} (próba {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "Przewiń: {{arrow}}",
-    "openGraphFilters": "Filtry zadań: Ctrl+Shift+F",
-    "toggleGroup": "Przełącz grupę: Space"
-  },
   "notFound": {
     "back": "Wróć",
     "backToDags": "Powrót do Dagów",
@@ -246,12 +241,34 @@
     "renderedTemplates": "Wyrenderowane szablony",
     "requiredActions": "Wymagane akcje",
     "runs": "Wykonania",
+    "storage": "Magazyn",
     "taskInstances": "Instancje zadań",
+    "taskStore": "Magazyn zadań",
     "tasks": "Zadania",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Zwiń wszystkie grupy zadań",
     "expandAll": "Rozwiń wszystkie grupy zadań"
+  },
+  "taskStore": {
+    "add": "Dodaj magazyn zadań",
+    "clearAll": {
+      "resource": "cały magazyn zadań",
+      "title": "Wyczyść cały magazyn zadań",
+      "warning": "Cały magazyn zadań zostanie wyczyszczony. Zadania, które używają tego magazynu do śledzenia zewnętrznej pracy, nie będą mogły jej wznowić bez ponownego uruchomienia."
+    },
+    "delete": "Usuń magazyn zadań",
+    "deleteWarning": "Zadanie utraci te zapisane dane. Jeśli zadanie używa tego klucza do śledzenia zewnętrznej pracy (np. identyfikatora zewnętrznego zadania), nie będzie mogło jej wznowić.",
+    "edit": "Edytuj magazyn zadań",
+    "emptyStore": "Magazyn zadań przechowuje wartości, które są zachowywane między ponownymi próbami. Procesy robocze mogą zapisywać do magazynu zadań za pomocą Task SDK.",
+    "expiresAt": {
+      "column": "Wygasa o",
+      "custom": "Niestandardowy",
+      "default": "Domyślny ({{interval}})",
+      "label": "Wygaśnięcie",
+      "never": "Nigdy"
+    },
+    "title": "Magazyn zadań"
   }
 }

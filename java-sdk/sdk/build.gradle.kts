@@ -17,25 +17,29 @@
  * under the License.
  */
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-}
+import java.io.File
+import java.net.URI
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 val airflowSupervisorSchemaVersion: String by project
 
 plugins {
-    kotlin("plugin.serialization") version "2.3.0"
+    `java-library`
+    `java-test-fixtures`
+    id("airflow-jvm-conventions")
+    id("airflow-publish")
     id("org.jetbrains.dokka") version "2.2.0"
     id("org.jetbrains.dokka-javadoc") version "2.2.0"
     id("org.jsonschema2pojo") version "1.2.2"
+    kotlin("plugin.serialization") version "2.3.0"
 }
 
-// TODO: Use a hosted file instead.
-val schemaInput = rootProject.file("../task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
+val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
+val schemaInput = layout.projectDirectory.file("schema/schema.json")
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
+val schemaModelsDir = layout.buildDirectory.dir("generate-resources/main/src/main/java")
 val discriminatorDir = layout.buildDirectory.dir("generated-resources/main/src/main/kotlin")
 
 dependencies {
@@ -47,7 +51,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.21.0")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.0")
-    implementation("com.squareup:javapoet:1.13.0")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.ktor:ktor-network:3.3.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
@@ -57,7 +60,6 @@ dependencies {
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.11")
 
     testImplementation(kotlin("test"))
-    testImplementation("com.google.testing.compile:compile-testing:0.23.0")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
@@ -75,7 +77,11 @@ abstract class GeneratePointersTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val srcFile = schemaFile.get().asFile
-        val outDir = targetDirectory.get().asFile.also { it.mkdirs() }
+        val outDir =
+            targetDirectory.get().asFile.also {
+                it.deleteRecursively()
+                it.mkdirs()
+            }
 
         srcFile.copyTo(outDir.resolve(srcFile.name), overwrite = true)
 
@@ -140,8 +146,9 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
                 appendLine("// Maps every wire `type` discriminator string to its generated model class.")
                 appendLine("// Generated from the Supervisor Schema; do not edit by hand.")
                 appendLine("internal object Discriminator {")
-                appendLine("    val types: Map<String, Class<*>> = mapOf(")
-                entries.forEach { appendLine("        \"${it.wireType}\" to ${it.className}::class.java,") }
+                appendLine("  val types: Map<String, Class<*>> =")
+                appendLine("    mapOf(")
+                entries.forEach { appendLine("      \"${it.wireType}\" to ${it.className}::class.java,") }
                 appendLine("    )")
                 appendLine("}")
             },
@@ -149,27 +156,93 @@ abstract class GenerateDiscriminatorTask : DefaultTask() {
     }
 }
 
+abstract class SyncSupervisorSchemaTask : DefaultTask() {
+    @get:Input
+    abstract val schemaVersion: Property<String>
+
+    @get:Input
+    abstract val baseUrl: Property<String>
+
+    @get:Internal
+    abstract val schemaFile: RegularFileProperty
+
+    private fun apiVersionOf(file: File): String =
+        if (file.exists()) {
+            com.fasterxml.jackson.databind
+                .ObjectMapper()
+                .readTree(file)
+                .path("api_version")
+                .asText()
+        } else {
+            ""
+        }
+
+    @TaskAction
+    fun sync() {
+        val file = schemaFile.get().asFile
+        val version = schemaVersion.get()
+        if (apiVersionOf(file) == version) {
+            logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
+            return
+        }
+        val url = "${baseUrl.get()}/$version.json"
+        logger.lifecycle("Refreshing Supervisor Schema with $url")
+        file.parentFile.mkdirs()
+        val tempTarget = Files.createTempFile(file.parentFile.toPath(), "schema", ".json")
+        try {
+            val connection =
+                URI(url).toURL().openConnection().apply {
+                    // Timeout values are arbitrary.
+                    connectTimeout = 30_000
+                    readTimeout = 30_000
+                }
+            connection.getInputStream().use { input ->
+                Files.copy(input, tempTarget, StandardCopyOption.REPLACE_EXISTING)
+            }
+            val downloaded = apiVersionOf(tempTarget.toFile())
+            if (downloaded != version) {
+                throw GradleException("Schema declares api_version='$downloaded' but expected '$version' ($url)")
+            }
+            Files.move(tempTarget, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            Files.deleteIfExists(tempTarget)
+        }
+    }
+}
+
+val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
+    description = "Ensure the bundled Supervisor Schema is up-to-date with the Gradle property."
+    schemaVersion = airflowSupervisorSchemaVersion
+    baseUrl = schemaBaseUrl
+    schemaFile = schemaInput
+}
+
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
+    dependsOn(syncSupervisorSchema)
     description = "Generate Discriminator to wire type strings to model classes"
-    schemaFile = layout.file(provider { schemaInput })
+    schemaFile = schemaInput
     modelPackage = jsonSchemaPackage
     targetDirectory = discriminatorDir
 }
 
 tasks.register<GeneratePointersTask>("generatePointers") {
+    dependsOn(syncSupervisorSchema)
     description = "Generate pointer files for jsonSchema2Pojo"
-    schemaFile = layout.file(provider { schemaInput })
+    schemaFile = schemaInput
     targetDirectory = pointersDir
+}
+
+val javadocJar by tasks.registering(Jar::class) {
+    description = "Assembles Javadoc JAR from Dokka output"
+    group = JavaBasePlugin.DOCUMENTATION_GROUP
+    archiveClassifier.set("javadoc")
+    from(tasks.named("dokkaGeneratePublicationJavadoc"))
 }
 
 jsonSchema2Pojo {
     setSource(listOf(pointersDir.get().asFile))
     targetPackage = jsonSchemaPackage
-    targetDirectory =
-        layout.buildDirectory
-            .dir("generate-resources/main/src/main/java")
-            .get()
-            .asFile
+    targetDirectory = schemaModelsDir.get().asFile
     setAnnotationStyle("jackson")
     dateTimeType = "java.time.OffsetDateTime"
     generateBuilders = false
@@ -185,12 +258,13 @@ jsonSchema2Pojo {
 
 sourceSets {
     main {
-        java.srcDir(layout.buildDirectory.dir("generate-resources/main/src/main/java"))
-        kotlin.srcDir(discriminatorDir)
+        java.srcDir(tasks.named("generateJsonSchema2Pojo").map { schemaModelsDir })
+        kotlin.srcDir(tasks.named("generateDiscriminator").map { discriminatorDir })
     }
 }
 
 dokka {
+    moduleVersion.set(project.version.toString())
     dokkaSourceSets.configureEach {
         // Suppress everything in 'execution' since it's implementation detail.
         perPackageOption {
@@ -200,23 +274,29 @@ dokka {
     }
 }
 
+java {
+    withSourcesJar() // Required by Maven Central.
+    // Do NOT call withJavadocJar(); we use Dokka to generate documentation. See javadocJar above.
+}
+
 tasks.named("generateJsonSchema2Pojo") {
     dependsOn("generatePointers")
 }
 
-tasks.named("compileJava") {
-    dependsOn("generateJsonSchema2Pojo")
-}
-
 tasks.named("compileKotlin") {
-    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
+    dependsOn("generateJsonSchema2Pojo")
 }
 
 tasks.named("runKtlintCheckOverMainSourceSet") {
-    dependsOn("generateJsonSchema2Pojo")
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
+}
+
+tasks.matching { it.name.startsWith("dokkaGenerate") }.configureEach {
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
 }
 
 tasks.withType<Jar> {
+    dependsOn("generateJsonSchema2Pojo", "generateDiscriminator")
     manifest {
         attributes(
             "Airflow-Supervisor-Schema-Version" to airflowSupervisorSchemaVersion,
@@ -226,4 +306,21 @@ tasks.withType<Jar> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            artifactId = "airflow-sdk"
+            from(components["java"])
+            // test-fixtures are not published to Maven Central.
+            suppressPomMetadataWarningsFor("testFixturesApiElements")
+            suppressPomMetadataWarningsFor("testFixturesRuntimeElements")
+            artifact(javadocJar)
+            pom {
+                name = "Apache Airflow Java SDK"
+                description = "Java SDK for implementing Apache Airflow task logic on the JVM."
+            }
+        }
+    }
 }

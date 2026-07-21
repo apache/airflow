@@ -33,6 +33,7 @@ import { Select } from "src/components/ui";
 import type { SearchParamsKeysType } from "src/constants/searchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
+import { useDocumentTitle } from "src/utils";
 
 import AddPoolButton from "./AddPoolButton";
 import PoolBarCard from "./PoolBarCard";
@@ -46,6 +47,8 @@ const cardDef = (): CardDef<PoolResponse> => ({
 
 export const Pools = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
+
+  useDocumentTitle(translate("common:admin.Pools"));
 
   const poolSortOptions = createListCollection({
     items: [

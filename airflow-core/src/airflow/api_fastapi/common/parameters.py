@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
 from datetime import datetime
 from enum import Enum
 from typing import (
@@ -41,6 +42,7 @@ from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.security import GetUserDep
@@ -68,6 +70,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
+from airflow.utils.sqlalchemy import JsonContains, apply_regex_query_timeout
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -229,6 +232,8 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         ``*_prefix_pattern`` query-param description.
     """
 
+    pipe_as_or: bool = True
+
     @staticmethod
     def _prefix_range_upper(term: str) -> str | None:
         """
@@ -271,7 +276,7 @@ class _PrefixPatternParam(BaseParam[str], ABC):
             return select
 
         val_str = str(self.value)
-        if "|" in val_str:
+        if self.pipe_as_or and "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
             if search_terms:
                 return select.where(or_(*(self._prefix_clause(term) for term in search_terms)))
@@ -316,16 +321,17 @@ class _SearchParam(BaseParam[str]):
         is acceptable.
     """
 
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True, pipe_as_or: bool = True) -> None:
         super().__init__(skip_none=skip_none)
         self.attribute: ColumnElement = attribute
+        self.pipe_as_or = pipe_as_or
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
 
         val_str = str(self.value)
-        if "|" in val_str:
+        if self.pipe_as_or and "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
             if search_terms:
                 return select.where(or_(*(self.attribute.ilike(f"%{term}%") for term in search_terms)))
@@ -352,9 +358,10 @@ class _PrefixSearchParam(_PrefixPatternParam):
     :class:`_PrefixPatternParam` for why).
     """
 
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True, pipe_as_or: bool = True) -> None:
         super().__init__(skip_none=skip_none)
         self.attribute: ColumnElement = attribute
+        self.pipe_as_or = pipe_as_or
 
     def _prefix_clause(self, term: str):
         lower = self._prefix_lower_bound(term)
@@ -483,10 +490,16 @@ def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
     skip_none: bool = True,
+    pipe_as_or: bool = True,
 ) -> Callable[[str | None], _SearchParam]:
+    pipe_clause = (
+        "Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
+        if pipe_as_or
+        else "The pipe `|` is matched literally, not as an OR separator. "
+    )
     DESCRIPTION = (
         "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
-        "or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
+        f"{pipe_clause}"
         "Regular expressions are **not** supported. "
         "\n\n"
         "**Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and "
@@ -498,17 +511,87 @@ def search_param_factory(
     def depends_search(
         value: str | None = Query(alias=pattern_name, default=None, description=DESCRIPTION),
     ) -> _SearchParam:
-        search_parm = _SearchParam(attribute, skip_none)
+        search_parm = _SearchParam(attribute, skip_none, pipe_as_or=pipe_as_or)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 
     return depends_search
 
 
+class _RegexParam(BaseParam[str]):
+    """
+    Filter using database-level regex matching (regexp_match).
+
+    The pattern is handed to the database's own regex engine (via SQLAlchemy's
+    ``regexp_match``), so this filter is gated behind the ``[api] regexp_query_timeout``
+    setting to contain the ReDoS attack surface: it cannot be instantiated with a value
+    unless a positive timeout is configured (which both enables the feature and bounds it).
+
+    Use :func:`regex_param_factory` to build the FastAPI dependency for this filter. That
+    dependency also applies :func:`airflow.utils.sqlalchemy.apply_regex_query_timeout` to the
+    request's session, so the query runtime is bounded automatically and callers never need to
+    remember to do it in the view.
+    """
+
+    def __init__(self, attribute: ColumnElement, value: str | None = None, skip_none: bool = True) -> None:
+        super().__init__(value=value, skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+        if value is not None and conf.getfloat("api", "regexp_query_timeout") <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Regexp query filters are disabled. "
+                "Set [api] regexp_query_timeout to a positive number of seconds to enable them.",
+            )
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute.regexp_match(self.value))
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use regex_param_factory instead, depends is not implemented.")
+
+
+_DEFAULT_REGEX_DESCRIPTION = "Filter results by matching this regular expression against the field value."
+
+
+def regex_param_factory(
+    attribute: ColumnElement,
+    pattern_name: str,
+    skip_none: bool = True,
+    description: str = _DEFAULT_REGEX_DESCRIPTION,
+) -> Callable[..., Generator[_RegexParam, None, None]]:
+    def depends_regex(
+        session: SessionDep,
+        value: str | None = Query(alias=pattern_name, default=None, description=description),
+    ) -> Generator[_RegexParam, None, None]:
+        if value is not None:
+            try:
+                re.compile(value)
+            except re.error as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid regular expression: {e}",
+                )
+        # ``__init__`` rejects the request (400) when a pattern is supplied while the feature is off.
+        param = _RegexParam(attribute, value, skip_none)
+        if value is None:
+            yield param
+            return
+        # Bound the query runtime for the whole request so a view can never forget to do it; the
+        # previous timeout is restored on teardown (after the response) before the session closes.
+        with apply_regex_query_timeout(session):
+            yield param
+
+    return depends_regex
+
+
 def prefix_search_param_factory(
     attribute: ColumnElement,
     prefix_pattern_name: str,
     skip_none: bool = True,
+    pipe_as_or: bool = True,
 ) -> Callable[[str | None], _PrefixSearchParam]:
     """
     Build a FastAPI ``Depends`` returning a :class:`_PrefixSearchParam` for prefix matching.
@@ -516,10 +599,15 @@ def prefix_search_param_factory(
     Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
     B-tree index range scan, while substring matching requires a full table scan.
     """
+    pipe_clause = (
+        "Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). "
+        if pipe_as_or
+        else "The pipe `|` is part of the prefix, not an OR separator. "
+    )
     DESCRIPTION = (
         "Prefix match — returns items whose value starts with the given string "
-        "(case-sensitive, index-friendly). Use the pipe `|` operator for OR logic "
-        "(e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) "
+        f"(case-sensitive, index-friendly). {pipe_clause}"
+        "Use `~` to match all. Wildcard characters (`%`, `_`) "
         "are treated as literal characters. Trailing non-alphanumeric characters "
         "in the prefix are stripped before matching so the range scan stays "
         "index-compatible under locale-aware collations — e.g. `test_` effectively "
@@ -530,11 +618,65 @@ def prefix_search_param_factory(
     def depends_prefix_search(
         value: str | None = Query(alias=prefix_pattern_name, default=None, description=DESCRIPTION),
     ) -> _PrefixSearchParam:
-        search_parm = _PrefixSearchParam(attribute, skip_none)
+        search_parm = _PrefixSearchParam(attribute, skip_none, pipe_as_or=pipe_as_or)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 
     return depends_prefix_search
+
+
+class _JsonKVFilter(BaseParam[dict[str, str]]):
+    """
+    Filter on a JSON column by multiple key-value pairs (AND logic).
+
+    Uses dialect-aware SQL: ``@>`` (JSONB containment, GIN-indexable) on
+    PostgreSQL, ``JSON_CONTAINS`` on MySQL, and ``JSON_EXTRACT`` on SQLite.
+    """
+
+    def __init__(
+        self,
+        attribute: ColumnElement,
+        value: dict[str, str] | None = None,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+        self.value = value
+
+    def to_orm(self, select: Select) -> Select:
+        if not self.value:
+            return select
+        return select.where(JsonContains(self.attribute, self.value))
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use json_kv_filter_factory instead.")
+
+
+def json_kv_filter_factory(
+    attribute: ColumnElement,
+    param_name: str = "extra",
+) -> Callable[[list[str]], _JsonKVFilter]:
+    DESCRIPTION = (
+        "Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). "
+        "Format: key=value (e.g. extra=region=us&extra=env=prod)."
+    )
+
+    def depends_json_kv(
+        values: list[str] = Query(alias=param_name, default_factory=list, description=DESCRIPTION),
+    ) -> _JsonKVFilter:
+        kv_dict: dict[str, str] = {}
+        for item in values:
+            if "=" not in item:
+                raise HTTPException(
+                    status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid {param_name} parameter format: {item!r}. Expected 'key=value'.",
+                )
+            k, v = item.split("=", 1)
+            kv_dict[k] = v
+        return _JsonKVFilter(attribute, kv_dict or None)
+
+    return depends_json_kv
 
 
 class SortParam(BaseParam[list[str]]):
@@ -543,7 +685,10 @@ class SortParam(BaseParam[list[str]]):
     MAX_SORT_PARAMS = 10
 
     def __init__(
-        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
+        self,
+        allowed_attrs: list[str],
+        model: Base,
+        to_replace: dict[str, str | Column | list[Column]] | None = None,
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
@@ -582,6 +727,16 @@ class SortParam(BaseParam[list[str]]):
                 replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
                 if isinstance(replacement, str):
                     lstriped_orderby = replacement
+                elif isinstance(replacement, list):
+                    # Compound sort: expand the list into multiple sort entries.
+                    # Each column's ORM key becomes its attr_name so that
+                    # row_value() can read the corresponding attribute via
+                    # getattr(row, attr_name) without further to_replace lookups.
+                    is_desc = order_by_value.startswith("-")
+                    for col in replacement:
+                        col_attr_name = col.key
+                        resolved.append((col_attr_name, col, is_desc))
+                    continue
                 else:
                     column = replacement
 
@@ -626,24 +781,33 @@ class SortParam(BaseParam[list[str]]):
         Extract the sort-key value for ``name`` from a result row.
 
         Resolves the accessor through ``to_replace`` for string aliases
-        (e.g. ``{"dag_run_id": "run_id"}``); otherwise reads ``name`` directly.
+        (e.g. ``{"dag_run_id": "run_id"}``). For column-form mappings
+        (e.g. ``{"run_after": DagRun.run_after}``), resolves through the
+        primary model's attribute so association proxies can still be used
+        for cursor values. Raises ``NotImplementedError`` when the model
+        exposes no such attribute rather than emitting a ``None`` cursor token.
         """
         if self.to_replace:
             replacement = self.to_replace.get(name)
             if isinstance(replacement, str):
                 return getattr(row, replacement, None)
-            if replacement is not None:
-                # TODO: Column-form ``to_replace`` (e.g. ``{"last_run_state": DagRun.state}``)
-                # isn't supported for cursor pagination — no endpoint that uses cursor
-                # pagination needs it today. When one does, decide how the row exposes the
-                # value (projected label on the SELECT, eagerly loaded relationship, etc.)
-                # and wire it up here. Raising loudly so a future caller doesn't silently
-                # get ``None`` cursor tokens.
-                raise NotImplementedError(
-                    f"Cursor pagination does not support column-form ``to_replace`` mapping for "
-                    f"``{name}``. Use a string alias in ``to_replace`` or sort by a primary-model "
-                    f"attribute."
-                )
+            if replacement is not None and not isinstance(replacement, list):
+                # Column-form mapping resolves through the primary model's attribute,
+                # often an association proxy onto the joined entity
+                # (``TaskInstance.run_after`` -> ``dag_run.run_after``). Fail loudly if the
+                # model exposes no such attribute, rather than emitting a ``None`` cursor token.
+                try:
+                    return getattr(row, name)
+                except AttributeError:
+                    raise NotImplementedError(
+                        f"Cursor pagination cannot resolve column-form ``to_replace`` for "
+                        f"``{name}``: the primary model exposes no such attribute. Add an "
+                        f"association proxy, use a string alias, or sort by a primary-model column."
+                    )
+            # List-form replacements are expanded in _resolve() into individual entries
+            # each using the column's own ORM key as attr_name, so ``name`` at this point
+            # is already a concrete model attribute (e.g. ``_rendered_map_index`` or
+            # ``map_index``) — fall through to the getattr below.
         return getattr(row, name, None)
 
     def get_primary_key_column(self) -> Column:
@@ -659,7 +823,10 @@ class SortParam(BaseParam[list[str]]):
         raise NotImplementedError("Use dynamic_depends, depends not implemented.")
 
     def dynamic_depends(self, default: str | Sequence[str] | None = None) -> Callable:
-        to_replace_attrs = list(self.to_replace.keys()) if self.to_replace else []
+        # Include to_replace keys that are not already in allowed_attrs to avoid
+        # duplicate entries in the spec description.
+        allowed_set = set(self.allowed_attrs)
+        to_replace_attrs = [k for k in self.to_replace if k not in allowed_set] if self.to_replace else []
 
         all_attrs = self.allowed_attrs + to_replace_attrs
 
@@ -677,7 +844,7 @@ class SortParam(BaseParam[list[str]]):
         )
 
         def inner(order_by: list[str] = _order_by_query) -> SortParam:
-            return self.set_value(order_by)
+            return SortParam(self.allowed_attrs, self.model, self.to_replace).set_value(order_by)
 
         return inner
 
@@ -1220,7 +1387,7 @@ class _PendingActionsFilter(BaseParam[bool]):
             .join(TaskInstance, HITLDetail.ti_id == TaskInstance.id)
             .where(
                 HITLDetail.responded_at.is_(None),
-                TaskInstance.state == TaskInstanceState.DEFERRED,
+                TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
             )
             .where(TaskInstance.dag_id == DagModel.dag_id)
             .scalar_subquery()
@@ -1242,11 +1409,42 @@ class _PendingActionsFilter(BaseParam[bool]):
 
 QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
 
+
+class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
+    """Filter Dags that have any DagRun in the given state, not only the latest one."""
+
+    # Only these states have a partial index on dag_run; others would force a full table scan.
+    SUPPORTED_STATES = (DagRunState.QUEUED, DagRunState.RUNNING)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        run_subquery = sql_select(DagRun.dag_id).where(DagRun.state == self.value).distinct()
+        return select.where(DagModel.dag_id.in_(run_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        dag_run_state: DagRunState | None = Query(
+            None,
+            description="Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.",
+        ),
+    ) -> _AnyDagRunStateFilter:
+        if dag_run_state is not None and dag_run_state not in cls.SUPPORTED_STATES:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"dag_run_state only supports {[state.value for state in cls.SUPPORTED_STATES]}.",
+            )
+        return cls().set_value(dag_run_state)
+
+
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
     FilterParam[DagRunState | None],
     Depends(filter_param_factory(DagRun.state, DagRunState | None, filter_name="last_dag_run_state")),
 ]
+QueryAnyDagRunStateFilter = Annotated[_AnyDagRunStateFilter, Depends(_AnyDagRunStateFilter.depends)]
 
 
 def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
@@ -1308,11 +1506,14 @@ QueryDagRunTriggeringUserPrefixSearch = Annotated[
     Depends(prefix_search_param_factory(DagRun.triggering_user_name, "triggering_user_prefix")),
 ]
 QueryDagRunPartitionKeySearch = Annotated[
-    _SearchParam, Depends(search_param_factory(DagRun.partition_key, "partition_key_pattern"))
+    _SearchParam,
+    Depends(search_param_factory(DagRun.partition_key, "partition_key_pattern", pipe_as_or=False)),
 ]
 QueryDagRunPartitionKeyPrefixSearch = Annotated[
     _PrefixSearchParam,
-    Depends(prefix_search_param_factory(DagRun.partition_key, "partition_key_prefix_pattern")),
+    Depends(
+        prefix_search_param_factory(DagRun.partition_key, "partition_key_prefix_pattern", pipe_as_or=False)
+    ),
 ]
 
 # DagTags
@@ -1534,15 +1735,42 @@ QueryUriPatternSearch = Annotated[_SearchParam, Depends(search_param_factory(Ass
 QueryUriPrefixPatternSearch = Annotated[
     _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.uri, "uri_prefix_pattern"))
 ]
+QueryUriExactMatch = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            AssetModel.uri,
+            list[str],
+            FilterOptionEnum.ANY_EQUAL,
+            filter_name="uri",
+            default_factory=list,
+            description=(
+                "Exact-match filter on the full asset URI. Compiles to an indexed equality "
+                "comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match "
+                "multiple assets."
+            ),
+        )
+    ),
+]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))
 ]
 QueryAssetAliasNamePrefixPatternSearch = Annotated[
     _PrefixSearchParam, Depends(prefix_search_param_factory(AssetAliasModel.name, "name_prefix_pattern"))
 ]
+QueryAssetEventPartitionKeyFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(AssetEvent.partition_key, str | None, filter_name="partition_key")),
+]
+QueryAssetEventPartitionKeyRegex = Annotated[
+    _RegexParam,
+    # ``function`` scope so the dependency can depend on the (function-scoped) session it bounds.
+    Depends(regex_param_factory(AssetEvent.partition_key, "partition_key_regexp_pattern"), scope="function"),
+]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
 ]
+QueryAssetEventExtraFilter = Annotated[_JsonKVFilter, Depends(json_kv_filter_factory(AssetEvent.extra))]
 QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
     FilterParam[bool | None],
     Depends(
@@ -1597,11 +1825,12 @@ state_priority: list[None | TaskInstanceState] = [
     TaskInstanceState.UPSTREAM_FAILED,
     TaskInstanceState.UP_FOR_RETRY,
     TaskInstanceState.UP_FOR_RESCHEDULE,
-    TaskInstanceState.QUEUED,
-    TaskInstanceState.SCHEDULED,
-    TaskInstanceState.DEFERRED,
     TaskInstanceState.RUNNING,
     TaskInstanceState.RESTARTING,
+    TaskInstanceState.DEFERRED,
+    TaskInstanceState.AWAITING_INPUT,
+    TaskInstanceState.QUEUED,
+    TaskInstanceState.SCHEDULED,
     None,
     TaskInstanceState.SUCCESS,
     TaskInstanceState.SKIPPED,
@@ -1734,4 +1963,26 @@ QueryParseImportErrorFilenamePatternSearch = Annotated[
 QueryParseImportErrorFilenamePrefixPatternSearch = Annotated[
     _PrefixSearchParam,
     Depends(prefix_search_param_factory(ParseImportError.filename, "filename_prefix_pattern")),
+]
+QueryParseImportErrorFilenameFilter = Annotated[
+    FilterParam,
+    Depends(
+        filter_param_factory(
+            ParseImportError.filename,
+            str | None,
+            filter_name="filename",
+            description="Exact filename match. Returns only the import error for this specific file path.",
+        )
+    ),
+]
+QueryParseImportErrorBundleNameFilter = Annotated[
+    FilterParam,
+    Depends(
+        filter_param_factory(
+            ParseImportError.bundle_name,
+            str | None,
+            filter_name="bundle_name",
+            description="Exact bundle name match. Returns only import errors from this specific bundle.",
+        )
+    ),
 ]

@@ -204,6 +204,8 @@ class KubernetesPodOperator(BaseOperator):
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
+    :param xcom_sidecar_container_security_context: security options the xcom sidecar container should
+        run with. Overrides the value configured on the Kubernetes connection.
     :param dnspolicy: dnspolicy for the pod.
     :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
     :param hostname: hostname for the pod. (templated)
@@ -343,6 +345,7 @@ class KubernetesPodOperator(BaseOperator):
         tolerations: list[k8s.V1Toleration] | None = None,
         security_context: k8s.V1PodSecurityContext | dict | None = None,
         container_security_context: k8s.V1SecurityContext | dict | None = None,
+        xcom_sidecar_container_security_context: k8s.V1SecurityContext | dict | None = None,
         dnspolicy: str | None = None,
         dns_config: k8s.V1PodDNSConfig | None = None,
         hostname: str | None = None,
@@ -431,6 +434,7 @@ class KubernetesPodOperator(BaseOperator):
         )
         self.security_context = security_context or {}
         self.container_security_context = container_security_context
+        self.xcom_sidecar_container_security_context = xcom_sidecar_container_security_context
         self.dnspolicy = dnspolicy
         self.dns_config = dns_config
         self.hostname = hostname
@@ -725,9 +729,9 @@ class KubernetesPodOperator(BaseOperator):
                     operator=self,
                 )
 
-            self.await_init_containers_completion(pod=self.pod)
-
             self.await_pod_start(pod=self.pod)
+
+            self.await_init_containers_completion(pod=self.pod)
             if self.callbacks:
                 pod = self.find_pod(self.pod.metadata.namespace, context=context)
                 for callback in self.callbacks:
@@ -1228,12 +1232,13 @@ class KubernetesPodOperator(BaseOperator):
         istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
+        should_keep = self.on_finish_action in {
+            OnFinishAction.KEEP_POD,
+            OnFinishAction.DELETE_ACTIVE_POD,
+        }
+
         # if the pod fails or success, but we don't want to delete it
-        if (
-            pod_phase != PodPhase.SUCCEEDED
-            or self.on_finish_action == OnFinishAction.KEEP_POD
-            or self.on_finish_action == OnFinishAction.DELETE_ACTIVE_POD
-        ):
+        if pod_phase != PodPhase.SUCCEEDED or should_keep:
             self.patch_already_checked(remote_pod, reraise=False)
 
         if istio_enabled or self.do_xcom_push:
@@ -1336,7 +1341,18 @@ class KubernetesPodOperator(BaseOperator):
         if not pod:
             return False
 
-        remote_pod = self.pod_manager.read_pod(pod)
+        try:
+            remote_pod = self.pod_manager.read_pod(pod)
+        except ApiException as e:
+            if e.status == 404:
+                # Pod was likely GC'd between the trigger firing and re-entry
+                log.warning(
+                    "Pod %s/%s not found during istio check.",
+                    pod.metadata.namespace,
+                    pod.metadata.name,
+                )
+                return False
+            raise e
 
         return any(container.name == self.ISTIO_CONTAINER_NAME for container in remote_pod.spec.containers)
 
@@ -1554,6 +1570,11 @@ class KubernetesPodOperator(BaseOperator):
                 pod,
                 sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
                 sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
+                sidecar_container_security_context=(
+                    self.xcom_sidecar_container_security_context
+                    if self.xcom_sidecar_container_security_context is not None
+                    else self.hook.get_xcom_sidecar_container_security_context()
+                ),
             )
 
         labels = self._get_ti_pod_labels(context)

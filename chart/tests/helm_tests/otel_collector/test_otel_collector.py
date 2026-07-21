@@ -400,6 +400,25 @@ class TestOtelCollectorService:
         docs = render_chart(values={"otelCollector": {"tracesEnabled": True}}, show_only=[SERVICE_TEMPLATE])
         assert "annotations" not in jmespath.search("metadata", docs[0])
 
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "otelCollector": {"tracesEnabled": True},
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=[SERVICE_TEMPLATE],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+        docs = render_chart(
+            values={"otelCollector": {"tracesEnabled": True}},
+            show_only=[SERVICE_TEMPLATE],
+        )
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
 
 class TestOtelCollectorServiceAccount:
     def test_default_create(self):

@@ -94,6 +94,7 @@ def get_provider_info():
                 "integration-name": "Amazon Elastic Container Registry (ECR)",
                 "external-doc-url": "https://aws.amazon.com/ecr/",
                 "logo": "/docs/integration-logos/Amazon-Elastic-Container-Registry_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ecr.rst"],
                 "tags": ["aws"],
             },
             {
@@ -373,6 +374,13 @@ def get_provider_info():
                 "tags": ["aws"],
             },
             {
+                "integration-name": "Amazon Neptune Analytics",
+                "external-doc-url": "https://docs.aws.amazon.com/neptune-analytics/latest/userguide/gettingStarted.html",
+                "logo": "/docs/integration-logos/Amazon-Neptune_64.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/neptune_analytics.rst"],
+                "tags": ["aws"],
+            },
+            {
                 "integration-name": "Amazon S3 Vectors",
                 "external-doc-url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html",
                 "logo": "/docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png",
@@ -416,6 +424,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon EC2",
                 "python-modules": ["airflow.providers.amazon.aws.operators.ec2"],
+            },
+            {
+                "integration-name": "Amazon Elastic Container Registry (ECR)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.ecr"],
             },
             {
                 "integration-name": "Amazon ECS",
@@ -533,7 +545,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon Neptune",
-                "python-modules": ["airflow.providers.amazon.aws.operators.neptune"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.operators.neptune",
+                    "airflow.providers.amazon.aws.operators.neptune_analytics",
+                ],
             },
             {
                 "integration-name": "Amazon S3 Vectors",
@@ -878,7 +893,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon Neptune",
-                "python-modules": ["airflow.providers.amazon.aws.hooks.neptune"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.hooks.neptune",
+                    "airflow.providers.amazon.aws.hooks.neptune_analytics",
+                ],
             },
         ],
         "bundles": [
@@ -991,7 +1009,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon Neptune",
-                "python-modules": ["airflow.providers.amazon.aws.triggers.neptune"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.triggers.neptune",
+                    "airflow.providers.amazon.aws.triggers.neptune_analytics",
+                ],
             },
             {
                 "integration-name": "AWS Database Migration Service",
@@ -1153,6 +1174,9 @@ def get_provider_info():
             "airflow.providers.amazon.aws.links.datasync.DataSyncTaskExecutionLink",
             "airflow.providers.amazon.aws.links.ec2.EC2InstanceLink",
             "airflow.providers.amazon.aws.links.ec2.EC2InstanceDashboardLink",
+            "airflow.providers.amazon.aws.links.neptune_analytics.NeptuneGraphLink",
+            "airflow.providers.amazon.aws.links.neptune_analytics.NeptuneImportTaskLink",
+            "airflow.providers.amazon.aws.links.ec2.VpcEndpointLink",
         ],
         "connection-types": [
             {

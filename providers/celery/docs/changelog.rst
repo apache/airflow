@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+3.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Honor json_logs config in Celery worker startup (#68916)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery worker JSON logging config for teams (#69139)``
+
+Misc
+~~~~
+
+* ``Make PostgreSQL SQLAlchemy driver explicit (postgresql+psycopg2://) (#68314)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify Redis maintenance for CeleryExecutor in docs (#67393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Test fix in main Celery worker tests leaking logging handler onto captured stdout (#69163)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+
+3.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Celery worker mp_start_method config to curb Python 3.14 memory (#69015)``
+
+Misc
+~~~~
+
+* ``Cache Celery apps when publishing workloads (#67127)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.20.0
 ......
 

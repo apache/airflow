@@ -1,4 +1,24 @@
 {
+  "alerts": {
+    "seeLessContext": "कम दिखाएं",
+    "seeMoreContext": "अधिक दिखाएं",
+    "showMoreAlerts_one": "+{{count}} और अलर्ट",
+    "showMoreAlerts_other": "+{{count}} और अलर्ट्स"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "कोई आगामी डेडलाइन नहीं",
+      "title": "आगामी"
+    },
+    "recentlyMissed": {
+      "empty": "कोई छूटी हुई डेडलाइन नहीं",
+      "title": "छूटी हुई डेडलाइन"
+    },
+    "showMore": "और दिखाएं",
+    "title": "डेडलाइन"
+  },
+  "deferredSlotsNotCounted": "स्लॉट में नहीं गिने गए डिफर्ड: {{count}}",
+  "deferredSlotsNotCountedTooltip": "बार में दिखाए गए डिफर्ड टास्क पूल स्लॉट के विरुद्ध गिने जाते हैं। बार के नीचे दिखाए गए डिफर्ड टास्क उन पूल से हैं जो डिफर्ड टास्क को स्लॉट के विरुद्ध नहीं गिनते।",
   "favorite": {
     "favoriteDags_one": "पहला {{count}} पसंदीदा डैग",
     "favoriteDags_other": "पहले {{count}} पसंदीदा डैग्स",

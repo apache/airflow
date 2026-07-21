@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import datetime
 import json
 import logging
@@ -24,12 +25,17 @@ from typing import TYPE_CHECKING, Any
 import requests
 
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
-from airflow.utils import timezone
+from airflow.providers.common.compat.openlineage.utils.spark import (
+    inject_parent_job_information_into_spark_properties,
+    inject_transport_information_into_spark_properties,
+)
+from airflow.providers.common.compat.sdk import timezone
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import RunEvent
     from openlineage.client.facet_v2 import JobFacet
 
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.databricks.hooks.databricks import DatabricksHook
     from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
@@ -320,3 +326,136 @@ def emit_openlineage_events_for_databricks_queries(
 
     log.info("OpenLineage has successfully finished processing information about Databricks queries.")
     return
+
+
+def _is_openlineage_provider_accessible() -> bool:
+    """
+    Check if the OpenLineage provider is accessible.
+
+    This function attempts to import the necessary OpenLineage modules and checks if the provider
+    is enabled and the listener is available.
+
+    Returns:
+        True if the OpenLineage provider is accessible, False otherwise.
+    """
+    try:
+        from airflow.providers.openlineage.conf import is_disabled
+        from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
+    except ImportError:
+        log.debug("OpenLineage provider could not be imported.")
+        return False
+
+    if is_disabled():
+        log.debug("OpenLineage provider is disabled.")
+        return False
+
+    if not get_openlineage_listener():
+        log.debug("OpenLineage listener could not be found.")
+        return False
+
+    return True
+
+
+def _extract_new_clusters_from_databricks_job(job: dict) -> list[dict]:
+    """
+    Collect every ``new_cluster`` definition that can carry Spark properties in a Databricks job.
+
+    A ``runs/submit`` payload can define a ``new_cluster`` at the top level (single-task form), inline
+    on each task (``tasks[].new_cluster``), inside a ``for_each_task``'s nested task
+    (``tasks[].for_each_task.task.new_cluster``), or as a shared job cluster
+    (``job_clusters[].new_cluster``) referenced by tasks through ``job_cluster_key``. Tasks running on
+    an ``existing_cluster_id`` have no ``new_cluster`` to mutate and are skipped.
+
+    Args:
+        job: The Databricks ``runs/submit`` job definition.
+
+    Returns:
+        The list of ``new_cluster`` dicts found in the job definition.
+    """
+    new_clusters = []
+    if isinstance(job.get("new_cluster"), dict):
+        new_clusters.append(job["new_cluster"])
+    for key in ("tasks", "job_clusters"):
+        if isinstance(job.get(key), list):
+            new_clusters.extend(
+                item["new_cluster"] for item in job[key] if isinstance(item.get("new_cluster"), dict)
+            )
+    if isinstance(job.get("tasks"), list):
+        for task in job["tasks"]:
+            # ``for_each_task`` wraps a nested task that can carry its own ``new_cluster``.
+            for_each = task.get("for_each_task") if isinstance(task, dict) else None
+            nested = for_each.get("task") if isinstance(for_each, dict) else None
+            if isinstance(nested, dict) and isinstance(nested.get("new_cluster"), dict):
+                new_clusters.append(nested["new_cluster"])
+    return new_clusters
+
+
+def inject_openlineage_properties_into_databricks_job(
+    job: dict, context: Context, inject_parent_job_info: bool, inject_transport_info: bool
+) -> dict:
+    """
+    Inject OpenLineage properties into a Databricks job definition.
+
+    This function does not remove existing configurations or modify the job definition in any way,
+     except to add the required OpenLineage properties if they are not already present.
+
+    The entire properties injection process will be skipped if any condition is met:
+        - The OpenLineage provider is not accessible.
+        - The job has no ``new_cluster`` definition to inject Spark properties into (e.g. it only uses
+          an ``existing_cluster_id``, whose Spark configuration is fixed at cluster creation time).
+        - Both `inject_parent_job_info` and `inject_transport_info` are set to False.
+
+    Additionally, specific information will not be injected if relevant OpenLineage properties already
+    exist.
+
+    Parent job information will not be injected if:
+        - Any property prefixed with `spark.openlineage.parent` exists.
+        - `inject_parent_job_info` is False.
+    Transport information will not be injected if:
+        - Any property prefixed with `spark.openlineage.transport` exists.
+        - `inject_transport_info` is False.
+
+    Args:
+        job: The original Databricks ``runs/submit`` job definition.
+        context: The Airflow context in which the job is running.
+        inject_parent_job_info: Flag indicating whether to inject parent job information.
+        inject_transport_info: Flag indicating whether to inject transport information.
+
+    Returns:
+        The modified job definition with OpenLineage properties injected, if applicable.
+    """
+    if not inject_parent_job_info and not inject_transport_info:
+        log.debug("Automatic injection of OpenLineage information is disabled.")
+        return job
+
+    if not _is_openlineage_provider_accessible():
+        log.warning(
+            "Could not access OpenLineage provider for automatic OpenLineage "
+            "properties injection. No action will be performed."
+        )
+        return job
+
+    job = copy.deepcopy(job)
+    new_clusters = _extract_new_clusters_from_databricks_job(job)
+    if not new_clusters:
+        log.debug(
+            "Could not find a Databricks `new_cluster` definition for automatic OpenLineage "
+            "properties injection. No action will be performed."
+        )
+        return job
+
+    for new_cluster in new_clusters:
+        properties = new_cluster.get("spark_conf", {})
+        if inject_parent_job_info:
+            log.debug("Injecting OpenLineage parent job information into Spark properties.")
+            properties = inject_parent_job_information_into_spark_properties(
+                properties=properties, context=context
+            )
+        if inject_transport_info:
+            log.debug("Injecting OpenLineage transport information into Spark properties.")
+            properties = inject_transport_information_into_spark_properties(
+                properties=properties, context=context
+            )
+        new_cluster["spark_conf"] = properties
+
+    return job

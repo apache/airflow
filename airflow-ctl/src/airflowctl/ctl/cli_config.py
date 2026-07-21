@@ -24,6 +24,7 @@ import argparse
 import ast
 import datetime
 import inspect
+import json
 import os
 import sys
 from argparse import Namespace
@@ -195,6 +196,19 @@ def string_lower_type(val):
     return val.strip().lower()
 
 
+def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
+    """Parse JSON object argument."""
+    if isinstance(val, dict):
+        return val
+    try:
+        parsed = json.loads(val)
+    except json.JSONDecodeError as e:
+        raise argparse.ArgumentTypeError(f"invalid JSON object: {val!r}") from e
+    if not isinstance(parsed, dict):
+        raise argparse.ArgumentTypeError(f"expected JSON object: {val!r}")
+    return parsed
+
+
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
     """Load the help texts yaml for the auto-generated commands."""
     help_texts_path = Path(__file__).parent / "help_texts.yaml"
@@ -265,7 +279,25 @@ ARG_AUTH_PASSWORD = Arg(
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
-    help="The Dag ID of the Dag to pause or unpause",
+    help="The Dag ID",
+)
+ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
+    flags=("logical_date_or_run_id",),
+    type=str,
+    help="The logical date with a timezone offset or run ID of the Dag run",
+)
+
+# Task Commands Args
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -511,11 +543,11 @@ class CommandFactory:
             "str": str,
             "bytes": bytes,
             "list": list,
-            "dict": dict,
+            "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
             "datetime.datetime": datetime.datetime,
-            "dict[str, typing.Any]": dict,
+            "dict[str, typing.Any]": json_dict_type,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
@@ -978,6 +1010,15 @@ DAG_COMMANDS = (
         ),
     ),
     ActionCommand(
+        name="state",
+        help="Get the status of a Dag run",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
+        ),
+    ),
+    ActionCommand(
         name="unpause",
         help="Unpause a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.unpause"),
@@ -1001,6 +1042,24 @@ POOL_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
         args=(
             ARG_FILE,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
+TASK_COMMANDS = (
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get the status of all task instances in a Dag run",
+        description=(
+            "Get the status of all task instances in a Dag run. "
+            "Select the run with either run_id or --logical-date (pass exactly one)."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
             ARG_OUTPUT,
         ),
     ),
@@ -1041,6 +1100,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
     ),
     ActionCommand(
         name="version",

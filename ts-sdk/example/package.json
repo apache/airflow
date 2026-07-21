@@ -1,0 +1,19 @@
+{
+  "name": "@apache-airflow/ts-sdk-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "airflow-ts-pack src/main.ts --outdir dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@apache-airflow/ts-sdk": "file:.."
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "esbuild": "^0.28.1",
+    "typescript": "^6.0.2"
+  }
+}

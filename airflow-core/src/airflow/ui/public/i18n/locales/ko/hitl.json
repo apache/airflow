@@ -24,6 +24,20 @@
     "success": "{{taskId}} 응답 성공",
     "title": "휴먼 태스크 인스턴스 - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "세부 정보를 보려면 필수 작업을 선택하세요"
+    },
+    "list": {
+      "completedRequiredActions": "완료된 필수 작업 ({{count}})",
+      "loadError": "필수 작업을 로드하지 못했습니다",
+      "loadingActions": "필수 작업 로드 중...",
+      "pendingRequiredActions": "대기 중인 필수 작업 ({{count}})"
+    },
+    "openReviewDrawer": "검토 패널 열기",
+    "pageLimitHint": "여기에는 처음 일부 작업만 표시됩니다. 전체를 보려면 \"$t(review.viewAll)\"를 사용하세요.",
+    "viewAll": "모든 필수 작업 보기"
+  },
   "state": {
     "approvalReceived": "승인 수신됨",
     "approvalRequired": "승인 필요",

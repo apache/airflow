@@ -35,9 +35,7 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-    )
+    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -98,6 +96,11 @@ class TestLLMSchemaCompareOperator:
                 {"data_sources": [_make_ds_config()]},
                 "at-least two combinations",
                 id="one_datasource_only",
+            ),
+            pytest.param(
+                {"require_approval": True},
+                "require_approval=True is not supported",
+                id="require_approval",
             ),
         ],
     )

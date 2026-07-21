@@ -23,13 +23,14 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.ByteWriteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
-import kotlin.system.exitProcess
 
 data class IncomingFrame(
   val id: Int,
@@ -57,6 +58,7 @@ class CoordinatorComm(
 
   private val nextId = AtomicInt(0)
   private var shutDownRequested = false
+  private val commMutex = Mutex()
 
   suspend fun startProcessing() {
     while (!shutDownRequested) {
@@ -101,12 +103,9 @@ class CoordinatorComm(
   suspend fun handleIncoming(frame: IncomingFrame) {
     when (val request = frame.body) {
       null -> {}
-      is ErrorResponse -> {
-        println("Error!! id=${frame.id} [${request.error}] ${request.detail}") // TODO: Handle error.
-        exitProcess(1)
-      }
+      is ErrorResponse -> throw ApiError("[${request.error}] ${request.detail}")
       is StartupDetails -> {
-        sendMessage(frame.id, runTask(bundle, request, this))
+        communicate<Unit>(runTask(bundle, request, this))
         shutDownRequested = true
       }
     }
@@ -114,17 +113,21 @@ class CoordinatorComm(
 
   @Throws(ApiError::class)
   suspend fun communicateImpl(body: Any): Any {
-    var frame: IncomingFrame? = null
+    val requestId = nextId.fetchAndAdd(1)
+    return commMutex.withLock {
+      var frame: IncomingFrame? = null
 
-    suspend fun handle(f: IncomingFrame) {
-      frame = f
+      suspend fun handle(f: IncomingFrame) {
+        frame = f
+      }
+      sendMessage(requestId, body)
+      processOnce(::handle)
+      val received = frame ?: throw ApiError("No response received")
+      if (received.id != requestId) {
+        throw ApiError("response id ${received.id} does not match request id $requestId")
+      }
+      received.body ?: Unit
     }
-    sendMessage(nextId.fetchAndAdd(1), body)
-    processOnce(::handle)
-    if (frame == null) {
-      throw ApiError("No response received")
-    }
-    return frame.body ?: Unit
   }
 
   @Throws(ApiError::class)

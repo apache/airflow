@@ -25,19 +25,26 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.llm_file_analysis import LLMFileAnalysisOperator
 from airflow.providers.common.ai.utils.file_analysis import FileAnalysisRequest
+from airflow.providers.common.compat.sdk import TaskDeferred
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
+    # against whichever pause signal the running core uses.
+    from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
+else:
+    ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
 
 try:
-    from airflow.sdk.serde import allow_class
-
-    _allow_class: object | None = allow_class
+    from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
 except ImportError:
-    _allow_class = None
+    _CORE_WALKER = False
 
-requires_allow_class = pytest.mark.skipif(
-    _allow_class is None,
-    reason="Requires airflow.sdk.serde.allow_class (Airflow with typed-XCom support).",
+requires_typed_xcom = pytest.mark.skipif(
+    not _CORE_WALKER,
+    reason="Requires a core with the worker-side deserialization-class walk.",
 )
 
 
@@ -48,7 +55,7 @@ class Summary(BaseModel):
 def _make_mock_run_result(output):
     mock_result = MagicMock(spec=["output", "usage", "response", "all_messages"])
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
+    mock_result.usage = MagicMock(
         spec=["requests", "tool_calls", "input_tokens", "output_tokens", "total_tokens"],
         requests=1,
         tool_calls=0,
@@ -119,7 +126,7 @@ class TestLLMFileAnalysisOperator:
         )
         mock_agent.run_sync.assert_called_once_with("prepared prompt", usage_limits=None)
 
-    @requires_allow_class
+    @requires_typed_xcom
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
@@ -145,6 +152,34 @@ class TestLLMFileAnalysisOperator:
 
         assert isinstance(result, Summary)
         assert result.findings == ["error spike"]
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    @patch(
+        "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
+    )
+    def test_execute_serialize_output_returns_dict(self, mock_build_request, mock_hook_cls):
+        """serialize_output=True dumps the BaseModel to a dict on the wire."""
+        mock_build_request.return_value = FileAnalysisRequest(
+            user_content="prepared prompt",
+            resolved_paths=["/tmp/app.log"],
+            total_size_bytes=10,
+        )
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent.run_sync.return_value = _make_mock_run_result(Summary(findings=["error spike"]))
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMFileAnalysisOperator(
+            task_id="test",
+            prompt="Summarize the file",
+            llm_conn_id="my_llm",
+            file_path="/tmp/app.log",
+            output_type=Summary,
+            serialize_output=True,
+        )
+        result = op.execute(context={})
+
+        assert result == {"findings": ["error spike"]}
+        assert not isinstance(result, Summary)
 
     @patch(
         "airflow.providers.common.ai.operators.llm_file_analysis.build_file_analysis_request", autospec=True
@@ -182,8 +217,6 @@ class TestLLMFileAnalysisOperatorApproval:
     def test_execute_with_approval_defers(
         self, mock_build_request, mock_hook_cls, mock_upsert, mock_trigger_cls
     ):
-        from airflow.providers.common.compat.sdk import TaskDeferred
-
         mock_build_request.return_value = FileAnalysisRequest(
             user_content="prepared prompt",
             resolved_paths=["/tmp/app.log"],
@@ -202,7 +235,7 @@ class TestLLMFileAnalysisOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.method_name == "execute_complete"
@@ -218,8 +251,6 @@ class TestLLMFileAnalysisOperatorApproval:
     def test_execute_with_approval_defers_structured_output_as_json(
         self, mock_build_request, mock_hook_cls, mock_upsert, mock_trigger_cls
     ):
-        from airflow.providers.common.compat.sdk import TaskDeferred
-
         mock_build_request.return_value = FileAnalysisRequest(
             user_content="prepared prompt",
             resolved_paths=["/tmp/app.log"],
@@ -238,13 +269,13 @@ class TestLLMFileAnalysisOperatorApproval:
             require_approval=True,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=_make_context())
 
         assert exc_info.value.kwargs["generated_output"] == '{"findings":["error spike"]}'
         mock_upsert.assert_called_once()
 
-    @requires_allow_class
+    @requires_typed_xcom
     def test_execute_complete_with_approval_restores_structured_output(self):
         op = LLMFileAnalysisOperator(
             task_id="approval_complete_test",
@@ -261,7 +292,7 @@ class TestLLMFileAnalysisOperatorApproval:
         assert isinstance(result, Summary)
         assert result.findings == ["error spike"]
 
-    @requires_allow_class
+    @requires_typed_xcom
     def test_execute_complete_with_approval_restores_modified_structured_output(self):
         op = LLMFileAnalysisOperator(
             task_id="approval_complete_modified_test",
@@ -292,8 +323,6 @@ class TestLLMFileAnalysisOperatorApproval:
     def test_execute_with_approval_timeout(
         self, mock_build_request, mock_hook_cls, mock_upsert, mock_trigger_cls
     ):
-        from airflow.providers.common.compat.sdk import TaskDeferred
-
         mock_build_request.return_value = FileAnalysisRequest(
             user_content="prepared prompt",
             resolved_paths=["/tmp/app.log"],
@@ -313,7 +342,7 @@ class TestLLMFileAnalysisOperatorApproval:
             approval_timeout=timeout,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=_make_context())
 
         assert exc_info.value.timeout == timeout

@@ -21,6 +21,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from pydantic import BaseModel
+
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.file_analysis import build_file_analysis_request
 from airflow.providers.common.ai.utils.logging import log_run_summary
@@ -127,7 +129,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
+        agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self._build_system_prompt(),
             **self.agent_params,
@@ -138,6 +140,13 @@ class LLMFileAnalysisOperator(LLMOperator):
 
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
+
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            # Honour ``serialize_output=True`` and the older-Airflow fallback,
+            # matching ``LLMOperator.execute``. ``LLMFileAnalysisOperator``
+            # overrides ``execute`` rather than calling ``super().execute()``,
+            # so the dump step has to be repeated here.
+            output = output.model_dump()
 
         return output
 

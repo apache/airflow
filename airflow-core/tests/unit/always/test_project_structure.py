@@ -97,7 +97,6 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/triggers/test_kubernetes_pod.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
-            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_xcom_sidecar.py",
             "providers/common/sql/tests/unit/common/sql/datafusion/test_base.py",
             "providers/common/sql/tests/unit/common/sql/datafusion/test_exceptions.py",
             "providers/common/ai/tests/unit/common/ai/test_exceptions.py",
@@ -136,9 +135,6 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/test_security_manager.py",
             "providers/fab/tests/unit/fab/www/test_session.py",
             "providers/fab/tests/unit/fab/www/test_views.py",
-            "providers/google/tests/unit/google/cloud/fs/test_gcs.py",
-            "providers/google/tests/unit/google/cloud/links/test_base.py",
-            "providers/google/tests/unit/google/cloud/links/test_bigquery.py",
             "providers/google/tests/unit/google/cloud/links/test_bigquery_dts.py",
             "providers/google/tests/unit/google/cloud/links/test_bigtable.py",
             "providers/google/tests/unit/google/cloud/links/test_cloud_build.py",
@@ -148,7 +144,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_cloud_tasks.py",
             "providers/google/tests/unit/google/cloud/links/test_compute.py",
             "providers/google/tests/unit/google/cloud/links/test_data_loss_prevention.py",
-            "providers/google/tests/unit/google/cloud/links/test_datacatalog.py",
             "providers/google/tests/unit/google/cloud/links/test_dataflow.py",
             "providers/google/tests/unit/google/cloud/links/test_dataform.py",
             "providers/google/tests/unit/google/cloud/links/test_datafusion.py",
@@ -169,7 +164,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_hyperparameter_tuning_job.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_model_service.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_pipeline_job.py",
-            "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_ray.py",
             "providers/google/tests/unit/google/cloud/sensors/vertex_ai/test_feature_store.py",
             "providers/google/tests/unit/google/cloud/transfers/test_bigquery_to_sql.py",
             "providers/google/tests/unit/google/cloud/transfers/test_presto_to_gcs.py",
@@ -540,6 +534,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
 
     BASE_CLASSES = {
         "airflow.providers.amazon.aws.operators.base_aws.AwsBaseOperator",
+        "airflow.providers.amazon.aws.operators.glue_crawler._GlueCrawlerBaseOperator",
         "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
         "airflow.providers.amazon.aws.sensors.base_aws.AwsBaseSensor",
@@ -569,6 +564,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     }
 
     DEPRECATED_CLASSES = {
+        "airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator",
         "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
     }
 

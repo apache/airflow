@@ -16,12 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
 
+from airflow.plugins_manager import AirflowPlugin
+
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
 
@@ -34,31 +39,39 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                15,
+                19,
                 [
                     "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
+                    "business_day_window_plugin",
                     "databricks_workflow",
                     "decreasing_priority_weight_strategy_plugin",
                     "edge_executor",
                     "hitl_review",
                     "hive",
+                    "kafka_event_producer",
                     "plugin-a",
                     "plugin-b",
                     "plugin-c",
                     "postload",
+                    "prefix_strip_mapper_plugin",
                     "priority_weight_strategy_plugin",
+                    "scheduled_runtime_partition_timetable_plugin",
                     "test_plugin",
                     "workday_timetable_plugin",
                 ],
             ),
             (
                 {"limit": 3, "offset": 3},
-                15,
-                ["databricks_workflow", "decreasing_priority_weight_strategy_plugin", "edge_executor"],
+                19,
+                [
+                    "business_day_window_plugin",
+                    "databricks_workflow",
+                    "decreasing_priority_weight_strategy_plugin",
+                ],
             ),
-            ({"limit": 1}, 15, ["InformaticaProviderPlugin"]),
+            ({"limit": 1}, 19, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -90,6 +103,7 @@ class TestGetPlugins:
                 "url_route": "test_iframe_plugin",
                 "destination": "nav",
                 "category": "browse",
+                "nav_top_level": False,
             },
         ]
 
@@ -106,6 +120,7 @@ class TestGetPlugins:
                         "icon": None,
                         "icon_dark_mode": None,
                         "name": "Google",
+                        "nav_top_level": False,
                         "url_route": None,
                     },
                     {
@@ -116,6 +131,7 @@ class TestGetPlugins:
                         "icon_dark_mode": None,
                         "label": "The Apache Software Foundation",
                         "name": "apache",
+                        "nav_top_level": False,
                         "url_route": None,
                     },
                 ]
@@ -148,17 +164,17 @@ class TestGetPlugins:
         # Verify warning was logged
         assert any("Skipping invalid plugin due to error" in rec.message for rec in caplog.records)
 
-        response = test_client.get("/plugins", params={"limit": 7, "offset": 9})
+        response = test_client.get("/plugins", params={"limit": 8, "offset": 9})
         assert response.status_code == 200
 
         body = response.json()
         plugins_page = body["plugins"]
 
-        # Even though limit=7, only 6 valid plugins should come back
-        assert len(plugins_page) == 6
+        # Invalid plugins are filtered before pagination, so the page is full.
+        assert len(plugins_page) == 8
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 15
+        assert body["total_entries"] == 19
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -190,3 +206,71 @@ class TestGetPluginImportErrors:
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/plugins/importErrors")
         assert response.status_code == 403
+
+
+class _GlobalPlugin(AirflowPlugin):
+    name = "global_plugin"
+
+
+class _TeamAPlugin(AirflowPlugin):
+    name = "team_a_plugin"
+    team_name = "team_a"
+
+
+class _TeamBPlugin(AirflowPlugin):
+    name = "team_b_plugin"
+    team_name = "team_b"
+
+
+@skip_if_force_lowest_dependencies_marker
+class TestGetPluginsTeamFiltering:
+    _plugins = [_GlobalPlugin(), _TeamAPlugin(), _TeamBPlugin()]
+
+    def test_no_filtering_when_multi_team_disabled(self, test_client):
+        """With multi_team off, all plugins are returned regardless of team_name."""
+        with mock_plugin_manager(plugins=self._plugins):
+            response = test_client.get("/plugins")
+
+        assert response.status_code == 200
+        names = {plugin["name"] for plugin in response.json()["plugins"]}
+        assert names == {"global_plugin", "team_a_plugin", "team_b_plugin"}
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.plugins.get_auth_manager")
+    def test_filters_to_authorized_teams_and_global(self, mock_get_auth_manager, test_client):
+        """A user authorized for team_a sees global + team_a plugins, but not team_b."""
+        mock_get_auth_manager.return_value.get_authorized_teams.return_value = {"team_a"}
+
+        with mock_plugin_manager(plugins=self._plugins):
+            response = test_client.get("/plugins")
+
+        assert response.status_code == 200
+        body = response.json()
+        names = {plugin["name"] for plugin in body["plugins"]}
+        assert names == {"global_plugin", "team_a_plugin"}
+        assert body["total_entries"] == 2
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.plugins.get_auth_manager")
+    def test_user_with_no_teams_sees_only_global(self, mock_get_auth_manager, test_client):
+        mock_get_auth_manager.return_value.get_authorized_teams.return_value = set()
+
+        with mock_plugin_manager(plugins=self._plugins):
+            response = test_client.get("/plugins")
+
+        assert response.status_code == 200
+        body = response.json()
+        names = {plugin["name"] for plugin in body["plugins"]}
+        assert names == {"global_plugin"}
+        assert body["total_entries"] == 1
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.plugins.get_auth_manager")
+    def test_team_name_present_in_response(self, mock_get_auth_manager, test_client):
+        mock_get_auth_manager.return_value.get_authorized_teams.return_value = {"team_a"}
+
+        with mock_plugin_manager(plugins=self._plugins):
+            response = test_client.get("/plugins")
+
+        team_name_by_plugin = {p["name"]: p["team_name"] for p in response.json()["plugins"]}
+        assert team_name_by_plugin == {"global_plugin": None, "team_a_plugin": "team_a"}

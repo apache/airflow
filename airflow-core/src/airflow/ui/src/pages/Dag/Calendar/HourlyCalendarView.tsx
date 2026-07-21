@@ -44,27 +44,36 @@ import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
 import { generateHourlyCalendarData } from "./calendarUtils";
-import type { CalendarScale, CalendarColorMode } from "./types";
+import type { CalendarScale, CalendarColorMode, DeadlineCounts } from "./types";
 
 dayjs.extend(isSameOrBefore);
 
 type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
+  readonly deadlineMap?: Map<string, DeadlineCounts>;
   readonly scale: CalendarScale;
   readonly selectedMonth: number;
   readonly selectedYear: number;
+  readonly timezone: string;
   readonly viewMode?: CalendarColorMode;
 };
 
 export const HourlyCalendarView = ({
   data,
+  deadlineMap,
   scale,
   selectedMonth,
   selectedYear,
+  timezone,
   viewMode = "total",
 }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
+  const hourlyData = generateHourlyCalendarData(data, {
+    deadlineMap,
+    selectedMonth,
+    selectedYear,
+    timezone,
+  });
 
   return (
     <Box data-testid="calendar-hourly-view" mb={4}>

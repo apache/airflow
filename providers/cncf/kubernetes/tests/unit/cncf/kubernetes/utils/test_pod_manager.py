@@ -1044,6 +1044,28 @@ class TestPodManager:
             )
             mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
 
+    @pytest.mark.asyncio
+    async def test_start_pod_preemption_raises_error(self):
+        """After a pod is scheduled on a node, it is possible that it gets preempted by another pod, such as a daemonset on a new node, it is possible this happens before
+        any containers are created.  In that case airflow needs to recreate the pod.
+        """
+
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Failed"
+        pod_response.status.container_statuses = None
+        pod_response.status.message = "Pod was rejected: Node didn't have enough resource: memory, requested: 547356672, used: 14813233152, capacity: 15334334464"
+        pod_response.status.reason = "OutOfmemory"
+
+        self.mock_kube_client.read_namespaced_pod.return_value = pod_response
+        expected_msg = "Pod failed before containers started"
+        mock_pod = MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            await self.pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=60,
+                startup_timeout=60,
+            )
+
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):
         mock_pod = MagicMock()
@@ -1699,54 +1721,33 @@ class TestAsyncPodManager:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("log_lines", "now", "expected_log_messages", "not_expected_log_messages"),
+        ("log_line_offsets", "expected_log_messages", "not_expected_log_messages"),
         [
             # Case 1: No logs
-            ([], pendulum.now(), [], []),
+            ([], [], []),
             # Case 2: One log line with timestamp before now
-            (
-                [f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} message"],
-                pendulum.now(),
-                ["message"],
-                [],
-            ),
+            ([(-2, "message")], ["message"], []),
             # Case 3: Log line with timestamp equal to now (should be skipped, so last_time is None)
-            ([f"{pendulum.now().to_iso8601_string()} message"], pendulum.now(), [], ["message"]),
+            ([(0, "message")], [], ["message"]),
             # Case 4: Multiple log lines, last before now
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=3).to_iso8601_string()} msg1",
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg2",
-                ],
-                pendulum.now(),
-                ["msg1", "msg2"],
-                [],
-            ),
+            ([(-3, "msg1"), (-2, "msg2")], ["msg1", "msg2"], []),
             # Case 5: Log lines with continuation (no timestamp)
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
-                    "continued line",
-                ],
-                pendulum.now(),
-                ["msg1\ncontinued line"],
-                [],
-            ),
-            # Case 6: Log lines with continuation (no timestamp)
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
-                    f"{pendulum.now().to_iso8601_string()} msg2",
-                ],
-                pendulum.now(),
-                ["msg1"],
-                ["msg2"],
-            ),
+            ([(-2, "msg1"), (None, "continued line")], ["msg1\ncontinued line"], []),
+            # Case 6: Log line followed by one at the current second (the latter should be skipped)
+            ([(-2, "msg1"), (0, "msg2")], ["msg1"], ["msg2"]),
         ],
     )
     async def test_fetch_container_logs_before_current_sec_various_logs(
-        self, log_lines, now, expected_log_messages, not_expected_log_messages
+        self, log_line_offsets, expected_log_messages, not_expected_log_messages
     ):
+        # Use a fixed reference instant instead of real wall-clock time: building the
+        # log-line timestamps from separate `pendulum.now()` calls made the "equal to
+        # the current second" cases flaky whenever those calls straddled a second boundary.
+        now = pendulum.datetime(2024, 1, 1, 12, 0, 0)
+        log_lines = [
+            message if offset is None else f"{now.add(seconds=offset).to_iso8601_string()} {message}"
+            for offset, message in log_line_offsets
+        ]
         pod = mock.MagicMock()
         container_name = "base"
         since_time = now.subtract(minutes=1)

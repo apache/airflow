@@ -49,15 +49,16 @@ A minimal Airflow installation consists of the following components:
   a configuration property of the *scheduler*, not a separate component and runs within the scheduler
   process. There are several executors available out of the box, and you can also write your own.
 
-* A *Dag processor*, which parses Dag files and serializes them into the
+* A *Dag processor*, which parses Dag files from a *Dag bundle* and serializes them into the
   *metadata database*. More about processing Dag files can be found in
   :doc:`/administration-and-deployment/dagfile-processing`
 
-* A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
-  Dags and tasks.
+* A *Dag bundle*, which is configured for the *Dag processor* to parse Dag files from and allow *workers* to access the correct version of the Dag file. By default, this is a local folder on disk. More about Dag bundles can be found in
+  :doc:`/administration-and-deployment/dag-bundles`
 
-* A folder of *Dag files*, which is read by the *scheduler* to figure out what tasks to run and when to
-  run them.
+* An *API Server*, which serves the REST API and presents a user interface to inspect, trigger and debug the behaviour of
+  Dags and tasks. The API server is also used by *tasks* using the *task SDK* to communicate state back to Airflow, without requiring direct access
+  to the *metadata database*.
 
 * A *metadata database*, usually PostgreSQL or MySQL, which stores the state of tasks, Dags and variables.
 
@@ -77,10 +78,11 @@ performance in your Airflow:
 
 * Optional *triggerer*, which executes deferred tasks in an asyncio event loop. In basic installation
   where deferred tasks are not used, a triggerer is not necessary. More about deferring tasks can be
-  found in :doc:`/authoring-and-scheduling/deferring`.
+  found in :doc:`/authoring-and-scheduling/deferring`. Note that :doc:`Human-in-the-loop </tutorial/hitl>`
+  tasks wait in the scheduler-managed ``awaiting_input`` state and do not use the triggerer.
 
 * Optional folder of *plugins*. Plugins are a way to extend Airflow's functionality (similar to installed
-  packages). Plugins are read by the *scheduler*, *Dag processor*, *triggerer* and *webserver*. More about
+  packages). Plugins are read by the *scheduler*, *Dag processor*, *triggerer* and *API server*. More about
   plugins can be found in :doc:`/administration-and-deployment/plugins`.
 
 Deploying Airflow components
@@ -91,14 +93,14 @@ All the components are Python applications that can be deployed using various de
 They can have extra *installed packages* installed in their Python environment. This is useful for example to
 install custom operators or sensors or extend Airflow functionality with custom plugins.
 
-While Airflow can be run in a single machine and with simple installation where only *scheduler* and
-*webserver* are deployed, Airflow is designed to be scalable and secure, and is able to run in a distributed
+While Airflow can be run in a single machine and with simple installation where only *scheduler*, *Dag processor* and
+*API server* are deployed, Airflow is designed to be scalable and secure, and is able to run in a distributed
 environment - where various components can run on different machines, with different security perimeters
 and can be scaled by running multiple instances of the components above.
 
 The separation of components also allow for increased security, by isolating the components from each other
 and by allowing to perform different tasks. For example separating *Dag processor* from *scheduler*
-allows to make sure that the *scheduler* does not have access to the *Dag files* and cannot execute
+makes sure that the *scheduler* does not have access to the *Dag bundles* and cannot execute
 code provided by *Dag author*.
 
 Also while single person can run and manage Airflow installation, Airflow Deployment in more complex
@@ -119,26 +121,24 @@ finally with more isolated security perimeters.
 
 The meaning of the different connection types in the diagrams below is as follows:
 
-* **brown solid lines** represent *Dag files* submission and synchronization
+* **brown solid lines** represent *Dag bundles* submission and synchronization
 * **blue solid lines** represent deploying and accessing *installed packages* and *plugins*
 * **black dashed lines** represent control flow of workers by the *scheduler* (via executor)
 * **black solid lines** represent accessing the UI to manage execution of the workflows
-* **red dashed lines** represent accessing the *metadata database* by all components
+* **red dashed lines** represent accessing the *metadata database*
 
 .. _overview-basic-airflow-architecture:
 
 ..
-  TODO AIP-66 / AIP-72: These example architectures and diagrams need to be updated to reflect AF3 changes
-  like bundles, required Dag processor, execution api, etc.
+  TODO AIP-72: These diagrams need to be updated to reflect AF3 changes like bundles, required Dag processor, execution api, etc.
 
 Basic Airflow deployment
 ........................
 
 This is the simplest deployment of Airflow, usually operated and managed on a single
 machine. Such a deployment usually uses the LocalExecutor, where the *scheduler* and the *workers* are in
-the same Python process and the *Dag files* are read directly from the local filesystem by the *scheduler*.
-The *webserver* runs on the same machine as the *scheduler*. There is no *triggerer* component, which
-means that task deferral is not possible.
+the same Python process. The *Dag processor* runs on the same machine, reads Dag files from the *Dag bundle* and serializes them into the *metadata database*
+for the *scheduler* to read. The *API server* runs on the same machine as the *scheduler*.
 
 Such an installation typically does not separate user roles - deployment, configuration, operation, authoring
 and maintenance are all done by the same person and there are no security perimeters between the components.
@@ -158,17 +158,17 @@ and where various roles of users are introduced - *Deployment Manager*, **Dag au
 **Operations User**. You can read more about those various roles in the :doc:`/security/security_model`.
 
 In the case of a distributed deployment, it is important to consider the security aspects of the components.
-The *webserver* does not have access to the *Dag files* directly. The code in the ``Code`` tab of the
-UI is read from the *metadata database*. The *webserver* cannot execute any code submitted by the
+The *API server* does not have access to the *Dag bundles* directly. The code in the ``Code`` tab of the
+UI is read from the *metadata database*. The *API server* cannot execute any code submitted by the
 **Dag author**. It can only execute code that is installed as an *installed package* or *plugin* by
 the **Deployment Manager**. The **Operations User** only has access to the UI and can only trigger
 Dags and tasks, but cannot author Dags.
 
-The *Dag files* need to be synchronized between all the components that use them - *scheduler*,
-*triggerer* and *workers*. The *Dag files* can be synchronized by various mechanisms - typical
-ways how Dags can be synchronized are described in :doc:`helm-chart:manage-dag-files` of our
-Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
-
+The *Dag processor*, and *workers* all need access to the *Dag bundles*. The *scheduler* and *triggerer* read from the *metadata database* and do not require direct access to *Dag bundles*.
+In a distributed deployment, the *workers* get a specific *Dag bundle* version defined by the *scheduler* when executing a task.
+Typical ways to
+configure DAG bundle backends are described in :doc:`/administration-and-deployment/dag-bundles`.
+Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 .. image:: ../img/diagram_distributed_airflow_architecture.png
 
 .. _overview-separate-dag-processing-airflow-architecture:
@@ -176,21 +176,106 @@ Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in
 Separate Dag processing architecture
 ....................................
 
-In a more complex installation where security and isolation are important, you'll also see the
-standalone *Dag processor* component that allows to separate *scheduler* from accessing *Dag files*.
-This is suitable if the deployment focus is on isolation between parsed tasks. While Airflow does not yet
-support full multi-tenant features, it can be used to make sure that **Dag author** provided code is never
-executed in the context of the scheduler.
+The *Dag processor* is a required component in all Airflow 3 deployments. It always runs as a standalone process, ensuring the *scheduler* never has direct access
+to *Dag bundles* and cannot execute code provided by a **Dag author**. While Airflow does not
+yet support full multi-tenant features, this separation ensures that **Dag author** provided
+code is never executed in the context of the *scheduler*.
 
 .. image:: ../img/diagram_dag_processor_airflow_architecture.png
 
 .. note::
 
-    When Dag file is changed there can be cases where the scheduler and the worker will see different
-    versions of the Dag until both components catch up. You can avoid the issue by making sure Dag is
-    deactivated during deployment and reactivate once finished. If needed, the cadence of sync and scan
-    of Dag folder can be configured. Please make sure you really know what you are doing if you change
-    the configurations.
+    When using the default local disk *Dag bundle* backend, which does not support
+    versioning, there can be cases where the *Dag processor* and *workers* see different
+    versions of a Dag until both catch up to the latest files. Versioned *Dag bundle*
+    backends (such as Git) address this by allowing the *scheduler* to pin a specific
+    bundle version when dispatching each task. If needed, the cadence of sync and scan
+    of the *Dag bundle* can be configured.
+
+Task execution architecture
+---------------------------
+
+The diagrams above show how Airflow's components are *deployed*. The diagrams below instead show what happens
+*inside a worker when a task actually runs* — how the Task SDK, the Supervisor and Coordinator processes, and
+the language runtimes work together: which processes are involved, and the classes and protocols they use to
+communicate.
+
+.. _overview-task-sdk-execution-architecture:
+
+Python Task SDK execution
+.........................
+
+When a *worker* actually runs a task, it does not run the user's code directly. Instead it starts a
+lightweight **Supervisor** that runs in its own **native operating-system process** and
+*forks* a second native process in which the **Task SDK** runtime (``task_runner``) executes the user code.
+The two processes talk over a socket, and the Supervisor is the only side that ever holds the short-lived
+task JWT or talks to the *Execution API* — the user's code never sees the token and never touches the
+database.
+
+The same runtime can also run *in-process* (a single Python process, no fork, no sockets, no HTTP) for
+``dag.test()`` and local runs. The diagram below contrasts the two paths and marks where each Python process
+lives:
+
+.. image:: ../img/diagram_task_sdk_execution_architecture.png
+
+The message flow of a supervised run — startup, running the user code, proxied Connection/Variable/XCom
+lookups, heartbeats, and reporting the final state — is shown below as a sequence diagram, with each process
+on its own lifeline. The **Supervisor** sits in the middle, so the Task ↔ Supervisor request/response
+round-trip (the task asks for a Connection/Variable/XCom and gets the answer back) reads as arrows going back
+and forth between neighboring lifelines. Each arrow is numbered, colored by its sender, and labeled with the
+message class or protocol used:
+
+.. image:: ../img/diagram_task_sdk_execution_sequence.png
+
+.. _overview-non-python-language-sdks:
+
+Non-Python language SDKs (Go and Java)
+......................................
+
+The Task Execution Interface (TEI) introduced in AIP-72 is language-agnostic, so a task can also be written in
+a **compiled, non-Python language**. A Python Dag still declares the task with ``@task.stub(queue=...)`` (so
+Python and non-Python tasks can be mixed in one Dag), but the actual work is delegated to the matching runtime.
+There are currently **two different integration styles** — the Go SDK runs a standalone worker, while the Java
+SDK plugs into the existing Python Supervisor.
+
+.. _overview-go-sdk-architecture:
+
+**Go SDK — standalone edge worker.** The `Go Task SDK
+<https://github.com/apache/airflow/blob/main/go-sdk/README.md>`_ has **no Python Supervisor and no msgpack
+stdin socket**. A long-running, compiled **edge worker** (``airflow-go-edge-worker``) *pulls* work from the
+**Edge Executor API**, launches the user's compiled Dag bundle as a **go-plugin (gRPC) subprocess**, and
+invokes the task over gRPC. The task then uses the **native TEI client** to reach the **Execution API**
+directly over HTTPS — so, unlike the Python task, it holds the task JWT itself:
+
+.. image:: ../img/diagram_native_language_sdk_architecture.png
+
+.. _overview-java-sdk-architecture:
+
+**Java (JVM) SDK — Coordinator plugged into the Supervisor.** The `Java Task SDK
+<https://github.com/apache/airflow/blob/main/java-sdk/README.md>`_ takes the opposite approach: it *reuses* the
+existing Python Supervisor through a new **Coordinator** layer. ``CoordinatorManager`` resolves the task's
+``queue`` to a ``BaseCoordinator`` — ``JavaCoordinator`` for the ``java`` queue, or the built-in
+``_PythonCoordinator`` otherwise. ``JavaCoordinator`` opens two loopback-TCP servers, spawns a **JVM bundle
+process** with ``subprocess.Popen``, and drives it with ``_JavaActivitySubprocess`` (a subclass of the shared
+``ActivitySubprocess``). The JVM connects *back* over TCP and speaks the **same msgpack protocol** as a Python
+task, so the Python side heartbeats, manages state, and **proxies every Execution-API call** — meaning the JVM
+task, like a Python task, never holds the task JWT itself:
+
+.. image:: ../img/diagram_java_sdk_execution_architecture.png
+
+The end-to-end workflow of a Java task — from ``@task.stub`` through the coordinator, the JVM subprocess, the
+proxied Connection/Variable/XCom lookups, and reporting the final state — is shown below as a sequence diagram.
+As above, the **Supervisor** is the central lifeline, so the JVM ↔ Supervisor round-trip over loopback TCP is
+drawn as arrows going back and forth to its neighbours:
+
+.. image:: ../img/diagram_java_sdk_execution_sequence.png
+
+.. note::
+
+    Both the Go and Java SDKs are **experimental** and under active development. See the `Go Task SDK
+    documentation <https://github.com/apache/airflow/blob/main/go-sdk/README.md>`_ and the `Java Task SDK
+    documentation <https://github.com/apache/airflow/blob/main/java-sdk/README.md>`_ for current status,
+    quick-starts, and known limitations.
 
 .. _overview:workloads:
 

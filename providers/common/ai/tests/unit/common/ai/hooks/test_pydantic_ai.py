@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -40,9 +41,9 @@ class TestPydanticAIHookInit:
         assert hook.model_id is None
 
     def test_custom_conn_id(self):
-        hook = PydanticAIHook(llm_conn_id="my_llm", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="my_llm", model_id="openai:gpt-5.6-sol")
         assert hook.llm_conn_id == "my_llm"
-        assert hook.model_id == "openai:gpt-5.3"
+        assert hook.model_id == "openai:gpt-5.6-sol"
 
     def test_azure_hook_uses_own_default_conn_name(self):
         """Subclass default_conn_name is used, not the base class value."""
@@ -68,7 +69,7 @@ class TestPydanticAIHookGetConn:
         mock_provider = MagicMock()
         mock_infer_provider_class.return_value = MagicMock(return_value=mock_provider)
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -81,7 +82,7 @@ class TestPydanticAIHookGetConn:
         assert result is mock_model
         mock_infer_model.assert_called_once()
         call_args = mock_infer_model.call_args
-        assert call_args[0][0] == "openai:gpt-5.3"
+        assert call_args[0][0] == "openai:gpt-5.6-sol"
         # provider_factory should be passed as keyword arg
         assert "provider_factory" in call_args[1]
 
@@ -119,7 +120,7 @@ class TestPydanticAIHookGetConn:
         mock_infer_model.return_value = MagicMock(spec=Model)
         mock_infer_provider_class.return_value = MagicMock(return_value=MagicMock())
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -130,7 +131,7 @@ class TestPydanticAIHookGetConn:
             hook.get_conn()
 
         # model_id param takes priority over extra
-        assert mock_infer_model.call_args[0][0] == "openai:gpt-5.3"
+        assert mock_infer_model.call_args[0][0] == "openai:gpt-5.6-sol"
 
     def test_get_conn_raises_when_no_model(self):
         hook = PydanticAIHook(llm_conn_id="test_conn")
@@ -187,7 +188,7 @@ class TestPydanticAIHookGetConn:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
             first = hook.get_conn()
@@ -204,7 +205,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -224,7 +225,7 @@ class TestPydanticAIHookCreateAgent:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",
@@ -243,13 +244,140 @@ class TestPydanticAIHookCreateAgent:
             retries=3,
         )
 
+    def test_create_agent_without_instructions_or_spec_file_raises(self):
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
+        with pytest.raises(ValueError, match="instructions is required"):
+            hook.create_agent()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_calls_from_file(self, mock_agent_cls, mock_infer_model):
+        """spec_file routes to Agent.from_file with the hook model when configured."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(spec_file="/path/to/agent.yaml")
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            model=mock_model,
+            output_type=str,
+        )
+        mock_agent_cls.assert_not_called()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_uses_file_model_when_hook_model_not_configured(
+        self, mock_agent_cls, mock_infer_model
+    ):
+        """spec_file model is used when neither model_id nor connection model is configured."""
+        hook = PydanticAIHook(llm_conn_id="test_conn")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(spec_file="/path/to/agent.yaml")
+
+        mock_infer_model.assert_not_called()
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            output_type=str,
+        )
+        mock_agent_cls.assert_not_called()
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_path_object(self, mock_agent_cls, mock_infer_model):
+        """spec_file accepts a pathlib.Path object."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        spec_path = Path("/path/to/agent.yaml")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(spec_file=spec_path)
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            spec_path,
+            model=mock_model,
+            output_type=str,
+        )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_merges_additional_instructions(
+        self, mock_agent_cls, mock_infer_model
+    ):
+        """Explicit instructions are forwarded so pydantic-ai merges them with the spec."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(
+                spec_file="/path/to/agent.yaml",
+                instructions="Override instructions.",
+            )
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            model=mock_model,
+            output_type=str,
+            instructions="Override instructions.",
+        )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_custom_output_type(self, mock_agent_cls, mock_infer_model):
+        """output_type is forwarded to Agent.from_file."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(output_type=dict, spec_file="/path/to/agent.yaml")
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            model=mock_model,
+            output_type=dict,
+        )
+
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.Agent")
+    def test_create_agent_with_spec_file_forwards_agent_kwargs(self, mock_agent_cls, mock_infer_model):
+        """Extra agent_kwargs are forwarded to Agent.from_file."""
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
+
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
+        conn = Connection(conn_id="test_conn", conn_type="pydanticai")
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.create_agent(
+                spec_file="/path/to/agent.yaml",
+                retries=5,
+                end_strategy="early",
+            )
+
+        mock_agent_cls.from_file.assert_called_once_with(
+            "/path/to/agent.yaml",
+            model=mock_model,
+            output_type=str,
+            retries=5,
+            end_strategy="early",
+        )
+
 
 class TestPydanticAIHookCreateAgentInstrumentation:
     """create_agent() wires OpenTelemetry instrumentation from observability."""
 
     @staticmethod
     def _hook() -> PydanticAIHook:
-        return PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        return PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.genai_instrumentation_settings")
     def test_instrument_set_when_settings_returned(self, mock_settings):
@@ -276,12 +404,23 @@ class TestPydanticAIHookCreateAgentInstrumentation:
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.infer_model", autospec=True)
     def test_caller_instrument_short_circuits(self, mock_infer_model, mock_settings, mock_agent_cls):
         """A caller that passes its own ``instrument`` wins; we don't override it."""
-        mock_infer_model.return_value = MagicMock(spec=Model)
+        mock_model = MagicMock(spec=Model)
+        mock_infer_model.return_value = mock_model
         hook = self._hook()
         conn = Connection(conn_id="test_conn", conn_type="pydanticai")
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.create_agent(instructions="hi", instrument=False)
+            agent = hook.create_agent(instructions="hi", instrument=False)
 
+        # ``instrument`` is not an Agent() constructor kwarg in pydantic-ai 2.x:
+        # it must be stripped from the constructor call and applied through the
+        # ``agent.instrument`` property instead, and the provider's own
+        # auto-instrumentation must not override the caller's value.
+        mock_agent_cls.assert_called_once_with(
+            mock_model,
+            output_type=str,
+            instructions="hi",
+        )
+        assert agent.instrument is False
         mock_settings.assert_not_called()
 
 
@@ -291,7 +430,7 @@ class TestPydanticAIHookTestConnection:
         mock_model = MagicMock(spec=Model)
         mock_infer_model.return_value = mock_model
 
-        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.3")
+        hook = PydanticAIHook(llm_conn_id="test_conn", model_id="openai:gpt-5.6-sol")
         conn = Connection(
             conn_id="test_conn",
             conn_type="pydanticai",

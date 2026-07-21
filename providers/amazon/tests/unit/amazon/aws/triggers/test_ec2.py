@@ -48,6 +48,28 @@ class TestEC2StateSensorTrigger:
         assert args["aws_conn_id"] == TEST_CONN_ID
         assert args["region_name"] == TEST_REGION_NAME
         assert args["poll_interval"] == TEST_POLL_INTERVAL
+        assert args["verify"] is None
+        assert args["botocore_config"] is None
+
+    def test_ec2_state_sensor_trigger_serializes_generic_hook_params(self):
+        test_ec2_state_sensor = EC2StateSensorTrigger(
+            instance_id=TEST_INSTANCE_ID,
+            target_state=TEST_TARGET_STATE,
+            aws_conn_id=TEST_CONN_ID,
+            region_name=TEST_REGION_NAME,
+            poll_interval=TEST_POLL_INTERVAL,
+            verify=False,
+            botocore_config={"read_timeout": 99},
+        )
+        _, args = test_ec2_state_sensor.serialize()
+        assert args["verify"] is False
+        assert args["botocore_config"] == {"read_timeout": 99}
+
+        hook = test_ec2_state_sensor.hook
+        assert hook.aws_conn_id == TEST_CONN_ID
+        assert hook._region_name == TEST_REGION_NAME
+        assert hook._verify is False
+        assert hook._config.read_timeout == 99
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_instance_state_async")
