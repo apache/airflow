@@ -664,7 +664,7 @@ class XComOperations:
         """Bulk delete XCom values via the API server."""
         params: dict[str, str | int] = {}
 
-        if map_index is not None and map_index >= 0:
+        if map_index is not None:
             params["map_index"] = map_index
         if task_id is not None:
             params["task_id"] = task_id

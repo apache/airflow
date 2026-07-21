@@ -59,6 +59,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     RescheduleTask,
     TaskRescheduleStartDate,
+    XComDeleteCountResult,
 )
 
 if TYPE_CHECKING:
@@ -1109,6 +1110,33 @@ class TestXCOMOperations:
             mapped_length=3,
         )
         assert result == OKResponse(ok=True)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_params"),
+        [
+            pytest.param({}, {}, id="no-filters"),
+            pytest.param({"task_id": "task_id"}, {"task_id": "task_id"}, id="task-id"),
+            pytest.param(
+                {"task_id": "task_id", "key": "key"},
+                {"task_id": "task_id", "key": "key"},
+                id="task-id-and-key",
+            ),
+            pytest.param({"map_index": -1}, {"map_index": "-1"}, id="non-mapped-only"),
+            pytest.param({"map_index": 0}, {"map_index": "0"}, id="single-map-index"),
+        ],
+    )
+    def test_xcom_delete_all_success(self, kwargs, expected_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id":
+                assert request.method == "DELETE"
+                assert request.url.params == httpx.QueryParams(expected_params)
+                return httpx.Response(status_code=200, json={"count": 2})
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.delete_all(dag_id="dag_id", run_id="run_id", **kwargs)
+
+        assert result == XComDeleteCountResult(count=2)
 
 
 class TestConnectionOperations:
