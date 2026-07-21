@@ -476,7 +476,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a  # frozen: v2.4.2
+    rev: 57b21406f092110c18776e39b0bda50d37c945c8  # frozen: v2.4.3
     hooks:
       - id: codespell
         name: Run codespell
@@ -504,7 +504,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: e3eebf65325ccc992422292cb7a4baee967cf815  # frozen: v1.26.1
+    rev: 64a97fb7fa63188393d3215c6e312f5f9c6d0f78  # frozen: v1.27.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -513,7 +513,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 2bba271688c1abb1503097a064e6c3bc1d1b6a9b  # frozen: lychee-lib-v0.24.2
+    rev: af73b4e02731e0ff3a678b56769704d689138279  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -614,7 +614,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.20']
+        additional_dependencies: ['ruff==0.15.21']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -706,6 +706,12 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
           ^scripts/ci/prek/extract_permissions\.py$|
           ^airflow-core/docs/security/api_permissions_ref\.rst$
+        pass_filenames: false
+      - id: update-tested-versions
+        name: Update tested Python/DB/Kubernetes versions in docs
+        entry: ./scripts/ci/prek/update_tested_versions.py
+        language: python
+        files: ^airflow-core/docs/installation/prerequisites\.rst$|^README\.md$|^dev/breeze/src/airflow_breeze/global_constants\.py$|^scripts/ci/prek/update_tested_versions\.py$|^scripts/ci/prek/common_prek_utils\.py$
         pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
@@ -945,7 +951,7 @@ repos:
         entry: ./scripts/ci/prek/check_metrics_synced_with_the_registry.py
         language: python
         files: \.py$
-        exclude: ^(tests/|.*/tests/)
+        exclude: ^(tests/|.*/tests/|airflow-core/src/airflow/observability/stats\.py$|task-sdk/src/airflow/sdk/observability/stats\.py$)
         pass_filenames: true
         additional_dependencies: ["PyYAML>=6.0", "rich>=13.6.0"]
       - id: check-boring-cyborg-configuration
@@ -1008,6 +1014,43 @@ repos:
           ^scripts/ci/prek/generate_agent_skills\.py$
         pass_filenames: false
         additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+      - id: run-skill-eval
+        name: Run skill-eval against AGENTS.md and cases
+        entry: ./dev/skill-evals/eval.py
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+        verbose: true
+      - id: view-skill-eval
+        name: View skill-eval results in browser (manual)
+        entry: env PROMPTFOO_CONFIG_DIR=.build/promptfoo promptfoo view
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+      - id: check-eval-hash
+        name: Verify skill-eval ran on current AGENTS.md and cases
+        entry: ./scripts/ci/prek/check_eval_hash.py
+        language: python
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/cases/|
+          ^dev/skill-evals/last-eval-hash\.txt$
+        pass_filenames: false
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python

@@ -244,7 +244,7 @@ const TriggerDAGForm = ({
           setErrors={setErrors}
           setFormError={setFormError}
         >
-          <TriggerDAGAdvancedOptions control={control} />
+          <TriggerDAGAdvancedOptions control={control} isPartitioned={isPartitioned} />
         </ConfigForm>
       </VStack>
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
