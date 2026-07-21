@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
+from airflow.providers.common.ai.exceptions import LLMOperatorException
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.triggers.llm import LLMTrigger, serialize_usage_limits
@@ -33,7 +34,7 @@ from airflow.providers.common.ai.utils.output_type import (
     rehydrate_pydantic_output,
     serialize_output_type,
 )
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
+from airflow.providers.common.compat.sdk import BaseOperator, conf
 
 try:
     # New enough cores register an operator's declared ``output_type`` classes for
@@ -164,25 +165,6 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         }
         return PydanticAIHook.get_hook(self.llm_conn_id, hook_params=hook_params)
 
-    def _finalize_output(self, output: Any) -> Any:
-        if self._serialize_model_output and isinstance(output, BaseModel):
-            return output.model_dump()
-        return output
-
-    def _defer_llm_call(self) -> None:
-        self.defer(
-            trigger=LLMTrigger(
-                prompt=self.prompt,
-                llm_conn_id=self.llm_conn_id,
-                model_id=self.model_id,
-                system_prompt=self.system_prompt,
-                output_type_path=serialize_output_type(self.output_type),
-                agent_params=self.agent_params,
-                usage_limits=serialize_usage_limits(self.usage_limits),
-            ),
-            method_name="execute_complete",
-        )
-
     def execute(self, context: Context) -> Any:
         if self.require_approval and not isinstance(self.prompt, str):
             raise TypeError(
@@ -193,7 +175,18 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
             )
 
         if self.deferrable:
-            self._defer_llm_call()
+            self.defer(
+                trigger=LLMTrigger(
+                    prompt=self.prompt,
+                    llm_conn_id=self.llm_conn_id,
+                    model_id=self.model_id,
+                    system_prompt=self.system_prompt,
+                    output_type_path=serialize_output_type(self.output_type),
+                    agent_params=self.agent_params,
+                    usage_limits=serialize_usage_limits(self.usage_limits),
+                ),
+                method_name="execute_complete",
+            )
             return None
 
         agent: Agent[object, Any] = self.llm_hook.create_agent(
@@ -206,7 +199,10 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
-        return self._finalize_output(output)
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            output = output.model_dump()
+
+        return output
 
     def execute_complete(
         self,
@@ -222,7 +218,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
             )
 
         if event.get("status") == "error":
-            raise AirflowException(event.get("message", "LLM call failed in deferrable mode"))
+            raise LLMOperatorException(event.get("message", "LLM call failed in deferrable mode"))
 
         output = rehydrate_pydantic_output(
             self.output_type,
@@ -233,4 +229,7 @@ class LLMOperator(BaseOperator, LLMApprovalMixin):
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
-        return self._finalize_output(output)
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            output = output.model_dump()
+
+        return output

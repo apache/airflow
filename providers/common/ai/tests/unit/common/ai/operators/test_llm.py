@@ -27,9 +27,10 @@ from pydantic_ai.usage import UsageLimits
 from airflow.providers.common.ai.mixins.approval import (
     LLMApprovalMixin,
 )
+from airflow.providers.common.ai.exceptions import LLMOperatorException
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.triggers.llm import LLMTrigger
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
@@ -465,5 +466,5 @@ class TestLLMOperatorDeferrable:
 
     def test_execute_complete_raises_on_error(self):
         op = LLMOperator(task_id="test", prompt="p", llm_conn_id="c", deferrable=True)
-        with pytest.raises(AirflowException, match="LLM call failed"):
+        with pytest.raises(LLMOperatorException, match="LLM call failed"):
             op.execute_complete(context=MagicMock(), event={"status": "error", "message": "LLM call failed"})

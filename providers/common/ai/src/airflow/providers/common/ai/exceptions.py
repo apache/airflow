@@ -23,6 +23,10 @@ class HITLMaxIterationsError(AirflowException):
     """Raised when the HITL review loop exhausts max iterations without approval or rejection."""
 
 
+class LLMOperatorException(AirflowException):
+    """Raised when a deferrable LLM call fails in the triggerer."""
+
+
 class LLMFileAnalysisError(ValueError):
     """Base class for file-analysis validation errors."""
 

@@ -19,6 +19,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
+from pydantic_ai.usage import UsageLimits
+
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.utils.logging import log_run_summary
 from airflow.providers.common.ai.utils.output_type import (
@@ -35,12 +37,10 @@ def serialize_usage_limits(usage_limits: Any | None) -> dict[str, Any] | None:
     return usage_limits.model_dump(exclude_defaults=True)
 
 
-def deserialize_usage_limits(data: dict[str, Any] | None) -> Any | None:
+def deserialize_usage_limits(data: dict[str, Any] | None) -> UsageLimits | None:
     """Restore pydantic-ai ``UsageLimits`` from trigger persistence."""
     if data is None:
         return None
-    from pydantic_ai.usage import UsageLimits
-
     return UsageLimits(**data)
 
 
