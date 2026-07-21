@@ -26,40 +26,44 @@ import "time"
 // field maps to the same-named key of the "operator" definition in
 // airflow-core/src/airflow/serialization/schema.json.
 type TaskSpec struct {
+	// Owner maps to the schema key "owner" (schema default "airflow").
+	Owner string
+	// StartDate maps to the schema key "start_date".
+	StartDate time.Time
+	// EndDate maps to the schema key "end_date".
+	EndDate time.Time
+	// TriggerRule maps to the schema key "trigger_rule" (schema default "all_success").
+	TriggerRule string
+	// DependsOnPast maps to the schema key "depends_on_past" (schema default false).
+	DependsOnPast bool
+	// IgnoreFirstDependsOnPast maps to the schema key "ignore_first_depends_on_past" (schema default false).
+	IgnoreFirstDependsOnPast bool
+	// WaitForPastDependsBeforeSkipping maps to the schema key "wait_for_past_depends_before_skipping" (schema default false).
+	WaitForPastDependsBeforeSkipping bool
+	// WaitForDownstream maps to the schema key "wait_for_downstream" (schema default false).
+	WaitForDownstream bool
+	// Retries maps to the schema key "retries" (schema default 0).
+	Retries int
 	// Queue maps to the schema key "queue" (schema default "default").
 	Queue string
 	// Pool maps to the schema key "pool" (schema default "default_pool").
 	Pool string
 	// PoolSlots maps to the schema key "pool_slots" (schema default 1).
 	PoolSlots int
-	// Retries maps to the schema key "retries" (schema default 0).
-	Retries int
+	// ExecutionTimeout maps to the schema key "execution_timeout".
+	ExecutionTimeout time.Duration
 	// RetryDelay maps to the schema key "retry_delay" (schema default 300 seconds).
 	RetryDelay time.Duration
-	// MaxRetryDelay maps to the schema key "max_retry_delay".
-	MaxRetryDelay time.Duration
 	// RetryExponentialBackoff maps to the schema key "retry_exponential_backoff" (schema default 0).
 	RetryExponentialBackoff float64
+	// MaxRetryDelay maps to the schema key "max_retry_delay".
+	MaxRetryDelay time.Duration
 	// PriorityWeight maps to the schema key "priority_weight" (schema default 1).
 	PriorityWeight int
 	// WeightRule maps to the schema key "weight_rule" (schema default "downstream").
 	WeightRule string
-	// TriggerRule maps to the schema key "trigger_rule" (schema default "all_success").
-	TriggerRule string
-	// Owner maps to the schema key "owner" (schema default "airflow").
-	Owner string
-	// ExecutionTimeout maps to the schema key "execution_timeout".
-	ExecutionTimeout time.Duration
 	// Executor maps to the schema key "executor".
 	Executor string
-	// StartDate maps to the schema key "start_date".
-	StartDate time.Time
-	// EndDate maps to the schema key "end_date".
-	EndDate time.Time
-	// DependsOnPast maps to the schema key "depends_on_past" (schema default false).
-	DependsOnPast bool
-	// WaitForDownstream maps to the schema key "wait_for_downstream" (schema default false).
-	WaitForDownstream bool
 	// DoXComPush maps to the schema key "do_xcom_push" (schema default true).
 	DoXComPush *bool
 	// EmailOnFailure maps to the schema key "email_on_failure" (schema default true).
@@ -82,6 +86,33 @@ type TaskSpec struct {
 // values are returned as-is; the serializer owns the wire encoding.
 func (s TaskSpec) SchemaFields() map[string]any {
 	m := map[string]any{}
+	if s.Owner != "" && s.Owner != "airflow" {
+		m["owner"] = s.Owner
+	}
+	if !s.StartDate.IsZero() {
+		m["start_date"] = s.StartDate
+	}
+	if !s.EndDate.IsZero() {
+		m["end_date"] = s.EndDate
+	}
+	if s.TriggerRule != "" && s.TriggerRule != "all_success" {
+		m["trigger_rule"] = s.TriggerRule
+	}
+	if s.DependsOnPast {
+		m["depends_on_past"] = s.DependsOnPast
+	}
+	if s.IgnoreFirstDependsOnPast {
+		m["ignore_first_depends_on_past"] = s.IgnoreFirstDependsOnPast
+	}
+	if s.WaitForPastDependsBeforeSkipping {
+		m["wait_for_past_depends_before_skipping"] = s.WaitForPastDependsBeforeSkipping
+	}
+	if s.WaitForDownstream {
+		m["wait_for_downstream"] = s.WaitForDownstream
+	}
+	if s.Retries != 0 {
+		m["retries"] = s.Retries
+	}
 	if s.Queue != "" && s.Queue != "default" {
 		m["queue"] = s.Queue
 	}
@@ -91,17 +122,17 @@ func (s TaskSpec) SchemaFields() map[string]any {
 	if s.PoolSlots != 0 && s.PoolSlots != 1 {
 		m["pool_slots"] = s.PoolSlots
 	}
-	if s.Retries != 0 {
-		m["retries"] = s.Retries
+	if s.ExecutionTimeout != 0 {
+		m["execution_timeout"] = s.ExecutionTimeout
 	}
 	if s.RetryDelay != 0 && s.RetryDelay != 300*time.Second {
 		m["retry_delay"] = s.RetryDelay
 	}
-	if s.MaxRetryDelay != 0 {
-		m["max_retry_delay"] = s.MaxRetryDelay
-	}
 	if s.RetryExponentialBackoff != 0 {
 		m["retry_exponential_backoff"] = s.RetryExponentialBackoff
+	}
+	if s.MaxRetryDelay != 0 {
+		m["max_retry_delay"] = s.MaxRetryDelay
 	}
 	if s.PriorityWeight != 0 && s.PriorityWeight != 1 {
 		m["priority_weight"] = s.PriorityWeight
@@ -109,29 +140,8 @@ func (s TaskSpec) SchemaFields() map[string]any {
 	if s.WeightRule != "" && s.WeightRule != "downstream" {
 		m["weight_rule"] = s.WeightRule
 	}
-	if s.TriggerRule != "" && s.TriggerRule != "all_success" {
-		m["trigger_rule"] = s.TriggerRule
-	}
-	if s.Owner != "" && s.Owner != "airflow" {
-		m["owner"] = s.Owner
-	}
-	if s.ExecutionTimeout != 0 {
-		m["execution_timeout"] = s.ExecutionTimeout
-	}
 	if s.Executor != "" {
 		m["executor"] = s.Executor
-	}
-	if !s.StartDate.IsZero() {
-		m["start_date"] = s.StartDate
-	}
-	if !s.EndDate.IsZero() {
-		m["end_date"] = s.EndDate
-	}
-	if s.DependsOnPast {
-		m["depends_on_past"] = s.DependsOnPast
-	}
-	if s.WaitForDownstream {
-		m["wait_for_downstream"] = s.WaitForDownstream
 	}
 	if s.DoXComPush != nil && !*s.DoXComPush {
 		m["do_xcom_push"] = *s.DoXComPush

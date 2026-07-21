@@ -19,12 +19,24 @@
 // (airflow-core/src/airflow/serialization/schema.json).
 //
 // It reads the "operator" definition and emits the TaskSpec struct plus its
-// SchemaFields method, so the Go field types and the omit-if-default rules the
-// serializer relies on cannot drift from the schema. Only the keys listed in
-// taskSpecFields are emitted: they are the task attributes a bundle author may
-// set from Go, a deliberate subset of the schema (the rest of the "operator"
-// keys are serializer internals such as task_type or template_fields, or
-// Python-only concerns such as templating and callbacks).
+// SchemaFields method, so the exposed fields, their Go types, and the
+// omit-if-default rules the serializer relies on cannot drift from the schema.
+// The field set is derived from the schema rather than hand-listed: every
+// scalar property (string/integer/number/boolean, or a timedelta/datetime ref)
+// becomes a TaskSpec field, in schema order, unless one of these rules skips
+// it:
+//
+//   - "_"-prefixed keys are serializer internals (_task_module, _is_mapped, ...)
+//   - keys in the definition's "required" list are always written by the
+//     serializer itself (task_type, task_id, ui_color, ...)
+//   - "has_on_*" keys are flags derived from Python callbacks, not settable
+//   - non-scalar keys (arrays, objects, refs other than timedelta/datetime,
+//     anyOf) cannot be expressed as a scalar spec field
+//   - excludedFields entries are Python-only concerns, documented per key
+//
+// A new scalar key added to the schema therefore shows up in the regenerated
+// spec — visible in the spec.gen.go diff — or must gain an excludedFields
+// entry, instead of going silently missing.
 //
 // Field defaults are read from the schema, never hard-coded here: a field is
 // serialized only when it is set (non-zero) and differs from its schema
@@ -45,41 +57,29 @@ import (
 	"strings"
 )
 
-// fieldDef selects one schema property for the generated spec struct. goType
-// overrides the mechanical schema→Go type mapping for the few keys whose
-// schema type is too loose (e.g. "number" that is semantically a float).
-type fieldDef struct {
-	key    string
-	goType string
+// excludedFields lists the scalar "operator" keys deliberately not exposed on
+// TaskSpec, each with the reason; every other eligible scalar key becomes a
+// field. An entry that no longer matches an eligible schema key fails
+// generation, so the list cannot go stale.
+var excludedFields = map[string]string{
+	"doc":                    "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
+	"doc_json":               "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
+	"doc_yaml":               "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
+	"doc_rst":                "legacy doc attribute; the UI renders Markdown, so only doc_md is exposed",
+	"allow_nested_operators": "Python runtime concern: warns when an operator executes inside another operator",
+	"multiple_outputs":       "TaskFlow (@task) dict-unpacking concern, meaningless outside Python",
+	"start_from_trigger":     "deferrable-operator machinery; its start_trigger_args counterpart is an object the spec cannot express",
+	"is_setup":               "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
+	"is_teardown":            "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
+	"on_failure_fail_dagrun": "only valid on teardown tasks, which the SDK does not model yet",
 }
 
-// taskSpecFields lists the "operator" keys exposed on TaskSpec, in struct
-// order. Adding a task attribute means adding its key here and regenerating.
-var taskSpecFields = []fieldDef{
-	{key: "queue"},
-	{key: "pool"},
-	{key: "pool_slots"},
-	{key: "retries"},
-	{key: "retry_delay"},
-	{key: "max_retry_delay"},
-	{key: "retry_exponential_backoff", goType: "float64"},
-	{key: "priority_weight"},
-	{key: "weight_rule"},
-	{key: "trigger_rule"},
-	{key: "owner"},
-	{key: "execution_timeout"},
-	{key: "executor"},
-	{key: "start_date"},
-	{key: "end_date"},
-	{key: "depends_on_past"},
-	{key: "wait_for_downstream"},
-	{key: "do_xcom_push"},
-	{key: "email_on_failure"},
-	{key: "email_on_retry"},
-	{key: "doc_md"},
-	{key: "map_index_template"},
-	{key: "max_active_tis_per_dag"},
-	{key: "max_active_tis_per_dagrun"},
+// goTypeOverrides forces the Go type for keys whose schema type is too loose
+// for the mechanical mapping. retry_exponential_backoff is "number" with an
+// integral default, but Python declares it float (a backoff multiplier), so
+// the mechanical mapping would pick int.
+var goTypeOverrides = map[string]string{
+	"retry_exponential_backoff": "float64",
 }
 
 // initialisms maps snake_case segments that must keep non-Title capitalization
@@ -98,10 +98,42 @@ type propSchema struct {
 	Default any    `json:"default"`
 }
 
+// orderedProps keeps schema property order, which encoding/json's map
+// decoding discards; the generated struct follows the schema's field order.
+type orderedProps struct {
+	keys  []string
+	props map[string]propSchema
+}
+
+func (o *orderedProps) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &o.props); err != nil {
+		return err
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	if _, err := dec.Token(); err != nil {
+		return err
+	}
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		o.keys = append(o.keys, tok.(string))
+		var skipped json.RawMessage
+		if err := dec.Decode(&skipped); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type definition struct {
+	Properties orderedProps `json:"properties"`
+	Required   []string     `json:"required"`
+}
+
 type schemaDoc struct {
-	Definitions map[string]struct {
-		Properties map[string]propSchema `json:"properties"`
-	} `json:"definitions"`
+	Definitions map[string]definition `json:"definitions"`
 }
 
 // field is one resolved spec field: schema key + default joined with the Go
@@ -137,17 +169,9 @@ func main() {
 		log.Fatal(`gen: schema has no "operator" definition`)
 	}
 
-	fields := make([]field, 0, len(taskSpecFields))
-	for _, fd := range taskSpecFields {
-		prop, ok := operator.Properties[fd.key]
-		if !ok {
-			log.Fatalf("gen: schema operator definition has no property %q", fd.key)
-		}
-		f, err := resolveField(fd, prop)
-		if err != nil {
-			log.Fatalf("gen: property %q: %v", fd.key, err)
-		}
-		fields = append(fields, f)
+	fields, err := selectFields(operator)
+	if err != nil {
+		log.Fatalf("gen: %v", err)
 	}
 
 	src, err := render(*pkg, fields)
@@ -159,10 +183,66 @@ func main() {
 	}
 }
 
-func resolveField(fd fieldDef, prop propSchema) (field, error) {
+// selectFields derives the TaskSpec fields from the operator definition, in
+// schema order, applying the selection rules in the package comment.
+func selectFields(op definition) ([]field, error) {
+	required := make(map[string]bool, len(op.Required))
+	for _, key := range op.Required {
+		required[key] = true
+	}
+
+	excludedSeen := make(map[string]bool, len(excludedFields))
+	fields := make([]field, 0, len(op.Properties.keys))
+	for _, key := range op.Properties.keys {
+		if strings.HasPrefix(key, "_") || required[key] || strings.HasPrefix(key, "has_on_") {
+			continue
+		}
+		if _, ok := excludedFields[key]; ok {
+			excludedSeen[key] = true
+			continue
+		}
+		f, ok := resolveField(key, op.Properties.props[key])
+		if !ok {
+			continue
+		}
+		fields = append(fields, f)
+	}
+
+	for key := range excludedFields {
+		if !excludedSeen[key] {
+			return nil, fmt.Errorf(
+				"excludedFields entry %q matches no eligible schema property; remove or fix it",
+				key,
+			)
+		}
+	}
+	for key := range goTypeOverrides {
+		if !containsKey(fields, key) {
+			return nil, fmt.Errorf(
+				"goTypeOverrides entry %q matches no generated field; remove or fix it",
+				key,
+			)
+		}
+	}
+	return fields, nil
+}
+
+func containsKey(fields []field, key string) bool {
+	for _, f := range fields {
+		if f.key == key {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveField maps one schema property to a spec field; ok is false when the
+// property is not a scalar the spec can express (array, object, anyOf, or a
+// ref other than timedelta/datetime).
+func resolveField(key string, prop propSchema) (field, bool) {
 	f := field{
-		key:    fd.key,
-		goName: goName(fd.key),
+		key:    key,
+		goName: goName(key),
 		def:    prop.Default,
 		hasDef: prop.Default != nil,
 	}
@@ -171,8 +251,8 @@ func resolveField(fd fieldDef, prop propSchema) (field, error) {
 	}
 
 	switch {
-	case fd.goType != "":
-		f.goType = fd.goType
+	case goTypeOverrides[key] != "":
+		f.goType = goTypeOverrides[key]
 	case f.refName == "timedelta":
 		f.goType = "time.Duration"
 	case f.refName == "datetime":
@@ -197,10 +277,10 @@ func resolveField(fd fieldDef, prop propSchema) (field, error) {
 				f.goType = "*bool"
 			}
 		default:
-			return field{}, fmt.Errorf("unsupported schema type %v (ref %q)", prop.Type, prop.Ref)
+			return field{}, false
 		}
 	}
-	return f, nil
+	return f, true
 }
 
 func goName(key string) string {

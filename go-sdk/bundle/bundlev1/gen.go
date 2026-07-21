@@ -16,11 +16,12 @@
 // under the License.
 
 // spec.gen.go is generated from the Airflow dag-serialization schema by the
-// local gen tool: the TaskSpec struct and its SchemaFields omit-if-default
-// rules come from the "operator" definition, so they cannot drift from what
-// the scheduler deserializes. Don't edit spec.gen.go by hand; change the
-// schema (or the field allowlist in ./gen) and re-run `just generate-specs`
-// (go generate). DagSpec and the registration Info structs stay hand-written
+// local gen tool: the TaskSpec field set, its Go types, and its SchemaFields
+// omit-if-default rules all derive from the "operator" definition, so they
+// cannot drift from what the scheduler deserializes. Don't edit spec.gen.go
+// by hand; change the schema (or the exclusion rules in ./gen) and re-run
+// `just generate-specs` (go generate). DagSpec and the registration Info
+// structs stay hand-written
 // in spec.go: Schedule is an SDK-level concept the schema has no scalar for,
 // and several dag keys are always-emitted with [core]-config fallbacks the
 // schema cannot express.

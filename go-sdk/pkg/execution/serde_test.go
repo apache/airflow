@@ -180,28 +180,30 @@ func applySpecFields(data map[string]any, s bundlev1.TaskSpec) {
 
 func TestTaskSpecSchemaFields_EmitsAndOmits(t *testing.T) {
 	spec := bundlev1.TaskSpec{
-		Queue:                   "gpu",
-		Pool:                    "gpu_pool",
-		PoolSlots:               4,
-		Retries:                 3,
-		RetryDelay:              60 * time.Second,
-		MaxRetryDelay:           10 * time.Minute,
-		RetryExponentialBackoff: 2.0,
-		PriorityWeight:          5,
-		WeightRule:              "upstream",
-		TriggerRule:             "all_done",
-		Owner:                   "data-eng",
-		ExecutionTimeout:        45 * time.Second,
-		Executor:                "KubernetesExecutor",
-		DependsOnPast:           true,
-		WaitForDownstream:       true,
-		DoXComPush:              bundlev1.Bool(false),
-		EmailOnFailure:          bundlev1.Bool(false),
-		EmailOnRetry:            bundlev1.Bool(false),
-		DocMD:                   "## task",
-		MapIndexTemplate:        "{{ task.task_id }}",
-		MaxActiveTisPerDag:      2,
-		MaxActiveTisPerDagrun:   1,
+		Queue:                            "gpu",
+		Pool:                             "gpu_pool",
+		PoolSlots:                        4,
+		Retries:                          3,
+		RetryDelay:                       60 * time.Second,
+		MaxRetryDelay:                    10 * time.Minute,
+		RetryExponentialBackoff:          2.0,
+		PriorityWeight:                   5,
+		WeightRule:                       "upstream",
+		TriggerRule:                      "all_done",
+		Owner:                            "data-eng",
+		ExecutionTimeout:                 45 * time.Second,
+		Executor:                         "KubernetesExecutor",
+		DependsOnPast:                    true,
+		IgnoreFirstDependsOnPast:         true,
+		WaitForPastDependsBeforeSkipping: true,
+		WaitForDownstream:                true,
+		DoXComPush:                       bundlev1.Bool(false),
+		EmailOnFailure:                   bundlev1.Bool(false),
+		EmailOnRetry:                     bundlev1.Bool(false),
+		DocMD:                            "## task",
+		MapIndexTemplate:                 "{{ task.task_id }}",
+		MaxActiveTisPerDag:               2,
+		MaxActiveTisPerDagrun:            1,
 	}
 	data := map[string]any{}
 	applySpecFields(data, spec)
@@ -220,6 +222,8 @@ func TestTaskSpecSchemaFields_EmitsAndOmits(t *testing.T) {
 	assert.Equal(t, 45.0, data["execution_timeout"])
 	assert.Equal(t, "KubernetesExecutor", data["executor"])
 	assert.Equal(t, true, data["depends_on_past"])
+	assert.Equal(t, true, data["ignore_first_depends_on_past"])
+	assert.Equal(t, true, data["wait_for_past_depends_before_skipping"])
 	assert.Equal(t, true, data["wait_for_downstream"])
 	assert.Equal(t, false, data["do_xcom_push"])
 	assert.Equal(t, false, data["email_on_failure"])
