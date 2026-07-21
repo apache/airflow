@@ -158,7 +158,7 @@ jobs:
           fi
       - name: "Post provider downgrade alert to Slack"
         if: always() && steps.downgrade-alert.outputs.notify == 'true'
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
         with:
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload-file-path: ${{ steps.downgrade-alert.outputs.message-file }}
