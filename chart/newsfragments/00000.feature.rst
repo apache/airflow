@@ -1,0 +1,1 @@
+Add ``mountConfigAsDir`` to mount the Airflow config ConfigMap as a directory (setting ``AIRFLOW_CONFIG``) instead of via ``subPath``, avoiding the Kubernetes ``subPath`` + ConfigMap stale-inode race that can fail containers at init with a runc ``StartError``.
