@@ -1,4 +1,4 @@
-// generated with @7nohe/openapi-react-query-codegen@2.1.0
+// generated with @7nohe/openapi-react-query-codegen@2.2.0
 import { useMutation, UseMutationOptions, useQuery, UseQueryOptions } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 
