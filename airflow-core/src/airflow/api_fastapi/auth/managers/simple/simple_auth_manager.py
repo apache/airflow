@@ -351,10 +351,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             team_name=details.team_name if details else None,
         )
 
-    def is_authorized_view(self, *, access_view: AccessView, user: SimpleAuthManagerUser) -> bool:
-        return self.is_authorized_view_for_team(access_view=access_view, user=user)
-
-    def is_authorized_view_for_team(
+    def is_authorized_view(
         self, *, access_view: AccessView, user: SimpleAuthManagerUser, team_name: str | None = None
     ) -> bool:
         # Import errors for files with no registered Dag are admin-only (there is no

@@ -1,0 +1,23 @@
+``BaseAuthManager.is_authorized_view`` takes an optional ``team_name``
+
+The abstract ``is_authorized_view`` method on ``BaseAuthManager`` gained an optional
+``team_name`` keyword argument, so that views can be authorized per team the same way the
+other ``is_authorized_*`` methods already are through their ``details`` object.
+
+Auth managers bundled with Airflow (Simple, FAB, Keycloak, AWS) are updated. **Out-of-tree
+auth managers must add the argument to their own override.** Python's ABC machinery only
+checks that the method *name* is overridden, not its signature, so an override that keeps the
+old ``(access_view, user)`` signature still imports and instantiates cleanly and then raises
+``TypeError: is_authorized_view() got an unexpected keyword argument 'team_name'`` at runtime,
+the first time Airflow authorizes a team-scoped view.
+
+Update the override to accept the argument:
+
+.. code-block:: python
+
+    def is_authorized_view(
+        self, *, access_view: AccessView, user: MyUser, team_name: str | None = None
+    ) -> bool: ...
+
+Managers without multi-team support can accept ``team_name`` and ignore it -- that authorizes
+the view globally, which is the behaviour they had before this change.
