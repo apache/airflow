@@ -143,7 +143,7 @@ class TestEdgeCliDefinition:
         assert args.pid == "/path/to/pid"
 
     def test_list_workers_command_args(self):
-        """Test list-workers command with output format and state filter."""
+        """Test list-workers command with output format, state, and name-pattern filters."""
         params = [
             "edge",
             "list-workers",
@@ -152,10 +152,13 @@ class TestEdgeCliDefinition:
             "--state",
             "running",
             "maintenance",
+            "--worker-name-pattern",
+            "prod-*",
         ]
         args = self.arg_parser.parse_args(params)
         assert args.output == "json"
         assert args.state == ["running", "maintenance"]
+        assert args.worker_name_pattern == "prod-*"
 
     def test_remote_edge_worker_request_maintenance_args(self):
         """Test remote-edge-worker-request-maintenance command with required arguments."""
