@@ -94,9 +94,6 @@ integrations:
     tags: [software]
   - integration-name: Oracle Cloud Infrastructure
     external-doc-url: https://docs.oracle.com/en-us/iaas/Content/home.htm
-    how-to-guide:
-      - /docs/apache-airflow-providers-oracle/connections/oci.rst
-      - /docs/apache-airflow-providers-oracle/generative_ai.rst
     logo: /docs/integration-logos/Oracle.png
     tags: [generative-ai, service]
 
