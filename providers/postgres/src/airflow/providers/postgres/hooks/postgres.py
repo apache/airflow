@@ -306,6 +306,10 @@ class PostgresHook(DbApiHook):
 
         return connection
 
+    async def _aenter_read_only(self, conn) -> None:
+        """Put the async connection's next transaction into read-only mode."""
+        await conn.set_read_only(True)
+
     @overload
     def get_df(
         self,

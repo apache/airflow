@@ -137,6 +137,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         return_last: bool,
         parameters: Iterable[Any] | Mapping[str, Any] | None = None,
         fetch_results: bool = False,
+        read_only: bool = False,
     ):
         super().__init__()
         self.sql = sql
@@ -146,6 +147,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
         self.fetch_results = fetch_results
         self.split_statements = split_statements
         self.return_last = return_last
+        self.read_only = read_only
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the SQLExecuteQueryTrigger arguments and classpath."""
@@ -159,6 +161,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 "fetch_results": self.fetch_results,
                 "split_statements": self.split_statements,
                 "return_last": self.return_last,
+                "read_only": self.read_only,
             },
         )
 
@@ -202,6 +205,13 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 f" but its provider does not support this. Please set deferrable=False"
                 f" Got {hook.__class__.__name__} with class hierarchy: {hook.__class__.mro()}"
             )
+        if self.read_only and not hook.supports_readonly_execution():
+            raise AirflowException(
+                f"{hook.__class__.__name__} does not support read-only execution, so it cannot run a"
+                " deferred query safely (a triggerer restart could re-run it). Set"
+                " enforce_read_only=False to run without the read-only guard if the query is"
+                " idempotent, or deferrable=False to run it on the worker."
+            )
         return hook
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
@@ -221,6 +231,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                     handler=fetch_all_handler,
                     split_statements=self.split_statements,
                     return_last=self.return_last,
+                    read_only=self.read_only,
                 )
 
                 self.log.info("Executing query from %s done!", self.conn_id)
@@ -241,6 +252,7 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                     handler=None,
                     split_statements=self.split_statements,
                     return_last=self.return_last,
+                    read_only=self.read_only,
                 )
 
                 self.log.info("Executing query from %s done!", self.conn_id)

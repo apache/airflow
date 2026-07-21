@@ -37,6 +37,7 @@ from airflow.providers.common.compat.sdk import (
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.operators.read_only_guard import scan_for_writes
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.utils.helpers import merge_dicts
 
@@ -542,6 +543,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         completing execution. If `do_xcom_push` is True, results are fetched automatically,
         making this parameter redundant.  (default: False).
     :param deferrable: (optional) Run operator in the deferrable mode.
+    :param enforce_read_only: (optional) Only effective when ``deferrable=True``. If the triggerer restarts
+        mid-query the query is re-run from the start. By default (``True``) the operator locks the session
+        to read-only, so a restart can only ever repeat a read. Set to ``False`` to permit writes. Do this
+        **only** if your statements are idempotent. This flag does not make writes safe if they are not
+        idempotent. (default: True).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -574,6 +580,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         show_return_value_in_logs: bool = False,
         requires_result_fetch: bool = False,
         deferrable: bool = False,
+        enforce_read_only: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -587,6 +594,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.show_return_value_in_logs = show_return_value_in_logs
         self.requires_result_fetch = requires_result_fetch
         self.deferrable = deferrable
+        self.enforce_read_only = enforce_read_only
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -617,6 +625,14 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         if self.deferrable:
+            if self.enforce_read_only:
+                is_write, reason = scan_for_writes(self.sql)
+                if is_write:
+                    raise ValueError(
+                        f"enforce_read_only=True but the SQL appears to contain a write: {reason}. "
+                        "Set enforce_read_only=False if the query is idempotent, or deferrable=False "
+                        "to run it on the worker."
+                    )
             self.defer(
                 trigger=SQLExecuteQueryTrigger(
                     sql=self.sql,
@@ -626,6 +642,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
                     fetch_results=self._should_run_output_processing() or self.requires_result_fetch,
                     split_statements=self.split_statements,
                     return_last=self.return_last,
+                    read_only=self.enforce_read_only,
                 ),
                 method_name="execute_complete",
             )
