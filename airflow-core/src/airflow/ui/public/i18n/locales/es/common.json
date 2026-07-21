@@ -231,8 +231,8 @@
     "roles": "Roles",
     "users": "Usuarios"
   },
-  "selected": "Seleccionado",
   "selectLanguage": "Seleccionar Idioma",
+  "selected": "Seleccionado",
   "showDetailsPanel": "Mostrar Panel de Detalles",
   "signedInAs": "Sesión iniciada como",
   "source": {
