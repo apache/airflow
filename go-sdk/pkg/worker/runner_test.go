@@ -256,17 +256,29 @@ func (s *WorkerSuite) TestTaskHeartbeatNilResponseDoesNotPanic() {
 	id := uuid.New().String()
 	testWorkload := newTestWorkLoad(id, id[:8])
 
+	var callCount atomic.Int32
+	secondHeartbeat := make(chan struct{})
+
 	s.registry.AddDag(testWorkload.TI.DagId).
 		AddTaskWithName(testWorkload.TI.TaskId, func() error {
-			time.Sleep(250 * time.Millisecond)
-			return nil
+			select {
+			case <-secondHeartbeat:
+				return nil
+			case <-time.After(2 * time.Second):
+				return fmt.Errorf("second heartbeat was never observed")
+			}
 		})
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateSuccess)
 	s.ti.EXPECT().
 		Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).
-		Return(&api.GeneralHTTPError{Response: nil})
+		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIHeartbeatInfo) error {
+			if callCount.Add(1) == 2 {
+				close(secondHeartbeat)
+			}
+			return &api.GeneralHTTPError{Response: nil}
+		})
 	s.client.EXPECT().TaskInstances().Return(s.ti)
 
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
