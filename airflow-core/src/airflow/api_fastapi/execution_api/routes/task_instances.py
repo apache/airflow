@@ -693,8 +693,14 @@ def _create_ti_state_update_query_and_update_state(
         session.add(trigger_row)
         session.flush()
 
-        # TODO: HANDLE execution timeout later as it requires a call to the DB
-        # either get it from the serialised DAG or get it from the API
+        if ti_patch_payload.execution_timeout is not None:
+            ti = session.get(TI, task_instance_id)
+            if ti and ti.start_date:
+                execution_timeout_date = ti.start_date + ti_patch_payload.execution_timeout
+                if timeout:
+                    timeout = min(timeout, execution_timeout_date)
+                else:
+                    timeout = execution_timeout_date
 
         query = update(TI).where(TI.id == task_instance_id)
 
