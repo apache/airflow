@@ -342,6 +342,35 @@ config:
         type: string
         example: ~
         default: "False"
+      kpo_zombie_pod_cleanup_enabled:
+        description: |
+          If True, periodically delete KubernetesPodOperator pods that no longer have an active matching
+          task instance.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "False"
+      kpo_zombie_pod_cleanup_interval:
+        description: |
+          How often, in seconds, KubernetesPodOperator zombie pod cleanup runs when enabled.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "300"
+      kpo_zombie_pod_cleanup_max_deletes_per_loop:
+        description: |
+          Maximum number of KubernetesPodOperator zombie pods to delete during one cleanup loop.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "100"
+      kpo_zombie_pod_deletion_grace_period_seconds:
+        description: |
+          Grace period, in seconds, used when deleting KubernetesPodOperator zombie pods.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "5"
       worker_pod_pending_fatal_container_state_reasons:
         description: |
           If the worker pods are in a pending state due to a fatal container

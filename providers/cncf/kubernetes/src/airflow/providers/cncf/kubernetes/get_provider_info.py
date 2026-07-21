@@ -209,7 +209,7 @@ def get_provider_info():
                         "default": "False",
                     },
                     "kpo_zombie_pod_cleanup_enabled": {
-                        "description": "If True, periodically delete KubernetesPodOperator pods that no longer have an active matching task instance.\n",
+                        "description": "If True, periodically delete KubernetesPodOperator pods that no longer have an active matching\ntask instance.\n",
                         "version_added": None,
                         "type": "boolean",
                         "example": None,
