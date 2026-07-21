@@ -1014,6 +1014,20 @@ repos:
           ^scripts/ci/prek/generate_agent_skills\.py$
         pass_filenames: false
         additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+      - id: check-documented-commands
+        name: Check documented breeze and prek commands exist
+        entry: ./scripts/ci/prek/check_documented_commands.py
+        language: python
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^contributing-docs/.*\.rst$|
+          ^dev/breeze/src/airflow_breeze/commands/|
+          ^(?:.*/)?\.pre-commit-config\.yaml$|
+          ^scripts/ci/prek/check_documented_commands\.py$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['pyyaml', 'rich>=13.6.0']
       - id: run-skill-eval
         name: Run skill-eval against AGENTS.md and cases
         entry: ./dev/skill-evals/eval.py

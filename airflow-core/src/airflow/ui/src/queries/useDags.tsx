@@ -17,12 +17,8 @@
  * under the License.
  */
 import { useDagServiceGetDagsUi } from "openapi/queries";
-import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type { DagRunState } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
-
-export type DagWithLatest = {
-  last_run_start_date: string;
-} & DAGWithLatestDagRunsResponse;
 
 export const useDags = ({
   advancedSearch = false,

@@ -75,6 +75,17 @@ KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.amazon.aws.hooks.kinesis.FirehoseHook",
 ]
 
+# AbstractToolset subclasses that are internal implementation detail -- auto-applied by
+# a provider's own runtime rather than constructed by users -- and are intentionally not
+# part of the registry's public "toolsets" module category, so they are exempt from
+# check_all_provider_classes_are_registered's registration requirement. Contrast with
+# e.g. LoggingToolset, which is documented in the toolsets how-to guide and is registered.
+INTERNAL_UNREGISTERED_TOOLSET_CLASSES = {
+    # Wraps a toolset with per-step result caching for durable execution; applied
+    # automatically by AgentOperator, not part of the public toolsets how-to guide.
+    "airflow.providers.common.ai.durable.caching_toolset.CachingToolset",
+}
+
 if __name__ != "__main__":
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
@@ -368,14 +379,14 @@ def check_integration_duplicates(yaml_files: dict[str, dict]) -> tuple[int, int]
     return num_integrations, num_errors
 
 
-@run_check("Checking completeness of list of {sensors, hooks, operators, triggers, bundles}")
+@run_check("Checking completeness of list of {sensors, hooks, operators, triggers, bundles, toolsets}")
 def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_modules = 0
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles", "toolsets"]
     ):
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
@@ -407,14 +418,14 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
     return num_modules, num_errors
 
 
-@run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers, bundles}")
+@run_check("Checking for duplicates in list of {sensors, hooks, operators, triggers, bundles, toolsets}")
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(
     yaml_files: dict[str, dict],
 ) -> tuple[int, int]:
     num_errors = 0
     num_integrations = 0
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles", "toolsets"]
     ):
         resource_data = provider_data.get(resource_type, [])
         count_integrations = Counter(r.get("integration-name", "") for r in resource_data)
@@ -595,18 +606,20 @@ def check_hook_classes_with_conn_type_are_registered(yaml_files: dict[str, dict]
 
 
 @run_check(
-    "Checking that all provider Hook/Operator/Sensor/Trigger/Executor/Notifier"
+    "Checking that all provider Hook/Operator/Sensor/Trigger/Executor/Notifier/Toolset"
     " classes are registered in provider.yaml"
 )
 def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tuple[int, int]:
     """
     Walk all provider source files, find Hook/Operator/Sensor/Trigger/Executor/Notifier/
-    SecretsBackend/AuthManager/LoggingHandler/DagBundle/DBManager subclasses, and verify
-    they are registered in the appropriate provider.yaml section.
+    SecretsBackend/AuthManager/LoggingHandler/DagBundle/DBManager/Toolset subclasses, and
+    verify they are registered in the appropriate provider.yaml section.
 
     This catches classes placed in non-standard directories or modules that were missed
     when updating provider.yaml.
     """
+    from pydantic_ai.toolsets.abstract import AbstractToolset
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.executors.base_executor import BaseExecutor
@@ -632,6 +645,7 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
         (FileTaskHandler, "logging"),
         (BaseDagBundle, "bundles"),
         (BaseDBManager, "db-managers"),
+        (AbstractToolset, "toolsets"),
     ]
 
     # Resource types where registration is by class path (not module)
@@ -656,7 +670,7 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
 
         # Collect all modules registered in provider.yaml across all resource types
         registered_modules: set[str] = set()
-        for resource_type in ("hooks", "operators", "sensors", "triggers", "bundles"):
+        for resource_type in ("hooks", "operators", "sensors", "triggers", "bundles", "toolsets"):
             for entry in provider_data.get(resource_type, []):
                 registered_modules.update(entry.get("python-modules", []))
         for entry in provider_data.get("transfers", []):
@@ -733,8 +747,10 @@ def check_all_provider_classes_are_registered(yaml_files: dict[str, dict]) -> tu
 
                 for base_class, resource_type in base_class_resource_map:
                     if issubclass(obj, base_class) and obj is not base_class:
-                        num_checks += 1
                         full_class_name = f"{module_name}.{attr_name}"
+                        if full_class_name in INTERNAL_UNREGISTERED_TOOLSET_CLASSES:
+                            break
+                        num_checks += 1
                         # Executors and notifications are registered by class path;
                         # other types are registered by module path.
                         if resource_type in class_level_resource_types:
@@ -889,7 +905,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]) -> tuple[int, int]:
     num_errors = 0
     num_integrations = len(all_integration_names)
     for (yaml_file_path, provider_data), resource_type in itertools.product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers", "bundles", "toolsets"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_names = {r["integration-name"] for r in resource_data}
