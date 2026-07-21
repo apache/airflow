@@ -526,15 +526,35 @@ class SerializedDAG:
 
     def summarize_skipped_intervals_between(
         self,
-        prev_interval_end: datetime.datetime,
-        new_interval_start: datetime.datetime,
+        prev_info: DagRunInfo,
+        new_info: DagRunInfo,
     ) -> SkippedIntervalsSummary | None:
         """
-        Summarize intervals skipped between two automated Dag run boundaries.
+        Summarize intervals skipped between two automated Dag runs.
 
-        Returns ``None`` when there is no schedulable gap.
+        Asks the timetable for the immediate successor of *prev_info* with
+        catchup enabled. Returns a summary only when that expected successor's
+        logical date is strictly earlier than *new_info*'s logical date — i.e.
+        when at least one scheduled run was skipped.
+
+        Returns ``None`` when there is no schedulable gap (including consecutive
+        zero-width trigger-timetable runs, where wall-clock endpoints differ
+        but the expected next logical date matches the new run).
         """
+        if prev_info.data_interval is None or new_info.data_interval is None:
+            return None
+        if new_info.logical_date is None:
+            return None
+
+        prev_interval_end = prev_info.data_interval.end
+        new_interval_start = new_info.data_interval.start
         if prev_interval_end >= new_interval_start:
+            return None
+
+        expected = self.next_dagrun_info(last_automated_run_info=prev_info, restricted=False)
+        if expected is None or expected.logical_date is None:
+            return None
+        if expected.logical_date >= new_info.logical_date:
             return None
 
         from airflow._shared.timezones import timezone

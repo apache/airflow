@@ -116,7 +116,7 @@ from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
 from airflow.timetables.base import (
-    DataInterval,
+    DagRunInfo,
     SkippedIntervalsSummary,
     Timetable,
     compute_rollup_fingerprint,
@@ -2464,22 +2464,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _collect_skipped_intervals(
         self,
         serdag: SerializedDAG,
-        new_data_interval: DataInterval,
+        new_info: DagRunInfo,
         session: Session,
+        *,
+        listener_has_impls: bool,
     ) -> SkippedIntervalsSummary | None:
         """
         Summarize intervals skipped due to catchup=False.
 
-        Computes the intervals that would have been scheduled between the previous
-        automated DagRun's data_interval_end and the new run's data_interval_start,
-        had catchup been True.  Returns ``None`` when there is no gap or when
-        no previous run exists.
+        Asks the timetable whether the previous automated DagRun's immediate
+        successor (with catchup enabled) is earlier than the new run. Returns
+        ``None`` when there is no schedulable gap or when no previous run exists.
         """
         if serdag.catchup:
             return None
-        listener_has_impls = bool(
-            get_listener_manager().hook.on_intervals_skipped.get_hookimpls()  # type: ignore[attr-defined]
-        )
+        if new_info.data_interval is None:
+            return None
         if not serdag.has_on_skipped_intervals_callback and not listener_has_impls:
             return None
 
@@ -2489,7 +2489,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 DagRun.dag_id == serdag.dag_id,
                 DagRun.run_type == DagRunType.SCHEDULED,
                 DagRun.data_interval_end.is_not(None),
-                DagRun.data_interval_end <= new_data_interval.start,
+                DagRun.data_interval_end <= new_info.data_interval.start,
             )
             .order_by(DagRun.data_interval_end.desc())
             .limit(1)
@@ -2497,10 +2497,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if prev_run is None or prev_run.data_interval_end is None:
             return None
 
-        return serdag.summarize_skipped_intervals_between(
-            prev_run.data_interval_end,
-            new_data_interval.start,
-        )
+        prev_info = serdag.timetable.run_info_from_dag_run(dag_run=prev_run)
+        return serdag.summarize_skipped_intervals_between(prev_info, new_info)
 
     def _create_dag_runs(
         self, dag_models: Collection[DagModel], session: Session
@@ -2512,6 +2510,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         skip_callback_requests: list[DagSkippedIntervalsCallbackRequest] = []
         skipped_intervals_listener_events: list[tuple[str, SkippedIntervalsSummary]] = []
+        listener_has_impls = bool(
+            get_listener_manager().hook.on_intervals_skipped.get_hookimpls()  # type: ignore[attr-defined]
+        )
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
@@ -2635,13 +2636,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if data_interval is not None:
                     skipped_summary = self._collect_skipped_intervals(
                         serdag=serdag,
-                        new_data_interval=data_interval,
+                        new_info=next_info,
                         session=session,
+                        listener_has_impls=listener_has_impls,
                     )
                     if skipped_summary is not None:
-                        if bool(
-                            get_listener_manager().hook.on_intervals_skipped.get_hookimpls()  # type: ignore[attr-defined]
-                        ):
+                        if listener_has_impls:
                             skipped_intervals_listener_events.append((serdag.dag_id, skipped_summary))
                         if serdag.has_on_skipped_intervals_callback:
                             skip_callback_requests.append(
