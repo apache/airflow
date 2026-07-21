@@ -1255,6 +1255,23 @@ class DbApiHook(BaseHook):
             "Override _aget_cursor in the DB-specific hook."
         )
 
+    def supports_readonly_execution(self) -> bool:
+        """Whether the DB-specific hook overrides :meth:`_aenter_read_only`."""
+        return type(self)._aenter_read_only is not DbApiHook._aenter_read_only
+
+    async def _aenter_read_only(self, conn):
+        """
+        Put the opened async connection in read-only mode.
+
+        Called by :meth:`arun` before any statement runs, whenever the operator
+        requests read-only execution. The base implementation raises an exception
+        if this method is not implemented in the DB-specific hook.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement read-only execution. Override "
+            "_aenter_read_only to support deferrable read-only queries for this database,"
+        )
+
     async def _arun_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
         if self.log_sql:
@@ -1276,6 +1293,7 @@ class DbApiHook(BaseHook):
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        read_only: bool = ...,
     ) -> None: ...
 
     @overload
@@ -1287,6 +1305,7 @@ class DbApiHook(BaseHook):
         handler: HANDLER = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        read_only: bool = ...,
     ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     async def arun(
@@ -1297,6 +1316,7 @@ class DbApiHook(BaseHook):
         handler: HANDLER | None = None,
         split_statements: bool = False,
         return_last: bool = True,
+        read_only: bool = False,
     ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None:
         self.descriptions = []
         if isinstance(sql, str):
@@ -1314,6 +1334,8 @@ class DbApiHook(BaseHook):
         _last_description = None
         async with self._acreate_autocommit_connection(autocommit) as conn:
             try:
+                if read_only:
+                    await self._aenter_read_only(conn)
                 async with self._aget_cursor(conn) as cur:
                     results = []
                     for sql_statement in sql_list:
