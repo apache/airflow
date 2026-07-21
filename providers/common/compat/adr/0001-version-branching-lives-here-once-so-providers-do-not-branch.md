@@ -27,38 +27,26 @@ Accepted
 
 ## Context
 
-Every provider must work across a range of Airflow core versions — that is the
-parent area's decision, recorded in `providers/adr/0002-…`, and it is not
-restated here. What this provider exists to answer is the question that decision
-leaves open: *where does the branching go?*
+Every provider must work across a range of Airflow core versions
+(`providers/adr/0002-…`). What this provider answers is *where the branching
+goes*. Without a shared answer, each provider writes its own — a local `try: from
+airflow.sdk import X / except ImportError: from airflow.models import X`, or an
+`if AIRFLOW_V_3_0_PLUS:` ladder. Multiply by ~100 independently released
+distributions and the same rename is encoded ~100 times, each free to get the
+fallback order wrong, to miss a *rename* (`Dataset` → `Asset` changed the name, not
+just the path), or to resolve on `main` and break on the declared floor.
 
-Without a shared answer, each provider writes its own. The natural move, when a
-symbol moved between Airflow 2.x and 3.x, is a local `try: from airflow.sdk
-import X / except ImportError: from airflow.models import X`, or an
-`if AIRFLOW_V_3_0_PLUS:` ladder next to the import. Multiply that by ~100
-independently released provider distributions and the same rename is encoded
-~100 times, each copy free to get the fallback order wrong, to miss the *rename*
-(`Dataset` → `Asset` is not just a moved path — the name changed too), or to
-resolve correctly on the maintainer's `main` checkout and incorrectly on the
-declared floor. When core moves the symbol again, ~100 places have to be found
-and fixed.
-
-`common.compat` centralises that branching. `sdk.py` carries the maps —
-`_IMPORT_MAP` (a tuple of module paths tried newest-first), `_MODULE_MAP` (whole
-modules such as `timezone` and `io`), and `_RENAME_MAP` (the
-`(new_path, old_path, old_name)` triple for symbols that were *renamed*, not
-merely moved) — and `_compat_utils.create_module_getattr` turns them into a lazy
-module-level `__getattr__`. A provider writes `from
-airflow.providers.common.compat.sdk import BaseHook` and the resolution order is
-somebody else's problem, resolved in exactly one place. The same shape covers
-the non-`sdk` surfaces: `assets/`, `notifier/`, `security/permissions.py`,
-`module_loading/`, `standard/`, `sqlalchemy/orm.py`, `openlineage/`.
-
-Roughly 100 provider `pyproject.toml` files now declare
-`apache-airflow-providers-common-compat` as a runtime dependency. That fan-out is
-the point — it is the measure of how much duplicated branching this provider
-absorbs — and it is also why the surface has to be treated as an interface
-rather than as a convenience.
+`common.compat` centralises that. `sdk.py` carries the maps — `_IMPORT_MAP` (module
+paths tried newest-first), `_MODULE_MAP` (whole modules like `timezone`, `io`), and
+`_RENAME_MAP` (the `(new_path, old_path, old_name)` triple for *renamed* symbols) —
+and `_compat_utils.create_module_getattr` turns them into a lazy module-level
+`__getattr__`. A provider writes `from airflow.providers.common.compat.sdk import
+BaseHook` and the resolution order is resolved in exactly one place. The same shape
+covers `assets/`, `notifier/`, `security/permissions.py`, `module_loading/`,
+`standard/`, `sqlalchemy/orm.py`, `openlineage/`. Roughly 100 provider
+`pyproject.toml` files declare `apache-airflow-providers-common-compat` as a
+runtime dependency — that fan-out is the point, and why the surface is an interface
+rather than a convenience.
 
 ## Decision
 
@@ -94,15 +82,14 @@ consumed by providers as a plain import.
 
 - A core rename is handled in one diff instead of ~100, and a provider author
   needs no knowledge of which Airflow release moved what.
-- Consumers' import lines stay stable across core versions, which is what makes
-  a single provider wheel installable on both sides of the 2→3 boundary.
-- The cost is concentration of risk: a wrong entry in the maps is wrong for every
-  consumer at once, on whichever core version the entry got wrong. That is the
-  trade this provider deliberately makes, and the reason review here is held to a
-  higher bar than an ordinary provider.
-- Because resolution is lazy, a mistake surfaces at the consumer's first
-  attribute access rather than at import — tests must exercise the *specific*
-  branch a change touches, including the arm the CI core version does not take.
+- Consumers' import lines stay stable across core versions — what makes a single
+  provider wheel installable on both sides of the 2→3 boundary.
+- The cost is concentration of risk: a wrong map entry is wrong for every consumer
+  at once, on whichever core version it got wrong — the reason review here is held
+  to a higher bar than an ordinary provider.
+- Because resolution is lazy, a mistake surfaces at the consumer's first attribute
+  access, not at import — tests must exercise the *specific* branch a change
+  touches, including the arm the CI core version does not take.
 
 A change **violates** this decision when it:
 
@@ -123,23 +110,12 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #56790 — "Add comprehensive compatibility imports for Airflow 2 to 3
-  migration": the bulk of the `sdk.py` map, establishing this provider as the
-  single place the 2→3 symbol moves are encoded.
-- #56884 — "Common.Compat: Extract reusable compat utilities and rename to sdk":
-  factoring the resolution machinery into `create_module_getattr` so every shim
-  module shares one implementation instead of hand-rolled `__getattr__`s.
-- #56793 and #56867 — "Simplify version-specific imports in the Google provider"
-  / "… in the Standard provider": the consumer side of the decision — local
-  version ladders deleted in favour of a `common.compat` import.
-- #57016 — "Migrate Apache providers & Elasticsearch to `common.compat`": the
-  same migration applied across a family of providers.
-- #62776 — "Consolidate `SkipMixin` imports through `common-compat` layer" and
-  #61812 — "Route providers to consume `Stats` from common compat provider":
-  individual symbols pulled out of per-provider branching into the shared map.
-- #57183 — "Extract prek hooks for Common.Compat provider": the
-  `check_common_compat_lazy_imports` guard that keeps the `TYPE_CHECKING` block
-  and the runtime maps from drifting apart.
-- #64933 — "Fix `RESOURCE_ASSET` compatibility with Airflow 2.x in
-  common-compat": the failure mode this decision concentrates — one wrong arm of
-  a shim, wrong for every consumer on that core version.
+- #56790 — the bulk of the `sdk.py` map, establishing this provider as the single
+  place the 2→3 symbol moves are encoded.
+- #56884 — factoring the resolution machinery into `create_module_getattr`.
+- #56793, #56867 — the consumer side: local version ladders deleted for a
+  `common.compat` import (Google, Standard).
+- #57016 — the same migration across a family of Apache providers and Elasticsearch.
+- #62776, #61812 — individual symbols (`SkipMixin`, `Stats`) pulled into the shared map.
+- #57183 — the `check_common_compat_lazy_imports` guard against drift.
+- #64933 — one wrong arm of a shim, wrong for every consumer on that core version.

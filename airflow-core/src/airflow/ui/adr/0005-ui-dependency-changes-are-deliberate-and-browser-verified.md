@@ -27,44 +27,26 @@ Accepted
 
 ## Context
 
-This directory carries a large npm dependency tree — React 19 and the React
-compiler, Chakra, TanStack Table and Query, Vite, Playwright, Vitest, Monaco,
-Chart.js, ESLint and its plugin set. Dependabot is configured to group minor and
-patch updates per branch (`core-ui-package-updates` on `main`, and a
-`3-N-core-ui-package-updates` group per active release branch) with a cooldown,
-and it regenerates the group PR every time any member moves.
+This directory carries a large npm tree — React 19 and the React compiler, Chakra,
+TanStack Table and Query, Vite, Playwright, Vitest, Monaco, Chart.js, ESLint.
+Dependabot groups minor and patch updates per branch (`core-ui-package-updates` on
+`main`, a `3-N-` group per release branch) and regenerates the group PR every time
+any member moves. The result is a firehose: grouped bumps closed unmerged as
+superseded regenerations outnumber every other kind of closed PR here combined.
+That is the process working — one regeneration merges per cycle, the others carry no
+information — and it is why a reviewer who starts reading a group bump is usually
+reading a diff that no longer exists.
 
-The consequence is a firehose. Closed-unmerged group bumps against this
-directory outnumber every other kind of closed PR here combined: the group PR is
-superseded within days, and the superseded ones are closed rather than rebased.
-That is the process working, not failing — exactly one regeneration of each
-group merges per cycle, and the others carry no information. It is also why
-dependency traffic cannot be treated as ordinary review work: a reviewer who
-starts reading a group bump is usually reading a diff that no longer exists.
-
-Where real damage occurs is at the edges of that flow.
-
-**Bulk bumps applied directly to a release branch.** A grouped upgrade of
-several dozen packages is not verifiable by CI alone: the tests pass and the
-rendered UI is subtly broken. On `main` that is recoverable, and the project
-accepts it as the price of staying current. On a release branch it is not, and
-when it happened the response was to revert the offending bumps rather than to
-chase the breakage — a fix-forward on a release branch means shipping an
-untested dependency tree to users.
-
-**Reviving a bump that has been overtaken.** A security-motivated upgrade sitting
-open for weeks is often already satisfied on `main` by a later bump or a
-`pnpm.overrides` entry. Rebasing it produces an empty or misleading change; the
-correct action is to confirm where `main` actually stands and close it.
-
-**Adding or pinning a dependency to route around a problem.** A new package
-introduced to work around a browser bug commits the project to maintaining a
-divergent user experience for one browser, permanently, for a defect that
-belongs upstream. A version pin added to dodge a regression is a workaround that
-outlives everyone's memory of it unless it is tracked. And building on a
-dependency the project has already decided to move away from spends effort that
-is discarded when the removal happens — reviewers say so explicitly rather than
-merging work into a component that is on its way out.
+Real damage occurs at the edges. **Bulk bumps applied directly to a release
+branch** are not verifiable by CI alone — tests pass and the UI is subtly broken;
+on `main` that is recoverable, on a release branch the response is to revert, not
+fix forward. **Reviving a bump already overtaken** on `main` by a later bump or a
+`pnpm.overrides` entry produces an empty or misleading change; confirm where `main`
+stands and close it. **Adding or pinning a dependency to route around a problem**
+commits the project to a divergent per-browser UX permanently for a defect that
+belongs upstream; a pin added to dodge a regression outlives everyone's memory
+unless tracked; and building on a dependency slated for removal spends effort that
+is discarded when the removal happens.
 
 ## Decision
 
@@ -90,15 +72,15 @@ Dependency changes in this directory are treated as behaviour changes:
 
 ## Consequences
 
-- The dependency tree stays current without the project absorbing an
-  unreviewable bulk change on a branch it is about to release from.
-- Reviewers can ignore superseded group PRs without reading them, which is the
-  only reason the volume is survivable.
-- Browser verification makes dependency bumps meaningfully more expensive than
-  merging what the bot proposes, and some upgrades therefore lag.
+- The dependency tree stays current without the project absorbing an unreviewable
+  bulk change on a branch it is about to release from.
+- Reviewers can ignore superseded group PRs without reading them — the only reason
+  the volume is survivable.
+- Browser verification makes bumps more expensive than merging what the bot
+  proposes, so some upgrades lag.
 - Real browser incompatibilities go unaddressed in Airflow when the fix belongs
-  upstream. That is a deliberate trade: a per-browser divergence in this UI
-  costs more over time than the defect does.
+  upstream — a deliberate trade: a per-browser divergence costs more over time than
+  the defect does.
 
 A change **violates** this decision when it:
 
@@ -119,28 +101,21 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- 156 grouped dependency PRs against this directory closed unmerged as
-  superseded regenerations — roughly a third of every closed PR touching it —
-  against the small number of group bumps that actually merge per cycle. The
-  closure is mechanical and carries no review signal.
-- #64466 — a release-branch UI static-check failure caused by two bulk
-  dependency upgrades applied to that branch; the maintainer position was that
-  bulk UI dependency updates are done on `main`, where breakage is expected and
-  recoverable, and that reverting the two bumps was the safer path than fixing
-  forward.
-- #66797 and #66798 — security-motivated bumps of `happy-dom` and `vite` closed
-  by their own author after rebasing revealed `main` had already moved well past
-  the target versions, with a `pnpm.overrides` entry covering the vulnerable
-  range.
-- #58183 — a Firefox backfill-form fix closed by its author after review pushed
-  back on adding an npm package: reusing the existing date-range calendar was
-  not possible because of the browser limitation, and diverging the UX for one
-  browser was judged worse than leaving the defect upstream.
-- #55994 — a custom Chakra tooltip replacing the Chart.js default, closed with
-  the decision to make the change as part of removing Chart.js from the Gantt
-  chart rather than layering a workaround on a library on its way out.
-- #68638 — removal of an unused Monaco-related dependency deferred pending the
-  open discussion about whether the Monaco editor stays at all.
-- #67796 and #67648 — competing PRs pinning and unpinning `@chakra-ui/react`
-  around a dialog-mounting regression, illustrating the churn a pin generates
-  when it is not tracked to a resolution.
+- 156 grouped dependency PRs against this directory closed unmerged as superseded
+  regenerations — roughly a third of every closed PR touching it — versus the few
+  group bumps that merge per cycle. The closure carries no review signal.
+- #64466 — a release-branch static-check failure from two bulk upgrades applied to
+  that branch; the maintainer position: bulk UI dependency updates happen on `main`
+  where breakage is recoverable, and reverting was safer than fixing forward.
+- #66797, #66798 — security bumps of `happy-dom` and `vite` closed by their author
+  after rebasing showed `main` had moved past the targets, with a `pnpm.overrides`
+  entry covering the vulnerable range.
+- #58183 — a Firefox backfill-form fix closed after review pushed back on adding an
+  npm package: diverging the UX for one browser was judged worse than leaving the
+  defect upstream.
+- #55994 — a custom Chakra tooltip closed to be done as part of removing Chart.js
+  from the Gantt chart rather than layering a workaround on a library on its way out.
+- #68638 — removal of an unused Monaco dependency deferred pending the open
+  discussion about whether the Monaco editor stays at all.
+- #67796, #67648 — competing PRs pinning and unpinning `@chakra-ui/react` around a
+  dialog-mounting regression: the churn a pin generates when untracked.

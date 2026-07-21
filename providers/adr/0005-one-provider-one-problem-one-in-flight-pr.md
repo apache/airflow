@@ -28,67 +28,43 @@ Accepted
 ## Context
 
 `providers/` is the widest, most-forked part of the repository and the entry
-point for most first contributions. That makes it the place where two failure
-modes concentrate, both of which consume review capacity without producing
-merged code.
+point for most first contributions, which concentrates two failure modes that
+consume review capacity without producing merged code.
 
-The first is **duplicate work**. A visible "good first issue" against a small
-provider attracts many independent implementations of the same fix within days.
-One reported bug in the IMAP hook — attachments with identical names silently
-overwriting each other — drew ten separate pull requests from ten authors, each
-re-implementing the same `overwrite_file` parameter, before a single one was
-merged. The same pattern recurred for `template_fields` on the Salesforce bulk
-operator, for the Azure Batch SDK migration, for the Alibaba OSS endpoint
-option, and for the Microsoft Graph host resolution. Each of those PRs was
-individually reasonable. Collectively they cost more review than the fix was
-worth, and nine of every ten authors ended up with nothing merged. Reviewers
-cannot merge two fixes for one bug, so the marginal PR is pure cost — for the
-project *and* for its author.
+**Duplicate work.** A visible "good first issue" against a small provider draws
+many independent implementations of the same fix within days — one IMAP-hook bug
+(identically-named attachments overwriting each other) drew ten PRs re-adding the
+same `overwrite_file` parameter before one merged, and the pattern recurred for
+Salesforce `template_fields`, the Azure Batch SDK migration, Alibaba OSS, and
+Microsoft Graph host resolution. Reviewers cannot merge two fixes for one bug, so
+the marginal PR is pure cost.
 
-The second is **unscoped diffs**. A change that fixes one thing but also carries
-a bad rebase, an unrelated file an agent decided to touch, formatting churn
-across a package, or a second issue's work "while I was in there", cannot be
-reviewed as a unit. Providers are independently released, so an unrelated edit
-riding along in a provider PR is not merely noise: it ships in that provider's
-next release with no changelog line and no reviewer having looked at it as a
-change in its own right. Review of such PRs consistently stalls at "please
-remove the unrelated changes", which is the most repeated single sentence in the
-closed-PR record for this directory.
+**Unscoped diffs.** A change that also carries a bad rebase, an unrelated agent
+edit, formatting churn, or a second issue's work cannot be reviewed as a unit —
+and because providers are independently released, the unrelated edit ships with
+no changelog line and no reviewer having looked at it. "Please remove the
+unrelated changes" is the most repeated sentence in this directory's closed-PR
+record.
 
-"Limited to one provider" is not the same as "touches nothing outside
-`providers/`". Roughly one in eight merged provider changes legitimately edits a
-file under `airflow-core/` or `task-sdk/`, because a small number of files there
-are *registries of provider content* rather than core logic.
-`airflow-core/tests/unit/always/test_project_structure.py` enumerates every
-provider module, so adding an operator module requires editing it; the Task SDK
-decorator stubs in `task-sdk/src/airflow/sdk/definitions/decorators/__init__.pyi`
-enumerate every `@task.*` decorator a provider contributes; the plugin-registry
-tests under `airflow-core/tests/unit/` list registered plugins. Merged examples
-are PRs #69613 (which touches both the structure test and the decorator stub),
-as well as #69930, #70014 and #68082 — so treating any such file as proof of a
-bad rebase sends back correct work. The signal that actually distinguishes a bad
-rebase is an edit to core *source* the provider has no reason to change, or a
-diff that reverts unrelated commits.
+"Limited to one provider" is not "touches nothing outside `providers/`". Roughly
+one in eight merged provider changes legitimately edits a file under
+`airflow-core/` or `task-sdk/`, because a few files there are *registries of
+provider content* (`test_project_structure.py` enumerates every provider module,
+the Task SDK decorator stubs every `@task.*` decorator, the plugin-registry tests
+the registered plugins). #69613, #69930, #70014 and #68082 are merged examples, so
+treating any such file as proof of a bad rebase sends back correct work. The real
+signal is an edit to core *source* the provider has no reason to change, or a diff
+reverting unrelated commits.
 
-There is one honest exception in the opposite direction. A *mechanical* sweep —
-applying the identical, behaviour-preserving edit across many providers, such as
-migrating an import to `common.compat` — is better as a single PR than as fifty,
-because it is verified by a hook rather than by reading. The distinguishing
-question is not "how many providers does this touch" but "does any provider need
-its own judgement call". Blanket HTTP timeouts across many providers looked like
-a sweep and was not: the right timeout for a metadata call is wrong for a
-long-running job submission, so each provider needed its own reasoning, and the
-combined PR was split. Conversely, applying a sweep to a provider that does not
-exhibit the pattern at all is also wrong — the correct action there is to skip
-that provider, not to invent a change for it.
-
-Over-fragmentation is a real failure in the other direction, and the record does
-not let this be stated as a rule. #63042 (blanket HTTP timeouts) was closed with
-"Closing this PR in favor of splitting"; #63370, a connection-standardisation
-change split per connection type, got the opposite instruction — "I need a
-single PR that takes care of all, please". Both reviewers were right about their
-own change. So the split-vs-single question is one a reviewer answers per
-change, and triage does not draft a PR back on this ground alone.
+Two honest exceptions in opposite directions. A *mechanical*, behaviour-preserving
+sweep across many providers (e.g. an import migration to `common.compat`) is
+better as one hook-verified PR than fifty — but applied to a provider that does
+not exhibit the pattern it is wrong, and the fix is to skip it. And
+over-fragmentation is a real failure too: #63042 (blanket HTTP timeouts) closed
+"in favor of splitting" because the right timeout differs per provider, while #63370
+got the opposite instruction — "I need a single PR that takes care of all". Both
+reviewers were right, so split-vs-single is a per-change reviewer call, not a
+triage-draftable ground.
 
 ## Decision
 
@@ -134,15 +110,14 @@ duplicate work already in flight.
 
 ## Consequences
 
-- Review capacity goes to distinct problems rather than to the fourth copy of
-  one, and contributors are far more likely to see their work merged.
-- Contributors must do discovery work before coding — search, read the issue,
-  claim it. That friction is deliberate and is cheaper than the alternative.
-- Some genuinely parallel work is discouraged. The project accepts this: where
-  two approaches really do differ, saying so in the issue first is what unlocks
-  the second PR.
-- Large uniform migrations remain reviewable, because they stay mechanical and
-  are checked by tooling rather than read provider by provider.
+- Review capacity goes to distinct problems rather than the fourth copy of one,
+  and contributors are far more likely to see their work merged.
+- Contributors must do discovery before coding — search, read the issue, claim
+  it. That friction is deliberate and cheaper than the alternative.
+- Some genuinely parallel work is discouraged; where two approaches really differ,
+  saying so in the issue first is what unlocks the second PR.
+- Large uniform migrations stay reviewable, because they stay mechanical and are
+  checked by tooling.
 
 A change **violates** this decision when it:
 
@@ -183,52 +158,37 @@ ways and a diff does not decide them:
 ## Evidence
 
 - #67748, #67751, #67755, #67899, #67588, #67019, #66850, #68297, #69468,
-  #62321 — ten independent PRs adding the same overwrite handling to the IMAP
-  hook's attachment download, all closed in favour of one merged fix (#68838).
-  Review response: "There are too many PRs raised for this issue. You are
-  welcome to assist with review the open PR — we don't need more of the same."
-- #66066, #66577, #66578 — a second cluster on the same hook, for non-ASCII
-  attachment filenames, closed once one of them merged.
-- #62908, #62852, #62840, #62539 — four PRs adding `template_fields` to the
-  Salesforce bulk operator, resolved by #63109.
-- #66455 / #66452 (Azure Batch upper bound), #66512 / #66479 (Alibaba OSS
-  endpoint), #61158 / #61103 (Microsoft Graph host), #62042 / #62043 (Snowflake
-  OAuth), #65934 / #66302 (Kafka trigger `super().__init__()`), #53290 / #53214
-  (Databricks endpoint) — the same duplicate-work pattern across six more
-  providers.
+  #62321 — ten independent PRs adding the same IMAP-hook overwrite handling, all
+  closed for one merged fix (#68838). "There are too many PRs raised for this issue."
+- #66066, #66577, #66578 — a second cluster on the same hook (non-ASCII filenames),
+  closed once one merged.
+- #62908, #62852, #62840, #62539 — four Salesforce `template_fields` PRs, resolved
+  by #63109.
+- #66455 / #66452, #66512 / #66479, #61158 / #61103, #62042 / #62043, #65934 /
+  #66302, #53290 / #53214 — the same duplicate-work pattern across six more providers.
 - #64027 and #55686 — closed on "please remove all unrelated changes"; both
-  authors reopened clean, single-purpose PRs that were then reviewed.
-- #60050 — a JDBC provider migration whose diff also touched `airflow-core/`
-  and `task-sdk/` *source*; sent back as a bad rebase and reopened from a clean
-  base.
-- #69613, #69930, #70014, #68082 — merged provider changes that edit
-  `airflow-core/tests/unit/always/test_project_structure.py`, the Task SDK
-  decorator stubs, or the plugin-registry tests, because those files enumerate
-  provider content. Files outside `providers/` are not on their own evidence of
-  a bad rebase.
-- #70122 ("Add `toolset` as a provider module category") and #64941 (decoupling
-  the S3 object-storage provider from `common.sql`) — both edit
-  `provider.yaml.schema.json`, and #64941 also `provider_info.schema.json` and
-  `providers_manager.py`, because those files *define* what provider metadata may
-  contain. #64941 is provider-primary (13 of 18 files under `providers/`), so the
-  primacy gate alone would not clear it — the registries have to be enumerated.
-- #69537 (a repo-wide Alembic migration lint, 1 of 23 files under `providers/`),
-  #69757 (a Go SDK TaskFlow feature, 2 of 39), #69896 (an Execution API
-  log-ID-template change, 2 of 17), #68700 (connection port validation, 2 of 21)
-  and #69943 (multi-team metrics tags, 1 of 11) — core-primary changes that
-  appear in a provider corpus only because they touch one provider file. None is
-  a bad rebase, and the provider-primacy gate is what keeps this rule off them.
-- #61035 — a GCS hook helper that mixed in work from another contributor's
-  in-flight issue; closed with "one PR should address only one issue".
-- #59847, #61569 — UI and auth changes carrying unrelated provider edits an
-  agent had made, which the authors had not reviewed.
-- #63042 — "Add missing HTTP timeouts across multiple providers": closed and
-  split into per-provider PRs, because a timeout safe for a control-plane call
-  breaks a long-running one.
-- #57066 — a `common.compat` migration opened for the Drill provider, which
-  does not exhibit the pattern; closed with "we only need to add that dep where
-  there is the pattern usage described in the issue".
-- #63370 — the counterexample that keeps this out of the violates list: a
-  standardisation change split per connection type, where review asked for a
-  *single* PR covering all of them ("I need a single PR that takes care of all,
-  please"). Over-fragmentation is penalised as readily as over-bundling.
+  reopened clean and were reviewed.
+- #60050 — a JDBC migration touching `airflow-core/` and `task-sdk/` *source*;
+  sent back as a bad rebase.
+- #69613, #69930, #70014, #68082 — merged provider changes editing the structure
+  test, decorator stubs, or plugin-registry tests, because those enumerate provider
+  content.
+- #70122, #64941 — both edit `provider.yaml.schema.json` (and #64941 also
+  `provider_info.schema.json` and `providers_manager.py`) because those define what
+  provider metadata may contain. #64941 is provider-primary (13 of 18 under
+  `providers/`), so the primacy gate alone would not clear it — the registries have
+  to be enumerated.
+- #69537 (1 of 23 under `providers/`), #69757 (2 of 39), #69896 (2 of 17), #68700
+  (2 of 21), #69943 (1 of 11) — core-primary changes appearing in a provider corpus
+  only because they touch one provider file; the provider-primacy gate keeps this
+  rule off them.
+- #61035 — a GCS hook helper mixing in another contributor's in-flight issue;
+  closed "one PR should address only one issue".
+- #59847, #61569 — UI and auth changes carrying unrelated provider edits an agent
+  had made, unreviewed by the authors.
+- #63042 — blanket HTTP timeouts, closed and split per-provider.
+- #57066 — a `common.compat` migration for a provider that does not exhibit the
+  pattern; closed.
+- #63370 — the counterexample: a standardisation change split per connection type,
+  where review asked for a *single* PR. Over-fragmentation is penalised as readily
+  as over-bundling.

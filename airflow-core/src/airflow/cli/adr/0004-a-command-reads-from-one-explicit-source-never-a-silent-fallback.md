@@ -27,37 +27,25 @@ Accepted
 
 ## Context
 
-In Airflow 3 a Dag exists in two places at once: as author source inside a bundle,
-and as the serialized form in the metadata database that the scheduler and workers
-actually execute. Those two can disagree — that is not a bug, it is the whole point
-of Dag versioning. A CLI command that inspects a Dag must therefore answer a
-question the user did not ask: *which of the two am I looking at?*
+In Airflow 3 a Dag exists in two places at once: as author source in a bundle, and
+as the serialized form in the metadata database that the scheduler and workers
+execute. They can disagree — that is the point of Dag versioning — so a CLI command
+inspecting a Dag must answer a question the user did not ask: *which am I looking
+at?*
 
-The tempting answer is "whichever is available". A command tries the database,
-finds nothing useful, and falls back to parsing local files — or the reverse. It
-works on the maintainer's machine, it works in the reporter's reproduction, and it
-is the design that reviewers refuse.
-
-The reason is that the fallback makes the command's output a function of ambient
-state the user cannot see. The concrete scenario raised in review: a contributor
-edits Dags in a local checkout and runs a Dag command to look for import errors.
-Sometimes they have run `airflow standalone` in that directory and a SQLite
-database exists with serialized Dags in it; sometimes they have not. The same
-command, the same files, two different answers, and no signal in the output saying
-which source produced it. When the two sources disagree — stale serialized rows,
-an edit not yet parsed — the fallback reports the answer that happens to be
-reachable rather than the answer that is true.
-
-The accepted shape came out of that same discussion and is explicit: the plain
-command reads the database (the serialized form the system will actually run), and
-an argument naming local sources — a file or directory — switches it to reading
-those, implying local mode rather than requiring the user to remember a second
-flag. The user states the source; the tool does not guess it.
-
-The same principle covers a command that resolves *one* logical thing from a
-source that can yield several. If a Dag has several serialized versions, "show the
-Dag" is under-specified, and the fix is to make the selection explicit rather than
-to quietly pick one.
+The tempting answer is "whichever is available" — try the database, fall back to
+parsing local files, or the reverse. Reviewers refuse it because the fallback makes
+output a function of ambient state the user cannot see. The scenario raised in
+review: a contributor edits Dags locally and runs a command for import errors;
+whether a SQLite database from a past `airflow standalone` exists in that directory
+changes the answer, with nothing in the output saying which source produced it, and
+when the two disagree the fallback reports the reachable answer rather than the true
+one. The accepted shape: the plain command reads the database (the serialized form
+that will actually run), and an argument naming local sources — a file or directory
+— switches to local mode, so the user states the source rather than the tool
+guessing. The same principle covers resolving *one* thing from a source that can
+yield several: if a Dag has several serialized versions, the selection is made
+explicit, not picked quietly.
 
 ## Decision
 
@@ -80,13 +68,12 @@ happens to be reachable at runtime.**
 
 ## Consequences
 
-- The same invocation against the same deployment produces the same answer, whatever
-  else is lying around in the working directory.
-- Errors get louder: a command that used to "work" by falling back now fails, and
-  says why. That is the intended trade.
-- Some workflows need an extra argument they did not need before, and the argument
-  surface grows slightly — accepted, because the alternative grows the space of
-  states a user has to reason about instead.
+- The same invocation against the same deployment gives the same answer, whatever
+  else is in the working directory.
+- Errors get louder: a command that used to "work" by falling back now fails and
+  says why — the intended trade.
+- Some workflows need an extra argument; the argument surface grows slightly rather
+  than the space of states a user must reason about.
 
 A change **violates** this decision when it:
 
@@ -104,12 +91,6 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #57321 — "Allow running Dag-related CLI commands without DB": closed precisely on
-  this ground. Reviewers noted the command would return different results depending
-  on the state of the local SQLite database, and converged instead on an explicit
-  `--dag-path <file|dir>` that implies local mode, leaving the bare command reading
-  the serialized form from the database.
-- #59038 — a `connections test` failure addressed by adding a database fallback;
-  closed unmerged rather than landing the fallback.
-- #60637 — `dags list` showing several entries for a Dag with several serialized
-  versions: an ambiguity that surfaces when a command resolves one name to many rows.
+- #57321 — closed on this ground; converged on an explicit `--dag-path <file|dir>` implying local mode, bare command reads the database.
+- #59038 — `connections test` failure addressed by a database fallback; closed unmerged.
+- #60637 — `dags list` showing several entries for a Dag with several serialized versions: the one-name-to-many-rows ambiguity.

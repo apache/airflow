@@ -28,20 +28,15 @@ Accepted
 ## Context
 
 A SQLAlchemy column on a model in `airflow-core/src/airflow/models/` is not a
-self-contained edit. It ripples in three directions at once:
-
-1. **The physical schema** — existing installations upgrade in place, so every
-   column add/drop/alter needs an Alembic migration, and that migration runs on
-   SQLite, MySQL, and PostgreSQL alike.
-2. **Existing rows** — an upgrade must leave old rows in a valid state, so a new
-   non-nullable or semantically-required column needs a backfill/default.
-3. **Serialization** — serialized Dags and serialized objects must round-trip
-   the new field, or a value written by one component is silently lost when read
-   by another.
-
-Released migrations are immutable history: a user who already ran revision *X*
-will never re-run it, so rewriting *X* means the two populations of databases
-diverge permanently.
+self-contained edit. It ripples three directions at once: **the physical schema**
+(installations upgrade in place, so every add/drop/alter needs an Alembic
+migration that runs on SQLite, MySQL, and PostgreSQL); **existing rows** (an
+upgrade must leave old rows valid, so a new non-nullable or required column needs a
+backfill/default); and **serialization** (serialized Dags and objects must
+round-trip the new field, or a value written by one component is silently lost when
+read by another). Released migrations are immutable history — a user who already
+ran revision *X* never re-runs it, so rewriting *X* diverges the two database
+populations permanently.
 
 ## Decision
 
@@ -75,9 +70,6 @@ serialize/deserialize cycle.
 
 ## Evidence
 
-- #61550 — Add the option to select bundle version on dag run trigger endpoint:
-  a persisted field that must migrate and serialize together.
-- #64522 — Add a way to mark a return value XCom as dag result: new state that
-  has to round-trip through serialization.
-- #69311 — Fix asset event ingestion crash for Dags using FixedKeyMapper: a
-  serialization-round-trip defect at the model boundary.
+- #61550 — Add the option to select bundle version on dag run trigger endpoint: a persisted field that must migrate and serialize together.
+- #64522 — Add a way to mark a return value XCom as dag result: new state that has to round-trip through serialization.
+- #69311 — Fix asset event ingestion crash for Dags using FixedKeyMapper: a serialization-round-trip defect at the model boundary.

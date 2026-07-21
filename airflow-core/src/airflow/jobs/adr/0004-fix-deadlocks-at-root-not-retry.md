@@ -28,29 +28,21 @@ Accepted
 ## Context
 
 Database deadlocks in the scheduler and triggerer surface as intermittent,
-load-dependent failures: two transactions each hold a lock the other needs, the
-database picks a victim and aborts it. The tempting fix is reactive — catch the
-deadlock exception and retry, or skip the offending check "just this once." That
-makes the symptom rarer but leaves the real defect in place:
+load-dependent failures. The tempting fix is reactive — catch the deadlock and
+retry, or skip the check "just this once" — which makes the symptom rarer but
+leaves the defect in place. The cause is almost always **inconsistent
+lock-acquisition order**: two paths lock the same rows/tables in different orders,
+or a bulk write locks a broad range overlapping another transaction. Retry does
+not remove the cycle; under load it recurs, with added latency and wasted work.
+**Skipping** a check (e.g. bypassing a timeout sweep under contention) silently
+drops correctness. Reactive handlers also **mask** where the collision is, so the
+ordering bug is never diagnosed.
 
-- The underlying cause is almost always **inconsistent lock-acquisition order**
-  — two code paths lock the same set of rows/tables in different orders, or a
-  bulk write locks a broad range that overlaps another transaction's rows. Retry
-  does not remove the cycle; under higher load it simply recurs, now with added
-  latency and wasted work from the aborted transactions.
-- **Skipping** a check to dodge a deadlock (e.g. bypassing a timeout sweep when
-  the DB is contended) silently drops correctness — timeouts stop firing, state
-  drifts — to buy quieter logs.
-- Reactive handlers also **mask** where the collision is, so the ordering bug is
-  never diagnosed and keeps generating new failure modes.
-
-The correct fix removes the *possibility* of the cycle. Establish a single,
-consistent lock-acquisition order everywhere the contended rows are touched;
-acquire candidate rows with `FOR UPDATE SKIP LOCKED` in a deterministic
-primary-key order (so two transactions never wait on each other for claimable
-work — see ADR 2); and scope bulk writes to the rows a given scheduler owns
-(for example filtering by `queued_by_job_id`) so different schedulers cannot
-lock-overlap on each other's work.
+The correct fix removes the *possibility* of the cycle: a single consistent
+lock-acquisition order everywhere the contended rows are touched; `FOR UPDATE SKIP
+LOCKED` in deterministic primary-key order (see ADR 2); and bulk writes scoped to
+the rows a scheduler owns (e.g. `queued_by_job_id`) so schedulers cannot
+lock-overlap.
 
 This is not a prohibition on database retry as such. `@retry_db_transaction`
 (`airflow/utils/retries.py`) wraps roughly a dozen call sites deliberately —
@@ -86,13 +78,11 @@ here too; it is not restated in this ADR.
 
 - Deadlocks are eliminated rather than made rarer; behavior is stable as load
   grows, with no correctness dropped to dodge contention.
-- Fixes take more effort — they require understanding the actual lock interleave
-  and building a repro — but they are durable.
-- Bounded, well-understood retries remain acceptable for genuinely *transient*
-  infrastructure faults (connection drops, serialization failures on an
-  otherwise correct ordering), and `@retry_db_transaction` remains the correct
-  wrapper at a commit boundary. Neither is a substitute for fixing a real
-  ordering bug.
+- Fixes take more effort (understanding the actual lock interleave, building a
+  repro) but are durable. Bounded retries remain acceptable for genuinely
+  *transient* infrastructure faults (connection drops, serialization failures on
+  an otherwise correct ordering), and `@retry_db_transaction` remains the correct
+  wrapper at a commit boundary — neither substitutes for fixing an ordering bug.
 
 A change **violates** this decision when it:
 
@@ -114,12 +104,8 @@ Reviewer prompts — judgement calls this ADR informs but a diff cannot settle:
 
 ## Evidence
 
-- #33172 — "Skip trigger timeout check on occasional db deadlocks": the
-  reject-shaped example — dodging the deadlock by skipping the timeout check
-  rather than fixing the ordering; not the accepted approach.
-- #27344 — "Add retry to submit_event in trigger to avoid deadlock": adds
-  retry-on-deadlock in the triggerer without addressing the underlying lock
-  order — the reactive pattern this ADR rules out as the fix.
+- #33172 — "Skip trigger timeout check on occasional db deadlocks": the reject-shaped example — dodging the deadlock by skipping the timeout check rather than fixing the ordering.
+- #27344 — "Add retry to submit_event in trigger to avoid deadlock": retry-on-deadlock in the triggerer without addressing lock order — the reactive pattern this ADR rules out as the fix.
 
 Both citations are from 2022–2023 and both are reject-shaped; this ADR has no
 recent merged exemplar of a root-cause ordering fix behind it. The decision

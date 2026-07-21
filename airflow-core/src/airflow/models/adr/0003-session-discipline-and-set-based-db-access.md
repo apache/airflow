@@ -28,23 +28,20 @@ Accepted
 ## Context
 
 Model code runs inside the scheduler loop and API request handlers, under real
-concurrency and latency budgets. The scheduler serialises much of its work
-through a single main loop; a slow or lock-holding query there stalls scheduling
-for every Dag, not just the one being processed. Multiple schedulers and the API
-hit the same tables concurrently, so lock acquisition order and transaction scope
-decide whether the system runs smoothly or deadlocks.
+concurrency and latency budgets. The scheduler serialises much of its work through
+a single main loop, so a slow or lock-holding query there stalls scheduling for
+every Dag; multiple schedulers and the API hit the same tables concurrently, so
+lock ordering and transaction scope decide whether the system runs smoothly or
+deadlocks. Two failure modes recur:
 
-Two failure modes recur:
-
-- **Session misuse** — a function that receives a `session` but opens its own
-  new session mid-operation splits one logical unit of work across two
-  transactions, and a `session.commit()` inside such a function commits a
-  caller's in-progress transaction out from under it, breaking atomicity and
-  the caller's rollback expectations.
+- **Session misuse** — a function that receives a `session` but opens its own new
+  one mid-operation splits one unit of work across two transactions, and a
+  `session.commit()` inside such a function commits a caller's in-progress
+  transaction, breaking atomicity and rollback.
 - **Row-at-a-time access** — a per-row query inside a loop (N+1) turns one
   operation into hundreds of round-trips, and unbounded bulk writes / mismatched
-  lock ordering across `dag_run` and `task_instance` produce deadlocks under
-  concurrent schedulers.
+  lock ordering across `dag_run` and `task_instance` deadlock under concurrent
+  schedulers.
 
 ## Decision
 
@@ -80,11 +77,6 @@ write that is unbounded or reaches beyond the scheduler's own rows.
 
 ## Evidence
 
-- #66608 — Fetch deadline callback context via Execution API at runtime: moves
-  DB access off a hot path and through the proper boundary.
-- #64571 — AIP-76: Hold Dag run until all upstream partitions arrive: adds a
-  wait/hold mechanism that must query and lock partition state set-based and
-  safely under the scheduler.
-- #33172 — Skip trigger timeout check on occasional db deadlocks: the
-  retry-style deadlock workaround this ADR steers away from in favour of lock
-  ordering.
+- #66608 — Fetch deadline callback context via Execution API at runtime: moves DB access off a hot path and through the proper boundary.
+- #64571 — AIP-76: Hold Dag run until all upstream partitions arrive: a wait/hold mechanism that must query and lock partition state set-based and safely.
+- #33172 — Skip trigger timeout check on occasional db deadlocks: the retry-style deadlock workaround this ADR steers away from in favour of lock ordering.

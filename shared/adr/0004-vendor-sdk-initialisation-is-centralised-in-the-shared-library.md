@@ -27,43 +27,25 @@ Accepted
 
 ## Context
 
-Airflow is not one program. A scheduler, a Dag processor, a triggerer, a worker,
-and the subprocesses each of them spawns are separate operating-system processes
-with separate memory. There is no central constructor that builds a tracer or a
-metrics client once and hands it to everyone; every process has to configure the
-vendor SDK for itself, from configuration it reads itself, at its own start-up.
+A scheduler, Dag processor, triggerer, worker, and their subprocesses are
+separate OS processes with separate memory. No central constructor builds a tracer
+or metrics client once for everyone; every process configures the vendor SDK for
+itself, at its own start-up. The wrapper classes in `shared/observability/` look,
+in one file, like pointless indirection over `opentelemetry.*`; read across
+processes, they are the only place the per-process SDK setup is written down once.
+Import the vendor SDK directly and each process initialises it differently —
+different resource attributes, sampling, exporter config, one silently
+unconfigured — telemetry simply wrong in a way no diff or single-distribution test
+catches.
 
-That is the whole reason the observability, logging, and stats libraries exist
-in the shape they do. The wrapper classes in `shared/observability/` look, in a
-single file, like pointless indirection over `opentelemetry.*` — a tracer that
-wraps a tracer. Read across processes, they are the only place the per-process
-SDK setup is written down once. Import the vendor SDK directly from consumer
-code and each process ends up initialising it slightly differently: different
-resource attributes, different sampling, different exporter configuration, one
-process silently not configured at all. Nothing crashes. The telemetry is simply
-wrong in a way that no diff shows and no test in one distribution catches.
-
-This came to a head when a maintainer proposed removing the tracing abstraction
-as obfuscatory. The specific complaints were fair — the metaclass indirection
-and most of the debug spans were agreed to be worth deleting, and much of that
-deletion did land separately. But the proposal to reach for `opentelemetry.*`
-directly throughout the codebase was pushed back on precisely because of the
-multi-process argument: the common file holding the SDK initialisation logic is
-load-bearing, and the abstraction cannot be removed without first saying what
-initialises the SDK in each process instead. The PR did not merge.
-
-The same reasoning drove the moves *into* the shared libraries: the traces and
-metrics code was consolidated under a common observability package, and
-airflow-core imports were refactored out of `shared/stats` so the library could
-stand alone. The direction is consistent — initialisation converges into the
-library, and consumers get a configured object rather than a vendor API.
-
-A second property falls out of it: consumers may link different versions of a
-shared library. A consumer that imports the vendor SDK directly pins itself to
-that SDK's API, and a vendor release then breaks that consumer alone, out of
-step with the others. Going through the library gives one place to absorb the
-change — which is what the compatibility fixes around structlog and the
-Datadog timer wrapper have actually done.
+This came to a head when a maintainer proposed removing the tracing abstraction as
+obfuscatory (#62154). The metaclass indirection and most debug spans were agreed
+worth deleting and landed separately, but reaching for `opentelemetry.*`
+throughout was pushed back on: the file holding SDK initialisation is load-bearing
+and cannot go without first saying what initialises the SDK in each process
+instead. A second property falls out: consumers may link different versions, so the
+library is one place to absorb a vendor API change (as the structlog and
+Datadog-timer fixes did).
 
 ## Decision
 
@@ -99,17 +81,12 @@ reimplement it:
 
 ## Consequences
 
-Telemetry is configured identically across every Airflow process, and a vendor
-SDK change is absorbed in one library rather than in every consumer that touches
-it.
-
-The cost is genuine and is regularly mistaken for a defect: the wrappers add a
-layer that is hard to justify from any single file, they obscure the vendor API
-from someone debugging a span, and they make the shared library a bottleneck for
-anyone who wants a capability the wrapper does not yet expose. Some of that
-indirection really was excessive, and the pushback that arrived on this point
-was partly right — which is why the narrower deletions proceeded while the
-wholesale removal did not.
+Telemetry is configured identically across every process, and a vendor SDK change
+is absorbed in one library. The cost is regularly mistaken for a defect: the
+wrappers add a layer hard to justify from a single file, obscure the vendor API
+when debugging a span, and bottleneck any capability the wrapper does not yet
+expose. Some indirection really was excessive — which is why the narrower deletions
+proceeded while the wholesale removal did not.
 
 A change **violates** this decision when it:
 
@@ -126,16 +103,13 @@ A change **violates** this decision when it:
 
 - #62154 — proposal to remove the tracing abstraction and use `opentelemetry.*`
   throughout; closed unmerged after the multi-process initialisation argument,
-  with the agreed subset of deletions taken separately.
-- #61897 — the accompanying span-lifecycle discussion, which turned on cross-
-  process span parenting and standard SDK configuration via environment
-  variables; closed unmerged.
-- #56187 — traces and metrics consolidated under the common observability
-  package.
+  agreed deletions taken separately.
+- #61897 — accompanying span-lifecycle discussion on cross-process span parenting
+  and SDK config via environment variables; closed unmerged.
+- #56187 — traces and metrics consolidated under the common observability package.
 - #62127 — airflow-core imports refactored out of `shared/stats` so the library
   stands alone.
-- #63932 — removal of the `DualStatsManager` and duplicate `Stats` interfaces,
-  collapsing to a single path.
-- #69202 — mypy fix for the Datadog timer wrapped by the shared observability
-  `Timer`: the kind of vendor-shape change the library absorbs on behalf of
-  every consumer.
+- #63932 — `DualStatsManager` and duplicate `Stats` interfaces removed, collapsing
+  to a single path.
+- #69202 — mypy fix for the Datadog timer wrapped by the shared `Timer`: the kind
+  of vendor-shape change the library absorbs for every consumer.

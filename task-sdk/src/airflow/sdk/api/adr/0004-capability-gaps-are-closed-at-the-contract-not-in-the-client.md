@@ -27,46 +27,29 @@ Accepted
 
 ## Context
 
-`client.py` is where a missing capability first becomes visible. A Dag author
-wants to list Variable keys, read an asset event's source Dag run, or learn
-whether a Dag has a given task, and the symptom is always the same: there is no
-client method for it. The obvious response is to add one.
+`client.py` is where a missing capability first becomes visible — no method to
+list Variable keys, read an asset event's source Dag run, or check whether a Dag
+has a task — and the obvious response is to add one. It is the wrong end of the
+chain. The client mirrors two contracts it does not own: the Execution-API
+OpenAPI spec (from which `datamodels/_generated.py` is regenerated wholesale) and
+the provider-side contracts (secrets backends, connections) that determine what
+the server can answer. A method with no counterpart in the spec is half-wired by
+construction; a method satisfying a request the underlying contract does not
+define works for one backend and silently fails or lies for the rest.
 
-It is also the wrong end of the chain. This client is a mirror of two contracts
-it does not own — the Execution-API OpenAPI spec, from which
-`datamodels/_generated.py` is regenerated wholesale, and the provider-side
-contracts (secrets backends, connections) that determine what the server can
-actually answer. A method added here that has no counterpart in the spec is
-half-wired by construction, and a method that satisfies a request the underlying
-contract does not define works for exactly one backend and silently fails or
-lies for the rest.
-
-The record shows both failure modes. A `list_variable_keys` capability was
-refused because no secrets backend contract supports listing — Airflow can only
-enumerate Variables held in the metadata DB, so the client method would have
-been correct for the DB backend and quietly incomplete for every remote one; the
-real change was to the backend contract, which is a larger discussion (#61595).
-A request to expose an asset event's source Dag run was redirected: the event
-already references a task instance, so the properties should be derived from
-what the API returns, and the client additionally has to handle the `404` case
-now that asset events can be created with no Dag run or task instance at all
-(#53357). Adding `run_after` to `TriggerDagRunOperator` turned out to require the
-exception, the payload, the routes, the datamodels, `task_runner`, and the
-supervisor to move together — the operator-side change alone was inert (#61338).
-A `target_date` concept was refused at the semantic level, not the plumbing
-level (#67329).
-
-The same asymmetry governs changes to the client's *observable* behaviour. A
-proposal to lower the log level for a missing connection from `ERROR` to
-`WARNING` — motivated by noise from one provider hook — was withdrawn once it
-became clear that the client's level is what downstream consumers key on, so a
-per-hook annoyance cannot be fixed by moving the shared client's floor (#56544).
-
-Because the generated models are regenerated as a unit, the coupling runs the
-other way too: bumping `datamodel-code-generator` changes this directory's
-contents, so the bump and the regenerated models belong in one commit — as in
-PR #54027, where the pin change and the regenerated `_generated.py` for both
-the Task SDK and airflow-ctl landed together.
+The record shows both modes: `list_variable_keys` refused because no secrets
+backend contract supports listing, so the real change is to the backend contract
+(#61595); an asset event's source Dag run redirected to a *derived* property off
+the task-instance reference, with `404` handling for events created without one
+(#53357); `run_after` for `TriggerDagRunOperator` needing exception, payload,
+routes, datamodels, `task_runner`, and supervisor together, the operator-only
+change inert (#61338); `target_date` refused at the semantic level (#67329). The
+same asymmetry governs *observable* behaviour: lowering a connection-not-found
+log level from `ERROR` to `WARNING` for one hook's noise was withdrawn once the
+client's level was recognised as a consumer contract (#56544). And because the
+models regenerate as a unit, bumping `datamodel-code-generator` belongs in one
+commit with the regenerated models — as in #54027, where the pin change and the
+regenerated `_generated.py` for both Task SDK and airflow-ctl landed together.
 
 ## Decision
 
@@ -97,18 +80,16 @@ never the first.**
 
 ## Consequences
 
-Contributors who arrive at a missing capability through the client are sent
-elsewhere first — to the server routes, to a provider contract, or to a devlist
-discussion — which is slower and less satisfying than adding the method they
-came to add. Some real capability gaps stay open because the honest fix is a
-cross-cutting contract change nobody has taken on.
+Contributors are sent elsewhere first — server routes, a provider contract, or a
+devlist discussion — which is slower than adding the method they came for, and
+some real gaps stay open because the honest fix is a cross-cutting contract
+change nobody has taken on.
 
-What this buys is that the client never claims a capability the deployment
-cannot actually deliver, and never develops a second, client-only notion of what
-the API offers. It also keeps the client honest about version skew: since every
-method traces to a spec entry with a Cadwyn version, a worker talking to an
-older server fails through version negotiation rather than through a method that
-was only ever real on the client side.
+What this buys: the client never claims a capability the deployment cannot
+deliver, never develops a second, client-only notion of the API, and stays honest
+about version skew — since every method traces to a spec entry with a Cadwyn
+version, a worker on an older server fails through version negotiation rather than
+a method that was only ever real client-side.
 
 A change **violates** this decision when it:
 
@@ -128,21 +109,16 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #61595 — `list_variable_keys` with prefix filter via the Task SDK; refused
-  because no secrets backend contract supports listing, so the gap is in the
-  backend contract.
+- #61595 — `list_variable_keys`; refused because no secrets backend contract
+  supports listing — the gap is in the backend contract.
 - #53357 — source Dag run on an asset event; redirected to deriving it from the
-  task-instance reference the response already carries, with `404` handling for
-  watcher-created events.
-- #61338 — `run_after` for `TriggerDagRunOperator`; the operator-only change was
-  inert, requiring exception, payload, routes, datamodels, `task_runner` and
-  supervisor together.
-- #67329 — `target_date`; refused at the semantic level because the existing
-  data-interval fields carry the concept.
-- #56544 — lowering the connection-not-found log level from `ERROR` to `WARNING`;
-  withdrawn once the shared client's level was recognised as a consumer
-  contract.
-- #54027 — "Upgrade datamodel-code-generator to 0.32.0"; merged, and the commit
-  carries the regenerated `datamodels/_generated.py` for both the Task SDK and
-  airflow-ctl alongside the two `pyproject.toml` pin changes, so the pinned
-  generator and the committed models never disagreed at any commit.
+  task-instance reference, with `404` handling for watcher-created events.
+- #61338 — `run_after` for `TriggerDagRunOperator`; operator-only change inert,
+  needing exception, payload, routes, datamodels, `task_runner`, supervisor.
+- #67329 — `target_date`; refused at the semantic level — data-interval fields
+  carry the concept.
+- #56544 — lowering connection-not-found log level; withdrawn once the client's
+  level was recognised as a consumer contract.
+- #54027 — "Upgrade datamodel-code-generator to 0.32.0"; **merged**, the commit
+  carrying the regenerated `_generated.py` for both Task SDK and airflow-ctl
+  alongside the pin changes, so generator and models never disagreed.

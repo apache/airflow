@@ -28,40 +28,26 @@ Accepted
 ## Context
 
 Dag authors write code against the *failure* behaviour of these operators, not
-only against their success behaviour. An `on_failure_callback` that inspects
-`context["exception"]`, a `try`/`except` in a custom operator subclass, a
-`retry_exponential_backoff` policy tuned to one class of error, a sensor's
-soft-fail handling — all of these depend on which exception type reaches them
-and on whether a given condition raises at all.
+only their success: an `on_failure_callback` inspecting `context["exception"]`, a
+`try`/`except` in a subclass, a retry policy tuned to one error class, a sensor's
+soft-fail handling — all depend on which exception type reaches them and whether a
+condition raises at all.
 
-This collides with a repository-wide direction the project is otherwise
-committed to: reducing direct `AirflowException` raises in favour of specific
-built-ins and dedicated classes. That direction is enforced forward-only, by a
-prek hook against a generated inventory of existing raise sites: new
-`AirflowException` usages are blocked, existing ones are not rewritten
-wholesale. The forward-only shape is deliberate and is what this ADR records for
-this package.
-
-A sweep through one Google service replacing `AirflowException` with Python
-built-ins looked like exactly the cleanup the project wants. Review stopped it:
-for a released provider, every user whose callback or subclass branches on
-`AirflowException` breaks silently on upgrade, with no Dag change to signal it
-and nothing in the operator's signature to hint at it. The change was not
-rejected as wrong — it was redirected to the dev list and a "Breaking Change"
-changelog entry, because that is a decision the project makes once, not
-per-service in review.
-
-The mirror-image case is just as live. Adding a `try`/`except` so a component
-stops crashing changes a visible failure into a silent one. In the Stackdriver
-logging path a proposed guard turned out to apply only to one transport, so on
-the default transport it would have suppressed nothing while suggesting the
-problem was handled — the author put it on hold pending a real traceback rather
-than ship the appearance of a fix. Similarly, removing a "redundant"
-`try`/`except` around a Bigtable delete is only redundant if nothing downstream
-distinguishes that path.
-
-The rule that follows is not "never change exception behaviour". It is that
-changing it is a user-facing change and is treated as one.
+This collides with the repo-wide direction to reduce direct `AirflowException`
+raises in favour of specific built-ins and dedicated classes. That direction is
+enforced *forward-only*, by a prek hook against a generated inventory: new usages
+are blocked, existing ones are not rewritten wholesale. A sweep replacing
+`AirflowException` with built-ins in one Google service looked like exactly that
+cleanup, but review stopped it: for a released provider, every user whose callback
+branches on `AirflowException` breaks silently on upgrade with no signature diff to
+hint at it — a decision the project makes once on the dev list with a "Breaking
+Change" changelog entry, not per-service in review. The mirror case is just as
+live: adding a `try`/`except` so a component stops crashing turns a visible failure
+into a silent one (a proposed Stackdriver guard applied only to one transport, so
+on the default transport it suppressed nothing while looking handled), and removing
+a "redundant" guard is only redundant if nothing downstream distinguishes that
+path. The rule is not "never change exception behaviour" — it is that doing so is a
+user-facing change and is treated as one.
 
 ## Decision
 
@@ -110,13 +96,13 @@ raises at all, are treated as public API for this provider.
 
 - Upgrading this provider does not silently change which branch of a user's
   callback runs.
-- Exception hygiene improves more slowly here than a mechanical sweep would
-  achieve. That is the accepted trade for not breaking released behaviour.
-- Reviewers must weigh a class of change that looks purely internal, which makes
-  some small PRs disproportionately expensive to review — this file exists to
-  make that cost predictable rather than surprising.
-- The changelog carries entries for changes with no signature diff, which is
-  exactly the case where users have no other warning.
+- Exception hygiene improves more slowly than a mechanical sweep would — the
+  accepted trade for not breaking released behaviour.
+- Reviewers must weigh a class of change that looks purely internal, making some
+  small PRs disproportionately expensive to review; this file makes that cost
+  predictable.
+- The changelog carries entries for changes with no signature diff — exactly the
+  case where users have no other warning.
 
 A change **violates** this decision when it:
 
@@ -147,23 +133,13 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #67769 — "Google Cloud Run: replace `AirflowException` with Python built-in
-  exceptions": closed by its author after review flagged it as a breaking change
-  for anyone relying on `AirflowException` in `on_failure_callback` /
-  `on_retry_callback`, requiring a dev-list discussion and a "Breaking Change"
-  changelog entry. Requesting changes was explicitly used to prevent accidental
-  merge.
-- #61008 — "Refactor exception handling in BigTable": review declined a swap of
-  `RuntimeError` for an Airflow exception, keeping the existing raise as-is and
-  noting the project's direction is to avoid Airflow exceptions in new code
-  rather than to churn old ones.
-- #60727 — a Bigtable delete-instance operator change to remove a "redundant"
-  `try`/`except`, closed without merging.
-- #68295 — a Stackdriver remote-logging guard put on hold by its author on the
-  realisation that the `try`/`except` would only be effective for one transport
-  and not for the default one — a guard that would have looked like a fix
-  without being one.
-- The repository-wide `check-no-new-airflow-exceptions` hook and its generated
-  inventory of existing raise sites: the mechanism that makes the reduction
-  effort forward-only, which is why an in-place rewrite is a deliberate act
-  rather than a cleanup.
+- #67769 — Cloud Run `AirflowException` → built-ins: closed by its author after
+  review flagged a breaking change for callback-branching users, needing a dev-list
+  discussion and "Breaking Change" entry; request-changes used to prevent merge.
+- #61008 — review declined a Bigtable swap of `RuntimeError` for an Airflow
+  exception, keeping the existing raise: the direction is new code, not churning old.
+- #60727 — Bigtable delete-instance removal of a "redundant" `try`/`except`, closed.
+- #68295 — a Stackdriver guard put on hold once it was clear the `try`/`except`
+  worked for only one transport, not the default — a fix that only looked like one.
+- `check-no-new-airflow-exceptions` and its generated inventory: the mechanism that
+  makes the reduction forward-only, so an in-place rewrite is a deliberate act.

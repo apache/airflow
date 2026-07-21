@@ -27,25 +27,19 @@ Accepted
 
 ## Context
 
-The serialized representation of a Dag is hashed to detect change: a Dag is only
-assigned a new `DagVersion` when its serialized bytes actually differ from the
-previously stored version. This makes the *stability* of the serialized output a
-correctness property, not merely a cosmetic one.
+The serialized representation of a Dag is hashed to detect change: a new
+`DagVersion` is assigned only when the bytes actually differ. That makes the
+*stability* of the output a correctness property, not a cosmetic one.
 
-When serialization falls back to `str(obj)` / `repr(obj)` for a value it does
-not know how to encode, and the object has no stable `__repr__`, Python emits
-the default object representation — `<module.Class object at 0x7f3c…>`. That
-string embeds a memory address that is different on every process and every
-parse cycle. The serialized payload then changes on every parse even though the
-Dag is unchanged, so the Dag processor mints a fresh `DagVersion` each cycle.
-The result is unbounded version churn: version tables grow without limit, the UI
-version history becomes noise, and downstream consumers keying off DagVersion
-thrash.
-
-Because a single Dag can reach a non-deterministic value through many code paths
-(default args, template fields, trigger kwargs, callback references, operator
-attributes), fixing one path is not enough — any remaining path that can carry
-an unstable repr into the JSON reintroduces the churn.
+When serialization falls back to `str(obj)` / `repr(obj)` for a value it cannot
+encode, and the object has no stable `__repr__`, Python emits
+`<module.Class object at 0x7f3c…>` — embedding a memory address that differs every
+process and parse. The payload then changes on every parse though the Dag is
+unchanged, minting a fresh `DagVersion` each cycle: version tables grow without
+limit, UI history becomes noise, and DagVersion consumers thrash. Because one Dag
+can reach an unstable value through many paths (default args, template fields,
+trigger kwargs, callback references, operator attributes), fixing one path is not
+enough — any remaining path reintroduces the churn.
 
 ## Decision
 
@@ -66,11 +60,10 @@ Serialization must emit **stable, deterministic output** for identical input.
 
 ## Consequences
 
-- A given Dag serializes to identical bytes every parse cycle, so DagVersion is
-  created only on genuine change. Version history stays meaningful and the
-  version tables stop growing without cause.
+- A given Dag serializes to identical bytes every parse, so DagVersion is created
+  only on genuine change and the version tables stop growing without cause.
 - Contributors adding new serializable value types must provide a deterministic
-  encoding for them rather than relying on the generic string fallback.
+  encoding rather than relying on the generic string fallback.
 
 A **violating change** looks like any of:
 
@@ -88,8 +81,7 @@ A **violating change** looks like any of:
 
 ## Evidence
 
-- #69243 — stops a new DagVersion from being minted every parse by preventing a
-  `retry_policy` object from serializing via its unstable default repr.
-- #63871 — fixes `serialize_template_field` handling of a callable value nested
-  in a dict, closing a path that otherwise leaked a non-deterministic value into
-  the serialized template field.
+- #69243 — stops a new DagVersion being minted every parse by preventing a
+  `retry_policy` object serializing via its unstable default repr.
+- #63871 — fixes `serialize_template_field` handling of a callable nested in a dict,
+  closing a path that leaked a non-deterministic value.

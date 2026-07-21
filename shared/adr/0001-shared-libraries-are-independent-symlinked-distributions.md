@@ -27,35 +27,28 @@ Accepted
 
 ## Context
 
-Airflow is a monorepo of several independently released distributions —
-airflow-core, task-sdk, the providers, airflow-ctl. Some code is genuinely common
-to more than one of them: logging setup, serialization primitives, configuration
-parsing, secret masking, timezone helpers. There are two bad ways to share such
-code. Duplicating it lets the copies drift. Putting it in one distribution and
-importing it from the others couples their release cycles and can create circular
-dependencies (task-sdk must not depend on airflow-core — see ADR 2).
+Airflow is a monorepo of independently released distributions — airflow-core,
+task-sdk, providers, airflow-ctl. Some code is genuinely common to several of
+them (logging setup, serialization, config parsing, secret masking). Duplicating
+it lets copies drift; putting it in one distribution and importing from the
+others couples release cycles and risks circular dependencies (task-sdk must not
+depend on airflow-core — ADR 2).
 
-The chosen model is a set of small, self-contained *shared library distributions*
-under `shared/` — `apache-airflow-shared-<name>`, each with its own
-`pyproject.toml`, `src/airflow_shared/<name>/` (an implicit namespace package),
-and `tests/<name>/`. Consumers do not `pip`-depend on a published package during
-development; instead each library's sources are **symbolically linked** into the
-consumer (`airflow-core/src/airflow/_shared/`,
-`task-sdk/src/airflow/sdk/_shared/`, …), and the symlinks plus the per-consumer
-dependency wiring are maintained automatically by `prek` hooks. Editing a file
-under a consumer's `_shared/` is editing the real file in `shared/<lib>/`.
-
-The consequence that makes this area special: **one edit lands in every consumer
-at once.** A change to `secrets_masker` or `logging` is simultaneously a change to
-airflow-core, task-sdk, and everything that links them. The structure that makes
-this safe (the distribution layout, the symlinks, the dependency wiring) is
-therefore load-bearing and is enforced by hooks
+The chosen model is small, self-contained *shared library distributions* under
+`shared/` — `apache-airflow-shared-<name>`, each with its own `pyproject.toml`,
+`src/airflow_shared/<name>/` (implicit namespace package), and `tests/<name>/`.
+Consumers do not `pip`-depend on a published package during development; each
+library's sources are **symlinked** into the consumer
+(`airflow-core/src/airflow/_shared/`, `task-sdk/src/airflow/sdk/_shared/`, …),
+with symlinks and dependency wiring maintained by `prek` hooks
 (`check-shared-distributions-structure`, `check-shared-distributions-usage`).
+Editing a consumer's `_shared/` file edits the real file in `shared/<lib>/`, so
+**one edit lands in every consumer at once** — the structure is load-bearing.
 
 ## Decision
 
 Common code shared by more than one distribution lives in a shared library under
-`shared/`, as an independent distribution linked into its consumers. Concretely:
+`shared/`, as an independent distribution linked into its consumers:
 
 - Each shared library keeps the enforced layout: `apache-airflow-shared-<name>`,
   `src/airflow_shared/<name>/` (no top-level `__init__.py`), `tests/<name>/`, and
@@ -69,11 +62,10 @@ Common code shared by more than one distribution lives in a shared library under
 
 ## Consequences
 
-- Common code has a single source of truth, so the copies cannot drift, while each
-  consumer still links only what it needs.
-- The blast radius of a change is every consumer that links the library, so review
-  and testing must consider all of them; the shared library's own test suite is
-  the place that proves the change.
+- Common code has a single source of truth, so copies cannot drift; each consumer
+  still links only what it needs.
+- The blast radius is every consumer that links the library, so review and testing
+  must consider all of them; the library's own test suite proves the change.
 - The distribution/symlink structure is part of the contract: breaking the layout,
   or wiring one consumer without the others, breaks the build for everyone.
 
@@ -90,11 +82,9 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #58621 — "Move BaseSecretsBackend to shared library for client server
-  separation": extracts a primitive into a shared distribution precisely so both
-  the server and worker sides can link it independently.
-- #61523 — "Remove Connection dependency from shared secrets backend": trims a
-  shared library's coupling so it stays independently linkable.
-- #63932 — "Remove the DualStatsManager and the Stats interfaces": consolidates the
-  observability primitive in the shared library rather than duplicating stats
-  plumbing across consumers.
+- #58621 — moves `BaseSecretsBackend` into a shared library so server and worker
+  sides link it independently.
+- #61523 — removes a `Connection` dependency so the shared secrets backend stays
+  independently linkable.
+- #63932 — removes `DualStatsManager`/`Stats` interfaces, consolidating the
+  primitive in the shared library rather than duplicating it.

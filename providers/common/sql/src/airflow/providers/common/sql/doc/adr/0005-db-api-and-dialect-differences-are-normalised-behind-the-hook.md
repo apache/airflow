@@ -27,48 +27,28 @@ Accepted
 
 ## Context
 
-PEP-249 standardises very little of what actually differs between databases.
-Paramstyle varies (`%s`, `?`, `:name`); `cursor.description` may be `None` or
-absent entirely; `rowcount` may be `-1`, `None`, or a real count; autocommit may
-be a connection attribute, a method, or unsupported; row values may arrive as
-tuples, named tuples, dicts, or driver-specific objects; identifier quoting and
-reserved-word sets are per-database. The existing area ADR
-`src/airflow/providers/common/sql/doc/adr/0002-return-common-data-structure-from-dbapihook-derived-hooks.md`
-records why a common return shape was chosen despite that; this decision is about
-*where* the remaining differences are allowed to live.
+PEP-249 standardises very little of what actually differs between databases:
+paramstyle (`%s`, `?`, `:name`), `cursor.description` (may be `None`), `rowcount`
+(`-1` / `None` / real), autocommit support, row types, identifier quoting, and
+reserved words all vary. Area ADR 0002 records why a common return shape was
+chosen; this decision is about *where* the remaining differences may live.
 
-The whole point of `common.sql` is that `SQLExecuteQueryOperator`, the SQL check
-operators, `GenericTransfer`, `SQLSensor`, the `@task.sql` decorator, and the ~29
-downstream providers can be written once against one behaviour. If a driver quirk
-leaks upward, it does not leak into one place — it leaks into every caller, and
-each of them grows its own conditional. Those conditionals then diverge, because
-they are maintained by different people on different release cadences.
+The point of `common.sql` is that its operators, sensors, transfers, `@task.sql`,
+and the ~29 downstream providers are written once against one behaviour. A driver
+quirk that leaks upward leaks into every caller, and those per-caller conditionals
+then diverge across cadences. Sharper still: the same database is reachable
+natively (`PostgresHook`), through generic JDBC, or through generic ODBC — so
+behaviour inside a native hook is unavailable to JDBC/ODBC. Dialects (area ADR
+0003) exist so per-database behaviour is keyed on the *database*, not the
+connection type reaching it.
 
-There is a second, sharper reason. The same database is reachable through several
-connection types: natively (`MsSqlHook`, `PostgresHook`), through generic JDBC, or
-through generic ODBC. Behaviour implemented inside a native hook is simply
-unavailable to the JDBC and ODBC paths — which is exactly the gap the existing
-area ADR
-`src/airflow/providers/common/sql/doc/adr/0003-introduce-notion-of-dialects-in-dbapihook.md`
-was written to close. Dialects exist so that per-database behaviour is keyed on
-the *database*, not on the connection type that happens to reach it.
-
-The hook already normalises a substantial list: `placeholder` (validated against
-the known paramstyles, falling back with a warning when a connection supplies an
-unknown one), `set_autocommit` / `get_autocommit` with a manual-commit fallback
-when the driver does not support autocommit, `insert_statement_format` /
-`replace_statement_format` / `escape_word_format` / `escape_column_names`,
-`reserved_words` sourced per dialect, `descriptions` and `last_description`
-captured off the cursor, `get_row_count` standardising PEP-249's `-1` / `None` to
-`None`-or-non-negative, and `_make_common_data_structure` as the per-hook hook for
-driver row types.
-
-SQLAlchemy is used where it helps, but it is deliberately never load-bearing:
-`dialect_name` degrades through `make_url` → the `sqlalchemy_scheme` extra → the
-`dialect` extra → `"default"`, and `get_reserved_words` suppresses `ImportError`,
-`ModuleNotFoundError`, and `NoSuchModuleError`. A missing dialect package raises
-`AirflowOptionalProviderFeatureException` with an install hint rather than a bare
-import error.
+The hook already normalises paramstyle (`placeholder`), autocommit with a
+manual-commit fallback, statement/escape formats, per-dialect `reserved_words`,
+cursor `descriptions`, `get_row_count`, and `_make_common_data_structure` for
+driver row types. SQLAlchemy is used but never load-bearing: `dialect_name`
+degrades `make_url` → `sqlalchemy_scheme` → `dialect` → `"default"`,
+`get_reserved_words` suppresses import errors, and a missing dialect package
+raises `AirflowOptionalProviderFeatureException` with an install hint.
 
 ## Decision
 
@@ -98,14 +78,13 @@ package — in `DbApiHook` or in a `Dialect` — and never pushed onto callers.
 
 ## Consequences
 
-- One behaviour is implemented once and works across native, JDBC, and ODBC
-  connections to the same database, instead of three near-copies that drift.
-- Downstream providers get new normalisation for free on the next `common.sql`
-  release, which is also why the interface-stability rules in ADR 1 bind so
-  tightly: normalisation is only useful if the surface delivering it is stable.
-- This package carries per-database knowledge it cannot fully test — dialect
-  changes need the dialect's own tests plus coverage on at least one real backend,
-  and a reviewer without that database cannot confirm correctness from the diff.
+- One behaviour works across native, JDBC, and ODBC connections to the same
+  database, instead of three near-copies that drift.
+- Downstream providers get new normalisation for free on the next release — which
+  is why the interface-stability rules in ADR 1 bind so tightly.
+- This package carries per-database knowledge it cannot fully test: dialect changes
+  need the dialect's own tests plus one real backend, and a reviewer without that
+  database cannot confirm correctness from the diff.
 - Adding a dialect is a compatibility commitment from the release it ships in.
 
 A change **violates** this decision when it:
@@ -128,22 +107,13 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #45640 — "Fix escaping of special characters or reserved words as column names
-  in dialects of common sql provider": identifier quoting fixed in the dialect
-  layer, so every connection type to that database benefits.
-- #54437 — "Implemented native `get_column_names` in `PostgresDialect` to become
-  SQLAlchemy independent" and #54832 — "`PostgresDialect` should use index instead
-  of name in `get_column_names` and `get_primary_keys`": the native-over-SQLAlchemy
-  preference applied in practice.
-- #54446 — "Fixed resolving of dialect name when host of `JdbcHook` is an JDBC
-  URL": dialect resolution made to work for the generic connection type, which is
-  the entire reason dialects exist.
-- #52976 — "Add rudimentary support for psycopg3": a driver difference absorbed
-  inside the hook rather than surfaced to callers.
-- #48938 — "Fix `SADeprecationWarning` when using inspector with SQLAlchemy in
-  `DbApiHook`" and #62594 — "Cache `DbApiHook.inspector` to avoid creating N
-  engines": SQLAlchemy kept as a contained implementation detail, including the
-  per-call engine construction that had to be fixed.
-- #52224 — "fix(postgres/hooks): ensure `get_df` uses SQLAlchemy engine to avoid
-  pandas warning": a driver/library interaction resolved behind the hook's
-  dataframe entry point.
+- #45640 — reserved-word column escaping fixed in the dialect layer, so every
+  connection type to that database benefits.
+- #54437, #54832 — native `get_column_names` / `get_primary_keys` in
+  `PostgresDialect`: the native-over-SQLAlchemy preference in practice.
+- #54446 — dialect resolution made to work when a `JdbcHook` host is a JDBC URL;
+  the generic connection type is the whole reason dialects exist.
+- #52976 — psycopg3 driver difference absorbed inside the hook, not surfaced.
+- #48938, #62594 — SQLAlchemy kept a contained detail, including the per-call
+  engine construction that had to be fixed by caching the inspector.
+- #52224 — driver/library interaction resolved behind the hook's dataframe path.

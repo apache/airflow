@@ -27,35 +27,17 @@ Accepted
 
 ## Context
 
-Chart features are unusually prone to being implemented several times in
-parallel. The requests are visible (a log-retention setting, a cleanup CronJob,
-worker groups, a missing checksum annotation), each is a self-contained change
-to a handful of templates plus values, and the barrier to starting is low. The
-result, repeatedly, is two or three open pull requests adding the same
-capability in incompatible shapes at the same time.
-
-For the chart specifically this is more damaging than elsewhere in the
-repository:
-
-- **Reviewer capacity is the binding constraint.** The people who can evaluate a
-  template change against upgrade semantics are few, and every parallel
-  implementation consumes that same scarce attention to reach a conclusion that
-  only one of them can benefit from.
-- **The values shape is permanent.** Two implementations do not merely differ in
-  code; they propose two different public configuration surfaces. Whichever
-  merges first fixes the contract users write against, so the choice cannot be
-  deferred or reconciled later — see ADR 1.
-- **Merging both is not an option, and merging the wrong one is expensive.**
-  Undoing a merged values shape means a deprecation cycle and a major version,
-  so the comparison has to happen before the merge, not after.
-- **A second pull request against the same files is not a way to resolve
-  review.** Opening a fresh PR rather than addressing comments on the existing
-  one splits the discussion, hides which version reviewers already objected to,
-  and reads as working around the reviewer.
-
-The corollary the chart maintainers apply consistently: when two working
-implementations exist, the one with the smaller surface wins, even when it is
-the later one. Ordering is a tiebreak, not the criterion.
+Chart features are unusually prone to parallel implementation — requests are visible,
+each is a small self-contained change to a few templates plus values, and the result is
+repeatedly two or three open PRs adding the same capability in incompatible shapes at
+once. This is more damaging here than elsewhere: **reviewer capacity is the binding
+constraint** and every parallel implementation consumes the same scarce attention; **the
+values shape is permanent** — whichever merges first fixes the public contract (ADR 1),
+so the choice cannot be deferred, and undoing it costs a deprecation cycle and a major
+version; and **a second PR against the same files** splits the discussion and hides which
+version reviewers objected to. The corollary maintainers apply: when two working
+implementations exist, the smaller surface wins, even when it is the later one; ordering
+is a tiebreak, not the criterion.
 
 ## Decision
 
@@ -76,15 +58,12 @@ the later one. Ordering is a tiebreak, not the criterion.
 
 ## Consequences
 
-- Reviewer attention concentrates on one candidate per capability, which is the
-  only way features here actually land.
-- Contributors sometimes lose work they had already finished. Making the
-  duplicate check the first step of the task — not the last — is what keeps that
-  cost small.
-- Ordering does not confer a right to merge, so a contributor who moved fast on
-  a complex design can still be asked to stand down for a simpler one.
-- Triage carries the ongoing job of spotting duplicates early, while both
-  branches are still cheap to abandon.
+- Reviewer attention concentrates on one candidate per capability — the only way features
+  here land. Contributors sometimes lose finished work; making the duplicate check the
+  first step keeps that cost small.
+- Ordering confers no right to merge, so a fast, complex design can be asked to stand down
+  for a simpler one; triage spots duplicates early, while both branches are cheap to
+  abandon.
 - **The existence of a competing open pull request is never itself a ground for
   rejection.** Airflow allows parallel work and the better pull request wins
   (root `CLAUDE.md`; `contributing-docs/04_how_to_contribute.rst`), and this ADR
@@ -106,21 +85,18 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #58585 — a Helm DB-cleanup implementation closed because #58155 had just added
-  a db-clean CronJob: the reviewer's note was that checking for an existing open
-  pull request is worth doing before starting.
-- #56589 — multiple Celery worker groups closed by its own author in favour of
-  #58547, which arrived later but was simpler and already covered KEDA and HPA.
-- #61859 and #61853 — two parallel minute-level log-retention pull requests,
-  both obsoleted when #61855 merged.
-- #61044 — per-bundle Dag processor deployments closed as a duplicate of the
-  in-flight #61039.
-- #60783 — a `skipKubernetesEnvVars` option superseded by the earlier #60750,
-  which removed the variables outright rather than adding a knob to hide them.
-- #63027 — a second pull request opened against the same deployments instead of
-  correcting #62178; both were closed, with the reviewer noting that the
-  original's review comments were being bypassed.
-- #64058 and #64128 — webserver configuration deprecation PRs closed so the
-  parent issue could consolidate the direction rather than land it piecemeal.
-- #54493 — a stalled pull request handed over explicitly, with the original
-  closed once another contributor picked the work up.
+- #58585 — a Helm DB-cleanup implementation closed because #58155 had just added a
+  db-clean CronJob; the reviewer's note: check for an existing PR before starting.
+- #56589 — multiple Celery worker groups closed by its own author in favour of #58547,
+  which arrived later but was simpler and already covered KEDA and HPA.
+- #61859 / #61853 — two parallel log-retention PRs, both obsoleted when #61855 merged.
+- #61044 — per-bundle Dag processor deployments closed as a duplicate of in-flight
+  #61039.
+- #60783 — a `skipKubernetesEnvVars` option superseded by the earlier #60750, which
+  removed the variables outright rather than adding a knob to hide them.
+- #63027 — a second PR opened against the same deployments instead of correcting #62178;
+  both closed, the original's review comments being bypassed.
+- #64058 / #64128 — webserver config deprecation PRs closed so the parent issue could
+  consolidate the direction rather than land it piecemeal.
+- #54493 — a stalled PR handed over explicitly, the original closed once another
+  contributor picked the work up.

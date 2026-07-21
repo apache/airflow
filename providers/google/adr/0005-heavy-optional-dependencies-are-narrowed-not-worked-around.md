@@ -27,36 +27,23 @@ Accepted
 
 ## Context
 
-This provider has the largest dependency surface in the repository: roughly
-fifty `google-cloud-*` distributions plus `google-api-python-client`,
-`pandas-gbq`, `pyarrow`, `looker-sdk`, `apache-beam` and — pulled in through
-`google-cloud-aiplatform[evaluation]` — Ray. Those last ones are the problem
-children. They are large, they carry their own deep dependency trees, and
-several of them are routinely the last thing in the entire monorepo to support a
-new Python version or a new CPU architecture.
+This provider has the largest dependency surface in the repo: ~50 `google-cloud-*`
+distributions plus `google-api-python-client`, `pandas-gbq`, `pyarrow`,
+`looker-sdk`, `apache-beam` and — via `google-cloud-aiplatform[evaluation]` — Ray.
+Those last are the problem children: large, deep trees, and routinely the last in
+the monorepo to support a new Python version or CPU architecture.
 
-Because Airflow resolves a single shared lock across the whole workspace, a
-dependency that cannot resolve here does not merely break this provider. It
-blocks the repository's Python-version rollout, holds up unrelated providers'
-own dependency bumps, and stalls CI image builds for everyone. That is why
-`providers/google/pyproject.toml` already reads the way it does: version pins
-sharded by `python_version`, several of them annotated with the upstream issue
-URL that will let the shard be removed, and at least one pin that exists purely
-to route around a downstream incompatibility in Ray.
-
-The tempting fix, each time, is local: vendor a wheel for the missing
-architecture, add a pre-release index, patch around the broken import, or pin
-something else in the tree until resolution succeeds. Each of those makes this
-provider's build diverge from what users get from PyPI, and none of them retires
-when upstream fixes the problem — they have to be found and removed by someone
-who remembers why they exist.
-
-The decision the project reaches, repeatedly, is the opposite: narrow the
-dependency's declared range so the unsupported combination is simply not
-claimed. When Ray had no wheel for a new Python version on ARM, review's answer
-to a PR adding one was to disable Ray for that Python version until a stable
-release exists — accepting the reduced capability on that interpreter rather
-than shipping a build that differs from the published one.
+Because Airflow resolves a single shared lock across the workspace, a dependency
+that cannot resolve here blocks the repo's Python-version rollout, unrelated
+providers' bumps, and everyone's CI image builds. Hence `pyproject.toml` already
+shards pins by `python_version`, several annotated with the upstream issue URL that
+retires the shard. The tempting fix each time is local — vendor a wheel, add a
+pre-release index, patch the import, or pin around it — but each makes the build
+diverge from PyPI and none retires when upstream fixes the problem. The project
+repeatedly reaches the opposite: narrow the declared range so the unsupported
+combination is not claimed. When Ray had no wheel for a new Python on ARM, review
+disabled Ray for that Python version until a stable release existed rather than ship
+a build differing from the published one.
 
 ## Decision
 
@@ -94,16 +81,15 @@ that platform. It is not vendored, patched, or resolved around.
 
 ## Consequences
 
-- The published distribution and the CI build install the same thing, so a
-  failure a user hits is reproducible here.
-- Some capabilities — Ray-backed Vertex AI evaluation is the standing example —
-  are unavailable on the newest Python for a while. That gap is visible in the
-  metadata rather than hidden behind a patched build.
-- Removing a shard requires someone to revisit the upstream issue. The
-  comment-with-URL convention is what makes that possible; without it these pins
-  are permanent.
-- Contributors adding a Google service must consider its transitive weight
-  before adding the dependency, not after CI fails.
+- The published distribution and the CI build install the same thing, so a failure
+  a user hits is reproducible here.
+- Some capabilities (Ray-backed Vertex AI evaluation is the standing example) are
+  unavailable on the newest Python for a while — visible in the metadata, not
+  hidden behind a patched build.
+- Removing a shard requires revisiting the upstream issue; the comment-with-URL
+  convention is what keeps these pins from being permanent.
+- Contributors adding a Google service must weigh its transitive weight before
+  adding the dependency, not after CI fails.
 
 A change **violates** this decision when it:
 
@@ -126,23 +112,18 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #64017 — "Fix CI image build failure for Python 3.14 on ARM64 by adding
-  aarch64 ray wheel": closed on review's direction to disable Ray on that Python
-  version instead, since the available build was a nightly and no stable release
-  existed; superseded by #64028.
-- #61794 — an AIP-99 operator PR whose real blocker was workspace-wide
-  dependency resolution (`s3fs`/`fsspec` conflicts, `grpcio-status`
-  pre-releases), demonstrating how far a single unresolvable pin propagates
-  beyond the provider that introduced it.
-- #67481 — a `google-cloud-aiplatform` bump entangled with a downstream
-  library's version, opened as a version-chasing fix rather than a narrowed
-  range.
-- #61664 — an unrelated provider's dependency bump held up by the Beam
-  resolution thread, and closed: cross-provider blast radius from one heavy
-  dependency.
-- #67341 — the preferred shape, from a sibling provider: closed as unnecessary
-  because the upstream project's own fix would resolve CI once released.
-- `providers/google/pyproject.toml` itself — the Ray pins sharded across three
-  Python versions, the `google-cloud-bigquery-storage` split, the
-  `looker-sdk!=24.18.0` exclusion and the `pydantic` pin that exists only to
-  avoid a Ray incompatibility, each annotated with its upstream issue.
+- #64017 — adding an aarch64 Ray wheel for Python 3.14, closed on review's
+  direction to disable Ray on that Python version instead (the build was a
+  nightly); superseded by #64028.
+- #61794 — an AIP-99 operator PR whose real blocker was workspace-wide resolution
+  (`s3fs`/`fsspec`, `grpcio-status` pre-releases): how far one unresolvable pin
+  propagates.
+- #67481 — a `google-cloud-aiplatform` bump entangled with a downstream version,
+  opened as version-chasing rather than a narrowed range.
+- #61664 — an unrelated provider's bump held up by the Beam resolution thread, and
+  closed: cross-provider blast radius.
+- #67341 — the preferred shape from a sibling provider, closed as unnecessary
+  because upstream's own fix would resolve CI once released.
+- `providers/google/pyproject.toml` — the Ray shards, `google-cloud-bigquery-storage`
+  split, `looker-sdk!=24.18.0` exclusion, and the `pydantic` pin avoiding a Ray
+  incompatibility, each annotated with its upstream issue.

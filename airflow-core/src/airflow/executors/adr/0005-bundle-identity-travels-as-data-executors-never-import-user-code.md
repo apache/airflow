@@ -27,46 +27,30 @@ Accepted
 
 ## Context
 
-The scheduler must never run user code. Executors run in the scheduler process,
-which extends the same constraint to them directly: whatever an executor hands to
-a worker has to be data — identifiers, versions, serialized fields — never the
-result of importing a Dag file or anything reachable from a Dag bundle.
+The scheduler must never run user code. Executors run in the scheduler process, so
+the constraint extends to them directly: whatever an executor hands a worker has
+to be data — identifiers, versions, serialized fields — never the result of
+importing a Dag file or anything reachable from a Dag bundle. The triggerer is a
+**separate component** that reaches the same conclusion by its own route (it runs
+user trigger code). **The triggerer half of this rule is decided in
+`../../jobs/adr/0005`**, which owns the triggerer's isolation contract and the
+bundle-loading question, including #65457. This ADR is authoritative only for the
+executor and workload side, and states the triggerer case because the two share a
+mechanism — not to judge the same PR twice.
 
-The triggerer is a **separate component**, not part of the scheduler, and it
-reaches the same conclusion by its own route: it runs user trigger code, so it is
-on the untrusted side of the boundary. **The triggerer half of this rule is
-decided in `../../jobs/adr/0005`**, which owns the triggerer's isolation contract
-and the bundle-loading question, including #65457. This ADR is authoritative only
-for the executor and workload side, and states the triggerer case below because
-the two share a mechanism — not to judge the same PR twice.
-
-The pressure to break the rule is constant and sympathetic, because the resulting
-error messages look like plain bugs. A user writes a trigger, puts a helper module
-next to it in the Dag bundle, and the triggerer subprocess fails to import the
-helper. That reads as a missing `sys.path` entry, and the one-line fix — add the
-bundle root to the path before running the trigger — makes the symptom disappear.
-It was proposed exactly that way and rejected, with the documentation quoted back.
-The triggerer runs thousands of triggers from many Dags in one process; importing
-bundle code there would put arbitrary user code, with arbitrary import side
-effects and arbitrary dependency requirements, inside a process that must stay
-alive for all of them — and would let one Dag's helper shadow another's.
-
-The supported alternative is to move the identity, not the code. The executor
-carries which bundle and which version a task belongs to, as fields, and the
-worker-side initialisation resolves that into an actual checkout before user
-code is imported — in the worker, where user code belongs. That is what the
-`BundleInfo` / `version_data` threading exists to do, and why the bundle
-manifest is pinned to the Dag run's version rather than resolved late: two tasks
-in the same run must see the same code, and the decision about which code that
-is has to be made where the run's state lives, not wherever a worker happens to
-start.
-
-The same data-not-behaviour rule shapes the payload itself. The serialized
-workload is a schema, versioned for the worker-bound fields, kept minimal
-because it travels through JWTs, container argv, and queue bodies. Fields that
-only the executor needs are kept out of it, and fields that must not reach a
-worker's logs are kept out or marked non-representable — a JWT was excluded from
-the workload `repr` for exactly that reason.
+The pressure to break the rule is constant and sympathetic: a helper module next
+to a trigger fails to import, which reads as a missing `sys.path` entry, and the
+one-line fix makes the symptom disappear — proposed and rejected exactly that way.
+The supported alternative moves identity, not code: the executor carries which
+bundle and version a task belongs to as fields, and worker-side initialisation
+resolves that into a checkout before user code is imported, in the worker. That is
+what `BundleInfo` / `version_data` threading does, and why the manifest is pinned
+to the Dag run's version — two tasks in a run must see the same code, decided
+where the run's state lives. The same data-not-behaviour rule shapes the payload:
+the serialized workload is a minimal, versioned schema travelling through JWTs,
+container argv, and queue bodies; executor-only fields are kept out, and secrets
+are excluded or marked non-representable (a JWT was excluded from the workload
+`repr`).
 
 ## Decision
 
@@ -87,16 +71,13 @@ Scheduler-side components pass identity, not code:
 
 ## Consequences
 
-The scheduler and triggerer stay immune to user code — a bad import in one Dag
-cannot take down the process that serves every other Dag — and task execution is
-reproducible, because the code a run uses is decided once and recorded.
-
-The cost lands on Dag authors and is a recurring source of confusion: a trigger
-cannot import the helper module sitting beside it, and the failure gives no hint
-that this is intentional. Working around it means packaging the helper and
-installing it on the triggerer, which is real deployment work that a `sys.path`
-line would have avoided. Contributors regularly arrive with that one-line fix,
-and closing it is unsatisfying — the report is valid, only the fix is not.
+- The scheduler and triggerer stay immune to user code — a bad import in one Dag
+  cannot take down the process serving every other Dag — and execution is
+  reproducible, because a run's code is decided once and recorded.
+- The cost lands on Dag authors: a trigger cannot import the helper beside it, and
+  the failure gives no hint it is intentional. The workaround is packaging and
+  installing the helper — real deployment work a `sys.path` line would have
+  avoided — so contributors keep arriving with that one-line fix.
 
 A change **violates** this decision when it:
 
@@ -113,15 +94,9 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #65457 — the triggerer-side illustration of the same mechanism (closed as
-  contrary to documented behaviour). Owned by `../../jobs/adr/0005`; listed here
-  for context only, and not a basis for flagging a PR against this ADR.
-- #67217 — `version_data` threaded through `BundleInfo` to worker-side bundle
-  initialisation.
+- #65457 — triggerer-side illustration of the same mechanism (closed as contrary to documented behaviour). Owned by `../../jobs/adr/0005`; context only, not a basis for flagging a PR against this ADR.
+- #67217 — `version_data` threaded through `BundleInfo` to worker-side bundle initialisation.
 - #69941 — task bundle manifest pinned to the Dag run's version.
-- #68390 — worker-bound `TaskInstance` fields versioned in the execution API
-  schema.
+- #68390 — worker-bound `TaskInstance` fields versioned in the execution API schema.
 - #62964 — JWT excluded from the workload `repr` to prevent log exposure.
-- #62467 — a fix for JWTs appearing in task logs, closed in favour of #62129,
-  which addressed it where the concern belongs rather than in the executor's log
-  path.
+- #62467 — a JWT-in-task-logs fix, closed in favour of #62129, which addressed it where the concern belongs rather than in the executor's log path.

@@ -27,37 +27,25 @@ Accepted
 
 ## Context
 
-Airflow supports active-active high availability: several `SchedulerJobRunner`
-processes run concurrently against one metadata database, with no leader
-election and no external coordination. Correctness therefore rests entirely on
-how each scheduler claims work from shared tables (Dag runs, task instances,
-asset/partition state, pools). The invariant is simple to state and easy to
-break: **two schedulers must never claim the same row, and caps (pool slots,
-`max_active_tasks`, `max_active_runs`, concurrency limits) must never be
-exceeded even under a race.**
+Airflow supports active-active HA: several `SchedulerJobRunner` processes run
+concurrently against one metadata database, with no leader election and no
+external coordination. Correctness rests entirely on how each scheduler claims
+work from shared tables. The invariant: **two schedulers must never claim the same
+row, and caps (pool slots, `max_active_tasks`, `max_active_runs`, concurrency
+limits) must never be exceeded even under a race.**
 
 The classic wrong pattern is *read-then-write*: `SELECT count(...)` to check a
-cap, then `UPDATE`/`INSERT` if there is room. Between the read and the write a
-second scheduler reads the same count and both proceed — the cap is blown and
-work is double-dispatched. The same class of bug appears when a query selects
-candidate rows without `skip_locked`, so two schedulers block on each other (or
-both wait and then act on the same set), and when a query lacks a deterministic
-`order_by`, so concurrent schedulers walk candidate rows in different orders and
-livelock or repeatedly collide on the same hot rows.
-
-The established Airflow answer is pessimistic row locking: a scheduler selects
-the rows it intends to act on `with_for_update(skip_locked=True)`, so it locks a
-*disjoint* subset that no other scheduler can touch, skipping rows already locked
-elsewhere instead of blocking. Pairing that with a stable `order_by` (a
-deterministic tiebreaker, typically down to the primary key) makes each
-scheduler grab a predictable slice and keeps progress monotonic. Caps are then
-enforced *inside* the same locked transaction — the slot accounting and the
-claim happen atomically — rather than as a separate unlocked count.
-
-New features keep re-introducing shared claimable state — held Dag runs waiting
-on partitions, pre-assigned execution identifiers, cross-scheduler garbage
-collection — and each one must adopt the same claiming discipline or it becomes
-an HA correctness bug the moment a second scheduler is running.
+cap, then `UPDATE`/`INSERT` if there is room — between the two, a second scheduler
+reads the same count and both proceed. The same class of bug appears when a query
+selects candidates without `skip_locked` (schedulers block or both act on the same
+set), and when it lacks a deterministic `order_by` (schedulers walk rows in
+different orders and livelock on hot rows). The established answer is pessimistic
+row locking: select intended rows `with_for_update(skip_locked=True)` to lock a
+*disjoint* subset, pair it with a stable `order_by` down to the primary key, and
+enforce caps *inside* the same locked transaction so accounting and claim are
+atomic. New features keep re-introducing shared claimable state (held runs waiting
+on partitions, pre-assigned execution IDs, cross-scheduler GC) — each must adopt
+this discipline or become an HA bug the moment a second scheduler runs.
 
 ## Decision
 
@@ -80,9 +68,8 @@ accounting, and any new table that multiple schedulers dequeue from.
 - Multiple schedulers scale throughput without duplicating work or overrunning
   limits; adding a scheduler is safe by construction.
 - New claimable state must ship with its locking/order/atomic-cap design from the
-  start — retrofitting it after a race is observed is far harder.
-- Queries are slightly more constrained (they must be lockable and ordered), and
-  indexes must support the `order_by` used under lock.
+  start, and queries must be lockable and ordered (with indexes supporting the
+  `order_by` used under lock).
 
 A change **violates** this decision when it:
 
@@ -101,13 +88,6 @@ cap outside the locked transaction.
 
 ## Evidence
 
-- #64571 — "AIP-76: Hold Dag run until all upstream partitions arrive": adds
-  held-run/partition state that multiple schedulers observe and release; the
-  claim/release must respect row locking so a run is not released twice.
-- #62343 — "Add async connection testing via workers for security isolation":
-  routes claimable async work through the isolated worker path, keeping the
-  scheduler's dispatch within its locked, atomic claim discipline.
-- #65594 — "Pre-assign Celery task ID at queuing time to prevent duplicate
-  execution on scheduler crash": pins the execution identity atomically at
-  queue time so a crash-and-retry (or a second scheduler) cannot dispatch the
-  same task instance twice.
+- #64571 — "AIP-76: Hold Dag run until all upstream partitions arrive": held-run/partition state multiple schedulers observe and release; claim/release must respect row locking so a run is not released twice.
+- #62343 — "Add async connection testing via workers": routes claimable async work through the isolated worker path, within the locked, atomic claim discipline.
+- #65594 — "Pre-assign Celery task ID at queuing time": pins execution identity atomically so a crash-retry (or second scheduler) cannot dispatch the same TI twice.

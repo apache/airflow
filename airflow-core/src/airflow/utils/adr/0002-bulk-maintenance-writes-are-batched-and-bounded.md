@@ -27,44 +27,31 @@ Accepted
 
 ## Context
 
-`db_cleanup.py` is the retention and archival engine behind `airflow db clean`.
-It is also the reference implementation the repo `CLAUDE.md` points at for
-*every* bulk `DELETE`/`UPDATE` in airflow-core — the scheduler loop, interval
-callbacks, and any new garbage-collection feature are all expected to follow the
-shape defined here. That makes this module's pattern an architectural decision
-for the whole codebase, not a local implementation detail.
+`db_cleanup.py` is the retention and archival engine behind `airflow db clean`,
+and the reference implementation the repo `CLAUDE.md` points at for *every* bulk
+`DELETE`/`UPDATE` in airflow-core — the scheduler loop, interval callbacks, and
+any new garbage-collection feature. Its pattern is an architectural decision for
+the whole codebase, not a local detail.
 
-The tables it operates on are user-driven and unbounded. A deployment with many
-Dags and a long retention window accumulates millions of `task_instance`,
-`dag_run`, log, and history rows. Written naively, retention is one sweeping
-statement — which is exactly the anti-pattern, for three reasons:
+The tables are user-driven and unbounded (millions of `task_instance`, `dag_run`,
+log, and history rows). Written as one sweeping statement — the anti-pattern —
+three things break: **lock duration** (an unbounded `DELETE` holds row/range/page
+locks for the whole transaction, blocking every concurrent writer); **memory**
+(reading a whole table in one pass to archive is OOM at production counts); and
+**foreign keys / dialect behaviour** (a row under an `ON DELETE RESTRICT` FK, e.g.
+`task_instance.dag_version_id` → `dag_version`, fails the delete outright, and on
+MySQL the failed delete holds metadata locks while the archive-table `DROP` —
+bound to the engine rather than this session's connection — checks out a *second*
+pooled connection and hangs forever).
 
-- **Lock duration.** An unbounded `DELETE` takes row (and on some engines range,
-  gap, or page) locks on every matching row and holds them for the whole
-  transaction. Every concurrent writer touching those rows — other schedulers,
-  the API server, workers via the Execution API — blocks for the duration.
-- **Memory.** Reading or exporting a whole table in one pass to archive it is an
-  out-of-memory failure at production row counts.
-- **Foreign keys and dialect behaviour.** Rows still referenced by an
-  `ON DELETE RESTRICT` foreign key (for instance `task_instance.dag_version_id`
-  pointing at `dag_version`) make the delete fail outright. On MySQL a failed
-  delete leaves the transaction holding metadata locks, and the subsequent
-  archive-table `DROP` — if bound to the engine rather than to this session's own
-  connection — checks out a *second* pooled connection and blocks on those locks
-  forever. That is a hang, not an error.
-
-`_do_delete` encodes the answers. It loops: bound the working query with
-`query.limit(batch_size)`, stop when the bounded query selects nothing, archive
-the batch into a timestamped `_airflow_deleted__*` table, delete it from the
-source, and **commit after each batch** so locks are released and other writers
-make progress. `_TableConfig` carries the per-table metadata this needs — the
-indexed recency column to filter on, the dependent tables that must be archived
-first so cascading deletes stay consistent, and `skip_if_referenced` pairs that
-exclude rows a `RESTRICT` FK still points at.
-
-The batching driver is the one place in `airflow-core` that legitimately calls
-`session.commit()` while holding a session it was passed: commit cadence *is* its
-contract. That is the narrow, documented exception to ADR 1, not a loophole.
+`_do_delete` encodes the answers: bound the query with `query.limit(batch_size)`,
+stop when it selects nothing, archive each batch into a timestamped
+`_airflow_deleted__*` table, delete from source, and **commit after each batch**.
+`_TableConfig` carries the per-table metadata — indexed recency column, dependent
+tables archived first, and `skip_if_referenced` pairs excluding `RESTRICT`-FK
+rows. The batching driver is the one place in `airflow-core` that legitimately
+calls `session.commit()` on a session it was passed: commit cadence *is* its
+contract — the narrow, documented exception to ADR 1, not a loophole.
 
 ## Decision
 
@@ -97,14 +84,13 @@ pairs — not adding a bespoke delete path.
 ## Consequences
 
 - Cleanup of an arbitrarily large table runs with bounded lock hold time and
-  bounded memory; the deployment stays writable throughout.
-- Total wall time and statement count go up. That trade is deliberate: many
-  short, index-backed transactions beat one long one that blocks the cluster.
-- Every new retention or garbage-collection feature has to design its batch
-  size, commit cadence, and supporting index up front — and ship the index in
-  the same change, not later.
-- The archive tables are a durable artifact operators must manage; deleting
-  without archiving is opt-in (`skip_archive`), not the default.
+  memory; the deployment stays writable throughout.
+- Total wall time and statement count go up — a deliberate trade: many short
+  index-backed transactions beat one long one that blocks the cluster.
+- Every new retention/GC feature designs its batch size, commit cadence, and
+  supporting index up front, shipping the index in the same change.
+- Archive tables are a durable artifact operators must manage; deleting without
+  archiving is opt-in (`skip_archive`), not the default.
 
 A change **violates** this decision when it:
 
@@ -135,22 +121,16 @@ an unindexed column.
 
 ## Evidence
 
-- #51510 — "CLI: add `--batch-size` option to `airflow db clean`": introduces
-  the bounded-batch loop and makes the batch size operator-tunable.
-- #51268 — "Adjusted `_dump_table_to_file` to read rows in batches to prevent
-  memory issues": the same bounding argument applied to the export path.
-- #51952 — "Fix archival for cascading deletes by archiving dependent tables
-  first": establishes the dependent-tables-before-parent ordering.
-- #66296 — "Fix `airflow db clean` hang on MySQL when delete fails": the
-  metadata-lock hang caused by dropping the archive table on a second pooled
+- #51510 — `--batch-size` introduces the bounded-batch loop, operator-tunable.
+- #51268 — `_dump_table_to_file` reads in batches: same bounding on the export
+  path.
+- #51952 — archives dependent tables before parents for cascading deletes.
+- #66296 — the MySQL hang from dropping the archive table on a second pooled
   connection, and the rollback-before-cleanup fix.
-- #68339 — "Skip FK-referenced `dag_version` rows during db clean": adds
-  `skip_if_referenced` so a `RESTRICT` FK excludes rows instead of failing the
-  delete.
-- #68218 — "Add `task_store` table to `airflow db clean` mechanism": the
-  canonical shape of adding a new table via `_TableConfig`.
-- #64818 — "Add indexes on `dag_run.created_dag_version_id` and
-  `task_instance.dag_version_id`": the indexed-filter-column requirement shipped
-  as its own change.
-- #65239 — "Add `--error-on-cleanup-failure` flag to `airflow db clean`":
-  surfacing cleanup failures to the operator instead of swallowing them.
+- #68339 — `skip_if_referenced` excludes `RESTRICT`-FK `dag_version` rows instead
+  of failing the delete.
+- #68218 — adding `task_store` via `_TableConfig`: canonical new-table shape.
+- #64818 — indexes on `dag_run.created_dag_version_id` /
+  `task_instance.dag_version_id`: the indexed-filter requirement as its own change.
+- #65239 — `--error-on-cleanup-failure` surfaces cleanup failures instead of
+  swallowing them.

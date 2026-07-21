@@ -27,26 +27,20 @@ Accepted
 
 ## Context
 
-`BaseExecutor` (`airflow-core/src/airflow/executors/base_executor.py`) is not an
-internal-only base class. It is the contract that every out-of-tree and provider
-executor inherits from: Celery, Kubernetes, ECS, AWS Batch, Lambda, and Edge all
-subclass `BaseExecutor` and override its hooks (`execute_async`, `sync`,
-`try_adopt_task_instances`, `get_task_log`, the `slots_available` /
-`parallelism` accounting surface, and the public attributes such as
-`running`, `queued_tasks`, `event_buffer`).
+`BaseExecutor` (`airflow-core/src/airflow/executors/base_executor.py`) is the
+contract every out-of-tree and provider executor inherits from: Celery, Kubernetes,
+ECS, AWS Batch, Lambda, and Edge subclass it and override its hooks (`execute_async`,
+`sync`, `try_adopt_task_instances`, `get_task_log`, the `slots_available` /
+`parallelism` accounting, and public attributes like `running`, `queued_tasks`,
+`event_buffer`).
 
-Crucially, these executors live in provider distributions that are versioned and
-released **independently** of `airflow-core`. A deployment routinely runs the
-latest provider (e.g. a newer `apache-airflow-providers-cncf-kubernetes`) on an
-older core, or an older provider on a newer core. That means the public shape of
-`BaseExecutor` — field names, method signatures, class-level constants, and the
-import paths that resolve them — is a cross-version compatibility boundary, not a
-detail we can freely reshape when it is convenient for core.
-
-A change that "unifies" or "cleans up" a `BaseExecutor` field or method by
-renaming or removing it looks local to core, but it silently breaks every
-provider executor that still references the old name, in exactly the
-mixed-version combination we support.
+These executors live in provider distributions versioned and released
+**independently** of `airflow-core`, and deployments routinely run a newer provider
+on older core or the reverse. So the public shape of `BaseExecutor` — field names,
+signatures, constants, import paths — is a cross-version compatibility boundary. A
+change that "unifies" or "cleans up" by renaming or removing looks local to core but
+silently breaks every provider executor still referencing the old name, in exactly
+the mixed-version combination we support.
 
 ## Decision
 
@@ -87,15 +81,5 @@ rejected.
 
 ## Evidence
 
-- #62645 — Move ExecutorCallback execution into a supervised process (touches the
-  executor callback surface that providers inherit).
-- #63482 — "Unify executor workload queues with tier-based scheduling": the
-  reject-shaped example, and the clearest one in this area. It renamed fields on
-  `BaseExecutor`, which every provider executor inherits. A reviewer's entire
-  response was *"Sorry, this is not possible. This breaks compatibility between
-  providers and core"*, with the version-mix case spelled out — upgrade core, leave
-  the providers, and the renamed fields break. **The PR was closed unmerged.** A
-  second reviewer supported the direction and asked what it would take to make it
-  back-compatible; the successor, #63491, keeps the old names working via
-  `@property` — the shim this ADR prescribes — and is still open at the time of
-  writing.
+- #62645 — moves ExecutorCallback execution into a supervised process, touching the inherited callback surface.
+- #63482 — the reject-shaped example: renamed `BaseExecutor` fields; closed unmerged with *"this breaks compatibility between providers and core"* (upgrade core, keep providers, renamed fields break). Successor #63491 keeps the old names via `@property` — the shim this ADR prescribes.

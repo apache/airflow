@@ -27,35 +27,20 @@ Accepted
 
 ## Context
 
-The natural way to review a `chart/templates/` diff is to render it and read the
-YAML. That answers "what does `helm install` produce?" — but almost nobody
-running the official chart is doing a fresh install. The overwhelmingly common
-operation is `helm upgrade` against a release that already has running
-schedulers, a StatefulSet with bound PVCs holding task logs, completed migration
-Jobs, and workloads mid-flight.
+Rendering a `chart/templates/` diff answers "what does `helm install` produce?" — but
+almost nobody running the official chart is doing a fresh install. The common operation
+is `helm upgrade` against a release with running schedulers, a StatefulSet with bound
+PVCs holding task logs, completed migration Jobs, and workloads mid-flight.
 
-Kubernetes treats many fields as **immutable after creation**. A StatefulSet's
-`volumeClaimTemplates` and selector cannot be changed in place; a Job's `spec`
-cannot be patched. When a template starts emitting a different value for one of
-those, the upgrade does not quietly converge — it either fails outright, or
-(worse, when the resource is recreated) detaches or orphans the PersistentVolume
-behind it. Log persistence and Redis broker state are the assets at risk, and
-losing them is silent until someone looks for the data.
-
-The reverse failure is just as real: templates that render a field another
-controller owns. If the chart emits `spec.replicas` while an HPA is scaling the
-same Deployment, the two controllers overwrite each other on every reconcile and
-the deployment oscillates. The same class of problem covers migration and
-database-cleanup Jobs, which components wait on via `waitForMigrations` — a Job
-that is not idempotent, or that already exists from the previous release, can
-wedge an upgrade with no useful error.
-
-None of this is visible in a diff, and none of it is exercised by rendering the
-default values once. The chart's own `chart/tests/helm_tests/` suite renders
-templates and asserts on the resulting objects, which catches shape regressions
-— but "would this recreate the StatefulSet on an existing release?" is a
-question about the *delta between two renders*, and it has to be reasoned about
-explicitly by the author.
+Kubernetes treats many fields as **immutable after creation** — a StatefulSet's
+`volumeClaimTemplates` and selector, a Job's `spec`. When a template starts emitting a
+different value for one, the upgrade fails or, worse, recreates the resource and
+detaches the PersistentVolume behind it (log persistence, Redis broker state), silently.
+The reverse failure is a template rendering a field another controller owns: emitting
+`spec.replicas` while an HPA scales the same Deployment makes the two oscillate. The
+same class covers migration/cleanup Jobs that components wait on via `waitForMigrations`.
+None of this shows in a diff or in a single default-values render; the delta between two
+renders has to be reasoned about explicitly by the author.
 
 ## Decision
 
@@ -81,14 +66,12 @@ Concretely:
 
 ## Consequences
 
-- Users can upgrade the chart within a major version without a maintenance
-  window or a manual PVC dance — the property that makes the chart usable under
-  GitOps.
-- Some desirable template refactors are simply unavailable outside a major
-  version, even when the rendered output is *nicer*, because the transition is
-  destructive.
-- Authors carry extra work: reasoning about the previous render, and often
-  adding a persistence-enabled and a persistence-disabled test rather than one.
+- Users can upgrade within a major version without a maintenance window or a manual
+  PVC dance — the property that makes the chart usable under GitOps.
+- Some desirable template refactors are unavailable outside a major version, even when
+  the rendered output is nicer, because the transition is destructive.
+- Authors reason about the previous render and often add both a persistence-enabled and
+  a persistence-disabled test.
 
 A change **violates** this decision when, in `chart/templates/`, it:
 
@@ -110,22 +93,16 @@ release is unstated.
 
 ## Evidence
 
-- #41771 — "Consolidated fix for volumeClaimTemplates (apiVersion and PVC)" and
-  #42946 — "Chart: fix VCT for scheduler in local and persistent mode": the
-  `volumeClaimTemplates` / PVC seam is where this class of bug repeatedly
-  surfaced, and required consolidated rather than piecemeal fixes.
-- #59955 — "add redis statefulset persistentVolumeClaimRetentionPolicy support":
-  PVC retention treated as an explicit, user-controlled property of a stateful
+- #41771 / #42946 — the `volumeClaimTemplates` / PVC seam, where this class of bug
+  repeatedly surfaced and required consolidated fixes.
+- #59955 — PVC retention treated as an explicit, user-controlled property of a stateful
   component.
-- #60118 — "Allow custom volumeClaimTemplates when logs.persistence.enabled is
-  true": extended the persistence path additively, without changing what
-  existing releases render.
-- #63187 — "fix(chart): omit api-server spec.replicas when HPA is enabled": the
-  canonical "don't render a field another controller owns" fix.
-- #62054 — "Add workers.celery.waitForMigrations section": the migration-gating
-  ordering made explicit and configurable per component.
-- #62048 — "Add workers.celery.volumeClaimTemplates": stateful worker storage
-  added as an opt-in value rather than a change to the default render.
-- #63464 — "More restrictive chart rendering logic": tightened which resources
-  render under which conditions, so upgrades stop emitting objects a release
-  does not need.
+- #60118 — extended the persistence path additively, without changing what existing
+  releases render.
+- #63187 — the canonical "don't render a field another controller owns": omit api-server
+  `spec.replicas` when HPA is enabled.
+- #62054 — migration-gating ordering made explicit and configurable per component.
+- #62048 — stateful worker storage added as an opt-in value, not a change to the default
+  render.
+- #63464 — tightened which resources render under which conditions, so upgrades stop
+  emitting objects a release does not need.

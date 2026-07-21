@@ -27,24 +27,18 @@ Accepted
 
 ## Context
 
-A single `DagFileProcessorManager` is responsible for keeping the serialized
-Dags of an entire deployment fresh. It walks the set of Dag files, and for each
-one runs a parse that imports untrusted author code (see ADR 1). Author code can
-do anything: hang on a network call, spin in a loop, leak memory, segfault a C
-extension, or crash outright.
+A single `DagFileProcessorManager` keeps an entire deployment's serialized Dags
+fresh, running a parse per Dag file that imports untrusted author code (see ADR 1).
+Author code can hang, loop, leak, segfault a C extension, or crash. If parsing ran
+**inside** the manager process, any one of those in any one file would take down
+parsing for the whole deployment as a silent stall. The manager loop is also where
+DB-lock contention, unbounded scans, or O(N²) bookkeeping quietly become "the
+processor stopped making progress."
 
-If parsing ran **inside** the manager process, any one of those failure modes in
-any one Dag file would take down parsing for the whole deployment — new Dag
-versions would stop appearing, and the failure would present as a silent stall,
-not a clean error. The manager loop is also the place where DB-lock contention,
-unbounded scans, or O(N²) bookkeeping quietly convert into "the processor stopped
-making progress," which operators experience as Dags mysteriously not updating.
-
-So the manager keeps itself thin and delegates the dangerous work: it launches a
-separate, short-lived subprocess per file, bounds it with a timeout, and treats
-that subprocess as expendable. Platform quirks matter here too — on macOS a bare
-`fork` without `exec` can `SIGSEGV`, so the launch uses `fork+exec`. The manager's
-own loop must stay responsive at all times.
+So the manager stays thin and delegates the dangerous work: a separate,
+short-lived, timeout-bounded subprocess per file, treated as expendable. Platform
+quirks matter — on macOS a bare `fork` without `exec` can `SIGSEGV`, so the launch
+uses `fork+exec` — and the manager loop must stay responsive at all times.
 
 ## Decision
 
@@ -86,15 +80,8 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #69008 — "Fix macOS `SIGSEGV` in triggerer and DAG processor via `fork+exec`":
-  the launch mechanism itself is load-bearing for process isolation safety.
-- #68118 — "Fix DagFileProcessorManager silent hang on DB lock contention":
-  a loop that stalled under a DB lock is exactly the failure this decision guards
-  against.
-- #69324 — "Make sure stale file handler doesn't crash the DagFileProcessorManager":
-  a per-handler failure must degrade, not kill the manager.
-- #67750 — "Dag processor: reduce file-queue dedup from O(N²) to O(N) with
-  OrderedDict": keeping per-cycle bookkeeping bounded so the loop stays
-  responsive at scale.
-- #69452 — "Reduce Dag processor log noise from per-Dag run lookups": trimming
-  per-file/per-run work on the hot path.
+- #69008 — macOS `SIGSEGV` fixed via `fork+exec`: the launch mechanism is load-bearing for isolation.
+- #68118 — silent hang under DB lock contention: exactly the failure this guards against.
+- #69324 — a stale file handler must degrade, not crash the manager.
+- #67750 — file-queue dedup reduced O(N²)→O(N) to keep per-cycle bookkeeping bounded.
+- #69452 — trimming per-file/per-run work on the hot path.

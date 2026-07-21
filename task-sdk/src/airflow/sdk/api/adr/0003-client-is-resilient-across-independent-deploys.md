@@ -27,25 +27,20 @@ Accepted
 
 ## Context
 
-Workers and API servers are upgraded on their own schedules and connected only by
-the network in between: an operator may roll the control plane forward while a
-worker fleet still runs an older SDK, and the link itself drops packets, times
-out, and returns transient `5xx` during a rolling restart. A task that has
-already started must not fail merely because the server it talks to is a
-different build, briefly unreachable, or mid-deploy. This client is what absorbs
-that.
-
-Three properties carry it. *Transient-failure tolerance*: `request()` is wrapped
-in a tenacity `@retry` that retries **only** `httpx.RequestError` and `5xx`
-responses (`_should_retry_api_request`) with randomized exponential backoff and a
-bounded timeout, so a blip is ridden out but a `4xx` or a non-idempotent
-duplicate is not. *Token continuity*: a long-running task's JWT is refreshed in
-place from the server's `Refreshed-API-Token` header, so the task doesn't die of
-an expired credential while it waits. *Transport trust across environments*: a
-cached SSL context supports public CAs, private CAs, and mutual TLS, so the same
-client works whether the server presents a public or an internal certificate.
-Underneath all three is the assumption the client must *not* make — that the
-server on the other end is the exact version the worker shipped with.
+Workers and API servers are upgraded on their own schedules, connected only by
+the network: an operator may roll the control plane forward while a worker fleet
+still runs an older SDK, and the link drops packets, times out, and returns
+transient `5xx` during a rolling restart. A task already started must not fail
+merely because its server is a different build, briefly unreachable, or
+mid-deploy. This client absorbs that through three properties: *transient-failure
+tolerance* — `request()` is wrapped in a tenacity `@retry` that retries **only**
+`httpx.RequestError` and `5xx` (`_should_retry_api_request`) with randomized
+exponential backoff and a bounded timeout, never a `4xx` or non-idempotent
+duplicate; *token continuity* — the JWT is refreshed in place from the
+`Refreshed-API-Token` header; and *transport trust* — a cached SSL context
+supports public CAs, private CAs, and mTLS. Underneath all three is the
+assumption the client must *not* make: that the server is the exact version the
+worker shipped with.
 
 ## Decision
 
@@ -67,10 +62,10 @@ assume a matched pair. Concretely:
 ## Consequences
 
 - Workers survive rolling upgrades, brief outages, and transient `5xx` without
-  failing the task that happened to be mid-flight.
-- The client carries more code and more configuration knobs (retry count, wait
-  bounds, timeout, TLS trust) than a naive HTTP wrapper — that surface is the
-  cost of safe independent deploys.
+  failing a mid-flight task.
+- The client carries more code and config knobs (retry count, wait bounds,
+  timeout, TLS trust) than a naive HTTP wrapper — the cost of safe independent
+  deploys.
 - The retry/backoff discipline must stay narrow (transient-only, idempotent-only)
   or it amplifies load against a struggling server and risks double-writes.
 
@@ -87,14 +82,12 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #56762 — "Migrate retry handler in task SDK API client to use tenacity instead
-  of retryhttp": the transient-only retry/backoff layer this decision rests on.
-- #56969 — "Add configurable timeout for Execution API requests": the bounded
-  timeout that keeps a call from hanging against a slow server.
-- #57334 — "Fix memory leak in Client via SSL context creation" (with #57401,
-  "make `_get_ssl_context_cached` a static method"): the cached SSL context.
-- #67214 — "Add support for mTLS and private CAs to the api client / server" (and
-  #62105, "Support for client-side certificates using task-sdk"): transport trust
-  across public and internal environments.
-- #68129 — "Escape URL for DagOperations lookup in task sdk client": robust
-  request construction so a worker request survives server-side routing.
+- #56762 — migrate retry handler to tenacity; the transient-only retry/backoff
+  layer this rests on.
+- #56969 — configurable timeout that keeps a call from hanging against a slow
+  server.
+- #57334 (with #57401) — cached SSL context, fixing a memory leak.
+- #67214 (with #62105) — mTLS and private-CA support; transport trust across
+  public and internal environments.
+- #68129 — escaped URL for DagOperations lookup; robust request construction
+  surviving server-side routing.

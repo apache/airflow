@@ -28,35 +28,26 @@ Accepted
 ## Context
 
 Authenticating to AWS is not a one-line `boto3.client("s3")`. In this provider it
-is the job of `BaseSessionFactory` and `AwsGenericHook` /`AwsBaseHook` in
-`aws/hooks/base_aws.py`, and it resolves — in order — the Airflow connection's
-credentials or the boto3 default chain when no connection is given, the region,
-an optional role assumption (`assume_role`, `assume_role_with_saml`,
+is the job of `BaseSessionFactory` and `AwsGenericHook` / `AwsBaseHook` in
+`aws/hooks/base_aws.py`, which resolve — in order — the connection's credentials
+or the boto3 default chain when no connection is given, the region, an optional
+role assumption (`assume_role`, `assume_role_with_saml`,
 `assume_role_with_web_identity`, each with its own kwargs and federation
 options), the `verify` TLS setting, a `botocore.config.Config`, the Airflow user
-agent, and a per-service `endpoint_url` derived from the connection's
-`service_config` via `get_service_endpoint_url()`. `AwsConnectionWrapper` in
-`aws/utils/connection_wrapper.py` normalises the connection into the fields that
-factory consumes.
+agent, and a per-service `endpoint_url` from `service_config` via
+`get_service_endpoint_url()`. `AwsConnectionWrapper` normalises the connection
+into the fields the factory consumes. That machinery is why one connection can
+point at a cross-account role, another at a China-partition endpoint, and a third
+at a local emulator, and have all ~54 hooks behave identically.
 
-That machinery is why a deployment can point one Airflow connection at a
-cross-account role, another at a China-partition endpoint, and a third at a
-local endpoint emulator, and have all ~54 hooks behave identically. Every piece
-of it is invisible to a caller that constructs its own boto3 client: such a
-caller silently ignores `aws_conn_id`, `region_name`, `verify` and
-`botocore_config`, and it authenticates as whatever ambient credentials the
-worker happens to have.
-
-The failure mode is not theoretical, and it recurs. Operators have shipped
-ignoring `aws_conn_id` outright. Triggers have shipped resolving credentials
-differently from the operator that deferred to them, so a task authenticated one
-way while running and another way while waiting. STS calls made during
-web-identity role assumption bypassed the user's botocore config. Each of these
-was a separate bug fix, and each was the same underlying mistake: a second,
-partial path to a boto3 client.
-
-Constructing clients elsewhere also destroys testability. The hook is the seam
-the provider's tests mock; a client built inline in `execute()` has no seam.
+A caller that constructs its own boto3 client silently ignores `aws_conn_id`,
+`region_name`, `verify` and `botocore_config`, and authenticates as whatever
+ambient credentials the worker has. The failure recurs: operators shipping
+ignoring `aws_conn_id`, triggers resolving credentials differently from the
+operator that deferred to them, STS calls bypassing the user's botocore config —
+each a separate bug fix, each the same underlying mistake of a second, partial
+path to a client. Constructing clients inline also destroys the seam the
+provider's tests mock.
 
 ## Decision
 
@@ -90,16 +81,13 @@ Every AWS API call in this provider is made through a client obtained from an
 
 ## Consequences
 
-- Authentication behaves the same across the whole provider. A deployment that
-  configures cross-account roles, a custom partition, or a private endpoint
-  configures it once, in the connection.
-- New credential capabilities land in one file and are immediately available to
-  every service.
-- Hooks stay mockable, so tests can assert on call arguments without reaching
-  into boto3 internals.
+- Authentication behaves the same across the whole provider — cross-account
+  roles, a custom partition, or a private endpoint are configured once, in the
+  connection.
+- New credential capabilities land in one file and reach every service.
+- Hooks stay mockable, so tests can assert on call arguments.
 - Adding a service costs slightly more up front — a hook must exist before the
-  operator — and that cost is the point: it is what keeps the second path from
-  being created.
+  operator — and that cost is the point: it keeps the second path from existing.
 
 A change **violates** this decision when it:
 
@@ -124,22 +112,10 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #63137 — "Fix - `S3GetBucketTaggingOperator` ignoring `aws_conn_id`
-  parameter": an operator that took the connection id and never reached the
-  hook with it.
-- #65335 — "fix: `EksPodOperator` 401 with cross-account AssumeRole via
-  `aws_conn_id`": role assumption not surviving the path to the client.
-- #64216 — "Fix `assume_role_with_web_identity` not using botocore config for
-  STS calls": a credential-resolution step that bypassed the user's transport
-  configuration.
-- #68923 — "Standardize `ECS TaskDoneTrigger` on `region_name` and AWS hook
-  parameters", #68925 — "Propagate AWS hook parameters through
-  `RedshiftClusterTrigger`", #68921 — "Propagate `verify` and `botocore_config`
-  through `EC2StateSensorTrigger`", #67508 — the same propagation fix for the
-  batch triggers: four separate fixes for the same defect
-  — triggers that did not resolve their client the way the operator did.
-- #68927 — "Make Amazon SageMaker triggers inherit AWS base classes" and
-  #52243 — "Use base AWS classes in Glue Trigger / Sensor and implement custom
-  waiter": bespoke client construction retired in favour of the base classes.
-- #65821 — "Add multi-team dimensions to boto3 user agent string": a change made
-  once in the session factory and inherited by every hook.
+- #63137 — an operator that took `aws_conn_id` and never reached the hook with it.
+- #65335 — cross-account AssumeRole not surviving the path to the client.
+- #64216 — a credential-resolution step bypassing the user's transport config.
+- #68923, #68925, #68921, #67508 — four separate fixes for triggers that did not
+  resolve their client the way the operator did.
+- #68927, #52243 — bespoke client construction retired in favour of base classes.
+- #65821 — a user-agent change made once in the session factory, inherited by every hook.

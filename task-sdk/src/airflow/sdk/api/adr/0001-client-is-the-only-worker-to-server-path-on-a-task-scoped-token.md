@@ -27,31 +27,22 @@ Accepted
 
 ## Context
 
-A running task needs server-held state constantly — the value of a Variable or
-Connection, an XCom pushed by an upstream task, its own state transitions, an
-asset event to emit, a Dag run to trigger. In Airflow's security model the
-worker runs untrusted author code and must **never** hold a metadata-DB session;
-every one of those interactions instead travels over the network to the API
+A running task constantly needs server-held state — a Variable, a Connection, an
+upstream XCom, its own state transitions, an asset event to emit. In Airflow's
+security model the worker runs untrusted author code and must **never** hold a
+metadata-DB session; every such interaction travels over the network to the API
 server's Execution API. `client.py` is the single object that speaks that
-protocol on the worker side. There is no second path: the supervisor owns one
-`Client`, hands it the task's credential, and every operation namespace
-(`task_instances`, `variables`, `xcoms`, `dag_runs`, …) issues its request
-through it.
+protocol on the worker side: the supervisor owns one `Client`, hands it the
+task's credential, and every operation namespace (`task_instances`, `variables`,
+`xcoms`, `dag_runs`, …) issues its request through it.
 
 The credential is a **short-lived JWT scoped to the one task instance**.
 `BearerAuth` attaches it as the `Authorization` header; when the server returns a
 `Refreshed-API-Token` header the client swaps it in via `_update_auth`, so a
-long-running task keeps a fresh but still task-bounded token without ever
-widening its scope. The client opens **no** database connection of any kind — its
-only egress is HTTP to the configured Execution-API base URL.
-
-The mirror image of this decision lives on the server
-(`airflow-core/src/airflow/api_fastapi/execution_api/`): a restricted,
-authenticated surface whose token scopes and per-task-instance (`ti:self`)
-validation are what make handing a worker a token safe. This client's obligation
-is to keep *all* of the worker's server-state access on that one mediated,
-token-scoped channel — the recurring pressure being convenience and latency,
-where reaching around it for "just one row" looks harmless.
+long-running task keeps a fresh but still task-bounded token. The client opens
+**no** database connection — its only egress is HTTP. The recurring pressure is
+convenience and latency, where reaching around the channel for "just one row"
+looks harmless.
 
 ## Decision
 
@@ -71,14 +62,12 @@ metadata-DB connection. Concretely:
 
 ## Consequences
 
-- The worker's blast radius stays bounded: author code runs, but it is never
-  handed the server's DB credentials or an unrestricted query surface, and its
-  authority expires with the task.
-- Every new server-state need a runtime feature has must be expressed as a client
-  method against an Execution-API endpoint, which keeps the isolation seam
-  visible and reviewable instead of buried in an incidental query.
-- There is a network dependency and an extra round-trip — going over HTTP is more
-  work than a local read — and that friction is intentional.
+- The worker's blast radius stays bounded: author code runs, but is never handed
+  the server's DB credentials or an unrestricted query surface, and its authority
+  expires with the task.
+- Every new server-state need is a client method against an Execution-API
+  endpoint, keeping the isolation seam visible instead of buried in a query.
+- The network dependency and extra round-trip are intentional friction.
 
 A change **violates** this decision when it:
 
@@ -93,16 +82,10 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #62343 — "Add async connection testing via workers for security isolation":
-  routes connection testing through this client / the Execution-API path
-  specifically to preserve isolation rather than reaching for server-side access.
-- #66575 — "Refuse secrets-backend fallback on Execution-API authz deny": the
-  client surfaces `401`/`403` as `PERMISSION_DENIED` so the secrets backend does
-  **not** fall back to a less-restrictive source — the mediated decision is
-  honored.
-- #48597 — "Issue refreshed Execution API JWT to tasks if their current token is
-  expiring": the task token is refreshed in place rather than lengthened or
-  widened.
-- #60108 — "Two-token mechanism for task execution to prevent token expiration
-  while tasks wait in executor queues": keeps tokens valid across queueing
-  without broadening their scope.
+- #62343 — async connection testing via workers; routed through this client to
+  preserve isolation rather than server-side access.
+- #66575 — client surfaces `401`/`403` as `PERMISSION_DENIED` so the secrets
+  backend does not fall back to a less-restrictive source.
+- #48597 — task token refreshed in place rather than lengthened or widened.
+- #60108 — two-token mechanism keeps tokens valid across queueing without
+  broadening their scope.

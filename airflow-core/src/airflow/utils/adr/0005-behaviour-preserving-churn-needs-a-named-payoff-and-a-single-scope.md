@@ -27,51 +27,39 @@ Accepted
 
 ## Context
 
-This directory attracts cleanup. It is old, it is grep-able, and it is full of
-code written across a decade of different house styles — so a pattern scan over
-the repository lights it up more brightly than almost anywhere else. The
-resulting PRs are easy to produce (a regex, a linter, a code-smell tool, or a
-model can generate them by the dozen), plausible to read, and cheap for the
-author. They are none of those things for the project.
-
-Several such changes have been closed here, and the reviewers' reasons are
-consistent across years and across reviewers.
+This directory attracts cleanup: old, grep-able, and full of a decade of house
+styles, so a pattern scan lights it up. The resulting PRs are easy to generate (a
+regex, linter, or model produces them by the dozen), plausible, and cheap for the
+author — none of which they are for the project. Reviewers' reasons for closing
+them are consistent across years:
 
 **A rewrite that compiles to the same thing is not an improvement.** A sweep
 replacing `os.makedirs`/`os.mkdir` with `Path.mkdir` was declined because
-`Path.mkdir` calls `os.mkdir` underneath: constructing a `Path` purely to call it
-is extra work for no benefit, and `Path` earns its place only where its other
-capabilities (joining, parents, globbing) are actually used. A PR removing
-"excessive imports" across the tree, `utils/sqlalchemy.py` and
-`utils/log/file_task_handler.py` included, drew a blunt "this is useless".
-Neither change was wrong; both were rejected because idiom preference is not a
-reason to touch a primitive.
+`Path.mkdir` calls `os.mkdir` underneath, so building a `Path` for it is extra
+work for no benefit; `Path` earns its place only where joining/parents/globbing
+are used. A "remove excessive imports" PR (`utils/sqlalchemy.py`,
+`utils/log/file_task_handler.py`) drew a blunt "this is useless". Idiom preference
+is not a reason to touch a primitive.
 
-**The current form is often deliberate.** A PR replacing `print` with
-`logger.info`/`logger.error` in `utils/db.py` ran into the observation that the
-prints were intentional — `db` commands run before logging is configured, and in
-contexts where the output is the interface. A whitespace-stripping sweep across
-39 files broke tests that were asserting on the strings it "cleaned". In a
-directory where compat shims and dialect fallbacks are load-bearing (see
-`adr/0004`), a cosmetic diff is exactly the shape of change that removes an
-invariant nobody wrote down.
+**The current form is often deliberate.** Replacing `print` with `logger.info` in
+`utils/db.py` ran into the prints being intentional — `db` commands run before
+logging is configured, where the output is the interface. A whitespace-stripping
+sweep across 39 files broke tests asserting on the strings it "cleaned". Where
+compat shims and dialect fallbacks are load-bearing (`adr/0004`), a cosmetic diff
+is exactly what removes an unwritten invariant.
 
-**The cost is not in the diff, it is in everything downstream.** Churn here
-rewrites `git blame` on the primitives people bisect through, conflicts with
-every open PR and every active backport branch touching the same lines, and
-consumes review attention that the fan-in of this directory says should be spent
-carefully. A 60-file sweep is also unreviewable as one unit: the reviewer either
-rubber-stamps it or re-derives each hunk, and a genuine behaviour change hidden
-in hunk 200 is invisible either way.
+**The cost is downstream, not in the diff.** Churn rewrites `git blame` on
+primitives people bisect through, conflicts with every open PR and backport branch
+on the same lines, and a 60-file sweep is unreviewable as one unit — a behaviour
+change hidden in hunk 200 is invisible.
 
-None of this makes mechanical change forbidden — the project performs
-repository-wide migrations regularly (the `from __future__ import annotations`
-conversion, ruff-rule adoptions, license headers). What distinguishes those is
-that the payoff was named and agreed first, the mechanism was one tool rather
-than one contributor's judgement, and the work was split into scopes someone
-could own. The `airflow/utils` annotations conversion was closed precisely so it
-could land that way — as part of an agreed, split-up migration announced on the
-dev list — rather than as a standalone 60-file PR.
+None of this makes mechanical change forbidden — the project runs repository-wide
+migrations regularly (the `from __future__ import annotations` conversion,
+ruff-rule adoptions, license headers). Those name and agree the payoff first, use
+one tool rather than one contributor's judgement, and split into ownable scopes.
+The `airflow/utils` annotations conversion was closed precisely so it could land
+that way — an agreed, split-up migration on the dev list — not a standalone
+60-file PR.
 
 ## Decision
 
@@ -104,19 +92,17 @@ dev list — rather than as a standalone 60-file PR.
 
 ## Consequences
 
-- Real cleanups take more work to justify, and some genuinely nice-to-have
-  modernisation never lands here. That is the intended trade for a directory
-  where a wrong line is a wrong line in every process.
-- Contributors looking for a first change are pushed away from this directory and
-  towards work with a demonstrable payoff. Reviewers should say that plainly and
-  early rather than letting a churn PR sit.
-- Mechanical improvements that *are* wanted land as enforced rules, so they hold
-  for new code instead of being re-applied every year.
-- Backport branches and long-running PRs conflict less, and `git blame` on the
-  primitives keeps pointing at the commit that actually decided something.
-- The bar is subjective at the margin: "named payoff" is a judgement call, and a
-  reviewer can decline a change another would accept. Stating the payoff in the
-  PR body is what makes that argument possible at all.
+- Real cleanups take more work to justify, and some nice-to-have modernisation
+  never lands here — the intended trade where a wrong line is wrong in every
+  process.
+- First-time contributors are pushed toward work with a demonstrable payoff;
+  reviewers should say so early rather than letting a churn PR sit.
+- Wanted mechanical improvements land as enforced rules, holding for new code
+  instead of being re-applied every year.
+- Backport branches and long-running PRs conflict less, and `git blame` keeps
+  pointing at the commit that decided something.
+- The bar is subjective at the margin: "named payoff" is a judgement call, and
+  stating it in the PR body is what makes the argument possible at all.
 
 A change **violates** this decision when it:
 
@@ -140,26 +126,18 @@ A change **violates** this decision when it:
 The pre-restructure paths in these PRs (`airflow/utils/...`) are the same files
 that now live under `airflow-core/src/airflow/utils/`.
 
-- #30404 — "Remove excessive imports", touching `utils/sqlalchemy.py`,
-  `utils/timezone.py` and `utils/log/file_task_handler.py`: closed with a
-  reviewer stating outright that the change bought nothing.
-- #34385 — replacing `os.makedirs`/`os.mkdir` with `Path.mkdir`: declined because
-  `Path.mkdir` calls `os.mkdir` underneath, so building a `Path` for it is extra
-  work with no benefit; two reviewers agreed `Path` is for when its other
-  features are used.
-- #33863 — "Replace print by logger.info/error in db util": a one-file cosmetic
-  change to `utils/db.py` that stalled on the point that the prints were
+- #30404 — "Remove excessive imports" (`utils/sqlalchemy.py`, `utils/timezone.py`,
+  `utils/log/file_task_handler.py`): closed, a reviewer said it bought nothing.
+- #34385 — `os.makedirs`/`os.mkdir` → `Path.mkdir`: declined; `Path.mkdir` calls
+  `os.mkdir` underneath, `Path` is for when its other features are used.
+- #33863 — print → `logger` in `utils/db.py`: stalled on the prints being
   intentional.
-- #34121 — "Refactor: remove trailing whitespace from strings" across 39 files
-  including `utils/db_cleanup.py` and `utils/orm_event_handlers.py`: closed with
-  the tests disagreeing with the change.
-- #33130 — a regex-driven code-smell sweep over 60 files including
-  `utils/file.py`, `utils/dag_cycle_tester.py` and
-  `utils/log/file_task_handler.py`: the author was asked to split it and closed
-  it as too large to review.
-- #26320 — "Convert `airflow/utils` to `__future__.annotations`": closed so the
-  conversion could land as part of the agreed, split-up repository-wide migration
-  coordinated on the dev list, rather than as one standalone sweep.
-- #34321 — "Refactor usage of `str()`" across 17 files including
-  `utils/process_utils.py` and `utils/timeout.py`: another broad idiom sweep that
-  did not survive review.
+- #34121 — trailing-whitespace strip across 39 files (`utils/db_cleanup.py`,
+  `utils/orm_event_handlers.py`): closed, tests disagreed.
+- #33130 — regex code-smell sweep over 60 files (`utils/file.py`,
+  `utils/dag_cycle_tester.py`, `utils/log/file_task_handler.py`): closed as too
+  large to review.
+- #26320 — `airflow/utils` to `__future__.annotations`: closed so it could land as
+  the agreed, split-up dev-list migration, not one standalone sweep.
+- #34321 — `str()` idiom sweep across 17 files (`utils/process_utils.py`,
+  `utils/timeout.py`): did not survive review.

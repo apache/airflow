@@ -29,35 +29,27 @@ Accepted
 
 The supervisor is a single long-lived object holding a selector loop, buffered
 socket readers, subprocess lifecycle, signal handling, and the Execution-API
-client. It is an obvious target for extraction: pull the socket reader and the
-selector dispatch into a shared module, drop a redundant argument, replace an
-idiom with a cleaner one. These changes are easy to write, produce a large
-readable diff, and claim no behaviour change.
+client. It is an obvious extraction target — pull the socket reader into a shared
+module, drop a redundant argument, replace an idiom. These changes are easy to
+write, produce a large readable diff, and claim no behaviour change.
 
-They are also the hardest kind of change to review here. "No behaviour change"
-is exactly the claim a reviewer cannot verify from the diff: the runtime's
-correctness lives in EOF handling, partial reads, signal delivery order, and
-warm-shutdown timing, none of which a structural diff makes visible, and none of
-which the existing tests fully pin. The review cost is paid up front and in
-full, while the benefit is speculative — it accrues only if a second consumer
-of the extracted primitive actually materialises.
+They are the hardest to review here. "No behaviour change" is exactly what a
+reviewer cannot verify from the diff: the runtime's correctness lives in EOF
+handling, partial reads, signal delivery order, and warm-shutdown timing, none of
+which a structural diff makes visible and none fully pinned by existing tests. The
+review cost is paid up front and in full, while the benefit accrues only if a
+second consumer of the extracted primitive materialises.
 
-Often it does not. A PR extracting the selector loop and buffered socket reader
-out of `WatchedSubprocess` into a shared module, explicitly justified by "further
-reusability" for a future Java-activity subprocess, drew a one-line "Why do we
-need this?"; the author reconsidered and went the opposite way, reverting the
-original modularization entirely (#67175). A PR splitting out one part of a
-larger shared-request-handler change — reasoning that a smaller slice would be
-easier to get reviewed — was closed as a duplicate once the larger PR merged
-(#67090). A repo-wide swap of `type(self)` for `self.__class__` was closed by its
-author after a reviewer pointed out the two differ under `lazy_object_proxy` and
-that each usage would need independent justification, agreeing it was "a change
-for the sake of change" (#53856). A rework of how `SUPERVISOR_COMMS` stores its
-logger stalled on the same question of what it bought (#66694).
-
-The pattern is consistent: in this directory, structural change is priced as
-risk, and the price is only worth paying when something concrete needs the new
-structure now.
+Often it does not. A PR extracting the selector loop and socket reader out of
+`WatchedSubprocess` for a future Java-activity subprocess drew "Why do we need
+this?" and was reverted entirely (#67175). A slice split from a larger
+shared-request-handler change to be easier to review was closed as a duplicate
+once the parent merged (#67090). A repo-wide `type(self)` → `self.__class__` swap
+was closed by its author as "a change for the sake of change" given the
+`lazy_object_proxy` difference (#53856). A rework of how `SUPERVISOR_COMMS` stores
+its logger stalled on what it bought (#66694). The pattern: structural change is
+priced as risk, worth paying only when something concrete needs the new structure
+now.
 
 ## Decision
 
@@ -86,18 +78,15 @@ requires it, or not at all.**
 
 ## Consequences
 
-Cleanup that the codebase would genuinely benefit from stays undone until a
-feature needs it, and the runtime keeps some duplication and some large methods
-longer than a purely aesthetic standard would allow. Contributors looking for a
-first change in this area will find that "tidy up the supervisor" is not an
-available on-ramp — a real cost, since it is the kind of task newcomers most
-often reach for.
+Cleanup the codebase would benefit from stays undone until a feature needs it, and
+the runtime keeps some duplication and large methods longer than an aesthetic
+standard would allow. "Tidy up the supervisor" is not an available on-ramp — a
+real cost, since it is what newcomers most often reach for.
 
-The compensating benefit is that scarce expert review time in the highest-risk
-directory in the SDK is spent on changes with a demonstrated consumer, and that
-the runtime's timing-dependent behaviour is not perturbed by diffs whose value
-is hypothetical. When the consumer does arrive, the extraction is designed
-against a real second use rather than a guessed one.
+In exchange, scarce expert review time in the highest-risk directory in the SDK is
+spent on changes with a demonstrated consumer, and timing-dependent behaviour is
+not perturbed by diffs whose value is hypothetical. When the consumer arrives, the
+extraction is designed against a real second use.
 
 A change **violates** this decision when it:
 
@@ -115,15 +104,13 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #67175 — extracting the selector loop and buffered socket reader into a shared
-  module for future reuse; closed after "Why do we need this?", and the original
-  modularization was reverted.
-- #67090 — a slice split out of a larger shared-request-handler PR to be easier
-  to merge; closed as a duplicate once the parent merged.
-- #53856 — repo-wide `type(self)` to `self.__class__` swap; closed by the author
-  as change for the sake of change after the `lazy_object_proxy` edge case was
-  raised.
-- #66694 — rework of how `SUPERVISOR_COMMS` holds its logger; stalled on what the
-  change bought over the existing attribute.
-- #64054 — a query-count optimisation elsewhere on this path, self-closed
-  because the resulting logic was harder to read than the cost it removed.
+- #67175 — extracting the selector loop and socket reader for future reuse; closed
+  after "Why do we need this?" and reverted.
+- #67090 — a slice split from a larger shared-request-handler PR; closed as a
+  duplicate once the parent merged.
+- #53856 — repo-wide `type(self)` → `self.__class__`; self-closed as change for
+  the sake of change after the `lazy_object_proxy` edge case.
+- #66694 — reworking how `SUPERVISOR_COMMS` holds its logger; stalled on what it
+  bought.
+- #64054 — a query-count optimisation on this path; self-closed as harder to read
+  than the cost it removed.

@@ -27,54 +27,37 @@ Accepted
 
 ## Context
 
-Dynamic task mapping (`expand()` / `expand_kwargs()`, AIP-42) looks like a lazy
-sequence operation to the Dag author, but it is not one. Before any mapped task
-runs, the scheduler must **materialise a task instance per map index**: it writes
-rows, assigns map indexes, and evaluates dependencies per index. To do that it
-needs a concrete count.
+Dynamic task mapping (`expand()`/`expand_kwargs()`, AIP-42) looks like a lazy
+sequence operation, but it is not: before any mapped task runs, the scheduler must
+**materialise a task instance per map index** — writing rows, assigning indexes,
+evaluating dependencies per index — and to do that it needs a concrete count.
 
-The count contract is split across two packages, and this ADR governs only the
-authoring half. The scheduler-side counting lives in
-`airflow-core/src/airflow/models/expandinput.py`, which owns
-`get_parse_time_mapped_ti_count()` (the count from literal values known at parse
-time), `get_total_map_length(run_id, *, session)` (the count at run time from the
-recorded `TaskMap` length of the upstream task), and the public
-`NotFullyPopulated` those raise when neither can produce a number. Those symbols
-take a SQLAlchemy session and cannot exist in this package —
-[ADR-3](0003-authoring-package-is-independent-of-airflow-core.md) and the
-`check_core_imports_in_sdk` hook forbid it. They are an **external constraint** on
-this directory, not code it can change.
+The count contract spans two packages; this ADR governs only the authoring half.
+Scheduler-side counting lives in `airflow-core/src/airflow/models/expandinput.py`
+(`get_parse_time_mapped_ti_count()` from literal parse-time values,
+`get_total_map_length(run_id, *, session)` from the upstream `TaskMap` at run
+time, and the public `NotFullyPopulated` they raise). Those take a SQLAlchemy
+session and cannot exist here —
+[ADR-3](0003-authoring-package-is-independent-of-airflow-core.md) forbids it — so
+they are an **external constraint**. What this package owns is the authoring shape
+the count is computed *from*: `_internal/expandinput.py`'s
+`DictOfListsExpandInput` / `ListOfDictsExpandInput`, whose `_get_map_lengths()`
+resolves one length per mapped argument and raises `_NotFullyPopulated` when any
+is not yet knowable, and `xcom_arg.py`'s `XComArg` subclasses whose `__len__` the
+count reduces to. The count is what lets the mapped task exist at all.
 
-What this package owns is the authoring shape the count is computed *from*.
-`_internal/expandinput.py` defines `DictOfListsExpandInput` and
-`ListOfDictsExpandInput`, whose `_get_map_lengths()` resolves one length per
-mapped argument and raises the package-private `_NotFullyPopulated` when any
-argument's length is not yet knowable; `xcom_arg.py` defines the `XComArg`
-subclasses whose `__len__` the scheduler's count ultimately reduces to. The count
-is not an optimisation — it is the thing that lets the mapped task exist at all,
-and an authoring construct added here that no upstream length determines is one
-the scheduler cannot materialise.
-
-This is why a whole class of otherwise reasonable authoring proposals is refused.
-A `filter` operation on `XComArg` was closed because filtering changes the length
-of the sequence, and the length is exactly what cannot be unknown: the reviewer's
-observation was that the scheduler needs to know how many task instances to run,
-and the only workable shape would be to expand at the original length and mark the
-unneeded instances skipped afterwards. A streaming `IterableOperator` /
-`DeferredIterable` proposal was closed on a related basis — an operator that
-consumes an unbounded sequence inside its own loop is, from the scheduler's point
-of view, a parallel scheduler and executor implementation, not a mapped task. Both
-were ultimately redirected to AIP-88 (lazy task expansion), which is the venue for
-changing the count contract itself rather than working around it.
-
-The second half of this decision is the dependency edge. Mapping is not only a
-count; it is also a graph. A change intended to fix missing implicit downstream
-dependencies for mapping sources in mapped task groups was withdrawn by its author
-after the test suite showed it violated an invariant — it forced mapped tasks to
-depend on mapping functions they do not consume. Because `XComArg` is simultaneously
-the value reference and the graph edge, a change to how mapped inputs are resolved
-silently changes what depends on what, and the failure shows up as a wrong Dag
-shape rather than an exception.
+This is why a class of otherwise reasonable proposals is refused. A `filter` on
+`XComArg` was closed because filtering changes the length the scheduler needs to
+know in advance, and the only workable shape is to expand at the original length
+and skip the unneeded indexes (#48868). A streaming `IterableOperator` /
+`DeferredIterable` was closed as, from the scheduler's view, a parallel scheduler
+and executor (#42572). Both were redirected to AIP-88 (lazy task expansion), the
+venue for changing the count contract itself. The second half is the dependency
+edge: because `XComArg` is simultaneously the value reference and the graph edge,
+a change to how mapped inputs resolve silently changes what depends on what — a
+fix for missing implicit downstream dependencies in mapped task groups was
+withdrawn after tests showed it forced mapped tasks to depend on functions they do
+not consume (#59561), the failure a wrong Dag shape rather than an exception.
 
 ## Decision
 
@@ -125,17 +108,16 @@ determine an expansion count, and must not alter the dependency edges implied by
 
 ## Consequences
 
-- Several natural-looking authoring conveniences are simply unavailable, and the
-  refusal has to be explained in terms of scheduler mechanics rather than API
-  taste. This is a recurring cost paid in review.
+- Several natural-looking conveniences are unavailable, and the refusal is
+  explained in terms of scheduler mechanics, not API taste — a recurring review
+  cost.
 - The expand-then-skip workaround creates task instances that never do work,
-  which shows in the UI and in metrics. The project accepts that visible cost over
-  an unknowable count.
-- Mapping bugs are expensive to diagnose because a wrong dependency edge produces
-  a wrong graph rather than an error, so tests for changes here must assert on the
-  resulting graph and the resulting instance count, not just on a return value.
-- Work that genuinely needs lazy expansion is blocked behind an AIP, which is slow
-  — deliberately, because it changes an invariant the scheduler is built on.
+  visible in UI and metrics; the project accepts that over an unknowable count.
+- Mapping bugs are expensive to diagnose because a wrong edge produces a wrong
+  graph rather than an error, so tests must assert on the resulting graph and
+  instance count, not just a return value.
+- Work needing lazy expansion is blocked behind an AIP — slow, deliberately,
+  because it changes a scheduler invariant.
 
 A change **violates** this decision when it:
 
@@ -163,18 +145,11 @@ dependency graph still contain exactly the edges the author wrote?
 
 ## Evidence
 
-- #48868 — "Implemented filter operation on XComs": closed; review established
-  that the scheduler needs to know how many task instances to run, that a real
-  filtered length cannot be known in advance — because it depends on the values,
-  not on the upstream lengths — and that the only workable shape would be to
-  expand at the original length and skip the remainder.
-- #42572 — "Implemented streaming functionality with `IterableOperator` and
-  `DeferredIterable`": closed as amounting to a parallel scheduler, executor, and
-  triggerer implementation; redirected to AIP-88.
-- #59561 — "Fix missing implicit downstream dependencies for mapping sources in
-  mapped task groups": withdrawn by its author after failing tests showed it
-  violated an invariant by forcing mapped tasks to depend on mapping functions
-  they do not consume; reworked with a different approach.
-- #62287 — "`LatestOnlyOperator` not working if direct upstream of dynamic task
-  map": a merged fix in the same seam, where the interaction between a mapped
-  input and dependency evaluation produced a wrong result rather than an error.
+- #48868 — filter operation on XComs; closed because a filtered length depends on
+  the values, not the upstream lengths, so the only shape is expand-and-skip.
+- #42572 — streaming `IterableOperator`/`DeferredIterable`; closed as a parallel
+  scheduler/executor/triggerer, redirected to AIP-88.
+- #59561 — missing implicit downstream dependencies in mapped task groups;
+  withdrawn after tests showed it forced dependencies on functions not consumed.
+- #62287 — `LatestOnlyOperator` upstream of a dynamic task map; a merged fix where
+  the interaction produced a wrong result rather than an error.

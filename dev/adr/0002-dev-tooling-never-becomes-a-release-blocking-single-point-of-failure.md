@@ -27,33 +27,22 @@ Accepted
 
 ## Context
 
-Nothing under `dev/` ships to users at runtime, which makes it tempting to treat
-changes here as low-risk. The opposite is true operationally. Breeze is the only
-supported way to run Airflow's tests and build its images, so every contributor
-depends on it; the `release-management` breeze commands and the
-`README_RELEASE_*.md` runbooks are what release managers execute, under ASF vote
-deadlines, to produce the artifacts the PMC votes on.
+Nothing under `dev/` ships to users at runtime, which makes changes here tempting to
+treat as low-risk. Operationally the opposite is true: breeze is the only supported way
+to run Airflow's tests and build its images, and the `release-management` commands plus
+`README_RELEASE_*.md` runbooks are what release managers execute under ASF vote deadlines.
 
-Two properties make defects here disproportionately expensive.
-
-First, the *installed base* is invisible from the diff. Breeze runs from the
-current git worktree's sources via `uvx`, on macOS and Linux, on AMD and ARM,
-inside and outside worktrees, under rootless docker — the conditions already
-recorded in `dev/breeze/doc/adr/`. A change that works in the author's checkout
-can break contributors who did nothing at all, and the breakage arrives as "I
-can't run any tests today" rather than as a failing job.
-
-Second, a release defect is discovered *late*. A tarball that is subtly wrong, a
-step that half-completed, or a metadata command that hangs is found when a vote
-is already in flight; the recovery is a re-roll of the whole release candidate,
-not a hotfix. Airflow has hit each of these: uvx path assumptions broke the
-provider release tooling, a pool choice hung `generate-providers-metadata`, and
-an artifact-completeness gate had to be added before the vote because
-incompleteness was previously found after it.
-
-The common thread in the recoveries is that the tooling should have *stopped*
-rather than continued. Silent partial success is what turns a small tooling bug
-into a release-blocking one.
+Two properties make defects disproportionately expensive. The *installed base* is
+invisible from the diff — breeze runs from the current worktree via `uvx`, on macOS and
+Linux, AMD and ARM, under rootless docker — so a change that works in the author's
+checkout breaks contributors who did nothing, arriving as "I can't run any tests today".
+And a release defect is discovered *late*: a subtly-wrong tarball or a hanging metadata
+command is found when a vote is in flight, and recovery is a re-roll, not a hotfix.
+Airflow has hit each — uvx path assumptions broke provider release tooling, a pool choice
+hung `generate-providers-metadata`, and an artifact-completeness gate had to be added
+because incompleteness was found after the vote. The common thread: the tooling should
+have *stopped* rather than continued. Silent partial success is what turns a small tooling
+bug into a release-blocking one.
 
 ## Decision
 
@@ -79,13 +68,11 @@ into a release-blocking one.
 
 ## Consequences
 
-Contributors can update their checkout without a tooling break stopping their
-day, and release managers can trust that a command either completed or told them
-it did not. Release candidates fail at the gate rather than at the vote. The
-cost is that dev-tooling pull requests carry obligations that feel heavy for
-their size — compatibility reasoning, explicit error paths, a paired runbook
-edit — and that convenient assumptions about the author's own environment are
-not available.
+Contributors update their checkout without a tooling break stopping their day, release
+managers trust that a command either completed or said it did not, and release candidates
+fail at the gate rather than the vote. The cost is that dev-tooling PRs carry obligations
+heavy for their size — compatibility reasoning, explicit error paths, a paired runbook
+edit — and convenient assumptions about the author's environment are unavailable.
 
 A change *violates* this decision when it:
 
@@ -105,19 +92,18 @@ A change *violates* this decision when it:
 
 ## Evidence
 
-- #67960 — fixed breeze provider release tooling after uvx path assumptions and
-  issue submission broke the release manager's flow.
-- #68192 — added a breeze shim fallback for use outside worktrees, so the
-  installed base kept working after the uvx-from-sources move.
-- #65873 — moved breeze to running via uvx from the current worktree, the change
-  whose compatibility edges the two fixes above addressed.
-- #69141 — gated the provider release on an artifact-completeness check before
-  the vote rather than discovering incompleteness during it.
-- #69763 — fixed a `generate-providers-metadata` hang by using spawn pools; a
-  release command that hangs blocks the release manager with no diagnosis.
-- #69417 — supported delegating the providers release process to non-PMC
-  committers, removing a single-person dependency from the flow.
-- #68641 — added an explicit warning for release managers to verify
-  `prepare-providers-documentation` output before relying on it.
-- #65629 — standardised the `upstream` / `origin` git remote naming across docs
-  and tooling.
+- #67960 — fixed breeze provider release tooling after uvx path assumptions and issue
+  submission broke the release manager's flow.
+- #68192 — added a breeze shim fallback for use outside worktrees, keeping the installed
+  base working after the uvx-from-sources move.
+- #65873 — moved breeze to running via uvx from the current worktree; the change whose
+  compatibility edges the two fixes above addressed.
+- #69141 — gated the provider release on an artifact-completeness check before the vote.
+- #69763 — fixed a `generate-providers-metadata` hang by using spawn pools; a hanging
+  release command blocks the release manager with no diagnosis.
+- #69417 — supported delegating the providers release to non-PMC committers, removing a
+  single-person dependency.
+- #68641 — added an explicit warning to verify `prepare-providers-documentation` output
+  before relying on it.
+- #65629 — standardised the `upstream` / `origin` git remote naming across docs and
+  tooling.

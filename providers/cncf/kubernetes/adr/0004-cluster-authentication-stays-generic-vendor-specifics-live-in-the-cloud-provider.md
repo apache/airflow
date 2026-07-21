@@ -28,34 +28,26 @@ Accepted
 ## Context
 
 `KubernetesHook` and `AsyncKubernetesHook` authenticate the way the Kubernetes
-client authenticates: from an in-cluster service account, from a kubeconfig
-file, from a kubeconfig blob in the connection extra, or from a context inside
-one of those. Some of those kubeconfigs use *exec-based* auth — the client
-shells out to a credential plugin (`aws eks get-token`, `gke-gcloud-auth-plugin`,
-an OIDC helper) that mints a short-lived token.
+client does: from an in-cluster service account, a kubeconfig file, a kubeconfig
+blob in the connection extra, or a context inside one of those. Some kubeconfigs
+use *exec-based* auth — the client shells out to a credential plugin
+(`aws eks get-token`, `gke-gcloud-auth-plugin`, an OIDC helper) that mints a
+short-lived token.
 
-Exec auth is where the vendors leak in, and it is the single most common place
-where a change tries to teach this provider about a specific cloud. The
-recurring shapes are: adding `botocore` version guardrails to the EKS token
-flow; isolating the AWS CLI's on-disk credential cache so parallel
+Exec auth is where the vendors leak in, and the single most common place a change
+tries to teach this provider about a specific cloud: adding `botocore` guardrails
+to the EKS token flow; isolating the AWS CLI's credential cache so parallel
 `KubernetesPodOperator` tasks stop corrupting each other's tokens; capping the
-`kubernetes` client because a particular managed-control-plane started returning
-401 on a newer client.
-
-Each of those describes a real user-visible failure. None of them belongs here.
-This provider must run against vanilla clusters, kind, OpenShift, EKS, GKE, AKS
-and self-hosted control planes with one code path; a vendor branch inside the
-hook is a branch nobody outside that vendor can review, test in CI, or keep
-working. Worse, a vendor-motivated *dependency* change — a cap on the shared
-`kubernetes` client — is paid for by every user of the provider, including the
-ones the cap was never about, and it routinely re-breaks whatever the previous
-bump fixed.
-
-The generic form of the same fix is almost always available and is what actually
-merged. "Do not cache the client when the active context uses exec auth"
+`kubernetes` client because a managed control plane started returning 401. Each
+describes a real failure; none belongs here. This provider must run against
+vanilla clusters, kind, OpenShift, EKS, GKE, AKS and self-hosted control planes on
+one code path — a vendor branch inside the hook is one nobody outside that vendor
+can review or test in CI, and a vendor-motivated *dependency* cap on the shared
+client is paid for by every user and routinely re-breaks whatever the previous
+bump fixed. The generic form of the fix is almost always available and is what
+merged: "do not cache the client when the active context uses exec auth"
 (`_uses_exec_auth` / `_load_config`) fixes the stale-token problem for every
-credential plugin at once, without naming a vendor. That is the shape to look
-for.
+credential plugin at once, without naming a vendor. That is the shape to look for.
 
 ## Decision
 
@@ -84,17 +76,15 @@ provider.**
 
 ## Consequences
 
-- One auth path, reviewable by anyone who knows the Kubernetes client, and
+- One auth path, reviewable by anyone who knows the Kubernetes client and
   exercised identically on every cluster flavour.
-- Fixes reach every credential plugin at once instead of the one the reporter
-  happened to use.
-- The cost is real and falls on the reporter: an EKS-only or GKE-only problem
-  takes longer to fix, because it either has to be restated in generic terms or
-  routed to a provider whose maintainers the reporter has not met. Some genuine
-  vendor bugs stay open longer as a result. That is accepted — the alternative
-  is a hook that accumulates a branch per cloud and is correct on none of them.
-- Users on managed clusters occasionally have to pin the client themselves while
-  an upstream fix lands, instead of getting a cap shipped for everyone.
+- Fixes reach every credential plugin at once instead of the one the reporter used.
+- The cost falls on the reporter: an EKS-only or GKE-only problem takes longer,
+  because it is restated generically or routed to another provider. Some genuine
+  vendor bugs stay open longer — accepted; the alternative is a hook with a branch
+  per cloud, correct on none.
+- Users on managed clusters occasionally pin the client themselves while an
+  upstream fix lands, instead of getting a cap shipped for everyone.
 
 A change **violates** this decision when it:
 
@@ -111,17 +101,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #61936 — "`KubernetesHook`: add AWS exec-auth botocore guardrails for EKS
-  token flow": closed; AWS SDK version knowledge in this provider's hook.
-- #61935 and #61025 — two attempts to isolate the AWS CLI credential cache
-  during parallel `KubernetesPodOperator` authentication: both closed. The
-  problem was real; the merged fix (#63610, and #65212 for the async hook)
-  is the vendor-neutral one — detect exec auth via `_uses_exec_auth` and stop
-  caching the loaded config.
-- #61738 — "Avoid caching kubeconfig for exec-based auth in
-  `AsyncKubernetesHook`": the generic framing, closed only for inactivity and
-  then completed as #65212. The contrast with #61935/#61025 is the point.
-- #69025 — "Cap kubernetes client to <36 to fix cluster auth 401 regression":
-  closed. The review response was explicit — capping re-introduces the proxy
-  defect the bump to 36 fixed, and the managed-cluster behaviour should be
-  handled in the cloud provider instead.
+- #61936 — AWS SDK version knowledge in this provider's hook; closed.
+- #61935, #61025 — two attempts to isolate the AWS CLI credential cache; both
+  closed. The merged fix (#63610, and #65212 for the async hook) is the
+  vendor-neutral one — detect exec auth via `_uses_exec_auth` and stop caching.
+- #61738 — the generic framing, closed for inactivity then completed as #65212;
+  the contrast with #61935/#61025 is the point.
+- #69025 — a `kubernetes<36` cap closed: capping re-introduces the proxy defect the
+  bump to 36 fixed, and the managed-cluster behaviour belongs in the cloud provider.

@@ -27,51 +27,33 @@ Accepted
 
 ## Context
 
-This area attracts a recognisable class of proposal: the contributor has hit a
-scheduling behaviour they consider wrong — the extra run produced when unpausing
-a Dag with `catchup=False`, the inability to express several cron expressions in
-one schedule, the fixed structure of the built-in timetables — and arrives with a
-working patch. Almost always the patch introduces a new switch: a configuration
-option, or a new accepted value on `catchup` or `schedule`.
+This area attracts a recognisable proposal: a contributor hits a scheduling
+behaviour they consider wrong — the extra run when unpausing a `catchup=False`
+Dag, no way to express several cron expressions in one schedule, the fixed
+structure of built-in timetables — and arrives with a working patch that adds a
+new switch (a config option, or a new value on `catchup` / `schedule`). These are
+refused or left to lapse not on their code or premise, but because nobody has
+agreed what the interface should be.
 
-These proposals are not refused on their code, and usually not on their premise
-either. They are refused, or left to lapse, because nobody has agreed what the
-interface should be.
+The clearest instance: one PR added a config option to suppress the unpause run;
+another separately changed the values `catchup` accepts for the same intent.
+Review held that the two are one question about the heart of Airflow and belong
+in a mailing-list discussion covering both, not two independent patches; the
+second was closed after a year, consensus against a config option, the underlying
+problem still unsolved. The shape repeats: multiple-cron-expression support was
+attempted twice years apart without converging on how the schedule is *expressed*;
+a composable-timetable proposal stalled on how a deserializer reaches an arbitrary
+user-supplied strategy class (arbitrary code the scheduler invokes, needing a
+registration and safe-guarding story first).
 
-The clearest instance is the unpause-with-`catchup=False` behaviour. One PR added
-a configuration option to suppress the immediate run; another, opened separately,
-changed the set of values `catchup` accepts to express the same intent. Review's
-answer to the first was not about its implementation: this is the heart of
-Airflow, the two proposals are parts of one question, and the interface should be
-settled in a mailing-list discussion covering both rather than assembled from two
-independent patches. The second was eventually closed after a year of inactivity
-with the observation that consensus was against adding a config option for it
-specifically — and with the acknowledgement, from a participant, that the
-underlying problem remained unsolved. Neither PR was wrong about the problem;
-both stalled on the absence of an agreed interface.
-
-The same shape repeats. Support for multiple cron expressions in one schedule was
-attempted twice, years apart, and accumulated user demand in both threads without
-either converging on how the schedule should be *expressed* — accompanied by a
-reminder from a maintainer that "+1" comments do not move a feature forward. A
-composable-timetable proposal, which would have let users assemble a schedule from
-strategy objects, ran into the question of how a deserializer reaches an arbitrary
-user-supplied strategy class: like a custom timetable, it is arbitrary code the
-scheduler invokes, so it needs a registration and safe-guarding story before it
-can be code at all.
-
-Two properties of this area make the cost of getting it wrong unusually high.
-Schedule semantics are the contract every Dag in every deployment is written
-against, and a released behaviour cannot be withdrawn. And a *deployment-level*
-switch is worse than a Dag-level one: it makes the same Dag file mean different
-things on different installations, so a Dag is no longer portable and support
-questions can no longer be answered from the Dag alone.
-
-The existing `scheduler.catchup_by_default` option marks the boundary rather than
-contradicting it. It supplies the default for a parameter the Dag declares and
-can override, so the Dag file remains the authority on its own schedule. A
-setting that changes what a Dag-declared parameter *means*, or that produces
-behaviour no Dag can express or opt out of, is the shape this decision refuses.
+The cost of getting it wrong is high: schedule semantics are the contract every
+Dag is written against and cannot be withdrawn once released, and a
+*deployment-level* switch makes the same Dag file mean different things on
+different installations, so a Dag is no longer portable. The existing
+`scheduler.catchup_by_default` marks the boundary: it supplies the *default* for a
+parameter the Dag declares and can override, so the Dag file stays authoritative.
+A setting that changes what a Dag-declared parameter *means*, or produces
+behaviour no Dag can opt out of, is the shape this refuses.
 
 ## Decision
 
@@ -101,19 +83,15 @@ behaviour is expressed in the schedule the Dag declares.
 
 ## Consequences
 
-- Real and widely-felt problems stay unfixed for long periods. The extra run on
-  unpause was reported, patched twice, and left open for over a year. The project
-  accepts this cost rather than shipping two half-interfaces for one behaviour.
-- Contributors sometimes arrive with complete, working code and find the
-  conversation is about whether the feature should exist in that shape. Saying so
-  in this document is meant to move that conversation earlier, before the
-  implementation effort is spent.
-- Refusing deployment-level scheduling switches keeps Dag files portable and
-  keeps the number of behaviours the project must keep working bounded — at the
-  price of having no quick escape hatch for a deployment that dislikes a default.
-- Major-version boundaries become the natural moment to correct scheduling
-  semantics, which concentrates this class of change into a few releases rather
-  than spreading it across many.
+- Real, widely-felt problems stay unfixed for long periods (the unpause run was
+  patched twice and left open over a year) rather than shipping two
+  half-interfaces for one behaviour.
+- Contributors sometimes arrive with complete code and find the conversation is
+  whether the feature should exist in that shape; this document moves that
+  conversation earlier.
+- Refusing deployment-level switches keeps Dag files portable and the set of
+  supported behaviours bounded — at the price of no quick escape hatch.
+- Major-version boundaries become the natural moment to correct semantics.
 
 A change **violates** this decision when it:
 
@@ -135,24 +113,16 @@ identically on every deployment, and where was the interface agreed?
 
 ## Evidence
 
-- #38168 — "Add config to avoid one Dag run when unpausing a Dag with
-  `catchup=False`": closed unmerged. Review's position was that this and #35392
-  are one question about the heart of Airflow's scheduling and belong in a
-  mailing-list discussion that arrives at the interface, not two standalone
-  patches.
-- #35392 — a proposal to add a `catchup` value that disables catchup for the
-  first Dag run only: closed after a year of inactivity, with the stated
-  consensus being against a new config option for this, and with the underlying
-  problem explicitly acknowledged as still unresolved.
-- #24733 and #35337 — two independent attempts, years apart, to support multiple
-  cron expressions in a schedule. Both lapsed; the threads accumulated user
-  support without converging on how the schedule should be expressed, and review
-  asked contributors to open their own pull requests rather than post support.
-- #28757 — "Initial draft of composable timetables": lapsed on the unresolved
-  question of how a deserializer reaches an arbitrary user-supplied strategy
-  class, which — like a custom timetable — is arbitrary code invoked in the
-  scheduler and needs registration and safe-guarding.
-- #25434 — an attempt to make a cron timetable start its Dag run at the interval
-  start: closed by its author once review pointed at an in-flight alternative and
-  a separate proposal addressing the same underlying need, rather than adding a
-  second way to express it.
+- #38168 — config to avoid the unpause run with `catchup=False`: closed; review
+  held it and #35392 are one interface question for a mailing-list discussion,
+  not two standalone patches.
+- #35392 — a `catchup` value disabling catchup for the first run only: closed
+  after a year, consensus against a config option, problem acknowledged unresolved.
+- #24733, #35337 — two attempts years apart at multiple cron expressions; both
+  lapsed without converging on how the schedule is expressed, and review asked
+  contributors to open PRs rather than post "+1" support.
+- #28757 — composable timetables: lapsed on how a deserializer reaches an
+  arbitrary user-supplied strategy class (arbitrary scheduler-invoked code needing
+  registration and safe-guarding).
+- #25434 — cron timetable starting its run at the interval start: closed by its
+  author for an in-flight alternative rather than adding a second expression.

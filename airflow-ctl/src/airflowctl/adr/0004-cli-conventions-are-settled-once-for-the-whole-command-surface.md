@@ -27,39 +27,28 @@ Accepted
 
 ## Context
 
-Most of the `airflowctl` command surface is not written by hand. Commands are
-derived from the generated operations layer, so the way a command presents
-itself — which parameters are positional and which are `--flag`, how a missing
-required value is reported, which exit code a failure produces, when the user is
-prompted — is decided by shared wiring in `ctl/cli_config.py` and the helpers
-around it, not by the handler for any one command.
-
-That makes a per-command convention change a peculiar kind of defect. It looks
-like a small, self-contained improvement, it passes review on its own merits,
-and it produces a surface where `airflowctl dags pause` takes an argument one
-way and `airflowctl variables get` takes it another. Worse, because the command
-is generated, the local deviation is silently reverted the next time the
-datamodels are regenerated — the reviewer approves a change that will not
-survive.
+Most of the `airflowctl` command surface is generated from the operations layer,
+so how a command presents itself — which parameters are positional and which are
+`--flag`, how a missing required value is reported, which exit code a failure
+produces, when the user is prompted — is decided by shared wiring in
+`ctl/cli_config.py`, not by any one handler. That makes a per-command convention
+change a peculiar defect: it looks like a small self-contained improvement, passes
+review on its own merits, and produces a surface where `airflowctl dags pause` and
+`airflowctl variables get` take arguments differently. Worse, because the command
+is generated, the deviation is silently reverted at the next regeneration.
 
 The argument-style question is the worked example. Two independent PRs proposed
-opposite treatments of required parameters in the same window. Rather than merge
-either, maintainers parked both and opened a dev-list thread; the discussion
-weighed supporting both positional and flag forms (rejected as a non-standard
-approach that constrains every future CLI-library choice and expands the testing
-surface permanently) against a clean break while the distribution is still
-pre-1.0. Lazy consensus settled on required-positional / optional-flag, and only
-then was it applied across every generated command at once. The same reasoning
-closed a `--print-token` flag on `auth login`: the question was not whether that
-one command should print a token, it was what the whole `auth` group's
-convention should be, and the answer — a separate `auth token` command, on the
-`gh` model — reshaped the group rather than one command.
-
-The pre-1.0 status of this distribution cuts both ways. It is the window in
-which a convention can still be changed cheaply, which is why maintainers are
-willing to reopen these questions at all — and exactly why they insist the
-answer be applied uniformly instead of accumulating per-command exceptions that
-become a compatibility burden at 1.0.
+opposite treatments of required parameters in the same window; maintainers parked
+both and opened a dev-list thread, weighing supporting both positional and flag
+forms (rejected as non-standard, constraining every future CLI-library choice and
+permanently expanding the testing surface) against a clean break while still
+pre-1.0. Lazy consensus settled on required-positional / optional-flag, applied
+across every generated command at once. The same reasoning closed a `--print-token`
+flag on `auth login`: the question was the whole `auth` group's convention, and the
+answer — a separate `auth token` command on the `gh` model — reshaped the group.
+Pre-1.0 status is why maintainers reopen these questions cheaply, and why they
+insist the answer apply uniformly rather than accumulate per-command exceptions
+that become a compatibility burden at 1.0.
 
 ## Decision
 
@@ -83,16 +72,13 @@ as a whole, before implementation:
 
 ## Consequences
 
-Scripts and operators see one CLI, not a patchwork, and the generated layer
-stays the single place a convention is expressed — which is what keeps
-regeneration safe.
-
-The cost is real and falls on contributors. A convention change cannot be
-shipped as a small PR: it means touching the shared wiring, re-testing every
-command, and often waiting weeks for a dev-list thread to reach consensus. Good
-contributions have been parked for exactly that reason, and at least one was
-eventually closed for inactivity while the discussion ran. Contributors new to
-the area routinely discover this only after writing the per-command version.
+Scripts and operators see one CLI, not a patchwork, and the generated layer stays
+the single place a convention is expressed — which keeps regeneration safe. The
+cost falls on contributors: a convention change means touching shared wiring,
+re-testing every command, and often waiting weeks for a dev-list thread. Good
+contributions have been parked for exactly that, and at least one was closed for
+inactivity while the discussion ran — usually discovered only after writing the
+per-command version.
 
 A change **violates** this decision when it:
 
@@ -110,15 +96,15 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #65261 — required fields both positional and optional: parked, taken to the
-  dev list, decided by lazy consensus, then applied surface-wide.
-- #65699 — competing positional-parameter fix, explicitly held pending that
-  discussion and closed for inactivity while it ran.
-- #64812 — parallel attempt at the same convention change, closed once the
-  agreed version landed in #66768.
-- #66768 — the accepted implementation: required params positional and optional
-  params `--flag`, applied across the generated commands together.
-- #63085 — `--print-token` flag on `auth login` rejected; reviewers required a
-  separate `auth token` command on the `gh auth token` model.
-- #62843 — the earlier version of the same change, where printing the token to
-  stdout as part of login was first objected to.
+- #65261 — required fields both positional and optional: parked, taken to the dev
+  list, decided by lazy consensus, then applied surface-wide.
+- #65699 — competing positional-parameter fix, held pending that discussion and
+  closed for inactivity while it ran.
+- #64812 — parallel attempt at the same change, closed once the agreed version
+  landed in #66768.
+- #66768 — the accepted implementation: required params positional, optional
+  `--flag`, applied across the generated commands together.
+- #63085 — `--print-token` on `auth login` rejected; reviewers required a separate
+  `auth token` command on the `gh auth token` model.
+- #62843 — the earlier version of the same change, where printing the token as part
+  of login was first objected to.

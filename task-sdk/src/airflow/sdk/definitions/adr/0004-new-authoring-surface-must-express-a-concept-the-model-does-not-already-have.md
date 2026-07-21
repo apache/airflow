@@ -27,40 +27,24 @@ Accepted
 
 ## Context
 
-Every name added here — a `DAG` parameter, a `BaseOperator` attribute, a new
-class exported from `airflow.sdk` — is permanent in practice. It ships in a
-release, users write Dag files against it, and from that point the project owes
-it a deprecation cycle rather than a deletion (see `adr/0001`). The cost of a
-new authoring symbol is therefore not the diff that adds it; it is the
-multi-release obligation that follows, plus the documentation, the serialization
-field, and the second way of expressing something users must now choose between.
+Every name added here — a `DAG` parameter, a `BaseOperator` attribute, a class
+exported from `airflow.sdk` — is permanent in practice: it ships, users write Dag
+files against it, and the project then owes a deprecation cycle rather than a
+deletion (see `adr/0001`). The cost is not the diff but the multi-release
+obligation, the docs, the serialization field, and a second way of expressing
+something users must now choose between.
 
-This makes the *most common* reason a change here is refused not "the code is
-wrong" but "the model already says this". The authoring surface is deliberately
-small, and a proposal that adds a parameter for something the existing
-data-interval / timetable / `default_args` model already expresses is rejected
-even when the implementation is clean and tested. A request for a Dag-level
-`target_date` ("what date are we processing?") was closed with the observation
-that this is precisely what `data_interval_start` / `data_interval_end` are, and
-that the half-open interval is produced by the timetable — the concept existed,
-under a different name. A `safe_dag()` construction wrapper was refused because
-it did not correspond to anything the Dag model actually has. A proposal to list
-variable keys through the SDK was refused because the secrets-backend contract is
-get-by-key, and adding a listing verb to the authoring surface would have implied
-a capability no backend actually provides.
-
-The same shape recurs at the level of pure mechanical churn: a sweep replacing
-`type(self)` with `self.__class__` across the package was closed as "a change for
-the sake of change" once it was pointed out that the two differ under
-`lazy_object_proxy`, so each site needed independent justification rather than a
-blanket rewrite.
-
-The failure mode this guards against is subtle. A duplicate concept does not
-break anything on the day it merges. It breaks things two releases later, when
-the two spellings drift, when a bug is fixed in one and not the other, and when
-the docs have to explain which one a user should reach for. Because the person
-who would object — the user with an existing Dag file, or the maintainer who will
-carry the deprecation — is not in the pull request, the burden falls on review.
+So the *most common* reason a change here is refused is not "the code is wrong"
+but "the model already says this", even when the implementation is clean and
+tested. A Dag-level `target_date` is precisely what `data_interval_start`/
+`data_interval_end` are — the concept under a different name; a `safe_dag()`
+wrapper corresponds to nothing the Dag model has; listing variable keys implies a
+capability the get-by-key backend contract does not provide. The same shape recurs
+in mechanical churn (`type(self)` → `self.__class__`), closed once each site
+needed independent justification. The failure is subtle: a duplicate concept
+breaks nothing the day it merges, but breaks two releases later when the spellings
+drift and the docs must explain which to reach for — and the person who would
+object is not in the PR, so the burden falls on review.
 
 ## Decision
 
@@ -92,16 +76,14 @@ not already carry. Concretely:
 
 ## Consequences
 
-- The authoring API stays small enough for a user to hold in their head, and for
-  the project to keep deprecating responsibly on a release cadence.
-- Genuinely new capability costs more to land: the author has to do the mapping
-  work and argue the gap, which is slower than writing the parameter.
-- Some real user needs are answered with "that already exists as X" plus a
-  documentation fix. This is deliberate, and it puts a burden on the docs to make
-  X discoverable — a burden this decision accepts rather than hides.
-- Reviewers must know the existing model well enough to recognise a restatement.
-  That knowledge is concentrated in few people, which is a cost this area already
-  carries.
+- The authoring API stays small enough to hold in one's head and to keep
+  deprecating responsibly on a release cadence.
+- Genuinely new capability costs more: the author does the mapping work and argues
+  the gap, slower than writing the parameter.
+- Some real needs are answered with "that already exists as X" plus a docs fix,
+  putting a burden on docs to make X discoverable.
+- Reviewers must know the model well enough to recognise a restatement — knowledge
+  concentrated in few people.
 
 A change **violates** this decision when it:
 
@@ -122,21 +104,13 @@ construct fails to express this, and what does a user do today instead?
 
 ## Evidence
 
-- #67329 — "Add `target_date`, a user-defined processing date for Dag runs":
-  closed as won't-fix; the reviewer showed the concept is exactly
-  `data_interval_start` / `data_interval_end`, generated by the timetable as a
-  half-open interval.
-- #56066 — "Add safe Dag creation wrapper and refactor `DagBag.import_errors`":
-  the `safe_dag()` wrapper was refused because it did not correspond to a
-  construct that exists inside Airflow.
-- #61595 — "List variable keys with optional prefix filter via task-sdk": refused
-  because no secrets backend implements listing; the backend contract is
-  get-by-key, so the authoring verb would have promised a capability the system
-  does not have.
-- #53856 — "Replace `type(self)` with `self.__class__`": closed by the author
-  after review pointed out the forms differ under `lazy_object_proxy` and each
-  usage needed independent justification — "a change for the sake of change".
-- #63907 and #61336 — two independent proposals for Dag-level automatic retries:
-  both closed, with the discussion turning on how the proposal relates to task
-  retries already available through `default_args` and what genuinely new
-  semantics remained.
+- #67329 — `target_date`; closed won't-fix because it is exactly
+  `data_interval_start`/`data_interval_end`, generated by the timetable.
+- #56066 — `safe_dag()` wrapper refused as not corresponding to a construct
+  Airflow has.
+- #61595 — list variable keys; refused because the backend contract is get-by-key,
+  so the verb would promise a capability the system lacks.
+- #53856 — `type(self)` → `self.__class__`; closed as "change for the sake of
+  change" given the `lazy_object_proxy` difference.
+- #63907, #61336 — two Dag-level automatic-retries proposals; both closed on how
+  they relate to task retries already in `default_args`.

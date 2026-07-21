@@ -27,46 +27,27 @@ Accepted
 
 ## Context
 
-Every deferred task in a deployment runs on the triggerer, and the triggerer
-runs its triggers as coroutines on a single event loop per process. This
-provider is the heaviest user of that loop: AWS waiters are the canonical
-deferrable pattern, so a busy deployment can have thousands of AWS triggers
-resident at once, each holding an `aiobotocore` client.
+Every deferred task runs on the triggerer, which runs its triggers as coroutines
+on a single event loop per process. This provider is the heaviest user of that
+loop — AWS waiters are the canonical deferrable pattern, so a busy deployment holds
+thousands of AWS triggers at once, each with an `aiobotocore` client. That makes
+client construction look like the obvious thing to optimise (it resolves
+credentials, may assume a role, loads service models), and three separate attempts
+proposed caching, pooling, or sharing async clients.
 
-That combination makes client construction look like the obvious thing to
-optimise. Building an `aiobotocore` client is not free — it resolves
-credentials, may perform an STS assume-role, and loads botocore service models —
-and doing it per trigger, sometimes per poll, is visibly wasteful. Three
-separate attempts have therefore proposed caching, pooling, or sharing async
-clients across triggers.
-
-All three were closed, and the reasons are structural rather than
-implementation-specific.
-
-An `aiobotocore` client is bound to the event loop that created it. Its
-connector, its connection pool and its transport all belong to that loop, and
-using it from another loop or another thread is not merely unsupported — it
-produces failures that surface far from their cause, under load, in the one
-component whose failure affects every deferred task in the deployment. A pool
-keyed on anything coarser than "this trigger, on this loop" is a latent
-cross-thread bug.
-
-Sharing is also wrong on identity grounds. `ADR 0001` establishes that all AWS
-access resolves through `AwsBaseHook` session resolution, which means a client
-is specific to an `aws_conn_id`, a `region_name`, a `verify` setting, an
-`endpoint_url`, a botocore config and any assumed role. Two triggers that look
-alike need not authenticate alike. A cache that gets the key wrong does not
-fail loudly; it silently performs one tenant's API call with another tenant's
-credentials. The cost of that defect is not comparable to the cost of
-constructing a client.
-
-The performance concern behind these attempts is real, and it has a supported
-answer that does not require sharing state: do not block the loop. Wrap
-synchronous hook calls, keep waiter polling in `AwsBaseWaiterTrigger` with
-explicit `delay` and `maxAttempts`, and let the trigger own its own client for
-its own lifetime. Where a polling loop genuinely is inefficient, the fix is to
-justify the change with a measurement, not to assume that fewer clients means a
-faster triggerer.
+All three were closed for structural reasons. An `aiobotocore` client is bound to
+the loop that created it — connector, connection pool and transport all belong to
+that loop — so using it from another loop or thread produces failures far from
+their cause, under load, in the component whose failure affects every deferred
+task; a pool keyed coarser than "this trigger, on this loop" is a latent
+cross-thread bug. Sharing is also wrong on identity: `ADR 0001` resolves all AWS
+access through `AwsBaseHook`, so a client is specific to an `aws_conn_id`,
+`region_name`, `verify`, `endpoint_url`, botocore config and any assumed role, and
+a cache that gets the key wrong silently performs one tenant's call with another
+tenant's credentials. The performance concern is real and has a supported answer
+needing no shared state: do not block the loop, keep waiter polling in
+`AwsBaseWaiterTrigger`, let each trigger own its client for its own lifetime, and
+justify any change with a measurement.
 
 ## Decision
 
@@ -101,14 +82,13 @@ for that trigger's lifetime.
 ## Consequences
 
 - The triggerer stays correct under multi-account and multi-region load: no
-  trigger can ever act with another trigger's credentials.
-- Client construction cost is paid per trigger. This is accepted; correctness on
-  a shared, deployment-wide component outweighs it.
+  trigger can act with another trigger's credentials.
+- Client construction cost is paid per trigger — accepted; correctness on a
+  shared, deployment-wide component outweighs it.
 - Legitimate triggerer optimisations are harder to land, because they must be
-  measured. The bar is deliberate — this loop serves every deferred task in the
-  deployment.
-- The provider stays within `aiobotocore`'s supported usage, so upgrades of that
-  library do not require re-auditing bespoke pooling code.
+  measured. The bar is deliberate.
+- The provider stays within `aiobotocore`'s supported usage, so upgrades do not
+  require re-auditing bespoke pooling code.
 
 A change **violates** this decision when it:
 
@@ -127,18 +107,12 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #53454 — "Avoid event loop blocking by sharing async client in
-  `AwsBaseWaiterTrigger`": closed after review asked whether it is safe to share
-  a client between hooks with different `aws_conn_id`, and it was established
-  that each `aiobotocore` client is attached to a single asyncio loop, itself
-  tied to one thread, so sharing is not cross-thread safe.
-- #54250 — "Persistent client pool for base waiter and thread safe client
-  pooling": withdrawn by its author, who concluded the workaround was not worth
-  the nuances its implementation required.
-- #54184 — "Client pool in base waiter trigger to reduce event loop blocking":
-  the earlier attempt at the same idea, abandoned in favour of investigating
-  per-trigger `cached_property` reuse instead.
-- #62239 — "Replace S3 trigger sleep loops with `anyio.Event` waits": review
-  asked what the practical gains were and what the implications of the new
-  dependency would be; the change did not proceed on an unmeasured efficiency
-  argument alone.
+- #53454 — closed after review asked whether sharing a client between hooks with
+  different `aws_conn_id` is safe; each `aiobotocore` client is attached to a
+  single asyncio loop tied to one thread, so sharing is not cross-thread safe.
+- #54250 — a persistent/thread-safe client pool, withdrawn by its author as not
+  worth the nuances.
+- #54184 — the earlier client-pool attempt, abandoned in favour of investigating
+  per-trigger reuse.
+- #62239 — replacing S3 trigger sleep loops with `anyio.Event`; did not proceed on
+  an unmeasured efficiency argument alone.

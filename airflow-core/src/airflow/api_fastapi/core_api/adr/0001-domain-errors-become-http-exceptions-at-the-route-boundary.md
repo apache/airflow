@@ -27,66 +27,47 @@ Accepted
 
 ## Context
 
-The API server is a layered application. Route handlers in `routes/public/` and
-`routes/ui/` sit on top of service and domain code — SQLAlchemy queries, the
-serialization layer, asset/backfill/state-store services — that raises
-domain-shaped errors: a `ValueError` for invalid input, a lookup that returns
-nothing for a missing row, a validation failure deep inside a builder. Those
-layers know *what went wrong*; they do not know, and should not know, the HTTP
-status that a client at the edge should see.
+Route handlers in `routes/public/` and `routes/ui/` sit on top of service and domain
+code that raises domain-shaped errors (`ValueError` for bad input, an empty lookup
+for a missing row, a deep validation failure). Those layers know *what* went wrong;
+they do not, and should not, know the HTTP status a client should see.
 
-FastAPI's default behaviour for an unhandled exception is a bare
-`500 Internal Server Error`. That outcome is doubly bad for a public API:
-
-- **It misleads the client.** A malformed filter, an unknown `dag_id`, or an
-  out-of-range parameter is the *caller's* mistake — a `400` or `404` — not a
-  server fault. Reporting it as `500` tells integrators and the UI that Airflow
-  broke, and makes retries and error handling on the client side wrong.
-- **It leaks internals.** An unhandled exception surfaces a stack shape, an ORM
-  error string, or an internal field name to an external caller, exposing
-  implementation detail through the error channel.
-
-The recurring pressure is that the happy path is easy and the error path is
-invisible in a quick read: a handler calls a service, the service raises on a
-bad row or bad input, and — with no translation — it escapes as `500`. The
-symptom only appears when a client sends the awkward input (a `~` sentinel
-`dag_id`, a `NULL` timestamp, a malformed asset expression). This is the single
-most frequent class of fix in this area's history.
+FastAPI's default for an unhandled exception is a bare `500`, which is doubly bad for
+a public API: it misleads the client (a bad filter or unknown `dag_id` is a `400`/`404`,
+not a server fault) and it leaks internals through the error channel. The failure is
+invisible in a quick read — the error path only fires on awkward input (a `~` sentinel
+`dag_id`, a `NULL` timestamp, a malformed asset expression) — and it is the single most
+frequent class of fix in this area.
 
 ## Decision
 
-Route handlers translate domain-layer errors into an explicit `HTTPException`
-with the correct status at the FastAPI route boundary.
+Route handlers translate domain-layer errors into an explicit `HTTPException` with
+the correct status at the FastAPI route boundary.
 
 **The translation rule itself is the repo-wide one** — see the "Translate
-domain-layer exceptions to `HTTPException` at FastAPI route boundaries" entry in
-the root `AGENTS.md`: missing resource → `404`, invalid input → `400`, catch the
-specific domain exception rather than broadening, never let a domain error escape
-as an unhandled `500`. This ADR does not restate it; it records *why* this area
-holds that line (above) and adds the one requirement that is local to `core_api`:
+domain-layer exceptions to `HTTPException` at FastAPI route boundaries" entry in the
+root `AGENTS.md` (missing resource → `404`, invalid input → `400`, catch the specific
+exception, never let a domain error escape as `500`). This ADR does not restate it;
+it adds the one requirement local to `core_api`:
 
-- The status codes a handler can return are **declared in the OpenAPI docs**
-  via `create_openapi_http_exception_doc`, so the generated contract matches the
-  handler's real behaviour rather than a hand-written guess. This matters here and
-  not elsewhere because
+- The status codes a handler can return are **declared in the OpenAPI docs** via
+  `create_openapi_http_exception_doc`, so the generated contract matches real
+  behaviour rather than a hand-written guess. This matters here because
   [ADR-2](0002-public-rest-api-v2-is-a-generated-stable-contract.md) makes the
   generated spec a stable published artefact: an undeclared status is a contract
   defect, not just a documentation gap.
 
-This keeps the domain layer HTTP-agnostic and concentrates the
-status-code decision at the one boundary that owns the client contract.
+This keeps the domain layer HTTP-agnostic and concentrates the status-code decision
+at the one boundary that owns the client contract.
 
 ## Consequences
 
-- Clients and the UI receive honest, actionable status codes; genuine server
-  faults (`500`) once again mean an actual server fault, so they are alerting-
-  worthy again.
-- Internal exception detail stays inside the server instead of leaking through
-  the error channel.
+- Clients and the UI receive honest, actionable status codes; a `500` once again
+  means a genuine server fault and is alerting-worthy.
+- Internal exception detail stays inside the server.
 - Every handler carries the small, explicit cost of catching and re-raising —
-  intentional friction that keeps the contract correct.
-- The declared OpenAPI error responses stay truthful, because they are declared
-  where the errors are actually raised.
+  intentional friction that keeps the contract correct and the OpenAPI error docs
+  truthful.
 
 A change **violates** this decision when, in a `core_api` route handler, it:
 
@@ -104,21 +85,11 @@ A reviewer should reject any handler that can surface a domain error as a raw
 
 ## Evidence
 
-- #67489 — "Return 400 instead of 500 from `structure_data` on malformed
-  asset_expression": translated a malformed-input domain error into the correct
-  `400` at the boundary instead of letting it escape as `500`.
-- #67445 — "Return 400 instead of 500 from `materialize_asset` for invalid
-  validation input": same pattern on the asset-materialization route.
-- #67363 — "Fix `/dags/{dag_id}/latest_run` returning 500 instead of 400 for
-  `dag_id=\"~\"`": a sentinel/invalid path parameter must be a `400`, not a
-  server fault.
-- #68338 — "Fix 500 error for event logs with NULL dttm": a data condition that
-  was surfacing as an unhandled `500`.
-- #69110 — "Fix Dag detail page 500 for Dags without a fileloc": a missing-field
-  case corrected so it no longer 500s.
-- #64130 — "Fix DAG run trigger to surface errors instead of swallowing them":
-  the inverse failure — an error hidden behind a misleading success — corrected
-  to surface at the boundary.
-- #62624 — "Replaced manual response descriptions with
-  `create_openapi_http_exception_doc`": moved status-code documentation to the
-  shared generator so declared errors match handler behaviour.
+- #67489 — malformed `asset_expression` → `400` not `500` at the boundary.
+- #67445 — same pattern on the `materialize_asset` route.
+- #67363 — sentinel `dag_id="~"` must be `400`, not a server fault.
+- #68338 — event logs with `NULL` dttm surfacing as an unhandled `500`.
+- #69110 — Dag detail page `500` for Dags without a fileloc, corrected.
+- #64130 — inverse failure: an error hidden behind a misleading success, surfaced.
+- #62624 — moved status-code docs to `create_openapi_http_exception_doc` so declared
+  errors match handler behaviour.

@@ -29,23 +29,19 @@ Accepted
 
 `task-sdk` is an **independently released distribution**, and this package is its
 Dag-authoring surface. `airflow.sdk` is the *supported* import path for authoring
-a Dag — the one users are told to write against — and it is also the seam that
-underpins the 2.x→3.x compatibility story: a Dag written against `airflow.sdk`
-must keep working while airflow-core evolves underneath it. For that to hold, the
-authoring package cannot depend on airflow-core internals. In particular it must
-not import `airflow.models` or the core ORM: doing so drags SQLAlchemy models and
-the server's database layer onto the authoring/worker import path, couples the SDK
-to a specific airflow-core version, and defeats the independent-release model.
+a Dag and the seam underpinning the 2.x→3.x compatibility story: a Dag written
+against it must keep working while airflow-core evolves underneath. For that, the
+authoring package cannot depend on airflow-core internals — in particular it must
+not import `airflow.models` or the core ORM, which would drag SQLAlchemy models
+and the server's DB layer onto the authoring/worker import path and couple the SDK
+to a specific airflow-core version.
 
-This independence was *established*, not free. A large body of work deliberately
-severed the old coupling — moving shared pieces into the SDK, removing SDK
-references from core and core references from the SDK — so that today the
-authoring package stands on `airflow.sdk` (plus stdlib / attrs / typing) alone.
-The recurring pressure is that the needed symbol *exists* somewhere in
-`airflow.models`, so importing it directly looks like the shortest path; it is
-also the exact move that re-couples the two distributions. A `check_core_imports_in_sdk`
-prek hook guards the boundary, but the hook only catches the import — it is the
-decision below that says what to do instead.
+This independence was *established*, not free: a large body of work severed the
+old coupling so the package today stands on `airflow.sdk` (plus stdlib/attrs/
+typing) alone. The recurring pressure is that the needed symbol *exists* in
+`airflow.models`, so importing it directly looks shortest — and is exactly the
+move that re-couples the two. A `check_core_imports_in_sdk` prek hook guards the
+boundary, but only catches the import; the decision below says what to do instead.
 
 ## Decision
 
@@ -68,11 +64,11 @@ internals. Concretely:
 ## Consequences
 
 - A Dag authored against `airflow.sdk` keeps working across airflow-core changes,
-  which is what makes the 2.x→3.x migration path viable.
-- The authoring/worker import path stays light — no server ORM or database layer is
-  pulled in just to define a Dag.
-- Sharing code costs more: the shared piece has to be moved into the SDK rather
-  than imported from core, and that direction (core depends on SDK) is deliberate.
+  making the 2.x→3.x migration path viable.
+- The authoring/worker import path stays light — no server ORM or DB layer pulled
+  in just to define a Dag.
+- Sharing code costs more: the shared piece moves into the SDK rather than being
+  imported from core, and that direction (core depends on SDK) is deliberate.
 
 A change **violates** this decision when it:
 
@@ -87,15 +83,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #54383 — "Remove `airflow.models.DAG`": collapsing the old core `DAG` so the SDK
-  `DAG` is the single authoring definition, a keystone of the independence.
-- #58223 — "Remove airflow core dependency for typing utilities in task sdk" and
-  #55292 — "Remove state dependency from airflow core in sdk": concrete severances
-  of SDK→core imports, exactly the direction this decision forbids.
-- #58258 — "Remove SDK reference for NOTSET in Airflow Core" and #55538 — "Remove
-  SDK dependency from SerializedDAG": the reverse-direction cleanups that keep the
-  boundary clean from the core side too.
-- #53450 — "Deprecate and move `airflow.utils.task_group` to SDK" and #53629 —
-  "Deprecate decorators from Core": the pattern of *moving shared authoring code
-  into the SDK* (and deprecating the core spelling) rather than importing back
-  into it.
+- #54383 — removing `airflow.models.DAG` so the SDK `DAG` is the single authoring
+  definition; a keystone.
+- #58223, #55292 — concrete severances of SDK→core imports, the direction this
+  forbids.
+- #58258, #55538 — reverse-direction cleanups keeping the boundary clean from the
+  core side.
+- #53450, #53629 — *moving shared authoring code into the SDK* (deprecating the
+  core spelling) rather than importing back.

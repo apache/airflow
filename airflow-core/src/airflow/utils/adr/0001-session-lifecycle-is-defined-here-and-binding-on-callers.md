@@ -27,49 +27,36 @@ Accepted
 
 ## Context
 
-`airflow-core/src/airflow/utils/session.py` is where airflow-core's database
-transaction model is actually implemented. `create_session()` is the only
-sanctioned place a session is opened, committed, rolled back, and closed;
-`provide_session` injects one *only when the caller did not already supply one*;
-and `NEW_SESSION` is the typing sentinel that lets a decorated function annotate
-`session: Session` rather than `Session | None`.
+`airflow-core/src/airflow/utils/session.py` implements airflow-core's database
+transaction model. `create_session()` is the only sanctioned place a session is
+opened, committed, rolled back, and closed; `provide_session` injects one *only
+when the caller did not already supply one*; `NEW_SESSION` is the typing sentinel
+letting a decorated function annotate `session: Session`. The behaviour that
+matters is the pass-through: if a `session` was given, `provide_session` calls
+straight through without wrapping, so a nested call joins the caller's transaction
+rather than starting a second. Scheduler critical-section atomicity, clean API
+rollback, and the HA row locks held across a loop iteration all rest on that.
 
-The behaviour that matters is the pass-through: `provide_session` inspects the
-call and, if a `session` was given, calls straight through without wrapping.
-That is what makes a nested call join the caller's transaction rather than start
-a second one. Every property the rest of core depends on — atomicity of a
-scheduler critical section, the ability of an API handler to roll back cleanly,
-the HA row locks the scheduler holds across a loop iteration — rests on that
-single behaviour being respected by callers.
+Two things break it, both recurring review findings codebase-wide:
 
-Two things break it, and both are recurring review findings across the whole
-codebase, not just this directory:
+- **A positional `session` parameter.** `provide_session` detects a passed
+  session by `"session" in kwargs` or position index; positional `session` lets
+  an unrelated refactor that reorders arguments silently switch reuse for a fresh
+  session — invisible at the call site, surfacing later as a split transaction.
+- **A `session.commit()` inside a function that received a session.** It commits
+  the caller's in-progress transaction out from under it; the caller's rollback
+  then has nothing to roll back, and in the scheduler it releases HA row locks
+  mid-iteration — why `prohibit_commit` / `CommitProhibitorGuard` in
+  `sqlalchemy.py` raises the shouty `"UNEXPECTED COMMIT - THIS WILL BREAK HA
+  LOCKS!"` inside a guarded block.
 
-- **A positional `session` parameter.** `provide_session` decides whether the
-  caller passed a session by checking `"session" in kwargs` or by position
-  index. When `session` is positional, an unrelated refactor that reorders or
-  adds arguments silently changes whether the caller's session is reused or a
-  fresh one is opened. The failure is invisible at the call site and shows up
-  later as a split transaction.
-- **A `session.commit()` inside a function that received a session.** That
-  commits the caller's in-progress transaction out from under it. The caller's
-  subsequent rollback then has nothing to roll back, and in the scheduler it
-  releases HA row locks mid-iteration — which is why `prohibit_commit` /
-  `CommitProhibitorGuard` in `sqlalchemy.py` raises the deliberately shouty
-  `"UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!"` when it happens inside a
-  guarded block.
-
-Because these primitives live here, this directory is not merely a consumer of
-the rule — it is the rule's definition site. Two prek hooks make it mechanical:
-`check-no-new-provide-session-positional` freezes the set of functions still
-declaring `session` positionally, and a second hook forbids importing
-`NEW_SESSION` / `provide_session` / `create_session` from `airflow.utils.db`
-instead of `airflow.utils.session`, which would reintroduce an import cycle.
-
-The adjacent `airflow/models/adr/0003-session-discipline-and-set-based-db-access.md`
-applies these rules to ORM/model code and pairs them with set-based access and
-lock ordering. This ADR is about the *mechanism itself*: what `session.py`
-guarantees, and what a change to it — or to its callers — may not break.
+This directory is the rule's definition site, not merely a consumer. Two prek
+hooks make it mechanical: `check-no-new-provide-session-positional` freezes the
+set of functions still declaring `session` positionally, and a second forbids
+importing `NEW_SESSION` / `provide_session` / `create_session` from
+`airflow.utils.db` (which would reintroduce an import cycle). The adjacent
+`airflow/models/adr/0003-session-discipline-and-set-based-db-access.md` applies
+these rules to ORM/model code; this ADR is about the *mechanism itself*.
 
 ## Decision
 
@@ -97,18 +84,17 @@ guarantees, and what a change to it — or to its callers — may not break.
 
 ## Consequences
 
-- A nested helper joins its caller's transaction, so an error anywhere in the
-  unit of work rolls the whole thing back; no partial write escapes.
-- The scheduler can hold row locks across a loop iteration with confidence that
-  no helper it calls will quietly release them.
-- Refactors that reorder arguments cannot silently change transaction behaviour,
+- A nested helper joins its caller's transaction, so an error anywhere rolls the
+  whole unit of work back; no partial write escapes.
+- The scheduler holds row locks across a loop iteration knowing no helper will
+  quietly release them.
+- Argument-reordering refactors cannot silently change transaction behaviour,
   because `session` is never positional in new code.
-- The cost is that a function cannot make its own writes durable in isolation.
-  Code that genuinely needs its own transaction must open one at a level where
-  that is the explicit design — and say why — rather than calling `commit()`
-  from inside a borrowed session.
-- Changing `provide_session`'s injection logic is a change to every DB-touching
-  function in airflow-core at once, and is treated as such in review.
+- The cost: a function cannot make its own writes durable in isolation. Code that
+  genuinely needs its own transaction opens one where that is the explicit design
+  — and says why — rather than calling `commit()` on a borrowed session.
+- Changing `provide_session`'s injection logic changes every DB-touching function
+  in airflow-core at once, and is treated as such in review.
 
 A change **violates** this decision when it:
 
@@ -130,13 +116,9 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #67150 — "Add prek hook to enforce keyword-only `session` on
-  `@provide_session`": makes the keyword-only rule mechanical rather than a
-  review convention, with a frozen allowlist for existing debt.
-- #67777 — "Remove findings from positional session check in Core Utils": the
-  follow-up sweep that paid down the positional-`session` debt inside this
-  directory itself.
-- #61036 — "Fix connection resolution in CLI by setting server process context
-  in decorators": shows how much behaviour rides on the session/context
-  decorators in this area — a decorator-level detail changing what a caller
-  actually reaches.
+- #67150 — prek hook enforcing keyword-only `session` on `@provide_session`,
+  with a frozen allowlist for existing debt.
+- #67777 — the follow-up sweep paying down positional-`session` debt in this
+  directory.
+- #61036 — connection resolution fixed via server process context in decorators:
+  how much behaviour rides on the session/context decorators here.

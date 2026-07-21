@@ -27,37 +27,25 @@ Accepted
 
 ## Context
 
-ADR 2 covers how a hook behaves when it runs: actionable message, deterministic
-result. This ADR covers the case one step earlier — the hook that no longer runs
-over anything at all, and therefore passes.
+ADR 2 covers how a hook behaves when it runs. This ADR covers the case one step earlier
+— the hook that no longer runs over anything at all, and therefore passes.
 
-Prek selects a hook's inputs from its `files:` / `exclude:` patterns, and many
-hook scripts additionally resolve a directory or a metadata file themselves. All
-of those references are plain strings that no type checker, no test of the
-hook's own logic, and no reviewer of an unrelated pull request will notice going
-stale. When the repository is reorganised — providers moved into `providers/`,
-a distribution renamed, a generated file relocated — the pattern silently stops
-matching. Prek reports the hook as passed, CI is green, and the rule the hook
-existed to enforce is simply not enforced any more.
+Prek selects a hook's inputs from its `files:` / `exclude:` patterns, and many scripts
+additionally resolve a directory or metadata file themselves. Those references are plain
+strings no type checker, no test of the hook's logic, and no reviewer of an unrelated PR
+will notice going stale. When the repository is reorganised — providers moved into
+`providers/`, a distribution renamed, a generated file relocated — the pattern silently
+stops matching, prek reports the hook as passed, CI is green, and the rule is no longer
+enforced. This is the worst failure mode a hook has, worse than a noisily broken one:
+**the signal is absence** so nobody investigates, **the violations accumulate underneath**
+so the eventual fix is a path correction plus a backlog of real violations, and **it
+undermines every other hook** because one hook that passes vacuously makes "static checks
+passed" a weaker claim across the board.
 
-This is the worst failure mode available to a hook, and it is worse than a hook
-that is broken noisily:
-
-- **The signal is absence.** Nothing appears in any log, so nobody investigates.
-  The provider-metadata hook was dead from the directory restructure until
-  somebody happened to look, and reviewers on the restructuring pull request had
-  reasonably assumed static checks had exercised it.
-- **The violations accumulate underneath.** By the time the hook is restored,
-  the tree it was guarding has drifted, so the fix is no longer a one-line path
-  correction — it is a path correction plus a backlog of real violations.
-- **It undermines every other hook.** The value of the hook suite is that a
-  green run means something. One hook that can pass vacuously makes "static
-  checks passed" a weaker claim across the board.
-
-Zero matched files is occasionally legitimate — a hook scoped to a distribution
-that a given commit does not touch. The distinction is between *this run has no
-inputs* (normal, prek handles it) and *this hook can no longer find the thing it
-was written to check* (a defect).
+Zero matched files is occasionally legitimate — a hook scoped to a distribution a given
+commit does not touch. The distinction is between *this run has no inputs* (normal, prek
+handles it) and *this hook can no longer find the thing it was written to check* (a
+defect).
 
 ## Decision
 
@@ -79,15 +67,14 @@ was written to check* (a defect).
 
 ## Consequences
 
-- Static-check green means the rule was actually evaluated, which is the only
-  reason to have the suite.
-- Hooks carry a little extra defensive code — existence checks and explicit
-  error paths that are dead weight while everything is in place.
-- Reorganisation pull requests get more expensive: moving a directory now means
-  running the hooks that reference it, not only the ones the changed files
-  trigger.
-- Occasional false failures when a hook's target is legitimately absent in an
-  unusual checkout, which is the accepted trade against silent inertness.
+- Static-check green means the rule was actually evaluated, the only reason to have the
+  suite.
+- Hooks carry a little extra defensive code — existence checks and explicit error paths
+  that are dead weight while everything is in place.
+- Reorganisation PRs get more expensive: moving a directory means running the hooks that
+  reference it, not only the ones the changed files trigger.
+- Occasional false failures when a hook's target is legitimately absent in an unusual
+  checkout — the accepted trade against silent inertness.
 
 A change **violates** this decision when it:
 
@@ -103,15 +90,12 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #57276 — a provider yaml hook pointing at a location that no longer existed
-  after providers moved into `providers/`; it had been passing vacuously since
-  the restructure. Closed in favour of the complete fix in #57283.
-- #63973 — an execution-API version hook that assumed a git remote name which
-  varies between checkouts, producing a result that depended on local state
-  rather than on the tree.
-- #67966 — the breeze command-image hook running against a stale `uvx` cache
-  rather than the current sources, so it checked something other than the tree
-  in front of it.
-- #65611 — `mypy-scripts` and `check-distribution-gitignore` failing on correct
-  trees after their scope drifted, the noisy counterpart of the same
-  path-staleness problem.
+- #57276 — a provider yaml hook pointing at a location that no longer existed after
+  providers moved into `providers/`; passing vacuously since the restructure, closed in
+  favour of the complete fix in #57283.
+- #63973 — an execution-API version hook that assumed a git remote name varying between
+  checkouts, producing a result that depended on local state rather than the tree.
+- #67966 — the breeze command-image hook running against a stale `uvx` cache rather than
+  current sources, checking something other than the tree in front of it.
+- #65611 — `mypy-scripts` and `check-distribution-gitignore` failing on correct trees
+  after their scope drifted — the noisy counterpart of the same path-staleness problem.

@@ -27,46 +27,25 @@ Accepted
 
 ## Context
 
-The supervisor/runner runtime attracts defensive changes: an extra `try`/`except`
-around instrumentation, a retry on a heartbeat, a guard against a hostname
-mismatch, a log line at a louder level when a process dies. Each one reads as
-harmless — it only adds a branch that "should never" be taken.
+The supervisor/runner runtime attracts defensive changes — an extra `try`/`except`,
+a retry on a heartbeat, a guard against a hostname mismatch, a louder log line —
+each a branch that "should never" be taken. Here that reasoning is wrong in a
+specific way: every added guard is a path no test drives, on code that runs in a
+forked subprocess under signal and IPC timing. It can't be exercised in review and
+once merged is never removed, because nobody can prove the guarded condition
+doesn't happen. Worse, a guard on a mis-diagnosed failure hides the real one — a
+broad `except` around a supervisor call converts a dropped terminal state into
+silent success; a retry on a non-idempotent write duplicates side effects.
 
-In this area that reasoning is wrong in a specific way. Every added guard is a
-path that no test drives, on code that runs in a forked subprocess under signal
-and IPC timing. It cannot be exercised in review, and once merged it is never
-removed, because nobody can prove the condition it guards against does not
-happen. Worse, a guard placed on a mis-diagnosed failure actively hides the real
-one: a broad `except` around a supervisor call converts a dropped terminal state
-into a silent success, and a retry on a non-idempotent write converts a
-transient error into duplicated side effects.
-
-The rejection record shows reviewers applying one question to these changes:
-*has this failure actually been observed?* When the answer is no, the change is
-closed — including changes authored by maintainers. A proposal to wrap Sentry
-instrumentation so a raising SDK could not abort the task run was closed by its
-own author once a reviewer asked for a production occurrence and there was none
-(#67505). A supervisor heartbeat fix was challenged with "could you show any
-evidence of hostname error occurring" and the speculative half of it was
-stripped before the remaining 10-line race fix stood on its own (#64221). A
-change to log `CRITICAL` when a Celery task is OOM-killed was closed because the
-proposed mechanism could not work — an OOM kills the supervisor too, so nothing
-gets logged at any level (#61642). A triggerer startup fix was withdrawn by its
-author after review established that the stack output it treated as a hidden
-failure was normal debug output, so the change improved visibility of a failure
-that was not occurring (#65993).
-
-The same question kills changes whose stated bug is real but whose mechanism is
-wrong: a fix that leaves the actual reported failure in place was rejected as a
-"wrong fix" even though it changed a genuine defect in `task_runner.py` (#64945),
-and adding another IPC message to address a swallowed exception drew "I fail to
-see how adding another message to send over the IPC changes anything about this"
-(#67266).
-
-The cost of the rule is real: it declines changes that would have prevented a
-future incident. The project accepts that cost because an unfalsifiable guard in
-the execution runtime is not free — it is a permanent, untested branch on the
-path every task in every deployment runs through.
+So reviewers apply one question — *has this failure actually been observed?* — and
+close the change when the answer is no, including maintainers': Sentry-instrumentation
+wrapping closed for want of a production occurrence (#67505), a speculative
+heartbeat guard stripped for lack of evidence the hostname error occurs (#64221).
+The same question kills changes whose bug is real but mechanism wrong — a "wrong
+fix" that never reaches the reported failure (#64945). The rule declines changes
+that might have prevented a future incident; the project accepts that, because an
+unfalsifiable guard is a permanent, untested branch on the path every task in
+every deployment runs through.
 
 ## Decision
 
@@ -103,16 +82,15 @@ mechanism actually addresses it.**
 
 ## Consequences
 
-Contributors must do diagnostic work before writing runtime code, and some
-genuine latent bugs stay unfixed until they are observed in the field. Changes
-that "look obviously safe" are declined, which reads as friction to first-time
-contributors and is a frequent source of closed PRs.
+Contributors must do diagnostic work first, and some genuine latent bugs stay
+unfixed until observed in the field. Changes that "look obviously safe" are
+declined — friction to first-time contributors and a frequent source of closed
+PRs.
 
 In exchange, the runtime keeps a small, testable set of failure paths; the
-supervisor keeps failing *closed* on terminal-state errors instead of silently
-absorbing them; and incident investigation is not obstructed by layers of
-guards that convert real errors into log noise. The rule applies equally to
-maintainers, which is what makes it enforceable in review.
+supervisor keeps failing *closed* on terminal-state errors; and incident
+investigation is not obstructed by guards that convert real errors into log noise.
+The rule applies equally to maintainers, which makes it enforceable.
 
 A change **violates** this decision when it:
 
@@ -148,27 +126,24 @@ automated pass over a diff can do. Raise them as questions on the PR:
 
 ## Evidence
 
-- #56695 — "Fix memory leak in remote logging connection cache"; **merged**, and
-  the model of what this decision asks for. The PR body carries the production
-  occurrence (Celery workers OOMing on Airflow 3.0.6), before/after memory graphs
-  for the same 4 GB worker, a named mechanism (`@lru_cache` keyed on the client
-  instance retaining references), and a test in
-  `test_supervisor.py` alongside the `supervisor.py` change. Evidence of this
-  weight is what clears the bar — not volume of prose.
-- #67505 — Sentry instrumentation isolation; closed by its author after a
-  reviewer asked for a production occurrence and none existed.
-- #64221 — supervisor heartbeat conflict fix; a reviewer asked for evidence that
-  the hostname error actually occurs and the speculative half was stripped, but
-  the PR was closed unmerged on 2026-03-26 — nothing from it landed. It is cited
-  here as the rule operating, not as an accepted outcome.
+- #56695 — "Fix memory leak in remote logging connection cache"; **merged**, the
+  model of what this decision asks for: the PR body carries the production
+  occurrence (Celery workers OOMing on 3.0.6), before/after memory graphs, a named
+  mechanism (`@lru_cache` retaining client references), and a `test_supervisor.py`
+  test alongside the `supervisor.py` change. That weight clears the bar — not
+  volume of prose.
+- #67505 — Sentry instrumentation isolation; closed by its author when no
+  production occurrence existed.
+- #64221 — supervisor heartbeat conflict fix; the speculative half stripped after
+  a reviewer asked for evidence, but the PR was closed unmerged on 2026-03-26 —
+  nothing landed. Cited as the rule operating, not an accepted outcome.
 - #61642 — `CRITICAL` log on OOM-killed Celery task; closed because an OOM kills
   the supervisor too, so the log never emits.
-- #65993 — in-process Execution API startup fix for the triggerer; withdrawn
-  after review showed the treated-as-failure output was normal debug output.
-- #64945 — `TriggerDagRunOperator` 404 in `dag.test()`; rejected as the wrong
-  fix because the change did not reach the reported failure.
-- #67266 — recovering SKIPPED state when the terminal-state IPC send fails;
-  reviewer challenged that an extra IPC message does not change the swallowed
-  failure.
-- #61379 — `NameError` during task-execution completion; closed after review
-  found the failure already addressed differently on `main`.
+- #65993 — triggerer in-process Execution API startup fix; withdrawn once the
+  treated-as-failure output proved normal debug output.
+- #64945 — `TriggerDagRunOperator` 404 in `dag.test()`; rejected as the wrong fix,
+  not reaching the reported failure.
+- #67266 — recovering SKIPPED on terminal-state IPC send failure; an extra IPC
+  message does not change the swallowed failure.
+- #61379 — `NameError` during task-execution completion; closed as already
+  addressed differently on `main`.

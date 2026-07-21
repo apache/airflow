@@ -29,31 +29,22 @@ Accepted
 
 A Dag can be scheduled by an *asset expression* — a boolean condition over
 assets, aliases, and references, e.g. `schedule=(asset_a & asset_b) | asset_c`.
-Deciding whether such a condition is satisfied is a scheduling decision, and by
-the sibling ADR *the scheduler never runs user code* (`../../jobs/adr/0001`):
-everything the scheduler evaluates must come from the *serialized*
-representation the Dag processor persisted, never from re-imported author
-modules or live SDK objects.
+Evaluating that condition is a scheduling decision, and by the sibling ADR *the
+scheduler never runs user code* (`../../jobs/adr/0001`): everything the scheduler
+evaluates comes from the *serialized* representation the Dag processor persisted,
+never re-imported author modules or live SDK objects.
 
-To make this enforceable, the asset classes are deliberately split in two. The
-authoring-side classes live in the Task SDK (`airflow.sdk.definitions.asset` —
-`Asset`, `AssetAlias`, `AssetAny`, `AssetAll`, `AssetRef`), and a parallel set
-of *serialized*, data-only classes lives in
-`airflow.serialization.definitions.assets` (`SerializedAsset`,
-`SerializedAssetRef`, `SerializedAssetAlias`, `SerializedAssetBooleanCondition`,
-`SerializedAssetUniqueKey`). `AssetEvaluator` (`evaluation.py`) is a
-`functools.singledispatch` over the *serialized* hierarchy only: it walks the
-condition tree, resolves refs and aliases against the database, and aggregates
-per-asset boolean statuses (`AssetAll` → `all`, `AssetAny` → `any`). It never
-receives, imports, or executes an SDK `Asset` object or a user callable.
-
-This split matters because an asset expression *looks* like ordinary Python when
-authored (`&`, `|`, custom subclasses), and it is locally tempting to evaluate
-the authored objects directly — the scheduler "already has them". Doing so would
-both re-introduce user code into the scheduler loop and desynchronise the two
-class hierarchies, so a serialized payload could no longer round-trip through
-evaluation. The condition must instead be lowered to serialized data at parse
-time and evaluated purely as data.
+To enforce this, the asset classes are split in two: authoring-side classes in
+the Task SDK (`airflow.sdk.definitions.asset`) and parallel *serialized*,
+data-only classes in `airflow.serialization.definitions.assets`
+(`SerializedAsset`, `SerializedAssetRef`, `SerializedAssetAlias`,
+`SerializedAssetBooleanCondition`, `SerializedAssetUniqueKey`). `AssetEvaluator`
+(`evaluation.py`) is a `functools.singledispatch` over the *serialized* hierarchy
+only: it walks the tree, resolves refs/aliases against the database, and
+aggregates per-asset booleans — never receiving, importing, or executing an SDK
+`Asset` or user callable. The expression *looks* like ordinary Python when
+authored, so evaluating the authored objects directly is tempting, but that would
+re-introduce user code into the loop and desync the two hierarchies.
 
 ## Decision
 
@@ -103,12 +94,6 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #58993 — "Split SDK and serialized asset classes": establishes the two
-  separate hierarchies this decision depends on, so the scheduler evaluates
-  serialized data rather than SDK authoring objects.
-- #48565 — "Dynamically create assets if referenced by alias": alias resolution
-  during evaluation is a database/data operation over serialized structures, not
-  a call back into author code.
-- #67725 — "Type asset_expression in the REST API so the UI does not cast
-  through unknown": treats the asset expression as typed serialized data end to
-  end rather than an opaque object.
+- #58993 — establishes the two separate SDK/serialized hierarchies this decision depends on.
+- #48565 — alias resolution during evaluation is a data operation over serialized structures.
+- #67725 — types `asset_expression` in the REST API as serialized data end to end.

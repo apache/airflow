@@ -27,42 +27,27 @@ Accepted
 
 ## Context
 
-The parent area records that providers are released independently, each against
-its own declared `apache-airflow>=` floor (`providers/adr/0002-…`). Applied to
-this provider, that ordinary fact acquires an unusual weight: roughly 100
-provider `pyproject.toml` files declare
+Providers are released independently, each against its own declared
+`apache-airflow>=` floor (`providers/adr/0002-…`). Here that ordinary fact
+acquires unusual weight: roughly 100 provider `pyproject.toml` files declare
 `apache-airflow-providers-common-compat` as a runtime dependency, and every one
-of them declares it as a lower bound. Consumers pin `>=`, never a ceiling. That
-asymmetry means a newly released `common.compat` is resolved by pip into
-deployments of providers that were released months earlier and never tested
-against it.
+declares it as a lower bound — consumers pin `>=`, never a ceiling. So a newly
+released `common.compat` is resolved by pip into deployments of providers released
+months earlier and never tested against it.
 
-Two kinds of change here therefore behave differently from the same change in an
-ordinary provider.
-
-The first is the **declared floor**. This provider's own
-`apache-airflow>=2.11.0` is the effective floor of every consumer that depends
-on it, whatever their own pin says: a provider claiming `apache-airflow>=2.11.0`
-while depending on a `common.compat` that requires `>=3.0.0` does not work on
-2.11. Raising the floor here silently raises it for ~100 packages, and the break
-appears at install-resolution or first import in a user's deployment rather than
-in this repo's CI.
-
-The second is the **shape of a re-exported symbol**. Because consumers import
-through the shim rather than from core, the shim *is* their API. Renaming a map
-key, changing what a key resolves to on a given core version, dropping a
-fallback path, or moving a symbol between `common.compat.sdk` and
-`common.compat.standard` breaks importers that have already shipped. There is no
-deprecation window that a `>=` pin can express.
-
-The repo's mechanism for the forward direction already exists: when a consumer
-starts using something that only a not-yet-released `common.compat` provides, its
-dependency is written as
+Two kinds of change therefore behave differently here. The **declared floor**:
+this provider's `apache-airflow>=2.11.0` is the effective floor of every consumer,
+whatever their own pin says — a provider claiming `>=2.11.0` while depending on a
+`common.compat` requiring `>=3.0.0` does not work on 2.11, and the break appears at
+install-resolution or first import in a user's deployment, not in CI. The **shape
+of a re-exported symbol**: because consumers import through the shim, the shim *is*
+their API — renaming a map key, changing what a key resolves to on a given core
+version, dropping a fallback, or moving a symbol between `common.compat.sdk` and
+`common.compat.standard` breaks already-shipped importers, and no `>=` pin can
+express a deprecation window. The forward-direction mechanism exists: a consumer
+using something only a not-yet-released `common.compat` provides writes
 `apache-airflow-providers-common-compat>=X.Y.Z,  # use next version`, and the
-release manager resolves the marker to the concrete version when the wave goes
-out. It is used sparingly and deliberately — the marker is what keeps two
-independently released packages from drifting into a combination that was never
-valid.
+release manager resolves the marker when the wave goes out.
 
 ## Decision
 
@@ -93,16 +78,14 @@ first.
 
 ## Consequences
 
-- Consumers can upgrade `common.compat` freely, which is the property that makes
-  a `>=`-only pin across ~100 packages tenable at all.
-- Fixing a shim benefits every consumer without any of them re-releasing — the
-  same fan-out that makes a mistake expensive makes a fix cheap.
-- Floor bumps become rare and batched rather than incremental, which is why
-  version-gating a new-core API is the default and raising the floor is the
-  exception.
-- The `# use next version` marker adds a step to the release process and a
-  dependency on the release manager resolving it; that cost is accepted as the
-  price of independent release cadences.
+- Consumers can upgrade `common.compat` freely — the property that makes a
+  `>=`-only pin across ~100 packages tenable at all.
+- Fixing a shim benefits every consumer without any re-releasing — the same
+  fan-out that makes a mistake expensive makes a fix cheap.
+- Floor bumps become rare and batched, which is why version-gating a new-core API
+  is the default and raising the floor is the exception.
+- The `# use next version` marker adds a release-process step and a dependency on
+  the release manager resolving it — accepted as the price of independent cadences.
 
 A change **violates** this decision when it:
 
@@ -122,21 +105,13 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #68740 — "Resolve `common.ai` '# use next version' pin to common-compat
-  1.15.0": the marker being resolved to a concrete floor at release time, which
-  is the mechanism this decision depends on working as designed.
-- #69218 — "Point provider agents at the cross-provider dependency-bump rule":
-  the `# use next version` convention made discoverable to contributors, because
-  the failure it prevents is invisible until release.
-- #58612 — "Bump minimum Airflow version in providers to Airflow 2.11.0": a floor
-  move handled as a deliberate, repo-wide event rather than per-provider drift.
-- #49843 — "Bump min Airflow version in providers to 2.10": the same pattern one
-  floor earlier, paired with the branch cleanup it enabled.
-- #64933 — "Fix `RESOURCE_ASSET` compatibility with Airflow 2.x in
-  common-compat": a single wrong arm of a shim, fixed once here and thereby fixed
-  for every consumer — the upside of the same concentration that makes surface
-  changes dangerous.
-- #60335 — "Consume `AirflowOptionalProviderFeatureException` from compat sdk in
-  providers" and #58727 — "Add backcompat for exceptions in providers": the
-  additive pattern — a new entry on the shim surface, adopted by consumers
-  afterwards, rather than a reshape of an existing one.
+- #68740 — the `# use next version` marker resolved to a concrete floor at release
+  time: the mechanism this decision depends on.
+- #69218 — the `# use next version` convention made discoverable, because the
+  failure it prevents is invisible until release.
+- #58612 — a floor move handled as a deliberate, repo-wide event rather than drift.
+- #49843 — the same pattern one floor earlier, paired with the branch cleanup it enabled.
+- #64933 — a single wrong arm fixed once here and thereby for every consumer: the
+  upside of the same concentration that makes surface changes dangerous.
+- #60335, #58727 — the additive pattern: a new shim entry adopted by consumers
+  afterwards, rather than a reshape.

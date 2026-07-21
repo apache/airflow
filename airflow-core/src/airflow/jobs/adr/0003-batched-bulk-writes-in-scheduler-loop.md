@@ -27,33 +27,22 @@ Accepted
 
 ## Context
 
-The scheduler main loop, and the periodic maintenance callbacks it drives (for
-example `call_regular_interval` cleanup tasks), share one database session and
-run on the critical path. Their latency directly determines cluster scheduling
-throughput. A single unbounded bulk write against a user-driven table is a
-cluster-wide hazard for two reasons:
+The scheduler main loop and the periodic maintenance callbacks it drives (e.g.
+`call_regular_interval` cleanup) share one database session on the critical path;
+their latency directly determines scheduling throughput. A single unbounded bulk
+write against a user-driven table is a cluster-wide hazard on two counts: a
+`DELETE`/`UPDATE` with no `LIMIT` locks every matching row (hundreds of thousands,
+for seconds) for the whole transaction, blocking every concurrent writer; and
+while it runs, the single session is busy, so the whole loop stalls until it
+commits. These table volumes are user-driven and unbounded, and retention/GC work
+is especially tempting to write as one sweeping statement.
 
-- **Lock duration.** A `DELETE`/`UPDATE` with no `LIMIT` takes row (or, on some
-  engines, range/gap/page) locks on every matching row and holds them for the
-  entire transaction. On a large table that can be hundreds of thousands of
-  rows, locked for seconds — blocking every concurrent writer (other schedulers,
-  the API server, workers via the Execution API) touching those rows.
-- **Loop stall.** While that statement runs, the scheduler's single session is
-  busy; the whole loop stalls and no scheduling happens until it commits.
-
-The volume of these tables is user-driven and unbounded — a deployment with many
-Dags and a long retention window can accumulate enormous task-instance,
-Dag-run, log, and history rows. Retention/garbage-collection work in particular
-is tempting to write as one sweeping statement, which is exactly the anti-pattern.
-
-Airflow's established pattern (canonically in `airflow/utils/db_cleanup.py`) is
-to batch: delete/update at most `LIMIT` rows per statement, commit after each
-batch so locks are released and other writers make progress, and loop until no
-rows remain. The filter columns the batch selects on must be indexed so each
-batch is a cheap indexed range rather than a full scan. A related coding
-standard reinforces this: in `airflow-core`, a function that takes a `session`
-parameter must not call `session.commit()` itself — the commit cadence belongs
-to the batching driver, not to a helper buried inside it.
+The established pattern (canonically `airflow/utils/db_cleanup.py`) batches:
+delete/update at most `LIMIT` rows per statement, commit after each batch to
+release locks, loop until none remain, and select on indexed columns so each batch
+is a cheap indexed range. A related standard reinforces this: in `airflow-core`, a
+function taking a `session` parameter must not call `session.commit()` — commit
+cadence belongs to the batching driver.
 
 ## Decision
 
@@ -74,10 +63,9 @@ Follow the batching pattern in `airflow-core/src/airflow/utils/db_cleanup.py`.
 
 - The scheduler loop stays responsive and concurrent writers keep progressing
   even while large cleanup/retention operations run.
-- Cleanup work takes more statements/round-trips, but each is short-lived and
-  index-backed; total wall time is traded for bounded lock hold time.
-- New retention/GC features must design their batch size, commit cadence, and
-  supporting index up front.
+- Cleanup takes more short-lived, index-backed statements — total wall time traded
+  for bounded lock hold time — and new retention/GC features must design batch
+  size, commit cadence, and supporting index up front.
 
 A change **violates** this decision when it:
 
@@ -95,10 +83,5 @@ filters on an unindexed column.
 
 ## Evidence
 
-- #66463 — "AIP-103: Adding periodic task state garbage collection and retention
-  support": introduces periodic state GC/retention, exactly the unbounded-volume
-  cleanup that must be batched with `LIMIT` + per-batch commit on indexed
-  columns rather than one sweeping delete.
-- #62343 — "Add async connection testing via workers for security isolation":
-  keeps heavyweight work off the scheduler's synchronous session so the loop's
-  write path stays short and non-blocking.
+- #66463 — "AIP-103: periodic task state garbage collection and retention": exactly the unbounded-volume cleanup that must be batched with `LIMIT` + per-batch commit on indexed columns, not one sweeping delete.
+- #62343 — "Add async connection testing via workers": keeps heavyweight work off the scheduler's synchronous session so the write path stays short.

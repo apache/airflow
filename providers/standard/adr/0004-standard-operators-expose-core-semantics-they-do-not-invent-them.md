@@ -27,35 +27,26 @@ Accepted
 
 ## Context
 
-This provider holds the operators every Airflow user touches — `PythonOperator`,
+This provider holds the operators every Airflow user touches (`PythonOperator`,
 `BashOperator`, `TriggerDagRunOperator`, `ExternalTaskSensor`, the branch and
-short-circuit operators. That makes it the most reachable place in the codebase
-to attach a new idea, and it is where proposals for new *core* semantics
-repeatedly arrive dressed as operator features.
+short-circuit operators), which makes it the most reachable place to attach a new
+idea — and where proposals for new *core* semantics repeatedly arrive dressed as
+operator features. The recurring shapes: a new Dag-run-level date because
+`data_interval` feels like the wrong name; Dag-level automatic retries; a new
+Execution API endpoint so an operator can ask a question the existing routes almost
+answer; a knob changing which Dag bundle version a run resolves against. Each is
+proposed as an operator parameter, and each would change what a Dag run *is*.
 
-The recurring shapes are recognisable: a new Dag-run-level date because
-`data_interval` is felt to be the wrong name for "the date we are processing";
-Dag-level automatic retries because task-level retries do not cover the case; a
-new Execution API endpoint added so an operator can ask a question the existing
-routes almost answer; a configuration knob that changes which Dag bundle version a
-run resolves against. Each is proposed as a parameter on an operator, and each
-would in fact change what a Dag run *is*.
-
-Landing any of them here would be a mistake of the most expensive kind. Operators
-in this provider ship on the provider cadence against a range of core versions
-(`apache-airflow>=2.11.0`), so a semantic invented here becomes an ecosystem
-commitment before core has decided whether it wants it — and it becomes one
-without the AIP discussion, the UI, the API surface, or the timetable integration
-that a real core concept requires. Airflow's scheduling vocabulary is small on
-purpose: `logical_date`, `data_interval_start` / `data_interval_end`,
-`run_after`, task retries, timetables. A second, operator-local vocabulary that
-means almost the same thing is worse than no vocabulary at all, because Dag
-authors then have to know which one their tooling reads.
-
-The counterpart is that operators here *should* expose core semantics fully. When
-core grows a concept — `run_after`, Dag-run notes, Dag versioning — surfacing it
-through the relevant operator is exactly this provider's job, and those additions
-land routinely.
+Landing any here is expensive: these operators ship on the provider cadence against
+`apache-airflow>=2.11.0`, so a semantic invented here becomes an ecosystem
+commitment before core decides it wants it — without the AIP discussion, UI, API
+surface, or timetable integration a real core concept needs. Airflow's scheduling
+vocabulary is small on purpose (`logical_date`, `data_interval_start` / `_end`,
+`run_after`, task retries, timetables); a second operator-local vocabulary meaning
+almost the same thing is worse than none, since authors must know which one their
+tooling reads. The counterpart: operators here *should* expose core semantics fully
+— when core grows a concept (`run_after`, Dag-run notes, Dag versioning), surfacing
+it through the operator is exactly this provider's job, and those land routinely.
 
 ## Decision
 
@@ -93,17 +84,16 @@ does not define a new one.**
 
 ## Consequences
 
-- Airflow keeps one scheduling vocabulary, and Dag authors keep one place to
-  learn it. Tooling, the UI, and the API agree on what a run's dates mean.
+- Airflow keeps one scheduling vocabulary and Dag authors keep one place to learn
+  it; tooling, UI, and API agree on what a run's dates mean.
 - Genuinely new concepts still arrive — through the AIP and core-review path that
   can carry them, with the API, UI and serialization work included.
-- The cost is a slower and less satisfying answer for the contributor: a
-  well-implemented, tested, self-consistent PR is closed on grounds that are
-  about layering rather than about the code. Some of these proposals address real
-  gaps and are closed anyway. Making the layering explicit here is meant to move
-  that conversation before the code, not to pretend the gap is imaginary.
-- Reviewers must be able to recognise the pattern early — the tell is a parameter
-  whose meaning is a property of the *run*, not of the *task*.
+- The cost is a slower answer for the contributor: a well-implemented, tested PR is
+  closed on layering grounds, sometimes over a real gap. Making the layering
+  explicit moves that conversation before the code, not to pretend the gap is
+  imaginary.
+- Reviewers must recognise the pattern early — the tell is a parameter whose meaning
+  is a property of the *run*, not the *task*.
 
 A change **violates** this decision when it:
 
@@ -123,30 +113,23 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #67329 — "Add `target_date`, a user-defined processing date for Dag runs":
-  closed as won't-fix. The review was explicit that this is conceptually
-  `data_interval`, that a point-in-time is expressed by setting start and end
-  around it, and that the interval is produced by the timetable.
-- #61336 — "Add Dag-level automatic retry feature": closed; retry policy is not
-  an operator-level addition.
-- #65856 — "Allow future `logical_date` for manual and operator-triggered Dag
-  runs": closed; a change to what a run's `logical_date` may be is a core
-  semantic, not a `TriggerDagRunOperator` option.
-- #67832 — "implement `DagTaskGroupsExistence` and `DagTasksExistence`
-  endpoints": closed. The review questioned both the layer (a new route where an
-  existing response's 404 already encodes the answer) and the premise (under Dag
-  versioning, task existence is not well-defined until a run exists).
-- #61063 — "Add configurable bundle version defaults": closed. The review asked
-  for the core capability and the `TriggerDagRunOperator` change to be separated,
-  and found the assumed Execution API endpoint did not exist.
-- #62861 — "Fix `POST /pools` to return 409 when pool already exists": closed;
-  API error semantics belong in core's global handler, not in a provider PR.
-- #68936, #68955, #69135, #69839 (`TriggerDagRunOperator` — durable waits,
-  reattachment, execution ownership) and #68797 (`BranchOperator` relative paths)
-  — five open PRs that each change one operator and its task-runner or base-class
-  counterpart in the same diff. No compliant split exists for them: the execution
-  path lives in `task-sdk/`, by design. They are why the "split the layers" rule
-  carries an exception rather than being absolute.
-- #61658 and #61657 — two attempts to change the released default of
-  `show_return_value_in_logs`: both closed. Even a defensible default is core-
-  facing behaviour once it has shipped (ADR 1).
+- #67329 — `target_date` processing date for Dag runs, closed won't-fix: review was
+  explicit it is conceptually `data_interval`, a point expressed by setting both
+  ends, produced by the timetable.
+- #61336 — Dag-level automatic retry, closed: retry policy is not an operator-level
+  addition.
+- #65856 — future `logical_date` for triggered runs, closed: what a run's
+  `logical_date` may be is a core semantic, not a `TriggerDagRunOperator` option.
+- #67832 — new existence endpoints, closed on both layer (an existing 404 encodes
+  the answer) and premise (task existence is not well-defined under Dag versioning).
+- #61063 — configurable bundle version defaults, closed: asked to separate the core
+  capability from the operator change, and the assumed endpoint did not exist.
+- #62861 — `POST /pools` 409, closed: API error semantics belong in core's global
+  handler, not a provider PR.
+- #68936, #68955, #69135, #69839 (`TriggerDagRunOperator`) and #68797
+  (`BranchOperator`) — five open PRs each changing one operator and its task-runner
+  or base-class counterpart in the same diff. No compliant split exists: the
+  execution path lives in `task-sdk/` by design — why the rule carries an exception.
+- #61658, #61657 — two attempts to change the released `show_return_value_in_logs`
+  default, both closed: even a defensible default is core-facing once shipped
+  (ADR 1).

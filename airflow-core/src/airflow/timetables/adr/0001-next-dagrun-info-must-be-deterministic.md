@@ -29,29 +29,21 @@ Accepted
 
 The scheduler decides when to create the next Dag run by calling a timetable's
 `next_dagrun_info()` (via `next_dagrun_info_v2` /
-`next_run_info_from_dag_model`). It does this from the *serialized* Dag — it
-reconstructs the timetable from stored data and never re-imports the author's
-module (see the scheduler's own `adr/0001`, "the scheduler never runs user
-code"). The scheduler holds a direct, privileged database session and runs a
-latency-sensitive, largely single-threaded control loop, so a timetable it
-evaluates must not carry the scheduler anywhere near author-controlled code,
-blocking I/O, or process-local state.
+`next_run_info_from_dag_model`), from the *serialized* Dag — it reconstructs the
+timetable from stored data and never re-imports the author's module (scheduler
+`adr/0001`). The contract in `base.py` reflects this: the method receives only
+`last_automated_data_interval` (`None` only on the first schedule) and a
+`TimeRestriction` (`earliest` / `latest` / `catchup`), and its answer must be a
+pure function of those inputs and the timetable's own serialized fields.
 
-The contract in `base.py` reflects this: `next_dagrun_info()` receives only
-`last_automated_data_interval` (the previous scheduled interval, `None` only on
-the Dag's first schedule) and a `TimeRestriction` (`earliest` / `latest` /
-`catchup`). Its answer must be a pure function of those inputs and the
-timetable's own serialized fields. If the computation instead read the live
-clock, queried the database, consulted an author callable, or drew a random
-number, two evaluations of the same Dag at the same logical position could
-disagree — producing a missed run, a duplicate run, or a run over the wrong data
-interval. Because the scheduler may re-evaluate the same position (HA replicas,
-retries, a restart mid-loop), any hidden dependency on ambient state is a
-scheduling-correctness bug, not a style nit.
-
-This decision is closely related to the serialized-output determinism rule in
-`serialization/adr/0002`, but sits one layer up: it constrains the *behaviour*
-of the timetable the scheduler runs, not only the *bytes* it is stored as.
+If the computation instead read the live clock, queried the database, consulted
+an author callable, or drew a random number, two evaluations of the same Dag at
+the same logical position could disagree — a missed run, a duplicate run, or a
+run over the wrong interval. Because the scheduler may re-evaluate the same
+position (HA replicas, retries, a restart mid-loop), any hidden dependency on
+ambient state is a scheduling-correctness bug. This sits one layer up from the
+serialized-output determinism rule in `serialization/adr/0002`: it constrains
+the *behaviour* of the timetable, not only the *bytes* it is stored as.
 
 ## Decision
 
@@ -76,11 +68,9 @@ side-effect-free**.
 ## Consequences
 
 - The scheduler stays trustworthy and fast: evaluating a timetable cannot run
-  author code, block the loop, or reach the timetable's answer through ambient
-  state.
-- New scheduling behaviour must be expressed as declarative, serialized data the
-  timetable computes over — not as a callable the scheduler invokes at schedule
-  time.
+  author code, block the loop, or reach its answer through ambient state.
+- New scheduling behaviour is expressed as declarative serialized data the
+  timetable computes over — not as a callable the scheduler invokes.
 - Re-evaluation is safe under HA, retries, and restarts, because the answer is a
   pure function of position.
 
@@ -98,11 +88,7 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #66132 — "Don't re-emit logical_date when previous data_interval is
-  zero-length": fixes `next_dagrun_info()` deriving the wrong next position from
-  the previous interval, which duplicated a run's logical date instead of
-  advancing deterministically.
-- #45175 — "Fix ContinuousTimetable false triggering when last run ends in
-  future": the timetable produced a spurious next run because its decision did
-  not correctly account for the previous interval versus the restriction,
-  triggering when it should not have.
+- #66132 — zero-length previous interval duplicated a run's logical date instead
+  of advancing deterministically.
+- #45175 — `ContinuousTimetable` false-triggered when the last run ended in the
+  future; its decision mishandled the previous interval versus the restriction.

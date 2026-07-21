@@ -27,37 +27,26 @@ Accepted
 
 ## Context
 
-A package that ~100 other packages already depend on is an attractive place to
-put things. Any helper two providers happen to share, any utility that "feels
-common", any behaviour that is awkward to place elsewhere — all of it has a
-plausible-sounding argument for landing in `common.compat`, because the
-dependency edge already exists and adding it costs the author nothing.
+A package ~100 other packages already depend on is an attractive place to put
+things: any helper two providers share, any utility that "feels common", has a
+plausible argument for landing here because the dependency edge already exists.
+That pressure has to be resisted for two reasons. First, everything here is
+carried by every consumer forever — a helper added for one provider is import
+surface, maintenance burden, and review risk for the other ninety-nine. Second, a
+compatibility shim is supposed to *end*: its whole justification is that some core
+version in the supported range lacks the symbol or has it under a different name,
+so once that version drops out of range the shim is dead code that still ships. The
+provider's value depends on it shrinking as the floor rises.
 
-That pressure has to be resisted, for two reasons specific to this provider.
-First, everything here is carried by every consumer forever: a helper added for
-one provider is import surface, maintenance burden, and review risk for the
-other ninety-nine. Second, and more fundamentally, a compatibility shim is
-supposed to *end*. Its whole justification is that some Airflow core version in
-the supported range lacks the symbol or has it under a different name; once that
-version drops out of the range, the shim is dead code that still ships. The
-provider's value depends on it shrinking as the floor rises, not on it
-accumulating.
-
-The codebase already encodes the discipline in places. `module_loading/`
-fabricates `is_valid_dotpath` behind a `# TODO: Remove it when Airflow 3.2.0 is
-the minimum version` marker — the removal condition is written down at the site,
-so the next floor bump can delete it rather than reason about it.
-`sqlalchemy/orm.py` fakes `mapped_column` from `Column` for SQLAlchemy < 2.0 in
-six lines and nothing more. `security/permissions.py` is a handful of string
-constants and one aliased import. `assets/__init__.py` is a version gate around
-two import blocks. These are the right size.
-
-The pressure in the other direction is visible too: `lineage/hook.py` carries a
-genuine runtime polyfill that attaches `add_extra` to a core collector instance,
-and that polyfill has already shipped a `RecursionError` from being re-applied to
-an object it had already patched. That is what happens when a shim stops being a
-re-export and starts being logic — the bug is not in the provider that reported
-it, and it is not in core either.
+The discipline is already encoded. `module_loading/` fabricates `is_valid_dotpath`
+behind a `# TODO: Remove it when Airflow 3.2.0 is the minimum version` marker;
+`sqlalchemy/orm.py` fakes `mapped_column` from `Column` for SQLAlchemy < 2.0 in six
+lines; `security/permissions.py` is a handful of constants and one aliased import;
+`assets/__init__.py` is a version gate around two import blocks. These are the
+right size. The pressure the other way is visible too: `lineage/hook.py` carries a
+runtime polyfill that attaches `add_extra` to a core collector instance, and it
+shipped a `RecursionError` from being re-applied to an object it had already
+patched — what happens when a shim stops being a re-export and starts being logic.
 
 ## Decision
 
@@ -93,14 +82,11 @@ keep it as thin as the bridge allows.
 - The provider stays small enough to review, and its import surface stays cheap
   for the ~100 packages that pay for it.
 - The 2.x arms actually disappear when the floor moves, so the remaining branches
-  are the ones that are still doing work — which is what makes reviewing a change
-  here tractable at all.
-- Contributors are pushed to put shared behaviour in the provider that owns it,
-  or into the Task SDK, rather than in the compatibility layer. That is more
-  work in the moment and is the intended outcome.
-- The removal comments are a maintenance obligation of their own: they have to be
-  accurate, and a floor bump that ignores them leaves the codebase worse than one
-  that never had them.
+  are the ones still doing work — what makes reviewing a change here tractable.
+- Contributors are pushed to put shared behaviour in the provider that owns it, or
+  into the Task SDK, rather than in the compatibility layer.
+- The removal comments are a maintenance obligation: they have to be accurate, and
+  a floor bump that ignores them leaves the codebase worse than one without them.
 
 A change **violates** this decision when it:
 
@@ -118,23 +104,14 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #62927 — "refactor: remove modules that are supposed to be removed in Airflow
-  3.2": shims deleted at the point the floor made them dead — the removal half of
-  the lifecycle this decision describes.
-- #49877 — "Remove `AIRFLOW_2_10_PLUS` conditions", following #49843 — "Bump min
-  Airflow version in providers to 2.10": the floor bump and the branch deletion
-  treated as one piece of work.
-- #58612 — "Bump minimum Airflow version in providers to Airflow 2.11.0": the
-  floor move that defines which arms are currently load-bearing.
-- #68735 — "Fix `RecursionError` in `common.compat` hook lineage `add_extra`
-  polyfill": the concrete cost of a shim that grew into runtime logic without
-  being idempotent.
-- #60663 — "Fix `BaseAsyncOperator` in common-compat provider for Airflow 2.x":
-  a shim whose non-default arm was wrong — the failure mode thin shims are meant
-  to make rare.
-- #56880 — "Add SQLA's `mapped_column` to common-compat": the right shape for an
-  addition here — a few lines bridging a dependency version, nothing more.
-- #69208 — "Added `get_async_hook` in `common.compat` provider" and #69140 —
-  "Honor async hook subclass overrides in `get_async_connection`": a capability
-  added on the shared surface for concrete consumers, then corrected when the
-  thin wrapper turned out to bypass subclass behaviour.
+- #62927 — shims deleted at the point the floor made them dead: the removal half
+  of the lifecycle.
+- #49877, following #49843 — the floor bump and branch deletion treated as one
+  piece of work.
+- #58612 — the floor move that defines which arms are currently load-bearing.
+- #68735 — the concrete cost of a shim that grew into runtime logic without being
+  idempotent.
+- #60663 — a shim whose non-default arm was wrong: the failure thin shims make rare.
+- #56880 — the right shape for an addition: a few lines bridging a dependency version.
+- #69208, #69140 — a capability added on the shared surface for concrete consumers,
+  then corrected when the thin wrapper bypassed subclass behaviour.

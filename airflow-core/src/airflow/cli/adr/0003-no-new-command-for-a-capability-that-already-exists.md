@@ -27,37 +27,24 @@ Accepted
 
 ## Context
 
-The CLI is the most inviting place in the codebase to contribute: a command is a
-small, self-contained diff with an obvious user story, and the change is easy to
-test. That is exactly why the largest single class of closed-unmerged PRs here is
-a well-written, well-tested command that does something the CLI could already do.
+The CLI is the most inviting place to contribute: a command is a small,
+self-contained, easily-tested diff with an obvious user story. That is why the
+largest class of closed-unmerged PRs here is a well-written, well-tested command
+that does something the CLI could already do — a cleanup command for a table
+`airflow db clean --tables <name> --clean-before-timestamp <ts>` already purges
+(the set registered in `airflow/utils/db_cleanup.py`), a pending-schema report
+when `airflow db check-migrations -t 0` already exits non-zero on a head mismatch,
+a warning explaining a parameter whose real fix is deletion.
 
-The pattern is consistent. A cleanup command is proposed for a table that
-`airflow db clean --tables <name> --clean-before-timestamp <ts>` already purges —
-`revoked_token`, `log`, `deadline` and the rest of the table set registered in
-`airflow/utils/db_cleanup.py`. A
-command to report pending schema changes is proposed when `airflow db
-check-migrations -t 0` already exits non-zero and prints the head mismatch. A
-warning is proposed to explain a parameter whose real fix is that the parameter is
-deprecated and should be removed rather than described.
-
-Each of these is closed, and none of them are closed because the code was bad. The
-cost being avoided is not review effort, it is surface. Every command is a public
-contract: it appears in help output and in the command reference, it is scripted
-against by operators, it acquires its own bug reports and its own arguments over
-time, and — because the CLI carries a compatibility promise — it is far harder to
-withdraw than it was to add. A second spelling of an existing capability doubles
-that cost while adding nothing a user could not already do, and it splits the
-maintenance of one behaviour across two entry points that will drift.
-
-The same reasoning refuses a *second way of saying the same thing* inside one
-command. Two parameters that express the same scheduling concept are not twice as
-expressive; they are ambiguous, and the resolution is to delete the deprecated one,
-not to document the overlap more carefully.
-
-This is a stricter rule here than elsewhere in the codebase precisely because the
-alternative is invisible: nothing in a diff shows that the capability already
-exists. Only someone who knows the generic commands can see it, which makes it a
+None are closed because the code was bad; the cost avoided is *surface*. Every
+command is a public contract — it appears in help and the command reference, is
+scripted by operators, accretes its own bugs and arguments, and under the CLI
+compatibility promise is far harder to withdraw than to add. A second spelling
+doubles that cost, adds nothing new, and splits one behaviour across two entry
+points that drift. The same refuses a second parameter for one concept: it is
+ambiguous, and the fix is to delete the deprecated spelling, not document the
+overlap. The rule is stricter here because the redundancy is invisible in the
+diff — only someone who knows the generic commands can see it, so it is a
 reviewer's burden unless the author discharges it first.
 
 ## Decision
@@ -102,14 +89,12 @@ reviewer's burden unless the author discharges it first.
 
 ## Consequences
 
-- The command set stays small enough to hold in your head, and the command
-  reference stays a description of distinct capabilities rather than a list of
-  aliases.
-- Behaviour has one implementation and one place to fix, instead of two entry points
-  that drift.
-- The cost falls on contributors, who must know the generic commands before they can
-  land a specific one — and on reviewers, who must say no to competent, working code.
-  Making the rule explicit here is what keeps that "no" from reading as arbitrary.
+- The command set stays small and the reference stays a list of distinct
+  capabilities, not aliases.
+- Behaviour has one implementation and one place to fix.
+- The cost falls on contributors (know the generic commands first) and reviewers
+  (say no to working code); making the rule explicit keeps that "no" from reading
+  as arbitrary.
 
 A change **violates** this decision when it:
 
@@ -127,24 +112,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #68964 — "Add command to clean expired sessions": a clean diff with a unit test,
-  closed because expired sessions are already purged by
-  `airflow db clean --tables session --clean-before-timestamp <now>`; the command
-  would have wrapped exactly that call. Note the condition — `db_cleanup.py`
-  registers the `session` table only when the auth manager is `FabAuthManager`
-  *and* `fab.session_backend` is `database`, so under `SimpleAuthManager` that
-  exact invocation is not available. The unconditional entries (`revoked_token`,
-  `log`, `job`, `dag_run`, …) are the cleaner illustration of the rule.
-- #58584 — "CLI: Add `airflow db would-migrate` command": closed once reviewers
-  pointed at `airflow db check-migrations -t 0`, which already exits non-zero and
-  reports the head mismatch between the database and the source tree; the author
-  agreed it negated the PR.
-- #61319 — clarifying the warning for partition-driven Dags in `dags
-  next-execution`: redirected from rewording the warning to removing the deprecated
-  `interval` parameter, on the grounds that having two near-identical ways to
-  express a schedule is itself the confusion.
-- #62454 — mapped-task `map_index` bounds validation in the task CLI. Listed here
-  as a caution rather than an example: it added no command, it carried two
-  committer approvals, and its author closed it after #62626 landed the same
-  validation first. It was outraced, not declined on scope — the rule this ADR
-  states did not apply to it.
+- #68964 — clean tested command to clean expired sessions, closed because
+  `db clean --tables session` already purges them. Caveat: `db_cleanup.py`
+  registers `session` only under `FabAuthManager` with `fab.session_backend =
+  database`; the unconditional entries (`revoked_token`, `log`, `job`, `dag_run`)
+  illustrate the rule more cleanly.
+- #58584 — `airflow db would-migrate`, closed: `db check-migrations -t 0` already reports the head mismatch.
+- #61319 — redirected from rewording a `dags next-execution` warning to removing the deprecated `interval` parameter.
+- #62454 — caution, not an example: no command, two approvals, closed after #62626 landed the same validation first — outraced, not declined on scope.

@@ -27,38 +27,28 @@ Accepted
 
 ## Context
 
-A trigger does not run where it was defined. The operator is constructed in a Dag
-file, rendered and executed on a worker, then serialised to a classpath and kwargs
-(`adr/0002`) and reconstructed inside the triggerer — a different process, on a
-different host, with no access to the metadata database (`adr/0003`). Anything the
-trigger or an async callback is to *receive* must therefore be either serialised
-into those kwargs, fetched at execution time through the Execution API, or
-persisted somewhere the triggerer can read.
+A trigger does not run where it was defined. The operator is built in a Dag file,
+executed on a worker, then serialised to classpath and kwargs (`adr/0002`) and
+reconstructed inside the triggerer — a different process, no metadata-DB access
+(`adr/0003`). So anything a trigger or async callback is to *receive* arrives by
+one of three routes: serialised into kwargs, fetched at execution time through the
+Execution API, or persisted somewhere the triggerer can read.
 
-Each of those three routes has a cost, and the history of this area is a sequence
-of attempts to enlarge the received context that were merged and then reverted.
-Template-field rendering for `start_from_trigger` landed, was reverted, and only
-re-landed on a third attempt. Fetching deadline-callback context from the
-Execution API at runtime landed as a substantial change — new comms messages,
-workload plumbing, read-only route restrictions, bundle-hash verification, bundle
-init moved off the event loop — and was then reverted wholesale. Separately, a
-defect had to be fixed where an operator's `template_fields` and its trigger's
-attributes are simply different sets, so rendering one against the other failed.
+The history is a sequence of attempts to enlarge the received context that merged
+and then reverted. Template-field rendering for `start_from_trigger` landed, was
+reverted, and re-landed on a third attempt. Fetching deadline-callback context
+from the Execution API landed as a substantial change (comms messages, workload
+plumbing, read-only route restrictions, bundle-hash verification, bundle init off
+the event loop) and was reverted wholesale. Three proposals to add Jinja rendering
+to deadline-callback kwargs were withdrawn by their author — the decisive one on
+the reasoning that rendering on top of a context stored in the DB does not address
+that the context should not be stored there at all.
 
-The rejected attempts tell the same story from the other side. Three successive
-proposals to add Jinja rendering to deadline callback kwargs were withdrawn by
-their own author, the decisive one on the reasoning that building rendering on top
-of a context already stored in the database does not address the architectural
-problem that the context should not be stored there at all — the right shape being
-to fetch it at callback execution time and revert the stored simple context.
-
-What makes this seam so revert-prone is that the change is never local. Adding one
-field to what a callback receives touches the defer-time capture, the serialised
-payload, the triggerer's reconstruction, the Execution API surface it may call,
-and the security scope of the token it holds — and a gap in any one of them
-produces a failure that appears only in a real deployment, under a real bundle,
-with a real deadline. A diff confined to the trigger class looks complete and is
-not.
+What makes this seam revert-prone is that the change is never local: one field
+touches the defer-time capture, the serialised payload, the reconstruction, the
+Execution API surface it may call, and the token's security scope — and a gap in
+any one appears only in a real deployment. A diff confined to the trigger class
+looks complete and is not.
 
 ## Decision
 
@@ -86,19 +76,16 @@ a change to the whole defer-to-resume path. Concretely:
 
 ## Consequences
 
-- Changes here are large by necessity, which conflicts with the general preference
-  for small pull requests. This area is an explicit exception: a partial change to
-  this path is more dangerous than a big one.
-- The revert history means reviewers are entitled to ask for more evidence than
-  elsewhere, and contributors should expect that a working local demonstration is
-  not sufficient.
-- Keeping context out of the database costs a network round-trip per callback and
-  makes the callback path dependent on Execution API availability, with a failure
-  mode — fail the callback for retry rather than run it degraded — that must be
-  chosen deliberately.
-- Because the supported route has itself been reverted, a contributor should
-  confirm the current state of this path before building on it rather than
-  assuming the most recent merged design is settled.
+- Changes here are large by necessity, against the general preference for small
+  PRs: this area is an explicit exception, because a partial change is more
+  dangerous than a big one.
+- The revert history entitles reviewers to ask for more evidence than elsewhere;
+  a working local demonstration is not sufficient.
+- Keeping context out of the DB costs a round-trip per callback and depends on
+  Execution API availability, with a deliberate failure mode — fail for retry
+  rather than run degraded.
+- Because the supported route has itself been reverted, confirm the current state
+  of this path before building on it.
 
 A change **violates** this decision when it:
 
@@ -120,20 +107,15 @@ needs it, and what breaks if that source is unavailable?
 
 ## Evidence
 
-- #66608 — "Fetch deadline callback context via Execution API at runtime": the
-  full-path implementation — comms message, workload plumbing, read-only route
-  restriction, bundle-hash verification, bundle init moved off the event loop —
+- #66608 — full-path fetch of deadline-callback context (comms message, workload
+  plumbing, read-only route, bundle-hash verification, bundle init off the loop):
   reverted wholesale in #68909.
-- #53071 — "Allow rendering of template fields with start from trigger": merged,
-  reverted in #55037, and re-landed in #55068 — three passes over the same seam.
-- #64715 — "Fix trigger template rendering failure when operator
-  `template_fields` differ from trigger attributes": the merged fix establishing
-  that the two field sets are distinct.
-- #66496 — "Add Jinja template rendering for async deadline callbacks": closed by
-  its author on the reasoning that building rendering on stored simple context does
-  not address the concern that context should not be stored in the database at all.
-- #64984 and #68408 — two further closed attempts at rendering deadline callback
-  kwargs, the latter folded into the context-fetch change rather than reviewed as a
-  separate surface.
-- #55241 — "Include simple context in triggerer async callback": the merged stored-
-  context step that the later work set out to replace.
+- #53071 — template-field rendering for start-from-trigger: merged, reverted in
+  #55037, re-landed in #55068 — three passes over the same seam.
+- #64715 — the merged fix establishing operator `template_fields` and trigger
+  attributes are distinct sets.
+- #66496 — closed by its author: rendering on stored simple context does not
+  address that context should not be stored in the DB at all.
+- #64984, #68408 — two further closed attempts at rendering deadline-callback
+  kwargs, the latter folded into the context-fetch change.
+- #55241 — the merged stored-context step the later work set out to replace.

@@ -39,23 +39,22 @@ parties have a legitimate say:
   (consumer-side control — `consumer_teams` / `allow_global` on
   `AssetAccessControl`, resolved for a task via its `TaskOutletAssetReference`).
 
-`AssetManager._filter_dags_by_team` applies both. A consumer Dag is queued only
+`AssetManager._filter_dags_by_team` applies both: a consumer Dag is queued only
 if the producer-side check *and* the consumer-side check both pass — a logical
-**AND**. The controls are stored where each side owns them: the consumer's
-`allow_producer_teams` / `allow_global_producers` live on the
-schedule-reference row (`DagScheduleAssetReference`), deliberately **not** on the
-shared `AssetModel`, so one team editing its schedule cannot rewrite another
-team's asset. Events produced through the REST API carry no producing-Dag
-bundle, so their source teams (and consumer-team allowances) must be passed in
+**AND**. Each side's control is stored where that side owns it: the consumer's
+`allow_producer_teams` / `allow_global_producers` on the schedule-reference row
+(`DagScheduleAssetReference`), deliberately **not** on the shared `AssetModel`, so
+one team cannot rewrite another's. REST-API-produced events carry no producing-Dag
+bundle, so their source teams and consumer-team allowances are passed in
 explicitly (`api_user_teams`, `api_allow_consumer_teams`,
-`api_allow_global_consumers`) rather than inferred.
+`api_allow_global_consumers`), not inferred.
 
-The whole filter is also **default-open**: with `multi_team` off it is a no-op,
-and teamless sources/consumers and the `allow_global*` defaults preserve
-today's single-team behaviour. This lets the feature ship without changing
-delivery for existing deployments — but it also means every branch has to keep
-the permissive default exactly right, because a subtle inversion either leaks
-events across a team boundary or silently starves legitimate consumers.
+The filter is **default-open**: a no-op with `multi_team` off, and teamless
+sources/consumers plus the `allow_global*` defaults preserve single-team
+behaviour. This lets the feature ship without changing existing delivery — but
+every branch must keep the permissive default exactly right, since a subtle
+inversion either leaks events across a team boundary or starves legitimate
+consumers.
 
 ## Decision
 
@@ -102,15 +101,8 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #66168 — "Update `register_asset_change` to filter Dags based on teams":
-  introduces producer-team filtering of consumer Dags in the event path.
-- #68025 — "Apply consumer team filtering": adds the consumer-side half, making
-  delivery a two-sided check; #68242 ("Fix team consumer asset filtering") then
-  corrects that half.
-- #66487 — "Store `allow_producer_teams` in `dag_schedule_asset_reference`
-  instead of `asset`": puts each side's control where that side owns it, off the
-  shared asset row.
-- #67251 — "Add `allow_global` option to asset access control": the default-open
-  global allowance that keeps teamless delivery working.
-- #66367 — "Updated `create_asset_event` endpoint to pass the user teams":
-  API-produced events carry their teams explicitly rather than inferring them.
+- #66168 — introduces producer-team filtering of consumer Dags in the event path.
+- #68025 — adds the consumer-side half (two-sided check); #68242 corrects that half.
+- #66487 — stores `allow_producer_teams` on the schedule-reference row, off the shared asset.
+- #67251 — adds the default-open `allow_global` that keeps teamless delivery working.
+- #66367 — API-produced events pass their teams explicitly rather than inferring them.

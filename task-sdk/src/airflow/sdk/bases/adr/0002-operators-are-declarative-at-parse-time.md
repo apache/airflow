@@ -27,33 +27,25 @@ Accepted
 
 ## Context
 
-An operator has two distinct lifecycles, and they run in different processes on
-different machines. Its `__init__` runs inside the **Dag File Processor** while it
-parses the Dag file — building the declarative graph of tasks. Its `execute()`
-(or, for sensors, `poke()`) runs later on the **worker**, when the task actually
-runs. `BaseOperator.execute()` deliberately raises `NotImplementedError`: the base
-class defines the *contract*, and the subclass supplies the work — in `execute()`,
-never in the constructor.
+An operator has two lifecycles in different processes on different machines. Its
+`__init__` runs inside the **Dag File Processor** while parsing the Dag file —
+building the declarative task graph. Its `execute()` (or `poke()`) runs later on
+the **worker**. `BaseOperator.execute()` deliberately raises
+`NotImplementedError`: the base defines the *contract*, the subclass supplies the
+work in `execute()`, never the constructor.
 
-This split has two consequences that are easy to get wrong from inside a single
-operator file:
-
-First, `__init__` must be **cheap and side-effect-free**. It runs on the parse
-path for every Dag file, repeatedly, under the processor's time and resource
-limits. A DB call, a network request, heavy computation, or a function call in a
-default argument in a constructor multiplies across every parse and can stall the
-processor. The real work belongs on the worker, in `execute()`/`poke()`.
-
-Second, the operator is **declarative data that must serialize losslessly**. The
-author's intent is captured on the instance and serialized so the scheduler and
-worker can act on it *without re-importing the Dag file*.
-`BaseOperator.get_serialized_fields()` derives that field set from a throwaway
-`BaseOperator(task_id="test")` instance's `vars()`, minus a curated exclusion set
-and plus a curated class-level set — and it must stay in parity with the
-airflow-core serialization counterpart (`serialization/definitions/baseoperator.py`
-and `schema.json`). A new operator field that is not threaded into that set is set
-by the author at parse time, round-trips to a default on the way to the worker,
-and is **silently lost** — no error, just an operator that ignores the value.
+This split has two easily-missed consequences. First, `__init__` must be **cheap
+and side-effect-free**: it runs on the parse path for every Dag file, repeatedly,
+under the processor's limits, so a DB call, network request, heavy computation, or
+function call in a default argument multiplies across every parse and can stall
+the processor. Second, the operator is **declarative data that must serialize
+losslessly**, so the scheduler and worker act on it *without re-importing the Dag
+file*. `BaseOperator.get_serialized_fields()` derives that set from a throwaway
+`BaseOperator(task_id="test")` instance's `vars()` minus/plus curated sets, and
+must stay in parity with the airflow-core counterpart
+(`serialization/definitions/baseoperator.py`, `schema.json`). A new field not
+threaded into that set round-trips to a default on the way to the worker and is
+**silently lost** — no error, just an operator that ignores the value.
 
 ## Decision
 
@@ -74,12 +66,12 @@ and keep the parse-time state serializable.
 
 ## Consequences
 
-- Parsing stays fast and side-effect-free, so the Dag File Processor is not stalled
+- Parsing stays fast and side-effect-free; the Dag File Processor is not stalled
   by per-operator construction cost.
-- An authored operator value reliably reaches the worker instead of silently
-  reverting to a default after serialization.
-- Contributors adding a field must touch both the SDK operator and its airflow-core
-  serialization counterpart, which the `check-...-in-sync` prek hook enforces.
+- An authored value reliably reaches the worker instead of silently reverting to
+  a default after serialization.
+- Adding a field touches both the SDK operator and its airflow-core serialization
+  counterpart, enforced by the `check-...-in-sync` prek hook.
 
 A change **violates** this decision when it:
 
@@ -95,16 +87,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #60619 — "add operator-level `render_template_as_native_obj` override": adds a new
-  operator field and threads it through *both* the SDK operator and
-  `serialization/definitions/baseoperator.py` + `schema.json` — the exact "new field
-  must reach the serialization set" discipline this decision requires.
-- #55068 — "Re-enable `start_from_trigger` feature with rendering of template
-  fields": a parse-time operator field whose value must survive to the worker and be
-  rendered there, wired through the operator and templater together.
-- #66979 — "Enable ruff `B008` (function-call-in-default-argument) and fix
-  violations": enforces no computed work in constructor default arguments, keeping
-  `__init__` cheap on the parse path.
-- #62174 — "Order of task arguments in task definition causing error when parsing
-  DAG": a construction-time defect that surfaced *at parse time* in the Dag File
-  Processor, underlining that `__init__` runs on the parse path.
+- #60619 — operator-level `render_template_as_native_obj` override; threaded
+  through *both* the SDK operator and `baseoperator.py` + `schema.json`.
+- #55068 — `start_from_trigger`; a parse-time field that must survive to the
+  worker and render there.
+- #66979 — enable ruff `B008`; no computed work in default arguments, keeping
+  `__init__` cheap.
+- #62174 — argument-order defect surfacing *at parse time* in the Dag File
+  Processor, underlining `__init__` runs on the parse path.

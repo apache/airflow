@@ -30,19 +30,17 @@ Accepted
 `DagRun` and `TaskInstance` carry the run/task lifecycle state (`queued`,
 `running`, `success`, `failed`, `up_for_retry`, `up_for_reschedule`, `skipped`,
 `removed`, `deferred`, `restarting`, etc.). Almost every other component acts on
-this state without re-deriving it: the scheduler decides what to schedule next
-from the set of TI states under a DagRun; the executor reports terminal states
-back; the API and UI render and mutate state through endpoints; retries,
-timeouts, and clearing all mutate it.
+this state without re-deriving it — the scheduler decides what to schedule from
+the TI states under a DagRun, the executor reports terminal states back, the API
+and UI render and mutate it, and retries/timeouts/clearing all mutate it.
 
-The invariants that hold this together are **not locally obvious from a diff**.
-A DagRun's state is a function of its TI states (a run cannot be `success` while
-a TI is still `running`; a `deferred` TI must have a live trigger; a mapped TI's
-`map_index` and expansion count must agree). When a change adds a new state,
-adds a new way to reach an existing state, or short-circuits a transition, the
-reviewer cannot see from the changed lines alone whether a run can now settle
-into an inconsistent combination. The cost of getting this wrong is a stuck or
-silently-wrong DagRun that the scheduler will never resolve.
+The invariants holding this together are **not locally obvious from a diff**. A
+DagRun's state is a function of its TI states (a run cannot be `success` while a TI
+is still `running`; a `deferred` TI must have a live trigger; a mapped TI's
+`map_index` and expansion count must agree). When a change adds a state, adds a way
+to reach one, or short-circuits a transition, the reviewer cannot see from the
+changed lines whether a run can now settle into an inconsistent combination — and
+the cost is a stuck or silently-wrong DagRun the scheduler never resolves.
 
 ## Decision
 
@@ -65,10 +63,10 @@ of truth for what a valid transition is.
 
 ## Consequences
 
-- The state machine stays reasoning-about-able: a reader can trust that a run in
-  a terminal state is genuinely done and a scheduled run's TI set is coherent.
-- New lifecycle features (new states, new hold/wait mechanisms) carry their
-  guards and tests with them, so the invariants survive the addition.
+- The state machine stays reasoning-about-able: a run in a terminal state is
+  genuinely done, and a scheduled run's TI set is coherent.
+- New lifecycle features (states, hold/wait mechanisms) carry their guards and
+  tests with them, so the invariants survive the addition.
 
 A **violating** change looks like: introducing a state write that bypasses the
 model transition methods; adding a transition with no guard so a TI can move out
@@ -80,7 +78,5 @@ ADR exists to prevent.
 
 ## Evidence
 
-- #64522 — Add a way to mark a return value XCom as dag result: new
-  result-carrying behaviour threaded through the TI lifecycle with tests.
-- #61550 — Add the option to select bundle version on dag run trigger endpoint:
-  a run-creation path that must keep the new DagRun consistent from the start.
+- #64522 — Add a way to mark a return value XCom as dag result: new result-carrying behaviour threaded through the TI lifecycle with tests.
+- #61550 — Add the option to select bundle version on dag run trigger endpoint: a run-creation path that must keep the new DagRun consistent from the start.

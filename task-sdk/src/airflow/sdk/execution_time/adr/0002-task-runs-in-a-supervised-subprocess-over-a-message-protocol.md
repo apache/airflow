@@ -27,33 +27,27 @@ Accepted
 
 ## Context
 
-Enforcing the isolation from ADR 1 requires a physical split: the untrusted task
-code cannot run in the same process that holds the Execution-API credentials.
-So the runtime is two processes. The **supervisor** (`supervisor.py`) forks a
-child, which runs `task_runner.py` and executes the operator; the supervisor
-keeps the token and the API client and never runs author code itself. The two
-processes are separated by a socket, and everything the child needs from the
-outside world — every DB read, state update, log line, heartbeat — crosses that
-socket.
+Enforcing ADR 1's isolation requires a physical split: untrusted task code cannot
+run in the process that holds the Execution-API credentials. So the runtime is two
+processes. The **supervisor** (`supervisor.py`) forks a child running
+`task_runner.py`, which executes the operator; the supervisor keeps the token and
+API client and never runs author code. They are separated by a socket, and
+everything the child needs — every DB read, state update, log line, heartbeat —
+crosses it.
 
-Because arbitrary user code sits on one end, that channel is a genuine protocol,
-not an internal function call. It is length-prefixed (not line-based, so a task
-printing a newline can't desync it), it has a defined request/response **message
-union** in `comms.py`, and it is decoded by a `CommsDecoder` that has to survive
-EOF at any point, out-of-order reads, transient network errors, force-closed
-sockets, and a child that dies mid-message. It also carries signal and lifecycle
-semantics: SIGTERM must warm-shut-down the running task rather than hard-kill it,
-termination signals must be forwarded to the child, and on macOS the child is
-started with `fork`+`exec` to avoid a `SIGSEGV`.
-
-Crucially, this protocol is the *client half* of the Execution API. A new
-supervisor↔runner interaction is not a private detail — it is one leg of an
-end-to-end feature that also touches the Execution-API datamodels, routes, Cadwyn
-version files, the SDK client, and the regenerated worker models, and it is
-shared (via `InProcessExecutionAPI`) with the Dag processor and triggerer. The
-history here is a long tail of subtle IPC bugs — missed EOF stranding
-supervisors, decoder deadlocks, dropped terminal states — each of which shipped
-because the protocol edge case wasn't obvious in the diff.
+Because arbitrary user code sits on one end, that channel is a genuine protocol.
+It is length-prefixed (not line-based, so a task printing a newline can't desync
+it), has a defined request/response **message union** in `comms.py`, and is
+decoded by a `CommsDecoder` that must survive EOF at any point, out-of-order
+reads, transient network errors, force-closed sockets, and a child dying
+mid-message. It also carries signal and lifecycle semantics: SIGTERM warm-shuts-down
+rather than hard-kills, termination signals are forwarded to the child, and macOS
+starts the child with `fork`+`exec` to avoid a `SIGSEGV`. Crucially, this protocol
+is the *client half* of the Execution API — a new supervisor↔runner interaction is
+one leg of an end-to-end feature spanning datamodels, routes, Cadwyn version files,
+the SDK client, and regenerated worker models, shared via `InProcessExecutionAPI`
+with the Dag processor and triggerer. The history is a long tail of subtle IPC
+bugs that shipped because the edge case wasn't obvious in the diff.
 
 ## Decision
 
@@ -77,16 +71,13 @@ with the Execution-API server side. Concretely:
 
 ## Consequences
 
-- The isolation boundary is physical and auditable: because every cross-boundary
-  need is a message, a reviewer can see exactly what authority the task process
-  is exercising.
-- Adding a runtime capability is more work — it is an end-to-end, versioned
-  change, not a local method call — and that cost is the price of a protocol that
-  two independently-deployed processes (and the Dag-processor / triggerer reuse)
-  can rely on.
-- The protocol's edge cases (framing, EOF, deadlock, signal timing) are
-  load-bearing; changes to the loop need tests that drive the real socket, not an
-  in-process shortcut.
+- The isolation boundary is physical and auditable: every cross-boundary need is a
+  message, so a reviewer sees exactly what authority the task process exercises.
+- Adding a runtime capability is an end-to-end, versioned change, not a local
+  method call — the price of a protocol two independently-deployed processes (and
+  the Dag-processor / triggerer reuse) rely on.
+- The edge cases (framing, EOF, deadlock, signal timing) are load-bearing; loop
+  changes need tests that drive the real socket, not an in-process shortcut.
 
 A change **violates** this decision when, in this runtime, it:
 
@@ -107,22 +98,14 @@ boundary outside the message protocol, or that lets an IPC edge case fail open.
 
 ## Evidence
 
-- #51699 — "Switch the Supervisor/task process from line-based to
-  length-prefixed": established the framing so task output can't desync the
+- #51699 — line-based to length-prefixed framing so task output can't desync the
   channel.
-- #66573 — "Fail closed when supervisor IPC fails on a non-success terminal
-  state" (with #66574, "Recover stuck TIs when direct terminal-state API call
-  fails"): the loop must not treat an IPC/terminal-state failure as success.
-- #48880 — "Change Trigger<->Supervisor communication to avoid stalls", #66572 —
-  "Don't crash supervisor IPC loop on transient network errors", #64894 — "Fix
-  read out-of-order issue with send method in CommsDecoder", #68377 — "Added
-  deadlock detection in CommsDecoder", #67115 — "Fix ValueError when supervisor
-  force-closes stuck sockets after timeout": the recurring IPC edge cases the
-  protocol has to survive.
-- #69034 — "Warm-shutdown supervisor on SIGTERM instead of killing the running
-  task", #61627 — "Forward termination signals from supervisor to task
-  subprocess", #64874 / #69008 — "Fix macOS `SIGSEGV` … via `fork`+`exec`": the
-  signal and process-lifecycle semantics of the boundary.
-- #66899 — "Enforce supervisor schema class name matches its `type` literal" and
-  #67235 — "Add schema migration to supervisor-child comm": keep the protocol's
-  message schemas versioned and internally consistent.
+- #66573 (with #66574) — fail closed on a non-success terminal state; an
+  IPC/terminal-state failure is never treated as success.
+- #48880, #66572, #64894, #68377, #67115 — the recurring IPC edge cases (stalls,
+  transient errors, out-of-order reads, deadlock, force-closed sockets) the
+  protocol survives.
+- #69034, #61627, #64874 / #69008 — signal and process-lifecycle semantics
+  (warm-shutdown, signal forwarding, macOS `fork`+`exec`).
+- #66899, #67235 — keeping the message schemas versioned and internally
+  consistent.

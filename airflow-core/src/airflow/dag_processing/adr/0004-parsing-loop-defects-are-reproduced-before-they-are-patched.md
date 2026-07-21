@@ -28,41 +28,26 @@ Accepted
 ## Context
 
 The Dag File Processor is a loop of short-lived subprocesses writing concurrently
-to shared tables, often with several processors running against one database. Its
-characteristic failures — a duplicate-key error surfacing as a spurious import
-error, a Dag marked stale that should not be, a callback that appears to lose its
-context, a clone racing another clone — all look, from a stack trace or a screenshot,
-like a missing guard at the line that raised.
+to shared tables, often with several processors on one database. Its characteristic
+failures — a duplicate-key error surfacing as a spurious import error, a wrongly
+stale Dag, a callback that seems to lose context, a clone racing a clone — all look,
+from a trace or screenshot, like a missing guard at the line that raised.
 
-They usually are not. This subsystem already carries several layers that absorb
-exactly these conditions: the parse results are committed at an outer boundary
-rather than where the per-file work happens, and that boundary is wrapped in
-database retry logic that turns a losing race into a no-op on the next attempt. A
-patch aimed at the inner function is therefore frequently a patch to a line that
-never raises in production, guarding a condition that is already handled one frame
-out. It passes review reading, it passes a unit test built from the same
-misunderstanding, and it changes nothing.
-
-The evidence for this is unusually clean, because one contributor did the work.
-Suspecting a duplicate-key race between two Dag processors from a red banner in
-the UI, they proposed a fix, then stood the actual two-processor race up on `main`
-against a real PostgreSQL instance. The error fired at the outer commit, not in the
-function being patched, and the existing retry already absorbed it. They closed
-their own PR as not needed. No reviewer could have reached that conclusion from
-the diff.
-
-The inverse also holds and is the reason this is a decision rather than advice: a
-reviewer disputing a reported defect is expected to reproduce too. A report of
-duplicate Dag identifiers not warning was answered by a reviewer running two Dags
-with the same identifier in Breeze, getting the import error and the processor log,
-and posting both.
-
-The cost of the alternative is concentrated rather than spread. Every unreproduced
-parsing-loop patch consumes expert review time in the area with the fewest experts,
-to reach a conclusion the author could have reached in an hour with two processors
-and a real database. Enough of them arrived — many of them unreviewed generated
-code — that they became a standing drain and a driver for the project's generative-AI
-contribution guidance.
+They usually are not. This subsystem already commits parse results at an outer
+boundary wrapped in database retry logic that turns a losing race into a no-op on
+the next attempt. A patch to the inner function is therefore often a patch to a line
+that never raises in production, guarding a condition handled one frame out — it
+reads fine, passes a unit test built from the same misunderstanding, and changes
+nothing. One contributor proved this cleanly: suspecting a two-processor
+duplicate-key race from a red UI banner, they stood the race up on `main` against
+real PostgreSQL, found the error fired at the outer commit where retry already
+absorbed it, and closed their own PR. No reviewer could have reached that from the
+diff. The inverse holds too — a reviewer disputing a report is expected to reproduce,
+as one did by running two same-identifier Dags in Breeze and posting the import
+error and processor log. The cost of the alternative is concentrated: every
+unreproduced parsing-loop patch consumes expert review time in the area with the
+fewest experts, and enough arrived — much of it unreviewed generated code — to drive
+the project's generative-AI contribution guidance.
 
 ## Decision
 
@@ -86,13 +71,11 @@ carry a reproduction.**
 
 ## Consequences
 
-- Review effort in the area with the fewest qualified reviewers is spent on changes
-  that are known to do something.
-- A repeated failure to reproduce is itself a useful finding: it says the layer
-  under suspicion is already correct, and that belongs in the PR discussion where
-  the next person will find it.
-- The bar is real and it is high — standing up multiple Dag processors against
-  PostgreSQL is more work than writing most of these patches.
+- Scarce expert review effort is spent on changes known to do something.
+- A repeated failure to reproduce is itself a useful finding — the suspected layer
+  is already correct — and belongs in the PR discussion.
+- The bar is high: standing up multiple processors against PostgreSQL is more work
+  than writing most of these patches.
 
 **If you cannot meet the bar, report the observation instead of proposing a
 mechanism** — and here that means a GitHub issue, which is a deliberate exception
@@ -128,28 +111,9 @@ settle on its own:
 
 ## Evidence
 
-- #66788 — "Don't surface duplicate-key Dag-write race between Dag processors as
-  import error": closed by its own author after standing the two-processor race up on
-  `main` against real PostgreSQL and finding the `IntegrityError` fires at the outer
-  `update_dag_parsing_results_in_db` commit — not in the patched function — where the
-  existing database-retry wrapper already turns it into a no-op.
-- #60761 — "Fix duplicate dag warning": a reviewer reproduced the scenario in
-  Breeze with two Dags sharing an identifier, obtained both the import error and the
-  Dag-processor log entry, and posted the evidence, which contradicted the premise.
-- #60013, #60100, #60136 — stale-Dag-detection safeguards, import-error persistence
-  from the Git bundle, and a scheduler/completed-Dag-run performance fix: all closed
-  as unreviewed generated changes whose descriptions did not match their diffs.
-- #61680 — a further unreproduced parsing-path patch from the same wave; the
-  maintainer response to that wave noted the volume was driving the project's
-  generative-AI contribution guidance and the related dev-list discussion.
-- #66820 — "clear identity map between `_do_scheduling` phases": the positive
-  example, on the scheduler side rather than the parsing loop. The author suspected
-  a `dag_run` / `task_instance` deadlock across scheduling phases, then stood up two
-  to three real schedulers against a MySQL 8.0 metadata database under load and
-  closed their own PR: the deadlock did not occur, both fetches already take their
-  rows with `FOR UPDATE SKIP LOCKED`, and the emitted SQL was identical with and
-  without the change. The reproduction is what produced that finding; no reviewer
-  could have reached it from the diff.
-- #56710 — "Avoid `KeyError` in `_execute_task_callbacks` when a Dag is missing from
-  the DagBag": drafted back for lacking tests and any account of how the condition was
-  produced.
+- #66788 — closed by its own author; the two-processor race on real PostgreSQL fired the `IntegrityError` at the outer `update_dag_parsing_results_in_db` commit, not the patched function, where the retry wrapper already no-ops it.
+- #60761 — a reviewer reproduced the duplicate-identifier scenario in Breeze and posted the import error and processor log, contradicting the premise.
+- #60013, #60100, #60136 — unreviewed generated changes, closed; descriptions did not match the diffs.
+- #61680 — another unreproduced parsing-path patch from the same wave that drove the generative-AI contribution guidance.
+- #66820 — positive scheduler-side example: the author stood up 2-3 real schedulers on MySQL 8.0 under load, found no deadlock (both fetches use `FOR UPDATE SKIP LOCKED`, SQL identical), and closed their own PR.
+- #56710 — `KeyError` patch drafted back for lacking tests and any account of how the condition arose.

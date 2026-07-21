@@ -27,33 +27,22 @@ Accepted
 
 ## Context
 
-Data-aware scheduling wires a *producer* task to a *consumer* Dag entirely by
-matching an asset's identity. An `Asset` is identified by its `(name, uri)`
-pair: the URI is passed through `_sanitize_uri` (lower-casing the scheme,
-dropping user-info passwords, sorting query parameters, stripping trailing
-slashes and fragments, then applying any AIP-60 per-scheme normalizer), and the
-name is validated. That normalized pair is what gets persisted as `AssetModel`,
-what the schedule-reference tables (`DagScheduleAssetReference`,
-`DagScheduleAssetNameReference`, `DagScheduleAssetUriReference`) point at, and
-what `SerializedAssetUniqueKey.from_asset` collapses to for equality and hashing
-during event dispatch.
+Data-aware scheduling wires a *producer* task to a *consumer* Dag by matching an
+asset's `(name, uri)` identity. The URI is normalized through `_sanitize_uri`
+(scheme lower-casing, user-info password dropping, query sorting, trailing-slash
+and fragment stripping, AIP-60 per-scheme normalizers) and the name validated.
+That normalized pair is what is persisted as `AssetModel`, what the
+schedule-reference tables point at, and what `SerializedAssetUniqueKey.from_asset`
+collapses to for equality and hashing during event dispatch.
 
 Because identity is a *stored, normalized string*, the normalization function is
-part of the on-disk contract, not an implementation detail. When a producer Dag
-emits an event for asset `X`, `register_asset_change` looks up the persisted
-`AssetModel` by `(name, uri)` and resolves consumers by the same key. If the
-normalization, name validation, or equality/hashing rules change, freshly-parsed
-assets normalize to a *different* string than the rows already in the database.
-Nothing raises — the lookup simply returns no match, or matches the wrong row —
-so producers and consumers that used to be linked silently stop triggering each
-other, or two assets that were distinct collapse into one. The failure is
-invisible in the diff and only appears at runtime, on data that predates the
-change.
-
-The history in this area is a run of *deliberately narrow* normalization fixes
-(dropping user-info, per-scheme sanitizers, name-vs-URI reference handling),
-each careful not to disturb the identity of already-stored assets. That care is
-the point: normalization is easy to "improve" and expensive to change.
+part of the on-disk contract. If normalization, name validation, or
+equality/hashing change, freshly-parsed assets normalize to a *different* string
+than the rows already in the database — nothing raises, the lookup just returns
+no match or the wrong row, so linked producers/consumers silently stop triggering
+or two distinct assets collapse into one, only at runtime and only on pre-existing
+data. The history here is a run of *deliberately narrow* normalization fixes, each
+careful not to disturb already-stored identities.
 
 ## Decision
 
@@ -102,15 +91,8 @@ A **violating change** looks like any of:
 
 ## Evidence
 
-- #51877 — "Fix Asset URI normalization for user info without password":
-  a targeted normalization fix (dropping the password from user-info) made
-  carefully so it does not disturb the identity of already-stored assets.
-- #66426 — "Add uri sanitizers and asset factories for new schemes": adds
-  per-scheme sanitizers that must fold equivalent URIs to one canonical form.
-- #66710 — "Some nits in asset normalization": follow-up tightening of the
-  normalization path, underscoring that this code is treated as a contract.
-- #48961 — "Use asset name in schedule instead of uri": moves schedule matching
-  onto the asset name, changing which part of the identity the schedule
-  reference stores.
-- #44639 — "Respect Asset.name when accessing inlet and outlet events": aligns
-  event access with the asset's name identity rather than an incidental URI.
+- #51877 — targeted user-info-password normalization fix, made not to disturb stored identities.
+- #66426 — per-scheme URI sanitizers that must fold equivalent URIs to one canonical form.
+- #66710 — follow-up normalization tightening; the path is treated as a contract.
+- #48961 — moves schedule matching onto the asset name.
+- #44639 — aligns inlet/outlet event access to the asset's name, not an incidental URI.

@@ -27,45 +27,30 @@ Accepted
 
 ## Context
 
-Adding a provider is cheap to write and expensive to keep. Every provider in
-this directory is a released Python distribution: it gets its own version
-stream, its own row in the compatibility matrix, its own CI test type, its own
-docs build, its own dependency set in the shared `uv.lock`, and a place in every
-future release wave the release manager drives. It also acquires an implicit
-promise — that when the vendor's SDK breaks, someone in this project will fix
-it.
+Adding a provider is cheap to write and expensive to keep. Every provider is a
+released distribution — its own version stream, compatibility-matrix row, CI test
+type, docs build, dependency set in the shared `uv.lock`, and a place in every
+future release wave — and it acquires an implicit promise that someone here will
+fix it when the vendor's SDK breaks. The scarce resource is stewardship: a
+provider whose only interested party is its original author becomes unmaintained
+the moment that author's priorities change, and release managers cannot cut a wave
+with a provider that no longer builds. Hence the open governance discussion about
+provider intake and lifecycle.
 
-The scarce resource is not code, it is stewardship. A provider whose only
-interested party is its original author becomes unmaintained the moment that
-author's employer changes priorities, and the cost lands on the release
-managers, who cannot cut a wave with a provider that no longer builds. That is
-why the project has an open governance discussion about the conditions for
-accepting new providers and about provider lifecycle at all.
-
-That discussion has **not** stopped intake, and this ADR must not be read as if
-it had. A pause on individual provider proposals was in effect around the #58273
-discussion in late 2025; it is not in effect now. Eight new providers
-merged in the six months to July 2026 — #61561 (common.ai), #57610
-(Informatica), #63988 (Vespa), #64754 (Akeyless), #62790 (IBM MQ), #67080
-(ClickHouse), #69003 (Anthropic), #69795 (common.dq) — and at least two of them
-carry no dev-list link in the PR at all. The operative requirement is therefore
-*a demonstrable case and a steward*, established wherever the project is
-currently having that conversation. Closing a first-time contributor's provider
-PR on process grounds is the most expensive false positive available here, and
-is not what the record supports: the correct action is to ask for the thread.
-
-The same reasoning applies one level up, to *new abstractions* offered to
-providers. A proposed task-instance state, a new listener hookspec, a new
-operator base class or a new cross-provider mixin is not a provider-local
-decision either: it changes what every provider may rely on. When such work is
-opened as code first, the code is usually correct in the small and wrong in the
-large — the discussion that follows reframes the feature, and the PR series is
-closed and rewritten at a different layer. That is not wasted review, but it is
-review spent in the wrong order.
-
-Airflow already has the venues for this: the dev list for provider proposals and
-lifecycle questions, and the AIP process for anything that adds surface the whole
-project must live with. The decision is cheap there and expensive in a PR.
+That discussion has **not** stopped intake. A pause was in effect around the #58273
+discussion in late 2025; it is not in effect now. Eight new providers merged in the
+six months to July 2026
+(#61561, #57610, #63988, #64754, #62790, #67080, #69003, #69795), at least two with
+no dev-list link. The operative
+requirement is *a demonstrable case and a steward*, established wherever that
+conversation currently lives; closing a first-time contributor's provider PR on
+process grounds is the most expensive false positive here — the correct action is
+to ask for the thread. The same reasoning applies to *new abstractions* offered to
+providers (a task-instance state, a listener hookspec, an operator base class, a
+cross-provider mixin): opened as code first, such work is usually correct in the
+small and wrong in the large, and the series is closed and rewritten at a
+different layer. The venues exist — the dev list for provider proposals and
+lifecycle, the AIP process for anything that adds project-wide surface.
 
 ## Decision
 
@@ -93,15 +78,13 @@ build on — is made in the community, before the implementation is opened.
 
 ## Consequences
 
-- Providers in the tree have, at minimum, an identified reason to exist and
-  someone who answered for them. The release wave stays cuttable.
+- Providers in the tree have an identified reason to exist and someone who
+  answered for them. The release wave stays cuttable.
 - Contributors who write the code first lose that work, or hold it until the
-  discussion lands. The rule is stated here precisely so the loss is avoidable.
-- Genuinely useful integrations arrive later than they would under an
-  open-intake policy, and some arrive as a third-party distribution instead —
-  which is an acceptable outcome, not a failure.
-- Review effort concentrates on providers the project can actually support,
-  rather than being spread across packages nobody maintains.
+  discussion lands. The rule is stated here so the loss is avoidable.
+- Genuinely useful integrations arrive later, and some arrive as a third-party
+  distribution instead — an acceptable outcome, not a failure.
+- Review effort concentrates on providers the project can actually support.
 
 A change **violates** this decision when it:
 
@@ -127,23 +110,16 @@ Review **asks** — never grounds for closing a PR on their own:
 
 ## Evidence
 
-- #58273 — "Great Expectations Provider": closed with a pointer to the dev-list
-  thread on provider governance, during the intake pause then in effect; the
-  author moved the proposal to the list. That pause has since lapsed.
+- #58273 — closed with a pointer to the dev-list thread during the late-2025
+  intake pause; that pause has since lapsed.
 - #61561, #57610, #63988, #64754, #62790, #67080, #69003, #69795 — eight new
-  providers merged between February and July 2026, which is why the "closed and
-  redirected" outcome is scoped to an active pause rather than stated as the
-  default. #69003 and #62790 carry no dev-list reference and merged anyway.
-- #63401 — "Add Stripe provider": closed by the author after no other adopters
-  surfaced, with the integration kept internal instead.
-- #61752 — "Add Sail provider for Spark Connect compatible engine" and
-  #57142 — a set of MariaDB provider files: provider proposals opened as code,
-  which then stalled without a community decision behind them.
-- #66402, #66445, #66410, #66453 — the AIP-96 series (a new `CHECKPOINTED` task
-  state, a new exception, the supervisor wiring, a listener hookspec and a demo
-  operator), all closed once the accepted AIP-103 work showed the same
-  requirement was met without new project-wide surface. Four PRs' worth of
-  implementation resolved by a design decision.
-- #61777 — "Support bytes data values in xcom backend": review response was to
-  take the question to the mailing list first, because the change alters what
-  every backend must accept.
+  providers merged Feb–July 2026, which is why "closed and redirected" is scoped
+  to an active pause. #69003 and #62790 carry no dev-list reference and merged anyway.
+- #63401 — closed by the author after no other adopters surfaced; kept internal.
+- #61752, #57142 — provider proposals opened as code, which stalled without a
+  community decision.
+- #66402, #66445, #66410, #66453 — the AIP-96 series (a `CHECKPOINTED` state, an
+  exception, supervisor wiring, a hookspec, a demo operator), all closed once
+  AIP-103 met the requirement without new project-wide surface.
+- #61777 — review response was to take the question to the mailing list first,
+  because it alters what every backend must accept.

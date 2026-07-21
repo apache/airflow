@@ -28,30 +28,22 @@ Accepted
 ## Context
 
 FAB authorization is a membership test against a fixed vocabulary of actions:
-`can_create`, `can_read`, `can_edit`, `can_delete`, `can_access_menu`. Those
-strings are rows in `ab_permission`, joined to `ab_view_menu` rows through
-`ab_permission_view`, and bound to roles in every deployment's database — some of
-them by administrators, years ago, by hand. ADR 3 records why that persisted
-state makes a mapping change a security-model change.
+`can_create`, `can_read`, `can_edit`, `can_delete`, `can_access_menu`. Those are
+rows in `ab_permission`, bound to roles in every deployment's database — some by
+administrators, by hand, years ago. ADR 3 records why that persisted state makes a
+mapping change a security-model change.
 
-A distinct pressure arrives from the other end: the API grows. A route starts
-accepting a verb the auth model does not name — `PATCH` being the concrete case —
-and the natural-looking fix is to extend the model: add the verb to core's
-`ResourceMethod` / `ExtendedResourceMethod`, add an action for it, teach the
-routes about it.
-
-That fix is far more expensive than it looks. `ResourceMethod` is core's
-`BaseAuthManager` contract, shared by every auth manager, not just this one. A new
-FAB *action* is worse still: `can_patch` would exist in no deployment's database,
-so every role would be missing it, and every `PATCH` request from every existing
-role would fail closed on upgrade — correctly, per ADR 3's fail-closed rule, and
-catastrophically for the user. Granting it would require a data migration that
-guesses at intent.
-
-The resolution that actually shipped is deliberately small: keep the verb out of
-the auth model, key the map on `str` instead of the enum, and map the new verb
-onto the action that already means the same thing. `PATCH` is an edit; roles that
-can edit can patch, with no new rows and no migration.
+The opposing pressure is that the API grows: a route starts accepting a verb the
+auth model does not name (`PATCH` is the concrete case), and the natural-looking
+fix is to extend the model. That is far more expensive than it looks.
+`ResourceMethod` is core's `BaseAuthManager` contract shared by every auth
+manager. A new FAB *action* is worse: `can_patch` exists in no deployment's
+database, so every existing role would fail closed on every `PATCH` after upgrade —
+correctly per ADR 3, catastrophically for users — and granting it needs a data
+migration that guesses intent. The resolution that shipped is small: keep the verb
+out of the auth model, key the map on `str`, and map the verb onto the action that
+already means the same thing. `PATCH` is an edit; roles that can edit can patch,
+with no new rows and no migration.
 
 ## Decision
 
@@ -80,17 +72,16 @@ the action set nor core's resource-method enum is extended to accommodate one.**
 
 ## Consequences
 
-- New API verbs become supportable with a one-line change and zero migration
-  risk: every role that already had the privilege keeps working on upgrade.
-- The permission tables stay stable across releases, which is the property
-  administrators actually depend on.
-- The cost is expressiveness. The model cannot distinguish "may patch" from "may
-  put", or express a privilege finer than the five actions. Requests for finer
-  granularity are genuinely unmet by this design, and the answer is a different
-  auth manager rather than a richer FAB vocabulary — this provider implements
-  FAB's model, it does not evolve it.
-- Reviewers must check the *meaning* of the mapping, not merely that it type-
-  checks, because the map is now keyed on an unconstrained `str`.
+- New API verbs are supportable with a one-line change and zero migration risk:
+  every role that already had the privilege keeps working on upgrade.
+- The permission tables stay stable across releases — the property administrators
+  depend on.
+- The cost is expressiveness: the model cannot distinguish "may patch" from "may
+  put", or express a privilege finer than the five actions. Finer granularity is
+  the job of a different auth manager, not a richer FAB vocabulary — this provider
+  implements FAB's model, it does not evolve it.
+- Reviewers must check the *meaning* of a mapping, not merely that it type-checks,
+  because the map is keyed on an unconstrained `str`.
 
 A change **violates** this decision when it:
 
@@ -106,19 +97,14 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #59564 — "Add HTTP PATCH as resource method": closed. Extending the auth
-  model's method enum was rejected as the wrong layer; the review proposed
-  instead accepting `str` keys and mapping `PATCH` onto the `PUT` action.
-- #63359 — "add PATCH to HTTP method-to-FAB action mapping": the reworked
-  follow-up that adopted exactly that approach — no enum change, no route change,
-  map only. Also closed, on quality grounds rather than approach, and the design
-  it settled on is what the code carries today: the `dict[str, str]` annotation
-  and the comment in `www/utils.py` explaining why the key is not the enum.
-- #58069 — "rename data models related to roles for consistency across requests
-  and responses": closed. Renaming role/permission-facing shapes for tidiness is
-  the same class of change as extending the vocabulary — it moves names that
-  deployments and clients are already bound to.
-- #61083 — "Fix Admin access denied for user model views": closed. The failure it
-  reported is the exact hazard this decision avoids — permissions that were never
-  created in a deployment's database mean roles silently lack access, and the
+- #59564 — "Add HTTP PATCH as resource method", closed: extending the method enum
+  was rejected as the wrong layer; review proposed `str` keys mapping `PATCH` onto
+  the `PUT` action instead.
+- #63359 — the reworked follow-up adopting exactly that (map only, no enum/route
+  change); closed on quality, but its design is what the code carries today —
+  `dict[str, str]` and the comment in `www/utils.py`.
+- #58069 — renaming role/permission-facing shapes for tidiness, closed: same class
+  as extending the vocabulary — it moves names deployments and clients are bound to.
+- #61083 — Admin access denied for user model views, closed: the exact hazard here —
+  permissions never created in a database mean roles silently lack access, and the
   remedy is not to synthesise new permission rows at sync time.

@@ -27,55 +27,34 @@ Accepted
 
 ## Context
 
-A worker pod spec is assembled from inputs owned by three different people. The
-**Deployment Manager** writes the `pod_template_file` — the declarative base that
-carries the cluster's non-negotiables: service accounts, image pull secrets,
-node selectors, tolerations, security contexts, sidecars, resource defaults. The
-**executor** contributes the fields that make the pod a *task* pod: the generated
-name, the namespace, the identity labels and annotations from ADR 0001, the
-command args, and the image. The **Dag author** contributes `pod_override`, via
-`executor_config`, for the per-task deviations: more memory, a GPU, a different
-image.
+A worker pod spec is assembled from inputs owned by three people. The **Deployment
+Manager** writes the `pod_template_file` — the declarative base carrying the
+cluster's non-negotiables (service accounts, image pull secrets, node selectors,
+tolerations, security contexts, sidecars, resource defaults). The **executor**
+contributes what makes the pod a *task* pod: the generated name, namespace,
+identity labels/annotations (ADR 0001), command args, and image. The **Dag
+author** contributes `pod_override`, via `executor_config`, for per-task
+deviations. `PodGenerator.construct_pod` folds the three through `reconcile_pods`
+in one fixed order — `[base_worker_pod, dynamic_pod, pod_override_object]` — so
+later entries win on scalar fields while list-shaped fields merge by name via
+`reconcile_containers` / `merge_objects` / `extend_object_field`; `pod_mutation_hook`
+runs last. The KubernetesPodOperator builds its own spec but shares the same
+deserialization (`deserialize_model_file`) and reconciliation helpers.
 
-`PodGenerator.construct_pod` (`pod_generator.py`) resolves this by folding the
-three through `reconcile_pods` in one fixed order —
-`[base_worker_pod, dynamic_pod, pod_override_object]` — so later entries win on
-scalar fields while list-shaped fields (containers, init containers, volumes,
-env) are merged by name via `reconcile_containers` / `merge_objects` /
-`extend_object_field` rather than replaced wholesale. `pod_mutation_hook` runs
-last, giving the Deployment Manager a final programmatic say. The
-KubernetesPodOperator builds its own spec from operator arguments but shares the
-same template-file deserialization (`deserialize_model_file`) and the same
-reconciliation helpers.
-
-The order is load-bearing in both directions. Because the template is *first*, a
-Dag author can raise a memory limit or swap an image without knowing anything
-about the cluster's tolerations — those survive untouched. Because
-`pod_override` is *last*, a Deployment Manager reading the template file cannot
-assume it is the final word; `pod_mutation_hook` is the enforcement point, not
-the template. And because list fields merge by name rather than replace, adding
-a sidecar in `pod_override` does not silently drop the ones the template
-provided (#62284 is precisely that bug, for init containers).
-
-What makes this fragile is that the chain is easy to bypass. Every new pod-spec
-capability arrives as a request to set one more field, and the cheapest
-implementation is always to poke it onto the pod after `construct_pod` returns,
-or to branch on it before reconciliation. Each such shortcut creates a field
-whose precedence is different from every other field's: it either cannot be
-overridden by `pod_override` when everything else can, or it overrides the
-template when nothing else does. The result is not a broken pod — it is a pod
-that is *subtly not what the user asked for*, discovered in production when a
-toleration or a security context turns out not to have applied.
-
-The chain also has to survive transport. `pod_override` is a
-`kubernetes.client.models.V1Pod` that travels from the Dag through serialization
-and, under the executor, across a multiprocessing queue — so the objects
-involved must remain serializable and picklable in-cluster (#68848). And
-`construct_pod` is the single place that enforces the shared constraints:
-`POD_NAME_MAX_LENGTH` truncation with a unique suffix, and wrapping
-reconciliation and mutation-hook failures as `PodReconciliationError` /
-`PodMutationHookException` so a malformed override is reported as a
-configuration problem rather than as an opaque Kubernetes rejection.
+The order is load-bearing both ways: the template being *first* lets a Dag author
+raise a limit without knowing the cluster's tolerations; `pod_override` being
+*last* means the template is not the final word (`pod_mutation_hook` is the
+enforcement point); list-merge-by-name means adding a sidecar in `pod_override`
+does not drop the template's (#62284 is exactly that bug for init containers). The
+chain is easy to bypass — every new capability arrives as "set one more field", and
+the cheapest implementation is to poke it onto the pod after `construct_pod` or
+branch before reconciliation, creating a field whose precedence differs from every
+other's. The result is not a broken pod but one *subtly not what the user asked
+for*, found in production when a toleration or security context did not apply. The
+chain also has to survive transport — `pod_override` is a `V1Pod` that travels
+through serialization and, under the executor, a multiprocessing queue (#68848) —
+and `construct_pod` is the single place enforcing `POD_NAME_MAX_LENGTH` truncation
+and wrapping failures as `PodReconciliationError` / `PodMutationHookException`.
 
 ## Decision
 
@@ -109,14 +88,12 @@ documented precedence. Concretely:
 
 - A Dag author can reason about `executor_config` from the documented precedence
   alone, without reading the deployment's template file.
-- A Deployment Manager knows exactly which of their settings a Dag author can
-  override, and has one place (`pod_mutation_hook`) to make something
-  non-negotiable.
+- A Deployment Manager knows which settings a Dag author can override, and has one
+  place (`pod_mutation_hook`) to make something non-negotiable.
 - Adding a pod-spec capability is more work than the one-line assignment it
   appears to be: it must be threaded into the chain and tested at each layer.
-- `reconcile_*` and `merge_objects` carry per-field-shape knowledge and grow as
-  the Kubernetes API grows. That complexity is centralised on purpose — the
-  alternative is the same knowledge scattered across call sites.
+- `reconcile_*` and `merge_objects` carry per-field-shape knowledge, centralised
+  on purpose rather than scattered across call sites.
 - Some Kubernetes features cannot be exposed until they can be expressed in the
   template and the override consistently.
 
@@ -144,20 +121,12 @@ touches, who wins when the template file and `pod_override` both set it.
 
 ## Evidence
 
-- #62284 — "fix: pod_override existing init_containers": an override dropping
-  template-provided init containers — the canonical merge-by-name failure.
-- #68848 — "Make cncf.kubernetes model deserialization picklable in-cluster":
-  the composition inputs must survive the executor's queue.
-- #68713 — "Decide pod_template and image based on Coordinator for lang-SDK tasks
-  on KubernetesExecutor": a new selection rule for the template and image
-  expressed as an input to the chain.
-- #63952 — "Add runtime_class_name to KubernetesPodOperator": a pod-spec
-  capability added as an explicit, documented operator parameter.
-- #58391 — "fix(kubernetes): Account for job- prefix when truncating job names":
-  the name-length constraint enforced centrally, and what happens when a caller
-  computes it separately.
-- #59347 — "Fix XCom directory creation logic in Kubernetes decorator": spec-side
-  scaffolding for the XCom sidecar, which the chain has to compose consistently.
-- #69613 — "Allow configuring XCom sidecar container security context": a
-  previously hardcoded piece of the composed spec turned into a configurable
-  input.
+- #62284 — an override dropping template-provided init containers: the canonical
+  merge-by-name failure.
+- #68848 — the composition inputs must survive the executor's queue.
+- #68713 — a new template/image selection rule expressed as an input to the chain.
+- #63952 — a pod-spec capability added as an explicit, documented operator parameter.
+- #58391 — the name-length constraint enforced centrally.
+- #59347 — XCom-sidecar scaffolding the chain has to compose consistently.
+- #69613 — a previously hardcoded piece of the composed spec turned into a
+  configurable input.

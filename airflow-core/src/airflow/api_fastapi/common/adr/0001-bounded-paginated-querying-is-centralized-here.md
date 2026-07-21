@@ -27,34 +27,31 @@ Accepted
 
 ## Context
 
-Every list endpoint in the API serves a user-driven query against tables shared by
-the whole deployment. If each route hand-rolled its own `.limit()`, `.offset()`,
-count, and `order_by`, three failure modes would recur across the surface: an
-unbounded `SELECT` that passes a small-fixture test and then returns — or scans —
-the whole table at real data volume; an ordering built from a client-supplied
-column name; and an offset-based page that silently drops or duplicates rows when
-rows shift underneath it.
+Every list endpoint serves a user-driven query against tables shared by the whole
+deployment. If each route hand-rolled its `.limit()`, `.offset()`, count, and
+`order_by`, three failure modes would recur: an unbounded `SELECT` that passes a
+small-fixture test then scans the whole table at real volume; an ordering built from a
+client-supplied column name; and an offset page that drops or duplicates rows when they
+shift underneath it.
 
-This directory concentrates that logic in one place so it is correct *once*
-instead of re-derived per route:
+This directory concentrates that logic so it is correct *once*:
 
-- `paginated_select` (and its async twin) in `db/common.py` is the single path a
-  list query takes to its count, filters, ordering, offset, and limit. It is
-  `@provide_session` with a keyword-only `session`.
-- `parameters.py` supplies the reusable `LimitFilter` / `OffsetFilter` (which clamp
-  to `[api] maximum_page_limit` / `fallback_page_limit`) and `SortParam`, which
-  resolves ordering only against an **allow-list** of model attributes — anything
-  else is a `400` — and always appends the primary key as a deterministic
-  tiebreaker.
-- `cursors.py` provides keyset (cursor) pagination. Its predicate must select rows
-  strictly after the cursor in `ORDER BY` order *without* dropping or duplicating
-  rows when the sort column is nullable, and must keep the `ORDER BY` a bare column
-  so a composite index still applies. NULL placement differs by backend
-  (PostgreSQL sorts NULLs last for ASC; MySQL and SQLite treat NULL as lowest), and
-  the predicate encodes that per dialect.
+- `paginated_select` (and its async twin) in `db/common.py` is the single path a list
+  query takes to count, filters, ordering, offset, and limit. It is `@provide_session`
+  with a keyword-only `session`.
+- `parameters.py` supplies `LimitFilter` / `OffsetFilter` (clamping to `[api]
+  maximum_page_limit` / `fallback_page_limit`) and `SortParam`, which resolves ordering
+  only against an **allow-list** of model attributes — anything else is a `400` — and
+  always appends the primary key as a deterministic tiebreaker.
+- `cursors.py` provides keyset pagination. Its predicate must select rows strictly
+  after the cursor in `ORDER BY` order *without* dropping or duplicating rows on a
+  nullable sort column, and must keep the `ORDER BY` a bare column so a composite index
+  still applies. NULL placement differs by backend (PostgreSQL sorts NULLs last for
+  ASC; MySQL and SQLite treat NULL as lowest), and the predicate encodes that per
+  dialect.
 
-Because these helpers are shared, getting them right protects every endpoint at
-once — and getting them wrong mis-answers or degrades every endpoint at once.
+Because these helpers are shared, getting them right protects every endpoint at once —
+getting them wrong mis-answers or degrades every endpoint at once.
 
 ## Decision
 
@@ -75,14 +72,13 @@ List queries are bounded and ordered through the shared helpers, not per route:
 
 ## Consequences
 
-- List endpoints stay responsive at deployment scale because boundedness and
-  index-friendly ordering are structural, not per-route diligence.
-- A pagination fix (a nullable-column keyset bug, a dropped edge case) is made once
-  in the shared helper and every endpoint benefits.
+- List endpoints stay responsive at scale because boundedness and index-friendly
+  ordering are structural, not per-route diligence.
+- A pagination fix is made once in the shared helper and every endpoint benefits.
 - Cursor pagination gives stable pages under concurrent writes where offset paging
   would skip or repeat rows.
-- Routes carry the cost of adapting to the shared helpers' shape rather than writing
-  a bespoke query — intentional, because that uniformity is the guarantee.
+- Routes adapt to the shared helpers' shape rather than writing a bespoke query —
+  intentional, because that uniformity is the guarantee.
 
 A change **violates** this decision when it:
 
@@ -101,21 +97,14 @@ through the bounded, allow-listed, tiebroken shared pagination path.
 
 ## Evidence
 
-- #65604 — "Add cursor based pagination for get_dag_runs endpoint": moved a list
-  endpoint onto the shared keyset path instead of an unbounded/offset scan.
-- #64845 — "Add cursor based pagination for get_task_instances endpoint": same,
-  for task instances.
-- #68869 — "Fix cursor pagination dropping rows when sorting by a nullable column":
-  the keyset-stability failure this ADR guards against, fixed once for every caller.
-- #67973 — "Fix cursor encoding for column-form SortParam to_replace": kept the
-  cursor token correct for column-form sort mappings rather than emitting a broken
-  token.
-- #68842 — "Fix race condition on sort param when returning dagRuns": corrected
-  shared sort-param state that affected the returned ordering.
-- #60989 — "Respect maximum page limit in API": enforced the configured page-limit
-  clamp so no endpoint returns an unbounded page.
-- #61067 — "Deprecate api.page_size config in favor of api.fallback_page_limit":
-  consolidated the page-limit configuration the shared limit filter reads.
-- #64963 — "Update search parameters to better leverage DB indexes": kept
-  user-driven filtering/ordering on indexed columns so the bounded query stays fast
-  at scale.
+- #65604, #64845 — moved get_dag_runs / get_task_instances onto the shared keyset
+  path instead of an unbounded/offset scan.
+- #68869 — fixed cursor pagination dropping rows on a nullable column: the
+  keyset-stability failure this ADR guards, fixed once for every caller.
+- #67973 — kept the cursor token correct for column-form SortParam mappings.
+- #68842 — corrected shared sort-param state affecting the returned ordering.
+- #60989 — enforced the configured page-limit clamp so no endpoint returns unbounded.
+- #61067 — consolidated page-limit config (deprecated `api.page_size` for
+  `api.fallback_page_limit`).
+- #64963 — kept user-driven filtering/ordering on indexed columns so the bounded query
+  stays fast at scale.

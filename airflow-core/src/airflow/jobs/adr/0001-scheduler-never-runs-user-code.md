@@ -27,36 +27,27 @@ Accepted
 
 ## Context
 
-The scheduler is Airflow's vital control loop. A single `SchedulerJobRunner`
-(replicated for HA) drives the entire cluster: it discovers runnable Dag runs,
-evaluates task-instance dependencies, and dispatches work to executors. Two
-forces make this loop special.
+The scheduler is Airflow's vital control loop: a single `SchedulerJobRunner`
+(replicated for HA) discovers runnable Dag runs, evaluates dependencies, and
+dispatches work. Two forces make it special.
 
-- **Security.** Airflow's architecture boundary (see the project security
-  model) states that user-authored Dag code is untrusted. It is parsed in the
-  Dag File Processor and executed only in workers and the triggerer — all of
-  which are isolated and reach the metadata DB only through the Execution API.
-  The scheduler, by contrast, holds a direct, privileged database session. If
-  arbitrary author code — a `python_callable`, a custom timetable branch, a
-  user-supplied dependency predicate, a `params` validator — were imported and
-  executed inside the scheduler process, a malicious or buggy Dag would gain the
-  scheduler's database credentials and its position inside the control loop.
-- **Availability.** The loop is latency-sensitive and largely single-threaded
-  per scheduler. Any user callable it evaluates can block, raise, leak memory,
-  or spin — and one bad Dag would then stall scheduling for the whole cluster,
-  not just its own tasks.
+- **Security.** The architecture boundary (see the project security model) treats
+  user-authored Dag code as untrusted — parsed in the Dag File Processor, executed
+  only in isolated workers and the triggerer, reaching the metadata DB only through
+  the Execution API. The scheduler holds a direct, privileged database session; if
+  author code (`python_callable`, a custom timetable branch, a dependency
+  predicate, a `params` validator) ran in-process, a bad Dag would gain the
+  scheduler's credentials and its position in the control loop.
+- **Availability.** The loop is latency-sensitive and largely single-threaded per
+  scheduler; a user callable can block, raise, leak, or spin, stalling scheduling
+  for the whole cluster.
 
-For these reasons the scheduler consumes only the *serialized* representation of
-Dags produced by the Dag File Processor. It reconstructs enough structure to
-make scheduling decisions (dependencies, timetables evaluated from serialized
-data, pools, priorities) without ever importing the author's Python module.
-
-The history in this area is a series of proposals that would have punched a hole
-in this boundary and were redirected. Requests to let the scheduler evaluate
-custom task-instance dependency classes, or to move executor/trigger callback
-*payloads* (which can carry user logic) into the scheduler loop, are recurrent
-because they look locally convenient — the scheduler already has the row in
-front of it. The decision below is what keeps saying no to that shape.
+So the scheduler consumes only the *serialized* representation produced by the Dag
+File Processor, reconstructing enough structure (dependencies, timetables, pools,
+priorities) to decide without importing the author's module. Recurrent proposals
+to let it evaluate custom dependency classes, or to move callback *payloads* that
+carry user logic into the loop, look locally convenient and are what this decision
+keeps saying no to.
 
 ## Decision
 
@@ -79,11 +70,10 @@ run the callable in the scheduler.
 
 - The scheduler stays trustworthy and fast: a broken or hostile Dag cannot crash
   the control loop or exfiltrate the scheduler's DB session.
-- New scheduling features that depend on author intent must serialize that
-  intent (e.g. as declarative timetable/asset data) rather than shipping a
-  callable the scheduler runs.
-- Callback and executor plumbing must keep the *decision* in the scheduler and
-  the *user payload* in the isolated executor/worker path.
+- New features depending on author intent must serialize that intent (declarative
+  timetable/asset data) rather than ship a callable the scheduler runs; callback
+  and executor plumbing keep the *decision* in the scheduler and the *user
+  payload* in the isolated executor/worker path.
 
 A change **violates** this decision when, inside the scheduler loop or any code
 reachable from `SchedulerJobRunner`, it:
@@ -103,13 +93,6 @@ into executed author code.
 
 ## Evidence
 
-- #63489 — "Allow direct queueing from triggerer": explored queueing paths that
-  would have shifted user-payload handling toward the scheduler/trigger boundary;
-  closed rather than blur where user workload runs.
-- #37778 — "Support adding custom TI Deps to help DagRun make more flexible TI
-  scheduling decisions": proposed user-defined task-instance dependency classes
-  the scheduler would evaluate; not accepted, because the scheduler must not run
-  author-supplied dependency code.
-- #61153 — "Executor Synchronous callback workload": kept callback *workloads* on
-  the executor/worker side so the scheduler dispatches without executing the
-  user callback body in its own loop.
+- #63489 — "Allow direct queueing from triggerer": explored paths shifting user-payload handling toward the scheduler/trigger boundary; closed rather than blur where user workload runs.
+- #37778 — "Support adding custom TI Deps": proposed user-defined dependency classes the scheduler would evaluate; not accepted.
+- #61153 — "Executor Synchronous callback workload": kept callback workloads on the executor/worker side so the scheduler dispatches without running the callback body.

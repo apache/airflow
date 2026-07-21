@@ -27,57 +27,32 @@ Accepted
 
 ## Context
 
-Creating a pod is cheap and reversible-looking; it is neither. A pod holds cluster
-resources — CPU and memory reservations, GPUs, a node slot — until something
-explicitly removes it, and it is the *only* place its logs live until they are
-read. Airflow is the only party that knows when a pod should stop existing, and
-Airflow is also the party most likely to lose track of it.
+Creating a pod looks cheap and reversible; it is neither. A pod holds cluster
+resources until something explicitly removes it, and it is the *only* place its
+logs live until they are read. Airflow is the only party that knows when a pod
+should stop existing, and the party most likely to lose track of it — there are
+far more exit paths than the happy one. `KubernetesPodOperator` alone leaves the
+pod via `execute_sync` completing or raising, `on_kill`, `execute_async`
+deferring and `trigger_reentry` resuming, the trigger timing out, or
+`execution_timeout` firing while the pod is still starting; the executor adds the
+watcher, `_adopt_completed_pods`, and `cleanup_stuck_queued_tasks` / `revoke_task`.
 
-There are far more exit paths than the happy one. `KubernetesPodOperator`
-(`operators/pod.py`) alone can leave the pod via `execute_sync` completing,
-`execute_sync` raising, `on_kill` (the user marked the task failed or the worker
-was terminated), `execute_async` deferring and `trigger_reentry` resuming, the
-trigger timing out, or the operator's own `execution_timeout` firing while the
-pod is still starting. The executor path adds more: the watcher observing a
-terminal phase, `_adopt_completed_pods` patching a finished pod so the current
-scheduler's watcher will delete it, and `cleanup_stuck_queued_tasks` /
-`revoke_task` removing a pod for a task the scheduler has given up on. Each of
-those is a separate place where the question "does the pod still exist, and
-should it?" has to be answered.
-
-Two opposite mistakes are both common. **Leaking** — an exception on the failure
-path skips deletion — burns quota indefinitely and, worse, can leave a container
-still writing to external systems for a task Airflow has already marked failed.
-**Deleting too eagerly** destroys the only copy of the evidence: once the pod is
-gone, so are its logs, its events, its container termination reasons and its XCom
-sidecar contents. A user debugging a failed task then has a state transition and
-nothing else.
-
-The ordering constraint is therefore not stylistic. `process_pod_deletion` runs
-after `_read_pod_events`, `_read_pod_container_states`, `_write_logs` and
-`extract_xcom` deliberately: log streaming happens against a live pod, and the
-XCom sidecar has to be read before the pod is torn down. Anything that hoists
-deletion earlier, or that lets an exception in the collection step fall through
-into deletion, converts a debuggable failure into an opaque one.
-
-Because deletion is destructive, it is also user-configurable rather than
-implicit. `OnFinishAction` (`delete_pod`, `delete_succeeded_pod`, `keep_pod`,
-`delete_active_pod`) and `OnKillAction` are public operator parameters, and
-`process_pod_deletion` is where they are honoured. These are contracts users
-build operational practice around — a deployment that relies on `keep_pod` for
-post-mortem inspection breaks if a code path decides on its own to clean up.
-
-The deferrable path multiplies all of this. When the operator defers, the process
-that created the pod goes away and the triggerer takes over
-(`triggers/pod.py`); the pod may be garbage-collected, evicted or preempted
-between polls, and the cleanup decision has to be reachable from both the trigger
-and the resumed operator without being taken twice. This is the seam where
-lifecycle bugs concentrate.
-
-Finally, "leak" is not only about pods. The executor runs inside the scheduler,
-so a helper process, queue, thread or watcher acquired per operation and never
-released is a scheduler-lifetime leak with the same shape and a wider blast
-radius.
+Two opposite mistakes are common. **Leaking** — an exception skips deletion —
+burns quota and can leave a container writing to external systems for a task
+Airflow already marked failed. **Deleting too eagerly** destroys the only copy of
+the evidence: logs, events, termination reasons, XCom sidecar contents. So
+`process_pod_deletion` runs deliberately after `_read_pod_events`,
+`_read_pod_container_states`, `_write_logs` and `extract_xcom`; hoisting deletion
+earlier, or letting a collection-step exception fall through into it, turns a
+debuggable failure opaque. Deletion is therefore user-configurable
+(`OnFinishAction`: `delete_pod`, `delete_succeeded_pod`, `keep_pod`,
+`delete_active_pod`; `OnKillAction`) — contracts users build practice around. The
+deferrable path multiplies this: the creating process goes away, the triggerer
+takes over (`triggers/pod.py`), the pod may be GC'd/evicted/preempted between
+polls, and the cleanup decision must be reachable from both trigger and resumed
+operator without being taken twice. And "leak" is not only pods — the executor
+runs inside the scheduler, so a helper process, queue, thread or watcher acquired
+per operation and never released is a scheduler-lifetime leak.
 
 ## Decision
 
@@ -111,16 +86,14 @@ has been captured. Concretely:
 
 - A failed task is diagnosable: its logs and events exist because they were read
   before anything was deleted.
-- Quota does not drift. A deployment does not accumulate orphaned pods from tasks
-  that failed in unusual ways, and the scheduler does not accumulate helper
-  processes.
-- Cleanup code is verbose. The same keep-or-delete reasoning appears in the
-  synchronous operator, the trigger, and the executor, because those are genuinely
-  three lifecycles — the alternative is one of them silently diverging.
+- Quota does not drift, and the scheduler does not accumulate helper processes.
+- Cleanup code is verbose — the same keep-or-delete reasoning appears in the
+  operator, the trigger, and the executor, because those are three genuinely
+  distinct lifecycles.
 - Some failures cost an extra API round trip (re-reading a pod that may be gone)
   rather than being handled by assumption.
-- `keep_pod` deployments must do their own garbage collection; that is an accepted
-  consequence of making retention a user decision.
+- `keep_pod` deployments do their own garbage collection — an accepted consequence
+  of making retention a user decision.
 
 A change **violates** this decision when it:
 
@@ -142,31 +115,15 @@ path whose behaviour on the failure and kill paths is unstated.
 
 ## Evidence
 
-- #61839 — "k8s executor - ensure pods cleaned up": the baseline leak this
-  decision exists to prevent.
-- #67333 — "Fix monitoring-pod leak in KubernetesJobOperator": the same leak
-  shape re-appearing in a sibling operator.
-- #68800 — "Fix KubernetesExecutor leaking a Manager process when reading running
-  task logs": a host-side leak, per log read, inside the scheduler process.
-- #52662 — "Kill kube watcher instance if it doesnt terminate gracefully in 60
-  seconds" and #63789 — "K8s: use joinable manager queues": watcher and queue
-  teardown made bounded rather than best-effort.
-- #64962 — "Consider XCOM sidecar container during pod cleanup": cleanup that has
-  to account for the sidecar before tearing the pod down.
-- #59160 — "Add `delete_active_pod` cleanup option": retention behaviour extended
-  as an explicit user-facing option rather than an implicit rule.
-- #65741 — "Move KubernetesPodTrigger pod cleanup from cleanup() to on_kill()":
-  the deferrable path's cleanup relocated to the exit path that actually fires.
-- #62401 — "Add cancel_on_kill and safe_to_cancel support to KubernetesPodOperator
-  and trigger": kill semantics made explicit and consistent across operator and
-  trigger.
-- #66716 — "Fix deferrable KPO trigger_reentry crash when pod is GC'd before
-  re-entry" and #56976 — "improve deferrable KPO handling of deleted pods in
-  between polls": pod absence treated as a normal outcome.
-- #68328 — "Kubernetes Pod Operator - handle pod preemption before container
-  creation": a pod that dies before it ever ran, handled rather than assumed away.
-- #55479 — "Add more error handling in pod_manager consume_logs", #54761 —
-  "Throttle HTTPError during consume pod logs", #64471 — "Add retries for
-  `_write_logs` method in `KubernetesPodOperator`", and #67652 — "Fix
-  KubernetesPodOperator emitting orphan timestamps for empty container writes":
-  log streaming hardened to degrade instead of failing the task.
+- #61839 — the baseline pod leak this decision exists to prevent.
+- #67333 — the same leak shape re-appearing in `KubernetesJobOperator`.
+- #68800 — a host-side leak (a Manager process per log read) inside the scheduler.
+- #52662, #63789 — watcher and queue teardown made bounded rather than best-effort.
+- #64962 — cleanup accounting for the XCom sidecar before tearing the pod down.
+- #59160 — retention extended as an explicit user-facing option.
+- #65741 — deferrable cleanup relocated to the exit path that actually fires.
+- #62401 — kill semantics made explicit and consistent across operator and trigger.
+- #66716, #56976 — pod absence between polls treated as a normal outcome.
+- #68328 — a pod that dies before it ran, handled rather than assumed away.
+- #55479, #54761, #64471, #67652 — log streaming hardened to degrade instead of
+  failing the task.

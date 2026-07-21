@@ -27,48 +27,26 @@ Accepted
 
 ## Context
 
-The UI does not hand-write its API layer. The `codegen` script in `package.json`
-runs `openapi-merge-cli` — which combines the API server's public v2 spec and its
-private UI spec into `openapi.merged.json` according to `openapi-merge.json` —
+The UI does not hand-write its API layer. `pnpm codegen` runs `openapi-merge-cli`
+(combining the public v2 spec and the private UI spec into `openapi.merged.json`)
 and then `openapi-rq`, which emits typed request functions and React Query hooks
-into `openapi-gen/` (`openapi-gen/requests/` and `openapi-gen/queries/`). Those
-generated modules are what `src/queries/` wraps and what every component
-ultimately calls.
+into `openapi-gen/`. Those modules are what `src/queries/` wraps. So `openapi-gen/`
+is *derived output that happens to be committed* — committed so a checkout builds
+without a running API server, but overwritten wholesale by the next run. The repo
+already excludes it from `pnpm format` and the formatting prek hooks, because tools
+that rewrite it create diffs the generator discards.
 
-This makes `openapi-gen/` *derived output that happens to be committed*. It is
-committed so that a checkout builds without a running API server, but it is not
-source: the next `pnpm codegen` overwrites it wholesale. The repository already
-treats it accordingly — the directory is excluded from `pnpm format` and from the
-formatting prek hooks, precisely because tools that rewrite it create diffs the
-generator will discard and merge conflicts nobody can resolve meaningfully.
-
-The important property this buys is *parity*. The types the UI compiles against
-are the types the server publishes, checked by `tsc` at build time. A field the
-server stopped returning becomes a compile error rather than an `undefined` in
-production; a field the server added is available to the UI without anyone
-transcribing its shape by hand. Strict TypeScript turns the server's contract
-into a mechanically enforced one.
-
-That property survives only if the pipeline is respected in both directions, and
-there are two ways to break it:
-
-- **Editing the generated output.** A local patch to `openapi-gen/` — to add a
-  field, loosen a type, or fix a serialization quirk — appears to work and is
-  silently reverted by the next regeneration. Worse, it makes the committed
-  client a *fork* of the server's contract, so the compiler stops being a check
-  and starts confirming a fiction.
-- **Reaching for data the contract does not offer.** When a UI feature needs
-  information the API does not return, the tempting shortcuts are a hand-rolled
-  request, a client-side reconstruction from adjacent endpoints, or a cast
-  through `unknown`. Each of these makes the UI's model of Airflow diverge from
-  every other consumer's, and each hides the requirement from the API's own
-  reviewers. The correct sequence is: change the API server, regenerate, then
-  write the component.
-
-Genuine client-layer defects — the parts `openapi-rq` gets wrong for Airflow's
-key shapes, such as path parameters containing `/` — do exist. They are fixed
-where the generation is configured or where the client is wrapped, so the fix
-survives regeneration.
+The property this buys is *parity*: the types the UI compiles against are the types
+the server publishes, checked by `tsc` at build time. A field the server dropped
+becomes a compile error, not a production `undefined`. That survives only if the
+pipeline is respected both ways. Editing `openapi-gen/` makes the committed client a
+fork of the server's contract, silently reverted next regeneration. Reaching for
+data the contract does not offer — a hand-rolled request, a client-side
+reconstruction, a cast through `unknown` — hides the requirement from the API's own
+reviewers; the correct sequence is change the API server, regenerate, then write the
+component. Genuine client-layer defects (what `openapi-rq` gets wrong for Airflow
+shapes, such as path parameters containing `/`) are fixed where generation is
+configured or where the client is wrapped, so the fix survives regeneration.
 
 ## Decision
 
@@ -90,15 +68,15 @@ The generated client is treated as generated:
 
 ## Consequences
 
-- The UI and the server contract stay in parity, and `tsc` enforces that parity
-  at build time rather than leaving shape mismatches to surface in production.
-- Regenerating is cheap and always safe, because nothing of value lives only in
-  the generated directory.
-- UI features that need new data are gated on API-server review — slower, but it
-  keeps the requirement visible to the people who own the published contract, and
-  the resulting data is available to every client rather than only to the UI.
-- Reviewers can trust that a diff touching `openapi-gen/` is either a
-  regeneration matching a spec change in the same PR, or a mistake.
+- The UI and the server contract stay in parity, enforced by `tsc` at build time
+  rather than leaving shape mismatches to surface in production.
+- Regenerating is cheap and always safe, because nothing of value lives only in the
+  generated directory.
+- Features that need new data are gated on API-server review — slower, but the
+  requirement stays visible to the people who own the published contract, and the
+  data reaches every client rather than only the UI.
+- A diff touching `openapi-gen/` is either a regeneration matching a spec change in
+  the same PR, or a mistake.
 
 A change *violates* this decision when it:
 
@@ -119,18 +97,12 @@ reproducible by running `pnpm codegen`.
 
 ## Evidence
 
-- #51755 — "Do not modify openapi-gen generated files by pre-commits": established
-  that hooks must leave the generated directory alone rather than rewriting it.
-- #51856 — "Add codegen files to prettier ignore and from `pnpm format`": the same
-  boundary applied to the formatter, so generated output is not reformatted into
-  conflict.
-- #68667 — "Percent-encode API client path params for keys with slashes": a real
-  client-layer defect fixed in the client layer so the fix survives regeneration.
-- #67725 — "Type `asset_expression` in the REST API so the UI does not cast
-  through unknown": the server-side type was tightened so the generated client
-  carried a precise shape, removing a UI-side cast.
-- #69121 — "Add `has_note` key to the Grid Runs API response": the API-change-then
-  -consume sequence — the field was added to the endpoint so the Grid could render
-  it, rather than derived in the browser.
-- #68979 — "Add `has_note` key to the API response for TI to render saved note
-  indicator in Airflow 3 Grid View UI": the same pattern for task instances.
+- #51755 — hooks must leave the generated directory alone rather than rewriting it.
+- #51856 — the same boundary applied to the formatter, so generated output is not
+  reformatted into conflict.
+- #68667 — a real client-layer defect (path params with slashes) fixed in the
+  client layer so the fix survives regeneration.
+- #67725 — server-side type tightened so the generated client carried a precise
+  shape, removing a UI-side cast through unknown.
+- #69121, #68979 — the API-change-then-consume sequence: `has_note` added to the
+  Grid Runs / TI responses rather than derived in the browser.

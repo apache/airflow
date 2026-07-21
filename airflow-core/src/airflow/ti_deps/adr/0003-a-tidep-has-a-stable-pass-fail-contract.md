@@ -27,30 +27,24 @@ Accepted
 
 ## Context
 
-Every task-instance dependency is a `BaseTIDep` subclass with one narrow
-contract. It implements `_get_dep_statuses()` to yield `TIDepStatus(dep_name,
-passed, reason)` records; the public `get_dep_statuses()` wraps that method and
-applies two framework-level short-circuits before delegating — if the dep is
-`IGNORABLE` and the context set `ignore_all_deps`, or if it is `IS_TASK_DEP` and
-the context set `ignore_task_deps`, it yields a passing status and returns. A
-task instance is runnable in a given `DepContext` only when *every* dep in the
-relevant set reports `passed=True`; the `reason` strings are what surface to
-operators to explain *why* a task is being held.
+Every task-instance dependency is a `BaseTIDep` subclass with one narrow contract.
+It implements `_get_dep_statuses()` to yield `TIDepStatus(dep_name, passed, reason)`
+records; the public `get_dep_statuses()` wraps it and applies two short-circuits
+first — if the dep is `IGNORABLE` and the context set `ignore_all_deps`, or
+`IS_TASK_DEP` and the context set `ignore_task_deps`, it yields a passing status and
+returns. A task instance is runnable in a `DepContext` only when *every* dep in the
+set reports `passed=True`; the `reason` strings explain to operators *why* a task is
+held.
 
-This uniformity is the whole point. Because every dep speaks the same
-pass/fail-with-reason language and honours the same `DepContext` flags, the deps
-compose into interchangeable sets (`RUNNING_DEPS`, `SCHEDULER_QUEUED_DEPS`,
-`REQUEUEABLE_DEPS`) that different callers evaluate without special-casing any
-individual dep. The scheduler, the API, and tests all rely on that single shape.
-The `IGNORABLE` / `IS_TASK_DEP` markers are load-bearing: they decide, uniformly,
-when a dep is honoured versus skipped under backfill, clear, and retry contexts —
-so a dep that classifies itself wrongly, or reports met/not-met through some
-side channel, breaks callers that never referenced it directly.
-
-The history in this area is largely deps evolving *within* this contract — new
-trigger rules, sharper reason strings, corrected counts — rather than new
-mechanisms bolted alongside it, and dead contract surface (an unused
-failure-reasons method) has been removed to keep the interface minimal.
+This uniformity is the point: because every dep speaks the same
+pass/fail-with-reason language and honours the same `DepContext` flags, deps compose
+into interchangeable sets (`RUNNING_DEPS`, `SCHEDULER_QUEUED_DEPS`,
+`REQUEUEABLE_DEPS`) callers evaluate without special-casing any dep. The `IGNORABLE`
+/ `IS_TASK_DEP` markers are load-bearing — they decide uniformly when a dep is
+honoured versus skipped under backfill, clear, and retry — so a dep that classifies
+itself wrongly, or reports through a side channel, breaks callers that never
+referenced it. History here is deps evolving *within* the contract, with dead
+surface removed.
 
 ## Decision
 
@@ -73,10 +67,10 @@ Specifically:
 
 ## Consequences
 
-- Callers keep treating deps as an interchangeable, composable set — the
-  scheduler, API, and tests need no per-dep special-casing.
-- New scheduling constraints have an obvious, reviewable home: a new `BaseTIDep`
-  in the right set, with tests that assert on `get_dep_statuses()` output.
+- Callers keep treating deps as an interchangeable, composable set — no per-dep
+  special-casing in the scheduler, API, or tests.
+- New scheduling constraints have an obvious home: a new `BaseTIDep` in the right
+  set, with tests asserting on `get_dep_statuses()` output.
 - Reasons stay meaningful and user-facing, so a held task can always be explained
   from its dep statuses.
 
@@ -94,13 +88,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #57725 — "Remove unused `TIDep.get_failure_reasons()`": trimmed dead contract
-  surface to keep the `BaseTIDep` interface minimal and single-shaped.
-- #53959 — "Add `ALL_DONE_MIN_ONE_SUCCESS` trigger rule": new scheduling
-  behaviour added *through* the trigger-rule dep's existing status contract,
-  not alongside it.
-- #67684 — "Fix per-index evaluation of `ONE_FAILED` in mapped task groups":
-  corrected met/not-met semantics while keeping the same `TIDepStatus` contract.
-- #54774 — "Fix trigger rule error messages showing enum names instead of
-  values": the `reason` strings are a user-facing part of the contract and are
-  maintained as such.
+- #57725 — "Remove unused `TIDep.get_failure_reasons()`": trimmed dead surface to keep
+  the interface minimal.
+- #53959 — "Add `ALL_DONE_MIN_ONE_SUCCESS` trigger rule": new behaviour added *through*
+  the existing status contract.
+- #67684 — "Fix per-index evaluation of `ONE_FAILED` in mapped task groups": corrected
+  semantics, same `TIDepStatus` contract.
+- #54774 — "Fix trigger rule error messages showing enum names instead of values": the
+  `reason` strings are user-facing contract.

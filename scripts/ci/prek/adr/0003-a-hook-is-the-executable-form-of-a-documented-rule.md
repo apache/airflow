@@ -45,39 +45,27 @@ Accepted
 
 ## Context
 
-Airflow's conventions live in prose: `CLAUDE.md`, the contributing docs, the
-per-area `AGENTS.md` files. Prose does not run. A convention that exists only in
-a document is followed by the contributors who happened to read that document,
-and silently violated by everyone else — including, increasingly, agents
+Airflow's conventions live in prose — `CLAUDE.md`, the contributing docs, the per-area
+`AGENTS.md` files — and prose does not run. A convention in a document alone is followed
+by the contributors who read it and silently violated by everyone else, including agents
 generating code from a partial view of the repository.
 
-A hook is the version of that rule which actually executes. That gives it an
-authority the prose does not have, and creates the failure this decision guards
-against: when the hook and the document disagree, the hook wins in practice
-while the document keeps teaching something else. A contributor reads the doc,
-writes conforming code, and the commit is rejected by a rule nobody told them
-about. That is strictly worse than having no hook — no hook at least leaves the
-document as the single, honest source of truth.
-
-The testing requirement follows from the same reasoning. A hook runs on every
-contributor's machine on every commit. Its false positives block work
-repository-wide, and its false negatives quietly let the rule rot. The
-directory's history is largely a history of hooks that *keep two things in sync*
-— Go and Java toolchain versions, the metrics registry and the code, the
-generated command help and the docs — and each of those is only as good as the
-test that proves it still fires.
+A hook is the version of that rule that executes, which gives it an authority the prose
+lacks and creates the failure this decision guards: when the two disagree, the hook wins
+in practice while the document keeps teaching something else — a contributor reads the
+doc, writes conforming code, and the commit is rejected by a rule nobody told them about.
+That is worse than no hook, which at least leaves the document as the single honest source
+of truth. The testing requirement follows: a hook runs on every commit, its false
+positives block work repository-wide and its false negatives let the rule rot, and the
+directory's history is largely hooks that *keep two things in sync* — each only as good as
+the test that proves it still fires.
 
 ## Consequences
 
-Conventions become enforceable rather than aspirational, and the document
-explaining a rule can be trusted to match what the tooling will accept. The
-tests make a hook safe to refactor later, when the rule it encodes needs to
-change.
-
-The cost is real: adding a hook is no longer a single script. It is a script,
-its tests, and a documentation edit — typically three files where a contributor
-expected one. That is the deliberate price of putting a rule on every
-contributor's commit path.
+Conventions become enforceable rather than aspirational, and the document explaining a
+rule can be trusted to match what the tooling accepts; the tests make a hook safe to
+refactor later. The cost is real — adding a hook is a script, its tests, and a doc edit,
+typically three files where a contributor expected one.
 
 A change **violates** this decision when it:
 

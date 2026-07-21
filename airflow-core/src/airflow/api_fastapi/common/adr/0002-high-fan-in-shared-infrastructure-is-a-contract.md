@@ -27,32 +27,23 @@ Accepted
 
 ## Context
 
-The helpers in this directory have the highest fan-in in the API layer. A single
-`FilterParam` / `SortParam` / `RangeFilter` class, a `*_factory` function, or
-`paginated_select` is mounted by *many* routes at once, and the query parameters
-those helpers declare are not an internal detail — they are a published contract.
-Each `Query(alias=..., default=..., description=...)` a factory builds flows into
-the generated OpenAPI spec (`openapi/`), and from there into the code-generated
-Python/Go SDKs and the UI's TypeScript client. A reviewer looking at a diff to
-`parameters.py` sees one edited helper; what actually changes is every endpoint
-that mounts it and every consumer generated from the spec.
+The helpers here have the highest fan-in in the API layer. A single `FilterParam` /
+`SortParam` / `RangeFilter` class, a `*_factory`, or `paginated_select` is mounted by
+*many* routes at once, and the query parameters they declare are a published contract:
+each `Query(alias=..., default=..., description=...)` flows into the generated OpenAPI
+spec (`openapi/`) and from there into the code-generated Python/Go SDKs and the UI's
+TypeScript client. A diff to `parameters.py` looks like one edited helper; what changes
+is every endpoint mounting it and every consumer generated from the spec.
 
-This produces two properties a change here must respect:
-
-- **Broad blast radius.** A bare change to a `to_orm` body or to `paginated_select`
-  re-behaves every caller. A regression in the pipe-OR (`|`) split, in the
-  match-all (`~`) alias, in datetime-range predicate generation, or in a default
-  value is not a one-endpoint bug — it is an API-wide one, and the small-fixture
-  test on one route will not catch it on the others.
-- **Backward-compatibility sensitivity.** Renaming a query param, retyping it,
-  changing a default, or editing its description changes the published contract that
-  external integrators and the UI depend on. The same reusable class is the natural
-  place to add a *new* filter — which is desirable — but it is also the place where
-  a careless rename silently breaks downstream clients.
-
-Because the layer is shared, the discipline that keeps it healthy is the opposite of
-per-route freedom: additions are made *once* as reusable, additive building blocks,
-and existing signatures/param metadata are treated as a stable interface.
+Two properties follow. **Broad blast radius:** a bare change to a `to_orm` body or to
+`paginated_select` re-behaves every caller — a regression in the pipe-OR (`|`) split,
+the match-all (`~`) alias, datetime-range predicate generation, or a default value is
+an API-wide bug the small-fixture test on one route will not catch. **Backward-
+compatibility sensitivity:** renaming/retyping/re-defaulting a param, or editing its
+description, changes the published contract external integrators and the UI depend on.
+The reusable class is the natural place to add a *new* filter, but also where a careless
+rename silently breaks downstream clients. So additions are made *once* as reusable,
+additive building blocks, and existing signatures/param metadata are a stable interface.
 
 ## Decision
 
@@ -83,13 +74,12 @@ additions, treating the parameter surface as a public contract:
 
 ## Consequences
 
-- One correctly-built shared filter gives every route the same, tested behaviour;
-  new query capabilities reach the whole API by extension rather than duplication.
-- The generated OpenAPI spec and the downstream SDKs/UI stay in step, because param
+- One correctly-built shared filter gives every route the same tested behaviour; new
+  capabilities reach the whole API by extension, not duplication.
+- The generated OpenAPI spec and downstream SDKs/UI stay in step, because param
   metadata is treated as the published interface it is.
-- The cost of a change here is deliberately front-loaded onto proving it is additive
-  and backward-compatible across all callers — that scrutiny is the price of the
-  fan-in.
+- Cost is front-loaded onto proving a change is additive and backward-compatible across
+  all callers — the price of the fan-in.
 
 A change **violates** this decision when it:
 
@@ -111,21 +101,16 @@ contract, not just the endpoint that motivated it.
 
 ## Evidence
 
-- #60008 — "support OR operator in search parameters": added the pipe-`|` OR
-  capability to the shared search params, reaching every search endpoint at once.
-- #65190 — "Fix run_id_pattern pipe OR operator dropping single-term edge cases":
-  an API-wide regression in the shared OR split, fixed for all callers.
-- #68459 — "Fix Dag run partition key filter breaking on composite keys with `|`":
-  another shared-split edge case that surfaced across endpoints, not just one.
-- #66696 — "Improve DB performance of datetime range filters in API queries":
-  reworked the shared range-filter SQL, so every range-filtered endpoint benefited.
-- #66979 — "Enable ruff B008 (function-call-in-default-argument) and fix
-  violations": a cross-cutting fix to how the shared `Depends`/`Query` defaults are
-  built across the parameter surface.
-- #68657 — "Add support for filtering Dags by any DagRun state": added a new
-  reusable filter as a shared class rather than an inline per-route query.
-- #64611 — "Add extra field filtering for asset events": extended the shared
-  JSON-key-value filter capability additively for its callers.
-- #69913 — "Remove redundant ORM result uniquing in core queries": a single
-  shared-query change whose correctness had to hold across the endpoints that share
-  the path.
+- #60008 — added the pipe-`|` OR capability to shared search params, reaching every
+  search endpoint at once.
+- #65190, #68459 — API-wide regressions in the shared OR split (single-term edge cases;
+  composite keys with `|`), fixed for all callers.
+- #66696 — reworked the shared range-filter SQL, benefiting every range-filtered
+  endpoint.
+- #66979 — cross-cutting fix (ruff B008) to how shared `Depends`/`Query` defaults are
+  built.
+- #68657 — added a new reusable filter (any DagRun state) as a shared class, not an
+  inline per-route query.
+- #64611 — extended the shared JSON-key-value filter additively for its callers.
+- #69913 — a single shared-query change whose correctness had to hold across the
+  endpoints sharing the path.

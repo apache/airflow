@@ -27,34 +27,26 @@ Accepted
 
 ## Context
 
-Airflow supports three metadata backends — PostgreSQL, MySQL, and SQLite — and a
-single migration revision must run correctly on *all* of them, in *both*
-directions. This is where most of the post-merge pain in this area comes from,
-because the backends disagree in exactly the places migrations touch:
+Airflow supports three metadata backends — PostgreSQL, MySQL, SQLite — and a
+single revision must run correctly on *all* of them, in *both* directions. Most of
+the post-merge pain here comes from where the backends disagree:
 
 - **SQLite** cannot `ALTER` a column in place; structural changes go through
   `op.batch_alter_table(...)`, which recreates the table — and SQLite *enforces
-  foreign keys during that recreation*, so DML and constraint work must be
-  sequenced around FK handling (`disable_sqlite_fkeys(op)`), not before it.
-- **MySQL** reserves keywords (a column literally named `interval` must be
-  quoted), imposes row and sort-buffer limits, and generates UUIDs/defaults
-  differently.
+  foreign keys during recreation*, so DML and constraint work must be sequenced
+  around FK handling (`disable_sqlite_fkeys(op)`).
+- **MySQL** reserves keywords (`interval` must be quoted), imposes row/sort-buffer
+  limits, and generates UUIDs/defaults differently.
 - **PostgreSQL** has sequences and autoincrement objects that must be restored on
   downgrade, and JSONB conversions that fail on invalid input.
 
-On top of the cross-backend requirement, every `upgrade()` needs a `downgrade()`
-that genuinely restores the prior state, because operators *do* downgrade between
-releases — a broken, lossy, or stubbed downgrade is a real production failure, not
-a theoretical one. And the chain itself must stay **linear**: exactly one Alembic
-head, each revision chained to its predecessor via `down_revision`. Two authors
-branching independently create a second head, which then needs an `alembic merge`
-and confuses the replay order.
-
-CI encodes these lessons — AST anti-pattern checks, a round-trip / FK-cascade
-check, and the migration-reference tooling that flags multiple heads — but they
-catch known shapes, not every new mistake. The steady stream of "fix SQLite
-downgrade", "fix MySQL migration", "restore sequence on downgrade" fixes shows how
-easily a revision that is green on one backend breaks on another.
+Every `upgrade()` also needs a `downgrade()` that genuinely restores the prior
+state, because operators *do* downgrade between releases — a broken, lossy, or
+stubbed downgrade is a real production failure. And the chain must stay
+**linear**: exactly one Alembic head, each revision chained via `down_revision`;
+two independent branches create a second head needing an `alembic merge`. CI
+encodes these lessons (AST anti-pattern checks, round-trip/FK-cascade checks,
+multiple-head detection) but catches known shapes, not every new mistake.
 
 ## Decision
 
@@ -78,12 +70,10 @@ linear chain**:
 
 ## Consequences
 
-- In-place upgrades and downgrades stay reliable on every supported backend, and
-  operators can move a release in either direction without stranding data.
-- Authoring costs more: a change must be reasoned about (and ideally tested) on
-  all three backends, and downgrade is first-class work, not an afterthought.
-- The linear chain keeps replay order unambiguous and makes the
-  migration-reference graph meaningful.
+- In-place upgrades and downgrades stay reliable on every backend, and operators
+  can move a release in either direction without stranding data.
+- Authoring costs more: a change must be reasoned about on all three backends, and
+  downgrade is first-class work. The linear chain keeps replay order unambiguous.
 
 A change **violates** this decision when it:
 
@@ -103,19 +93,9 @@ three backends or that forks the head.
 
 ## Evidence
 
-- #64972 — "Add static analysis tests for DB migration anti-patterns": AST checks
-  that detect cross-backend anti-patterns (e.g. DML before `disable_sqlite_fkeys`)
-  across all migration files.
-- #63437 — "Fix SQLite downgrade failures caused by FK constraints during batch
-  table recreation": SQLite FK enforcement during `batch_alter_table` recreation.
-- #61976 — "Fix: Restore task_instance_history sequence on downgrade": a downgrade
-  that failed to restore a Postgres sequence.
-- #63625 — "Improve 0102 make_external_executor_id_text downgrade migration": a
-  downgrade path that needed to actually restore the prior column shape.
-- #63494 — "Quote reserved MySQL keyword 'interval' in deadline_alert queries": a
-  MySQL-specific breakage from an unquoted reserved word.
-- `0108_3_2_0_fix_migration_file_ORM_inconsistencies.py` — the declared-one-way
-  case: its `downgrade()` docstring records that the `NULL`-to-default backfill in
-  `upgrade()` is deliberately not reversed, because a filled default "cannot be
-  distinguished from legitimately-populated values after the fact". It shipped in
-  3.2.0 on that basis.
+- #64972 — "Add static analysis tests for DB migration anti-patterns": AST checks detecting cross-backend anti-patterns (e.g. DML before `disable_sqlite_fkeys`).
+- #63437 — "Fix SQLite downgrade failures caused by FK constraints during batch table recreation".
+- #61976 — "Fix: Restore task_instance_history sequence on downgrade": a downgrade that failed to restore a Postgres sequence.
+- #63625 — "Improve 0102 make_external_executor_id_text downgrade migration": needed to actually restore the prior column shape.
+- #63494 — "Quote reserved MySQL keyword 'interval' in deadline_alert queries".
+- `0108_3_2_0_fix_migration_file_ORM_inconsistencies.py` — the declared-one-way case: its `downgrade()` docstring records that the `NULL`-to-default backfill in `upgrade()` is deliberately not reversed, because a filled default "cannot be distinguished from legitimately-populated values after the fact". Shipped in 3.2.0 on that basis.

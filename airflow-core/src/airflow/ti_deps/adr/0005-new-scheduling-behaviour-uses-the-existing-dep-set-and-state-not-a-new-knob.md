@@ -27,41 +27,23 @@ Accepted
 
 ## Context
 
-The set of `TIDep` classes is small and closed by intent. Each one is a named,
-documented reason a task instance may not run yet, and together they form the
-answer the UI gives a user asking "why is my task not running?". Every addition
-to that set enlarges the surface a scheduler maintainer must reason about, and —
-because deps are evaluated for every task instance on every scheduling pass —
-every addition is also a cost paid in the hot loop (`adr/0002`).
+The set of `TIDep` classes is small and closed by intent. Each is a named,
+documented reason a task instance may not run yet, and together they form the UI's
+answer to "why is my task not running?". Every addition enlarges the surface a
+maintainer must reason about, and — because deps run for every task instance on
+every pass — is a cost paid in the hot loop (`adr/0002`).
 
-The pressure on this area is almost entirely one-directional: users want a new
-way to express a dependency, and the natural first draft is a new user-facing
-parameter with a new dep to enforce it. Proposals for a
-`depends_on_previous_task_ids` parameter — a per-task dependency on specific tasks
-from the previous Dag run — arrived twice from different contributors, with a
-genuinely detailed use case (a stateful file-ingestion pipeline where the same
-source file must not be reprocessed until the previous run completes). Neither
-landed. The existing model already carries a cross-run dependency concept in
-`depends_on_past`, and the discussion turned on whether the gap justified a second
-one rather than on whether the code worked.
-
-The same correction shows up in a milder form on state. A proposal to allow
-backfills to run while a Dag stays paused introduced a `keep_dag_paused` field to
-carry the new behaviour; review had the field removed entirely, and the change
-reworked to key off `DagRun.backfill_id` — state the system already records — plus
-the existing unpause path. The behaviour survived; the new knob did not.
-
-Two forces make this decision worth writing down. First, a new dep or parameter is
-cheap to add and permanent to remove: it becomes part of the scheduling contract
-users write Dags against. Second, the reason a proposal is refused is usually not
-visible in its diff — it requires knowing that `depends_on_past`, the trigger
-rules, pool state, or `backfill_id` already encode the distinction, which is
-knowledge concentrated in a few reviewers.
-
-Larger reshapings of scheduling semantics have the same outcome by a different
-route: a proof-of-concept for task-group-level retries was met with the observation
-that it is a large change to what task groups *are*, and belongs on the dev list
-before the code.
+The pressure is one-directional: users want a new way to express a dependency, and
+the first draft is a new user-facing parameter plus a new dep. A
+`depends_on_previous_task_ids` parameter arrived twice and neither landed —
+`depends_on_past` already carries a cross-run dependency, so the discussion was
+whether the gap justified a second one. A proposal to run backfills while a Dag stays
+paused introduced a `keep_dag_paused` field; review removed it, keying off
+`DagRun.backfill_id` instead. A new dep or parameter is cheap to add and permanent to
+remove, and the reason for refusal is not in the diff — it needs knowing that
+`depends_on_past`, the trigger rules, pool state, or `backfill_id` already encode the
+distinction. Larger reshapings (a task-group-retries PoC) get the same answer: a big
+change to what task groups *are* belongs on the dev list first.
 
 ## Decision
 
@@ -86,19 +68,15 @@ recorded state wherever that is possible. Concretely:
 ## Consequences
 
 - Real user needs are sometimes answered with "restructure the Dag" or "use
-  `depends_on_past`", which is unsatisfying when the use case is legitimate. The
-  project accepts that in exchange for a scheduling contract that stays small
-  enough to reason about.
-- Contributors arriving with a working implementation may find the discussion is
-  about whether the feature should exist at all. Directing that conversation to
-  the dev list first saves the implementation effort, which is why the decision
-  says so explicitly.
+  `depends_on_past`" — the trade for a scheduling contract small enough to reason
+  about.
+- Contributors with a working implementation may find the discussion is whether the
+  feature should exist at all; directing that to the dev list first saves the effort.
 - Keeping the dep set closed pushes complexity into the existing deps, which grow
-  conditionals over time. That is a real cost, and it is why the per-index and
-  mutation-leak defects in `adr/0004` and `adr/0001` cluster in the same few
+  conditionals — why the defects in `adr/0004` and `adr/0001` cluster in the same
   classes.
-- The scheduling loop stays predictable in cost, since the number of deps
-  evaluated per task instance does not drift upward release over release.
+- The scheduling loop stays predictable in cost, since the deps-per-instance count
+  does not drift upward release over release.
 
 A change **violates** this decision when it:
 
@@ -117,23 +95,15 @@ what does the user see in the UI when this new dep blocks their task?
 
 ## Evidence
 
-- #60385 — "Add `depends_on_previous_task_ids` parameter to allow tasks to depend
-  on specific tasks from previous Dag runs" and #60342 — "Add `prev_task_ids` for
-  depends on past": two independent attempts at the same new cross-run dependency
-  parameter, neither merged, with the discussion turning on why `depends_on_past`
-  is insufficient.
-- #60818 — "Add support for running backfill while keeping Dag paused": closed
-  after review had the new `keep_dag_paused` field removed entirely in favour of
-  keying off `DagRun.backfill_id` and the existing unpause path.
-- #61809 — "PoC of task group retries": closed; review's position was that this is
-  a large change to what task groups are and needed a dev-list discussion before
-  the code.
-- #53959 — "Add `ALL_DONE_MIN_ONE_SUCCESS` trigger rule": the merged shape of a
-  genuine addition — a new rule in the existing trigger-rule vocabulary rather than
-  a new parameter and a new dep.
-- #61227 — "Multi-team: verify a task uses a pool it has access to when
-  scheduling": a merged dep-level change that expresses new behaviour through the
-  existing pool-state check rather than a new user-facing knob.
+- #60385 — "Add `depends_on_previous_task_ids` parameter ..." and #60342 — "Add
+  `prev_task_ids` for depends on past": two attempts at the same cross-run parameter,
+  neither merged; discussion turned on why `depends_on_past` is insufficient.
+- #60818 — "Add support for running backfill while keeping Dag paused": closed after
+  review removed the `keep_dag_paused` field for keying off `DagRun.backfill_id`.
+- #61809 — "PoC of task group retries": closed; needed a dev-list discussion first.
+- #53959 — "Add `ALL_DONE_MIN_ONE_SUCCESS` trigger rule": the merged shape — a new
+  rule in the existing vocabulary, not a new parameter and dep.
+- #61227 — "Multi-team: verify a task uses a pool it has access to": a merged
+  dep-level change through the existing pool-state check.
 - #54774 — "Fix trigger rule error messages showing enum names instead of values":
-  a merged fix treating the dep's user-facing reason string as part of the
-  contract.
+  treats the reason string as contract.

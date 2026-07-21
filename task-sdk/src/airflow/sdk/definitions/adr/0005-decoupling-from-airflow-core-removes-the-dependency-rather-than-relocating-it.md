@@ -28,39 +28,25 @@ Accepted
 ## Context
 
 `adr/0003` establishes that the authoring package must be independent of
-airflow-core. Turning that invariant into reality has been a long migration
-rather than a single change, and the migration attracts a specific kind of
-well-intentioned pull request that has to be refused: one that makes the
-dependency *less visible* without making it go away.
+airflow-core. Turning that invariant into reality has been a long migration, and
+it attracts a specific well-intentioned PR that must be refused: one that makes
+the dependency *less visible* without making it go away.
 
-The concrete case is SQLAlchemy. The goal for the Task SDK is that it does not
-use SQLAlchemy at all — not that it uses it more tidily. A change that removed
-`from airflow.utils.session import …` from a task-run path by threading a
-caller-supplied `session` argument through instead was closed for exactly this
-reason: it *moved* the session usage rather than removing it, and it passed a
-**raw session** across the boundary, which is worse than importing the helper.
-The import-level symptom disappeared; the architectural coupling got stronger,
-because now an ORM object is part of the function's signature and every caller
-must produce one.
+The concrete case is SQLAlchemy. The goal is that the Task SDK does not use it at
+all — not more tidily. A change removing `from airflow.utils.session import …`
+from a task-run path by threading a caller-supplied `session` through was closed
+because it *moved* the usage rather than removing it, and passed a **raw session**
+across the boundary — worse than importing the helper, because now an ORM object
+is in the signature and every caller must produce one. This is hard to catch: the
+`check_core_imports_in_sdk` hook goes green (the import is gone) and line count
+drops; only asking what the *runtime* dependency is after the change reveals it.
 
-This is hard to catch in review because the diff looks like progress. The
-`check_core_imports_in_sdk` prek hook goes green — it checks imports, and the
-import is gone. Line count goes down. The only thing that reveals the problem is
-asking what the *runtime* dependency is after the change, which the diff does not
-show.
-
-The same pattern appears whenever a shared concern is being extracted: the
-tempting move is to pass the airflow-core object in as a parameter, or to accept
-it behind `TYPE_CHECKING`, or to look it up lazily inside the function body so no
-top-level import exists. All three satisfy the hook. None of them make the
-authoring package independently installable and usable, which is the property the
-distribution boundary exists to provide.
-
-The supported way to actually remove a dependency is to move the shared piece
-into a place both distributions can depend on — the `shared/` distributions,
-symlinked into each consumer — rather than to pass it across the seam. That
-mechanism exists precisely so that "both sides need this" has an answer other
-than "import it from the other side".
+The same pattern appears whenever a shared concern is extracted — pass the
+airflow-core object as a parameter, accept it behind `TYPE_CHECKING`, or look it
+up lazily in the function body. All three satisfy the hook; none make the package
+independently installable. The supported fix is to move the shared piece into a
+`shared/` distribution symlinked into each consumer, so "both sides need this" has
+an answer other than "import it from the other side".
 
 ## Decision
 
@@ -85,17 +71,14 @@ remove the runtime dependency, not relocate it. Concretely:
 
 ## Consequences
 
-- Decoupling work is slower and lands in fewer, larger steps, because the honest
-  version usually requires moving a shared concern into `shared/` first.
-- The `check_core_imports_in_sdk` hook stays a *floor*, not a proof. Reviewers
-  cannot delegate this judgement to CI, which makes these changes expensive to
-  review — deliberately so.
-- Some intermediate states are legitimately partial. Naming the remaining
-  coupling is required, so the next contributor does not mistake a half-migrated
-  seam for a finished one.
-- This decision rejects changes that genuinely improve local readability. That
-  cost is accepted: a tidier call site is not worth a stronger distribution-level
-  coupling.
+- Decoupling lands in fewer, larger steps, because the honest version usually
+  requires moving a shared concern into `shared/` first.
+- The `check_core_imports_in_sdk` hook stays a *floor*, not a proof — reviewers
+  cannot delegate this judgement to CI, deliberately.
+- Intermediate states are legitimately partial; naming the remaining coupling is
+  required so the next contributor does not mistake it for finished.
+- Changes that improve local readability are rejected — a tidier call site is not
+  worth a stronger distribution-level coupling.
 
 A change **violates** this decision when it:
 
@@ -116,21 +99,13 @@ before, or just written differently?
 
 ## Evidence
 
-- #66925 — "Remove airflow-core session and serialization imports from
-  `_run_task`": closed with the reasoning that it moved the session usage rather
-  than removing it, and passed a raw session through, which is worse than
-  importing the session helper from airflow-core.
-- #53149 — "Set up process for sharing code between different components": the
-  merged mechanism (`shared/` distributions symlinked into consumers) that gives
-  "both sides need this" an answer other than a cross-distribution import.
-- #53417 — "POC of a symlink-based code sharing approach": the design discussion
-  behind that mechanism, including whether one shared library may depend on
-  another.
-- #65880 — "Add prek checks for cross-distribution import boundaries": extended
-  the import guard to the shared distributions themselves, on the same principle
-  — the shared libraries must import from `airflow_shared.*` rather than from
-  `airflow` or `airflow.sdk`. An earlier attempt (#58825) was closed after the
-  discussion established how much groundwork the boundary needed first.
-- #55538 — "Remove SDK dependency from `SerializedDAG`" and #55108 — "Decouple
-  `NotMapped` exception from Task SDK": merged examples of the supported shape,
-  where the dependency is genuinely severed rather than re-expressed.
+- #66925 — remove airflow-core session/serialization imports from `_run_task`;
+  closed for moving the session usage and passing a raw session through.
+- #53149 — the merged `shared/`-distribution mechanism giving "both sides need
+  this" a non-import answer.
+- #53417 — the POC design discussion behind that mechanism.
+- #65880 — extended the import guard to the shared distributions themselves
+  (importing from `airflow_shared.*`); an earlier attempt (#58825) was closed as
+  needing groundwork first.
+- #55538, #55108 — merged examples of the supported shape, where the dependency is
+  genuinely severed rather than re-expressed.

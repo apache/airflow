@@ -28,23 +28,18 @@ Accepted
 ## Context
 
 Airflow 3 replaced the single shared "DAGs folder" with **Dag bundles**: named,
-independently-versioned sources of Dag code (`dag_processing/bundles/`). This
-exists to make runs reproducible across distributed components. The DFP,
-scheduler, and workers no longer all assume one mutable directory on a shared
-filesystem; instead a Dag is produced from a specific bundle at a specific
-version, and that identity has to travel with it.
+independently-versioned sources of Dag code (`dag_processing/bundles/`), so runs
+are reproducible across distributed components. A Dag is produced from a specific
+bundle at a specific version, and that identity has to travel with it: when the DFP
+parses a file it records `bundle_name` / `version_data` on the `DagVersion`, and
+that identity is threaded into callbacks and into the worker so it initializes the
+*same* bundle version before running the task. If any link drops the version, a
+worker can run against a different revision than was scheduled — a silent
+correctness bug ordinary tests rarely reproduce.
 
-Concretely, when the DFP parses a file it records **which bundle and which
-version** produced the serialized Dag (`bundle_name`, `version_data` on the
-`DagVersion`). Downstream that identity is threaded onward: into callbacks, and
-into the worker so the worker initializes the *same* bundle version before it
-runs the task. If any link in that chain drops the version, a worker can execute
-a task against a different revision of the code than the one that was scheduled —
-a silent, hard-to-diagnose correctness bug that ordinary tests rarely reproduce.
-
-Bundle ownership is also shared state: in multi-processor and multi-team
-deployments more than one dag-processor writes to the bundles table, so a
-processor must not treat the table as exclusively its own.
+Bundle ownership is also shared state: in multi-processor / multi-team deployments
+more than one dag-processor writes the bundles table, so a processor must not treat
+it as exclusively its own.
 
 ## Decision
 
@@ -83,14 +78,8 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #66491 — "Add BundleVersion dataclass and version_data persistence to
-  DagVersion": establishes recording the bundle version with the Dag version.
-- #68583 — "Add bundle_name to serialized dag": carries bundle identity into the
-  serialized representation the scheduler/worker read.
-- #67217 — "Thread version_data through BundleInfo to worker-side bundle
-  initialization": completes the chain so the worker initializes the same
-  version.
-- #69185 — "Thread version_data to callbacks": the same identity must reach
-  callbacks, not just the worker task path.
-- #69964 — "Don't deactivate DAG bundles owned by other dag-processors": bundle
-  ownership is shared state and writes must be scoped.
+- #66491 — records the bundle version with the `DagVersion`.
+- #68583 — carries `bundle_name` into the serialized Dag the scheduler/worker read.
+- #67217 — threads `version_data` to worker-side bundle init, completing the chain.
+- #69185 — the same identity must also reach callbacks.
+- #69964 — don't deactivate bundles owned by other dag-processors: writes must be scoped.

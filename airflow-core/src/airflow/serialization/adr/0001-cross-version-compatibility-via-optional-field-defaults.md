@@ -28,20 +28,16 @@ Accepted
 ## Context
 
 Serialized Dags are the interchange format between independently-deployed
-Airflow components. During a rolling upgrade the scheduler, the API server, the
-Dag processor, and the workers routinely run on *adjacent* Airflow versions at
-the same time: a component on version N writes serialized data that a component
-on version N-1 must still be able to read, and vice versa. Serialized rows also
-persist across an upgrade, so a newer reader must be able to load data that an
-older writer produced before the upgrade.
+components. During a rolling upgrade the scheduler, API server, Dag processor, and
+workers run on *adjacent* versions at once: version N writes data version N-1 must
+still read, and vice versa. Serialized rows also persist across an upgrade, so a
+newer reader must load what an older writer produced.
 
-There is a natural temptation, whenever the serialization payload gains a new
-field, to reach for a "bump the serialization schema version and branch on it"
-mechanism. That is **not** the mechanism Airflow uses for evolving the
-serialized payload. A hard version gate makes the two halves of a
-mid-upgrade cluster mutually unreadable the moment one side is upgraded, which
-is exactly the window the format has to survive. It also forces every reader to
-carry version-branching logic that grows without bound as fields are added.
+The temptation, whenever the payload gains a field, is to "bump the serialization
+schema version and branch on it". That is **not** the mechanism Airflow uses: a
+hard version gate makes the two halves of a mid-upgrade cluster mutually unreadable
+the moment one side upgrades — exactly the window the format must survive — and
+forces every reader to carry version-branching that grows without bound.
 
 ## Decision
 
@@ -64,13 +60,12 @@ schema version and branching on it.
 
 ## Consequences
 
-- Rolling upgrades keep working: mixed-version clusters read each other's
-  serialized data throughout the upgrade window, and persisted rows survive the
-  version transition in both directions.
-- The reader code stays free of ever-growing version-branch ladders; each new
-  field is self-describing through its presence or absence.
-- The cost is discipline: every new field must have a behaviour-preserving
-  default and an explicit compat rationale in the PR.
+- Rolling upgrades keep working: mixed-version clusters read each other's data
+  throughout the window, and persisted rows survive the transition both ways.
+- Reader code stays free of version-branch ladders; each field is self-describing
+  through its presence or absence.
+- The cost is discipline: every new field needs a behaviour-preserving default and
+  an explicit compat rationale in the PR.
 
 A **violating change** looks like any of:
 
@@ -88,9 +83,7 @@ Any of these breaks mixed-version clusters and is rejected on that basis.
 
 ## Evidence
 
-- #63884 — adds a `rerun_with_latest_version` config knob whose serialized
-  effect is additive and defaults to the prior behaviour, so old readers are
-  unaffected.
-- #66608 — fetches deadline callback context via the Execution API at runtime
-  rather than baking a new required shape into the serialized payload, keeping
-  the serialized form readable across adjacent versions.
+- #63884 — adds a `rerun_with_latest_version` knob whose serialized effect is
+  additive and defaults to the prior behaviour, so old readers are unaffected.
+- #66608 — fetches deadline callback context via the Execution API at runtime rather
+  than baking a new required shape into the payload.

@@ -27,30 +27,23 @@ Accepted
 
 ## Context
 
-The whole point of this area is to move credentials — connection passwords and
-extras, variable values, sensitive config — out of Dag code and into a backend.
-That value is only safe as long as it stays confined to the caller that asked for
-it. Two things routinely threaten that confinement, and both look harmless in a
-diff:
+The point of this area is to move credentials out of Dag code into a backend; that
+value is only safe while confined to the caller that asked for it. Two things
+threaten that confinement, both harmless-looking in a diff:
 
-1. **Logging.** When a lookup fails or a backend errors, the natural instinct is
-   to log *what* was being resolved, or to include the backend's response in the
-   error. A resolved connection URI or variable value in a log line is a leaked
-   credential, cluster-wide, that no amount of downstream masking can recall.
-   The resolver deliberately logs only the backend **type/name** on
-   fall-through, never the secret or the identifier's resolved value.
+1. **Logging.** On a failed lookup the instinct is to log *what* was resolved or to
+   put the backend's response in the error. A resolved URI or variable value in a
+   log line is a cluster-wide leaked credential no downstream masking can recall.
+   The resolver logs only the backend **type/name** on fall-through.
 
-2. **Widening exposure.** Secrets resolved through the chain are redacted via
-   `mask_secret` at the resolution point — connection password and extra,
-   variable value — so that if they *do* later reach a task log they are starred
-   out. A change that returns more than was asked for, routes a value around the
-   masking call, or lets a lookup cross an isolation boundary (reading a
-   team-scoped secret as a global one) widens exposure even when nothing is
-   explicitly logged.
+2. **Widening exposure.** Resolved secrets are redacted via `mask_secret` at the
+   resolution point (connection password/extra, variable value). A change that
+   returns more than asked, routes a value around the masking call, or lets a
+   lookup cross an isolation boundary (a team-scoped secret read as global) widens
+   exposure even with nothing logged.
 
-Airflow's security model treats credential confidentiality as a first-class
-guarantee. The masking and the no-log discipline are the enforcement points for
-that guarantee inside the secrets path.
+Airflow's security model treats credential confidentiality as first-class; masking
+and the no-log discipline are its enforcement points here.
 
 ## Decision
 
@@ -73,13 +66,11 @@ A secrets-backend change must not widen the exposure of any secret value:
 
 ## Consequences
 
-- Errors here are debuggable by *which backend* and *which outcome*, deliberately
-  not by *which value* — a small friction accepted to keep secrets out of logs.
-- Reviewers can check exposure by following every resolved value to either a
-  masked sink or the caller, and rejecting any new log/print/return that carries
-  the raw value.
-- Multi-team deployments retain per-team secret confidentiality even when
-  connection/variable identifiers collide across scopes.
+- Errors are debuggable by *which backend* and *which outcome*, not *which value* —
+  a small friction accepted to keep secrets out of logs.
+- Reviewers check exposure by following every resolved value to a masked sink or the
+  caller, rejecting any new log/print/return carrying the raw value.
+- Multi-team deployments keep per-team confidentiality even when identifiers collide.
 
 **A violating change looks like:** adding `log.warning("failed to load %s = %s",
 key, value)` (or putting the resolved secret/URI into an exception message),
@@ -90,7 +81,7 @@ Such a change is rejected.
 ## Evidence
 
 - #62588 — "Forbid accessing team secrets with environment variable as global
-  secret": a direct exposure-widening guard — stops a global lookup from reading
+  secret": a direct exposure-widening guard, stopping a global lookup from reading
   a team-scoped environment secret through the naming convention.
 
 *(The masking discipline itself is enforced by `mask_secret` at the point

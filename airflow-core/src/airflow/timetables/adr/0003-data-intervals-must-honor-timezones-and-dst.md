@@ -28,35 +28,27 @@ Accepted
 ## Context
 
 Timetables compute wall-clock schedules for humans but must hand the scheduler
-timezone-aware UTC instants. The `DataInterval` and `DagRunInfo` contracts in
-`base.py` are explicit that `start`, `end`, and `run_after` **MUST** be aware.
-The gap between "the author wrote `30 21 * * 5` in `Europe/Zurich`" and "the
-scheduler needs a UTC instant" is where this area's hardest bugs live.
+timezone-aware UTC instants — `DataInterval` and `DagRunInfo` in `base.py`
+require `start`, `end`, and `run_after` to be aware. The gap between "the author
+wrote `30 21 * * 5` in `Europe/Zurich`" and "the scheduler needs a UTC instant"
+is where this area's hardest bugs live. Two failure modes recur:
 
-Two failure modes recur:
-
-- **DST transitions.** A schedule in a zone with daylight saving crosses a
-  boundary twice a year. On a backward transition an hour of wall-clock time
-  occurs twice (the "fold hour"); on a forward transition an hour is skipped.
-  The cron engine in `_cron.py` deliberately works around this — it computes in
-  the timetable's local timezone via `make_naive` → `croniter` →
-  `make_aware` → `convert_to_utc`, and `_covers_every_hour` exists specifically
-  to reason about the fold hour so a `@daily`-style schedule does not fire twice
-  or vanish around the switch.
+- **DST transitions.** A daylight-saving zone crosses a boundary twice a year:
+  backward, an hour occurs twice (the "fold hour"); forward, an hour is skipped.
+  The cron engine in `_cron.py` computes in local time via `make_naive` →
+  `croniter` → `make_aware` → `convert_to_utc`, and `_covers_every_hour` reasons
+  about the fold hour so a `@daily`-style schedule does not double-fire or vanish.
 - **Interval alignment and inference.** `interval.py` aligns boundaries with
-  `_align_to_prev` / `_align_to_next` / `_get_prev` / `_get_next`, and its own
-  comments note that `_get_prev(_align_to_next(...))` is *not* a substitute for
-  the dedicated helpers. `infer_manual_data_interval()` must place a manually
-  triggered `run_after` in the *same* interval a scheduled run would occupy, and
-  catchup must reproduce the identical sequence of intervals. When any of these
-  is computed on a naive datetime, in UTC instead of the local zone, or with a
-  misplaced alignment call, the result is an interval shifted by a period, a
-  sub-day window widened to a whole day, or a manual run that clears / covers the
-  wrong day.
+  `_align_to_prev` / `_align_to_next` / `_get_prev` / `_get_next` (its comments
+  note `_get_prev(_align_to_next(...))` is *not* a substitute for the dedicated
+  helpers). `infer_manual_data_interval()` must place a manual `run_after` in the
+  *same* interval a scheduled run would occupy, and catchup must replay the
+  identical sequence. Computed on a naive datetime, in UTC, or with a misplaced
+  alignment call, the result is an interval shifted by a period, a sub-day window
+  widened to a whole day, or a manual run covering the wrong day.
 
-These bugs are hard to test: they manifest only for a particular timezone, on a
-particular schedule shape, on the two days a year the offset changes — so they
-escape a happy-path test and reach production.
+These bugs manifest only for a particular timezone and schedule shape on the two
+days a year the offset changes, so they escape happy-path tests.
 
 ## Decision
 
@@ -84,12 +76,12 @@ manual / catchup inference must stay consistent with scheduled runs.
 
 ## Consequences
 
-- Schedules fire at the wall-clock time the author intended, in their timezone,
-  including across DST transitions, and the interval a run covers is stable.
-- Manual triggers, backfills, catchup, and `airflow dags clear` all operate on
-  the same interval the scheduler would, so they act on the intended day.
-- Contributors changing the cron/delta engines must think in the local zone and
-  test the boundary cases, not just UTC.
+- Schedules fire at the author's intended wall-clock time, across DST, with a
+  stable covered interval.
+- Manual triggers, backfills, catchup, and `airflow dags clear` all act on the
+  same interval the scheduler would, on the intended day.
+- Changing the cron/delta engines means thinking in the local zone and testing
+  the boundary cases, not just UTC.
 
 A change **violates** this decision when it:
 
@@ -107,15 +99,9 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #69143 — "Fix drifting data intervals for monthly/yearly schedules with
-  catchup disabled": interval boundaries drifted for monthly/yearly schedules,
-  the exact alignment-versus-inference inconsistency this decision guards.
-- #67717 — "Fix `airflow dags clear` clearing the wrong day for non-UTC
-  partitioned timetables": a non-UTC timezone caused the wrong day to be
-  selected, a direct timezone-correctness failure in interval math.
-- #62441 — "fix failing to manually trigger a Dag with CronPartitionedTimetable":
-  manual-trigger interval inference did not line up with the timetable's cron
-  schedule.
-- #54644 — "Fix cron expression display for Day-of-Month and Day-of-Week
-  conflicts": correctness of cron-expression interpretation surfaced in the
-  schedule the timetable presents.
+- #69143 — interval boundaries drifted for monthly/yearly schedules with catchup
+  disabled: the alignment-versus-inference inconsistency this guards.
+- #67717 — non-UTC partitioned timetable made `airflow dags clear` pick the wrong
+  day: a direct timezone-correctness failure in interval math.
+- #62441 — manual-trigger inference did not line up with `CronPartitionedTimetable`.
+- #54644 — cron-expression display for Day-of-Month / Day-of-Week conflicts.

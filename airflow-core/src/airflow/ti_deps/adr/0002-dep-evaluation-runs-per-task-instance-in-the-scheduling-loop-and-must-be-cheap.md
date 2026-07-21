@@ -28,27 +28,20 @@ Accepted
 ## Context
 
 Each candidate task instance is gated by a *set* of dependencies — `RUNNING_DEPS`,
-`SCHEDULER_QUEUED_DEPS`, or `REQUEUEABLE_DEPS` in `dependencies_deps.py` — and
-every dep in the set is evaluated for that task instance inside the scheduler's
-main loop. The loop is latency-sensitive and largely single-threaded per
-scheduler, so the cost of a dep is not paid once: it is paid for *every* task
-instance the scheduler considers, on *every* cycle, across the whole deployment.
+`SCHEDULER_QUEUED_DEPS`, or `REQUEUEABLE_DEPS` in `dependencies_deps.py` — and every
+dep is evaluated for that instance inside the scheduler's latency-sensitive,
+largely single-threaded main loop. A dep's cost is paid for *every* task instance
+considered, on *every* cycle, across the deployment.
 
-That multiplier is what makes a locally innocent change expensive. A dep that
-issues one query per upstream task, or per map index, or re-fetches the run's
-finished task instances, turns into an N+1 storm the moment a Dag has wide fan-in
-or a large mapped task group — and the symptom is not an error but a scheduler
-that falls behind. The existing deps are written to avoid this: the trigger-rule
-dep counts upstream states with a single aggregate,
-`select(TaskInstance.task_id, func.count(TaskInstance.task_id)).group_by(...)`,
-rather than looping; `DepContext.ensure_finished_tis()` fetches the run's
-finished task instances *once* and hands the list to every dep that needs it; and
-several deps iterate lazily and return early on the first failing condition so a
-cheap "not ready yet" answer never pays for the expensive path.
-
-This mirrors the scheduler-loop cost discipline the repo `CLAUDE.md` requires
-(push work into batched SQL, don't add unbounded per-row work to the loop);
-dependency evaluation is one of the hottest consumers of that budget.
+That multiplier makes a locally innocent change expensive: a dep issuing one query
+per upstream task, per map index, or re-fetching the run's finished task instances
+becomes an N+1 storm the moment a Dag has wide fan-in or a large mapped group — the
+symptom is a scheduler falling behind, not an error. The existing deps avoid this:
+the trigger-rule dep counts upstream states with a single aggregate
+(`select(TaskInstance.task_id, func.count(...)).group_by(...)`) rather than looping;
+`DepContext.ensure_finished_tis()` fetches finished task instances *once* and shares
+the list; and several deps iterate lazily with early return. This mirrors the
+scheduler-loop cost discipline the repo `CLAUDE.md` requires.
 
 ## Decision
 
@@ -67,13 +60,12 @@ the scheduling loop. Specifically:
 
 ## Consequences
 
-- The scheduler stays responsive as Dags scale in fan-in and in mapped-task
-  width; dependency checks do not become the bottleneck that starves scheduling.
-- New dependency logic that needs upstream/aggregate information must express it
-  as set-based SQL, not as a Python loop over related task instances.
-- Sharing `finished_tis` and other context state across deps is part of the
-  contract, not an optimisation to be undone casually — removing that sharing
-  reintroduces the per-dep refetch cost.
+- The scheduler stays responsive as Dags scale in fan-in and mapped-task width;
+  dependency checks do not become the bottleneck that starves scheduling.
+- New dependency logic needing upstream/aggregate information expresses it as
+  set-based SQL, not a Python loop over related task instances.
+- Sharing `finished_tis` and other context state is part of the contract, not a
+  casual optimisation — removing it reintroduces the per-dep refetch cost.
 
 A change **violates** this decision when it:
 
@@ -88,15 +80,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #64558 — "Fix teardown scope evaluation: lazy iteration, early return, better
-  tests": made a dep short-circuit cheaply instead of always doing the full work
-  — the cost discipline this decision codifies.
-- #67684 — "Fix per-index evaluation of `ONE_FAILED` in mapped task groups":
-  correctness of aggregate state evaluation across a mapped group, where the
-  counts must be computed set-wise rather than per index.
-- #61769 — "Fix `max_active_tis_per_dag` for deferred task instances": a
-  concurrency dep whose per-task-instance evaluation had to stay correct and
-  bounded under the scheduler's per-loop accounting.
-- #61227 — "Multi-team. Verify a task uses a pool it has access to when
-  scheduling": added a scheduling-time access check as a dep, work paid per task
-  instance in the loop.
+- #64558 — "Fix teardown scope evaluation: lazy iteration, early return": short-circuits
+  cheaply instead of always doing the full work.
+- #67684 — "Fix per-index evaluation of `ONE_FAILED` in mapped task groups": aggregate
+  state computed set-wise, not per index.
+- #61769 — "Fix `max_active_tis_per_dag` for deferred task instances": a concurrency dep
+  kept correct and bounded per instance.
+- #61227 — "Multi-team. Verify a task uses a pool it has access to": a scheduling-time
+  access check paid per task instance.

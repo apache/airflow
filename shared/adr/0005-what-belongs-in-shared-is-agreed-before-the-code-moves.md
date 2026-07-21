@@ -29,40 +29,23 @@ Accepted
 
 Creating a shared library is close to irreversible. The moment
 `apache-airflow-shared-<name>` exists it acquires a distribution, a
-`pyproject.toml`, a dependency set every consumer inherits, symlinks into each
-consumer, prek hooks that police its structure, and — once released — consumers
-that may pin different versions of it. Undoing that is not a revert; it is a
-migration across several distributions.
+`pyproject.toml`, a dependency set every consumer inherits, symlinks, prek hooks,
+and — once released — consumers that may pin different versions. Undoing that is a
+migration across distributions, not a revert. The expensive part of such a PR is
+therefore not the (mostly mechanical) code motion but the boundary: what exactly is
+"shared", what stays behind, and how the library interacts with providers, which
+have their own config and cadence. That must be answered first, not from a diff
+that already moved two thousand lines.
 
-The expensive part of such a PR is therefore not the code motion, which is
-mostly mechanical, but the boundary: what exactly is "shared" here, what stays
-behind, and how the new library interacts with code that is neither core nor
-Task SDK — providers in particular, which have their own configuration and their
-own release cadence. That question cannot be answered by reading a diff that has
-already moved two thousand lines. It has to be answered first.
-
-This is what happened to the configuration library. The extraction was proposed
-as a PR, review immediately turned to scope — what counts as shared, and how the
-provider side of configuration fits — and the PR was closed in favour of a
-successor built against the agreed scope. The work was not wasted, but a large
-diff was reviewed twice and thrown away once, which is the specific outcome this
-decision exists to avoid.
-
-The extractions that went smoothly went the other way round. The secrets-backend
-move landed as a sequence: move the base class out to the shared library, then
-remove the `Connection` dependency, then remove the remaining core references on
-the SDK side — each step small, each with a clear boundary, and the client/server
-separation they were serving was already agreed. The `module_loading` extraction
-was similarly narrow: one well-understood utility, no ambiguity about what
-belonged in it.
-
-The same discipline applies at smaller scale to adding surface. A new hook, a
-new class, a new metric in a shared library is inherited by every consumer and
-is hard to withdraw. Reviewers ask what the existing surface cannot express
-before considering an addition — a proposed listener hook was closed once its
-author established the case was reachable through an existing hook with zero new
-surface, and a proposed scheduler gauge was withdrawn after comparison with how
-comparable systems derive the same signal from state they already have.
+The configuration library (#54943) shows the cost: proposed directly as a PR,
+review turned to scope, and it was closed for a successor (#57744) built against
+the agreed scope — a large diff reviewed twice and thrown away once. The smooth
+extractions went the other way: the secrets-backend move landed as narrow steps,
+and `module_loading` was one unambiguous utility. The same discipline applies to
+*adding surface* — a new hook, class, or metric is inherited by every consumer and
+is hard to withdraw, so reviewers ask what the existing surface cannot express
+first (a listener hook closed once shown reachable through an existing hook; a
+scheduler gauge withdrawn after comparison with prior art).
 
 ## Decision
 
@@ -84,16 +67,12 @@ The boundary is agreed before the code moves:
 
 ## Consequences
 
-The libraries stay small and their boundaries stay defensible, and the
+The libraries stay small and their boundaries defensible, and the
 cross-distribution surface grows slowly enough that cross-version compatibility
-remains tractable.
-
-The cost falls on anyone with a genuinely good extraction to propose: they must
-argue for it before writing it, and the work arrives later than it would have.
-Contributors reasonably experience this as friction, and the incremental-landing
-rule makes a single conceptual change into four or five PRs, each needing its
-own review round. For a contributor without standing in the area, that is a long
-road for a refactor with no user-visible payoff.
+stays tractable. The cost falls on anyone with a genuinely good extraction to
+propose: they must argue for it before writing it, and the incremental-landing
+rule turns one conceptual change into four or five PRs — a long road for a
+contributor without standing in the area.
 
 A change **violates** this decision when it:
 
@@ -114,15 +93,14 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #54943 — shared configuration library proposed directly as a PR; review turned
-  on the scope of "shared" and its interaction with provider configuration, and
-  the PR was closed in favour of #57744.
+- #54943 — shared configuration library proposed directly as a PR; closed on scope
+  in favour of #57744.
 - #57744 — the successor, built against the agreed scope.
-- #58621, #61523, #59597 — the secrets-backend extraction landed as separate,
-  narrow steps: move the base class to the shared library, remove the
-  `Connection` dependency, then remove core references on the SDK side.
+- #58621, #61523, #59597 — secrets-backend extraction as separate narrow steps:
+  move the base class, remove the `Connection` dependency, remove core references
+  on the SDK side.
 - #59139 — `module_loading` extracted as a single, unambiguous utility.
-- #66410 — a proposed listener hook closed once the case was shown to be
-  reachable through the existing hook with no new surface.
-- #69086 — a proposed scheduler gauge withdrawn after comparison with prior art
-  that derives the same signal from existing state.
+- #66410 — a listener hook closed once shown reachable through an existing hook
+  with no new surface.
+- #69086 — a scheduler gauge withdrawn after comparison with prior art deriving the
+  signal from existing state.

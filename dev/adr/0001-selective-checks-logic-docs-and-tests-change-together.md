@@ -27,34 +27,22 @@ Accepted
 
 ## Context
 
-`dev/breeze/src/airflow_breeze/utils/selective_checks.py` decides, for every
-single pull request, which CI jobs run: which test types, which Python and
-backend versions, which provider matrices, which prek hooks are skipped, and
-whether the full matrix is forced. It is the CI optimisation layer that keeps a
-monorepo of this size affordable to test.
+`dev/breeze/src/airflow_breeze/utils/selective_checks.py` decides, for every pull
+request, which CI jobs run: test types, Python and backend versions, provider matrices,
+which prek hooks are skipped, and whether the full matrix is forced. Its failure mode is
+unlike ordinary code: when a rule is wrong in the *restrictive* direction, nothing fails
+— a suite simply does not run, the PR goes green, and the regression lands with no stack
+trace, surfacing days later on another branch or at release time.
 
-Its failure mode is unlike ordinary code. When a rule is wrong in the
-*restrictive* direction, nothing fails — a suite simply does not run, the pull
-request goes green, and the regression lands. There is no stack trace, no red
-job, and no artifact pointing at the cause. The evidence that something was
-mis-classified surfaces days later on a different branch, or at release time.
-
-That makes the *diff* an inadequate review surface. A one-line condition change
-is only reviewable against a stated model of what CI is supposed to do for a
-given kind of change. Two artifacts carry that model:
-`dev/breeze/doc/ci/04_selective_checks.md`, which describes the decision rules,
-file groups, outputs and worked examples for humans, and
-`dev/breeze/tests/test_selective_checks.py`, which pins the classification of
-concrete file sets. When either drifts from the code, the behaviour becomes
-unreviewable — a reviewer can no longer distinguish an intended optimisation
-from an accidental hole in coverage.
-
-The repository's `CLAUDE.md` already states this as a coding standard. This ADR
-records it as a binding architectural decision for the area, together with the
-conservatism rule that goes with it: heuristics that cannot tell whether a
-change is risky must run *more*, not less. Airflow has removed a large-PR
-heuristic outright and reverted a release-branch matrix change rather than keep
-guessing.
+That makes the *diff* an inadequate review surface. A one-line condition is only
+reviewable against a stated model of what CI should do. Two artifacts carry that model:
+`dev/breeze/doc/ci/04_selective_checks.md` (decision rules, file groups, outputs, worked
+examples) and `dev/breeze/tests/test_selective_checks.py` (pins the classification of
+concrete file sets). When either drifts from the code, a reviewer can no longer
+distinguish an intended optimisation from an accidental hole in coverage. The
+repository's `CLAUDE.md` states this as a coding standard; this ADR records it as a
+binding architectural decision, together with the conservatism rule: heuristics that
+cannot tell whether a change is risky must run *more*, not less.
 
 ## Decision
 
@@ -79,12 +67,11 @@ guessing.
 
 ## Consequences
 
-CI behaviour stays explainable: a reviewer can read the documented rules, check
-them against the test cases, and judge whether the code implements them. Skips
-accumulate deliberately and traceably rather than by accretion. The cost is that
-every selective-checks pull request is a three-file change at minimum, which
-makes trivial-looking tweaks feel disproportionate — that friction is the point,
-since the alternative is a silent loss of test coverage that nobody detects.
+CI behaviour stays explainable: a reviewer reads the documented rules, checks them against
+the test cases, and judges whether the code implements them, and skips accumulate
+deliberately rather than by accretion. The cost is that every selective-checks PR is a
+three-file change at minimum — friction that is the point, since the alternative is a
+silent loss of coverage nobody detects.
 
 A change *violates* this decision when it:
 
@@ -103,17 +90,16 @@ A change *violates* this decision when it:
 
 ## Evidence
 
-- #68116 — documented the selective-checks algorithm and heuristics, establishing
+- #68116 — documented the selective-checks algorithm, establishing
   `04_selective_checks.md` as the human-readable model of the rules.
-- #69861 — fixed the documented breeze selective-checks command after the doc
-  drifted from the tooling.
-- #68109 — removed the large-PR heuristic from selective checks rather than
-  continue tuning a proxy that guessed wrong about risk.
-- #68120 — reverted #68057 after a release-branch full-matrix change did not
-  behave as intended on `v3-X-test`.
-- #68802 — narrowed forced full CI for non-test workflow and prek-only changes,
-  landing the logic, doc and test updates together.
-- #69519 — made the `area:kubernetes-tests` label force the Kubernetes job,
-  again with logic, doc and tests in one change.
-- #69674, #70021 — doc-only skips for Java SDK and Go SDK jobs, each shipped
-  with matching test cases.
+- #69861 — fixed the documented breeze selective-checks command after the doc drifted.
+- #68109 — removed the large-PR heuristic rather than keep tuning a proxy that guessed
+  wrong about risk.
+- #68120 — reverted #68057 after a release-branch full-matrix change misbehaved on
+  `v3-X-test`.
+- #68802 — narrowed forced full CI for non-test workflow and prek-only changes, landing
+  logic, doc and tests together.
+- #69519 — made `area:kubernetes-tests` force the Kubernetes job, with logic, doc and
+  tests in one change.
+- #69674, #70021 — doc-only skips for Java SDK and Go SDK jobs, each with matching test
+  cases.

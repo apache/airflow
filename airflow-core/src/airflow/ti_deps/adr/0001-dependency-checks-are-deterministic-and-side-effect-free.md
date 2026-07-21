@@ -28,29 +28,22 @@ Accepted
 ## Context
 
 Task-instance dependencies (`BaseTIDep` subclasses in `deps/`) are the rules the
-scheduler evaluates to decide whether a task instance may be queued or run. They
-execute *inside* the scheduler loop, which holds a direct, privileged database
-session and *never* runs user code (see `../../jobs/adr/0001`). A dependency
-therefore has a narrow job: read serialized Dag structure and task-instance /
-Dag-run state, and answer *met* or *not met* with a reason. Nothing else.
+scheduler evaluates to decide whether a task instance may be queued or run. They run
+*inside* the scheduler loop, which holds a privileged DB session and *never* runs
+user code (see `../../jobs/adr/0001`). A dep's job is narrow: read serialized Dag
+structure and task-instance / Dag-run state, and answer *met* or *not met* with a
+reason.
 
-Two properties keep this safe. First, a dep must be **deterministic** — given
-the same persisted state it must return the same answer, because the scheduler
-re-evaluates deps repeatedly and multiple HA schedulers may evaluate the same
-task. Second, a dep must be **side-effect-free** — evaluating whether a task
-*can* run must not itself change the world. `DepContext` documents this
-explicitly, and even the one sanctioned exception (`flag_upstream_failed`, which
-writes `upstream_failed`/`skipped` while checking runnability) is called out in
-the code as "a hack … this class should be pure (no side effects)." That single
-contained wart is the ceiling, not a precedent to build on: a past bug leaked
-`DepContext` mutation between evaluations and had to be fixed.
-
-The recurring temptation is to let a dep do more than answer a question —
-persist a derived flag as a shortcut, memoise across evaluations, or (the shape
-`../../jobs/adr/0001` rejects) evaluate a user-supplied predicate so authors can
-plug in "custom" scheduling logic. Each would make scheduling decisions depend
-on evaluation order, on which scheduler ran, or on untrusted author code running
-in the privileged loop.
+Two properties keep this safe. A dep must be **deterministic** — the same persisted
+state gives the same answer, because the scheduler re-evaluates repeatedly and HA
+schedulers may evaluate the same task. And a dep must be **side-effect-free** —
+checking whether a task *can* run must not change the world. Even the one sanctioned
+exception (`flag_upstream_failed`) is flagged in code as "a hack … this class should
+be pure (no side effects)"; a past bug that leaked `DepContext` mutation between
+evaluations had to be fixed. The recurring temptation — persist a derived flag,
+memoise across evaluations, or evaluate a user-supplied predicate (the shape
+`../../jobs/adr/0001` rejects) — each makes decisions depend on evaluation order, on
+which scheduler ran, or on untrusted author code in the privileged loop.
 
 ## Decision
 
@@ -70,15 +63,13 @@ code and does not mutate persistent state as part of answering. Concretely:
 
 ## Consequences
 
-- The scheduler loop stays trustworthy and safe to re-run and to replicate for
-  HA: re-evaluating deps, or evaluating them from a second scheduler, cannot
-  corrupt state or produce different answers.
-- New scheduling flexibility that depends on author intent must be expressed as
-  serialized, declarative data the dep reads — not as a callable the scheduler
-  runs. User-defined custom `TIDep` classes are therefore not accepted.
-- Any genuinely necessary state change discovered while checking runnability must
-  be explicit and owned by the scheduler's own transition logic, not smuggled
-  into a dep as a side effect.
+- The scheduler loop stays safe to re-run and replicate for HA: re-evaluating deps,
+  or evaluating from a second scheduler, cannot corrupt state or change answers.
+- Scheduling flexibility that depends on author intent must be serialized,
+  declarative data the dep reads — not a callable the scheduler runs; user-defined
+  custom `TIDep` classes are therefore not accepted.
+- Any state change needed while checking runnability must be explicit and owned by
+  the scheduler's transition logic, not smuggled into a dep.
 
 A change **violates** this decision when it:
 
@@ -94,12 +85,9 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #62089 — "Fix `DepContext` mutation leak and restore `reschedule-mode` guard":
-  a leaked mutation between dep evaluations is exactly the impurity this decision
-  guards against, and the fix restored the side-effect-free contract.
-- #67776 — "Fix exceptions of positional session use in airflow-core ti-deps":
-  tightened the DB-session discipline these checks run under (keyword-only
-  session), part of keeping dep evaluation predictable.
-- The rejection of user-defined custom task-instance dependency classes is
-  recorded in `../../jobs/adr/0001` — the scheduler must not evaluate
-  author-supplied dependency code.
+- #62089 — "Fix `DepContext` mutation leak and restore `reschedule-mode` guard": a
+  leaked mutation between evaluations is exactly the impurity this guards against.
+- #67776 — "Fix ... positional session use in airflow-core ti-deps": tightened
+  DB-session discipline (keyword-only session).
+- User-defined custom task-instance dependency classes are rejected in
+  `../../jobs/adr/0001` — the scheduler must not evaluate author-supplied dep code.

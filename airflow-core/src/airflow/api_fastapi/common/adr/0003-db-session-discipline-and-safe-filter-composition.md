@@ -27,36 +27,30 @@ Accepted
 
 ## Context
 
-These helpers sit between untrusted client input and SQL executed against the
-metadata database. Three responsibilities that would otherwise be re-implemented
-(and re-broken) per route are concentrated here so they hold for every endpoint:
+These helpers sit between untrusted client input and SQL run against the metadata
+database. Three responsibilities are concentrated here so they hold for every endpoint:
 
-- **Session discipline.** `paginated_select` is `@provide_session` with a
-  keyword-only `session`; the repo-wide rule that a function in `airflow-core` which
-  takes a `session` must not call `session.commit()` applies to every helper here.
-  A helper that opened its own session mid-operation, or committed a caller's
-  in-progress transaction, would split one logical unit of work across two
-  transactions and break the route's rollback expectations.
-- **Safe filter composition.** User query-strings become SQL through
-  `parameters.py`, and every path from input to SQL is vetted. `SortParam` resolves
-  ordering only against an allow-list of model attributes — a client-supplied
-  ordering field that is not on the list is a `400`, never interpolated into
-  `ORDER BY`. Literal-match filters escape `LIKE`/`ILIKE` metacharacters
-  (`_escape_like_pattern`) so a user's `%` or `_` cannot widen the match beyond the
-  filter's promise; only the explicit `*_pattern` search params expose wildcard
-  semantics. Datetimes are parsed defensively and a bad value becomes a `400`, not a
-  crash deep in the query.
-- **Error translation.** The `ERROR_HANDLERS` in `exceptions.py` turn raw
-  SQLAlchemy errors into the correct HTTP status so a caller gets a meaningful
-  response instead of a `500` that leaks internals: a unique-constraint
-  `IntegrityError` → `409`, a `DataError` (a value the DB rejects after Pydantic
-  passes it) → `422`, and a Dag `DeserializationError` → a redacted `500`. Raw SQL
-  statements and stack traces are gated behind `[api] expose_stacktrace` and tied to
-  a correlation id, not echoed to clients by default.
+- **Session discipline.** `paginated_select` is `@provide_session` with a keyword-only
+  `session`; the repo-wide rule that an `airflow-core` function taking a `session` must
+  not call `session.commit()` applies to every helper here. A helper that opened its
+  own session mid-operation, or committed a caller's in-progress transaction, would
+  split one logical unit of work across two transactions and break rollback.
+- **Safe filter composition.** User query-strings become SQL through `parameters.py`,
+  and every path is vetted. `SortParam` resolves ordering only against an allow-list —
+  a field not on the list is a `400`, never interpolated into `ORDER BY`. Literal-match
+  filters escape `LIKE`/`ILIKE` metacharacters (`_escape_like_pattern`) so a user's `%`
+  or `_` cannot widen the match; only explicit `*_pattern` params expose wildcards.
+  Datetimes are parsed defensively — a bad value is a `400`, not a crash deep in the
+  query.
+- **Error translation.** `ERROR_HANDLERS` in `exceptions.py` turn raw SQLAlchemy errors
+  into the right status instead of a leaking `500`: unique-constraint `IntegrityError`
+  → `409`, `DataError` (a value the DB rejects after Pydantic passes it) → `422`, Dag
+  `DeserializationError` → a redacted `500`. Raw SQL and stack traces are gated behind
+  `[api] expose_stacktrace` and tied to a correlation id, not echoed by default.
 
-Getting these right in the shared layer is what lets each route boundary raise the
-correct `HTTPException` (see the sibling `core_api` error-translation ADR) instead
-of re-deriving the mapping — or leaking a `500` — one handler at a time.
+Getting these right in the shared layer lets each route boundary raise the correct
+`HTTPException` (see the sibling `core_api` error-translation ADR) instead of
+re-deriving the mapping — or leaking a `500` — per handler.
 
 ## Decision
 
@@ -106,18 +100,14 @@ mishandles the session, or lets a database error escape as an internal-leaking `
 
 ## Evidence
 
-- #67496 — "Escape LIKE wildcards in non-search filter parameters": stopped a
-  user-supplied `%` / `_` from widening a literal-match filter beyond its promise.
-- #66888 — "Return a 422 when the database rejects an API payload": added the
-  `DataError` → `422` translation so a DB-rejected value is a client error, not a
-  `500`.
-- #68512 — "Factor out a shared base for the database error handlers": consolidated
-  the SQLAlchemy-error-to-HTTP translation into one reusable base.
-- #63028 — "Updates exception to hide sql statements on constraint failure": redacted
-  the raw SQL statement from the client response, gating it behind config.
-- #68388 — "Gate raw Dag deserialization error detail behind api.expose_stacktrace
-  and log it server-side": redacted internal detail by default and tied it to a
-  server-side correlation id.
-- #64963 — "Update search parameters to better leverage DB indexes": kept vetted
-  user-driven filtering on indexed columns rather than an un-safe/un-indexed
-  predicate.
+- #67496 — escaped `LIKE` wildcards in non-search filters so a user `%`/`_` cannot
+  widen the match.
+- #66888 — added the `DataError` → `422` translation so a DB-rejected value is a client
+  error, not a `500`.
+- #68512 — consolidated the SQLAlchemy-error-to-HTTP translation into one reusable base.
+- #63028 — redacted raw SQL from the client response on constraint failure, gated behind
+  config.
+- #68388 — gated raw Dag deserialization detail behind `api.expose_stacktrace`, tied to
+  a server-side correlation id.
+- #64963 — kept vetted user-driven filtering on indexed columns rather than an
+  unsafe/un-indexed predicate.

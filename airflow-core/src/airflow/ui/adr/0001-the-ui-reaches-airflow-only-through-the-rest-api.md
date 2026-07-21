@@ -27,46 +27,27 @@ Accepted
 
 ## Context
 
-The React application in this directory is a static asset bundle. It is built by
-Vite, served by the API server, and executed in the user's browser. It has no
-database driver, no Airflow Python runtime, and no privileged channel of any
-kind. Every piece of data it displays — Dags, runs, task instances, logs, assets,
-connections, variables — arrives over HTTP from the API server, and every action
-it performs is a request to an endpoint under `api/v2/`.
+The React application here is a static asset bundle: built by Vite, served by the
+API server, run in the browser, with no database driver and no Airflow runtime.
+Every piece of data it shows and every action it performs is an HTTP request to an
+endpoint under `api/v2/`. This is the same boundary the rest of Airflow 3 is built
+on — the API server is the single mediator between every client and the metadata
+database, and the UI is deliberately just another client of it, alongside the
+Python client and the Go SDK. Requests go through the generated client in
+`openapi-gen/requests/`, wrapped by `src/queries/`, carrying the same JWT any other
+caller presents; the `axios` interceptors in `src/main.tsx` redirect to
+`api/v2/auth/login` on `401`, or `403` with an invalid token.
 
-This is not an implementation accident; it is the same boundary the rest of
-Airflow 3 is built on. The API server is the *single mediator between every
-client and the metadata database*. The UI is deliberately just another client of
-that mediator, alongside the published Python client, the Go SDK, and any
-third-party integration. Requests are issued by the generated client in
-`openapi-gen/requests/`, wrapped by the hooks in `src/queries/`, and carry the
-same JWT any other caller would present; the `axios` interceptors in
-`src/main.tsx` redirect to `api/v2/auth/login` when the server answers `401`, or
-`403` with an invalid token.
-
-Two consequences of this framing are easy to lose sight of while working inside a
-component:
-
-- **The UI has no privileges of its own.** It sees exactly what the calling user
-  is authorized to see, because authorization is decided by the API server's
-  dependencies, not by anything in this codebase. Hiding a control in the UI is a
-  usability affordance, never an access control. The `403` short-circuit in
-  `src/main.tsx` exists to stop the client re-polling an endpoint the server has
-  already refused — it is a politeness to the server, not a permission check.
-- **The API server is where server-side defects get fixed.** When an endpoint
-  returns a `500` on malformed input, omits a field the UI needs, or aggregates
-  state incorrectly, the correct repair is in the API server, where every other
-  consumer benefits. A defensive cast, a client-side recomputation, or a
-  `try`/`catch` in a component converts a shared bug into a local workaround that
-  the next consumer will hit again — and that the next UI refactor will silently
-  drop.
-
-There is a related trap on the *deployment* side. Because the UI runs in a
-browser at whatever URL an operator has put in front of it — a sub-path, a
-reverse proxy, a rewritten static asset root — it must derive its own base path
-from the served document (`src/queryClient.ts` reads it from the `<base href>`)
-rather than assuming it owns the origin. Hardcoding absolute paths breaks
-proxied installs in ways that never appear in local development.
+Two consequences are easy to lose sight of inside a component. **The UI has no
+privileges of its own** — authorization is decided by the API server's
+dependencies, so hiding a control is a usability affordance, never access control;
+the `403` short-circuit only stops the client re-polling a refused endpoint. And
+**server-side defects are fixed server-side** — a defensive cast, client-side
+recomputation, or a component `try`/`catch` turns a shared bug into a local
+workaround the next consumer hits again. On the deployment side, the UI runs at
+whatever URL an operator fronts it with, so it derives its base path from the served
+document (`src/queryClient.ts` reads `<base href>`) rather than assuming it owns the
+origin.
 
 ## Decision
 
@@ -89,16 +70,14 @@ The UI is a REST client of the API server and nothing more:
 
 ## Consequences
 
-- The UI inherits Airflow's authentication and authorization model for free, and
-  cannot become a privilege-escalation path: a browser-side exploit reaches
-  exactly the endpoints the user's own token already reaches.
-- Fixes made for the UI benefit every other API consumer, because they land in
-  the shared contract rather than in this bundle.
-- Some UI work is gated on API work, which is slower than reconstructing data in
-  the client — accepted deliberately, because the alternative is a UI whose view
-  of Airflow diverges from every other client's.
-- The UI can be served from any path or behind any proxy, because it never
-  assumes ownership of the origin.
+- The UI inherits Airflow's auth model for free and cannot become a
+  privilege-escalation path: a browser-side exploit reaches only the endpoints the
+  user's own token already reaches.
+- Fixes made for the UI benefit every other API consumer, because they land in the
+  shared contract rather than in this bundle.
+- Some UI work is gated on API work — slower, accepted deliberately, because the
+  alternative is a UI whose view of Airflow diverges from every other client's.
+- The UI can be served from any path or behind any proxy.
 
 A change *violates* this decision when it:
 
@@ -119,19 +98,14 @@ calling user's token does not already carry.
 
 ## Evidence
 
-- #62343 — "Add async connection testing via workers for security isolation":
-  connection testing was moved off the API server onto workers rather than given
-  a shortcut, keeping the isolation boundary the UI depends on intact.
-- #66741 — "Restrict owner-link and extra-link href to safe schemes (http, https,
-  mailto, relative)": server-supplied, user-controlled URLs are untrusted input
-  to the browser and are constrained before rendering.
-- #67489 — "UI: Return 400 instead of 500 from `structure_data` on malformed
-  `asset_expression`": the malformed-input case was fixed at the endpoint, not
-  papered over in the component that consumed it.
-- #67543 — "UI: align backend state aggregation with active-over-pending
-  priority": the aggregation discrepancy was corrected server-side so every
-  client sees the same state, rather than recomputed in the UI.
-- #66690 — "UI: Preserve proxied URL on login redirect": the auth redirect
-  derives the deployment's real URL instead of assuming the origin.
-- #67548 — "UI: Rewrite modulepreload hrefs to the api-server static path": asset
-  URLs follow the path the API server actually serves the bundle from.
+- #62343 — connection testing moved off the API server onto workers, keeping the
+  isolation boundary the UI depends on intact.
+- #66741 — server-supplied, user-controlled URLs constrained to safe schemes before
+  rendering.
+- #67489 — malformed `asset_expression` fixed to return `400` at the endpoint, not
+  papered over in the component.
+- #67543 — state-aggregation discrepancy corrected server-side so every client sees
+  the same state.
+- #66690 — auth redirect derives the deployment's real proxied URL instead of the
+  origin.
+- #67548 — modulepreload asset URLs follow the api-server static path.

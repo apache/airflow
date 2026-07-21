@@ -27,30 +27,19 @@ Accepted
 
 ## Context
 
-Because provider executors version-mix with core (see ADR 0001), a provider that
-wants to use a capability that only exists in a newer core must be able to run on
-an older core that lacks it — and the reverse. Provider executors carry
-back-compatibility shims for exactly this: the ECS and Celery executors, for
-example, branch on whether the running core is new enough before calling a
-newer-core API.
+Because provider executors version-mix with core (see ADR 0001), a provider using a
+capability that exists only in newer core must still run on older core, and the
+reverse. Provider executors carry back-compat shims for this — ECS and Celery branch
+on whether the running core is new enough before calling a newer-core API.
 
-There are two ways to write such a branch:
-
-1. A **bare `try/except ImportError` / `except AttributeError`** around the new
-   call, falling back on failure.
-2. An **explicit version guard** — a boolean like `AIRFLOW_V_3_1_PLUS` derived
-   from the installed Airflow version — with the new path under the `True` branch
-   and the legacy path under the `False` branch.
-
-The bare `try/except` form is deceptively appealing but corrosive: it swallows
-unrelated failures (a real `ImportError` deeper in the new path gets treated as
-"old core"), it hides *which* version the shim targets, and — most importantly —
-it is impossible to grep for and remove cleanly once the minimum supported
-version rises. A shim that cannot be found is a shim that lives forever.
-
-An explicit, named version constant makes each shim self-documenting: it states
-the exact minimum version at which the legacy branch becomes dead code, so it can
-be deleted mechanically when core drops support for that version.
+Such a branch can be written two ways: a **bare `try/except ImportError` /
+`AttributeError`** around the new call, or an **explicit version guard** — a boolean
+like `AIRFLOW_V_3_1_PLUS` from the installed version, new path under `True`, legacy
+under `False`. The bare `try/except` is corrosive: it swallows unrelated failures (a
+real `ImportError` in the new path reads as "old core"), hides which version the shim
+targets, and cannot be grepped and removed once the minimum version rises. An
+explicit named constant makes each shim self-documenting — it states the exact
+version at which the legacy branch is dead code, deletable mechanically.
 
 ## Decision
 
@@ -84,14 +73,6 @@ rejected because they make the shim unfindable or misleading at removal time.
 
 ## Evidence
 
-- #56187 — Move the traces and metrics code under a common observability package
-  (merged; cross-version import seam handled with an explicit guard).
-- #65277 — Clean up redundant api server uri generation (merged; removal of a
-  shimmed cross-version path at a known version).
-- #67449 — "Kubernetes executor callback support": **closed unmerged**, as an
-  inactive draft rather than on the merits. Cited for what review asked of it: the
-  one `CHANGES_REQUESTED` verdict said the approach and tests were fine and that
-  *"the main issues are backward compatibility issues"*, pointing the author at the
-  ECS (#63657) and Celery (#63888) implementations to follow. That is the
-  version-guarded back-compat pattern this ADR describes, requested in review and
-  not yet delivered when the draft went stale.
+- #56187 — merged; cross-version import seam handled with an explicit guard.
+- #65277 — merged; removal of a shimmed cross-version path at a known version.
+- #67449 — closed unmerged as a stale draft; its one `CHANGES_REQUESTED` said *"the main issues are backward compatibility issues"*, pointing at the ECS (#63657) and Celery (#63888) version-guarded pattern this ADR describes.

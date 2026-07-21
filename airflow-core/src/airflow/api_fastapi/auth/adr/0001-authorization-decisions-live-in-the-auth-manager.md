@@ -28,33 +28,23 @@ Accepted
 ## Context
 
 Every authorization question in Airflow — *may this user read this Dag, edit this
-connection, see this pool, act on this team's resources* — must be answered in one
-place, by one component, so it can be audited, overridden by a pluggable auth
-manager, and kept consistent across the whole API surface.
+connection, act on this team's resources* — is answered in one component so it can
+be audited, overridden by a pluggable manager, and kept consistent. `BaseAuthManager`
+exposes the decision methods (`is_authorized_dag`, `is_authorized_connection`, …)
+plus the collection helpers built on them (`batch_is_authorized_*`,
+`filter_authorized_*`, `get_authorized_*`). The API server does not re-implement
+these checks in route bodies: it *enforces* the manager's decision by wiring the
+`requires_access_*` dependencies and permitted-filter factories from
+`core_api/security.py` onto routes. The route declares the access it needs; the
+dependency calls the manager; the manager decides.
 
-The auth manager is that component. `BaseAuthManager` exposes the decision methods
-(`is_authorized_dag`, `is_authorized_connection`, `is_authorized_pool`,
-`is_authorized_variable`, `is_authorized_view`, …) plus the collection-scoped
-helpers built on them (`batch_is_authorized_*`, `filter_authorized_*`,
-`get_authorized_*`). The API server does **not** re-implement these checks in route
-bodies: it *enforces* the manager's decision by wiring the `requires_access_*`
-dependencies and permitted-filter factories from `core_api/security.py` onto
-routes. The route declares the access it needs; the dependency calls the manager;
-the manager decides.
-
-This split has a failure mode that recurs in review. When authorization logic leaks
-into a handler body, a UI check, or a hand-rolled query filter, it drifts from the
-manager's decision, is invisible to a pluggable manager that wants to override it,
-and is easy to get subtly wrong — authorizing the wrong resource, forgetting the
-team scope, or authorizing a bulk operation as a whole so one permitted item drags
-an unpermitted one along. The list/filter case is the same decision seen from the
-other side: an endpoint that returns *all* rows and trims them itself, instead of
-asking the manager which rows the user may see, is an authorization hole dressed as
-a query.
-
-The manager is also where multi-team scoping lives. `get_authorized_dag_ids` and
-its siblings group resources by `team_name` and defer to the manager's per-team
-decision; a caller that bypasses these helpers loses the team boundary entirely.
+The recurring failure mode is authorization logic leaking into a handler body, a UI
+check, or a hand-rolled query filter — where it drifts from the manager, is invisible
+to a pluggable override, and gets the resource, the `team_name` scope, or a bulk
+operation subtly wrong. A list endpoint that returns *all* rows and trims them itself
+is that same hole dressed as a query. Multi-team scoping lives in the manager too:
+`get_authorized_dag_ids` and its siblings group by `team_name`; a caller that
+bypasses them loses the team boundary entirely.
 
 ## Decision
 
@@ -78,13 +68,11 @@ dependencies — never re-derived in a route body:
 
 ## Consequences
 
-- Authorization is auditable in one component and one set of methods, rather than
-  scattered across handlers and UI code.
-- A pluggable auth manager (FAB, Keycloak, a custom one) can change *how* access is
-  decided without every call site changing — the enforcement wiring stays put.
-- Multi-team scoping is applied uniformly because it lives in the shared helpers.
-- Callers pay the cost of wiring the correct dependency and going through the
-  `*_authorized_*` helpers — intentional, because that path *is* the boundary.
+- Authorization is auditable in one component, not scattered across handlers and UI.
+- A pluggable manager (FAB, Keycloak, custom) changes *how* access is decided without
+  every call site changing, and multi-team scoping applies uniformly.
+- Callers pay the cost of wiring the correct dependency — intentional, because that
+  path *is* the boundary.
 
 A change **violates** this decision when it:
 
@@ -102,17 +90,10 @@ than the auth manager, or that is scoped to the wrong resource or team.
 
 ## Evidence
 
-- #55298 — "List only connections, pools and variables the user has access to":
-  moved list filtering onto the manager's `get_authorized_*` helpers instead of
-  returning everything and trimming in the route.
-- #55278 — "Fix bulk operation permissions for connection, pool and variable":
-  closed a bulk-endpoint hole where the operation was not authorized per item.
-- #55682 — "Override `get_authorized_connections`, `get_authorized_pools` and
-  `get_authorized_variables` in FAB auth manager": a provider manager overriding the
-  centralized decision with a more efficient implementation — only possible because
-  the decision is centralized.
-- #61861 — "Add support for multi-team in Simple auth manager": threaded the
-  `team_name` scope through the manager's authorization decisions.
-- #65685 — "Honor AUTH_ROLE_PUBLIC in FastAPI API server": kept the
-  public/anonymous access decision in the auth-manager-backed enforcement path
-  rather than a bespoke route check.
+- #55298 — moved list filtering onto `get_authorized_*` instead of trim-in-route.
+- #55278 — closed a bulk-endpoint hole where the operation was not authorized per item.
+- #55682 — FAB manager overrode the centralized decision, more efficiently; only
+  possible because it is centralized.
+- #61861 — threaded the `team_name` scope through the manager's decisions.
+- #65685 — kept the public/anonymous decision in the auth-manager path, not a bespoke
+  route check.

@@ -27,43 +27,31 @@ Accepted
 
 ## Context
 
-Every operator running Airflow on Kubernetes has workflow around it: restarting
-a component on a schedule, poking an API after a sync completes, bundling a
-database, applying site-specific labels, layering their own jobs. Each of those
-is a small, plausible pull request against the chart — a boolean, a CronJob
-template, one more optional resource.
+Every operator running Airflow on Kubernetes has workflow around it — restarting a
+component on a schedule, poking an API after a sync, bundling a database. Each is a
+small, plausible PR: a boolean, a CronJob template, one more optional resource. Accepted
+uncritically, that class of change turns the chart into a general deployment framework,
+and the costs land on everyone:
 
-Accepted uncritically, that class of change turns the chart into a general
-deployment framework, and the costs land on everyone:
+- **Values grow faster than they can be maintained.** Each knob is permanent under ADR 1
+  and multiplies the combination space every template change must be correct across.
+- **Deployment-specific workflow is where Helm is weakest** — a scheduled restart is
+  naturally an extra manifest, a post-render overlay, or the operator's own CronJob, none
+  of which need a chart release or constrain anyone.
+- **Bundled infrastructure is a liability.** A database subchart makes the project
+  responsible for a dependency's upgrade path on the chart's cadence. The chart already
+  carries such components — the statsd exporter, redis, pgbouncer and its exporter, and an
+  OpenTelemetry collector under `templates/otel-collector/`. *Meeting* that obligation —
+  bumping a base image for a CVE, tracking an upstream release — is required work, not
+  scope creep. The liability argument is a reason not to take on the *next* one, never a
+  reason to leave existing ones unpatched.
+- **These changes are direction decisions wearing a template's clothes.** Whether the
+  chart bundles a database or offers restart orchestration is a question about what the
+  chart is — settled on the devlist or in the chart channel, not inside the review of a
+  PR that assumes the answer.
 
-- **Values grow faster than they can be maintained.** Each knob is permanent
-  under ADR 1 and multiplies the combination space that every subsequent
-  template change has to be correct across. The chart already renders across
-  executors, persistence, KEDA, HPA, pgbouncer and several logging backends.
-- **Deployment-specific workflow is where Helm is weakest.** A scheduled restart
-  or a post-sync trigger is naturally expressed as an extra manifest, a
-  post-render overlay, or the operator's own CronJob — mechanisms that exist,
-  need no chart release, and do not constrain anyone else.
-- **Bundled infrastructure is a liability.** Shipping a database subchart makes
-  the project responsible for upgrade paths and platform compatibility of
-  software it does not maintain, on the chart's release cadence rather than the
-  dependency's. The chart already carries several such components — the statsd
-  exporter, redis, pgbouncer and its exporter, and an OpenTelemetry collector
-  with its own Deployment, Service, NetworkPolicy and ServiceAccount under
-  `templates/otel-collector/`. Each of those is a standing maintenance
-  obligation, and *meeting* that obligation — bumping a base image for a CVE,
-  tracking an upstream release — is required work, not scope creep. The liability
-  argument is a reason not to take on the *next* one, never a reason to leave the
-  existing ones unpatched.
-- **These changes are direction decisions wearing a template's clothes.**
-  Whether the chart bundles a database, offers restart orchestration, or adopts
-  an overlay tool is a question about what the chart is — settled on the devlist
-  or in the chart channel, and never inside the review of the pull request that
-  assumes the answer.
-
-The chart's own answer to genuine gaps is the opposite direction: extension
-points that let operators add their own resources, rather than a value for each
-workflow someone might want.
+The chart's own answer to genuine gaps is the opposite: extension points that let
+operators add their own resources, rather than a value per workflow.
 
 ## Decision
 
@@ -87,20 +75,17 @@ workflow someone might want.
 
 ## Consequences
 
-- The values surface grows slowly and deliberately, which keeps the combination
-  space reviewable and keeps ADR 1's permanence affordable.
-- Some operators do more work in their own overlays than they would with a chart
-  flag. Several have said this is fine once the alternative is spelled out —
-  the answer has to come with the alternative, not as a bare refusal.
-- Contributors can invest real effort before the scope question is asked, which
-  is why that question belongs at the issue or devlist stage rather than in
-  review.
-- Documenting the operator-side alternative is part of declining a request; the
-  prose docs in `chart/docs/` are where that pattern has to live.
-- Whether a question is *currently* under discussion is not something a review
-  pass can determine from a diff — there is no enumerable list of live threads.
-  It is a reviewer prompt, not a violation: a reviewer who knows of an open thread
-  says so and moves the discussion there; an author who knows of one links it.
+- The values surface grows slowly, keeping the combination space reviewable and ADR 1's
+  permanence affordable.
+- Some operators do more work in their own overlays; several have said this is fine once
+  the alternative is spelled out — the answer comes with the alternative, not a bare
+  refusal, and the prose docs in `chart/docs/` are where that pattern lives.
+- Contributors can invest effort before the scope question is asked, which is why it
+  belongs at the issue or devlist stage, not in review.
+- Whether a question is *currently* under discussion is not something a review pass can
+  determine from a diff — there is no enumerable list of live threads. It is a reviewer
+  prompt, not a violation: a reviewer who knows of an open thread says so and moves the
+  discussion there; an author who knows of one links it.
 
 A change **violates** this decision when it:
 
@@ -120,24 +105,17 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #61636 — an api-server rollout-restart CronJob: reviewers redirected it to a
-  discussion about offering an overlay mechanism instead of adding the
-  orchestration to the chart, and it was closed.
-- #63677 — a `dags.gitSync.syncToApiServer` boolean, declined; the author
-  implemented the behaviour in their own deployment and reported it working
-  well, which was the outcome the discussion pointed at.
-- #58742 — a bundled postgres subchart upgrade closed because the community had
-  already decided on the devlist to remove postgres from the chart entirely;
-  challenging that decision belongs on the devlist, not in the pull request.
-- #61065 — an exploratory proposal to restructure the chart around an overlay
-  tool, kept as a discussion about the chart's shape rather than merged as
-  templates.
+- #61636 — an api-server rollout-restart CronJob redirected to a discussion about an
+  overlay mechanism and closed.
+- #63677 — a `dags.gitSync.syncToApiServer` boolean declined; the author implemented it
+  in their own deployment and reported it working, the outcome the discussion pointed at.
+- #58742 — a bundled postgres subchart upgrade closed because the community had already
+  decided on the devlist to remove postgres; challenging that belongs on the devlist.
+- #61065 — an overlay-tool restructuring proposal kept as a discussion about the chart's
+  shape rather than merged as templates.
 - #55802 — declining to stop rendering the Redis broker-url secret for non-Celery
-  executors: the operator's constraint was real, but the chart keeps rendering
-  the object so executor switching keeps working, and the constraint is handled
-  on the operator's side.
-- #58398 — StatefulSet workers without a PVC, resolved by pointing the author at
-  an existing configuration path rather than adding a new deployment mode.
-- #65417 — "Update alpine version in pgbouncer and pgbouncer-exporter": the
-  counter-case that bounds this decision. Upgrading an image the chart already
-  ships is mandatory maintenance, and this ADR does not stand in its way.
+  executors: the chart keeps rendering the object so executor switching keeps working.
+- #58398 — StatefulSet workers without a PVC resolved by pointing at an existing config
+  path rather than a new deployment mode.
+- #65417 — the counter-case: upgrading the pgbouncer / pgbouncer-exporter alpine version
+  is mandatory maintenance, and this ADR does not stand in its way.

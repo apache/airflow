@@ -27,40 +27,27 @@ Accepted
 
 ## Context
 
-The Dag File Processor sits where Airflow meets the machine it runs on: it reads
-files from bundles on a filesystem, forks processes, imports modules, and does it
-all again on an interval. Every one of those touchpoints attracts a configuration
-option, and each proposal is locally reasonable — a knob for the file and folder
-permissions a bundle writes with, a list of modules to pre-import so parsing is
-faster, a threshold to tune the loop.
+The Dag File Processor reads bundle files, forks processes, and imports modules on
+an interval, and every touchpoint attracts a locally-reasonable configuration
+option. Two kinds are refused.
 
-Two kinds of these are refused, for different reasons that converge on the same
-outcome.
+The first is a concern the **deployment already owns**. Bundle file/directory
+permissions are set by the process umask and group membership: an operator running
+impersonation sets a group-writable umask and puts impersonated users in the
+processor's group, with no Airflow code. Two options in their place would codify a
+workaround into the (compatibility-surface) configuration space, outlive it by
+releases, and leave the concurrency cost unsolved — so the proposal was withdrawn
+for documentation.
 
-The first is a concern the deployment already owns. File and directory permissions
-under a bundle are set by the umask of the process and the group membership of the
-users involved; an operator running impersonation sets a group-writable umask and
-puts the impersonated users in the Dag processor's group, and gets the intended
-result with no Airflow code at all. Two new options in their place would have
-codified a workaround into the configuration space, left the concurrency cost they
-were meant to address unsolved, and — because a configuration option is a
-compatibility surface — outlived the workaround by several releases. The proposal
-was withdrawn in favour of documenting the deployment practice.
-
-The second is a concern the architecture is in the middle of removing. Pre-importing
-`airflow.*` modules to cut per-file parse cost is a real optimisation today and
-close to meaningless after Task-SDK isolation completes, when the only modules a Dag
-can import from `airflow.` are `airflow.sdk` and its deprecation shims — which the
-manager can simply always pre-import. Building the tunable now means shipping,
-documenting, and then deprecating an option whose entire justification expires on a
-known schedule. The useful residue of that proposal — letting a user name their *own*
-modules to pre-load — survives the transition, and that is what the reviewer
-redirected toward.
-
-Configuration is the most expensive thing this area can add. Code can be deleted;
-an option that a deployment has set in its `airflow.cfg` has to be deprecated,
-warned about, and carried. The bar is correspondingly higher than for the code
-behind it.
+The second is a concern the architecture is **removing**. Pre-importing `airflow.*`
+modules to cut parse cost is meaningless after Task-SDK isolation, when the only
+importable `airflow.` surface is `airflow.sdk` and its shims — which the manager can
+always pre-import. Building the tunable now ships, documents, and then deprecates an
+option whose justification expires on a known schedule. The useful residue —
+letting a user name their *own* preload modules — survives, and that is where the
+reviewer redirected. Configuration is the most expensive thing this area can add:
+code can be deleted, but an option set in an `airflow.cfg` must be deprecated,
+warned about, and carried.
 
 ## Decision
 
@@ -92,12 +79,12 @@ configuration and will still be needed after the transitions currently in flight
 ## Consequences
 
 - The configuration space stays proportionate to what genuinely varies between
-  deployments, and does not accumulate options whose reason for existing has expired.
-- Operators get answers sooner: a documented umask recipe ships immediately, an
+  deployments, without options whose reason has expired.
+- Operators get answers sooner: a documented umask recipe ships immediately; an
   option ships in a release.
-- Some real inefficiencies stay unaddressed for a while, and some contributors are
-  redirected from a working patch to a documentation change — a worse outcome for them
-  and a better one for every deployment that would otherwise inherit the option.
+- Some inefficiencies stay unaddressed and some contributors are redirected from a
+  working patch to documentation — worse for them, better for every deployment that
+  would otherwise inherit the option.
 
 A change **violates** this decision when it:
 
@@ -115,16 +102,5 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #60270 — "Add configs to set bundle file and folder permissions": closed by its
-  own author after review pointed out that the same effect is available today by
-  setting a group-writable umask and putting impersonated users in the Dag processor's
-  group, that two options acknowledged as temporary would pollute the configuration
-  space until a permanent solution arrived, and that they would not address the
-  concurrency overhead they were motivated by. The PR also raised changing default
-  permissions, which would have silently altered access control for every existing
-  installation on upgrade.
-- #58890 — pre-loading `airflow` modules in the Dag processor: declined as an
-  investment in a path that Task-SDK isolation removes, since Dags will be able to
-  import only `airflow.sdk` and its deprecation shims, which the manager can always
-  pre-import; the reviewer redirected to a user-specified module preload list, and the
-  author closed the PR agreeing the direction.
+- #60270 — closed by its own author: the umask+group recipe already achieves it, two temporary options would pollute config, they didn't address the concurrency cost, and the default-permission change would silently alter access control on upgrade.
+- #58890 — pre-loading `airflow` modules declined as investment in a path Task-SDK isolation removes; redirected to a user-specified preload list, author closed agreeing.

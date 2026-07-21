@@ -27,46 +27,32 @@ Accepted
 
 ## Context
 
-This provider ships 18 triggers under `cloud/triggers/` covering BigQuery,
-Dataproc, Dataflow, Cloud Run, Cloud Build, Cloud Batch, Cloud Composer,
-Cloud SQL, Data Fusion, Dataplex, GCS, GKE, Pub/Sub and Vertex AI. Every one of
-them exists as a *second implementation* of an operation the operator already
-implements synchronously. `DataprocSubmitTrigger.run()` polls
-`hook.get_job(...)` and decides that `DONE`, `CANCELLED` and `ERROR` are terminal
-— a judgement the operator's non-deferrable branch makes independently, in
-different code.
+This provider ships 18 triggers under `cloud/triggers/` (BigQuery, Dataproc,
+Dataflow, Cloud Run, Cloud Build, Cloud Batch, Cloud Composer, Cloud SQL, Data
+Fusion, Dataplex, GCS, GKE, Pub/Sub, Vertex AI), each a *second implementation* of
+an operation the operator already implements synchronously — and two
+implementations of the same job semantics drift, in three places specifically:
 
-Two implementations of the same job semantics drift. They drift in three places
-specifically:
-
-*Terminal-state mapping.* The sync path and the trigger each own a list of states
-they stop on and a rule turning those states into success or failure. A state
-added to one list and not the other means the deferred task either hangs on a
-finished job, or reports the wrong outcome.
+*Terminal-state mapping.* Sync path and trigger each own a stop list and a
+success/failure rule; a state added to one and not the other means the deferred
+task hangs on a finished job or reports the wrong outcome.
 
 *Cancellation.* A trigger is cancelled both when the user kills the task and when
-the triggerer itself shuts down or reschedules the trigger. Those are not the
-same event, and neither of them is success. A `run()` that catches
-`asyncio.CancelledError` and simply returns leaves the operator's
-`execute_complete` with no event to react to — the observed symptom is a killed
-task that passes, or a task stuck in `deferred` indefinitely. `BaseTrigger.on_kill()`
-(Airflow 3.3+, gated in this provider by `AIRFLOW_V_3_3_PLUS`) exists to separate
-user-initiated kills from triggerer-initiated cancellation, and triggers here are
-being migrated onto it.
+the triggerer shuts down or reschedules — not the same event, and neither is
+success. A `run()` that catches `asyncio.CancelledError` and returns leaves
+`execute_complete` with no event, so a killed task passes or stays `deferred`
+forever. `BaseTrigger.on_kill()` (Airflow 3.3+, gated by `AIRFLOW_V_3_3_PLUS`)
+separates user kills from triggerer cancellation; triggers here are migrating onto
+it.
 
-*Serialization.* A trigger's live state does not survive a triggerer restart —
-only what `serialize()` returns does. A constructor field that is not serialized
-silently reverts to its default on resume: the polling interval changes, or worse,
-`impersonation_chain` is lost and the resumed trigger authenticates as a different
-principal than the operator intended.
+*Serialization.* Only what `serialize()` returns survives a triggerer restart; an
+unserialized constructor field reverts to its default on resume — the poll interval
+changes, or `impersonation_chain` is lost and the trigger authenticates as a
+different principal.
 
-The transient-error dimension compounds all three. Google APIs return 503, 429 and
-409 for conditions that are not failures, and a trigger that treats a transient
-503 as terminal fails a job that was merely mid-restart — while a trigger that
-retries a permanent error polls forever.
-
-The provider's fix history for these is long enough that the pattern is not
-incidental; it is the dominant defect shape in this area.
+Transient errors compound all three: Google APIs return 503/429/409 for
+non-failures, so treating a transient 503 as terminal fails a mid-restart job while
+retrying a permanent error polls forever. This is the dominant defect shape here.
 
 ## Decision
 
@@ -98,15 +84,13 @@ semantics are the specification; the trigger conforms to them.
 
 ## Consequences
 
-- A user can flip `deferrable=True` on an operator and get the same outcomes, only
-  without an occupied worker slot. That is the entire value proposition of the
-  deferrable mode, and it does not survive behavioural drift.
-- Adding a deferrable mode roughly doubles the review surface of an operator, and
-  a state-mapping change becomes a two-file change by rule. This is accepted: the
-  alternative is defects that only appear in production, on a restarted triggerer,
-  or on a killed task.
-- Some triggers carry a version-gated branch for `on_kill()` until the provider's
-  Airflow floor moves past 3.3. That duplication is temporary and deliberate.
+- A user can flip `deferrable=True` and get the same outcomes without an occupied
+  worker slot — the whole value proposition, and it does not survive drift.
+- A deferrable mode roughly doubles an operator's review surface and makes a
+  state-mapping change a two-file change by rule. Accepted; the alternative is
+  defects that only appear on a restarted triggerer or a killed task.
+- Some triggers carry a version-gated `on_kill()` branch until the Airflow floor
+  moves past 3.3 — temporary and deliberate.
 
 A change **violates** this decision when it:
 
@@ -125,30 +109,17 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #67050 — "Fix `CloudRunExecuteJobOperator` deferrable mode silently passing on
-  cancel": a cancelled task reported as success. The canonical instance of this
-  decision's failure mode.
-- #63730 — "Fix `BigQueryInsertJobTrigger` not propagating `CancelledError`" — the
-  same defect in BigQuery, and #66704 — "Migrate `BigQueryInsertJobTrigger` to
-  `on_kill()` for user-initiated kills" and #65742 — "Migrate `DataprocSubmitTrigger`
-  and `DataprocSubmitJobDirectTrigger` to `on_kill()`", the structural fix.
-- #62082 — "fix `DataprocSubmitTrigger` deferred tasks stuck forever" and #67638 —
-  "Fix `DataprocCreateBatchOperator` stuck in deferred state for a long time": the
-  no-terminal-event failure mode, twice.
-- #66968 — "Serialize `poll_interval` and `impersonation_chain` on
-  `DataFusionStartPipelineTrigger`" and #67053 — "Preserve
-  `BigQueryIntervalCheckTrigger` params after triggerer restart": fields lost across
-  a restart, including a credential-scoping one.
-- #67219 — "Fix Cloud Run deferrable trigger handling of transient 503" and #66293 —
-  "Fix Dataflow deferrable trigger handling of transient 503": transient errors
-  mis-classified as terminal, in two independent triggers.
-- #61546 — "Fix deferrable mode in `CloudRunExecuteJobOperator`" and #63533 — "Fix
-  `S3ToGCSOperator` deferrable mode to return list of copied files": the deferred
-  path producing a different result than the sync path.
-- #66355 — "Pass `schedule_timeout_seconds` through to `GKEStartPodTrigger` from
-  `GKEStartPodOperator`": an operator parameter that stopped applying once the task
-  deferred.
-- #63230 — "wrap sync `get_job` with `sync_to_async` in `BigQueryAsyncHook`": a
-  blocking call on the event loop.
-- #65982 — "Add system tests for Dataproc trigger `on_kill` cancel behavior": the
-  cancellation semantics covered by a test that exercises the real service.
+- #67050 — `CloudRunExecuteJobOperator` deferrable silently passing on cancel: the
+  canonical instance of this failure mode.
+- #63730 — same `CancelledError` defect in BigQuery; #66704, #65742 — the
+  structural fix, migrating BigQuery/Dataproc triggers to `on_kill()`.
+- #62082, #67638 — the no-terminal-event failure mode (Dataproc stuck deferred),
+  twice.
+- #66968, #67053 — fields (poll interval, `impersonation_chain`) lost across a
+  triggerer restart, including a credential-scoping one.
+- #67219, #66293 — transient 503 mis-classified as terminal, in two independent
+  triggers.
+- #61546, #63533 — deferred path producing a different result than the sync path.
+- #66355 — `schedule_timeout_seconds` that stopped applying once the task deferred.
+- #63230 — wrapped blocking `get_job` in `sync_to_async` off the event loop.
+- #65982 — system test covering `on_kill` cancel against the real service.

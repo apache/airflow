@@ -27,38 +27,30 @@ Accepted
 
 ## Context
 
-A trigger has two lives. It is first constructed inside an operator, where it
-is passed to `TaskDeferred`; it is then *actively run* in a triggerer, almost
-always a **different process** from the one that built it. `BaseTrigger`
-bridges those two lives with a single narrow contract: `serialize()` returns a
-`(classpath, kwargs)` tuple, and the triggerer reconstructs the trigger by
-importing `classpath` and calling it with `kwargs`.
+A trigger has two lives: constructed inside an operator and passed to
+`TaskDeferred`, then *actively run* in a triggerer — almost always a **different
+process**. `BaseTrigger` bridges them with one narrow contract: `serialize()`
+returns a `(classpath, kwargs)` tuple, and the triggerer reconstructs the trigger
+by importing `classpath` and calling it with `kwargs`.
 
-That tuple is the *only* thing that crosses the gap. The live Python object the
-operator built — with its open clients, its bound methods, its enclosing task
-context — does **not** travel. Whatever the trigger needs in order to run must
-be expressible as `kwargs` that are JSON-serializable (or registered with
-Airflow's serialization) and sufficient to rebuild an equivalent instance from
-scratch. Anything else — a database session, an open connection, a closure over
-operator state — cannot survive the trip and, if smuggled in, either fails to
-serialize or silently reconstructs into something broken.
+That tuple is the *only* thing that crosses the gap. The live Python object — its
+open clients, bound methods, enclosing task context — does **not** travel.
+Everything the trigger needs must be `kwargs` that are JSON-serializable (or
+registered with Airflow serialization) and sufficient to rebuild an equivalent
+instance. A session, an open connection, or a closure over operator state cannot
+survive the trip and, if smuggled in, either fails to serialize or reconstructs
+broken.
 
-The reconstruction also happens more than once, and in more than one place.
-For HA, the same trigger can be run in two triggerers at once; on
-redistribution it moves between triggerers; on a restart it is rebuilt from the
-persisted row. This is why identity must be **deterministic**: the
-`TriggerEvent` identifying value and `shared_stream_key()` are compared across
-independently reconstructed instances, so deriving them from `time.time()` or
-`uuid.uuid4()` breaks deduplication and stream sharing. And because the runner
-injects state into the instance *after* constructing it (`_task_instance`,
-`trigger_id`, templated fields), a subclass that does not call
-`super().__init__()` reconstructs into an object missing that machinery and
-crashes the triggerer.
-
-The recurring pressure is convenience: the operator already holds a live handle,
-so "just pass the client / the session / this bound value into the trigger"
-looks harmless locally. The decision below is what keeps the boundary a pure,
-reconstructable data tuple.
+Reconstruction happens more than once and in more than one place — two triggerers
+at once for HA, moved on redistribution, rebuilt from the persisted row on
+restart. So identity must be **deterministic**: the `TriggerEvent` identifying
+value and `shared_stream_key()` are compared across independently reconstructed
+instances, so deriving them from `time.time()` or `uuid.uuid4()` breaks
+deduplication and stream sharing. And because the runner injects state *after*
+construction (`_task_instance`, `trigger_id`, templated fields), a subclass that
+skips `super().__init__()` reconstructs missing that machinery and crashes the
+triggerer. The recurring pressure is convenience: the operator holds a live
+handle, so "just pass the client / session into the trigger" looks harmless.
 
 ## Decision
 
@@ -82,11 +74,10 @@ in another process, deterministically. Concretely:
 
 - Triggers move freely between processes and are safe to duplicate for HA,
   because the wire format is pure data.
-- Deferral is decoupled from operator internals: the trigger cannot depend on
-  live operator state, only on the arguments it declared.
-- Trigger authors carry the burden of making every needed input serializable
-  and deterministic, and of keeping constructors round-trip-clean — a real
-  constraint on how much a trigger can "capture" from where it was built.
+- Deferral is decoupled from operator internals: a trigger depends only on the
+  arguments it declared, not live operator state.
+- Authors must make every input serializable and deterministic and keep
+  constructors round-trip-clean — a real limit on what a trigger can "capture".
 
 A change **violates** this decision when, in `triggers/` code, it:
 
@@ -104,20 +95,11 @@ does not survive `(classpath, kwargs)` reconstruction in another process.
 
 ## Evidence
 
-- #66002 — "Do not deserialize `trigger_kwargs` when loading serialized DAGs":
-  keeps trigger kwargs in their serialized form until the trigger is actually
-  reconstructed, reinforcing that the kwargs are the wire format rather than a
-  live object graph.
-- #68636 — "Fix triggerer crash when trigger subclass does not call
-  `super().__init__()`": a subclass that skipped the base constructor
-  reconstructed into an instance missing runner-injected state and crashed the
-  triggerer — the concrete failure this decision guards against.
-- #64715 — "Fix trigger template rendering failure when operator
-  template_fields differ from trigger attributes": corrects the round-trip so
-  templated kwargs are filtered to fields that actually exist on the
-  reconstructed trigger, rather than assuming operator and trigger share a
-  shape.
-- #55068 — "Re-enable `start_from_trigger` feature with rendering of template
-  fields": restores start-from-trigger by rendering template fields on the
-  reconstructed trigger, exercising the same serialize / reconstruct /
-  render round-trip.
+- #66002 — keeps `trigger_kwargs` in serialized form until reconstruction,
+  reinforcing that kwargs are the wire format, not a live object graph.
+- #68636 — a subclass skipping `super().__init__()` reconstructed missing
+  runner-injected state and crashed the triggerer: the failure this guards.
+- #64715 — filters templated kwargs to fields that exist on the reconstructed
+  trigger, since operator `template_fields` and trigger attributes differ.
+- #55068 — re-enables `start_from_trigger` by rendering template fields on the
+  reconstructed trigger, exercising the same round-trip.

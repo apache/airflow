@@ -29,14 +29,12 @@ which is authoritative for this decision.
 
 ## Context
 
-"Add an index" looks like the cheapest possible migration: a few lines, no data
-touched, obviously beneficial. It is the single most frequently *rejected* class
-of change in this directory, so the decision needs to be visible from here — but
-it is a decision about the *schema*, and it was previously written out twice, once
-here and once under `models/`, with the same six citations. The two copies drifted:
-one described a configurable metadata-index feature that the project had in fact
-declined to build. Rather than keep two near-identical documents in sync, the
-argument lives in one place.
+"Add an index" looks like the cheapest possible migration, and is the single most
+frequently *rejected* class of change in this directory — so the decision needs to
+be visible from here. But it is a decision about the *schema*, and was previously
+written out twice (here and under `models/`) with the same six citations; the two
+copies drifted. Rather than keep two near-identical documents in sync, the argument
+lives in one place.
 
 **[`models/adr/0004`](../../models/adr/0004-deployment-specific-indexes-are-documented-not-shipped.md)
 is authoritative** for what justifies an index on a core table, what evidence a

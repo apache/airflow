@@ -27,32 +27,20 @@ Accepted
 
 ## Context
 
-With multiple executors (and, in multi-team deployments, multiple executors per
-team), the question "may this workload be dispatched right now?" has exactly one
-correct owner: the scheduler. The scheduler is the only component that sees the
-whole picture — pools, `max_active_tasks` limits, per-executor `parallelism`, and
-the running/queued counts across every executor and team. If capacity decisions
-are made anywhere else, two workloads can each independently conclude there is
-room and the deployment oversubscribes: more work is dispatched than there are
-slots, pools are violated, and the guarantees users rely on quietly break.
+"May this workload be dispatched right now?" has exactly one correct owner: the
+scheduler. It is the only component that sees the whole picture — pools,
+`max_active_tasks`, per-executor `parallelism`, and running/queued counts across
+every executor and team. If capacity is decided anywhere else, two workloads each
+conclude there is room and the deployment oversubscribes: pools are violated and
+guarantees quietly break.
 
-Two structural mistakes lead there:
-
-1. A **new workload type dispatches without slot accounting** — it does not
-   consult `slots_available` / open slots, or ignores pool and
-   `max_active_tasks` limits — so it hands work to an executor that is already
-   full.
-2. **Executor lookup is duplicated.** The scheduler resolves the executor for a
-   workload through a single canonical path,
-   `SchedulerJobRunner._try_to_load_executor()` (which layers team resolution and
-   caching over `ExecutorLoader.load_executor()`). A second, parallel loader — or
-   ad-hoc `getattr`/dict lookups scattered per call site — drifts from the
-   canonical team/name resolution and cache, producing inconsistent routing and
-   defeating the accounting that assumes one resolution path.
-
-Related: generic per-executor logic that is copy-pasted into each executor
-subclass (rather than living once on `BaseExecutor`) is the same failure mode in
-a different place — divergent copies that fall out of sync.
+Two structural mistakes lead there: a new workload type that dispatches *without*
+consulting `slots_available` / pool / `max_active_tasks` limits; and *duplicated
+executor lookup* — a second loader or ad-hoc `getattr`/dict lookups that drift
+from the canonical `SchedulerJobRunner._try_to_load_executor()` (team resolution
+plus caching over `ExecutorLoader.load_executor()`). Copy-pasting generic
+per-executor logic into each subclass instead of `BaseExecutor` is the same
+divergence failure in a different place.
 
 ## Decision
 
@@ -68,11 +56,10 @@ a different place — divergent copies that fall out of sync.
 
 ## Consequences
 
-- The scheduler remains the sole authority on capacity; no combination of
+- The scheduler stays the sole authority on capacity; no combination of
   executors/teams can collectively oversubscribe.
-- There is exactly one place to reason about, and fix, executor resolution and
-  team routing.
-- Shared executor logic changes in one place and all executors get it.
+- There is exactly one place to reason about and fix executor resolution and team
+  routing, and shared executor logic changes in one place.
 
 **A violating change looks like:** adding a workload/dispatch path that submits
 work without checking open slots / pools / `max_active_tasks` (letting total
@@ -83,5 +70,5 @@ every executor subclass instead of placing it on `BaseExecutor`. Each is rejecte
 
 ## Evidence
 
-- #62343 — Add async connection testing via workers for security isolation (new worker-dispatched workload that must respect slot accounting).
-- #61153 — Executor synchronous callback workload (a new workload type routed through the canonical loader and scheduler accounting).
+- #62343 — async connection testing via workers: a new worker-dispatched workload that must respect slot accounting.
+- #61153 — executor synchronous callback workload: routed through the canonical loader and scheduler accounting.

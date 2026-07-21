@@ -27,33 +27,24 @@ Accepted
 
 ## Context
 
-A large amount of what is committed under `dev/` is machine-generated and
-checked in only so that it can be reviewed and diffed. `dev/breeze/doc/images/`
-alone holds hundreds of files: an `output_*.svg` rendering of each breeze
-command's help, plus a matching `output_*.txt` hash file used to detect
-staleness. Provider dependency metadata and generated provider documentation are
-in the same category, produced from `pyproject.toml` files rather than authored.
+Much of what is committed under `dev/` is machine-generated and checked in only so it
+can be reviewed and diffed. `dev/breeze/doc/images/` alone holds hundreds of files: an
+`output_*.svg` render of each breeze command's help plus a matching `output_*.txt` hash
+file for staleness detection. Provider dependency metadata and generated provider docs
+are the same category, produced from `pyproject.toml` rather than authored.
 
-These artifacts exist to make generator changes visible in review. That only
-works if the committed content is *exactly* what the generator produces. A
-hand-edited file passes local review — it looks like a plausible help text — and
-then fails the `update-breeze-cmd-output` prek hook for everyone else, or worse,
-survives and hides the fact that the generator and the committed output have
-diverged. At that point the artifact is no longer evidence of anything.
-
-Regeneration also has to be *deterministic*, and this is where the subtler
-failures live. If a generator's output depends on the machine, on a cache, or on
-some varying external input, then two contributors regenerating the same
-artifact produce different files, the hook flaps, and people start committing
-whatever their machine produced to make it stop. Airflow has hit exactly this
-with variability in generated command documentation, and has had to clean up
-generated metadata that was mistakenly committed by hand.
-
-The related trap is regenerating from the *wrong sources*. Breeze runs from the
-current git worktree's sources (see
-`dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md`), but a
-cached or globally installed breeze will happily regenerate images from stale
-code — producing a diff that does not match what CI computes from the branch.
+These artifacts exist to make generator changes visible in review, which only works if
+the committed content is *exactly* what the generator produces. A hand-edited file passes
+local review, then fails the `update-breeze-cmd-output` hook for everyone else — or
+survives and hides that the generator and the committed output have diverged, at which
+point the artifact is evidence of nothing. Regeneration must also be *deterministic*: if
+output depends on the machine, a cache, or varying external input, two contributors
+produce different files, the hook flaps, and people commit whatever their machine
+produced to make it stop. A related trap is regenerating from the *wrong sources* —
+breeze runs from the current worktree
+(`dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md`), but a cached or
+globally installed breeze regenerates from stale code, producing a diff that does not
+match what CI computes from the branch.
 
 ## Decision
 
@@ -73,13 +64,11 @@ code — producing a diff that does not match what CI computes from the branch.
 
 ## Consequences
 
-Generated files stay trustworthy as review evidence: a diff in an `output_*.svg`
-means a command's interface actually changed, and its absence means it did not.
-Contributors do not have to reconcile spurious regeneration diffs, and the
-staleness hooks stay meaningful rather than becoming noise people learn to
-override. The cost is that changing a breeze option requires running the
-regeneration step — and running it correctly, from local sources — which is an
-extra loop for what can look like a one-word help-text edit.
+Generated files stay trustworthy as review evidence: a diff in an `output_*.svg` means a
+command's interface actually changed, and its absence means it did not. Contributors do
+not reconcile spurious regeneration diffs, and the staleness hooks stay meaningful. The
+cost is that changing a breeze option requires running regeneration — correctly, from
+local sources — an extra loop for what can look like a one-word help-text edit.
 
 A change *violates* this decision when it:
 
@@ -98,13 +87,12 @@ A change *violates* this decision when it:
 
 ## Evidence
 
-- #63641 — fixed LLM model list variability in generated command documentation;
-  the generator was made deterministic rather than the varying output committed.
-- #68801 — removed `generated/provider_dependencies.json*` files that had been
-  mistakenly added by hand.
-- #68991 — fixed an inconsistency between generated provider docs and
-  `pyproject.toml`, correcting the generation path rather than the output.
-- #50986 — fixed the airflowctl pre-commit hook for command images after
-  generated images and their check drifted apart.
-- #65873 — established that breeze runs from the current worktree's sources,
-  which is what makes "regenerate from the PR's own sources" well-defined.
+- #63641 — fixed LLM model-list variability in generated command documentation; the
+  generator was made deterministic rather than the varying output committed.
+- #68801 — removed `generated/provider_dependencies.json*` files added by hand.
+- #68991 — fixed an inconsistency between generated provider docs and `pyproject.toml`,
+  correcting the generation path rather than the output.
+- #50986 — fixed the airflowctl pre-commit hook for command images after generated
+  images and their check drifted apart.
+- #65873 — established that breeze runs from the current worktree's sources, which makes
+  "regenerate from the PR's own sources" well-defined.

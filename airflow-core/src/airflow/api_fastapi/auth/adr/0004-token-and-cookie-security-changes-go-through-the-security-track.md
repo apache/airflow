@@ -27,44 +27,34 @@ Accepted
 
 ## Context
 
-ADR 3 gates changes that **widen** access on the security process. Part of the
-tightening direction is gated too — but only part, and getting the boundary right
-matters more here than in most ADRs, because the wrong boundary rejects real
-security fixes.
+ADR 3 gates changes that **widen** access. Part of the tightening direction is gated
+too — but only part, and the boundary matters more here than in most ADRs, because the
+wrong boundary rejects real security fixes.
 
 The boundary is *scope*, not direction. Localised hardening merges on its merits
-and does so routinely: #62771 scoped the session cookie to `base_url`, #65348 set
-`Secure` on the refresh cookie over HTTPS, #66502 set `SameSite=Lax` on the login
-cookie, #67909 made a non-matching `kid` raise. All four merged, in the year
-*after* the closure this ADR is built on — #66502 landing on
-`managers/simple/routes/login.py`, the same file where #54607 was closed. Any rule
-that treats "standalone" plus "touches a cookie flag" as sufficient grounds to
+routinely: #62771 scoped the session cookie to `base_url`, #65348 set `Secure` on the
+refresh cookie over HTTPS, #66502 set `SameSite=Lax` on the login cookie, #67909 made
+a non-matching `kid` raise. All four merged in the year *after* the closure this ADR is
+built on — #66502 landed on `managers/simple/routes/login.py`, the very file where #54607
+was closed. Any rule treating "standalone" plus "touches a cookie flag" as grounds to
 refuse would have rejected all four.
 
-What is gated is a change to the token *model* rather than to one of its settings.
-Claim validation as a regime, algorithm and `kid` handling, audience and issuer,
+What is gated is a change to the token *model*, not one of its settings. Claim
+validation as a regime, algorithm and `kid` handling, audience and issuer,
 lifetime/refresh/revocation semantics — these interact with each other, with the
-execution API's task tokens, and with every auth-manager provider that issues or
-consumes them. A PR that reworks how tokens are validated or how long they live
-cannot be reasoned about one switch at a time, and merging such reworks piecemeal
-produces a surface nobody has designed as a whole and forecloses the coherent
-design the security team is working out. Airflow has closed PRs of that shape with
-exactly that reasoning: the changes are coming, from a joint effort of the security
-team and the people who implemented the APIs, because they need deep knowledge of
-the internals to get right.
+execution API's task tokens, and with every provider that issues or consumes them. A
+rework cannot be reasoned about one switch at a time; merging it piecemeal produces a
+surface nobody designed as a whole and forecloses the coherent design the security
+team is working out. Airflow has closed PRs of that shape with exactly that reasoning.
+A single flag, scope, or check correct on its own terms is not that — it lands on its
+merits, as the four PRs above did.
 
-A single flag, scope, or check that is correct on its own terms is not that. It
-lands on its merits, as the four PRs above did.
-
-The same holds for the security-adjacent posture of the API server itself.
-Loosening a production default for local-development convenience is refused even
-when the mechanism is unrelated to auth, and an upstream CVE announcement is not
-by itself a reason to change a dependency declaration — the deciding question is
-Airflow's actual exposure.
-
-None of this makes reporting or fixing a security defect harder. Genuine
-vulnerabilities go to the ASF security process, which is faster than a PR, not
-slower.
+The same holds for the API server's security-adjacent posture: loosening a production
+default for local-development convenience is refused even when the mechanism is
+unrelated to auth, and an upstream CVE announcement is not by itself a reason to change
+a dependency declaration — the deciding question is Airflow's actual exposure. None of
+this makes reporting or fixing a defect harder: genuine vulnerabilities go to the ASF
+security process, which is faster than a PR, not slower.
 
 ## Decision
 
@@ -92,15 +82,14 @@ Changes to the token and cookie surface are coordinated, not opportunistic:
 
 ## Consequences
 
-- The token surface evolves as a designed whole rather than as an accumulation of
+- The token surface evolves as a designed whole, not an accumulation of
   individually-reasonable tweaks.
-- Contributors who spot a real weakness get a slower-looking path for a PR and a
-  faster one for a report — which is the ordering the project wants.
-- Some good hardening waits for the coordinated change that supersedes it, and is
-  visibly "closed" in the meantime. Reviewers should say why, and where the work
-  is going, rather than closing silently.
-- Reviewers can decline these PRs on process grounds without having to
-  first litigate the technical merits in a public thread.
+- Contributors get a slower-looking path for a PR and a faster one for a report —
+  the ordering the project wants.
+- Some good hardening waits for the coordinated change and is visibly "closed"
+  meanwhile. Reviewers should say why, and where the work is going.
+- Reviewers can decline these PRs on process grounds without first litigating the
+  technical merits in a public thread.
 
 A change **violates** this decision when it:
 
@@ -117,30 +106,23 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #54607 — additional security options for the JWT token cookie: closed, with the
-  security team's comprehensive JWT design named as the vehicle for any such
-  change.
-- #60431 — execution-API token access checks: closed with related reasoning, that
-  further JWT checks and the security choices behind them are a joint effort of the
-  security team and the API implementers. Weigh it lightly here: the PR touches
-  `execution_api/` and `common/db/`, **not** this area, and the closing comment
-  leads with failing CI rather than with the coordination argument.
+- #54607 — additional JWT token-cookie options: closed, with the security team's
+  comprehensive JWT design named as the vehicle for any such change.
+- #60431 — execution-API token access checks: closed with related reasoning. Weigh
+  lightly — the PR touches `execution_api/` and `common/db/`, **not** this area, and
+  the closing comment leads with failing CI, not the coordination argument.
 
-The counter-evidence bounds the rule, and belongs in the record just as much —
-these are the localised fixes that merged without the security track, three of them
-after #54607 was closed:
+The counter-evidence bounds the rule — localised fixes that merged without the
+security track, three of them after #54607 closed:
 
 - #62771 — scoped the session token cookie to `base_url` (merged 2026-03-03).
 - #65348 — set the JWT refresh cookie `Secure` on HTTPS (merged 2026-04-16).
-- #66502 — set `SameSite=Lax` on the login cookie (merged 2026-05-07), on the same
-  file as the #54607 closure.
-- #67909 — raised on a non-matching `kid` instead of falling back (merged
-  2026-06-03).
-- #52633 — enabling symlink link-mode for the API server: refused because it
-  offers no advantage over hardlinks or clone and opens potential security issues
-  in a production setting; the motivation was a local development configuration.
-- #64402 — raising the Starlette minimum in response to an upstream CVE: declined
-  on the principle that minimums are not raised unless the issue affects Airflow
-  directly.
-(#66797 and #66798 — UI dependency bumps — were previously cited here. They concern
-neither tokens nor cookies and are already cited, correctly, in ADR 0005.)
+- #66502 — set `SameSite=Lax` on the login cookie (merged 2026-05-07), same file as
+  the #54607 closure.
+- #67909 — raised on a non-matching `kid` instead of falling back (merged 2026-06-03).
+- #52633 — symlink link-mode for the API server: refused; no advantage over
+  hardlinks/clone, opens production security issues, motivated by a local dev config.
+- #64402 — raising the Starlette minimum for an upstream CVE: declined; minimums are
+  not raised unless the issue affects Airflow directly.
+(#66797 and #66798 — UI dependency bumps — concern neither tokens nor cookies and are
+already cited, correctly, in ADR 0005.)

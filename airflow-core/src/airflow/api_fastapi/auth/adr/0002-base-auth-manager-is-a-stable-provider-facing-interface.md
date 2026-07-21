@@ -27,36 +27,24 @@ Accepted
 
 ## Context
 
-`BaseAuthManager` (`managers/base_auth_manager.py`) is not an internal-only base
-class. It is the contract that every concrete auth manager implements. The
-reference `SimpleAuthManager` ships in core, but the FAB auth manager and the
-Keycloak auth manager live in **provider distributions** that are versioned and
-released independently of `airflow-core`. A deployment routinely runs a newer or
-older provider auth manager against a different core version.
+`BaseAuthManager` (`managers/base_auth_manager.py`) is the contract every concrete
+auth manager implements. `SimpleAuthManager` ships in core, but the FAB and Keycloak
+managers live in **provider distributions** versioned and released independently, and
+a deployment routinely runs a newer or older provider manager against a different
+core version.
 
-Those managers inherit and override a broad surface:
-
-- the abstract authorization decisions (`is_authorized_dag`,
-  `is_authorized_connection`, `is_authorized_pool`, `is_authorized_variable`,
-  `is_authorized_view`, `is_authorized_custom_view`, …);
-- the collection helpers they may override for efficiency
-  (`batch_is_authorized_*`, `filter_authorized_*`, `get_authorized_*`);
-- the identity contract (`serialize_user` / `deserialize_user`, and the
-  `get_user_from_token` path built on it);
-- the extension hooks (`get_fastapi_app`, `get_fastapi_middlewares`,
-  `get_cli_commands`, `get_db_manager`, `get_url_login` / `get_url_logout`,
-  `get_extra_menu_items`);
-- shared value types such as `ResourceMethod` and the `*Details` resource models
-  that appear in those signatures.
-
-That means the public shape of `BaseAuthManager` — method names, signatures,
-keyword-only parameters, the shared enums/types, and the import paths that resolve
-them — is a **cross-version compatibility boundary**, not a detail core can reshape
-when convenient. A rename or a signature change that looks local to core silently
-breaks every provider auth manager that still implements the old shape, in exactly
-the mixed-version combination Airflow supports. This is the same class of contract
-as `BaseExecutor` (see the executors ADR): a provider-facing base whose surface is
-an API.
+Those managers inherit and override a broad surface: the abstract authorization
+decisions (`is_authorized_*`); the collection helpers they may override for efficiency
+(`batch_is_authorized_*`, `filter_authorized_*`, `get_authorized_*`); the identity
+contract (`serialize_user` / `deserialize_user` and the `get_user_from_token` path);
+the extension hooks (`get_fastapi_app`, `get_fastapi_middlewares`, `get_cli_commands`,
+`get_db_manager`, `get_url_login` / `get_url_logout`, `get_extra_menu_items`); and
+shared value types like `ResourceMethod` and the `*Details` models in those signatures.
+So the public shape of `BaseAuthManager` — names, signatures, keyword-only parameters,
+shared types, import paths — is a **cross-version compatibility boundary**. A rename or
+signature change that looks local to core silently breaks every provider manager on the
+old shape, in the mixed-version combination Airflow supports. This is the same class of
+contract as `BaseExecutor` (see the executors ADR).
 
 ## Decision
 
@@ -100,19 +88,14 @@ raises at runtime. Such a change is rejected.
 
 ## Evidence
 
-- #48196 — "Add option in auth managers to specify DB manager": added the
-  `get_db_manager` hook additively, with a default that existing managers need not
+- #48196 — added the `get_db_manager` hook additively, default that managers need not
   override.
-- #52883 — "Remove unused batch methods from auth manager": an interface-curation
-  change to the provider-facing surface, done deliberately rather than opportunistically.
-- #52731 — "Remove `MENU` from `ResourceMethod` in auth manager": a change to a
-  shared value type that flows through provider-implemented signatures.
-- #60244 — "Literal to str Enum for ResourceMethod & ExtendedResourceMethod":
-  reshaped a shared type used across every `is_authorized_*` signature, kept
+- #52883 — removed unused batch methods: interface curation done deliberately, not
+  opportunistically.
+- #52731 — removed `MENU` from `ResourceMethod`, a shared type in provider signatures.
+- #60244 — reshaped `ResourceMethod`/`ExtendedResourceMethod` to str Enum, kept
   compatible for implementers.
-- #59109 — "Remove team ID and use team name as PK": threaded a model change
-  through the `team_name`-scoped authorization surface that providers implement.
-- #55682 — "Override `get_authorized_connections`, `get_authorized_pools` and
-  `get_authorized_variables` in FAB auth manager": a provider distribution
-  overriding the base hooks — the concrete evidence that this surface is an API
-  other distributions build on.
+- #59109 — threaded a model change (team name as PK) through the `team_name`-scoped
+  surface providers implement.
+- #55682 — FAB overriding the base hooks: concrete proof this surface is an API other
+  distributions build on.

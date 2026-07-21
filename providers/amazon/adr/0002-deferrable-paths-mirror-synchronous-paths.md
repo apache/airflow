@@ -27,39 +27,27 @@ Accepted
 
 ## Context
 
-Most operators in this provider have two implementations of the same job.
-`deferrable=False` runs a synchronous `execute()` that polls AWS with a
-`botocore` waiter and returns. `deferrable=True` submits the work, yields an
-`AwsBaseWaiterTrigger` subclass, and the triggerer polls with an `aiobotocore`
-waiter until it emits a `TriggerEvent` that the operator's `execute_complete()`
-turns back into success or failure.
-
-The design already anticipates this. `AwsBaseHook.get_waiter()` serves both
-modes from the *same* waiter model, and `BaseBotoWaiter` builds either a
-`botocore` or an `aiobotocore` waiter from one JSON config. `AwsBaseWaiterTrigger`
-exists so that the deferrable half is a declaration — hook, waiter name, delay,
-max attempts, completion and failure messages, status queries — rather than a
+Most operators here have two implementations of the same job. `deferrable=False`
+runs a synchronous `execute()` that polls AWS with a `botocore` waiter;
+`deferrable=True` submits the work, yields an `AwsBaseWaiterTrigger` subclass, and
+the triggerer polls with an `aiobotocore` waiter until a `TriggerEvent` that
+`execute_complete()` turns back into success or failure. The design anticipates
+this: `AwsBaseHook.get_waiter()` serves both modes from the *same* waiter model,
+and `AwsBaseWaiterTrigger` makes the deferrable half a declaration rather than a
 second hand-written polling loop.
 
 What the design cannot enforce is that the two halves stay semantically equal,
-and in practice they drift. The drift is always in the same direction: a
-behaviour is implemented or fixed on the synchronous side, and the deferrable
-side keeps the old, wrong, or missing behaviour. Verbose job logs have appeared
-only when running synchronously. A sensor's filtering and callback arguments have
-been honoured only in sync mode. Exit-code handling, cancellation on kill, and
-error-detail propagation have each been correct on one side and not the other.
-
-The user impact is worse than an ordinary bug because `deferrable` is advertised
-as a resource optimisation, not a behaviour switch. A deployment flips it on to
-free worker slots and silently gets different failure semantics — often *less*
-diagnostic information, because the exception detail that the synchronous path
-raised directly has to survive serialization through a `TriggerEvent` to reach
-`execute_complete()`, and it is easy to drop on the way.
-
-There is a second-order cost too: triggers run in the triggerer, which serves
-every deferred task in the deployment. A hand-rolled polling loop that blocks
-the event loop degrades unrelated Dags, which a synchronous implementation of
-the same mistake never would.
+and they drift — always in the same direction, with a behaviour implemented or
+fixed on the synchronous side while the deferrable side keeps the old or missing
+behaviour (verbose logs sync-only, a sensor's filtering honoured only in sync
+mode, exit-code and cancellation handling correct on one side). The user impact
+is worse than an ordinary bug because `deferrable` is advertised as a resource
+optimisation: a deployment flips it on to free worker slots and silently gets
+different failure semantics — often *less* diagnostic detail, because the
+exception the sync path raised directly must survive serialization through a
+`TriggerEvent`. There is a second-order cost too: triggers run in the triggerer,
+which serves every deferred task, so a hand-rolled loop that blocks the event loop
+degrades unrelated Dags.
 
 ## Decision
 
@@ -91,14 +79,12 @@ the same mistake never would.
 
 - `deferrable` stays a safe operational toggle: turning it on changes resource
   usage, not outcomes.
-- The waiter model remains the single description of "what done looks like" for
-  a given AWS operation, shared by both clients.
-- Adding deferral to an operator costs more than adding a trigger class — the
-  terminal states, error text and cancellation semantics have to be matched —
-  and that cost is deliberate.
-- Some fixes become two-sided and therefore larger. A one-sided fix that leaves
-  the other path wrong is not the cheaper option; it is the more expensive one,
-  paid later by a user who flipped a flag.
+- The waiter model remains the single description of "what done looks like",
+  shared by both clients.
+- Adding deferral costs more than adding a trigger class — terminal states, error
+  text and cancellation semantics have to be matched — and that cost is deliberate.
+- Some fixes become two-sided and larger. A one-sided fix is not the cheaper
+  option; it is the more expensive one, paid later by a user who flipped a flag.
 
 A change **violates** this decision when it:
 
@@ -117,23 +103,12 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #64085 — "Fix `AwsBaseWaiterTrigger` losing error details on deferred task
-  failure": the deferral boundary discarding exactly the diagnostic detail the
+- #64085 — the deferral boundary discarding exactly the diagnostic detail the
   synchronous path raised.
-- #64342 / #63086 (and its revert, #64340) — "fix(glue): Fix `GlueJobOperator`
-  verbose logs not showing in deferrable mode": a user-facing feature that
-  existed only in sync mode, and a fix hard enough to need two attempts.
-- #56910 — "Fix: `S3KeySensor` deferrable mode ignores `metadata_keys`, returns
-  only key names, and doesn't pass context to `check_fn`": three separate
-  divergences in one sensor.
-- #60978 — "Fix/ssm deferrable exit code handling": success/failure
-  classification differing between the two paths.
-- #60440 — "Add `cancel_on_kill` support for EMR Serverless deferrable
-  operator" and #65997 — "Fix double cancellation for airflow 3.3+ for
-  `EmrServerlessStartJobTrigger`": cancellation first missing on the deferred
-  path, then firing twice.
-- #61195 — "Fix hardcoded waiter logic in `EmrCreateJobFlowOperator`": waiting
-  behaviour baked into the operator instead of expressed as configuration
-  shared with the trigger.
-- #66157 — "Fix ASYNC110 violation in `RedshiftDataTrigger`": a hand-rolled
-  wait inside a trigger, in the process that serves every deferred task.
+- #64342 / #63086 (and its revert, #64340) — verbose logs existing only in sync
+  mode; a fix hard enough to need two attempts.
+- #56910 — three separate sync/deferred divergences in one sensor.
+- #60978 — success/failure classification differing between the two paths.
+- #60440, #65997 — cancellation first missing on the deferred path, then firing twice.
+- #61195 — waiting behaviour baked into the operator instead of shared with the trigger.
+- #66157 — a hand-rolled wait inside a trigger, in the process serving every deferred task.

@@ -30,38 +30,17 @@ irreversibility under migrations ADR 0001).
 
 ## Context
 
-A recurring class of PR arrives here shaped like an obvious win: a query is slow
-on the author's cluster, `EXPLAIN` shows a sequential scan, so the PR adds an
-Alembic migration creating an index on `dag_run.start_date`, `job.hostname`,
-`(dag_id, logical_date, run_type)`, or whatever the local hot query needs. The
-change is small, the local benefit is real, and the PR is nonetheless closed.
-
-The reason is that an index is not free and its cost is paid by everyone.
-
-- **Write amplification is borne by every deployment.** `task_instance`,
-  `dag_run`, and `job` are the highest-churn tables in the metadata database.
-  Every additional index is maintained on every insert and update in the
-  scheduler's hot path, in exchange for speeding up one query shape that only
-  some installations run.
-- **The index lands during `airflow db migrate`.** Creating an index on a table
-  with hundreds of millions of rows extends the upgrade window on a live
-  production database — a cost operators cannot opt out of and often cannot
-  afford.
-- **The winning query shape is deployment-specific.** Cardinality decides
-  whether an index helps: on one cluster `job.hostname` has thousands of
-  distinct values, on another a handful. Airflow's own queries already filter on
-  indexed columns; the scans being reported are usually driven by a particular
-  UI filter, a custom dashboard, or an installation's row distribution.
-- **Indexes are hard to take back.** Once shipped in a migration, an index is in
-  every user's schema; removing it later is another migration and another
-  upgrade window.
-
-The project considered shipping tooling for this and deliberately declined. A PR
-adding configurable metadata-database indexes was built, reviewed, and closed in
-favour of documentation only: the conclusion was that Airflow should not
-facilitate arbitrary metadata-schema mutation, but should tell power users how to
-do it themselves. What shipped is the *custom metadata indexes* section of the
-performance documentation, including the drop-index-before-upgrade guidance.
+A recurring PR looks like an obvious win: a query is slow, `EXPLAIN` shows a seq
+scan, so the PR adds a migration creating an index on `dag_run.start_date`,
+`job.hostname`, or whatever the local hot query needs. The benefit is real, and the
+PR is still closed — an index is not free and its cost is paid by everyone. The
+highest-churn tables (`task_instance`, `dag_run`, `job`) maintain every extra index
+on every insert in the scheduler's hot path; the index lands during `airflow db
+migrate`, extending the upgrade window on huge tables; and it is hard to take back.
+The winning query shape is deployment-specific, and Airflow's own queries already
+filter on indexed columns. The project built a configurable-metadata-index PR and
+closed it (#58814) for documentation only: the *custom metadata indexes* section of
+the performance docs, with drop-index-before-upgrade guidance.
 
 ## Decision
 
@@ -88,16 +67,12 @@ performance documentation, including the drop-index-before-upgrade guidance.
 
 ## Consequences
 
-- Operators with an unusual query profile carry their own indexes and must
-  re-apply them across upgrades. That burden is accepted deliberately, and the
-  documentation exists to support it.
-- Airflow's schema stays small enough that upgrade windows remain predictable
-  and the write path stays cheap for the median deployment.
-- Genuine core-query index needs still land — but as part of the change that
-  introduces or fixes the query, with measurements attached.
-- Contributors who hit a real slowdown get told "no" on a change that helped
-  them. The compensating path is documented and supported, and reviewers should
-  point at it rather than simply closing.
+- Operators with an unusual query profile carry their own indexes across upgrades —
+  a burden accepted deliberately, and documented.
+- Airflow's schema stays small, so upgrade windows stay predictable and the write
+  path stays cheap for the median deployment.
+- Genuine core-query index needs still land — with the query that needs them and
+  measurements attached; reviewers point at the documented path rather than closing.
 
 The decision is about indexes that serve **a deployment's own** queries. An index
 that serves a query **Airflow itself issues** is a different thing and is in scope
@@ -135,18 +110,12 @@ uses this index*, and *what did it cost to maintain it*. If the first answer is
 
 ## Evidence
 
-- #58814 — "Add configurable metadata db indexes": built and reviewed, then
-  closed with the explicit conclusion that Airflow will not provide tooling to
-  mutate the metadata schema; the documentation-only part landed separately.
-- #57828 — index on `dag_run.start_date` for query optimization; closed in
-  favour of the configurable-index track, which itself then became docs only.
-- #62520 — "Perf: add hostname index on job table": reviewers asked for query-time
-  benchmarks and table-size impact, noted the query already filters on indexed
-  columns, and pointed at the custom-metadata-indexes documentation. Closed
-  without the measurements.
-- #62139 — composite index on `dag_run(dag_id, logical_date, run_type)`: sat long
-  enough that every newly-merged migration re-conflicted it, and closed without
-  landing.
-- #63166, #62158 — "optimize `historical_metrics_data` with indexes and sargable
-  queries": the sargability half was the substantive part; both were drafted back
-  and closed.
+- #58814 — "Add configurable metadata db indexes": built, reviewed, closed; docs
+  landed separately, no schema-mutation tooling.
+- #57828 — index on `dag_run.start_date`; closed in favour of the docs-only track.
+- #62520 — hostname index on `job`; closed for want of benchmarks and table-size
+  impact, query already filtered on indexed columns.
+- #62139 — composite index on `dag_run(dag_id, logical_date, run_type)`; sat until
+  migrations re-conflicted it, closed unmerged.
+- #63166, #62158 — sargable `historical_metrics_data` queries; the sargability half
+  was the substance; both closed.

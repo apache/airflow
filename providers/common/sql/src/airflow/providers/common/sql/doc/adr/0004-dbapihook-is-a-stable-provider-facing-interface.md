@@ -27,54 +27,26 @@ Accepted
 
 ## Context
 
-`DbApiHook` (`hooks/sql.py`) is not an internal base class. It is the contract
-that every SQL-speaking provider in the repo inherits from: amazon, google,
-snowflake, databricks, postgres, mysql, oracle, teradata, trino, presto, hive,
-druid, drill, impala, pinot, exasol, vertica, ydb, clickhousedb, jdbc, odbc,
-mssql, sqlite, elasticsearch, pgvector, slack, informatica, openlineage and
-common.ai all import `airflow.providers.common.sql` from their sources — 29
-distributions at the time of writing. 26 declare it as a runtime dependency,
-three more behind an optional extra, and 104 provider `pyproject.toml` files
-reference it in some form.
+`DbApiHook` (`hooks/sql.py`) is not an internal base class — it is the contract
+~29 SQL-speaking providers (amazon, google, snowflake, postgres, mysql, oracle,
+jdbc, odbc, …) inherit from. Those packages release **independently of this one**
+on a wave cadence, and a deployment routinely runs a newer `common-sql` under an
+older `snowflake`, or the reverse (the release model is covered by the parent
+decision in `providers/adr/`). So the public shape of `DbApiHook` — names,
+signatures, return shapes, readable properties, and override points — is a
+cross-version compatibility boundary, not something to reshape when convenient.
 
-Those packages are released **independently of this one**, on a wave cadence,
-against a range of versions of each other (the parent decision in
-`providers/adr/` covers that release model). A deployment routinely runs a newer
-`apache-airflow-providers-common-sql` under an older
-`apache-airflow-providers-snowflake`, or the reverse. So the public shape of
-`DbApiHook` — method names, signatures, return shapes, the properties a subclass
-may read, and the override points a subclass is expected to implement — is a
-cross-version compatibility boundary, not something this package can reshape when
-convenient.
-
-The project already learned this the hard way. `hooks/sql.py` still carries a
-`connection` setter whose sole purpose is a backwards-compatibility warning, and
-whose docstring names the exact released provider versions
-(`apache-airflow-providers-mysql<5.7.1`,
-`apache-airflow-providers-elasticsearch<5.5.1`, …) that broke when the property
-was introduced. The `_make_common_data_structure` override point has its own prek
-hook — `scripts/ci/prek/check_common_sql_dependency.py`, registered in
-`providers/.pre-commit-config.yaml` — that fails the build when a provider
-overrides it without declaring `common-sql>=1.9.1`, because relying on an
-override point that did not exist in an older release is exactly the silent break
-this boundary is meant to prevent.
-
-The surface is also *recorded* rather than merely implied. Committed `.pyi` stubs
-sit next to each public module (`hooks/sql.pyi`, `hooks/handlers.pyi`,
-`operators/generic_transfer.pyi`, `sensors/sql.pyi`, `triggers/sql.pyi`,
-`dialects/dialect.pyi`), and `README_API.md` documents the Android-style API-diff
-workflow that maintains them: additive changes are auto-applied by the stub hook,
-while removals and signature changes fail and require an explicit
-`UPDATE_COMMON_SQL_API=1` regeneration. MyPy then checks downstream providers
-against those stubs, so a provider using something outside the recorded surface is
-flagged.
-
-The `get_pandas_df` → `get_df` migration is the worked example of doing this
-correctly. `get_df` and `get_df_by_chunks` were added alongside polars support;
-`get_pandas_df` and `get_pandas_df_by_chunks` stayed as thin deprecated
-delegators raising `AirflowProviderDeprecationWarning`; and downstream providers
-were then migrated one package at a time, each in its own PR, over several
-release waves. At no point was a released provider broken.
+The project learned this the hard way: `hooks/sql.py` still carries a `connection`
+setter that exists only to warn, naming the released versions
+(`mysql<5.7.1`, `elasticsearch<5.5.1`, …) it broke. The surface is also
+*recorded*: committed `.pyi` stubs sit beside each public module and
+`README_API.md` documents the API-diff workflow — additive changes auto-apply,
+removals and signature changes fail and require an explicit
+`UPDATE_COMMON_SQL_API=1` regeneration; MyPy then checks downstream providers
+against the stubs. New override points carry a version floor enforced by
+`scripts/ci/prek/check_common_sql_dependency.py`. The `get_pandas_df` → `get_df`
+migration is the worked example done right: new methods added, the old ones kept
+as deprecated delegators, downstream migrated one package at a time.
 
 ## Decision
 
@@ -111,11 +83,9 @@ operator base classes that travel with it — as a stable, provider-facing API.
 
 - Downstream providers can be upgraded ahead of, or behind, `common.sql` without
   `AttributeError` / `TypeError` at the hook boundary.
-- This package accumulates deprecated shims for a release or two. That cost is
-  accepted in exchange for the version-mix guarantee.
-- Interface cleanups are slow: the additive change ships first, downstream
-  migration happens per-provider over several waves, and removal waits for a major
-  boundary. This is the intended pace, not friction to route around.
+- This package accumulates deprecated shims for a release or two, and interface
+  cleanups are slow (additive change first, per-provider migration, removal only
+  at a major boundary). That is the intended pace, not friction to route around.
 - Contributors pay an extra step — regenerating stubs and justifying any
   non-additive diff — on every change that touches the public surface.
 
@@ -138,20 +108,13 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #48875 — "feat: integrate `polars` in `get_df`, `get_df_by_chunks`": the
-  additive half of the pattern — a new capability added as new methods, leaving
-  `get_pandas_df` intact as a deprecated delegator.
-- #50017 — "Update Exasol provider dependencies and deprecate `get_pandas_df`
-  method", #50123 — "Migrate `PrestoHook` and `TrinoHook` to use `get_df`", #50341
-  — "Migrate `BigQueryHook` to use `get_df`": the migration half — downstream
-  providers moved one package at a time, after the additive change shipped.
-- #61144 — "Implement specialized `get_first` and `get_records` method in
-  `OracleHook` to avoid serialization issues with XCom's": a return-shape problem
-  solved by overriding in the downstream hook rather than by reshaping the shared
-  contract.
-- #69230 — "Align hook `run()` annotations with None-able handler results": a
-  correction to the recorded `run` surface, made as an annotation change rather
-  than a behaviour change.
-- #45789 — fixing `DbApiHook.insert_rows` logging the wrong number of inserted
-  rows: the kind of small correction that is safe precisely because it does
-  not move the interface.
+- #48875 — polars in `get_df` / `get_df_by_chunks`: additive half, `get_pandas_df`
+  kept as deprecated delegator.
+- #50017, #50123, #50341 — migration half; downstream providers moved to `get_df`
+  one package at a time, after the additive change shipped.
+- #61144 — Oracle return-shape problem solved by overriding downstream, not
+  reshaping the shared contract.
+- #69230 — `run()` annotations aligned with None-able handler results; annotation
+  change, not behaviour change.
+- #45789 — `insert_rows` row-count log fix; safe because it does not move the
+  interface.

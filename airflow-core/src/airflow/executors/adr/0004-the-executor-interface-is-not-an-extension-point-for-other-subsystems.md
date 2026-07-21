@@ -27,40 +27,26 @@ Accepted
 
 ## Context
 
-`BaseExecutor` and `ExecutorLoader` are unusually attractive places to hang
-things. The loader already discovers per-deployment, provider-supplied classes
-from configuration and instantiates them at start-up — which is exactly the
-machinery any other pluggable subsystem needs. So when a provider needs its own
-database migrations, or its own configuration shim, or its own start-up hook,
-adding a method to `BaseExecutor` and letting the loader discover it looks like
-reuse rather than coupling.
+`BaseExecutor` and `ExecutorLoader` are attractive places to hang things: the
+loader already discovers per-deployment, provider-supplied classes from
+configuration and instantiates them at start-up — exactly the machinery any other
+pluggable subsystem needs. So adding a method to `BaseExecutor` for DB migrations,
+a config shim, or a start-up hook looks like reuse.
 
-It is coupling, and it is expensive in a specific way. `BaseExecutor` is
-implemented by every provider executor — Celery, Kubernetes, ECS, Batch, Lambda,
-Edge, and out-of-tree ones — versioned independently of core. A method added for
-one concern becomes a method all of them inherit, must reason about, and must
-keep working across the core/provider version matrix. It also fuses two
-lifetimes that are not the same: DB managers matter at migration time, when no
-executor need exist; executors matter at scheduling time. Tying the second to
-the first means a deployment cannot run migrations without a working executor
-configuration, and means the *only* way to ship a DB manager is to also ship an
-executor.
-
-This was worked through concretely on a proposal to add `get_db_manager` to
-executors with auto-discovery through `ExecutorLoader`. Reviewers agreed the
-underlying need was real and that the approach was better than the prior
-attempt, and still redirected it: the FAB provider already exposes DB-manager
-functionality through its own CLI command group, and that is the seam to follow
-— provide the DB manager directly, not via the executor. A second reviewer added
-the structural objection plainly, that further complexity on this interface for
-new DB managers was not wanted. The PR was closed in favour of the version that
-took the separate route.
-
-The same instinct keeps the loader itself narrow. Validation that crept into
-executor-adjacent start-up paths — verifying team existence during Dag
-validation, and again during CLI parser loading — was removed, because those
-paths run constantly and exist to resolve an executor, not to police unrelated
-state.
+It is coupling, and expensive. `BaseExecutor` is implemented by every provider
+executor (Celery, Kubernetes, ECS, Batch, Lambda, Edge, out-of-tree), versioned
+independently of core; a method added for one concern becomes one all of them must
+carry across the core/provider version matrix. It also fuses two lifetimes: DB
+managers matter at migration time when no executor need exist, executors matter at
+scheduling time — tying the two means a deployment cannot migrate without a
+working executor config, and the only way to ship a DB manager is to also ship an
+executor. This was worked through on a proposal to add `get_db_manager` with
+auto-discovery through `ExecutorLoader` (#60752): the need was real, but the FAB
+provider already exposes DB-manager functionality through its own CLI command
+group, and that is the seam to follow — provide the manager directly. The same
+instinct keeps the loader narrow: validation that crept into executor-adjacent
+start-up paths (team existence during Dag validation and CLI parser loading) was
+removed, because those paths run constantly and exist to resolve an executor.
 
 ## Decision
 
@@ -82,18 +68,13 @@ The executor interface stays about executing tasks:
 
 ## Consequences
 
-Provider executors stay implementable against a small, stable surface, and
-subsystems with different lifetimes stay independently deployable — a
-deployment can run migrations without a configured executor, and can ship a DB
-manager without shipping one.
-
-The cost is duplicated plumbing. A subsystem that needs per-deployment
-discovery must build or reuse its own mechanism instead of borrowing the
-loader's, which is more code and a second thing to learn. Contributors who
-arrive with a working executor-hook implementation are asked to rewrite it
-against a seam that may need extending first — a materially larger piece of
-work than the one they brought, for a benefit that only shows up in other
-providers.
+- Provider executors stay implementable against a small, stable surface, and
+  subsystems with different lifetimes stay independently deployable — migrate
+  without a configured executor, ship a DB manager without shipping one.
+- The cost is duplicated plumbing: a subsystem needing per-deployment discovery
+  builds its own mechanism, and a contributor arriving with a working
+  executor-hook is asked to rewrite it against a seam that may need extending
+  first.
 
 A change **violates** this decision when it:
 
@@ -115,10 +96,7 @@ but does not answer:
 
 ## Evidence
 
-- #60752 — `get_db_manager` on executors with auto-discovery through
-  `ExecutorLoader`; closed after reviewers pointed at the FAB provider's CLI
-  command group as the correct seam and objected to further complexity on this
-  interface.
+- #60752 — `get_db_manager` on executors via `ExecutorLoader` auto-discovery; closed, reviewers pointed at the FAB provider's CLI seam and objected to more interface complexity.
 - #61155 — the successor that landed via the separate route.
 - #60596 — the earlier attempt at the same need, superseded.
 - #62596 — team-existence validation removed from Dag validation.

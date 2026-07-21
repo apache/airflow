@@ -28,30 +28,24 @@ Accepted
 ## Context
 
 This provider has a small shared core — `operators/pod.py`, `pod_generator.py`,
-`utils/pod_manager.py`, `kubernetes_helper_functions.py`, `triggers/pod.py` —
-and a growing set of specialised things layered on top of it:
-`SparkKubernetesOperator`, `KubernetesJobOperator`, the resource operators, the
-Kueue integration, and whatever comes next. The specialised operators subclass or
-delegate to the core; the core knows nothing about them.
+`utils/pod_manager.py`, `kubernetes_helper_functions.py`, `triggers/pod.py` — and
+a growing set of specialised things on top: `SparkKubernetesOperator`,
+`KubernetesJobOperator`, the resource operators, the Kueue integration. The
+specialised operators subclass or delegate to the core; the core knows nothing
+about them. That asymmetry is under constant pressure. The recurring shape of a
+rejected change: a real defect is observed in one specialised operator, traced
+into the shared core, and a core change — how a payload is serialised, how a phase
+is interpreted, how logs are followed — is proposed to make the specialised case
+work. It is usually small and correct for the case that motivated it.
 
-That asymmetry is deliberate and it is under constant pressure. The recurring
-shape of a rejected change here is: a real defect is observed in one specialised
-operator, the author traces it into the shared core, and proposes a change to the
-core — how a pod payload is serialised, how a phase is interpreted, how logs are
-followed — that makes the specialised case work. The change is usually small and
-usually correct for the case that motivated it.
-
-The cost is not visible in the diff. Every task pod in every KubernetesExecutor
-deployment, and every `KubernetesPodOperator` task, goes through the same code.
-A change that is a one-line accommodation for a Spark payload is a behaviour
-change for workloads whose authors have never heard of Spark, on a release they
-did not ask for. And because the core has three lifecycle implementations that
-already drift (sync operator, deferrable trigger, executor), a core change made
-for one integration has to be reasoned about in all three.
-
-The counter-pressure applies in the other direction too: a specialised operator
-that quietly reimplements a piece of the lifecycle instead of using the core is
-also a defect, because it becomes a fourth copy that will drift. The rule is not
+The cost is not in the diff. Every task pod in every KubernetesExecutor deployment
+and every `KubernetesPodOperator` task goes through the same code, so a one-line
+accommodation for a Spark payload is a behaviour change for workloads whose authors
+never heard of Spark, on a release they did not ask for — and because the core has
+three lifecycle implementations that already drift (sync operator, deferrable
+trigger, executor), it has to be reasoned about in all three. The counter-pressure
+applies the other way too: a specialised operator that quietly reimplements a piece
+of the lifecycle is also a defect, a fourth copy that will drift. The rule is not
 "never touch the core" — it is "touch the core for reasons that are true of every
 pod."
 
@@ -83,11 +77,10 @@ every pod Airflow launches, not by one operator's workload.**
 - The code every deployment runs stays reviewable by people who do not know the
   specialised workloads, and its behaviour does not shift under them.
 - Specialised integrations carry their own complexity, which makes them easier to
-  evolve, deprecate, or hand to a different maintainer.
+  evolve, deprecate, or hand off.
 - The honest cost: a fix inside a specialised operator sometimes duplicates a few
   lines of core logic, and the author has to argue for the local fix rather than
-  making the obvious one-line core change. Some defects therefore take a second
-  round to land. That is the price of not making every pod pay for one workload.
+  making the obvious one-line core change. Some defects take a second round to land.
 - Genuinely general defects found through a specialised operator still belong in
   the core — this decision asks for the argument, not for a refusal.
 
@@ -108,27 +101,17 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #55645 — "Fix Airflow 3 Spark k8s pod JSON payload corruption": closed. The
-  review position was that changing the shared path fundamentally for one use
-  case is disproportionate, and that the fix should be local to the Spark code,
-  with an offer to review that follow-up.
-- #52051 — "fix xcom push not working in `SparkKubernetesOperator`" and #56399 —
-  "Fix `SparkKubernetesOperator` deferrable mode launcher attribute error": both
-  closed unmerged; the same integration repeatedly surfacing lifecycle gaps that
-  had to be re-scoped locally.
-- #55355 — "Fix `KubernetesJobOperator` ignoring `on_finish_action`": closed; a
-  specialised operator that had drifted from the core's deletion contract rather
-  than a core defect.
-- #63938 — "Add KubeRay (RayJob) operator": closed; a new CRD integration
-  proposed directly into this provider without prior agreement on ownership.
-- #63946 — "Add resource quota awareness to `KubernetesPodOperator`" and #61637 —
-  "Add `delete_pods_in_phase` override to `KubernetesPodOperator`": closed;
-  cluster-policy behaviour pushed into the operator every pod goes through.
-- #63042 — a provider-wide sweep adding HTTP timeouts, closed in favour of
-  per-provider splits because a blanket value cannot know which calls
-  legitimately block;
-  the same reasoning applies to blanket changes inside this provider's core.
-- #61778 — "Kubernetes Pod Operator handle container registry rate limits":
-  closed; transient cluster-side conditions are surfaced as task failures for
-  Airflow's own retry mechanism rather than absorbed by a new wait loop inside
-  the operator.
+- #55645 — closed: changing the shared path for one use case is disproportionate;
+  the fix should be local to the Spark code.
+- #52051, #56399 — the same Spark integration repeatedly surfacing lifecycle gaps
+  that had to be re-scoped locally; both closed.
+- #55355 — closed; a specialised operator that had drifted from the core's deletion
+  contract, not a core defect.
+- #63938 — a new CRD integration proposed without prior agreement on ownership;
+  closed.
+- #63946, #61637 — cluster-policy behaviour pushed into the operator every pod goes
+  through; closed.
+- #63042 — a provider-wide timeout sweep closed for per-provider splits; the same
+  reasoning applies to blanket changes inside this core.
+- #61778 — closed; transient cluster-side conditions surfaced as task failures for
+  Airflow's own retry rather than absorbed by a new wait loop.

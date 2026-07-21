@@ -27,44 +27,27 @@ Accepted
 
 ## Context
 
-Lineage is *observability*, not the work the user asked for. When a user runs
-`SQLExecuteQueryOperator`, the contract is that the SQL executes and its result is
-returned. Producing an OpenLineage event about that execution is a side benefit.
-An operator that succeeds at the SQL and then fails the task while describing what
-it did has broken the contract for a feature the user may not even have enabled.
+Lineage is *observability*, not the work the user asked for. The contract of
+`SQLExecuteQueryOperator` is that the SQL executes and returns its result; the
+OpenLineage event is a side benefit. An operator that succeeds at the SQL and then
+fails the task while describing what it did has broken the contract for a feature
+the user may not even have enabled.
 
-This package is where SQL lineage is produced, and it sits in an unusually fragile
-spot. Extraction spans four independently released moving parts: this provider,
-`apache-airflow-providers-openlineage`, `apache-airflow-providers-common-compat`,
-and the `openlineage-python` client library — plus the downstream provider hook
-that supplies the database-specific pieces. Every one of those is version-skewed
-against the others in real deployments, and the extraction code has to run
-correctly when any of them is old, or simply absent.
-
-The failure modes are concrete. The OpenLineage provider may not be installed at
-all (`ImportError` on `airflow.providers.openlineage.extractors`). It may be
-installed but older than a helper this code wants
-(`should_use_external_connection` did not exist before OpenLineage provider
-1.8.0). The downstream hook may not implement the optional hook-side methods
-(`AttributeError` on `get_openlineage_database_info`,
-`get_openlineage_database_dialect`, `get_openlineage_database_specific_lineage`).
-The `openlineage-python` client may be too old for a facet being emitted — which
-is why `_attach_check_facets` is wrapped in
-`@require_openlineage_version(client_min_version="1.47.0")` and its
-`AirflowOptionalProviderFeatureException` is caught. The SQL itself may not be a
-parseable string, or may be absent entirely, because a subclass supplies it some
-other way. And the SQL parser may simply not understand a particular statement.
-
-The code already reflects this. `get_openlineage_facets_on_start` and
-`get_openlineage_facets_on_complete` in `operators/sql.py` return `None` or an
-empty `OperatorLineage()` at every one of those junctures, logging at `debug`
-rather than raising. On the hook side, `send_sql_hook_lineage`
-(`hooks/lineage.py`) wraps its entire body in a `try` and, on any exception, logs
-a `warning` with the exception class and message plus a `debug` traceback — and
-returns normally. The base hook's `get_openlineage_*` methods are defined with
-permissive defaults (`get_openlineage_database_info` returns `None`,
-`get_openlineage_database_dialect` returns `"generic"`) so that a hook that
-implements none of them still produces a well-formed, empty result.
+Extraction sits in a fragile spot, spanning four independently released parts —
+this provider, `openlineage`, `common-compat`, and the `openlineage-python`
+client — plus the downstream hook supplying the database-specific pieces. Any of
+them may be old or absent in a real deployment. The concrete failure modes:
+the OpenLineage provider not installed (`ImportError`); installed but too old for
+a helper; the downstream hook not implementing the optional `get_openlineage_*`
+methods (`AttributeError`); the client too old for a facet (hence
+`_attach_check_facets` is `@require_openlineage_version(client_min_version="1.47.0")`
+with its `AirflowOptionalProviderFeatureException` caught); or SQL that is absent
+or unparsable. The code reflects this: the operator-side
+`get_openlineage_facets_on_*` return `None` or empty `OperatorLineage()` and log
+at `debug`; hook-side `send_sql_hook_lineage` wraps its body in a `try`, logs a
+`warning` on any exception, and returns; and the base hook's `get_openlineage_*`
+methods have permissive defaults so a hook implementing none still yields a
+well-formed empty result.
 
 ## Decision
 
@@ -97,17 +80,16 @@ never to a failed or slower task.
 
 ## Consequences
 
-- Users can install, upgrade, or remove the OpenLineage provider independently of
-  this one without breaking their SQL tasks.
-- Lineage can be silently incomplete. That is the accepted trade: a missing
-  dataset in a lineage graph is recoverable, a failed production task is not. The
-  `warning` in `send_sql_hook_lineage` is the diagnostic trail for when it
-  happens.
-- Broad `except Exception` appears in these paths deliberately. It is scoped to
-  lineage reporting only and is an exception to the project's usual
-  narrow-exception rule — it must not be copied into execution paths.
-- Tests must cover the degraded paths explicitly, since the happy path alone will
-  not catch a regression that turns a skip into a raise.
+- Users can install, upgrade, or remove the OpenLineage provider independently
+  without breaking their SQL tasks.
+- Lineage can be silently incomplete — the accepted trade: a missing dataset is
+  recoverable, a failed production task is not. The `warning` in
+  `send_sql_hook_lineage` is the diagnostic trail.
+- Broad `except Exception` in these paths is deliberate, scoped to lineage
+  reporting only, and an exception to the narrow-exception rule — do not copy it
+  into execution paths.
+- Tests must cover the degraded paths explicitly; the happy path alone will not
+  catch a regression that turns a skip into a raise.
 
 A change **violates** this decision when it:
 
@@ -127,18 +109,13 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #61535 — "feat: Add Hook Level Lineage to SQL hooks": introduced
-  `send_sql_hook_lineage`, whose entire body is wrapped in a `try` that logs a
+- #61535 — introduced `send_sql_hook_lineage`, body wrapped in a `try` that logs a
   warning and returns rather than propagating.
-- #58897 — "chore: Move OpenLineage methods to `BaseSQLOperator`": consolidated
-  the guarded extraction paths onto the shared operator base, so the degradation
-  behaviour is defined once for every SQL operator instead of per subclass.
-- #66849 — "feat: Add standardized SQL check representation for listeners":
-  extended the check-operator observability surface, with the facet attachment
-  version-gated and its optional-feature exception caught.
-- #63346 — "Removed logging of rows length in `SQLInsertRowsOperator` to avoid
-  crash on non materialized rows": the concrete form of the cost rule —
-  observability code that materialised a lazy result crashed the operator.
-- #57135 and #57075 — "Migrate `common.sql` provider to `common.compat`": routed
-  the cross-provider lineage and compatibility imports through the compat layer,
-  which is what makes the guarded fallbacks version-tolerant.
+- #58897 — moved OpenLineage methods to `BaseSQLOperator`, defining degradation
+  once for every SQL operator instead of per subclass.
+- #66849 — standardized SQL check facets, version-gated with the optional-feature
+  exception caught.
+- #63346 — removed row-length logging in `SQLInsertRowsOperator`; observability
+  code that materialised a lazy result crashed the operator (the cost rule).
+- #57135, #57075 — routed cross-provider lineage imports through `common.compat`,
+  which makes the guarded fallbacks version-tolerant.

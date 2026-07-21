@@ -29,29 +29,21 @@ Accepted
 
 `airflowctl` is the standalone `apache-airflow-ctl` distribution for managing a
 running Airflow deployment from the outside. It is deliberately **not** the
-in-process `airflow` CLI that ships in airflow-core: it is a separate package
-with its own dependency set, and it is expected to run on an operator's laptop
-or a CI runner that has no co-located Airflow install and no access to the
-metadata database.
+in-process `airflow` CLI that ships in airflow-core: it is a separate package with
+its own dependency set, expected to run on an operator's laptop or a CI runner
+with no co-located Airflow install and no metadata-database access.
 
-Under the post-3.0 architecture (see the Architecture Boundaries in the project
-instructions), only the API server is allowed to touch the metadata database,
-and remote clients interact with Airflow exclusively through the **public REST
-API v2**. `airflowctl` is such a client. Its transport is an `httpx`-based
-`api/client.py`; its endpoint wrappers live in `api/operations.py`; and it
-authenticates as an ordinary API client — a JWT bearer token stored per
-environment in the system `keyring` — exactly like any third-party integrator.
-It holds no special privilege the API server does not grant to any authenticated
-client.
-
-The temptation, when a piece of data is awkward to obtain over the API, is to
-`import airflow.*`, open a SQLAlchemy session, or read a server-side config
-file. Any of those quietly re-couples the client to a co-located server, breaks
-the remote-management model, drags airflow-core's heavy dependency tree into a
-tool meant to be lightweight, and — worst — bypasses the API server's
-authorization. Because the client also runs on untrusted operator machines,
-locally-sourced input (environment names, file paths from env vars) is part of
-its attack surface: it must be validated, not trusted.
+Under the post-3.0 architecture, only the API server touches the metadata database
+and remote clients interact through the **public REST API v2**. `airflowctl` is
+such a client: transport is an `httpx`-based `api/client.py`, endpoint wrappers
+live in `api/operations.py`, and it authenticates as an ordinary API client — a
+JWT bearer token stored per environment in the system `keyring` — with no special
+privilege. The temptation, when data is awkward to get over the API, is to
+`import airflow.*`, open a SQLAlchemy session, or read a server-side config file;
+any of those re-couples the client to a co-located server, drags in airflow-core's
+heavy dependency tree, and bypasses the API server's authorization. Because the
+client also runs on untrusted machines, locally-sourced input (environment names,
+paths from env vars) is part of its attack surface and must be validated.
 
 ## Decision
 
@@ -72,13 +64,11 @@ its attack surface: it must be validated, not trusted.
 
 ## Consequences
 
-`airflowctl` stays deployable anywhere a REST client can run, and it works
-unchanged against a remote, network-isolated deployment. The metadata-DB
-isolation that the architecture depends on is preserved — the CLI cannot become
-a side door into the database. The package stays lightweight, without
-airflow-core's dependency tree. The cost is that some capabilities require a
-server-side API endpoint to exist first; contributors add the endpoint on the
-server, then consume it here, rather than shortcutting through a local import.
+`airflowctl` stays deployable anywhere a REST client can run, works unchanged
+against a remote deployment, and cannot become a side door into the database. The
+package stays lightweight. The cost is that some capabilities require a server-side
+API endpoint to exist first — added on the server, then consumed here, rather than
+shortcut through a local import.
 
 A change **violates** this decision when it:
 
@@ -93,16 +83,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #62843 — "Add airflowctl auth token command to print JWT access tokens":
-  the CLI authenticates as an API client holding a JWT, not a DB session.
-- #64618 — "Prevent path traversal via AIRFLOW_CLI_ENVIRONMENT in airflowctl":
-  a locally-sourced environment name is untrusted input and is validated before
-  it is used to build a keyring/token path.
-- #63772 — "Fix airflowctl version command prompting for keyring credentials":
-  credential handling is a first-class concern of the remote-client model.
-- #65099 — "Allow remote version check without authentication": a command that
-  legitimately needs no token must not force a credential prompt — the client
-  decides auth per operation.
-- #62549 — "airflowctl auth login: prompt for credentials interactively when
-  none are provided": logging in as an API client is the entry point to every
-  authenticated command.
+- #62843 — `auth token` prints a JWT: the CLI authenticates as an API client, not
+  a DB session.
+- #64618 — path-traversal fix: `AIRFLOW_CLI_ENVIRONMENT` is untrusted input,
+  validated before building a keyring/token path.
+- #63772 — version command must not prompt for keyring credentials.
+- #65099 — a command that legitimately needs no token must not force a prompt.
+- #62549 — `auth login` interactive prompt: logging in as an API client is the
+  entry point to every authenticated command.

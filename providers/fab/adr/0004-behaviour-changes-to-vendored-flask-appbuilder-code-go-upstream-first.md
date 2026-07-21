@@ -27,32 +27,26 @@ Accepted
 
 ## Context
 
-`auth_manager/security_manager/override.py` is not Airflow code that happens to
-resemble Flask-AppBuilder. It is a transplant: roughly 2,700 lines of FAB's
-`BaseSecurityManager` behaviour, copied from one exact released version and
-adapted only where Airflow genuinely diverges. ADR 1 records why the pin, the
-alignment test and this file move together.
+`auth_manager/security_manager/override.py` is a transplant: ~2,700 lines of FAB's
+`BaseSecurityManager` behaviour copied from one exact released version and adapted
+only where Airflow genuinely diverges. ADR 1 records why the pin, the alignment
+test, and this file move together.
 
-This ADR records the consequence that reviewers actually spend their time
-enforcing, and the one contributors are most often surprised by: **the direction
-of change.** A patch applied here that has no upstream counterpart does not stay
-applied. The next FAB bump re-reads the upstream method, reconciles it, and the
-local improvement silently disappears — or, worse, survives as an unexplained
-divergence that the alignment test cannot see, because the test detects shape
-drift (missing or added public methods), not behavioural drift inside a method
-body.
+This ADR records the consequence reviewers spend their time enforcing and
+contributors are most surprised by: **the direction of change.** A patch here with
+no upstream counterpart does not stay applied — the next bump re-reads the upstream
+method and the local improvement silently disappears, or worse survives as an
+unexplained divergence the alignment test cannot see (it detects shape drift, not
+behavioural drift inside a method body). A change like "make `ab_user.changed_on`
+update on modification" is a plausible small fix to persistence behaviour FAB owns;
+landing it here makes Airflow behave differently from every other FAB app, recorded
+nowhere but a merged diff, until the next bump reverts it.
 
-The failure mode is concrete. A change like "make `ab_user.changed_on` update
-when a user is modified" is a plausible, small, well-intentioned fix to
-persistence behaviour that FAB owns. Landing it here means Airflow now behaves
-differently from every other FAB application, for a reason recorded nowhere but a
-merged diff, until the next bump quietly reverts it.
-
-The same reasoning does *not* apply to the seams Airflow owns: the subclass
-methods that implement Airflow's own authorization, the Airflow-specific
-resource/permission synchronisation, and defects that only exist because of how
-Airflow calls FAB (a missing submodule import, a wrong session lifecycle in
-Airflow's request path). Those are local by construction and are fixed here.
+This does *not* apply to the seams Airflow owns: the subclass methods implementing
+Airflow's own authorization, the Airflow-specific resource/permission sync, and
+defects that exist only because of how Airflow calls FAB (a missing submodule
+import, a wrong session lifecycle in Airflow's request path). Those are local by
+construction and fixed here.
 
 ## Decision
 
@@ -82,16 +76,14 @@ into `override.py`.**
 
 - The vendored file stays a faithful transplant, so bumps remain a mechanical
   reconciliation rather than a merge of two divergent histories.
-- Fixes benefit every Flask-AppBuilder user, not only Airflow, which is also why
-  upstream tends to accept them.
-- The cost is bluntly high and falls on the contributor: a small fix becomes an
-  upstream PR, an upstream release, and then an Airflow bump — which is itself
-  the most expensive kind of change in this provider. Real defects therefore stay
-  open longer than they would if Airflow patched locally. That is accepted; the
-  alternative is a vendored file that no longer corresponds to anything and a
-  bump nobody can perform safely.
-- Contributors need to be told this *before* they write the patch, which is why
-  it is stated in this provider's `AGENTS.md` guard as well as here.
+- Fixes benefit every Flask-AppBuilder user, which is also why upstream accepts
+  them.
+- The cost is high and falls on the contributor: a small fix becomes an upstream
+  PR, an upstream release, then an Airflow bump — the most expensive change in this
+  provider — so real defects stay open longer. Accepted; the alternative is a
+  vendored file that corresponds to nothing and a bump nobody can perform safely.
+- Contributors must be told this *before* they write the patch, hence the
+  provider's `AGENTS.md` guard as well.
 
 A change **violates** this decision when it:
 
@@ -110,24 +102,18 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #60448 — "Fix `ab_user.changed_on` not updating on user modifications":
-  closed with the rule stated in full — Airflow does not modify the security
-  manager override on its own; changes are backported from FAB on each version
-  update, and a behaviour proposal belongs in a PR to the Flask-AppBuilder
-  repository, to be picked up when Airflow moves to that release.
-- #67535 — "Fix `AttributeError`: module `ldap` has no attribute `filter`":
-  closed, then the same one-line change landed as #68226. The contrast is the
-  discriminator: this was an *Airflow-side* import defect (a submodule the
-  vendored code assumed was imported), not FAB behaviour, so the local fix was
-  correct — the PR was closed for process reasons, not for direction.
-- #65462 and #65463 — two near-identical PRs for the same FAB 3.6.0 cookie
-  defect, and #67141 for the Werkzeug 3.0 variant of it: all closed unmerged.
-  Breakage in this file originates in third-party releases, and the durable fix
-  travels with the pin rather than with a local patch.
-- #69706 — "Bump flask-appbuilder to 5.2.2": closed unmerged. A bump is not a
-  dependency edit; without the reconciled `override.py` it is not a candidate for
-  review (ADR 1).
-- #61083 — "Fix Admin access denied for user model views": closed. The
-  investigation showed the cause was upstream's registration-driven permission
-  creation, and the proposed local workaround synthesised permission rows in
-  Airflow instead — the shape this decision routes upstream.
+- #60448 — `ab_user.changed_on` not updating: closed with the rule stated in full —
+  behaviour FAB owns belongs in a PR to Flask-AppBuilder, picked up on the next
+  bump, not written into the override.
+- #67535 — `module ldap has no attribute filter`: closed, then landed as #68226.
+  The discriminator: an *Airflow-side* import defect (a submodule the vendored code
+  assumed imported), not FAB behaviour, so the local fix was correct — closed for
+  process, not direction.
+- #65462, #65463, #67141 — near-identical PRs for a FAB 3.6.0 cookie defect and its
+  Werkzeug 3.0 variant, all closed: breakage originating in third-party releases;
+  the durable fix travels with the pin, not a local patch.
+- #69706 — bump to 5.2.2, closed: a bump without the reconciled `override.py` is
+  not reviewable (ADR 1).
+- #61083 — Admin access denied for user model views, closed: cause was upstream's
+  registration-driven permission creation, and the local workaround synthesised
+  permission rows in Airflow — the shape this decision routes upstream.

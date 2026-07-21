@@ -27,29 +27,26 @@ Accepted
 
 ## Context
 
-The auth manager is the component that decides who may do what and validates who a
-caller *is*. Its defining property is not a feature — it is a posture: when
-anything is uncertain, it must **deny**. A malformed or expired token, a token
-whose `kid` matches no key, a payload that will not deserialize into a user, a
-capability a manager does not support — each of these is an error path, and every
-error path here must resolve to *no access*, never to a fall-through that grants it.
+The auth manager decides who may do what and validates who a caller *is*. Its
+defining property is a posture: when anything is uncertain, it must **deny**. A
+malformed or expired token, a token whose `kid` matches no key, a payload that will
+not deserialize, an unsupported capability — each is an error path, and every error
+path here must resolve to *no access*, never a fall-through that grants it.
 
-This is easy to get wrong because the insecure version usually still passes the
-happy-path test. A token check that returns the request unauthenticated instead of
-rejecting it, a secret compared with `==` instead of a constant-time primitive, a
-password generated with a non-cryptographic RNG, a login cookie without `Secure` /
-`SameSite`, a `kid` mismatch that silently falls back to another key, a stale
-`_token` cookie that keeps re-authenticating after logout — all "work" until an
-adversary is present. The repo `CLAUDE.md` security model is explicit about this
-posture and about what is and is not a vulnerability.
+This is easy to get wrong because the insecure version still passes the happy-path
+test: a check that returns the request unauthenticated instead of rejecting it, a
+secret compared with `==`, a password from a non-cryptographic RNG, a login cookie
+without `Secure` / `SameSite`, a `kid` mismatch that falls back to another key, a
+stale `_token` cookie re-authenticating after logout — all "work" until an adversary
+is present. The repo `CLAUDE.md` security model is explicit about this posture and
+about what is and is not a vulnerability.
 
-The second half is process. Because a change here can weaken the whole
-deployment's security in ways no unit test will catch, **widening** what a caller
-can reach — honouring a public/anonymous role, relaxing a validation, broadening a
-token's scope or lifetime, changing the security model — is not an opportunistic
-PR. It is a security-model decision that belongs on the devlist / with the security
-team *before* code, not in a late-stage review of a diff that already shipped the
-widening.
+The second half is process. Because a change here can weaken the whole deployment in
+ways no unit test catches, **widening** what a caller can reach — honouring a
+public/anonymous role, relaxing a validation, broadening a token's scope or lifetime,
+changing the security model — is a security-model decision that belongs on the
+devlist / with the security team *before* code, not in a late-stage review of a diff
+that already shipped the widening.
 
 ## Decision
 
@@ -80,12 +77,12 @@ security process:
 
 - A caller who cannot be positively authorized gets nothing, even when something
   upstream failed — the safe direction on every error.
-- Security-relevant primitives (comparison, RNG, cookie flags, claim validation)
-  are correct by policy, not by the reviewer happening to notice.
+- Security primitives (comparison, RNG, cookie flags, claim validation) are correct
+  by policy, not by a reviewer happening to notice.
 - Access-widening changes arrive with prior agreement and a threat model, so review
-  is confirming an agreed decision rather than discovering a silent one.
-- Some convenience is deliberately harder — a public/anonymous path takes explicit
-  configuration and sign-off. That friction is the point.
+  confirms an agreed decision rather than discovering a silent one.
+- A public/anonymous path takes explicit configuration and sign-off. That friction is
+  the point.
 
 A change **violates** this decision when it:
 
@@ -108,26 +105,17 @@ process before it is reviewed as code.
 
 ## Evidence
 
-- #66556 — "Use `hmac.compare_digest` for SimpleAuthManager password compare
-  (CWE-208)": replaced a timing-unsafe secret comparison with a constant-time one.
-- #66500 — "Use cryptographically secure RNG for SimpleAuthManager passwords":
-  moved generated secrets onto a secure RNG.
-- #66502 — "Set `SameSite=Lax` on SimpleAuthManager all-admins login cookie": set a
-  cookie flag secure-by-default.
-- #65348 — "Set JWT refresh cookie `Secure` flag when request is HTTPS": ensured the
-  refresh cookie is marked `Secure` on HTTPS.
-- #62771 — "Scope session token in cookie to base_url": scoped the token cookie so
-  it cannot leak/reuse outside its path.
-- #64955 — "Fix redirect loop when stale root-path `_token` cookie exists from older
-  Airflow instance": kept a stale cookie from silently re-authenticating.
-- #66562 — "Require trust sentinel for `state.user` injection in `get_user()`":
-  made anonymous/user injection explicit and trust-gated rather than an accidental
+- #66556 — constant-time password compare via `hmac.compare_digest` (CWE-208).
+- #66500 — moved generated passwords onto a cryptographically secure RNG.
+- #66502 — set `SameSite=Lax` on the all-admins login cookie (merged fail-closed fix).
+- #65348 — set the JWT refresh cookie `Secure` on HTTPS (merged fail-closed fix).
+- #62771 — scoped the session token cookie to `base_url` so it cannot reuse outside
+  its path (merged fail-closed fix).
+- #64955 — kept a stale root-path `_token` cookie from silently re-authenticating.
+- #66562 — made `state.user` injection explicit and trust-gated, not an accidental
   default.
-- #66563 — "Warn when SimpleAuthManager runs in a production-shaped deployment":
-  surfaced an insecure-by-configuration posture rather than allowing it silently.
-- #67909 — "Raise InvalidJwtError in `JWTValidator.avalidated_claims` when `kid`
-  does not match": rejected a non-matching `kid` instead of falling back.
-- #48056 — "Auth Manager should raise an invalid token error when the payload cannot
-  be deserialized": turned a deserialization failure into a rejection, not access.
-- #61339 — "Add JWT token revocation for logout invalidation": ensured a
-  logged-out/revoked token is actually rejected.
+- #66563 — warned when SimpleAuthManager runs in a production-shaped deployment.
+- #67909 — raised when a `kid` does not match instead of falling back (merged
+  fail-closed fix).
+- #48056 — turned a deserialization failure into a rejection, not access.
+- #61339 — ensured a logged-out/revoked token is actually rejected.

@@ -28,30 +28,23 @@ Accepted
 ## Context
 
 `task-sdk` is a **separate Python distribution** with its own `pyproject.toml`,
-version, and release cadence. That separation is the whole point: workers run the
-Task SDK and communicate with the API server over the versioned Execution API
-(ADR 1, ADR 2), and the two sides **deploy independently** — a worker can run a
-different `apache-airflow-task-sdk` release than the API server's airflow-core.
-The Execution API's backward-compatibility machinery only buys anything if the
-worker runtime is genuinely decoupled from airflow-core's internals.
+version, and release cadence. That separation is the point: workers run the Task
+SDK and communicate over the versioned Execution API (ADR 1, ADR 2), and the two
+sides **deploy independently** — a worker can run a different
+`apache-airflow-task-sdk` release than the server's airflow-core. The Execution
+API's backward-compatibility machinery only buys anything if the worker runtime is
+genuinely decoupled from airflow-core internals.
 
-The concrete rule that keeps it decoupled: the execution runtime must not import
-`airflow.models` / the airflow-core ORM. The worker's view of task-instance and
-other server-owned shapes comes from generated datamodels in
-`airflow.sdk.api.datamodels._generated` (produced from the Execution-API spec),
-not from the ORM classes. It also means keeping heavy, server-only dependencies
-(FastAPI, Cadwyn) off the worker import path, so installing and starting the SDK
-on a worker doesn't drag in the whole server.
-
-This boundary erodes silently. An `airflow.models` import compiles fine in the
-monorepo — everything is on the path during development — so the coupling is
-invisible until someone tries to install task-sdk standalone, or until an older
-worker meets a newer server and the "shared" class has drifted. Because nothing
-local catches it, the project added prek hooks (`check_core_imports_in_sdk`,
-cross-distribution import-boundary checks) to fail the build when the runtime
-reaches back into core. The pressure is ordinary reuse — the ORM already models a
-TaskInstance, so importing it "avoids duplication" — and the decision below is
-what routes that need through the generated datamodels and the spec instead.
+The rule that keeps it decoupled: the runtime must not import `airflow.models` /
+the airflow-core ORM. The worker's view of server-owned shapes comes from
+generated datamodels in `airflow.sdk.api.datamodels._generated` (from the
+Execution-API spec), not ORM classes; and heavy server-only dependencies (FastAPI,
+Cadwyn) stay off the worker import path. This boundary erodes silently: an
+`airflow.models` import compiles fine in the monorepo, so the coupling is
+invisible until someone installs task-sdk standalone or an older worker meets a
+newer server with a drifted "shared" class. Prek hooks
+(`check_core_imports_in_sdk`, cross-distribution boundary checks) fail the build
+when the runtime reaches back into core.
 
 ## Decision
 
@@ -74,14 +67,13 @@ Concretely:
 
 ## Consequences
 
-- A worker can run a task-sdk release independent of the API server's airflow-core
-  version, which is the premise the Execution-API compatibility work depends on.
-- Reusing an airflow-core ORM class is not available as a shortcut; a shared shape
-  is added to the spec and regenerated, which keeps a single versioned source of
-  truth across the Python and Go/Java SDKs.
-- The SDK's dependency and import footprint stays small enough to ship to workers
-  without the server stack, at the cost of some duplication between the generated
-  datamodels and the core ORM.
+- A worker can run a task-sdk release independent of the server's airflow-core
+  version — the premise the Execution-API compatibility work depends on.
+- Reusing an ORM class is not a shortcut; a shared shape is added to the spec and
+  regenerated, keeping one versioned source of truth across the Python and Go/Java
+  SDKs.
+- The SDK's import footprint stays small enough to ship to workers without the
+  server stack, at the cost of some datamodel/ORM duplication.
 
 A change **violates** this decision when, in the Task SDK runtime, it:
 
@@ -102,13 +94,8 @@ independently of a matching airflow-core version.
 
 ## Evidence
 
-- #65358 — "Support inline ignore marker for check_core_imports_in_sdk hook" and
-  #65880 — "Add prek checks for cross-distribution import boundaries": the tooling
-  that enforces the no-core-import rule this ADR records.
-- #69016 — "Defer Cadwyn import to keep FastAPI off the Task SDK worker path":
-  keeps a heavy server-only dependency off the worker import path.
-- #67056 — "Decouple remote logging config from core": removes an airflow-core
-  coupling from the SDK-side path.
-- #68980 — "Allow missing `api_auth.jwt_secret` for `InProcessExecutionAPI`":
-  keeps the SDK usable without server-only configuration, consistent with an
-  independently deployable distribution.
+- #65358, #65880 — the tooling enforcing the no-core-import rule.
+- #69016 — defer Cadwyn import to keep FastAPI off the worker path.
+- #67056 — decouple remote logging config from core.
+- #68980 — allow missing `api_auth.jwt_secret` for `InProcessExecutionAPI`,
+  keeping the SDK usable without server-only configuration.

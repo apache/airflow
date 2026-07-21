@@ -27,39 +27,23 @@ Accepted
 
 ## Context
 
-Trigger-rule evaluation was designed when a task had one upstream relationship
-per edge. Dynamic task mapping broke that assumption: inside a mapped task group,
-`task_b[3]` depends on `task_a[3]`, not on the aggregate state of every `task_a`
-instance. A trigger rule that folds all upstream map indexes into a single
-counted state gives the wrong answer for every index — and gives it silently,
-because the result is a task that stays scheduled, gets skipped, or deadlocks
-rather than one that raises.
+Trigger-rule evaluation was designed when a task had one upstream relationship per
+edge. Dynamic task mapping broke that: inside a mapped task group, `task_b[3]`
+depends on `task_a[3]`, not on the aggregate state of every `task_a`. A rule that
+folds all upstream indexes into one counted state gives the wrong answer for every
+index — silently, as a task that stays scheduled, gets skipped, or deadlocks rather
+than one that raises.
 
-This seam is the single most active source of defects in this area, and the most
-active source of *failed* attempts to fix them. Fixes for per-index evaluation of
-`ONE_FAILED` and for `none_failed_min_one_success` landed only after several
-independent attempts at the same class of bug were closed unmerged: per-index
-trigger-rule evaluation after upstream expansion, branch skips inside mapped task
-groups, `ShortCircuitOperator` behaviour with mapped tasks, and unmapped-task
-deadlock when upstream tasks are removed. The deadlock fix itself took two
-attempts, the first closing after a reviewer asked whether a test case was
-possible and none arrived.
-
-There are two reasons these attempts fail so consistently. The first is that the
-correct behaviour is not obvious from the rule's name: `none_failed_min_one_success`
-inside a mapped group has to be read as a statement about *this index's* upstreams,
-and the aggregate reading is a plausible misreading that passes casual inspection.
-The second is that the bug only appears in a specific combination — a mapped task
-group, a particular trigger rule, a branch or skip, and an expansion count that
-differs from the naive one — so a change that looks right and has a passing unit
-test can still be wrong. Without a test that reproduces the exact deadlock or
-mis-skip, review has no way to tell a real fix from a plausible one, which is why
-untested attempts here are closed rather than merged on inspection.
-
-Removal of upstream tasks compounds this. When an upstream mapped task disappears
-between runs, the dependency evaluation must decide what the surviving indexes
-depend on, and a rule that counts upstreams without accounting for removals
-produces a permanently unsatisfiable condition.
+This seam is the most active source of defects here, and of *failed* fixes. Attempts
+fail for two reasons: the correct behaviour is not obvious from the rule's name (the
+aggregate reading of `none_failed_min_one_success` is a plausible misreading), and
+the bug appears only in a specific combination — a mapped group, a particular rule, a
+branch or skip, an expansion count differing from the naive one — so a change that
+looks right with a passing unit test can still be wrong. Without a test reproducing
+the exact deadlock or mis-skip, review cannot tell a real fix from a plausible one,
+so untested attempts are closed. Removal of upstream tasks compounds this: a rule
+counting upstreams without accounting for removals produces a permanently
+unsatisfiable condition.
 
 ## Decision
 
@@ -84,19 +68,15 @@ changes to it must be demonstrated with a reproducing test. Concretely:
 
 ## Consequences
 
-- Changes here are slow to land, and several correct-looking attempts have been
-  closed for want of a reproducing test. That is the intended trade: a wrong
-  trigger-rule fix strands user tasks in production, and the wrongness is invisible
-  in the diff.
-- Writing the reproducing test is often harder than writing the fix, because it
-  requires building a mapped task group with the right expansion and upstream
-  states. This is a real barrier to contribution in this area and is the main
-  reason first attempts here fail.
-- Per-index evaluation costs more than aggregate counting in the scheduling loop,
-  which interacts with `adr/0002` — the evaluation must stay cheap per task
-  instance, so per-index logic must not introduce a query per index.
-- Contributors without prior context in this area should expect to be redirected
-  to an existing in-flight fix rather than to have a parallel attempt reviewed.
+- Changes here are slow to land, and correct-looking attempts are closed for want of
+  a reproducing test — a wrong trigger-rule fix strands user tasks, invisibly in the
+  diff.
+- Writing the reproducing test is often harder than the fix, a real barrier to
+  contribution and the main reason first attempts fail.
+- Per-index evaluation costs more than aggregate counting, which interacts with
+  `adr/0002`: per-index logic must not introduce a query per index.
+- Contributors without prior context should expect to be redirected to an existing
+  in-flight fix rather than have a parallel attempt reviewed.
 
 A change **violates** this decision when it:
 
@@ -119,21 +99,16 @@ test that fails without this change?
 ## Evidence
 
 - #67684 — "Fix per-index evaluation of `ONE_FAILED` in mapped task groups": the
-  merged fix establishing per-index evaluation for this rule.
-- #67873 — "Fix `none_failed_min_one_success` trigger rule checks": the same class
-  of correction for another rule.
-- #62034 — "Handle unmapped task deadlock when upstream tasks are removed": the
-  merged fix for the removed-upstream case; an earlier attempt (#56678) was closed
-  after review asked for a test case and none was supplied.
-- #68426 — "Per-index trigger rule evaluation broken for mapped task groups after
-  upstream expansion": closed unmerged, one of several independent attempts at
-  this defect class.
-- #67439 — "Fix branch skips inside mapped task groups" and #55661 — "Ensure
-  `ShortCircuitOperator` skips mapped tasks with
-  `ignore_downstream_trigger_rules=True`": both closed unmerged, showing skip
-  propagation into mapped groups as a repeat failure point.
-- #62287 — "`LatestOnlyOperator` not working if direct upstream of dynamic task
-  map": a merged fix where mapped upstream state produced a wrong skip decision.
-- #62089 — "Fix `DepContext` mutation leak and restore reschedule-mode guard": a
-  merged fix in the shared evaluation context, showing how state carried across dep
+  merged fix establishing per-index evaluation.
+- #67873 — "Fix `none_failed_min_one_success` trigger rule checks": same correction
+  for another rule.
+- #62034 — "Handle unmapped task deadlock when upstream tasks are removed": merged;
+  an earlier attempt (#56678) closed for want of a test case.
+- #68426 — per-index evaluation broken after upstream expansion: closed unmerged, one
+  of several attempts at this defect class.
+- #67439 — branch skips inside mapped groups — and #55661 — `ShortCircuitOperator`
+  skipping mapped tasks: both closed unmerged, skip-propagation repeat failures.
+- #62287 — `LatestOnlyOperator` upstream of a dynamic task map: merged, mapped
+  upstream state produced a wrong skip.
+- #62089 — "Fix `DepContext` mutation leak ...": merged; state carried across
   evaluations produces cross-instance wrongness.

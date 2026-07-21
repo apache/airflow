@@ -27,47 +27,29 @@ Accepted
 
 ## Context
 
-`dev/` looks like a safe thing to backport. It ships nothing to users, so a
-contributor who fixes a breeze command or a release script on `main` naturally
-opens the same change against `v3-X-test` — and a release manager preparing a
-patch release naturally wants the newest tooling while doing it.
+`dev/` looks safe to backport: it ships nothing to users, so a contributor who fixes a
+breeze command on `main` naturally opens the same change against `v3-X-test`, and a
+release manager wants the newest tooling. That instinct is wrong here:
 
-That instinct is wrong here, for reasons that only show up later:
+- **`dev/` on the release branches has already diverged far from `main`.** Cherry-picking
+  into that divergence produces conflicts on every subsequent backport of *real* code,
+  the traffic that actually matters on those branches.
+- **A release branch's tooling only has to build and verify that branch.** A refactor, new
+  command or tidier option layout is pure risk against a branch about to be voted on.
+- **A branch past end of life takes security fixes only** — a routine dev-dependency
+  update is noise that still costs a CI cycle and a reviewer. (#67008, `v2-11-test`.)
+- **The Helm chart, providers and airflow-ctl release from `main`**, so "the fix must go
+  to the release branch or users won't get it" is usually not even true.
 
-- **`dev/` on the release branches has already diverged far from `main`.**
-  Breeze, the selective-checks rules and the release scripts on `main` track the
-  next minor release; the release branches carry whatever shape they had when
-  they were cut. Cherry-picking into that divergence produces conflicts on every
-  subsequent backport of *real* code, which is the traffic that actually
-  matters on those branches.
-- **A release branch's tooling only has to do one job — build and verify that
-  branch.** It does not benefit from a refactor, a new command, or a tidier
-  option layout. A tooling refactor on a release branch is pure risk against a
-  branch that is about to be voted on.
-- **A branch past end of life takes security fixes only.** Once it no longer
-  produces releases, a routine dev-dependency update on it is noise that still
-  costs a CI cycle and a reviewer. (#67008, against `v2-11-test`, is that case.)
-- **The Helm chart, providers and airflow-ctl are released from `main`**, so
-  "the fix must go to the release branch or users won't get it" is usually not
-  even true for the artifacts the tooling produces.
-
-The exception is neither rare nor cosmetic, and it is the reason this decision has
-to be stated carefully. `git log origin/v3-1-test -- dev/` carries hundreds of
-merged commits — branch-local build fixes (`[v3-1-test] Fix breeze worktree issue
-(#62905) (#63304)`, `[v3-1-test] Fail prod image release when constraint build
-fails (#62387) (#62833)`), tool pins the branch's own CI needed (`[v3-1-test]
-Upgrade Hatch to 1.16.5 and revert virtualenv pin (#62602) (#62611)`), and
-recurring `CI: Upgrade important CI environment` runs on the release branches
-themselves. Every one of those is legitimate: a release branch has to keep
-building for as long as it is supported, and keeping it building means moving its
-tooling.
-
-What separates a legitimate branch-local fix from a forbidden backport is **not
-visible in the diff** — the two are frequently byte-identical. The difference is
-entirely in the justification: *this branch's build is broken in this way, and
-this is the change that unbreaks it* versus *`main` got better and this branch
-should have it too*. That is why the rule below asks for a statement in the pull
-request rather than trying to read intent out of the file list.
+The exception is neither rare nor cosmetic. `git log origin/v3-1-test -- dev/` carries
+hundreds of legitimate merged commits — branch-local build fixes, tool pins the branch's
+CI needed (`[v3-1-test] Upgrade Hatch to 1.16.5 and revert virtualenv pin (#62602)
+(#62611)`), recurring CI-environment upgrades — because a release branch has to keep
+building while it is supported. What separates a legitimate branch-local fix from a
+forbidden backport is **not visible in the diff**: the two are frequently byte-identical,
+and the difference is only the justification — *this branch's build is broken this way and
+this unbreaks it* versus *`main` got better and this branch should have it too*. That is
+why the rule asks for a statement in the PR rather than reading intent from the file list.
 
 ## Decision
 
@@ -89,16 +71,13 @@ request rather than trying to read intent out of the file list.
 
 ## Consequences
 
-- The release branches stay quiet and predictable, so backports of actual
-  product fixes rebase cleanly under vote deadlines.
-- Contributors and release managers on a release branch work with older tooling
-  than `main` has, and occasionally re-hit a paper cut that `main` has already
-  fixed. That is the accepted cost.
-- A tooling fix that genuinely blocks a release must be written twice — once for
-  `main`, once for the branch — and the branch version is deliberately the
-  smaller of the two.
-- Automated dependency bots open backport-shaped pull requests against release
-  branches anyway; closing them is routine triage, not a judgement on the bot.
+- Release branches stay quiet, so backports of actual product fixes rebase cleanly under
+  vote deadlines; the cost is that contributors there work with older tooling and re-hit
+  paper cuts `main` has fixed.
+- A tooling fix that genuinely blocks a release is written twice — once for `main`, once
+  for the branch, the branch version deliberately smaller.
+- Dependency bots open backport-shaped PRs against release branches anyway; closing them
+  is routine triage, not a judgement on the bot.
 
 A change **violates** this decision when it:
 
@@ -115,19 +94,16 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #59490 — a `dev/` refactor backported to `v3-1-test` and closed: refactors are
-  not backported, and `dev/` has diverged enough on the release branches that
-  such backports create conflict resolution work.
-- #67008 — grouped dev-tooling dependency updates against `v2-11-test` closed:
-  the branch no longer cuts releases and the updates are not release-critical.
-- `[v3-1-test] Upgrade Hatch to 1.16.5 and revert virtualenv pin (#62602)
-  (#62611)` — the counter-case that bounds this decision: a `dev/`-confined,
-  identical-to-`main` change that merged because the branch's own build needed it.
-- #64325 — a `v3-2-test` backport of the uv resolution cooldown that accumulated
-  extra static-check and doc fixes and was closed in favour of `#64417`.
-- #60923 — a release-branch CI environment change made incorrectly and replaced
-  by `#60929`: even a legitimate branch-local tooling change is redone for that
-  branch rather than patched up.
-- #58801 — a chart/Docker feature backport to `v2-11` declined, with the plan
-  being to build the 2.11 release from the newer branch's scripts instead of
-  maintaining a second copy.
+- #59490 — a `dev/` refactor backported to `v3-1-test` and closed: refactors are not
+  backported, and `dev/` has diverged enough that such backports create conflict work.
+- #67008 — grouped dev-tooling dependency updates against `v2-11-test` closed: the branch
+  no longer cuts releases and the updates are not release-critical.
+- `[v3-1-test] Upgrade Hatch to 1.16.5 and revert virtualenv pin (#62602) (#62611)` — the
+  counter-case: a `dev/`-confined, identical-to-`main` change that merged because the
+  branch's own build needed it.
+- #64325 — a `v3-2-test` backport of the uv resolution cooldown that accumulated extra
+  fixes and was closed in favour of #64417.
+- #60923 — a release-branch CI environment change made incorrectly and replaced by
+  #60929: even a legitimate branch-local change is redone for that branch, not patched up.
+- #58801 — a chart/Docker feature backport to `v2-11` declined, the plan being to build
+  the 2.11 release from the newer branch's scripts.

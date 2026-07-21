@@ -27,39 +27,30 @@ Accepted
 
 ## Context
 
-ADR 1 states the scheduler side of Airflow's isolation boundary: the scheduler
-holds a privileged database session and therefore never runs user code. The
-triggerer is the mirror image, and it is the half contributors trip over.
+ADR 1 states the scheduler side of the isolation boundary: it holds a privileged
+database session and never runs user code. The triggerer is the mirror image, and
+the half contributors trip over. `TriggererJobRunner` runs user-authored trigger
+classes — thousands concurrently, in one asyncio event loop, in a long-lived
+process. Two properties follow.
 
-`TriggererJobRunner` runs user-authored trigger classes — thousands of them
-concurrently, in one asyncio event loop, in a long-lived process. Two properties
-follow, and both are routinely violated by well-intentioned PRs.
+**The runner subprocess is on the untrusted side.** Because it executes author
+code, it must not hold a direct metadata-DB session; it reaches server state
+through the Execution API like a worker. The runtime enforces this — a
+`@provide_session` call reached from a running trigger raises *"Direct database
+access via the ORM is not allowed"*. The fix for a new server-side model the
+triggerer wants is not to grant it a session but to expose the data through the
+Execution API, or move the work to a component that legitimately has one.
 
-**The triggerer is on the untrusted side of the boundary.** Because it executes
-author code, it must not hold a direct metadata-DB session; it reaches server
-state through the Execution API like a worker does. The runtime enforces this —
-a `@provide_session` call reached from a running trigger raises *"Direct database
-access via the ORM is not allowed"*. PRs that add a new server-side model and
-then want the triggerer to read or write it discover this only after the design
-is built, and the fix is not to grant the triggerer a session: it is to expose
-the data through the Execution API, or to move the work to a component that
-legitimately has a session.
-
-**The triggerer does not initialize Dag bundles.** This is documented behaviour,
-not an oversight. Everything in the triggerer happens in one process with no
-per-run isolation and no versioning of trigger code, so there is no correct
-answer to "which bundle version does this trigger come from" when a trigger
-outlives a Dag version. The consequence — triggers must be importable from
-`sys.path`, not from a Dag bundle — surfaces as an import error at deferral time,
-and the recurring PR shape is to make the triggerer subprocess add the bundle
-root to its path, or to teach it to load triggers from a zip archive. Both are
-refused: they reintroduce unversioned user code into a process that has no
-mechanism for handling code that changes over time.
-
-The general shape of both failures is the same: the triggerer looks like a
-convenient place to put work, because it is already running, already async, and
-already close to the tasks. It is convenient precisely because it has given up
-the privileges that would make the work safe.
+**The triggerer does not initialize Dag bundles.** This is documented behaviour:
+everything runs in one process with no per-run isolation and no versioning of
+trigger code, so there is no correct answer to "which bundle version does this
+trigger come from" when a trigger outlives a Dag version. Triggers must therefore
+be importable from `sys.path`, not from a Dag bundle. The recurring PR shape — add
+the bundle root to the subprocess path, or load triggers from a zip — is refused:
+it reintroduces unversioned user code into a process with no mechanism for code
+that changes over time. Both failures share a shape: the triggerer looks like a
+convenient place to put work precisely because it has given up the privileges that
+would make the work safe.
 
 ## Decision
 
@@ -90,16 +81,13 @@ the privileges that would make the work safe.
 
 ## Consequences
 
-- Features that would be trivial with a database session cost an Execution API
-  endpoint, its schema, and its versioning. That cost is the point: it keeps the
-  privileged surface enumerable.
-- Deployments that want shared helper code available to triggers must install it
-  on `sys.path` rather than shipping it in a Dag bundle, and the deferring docs
-  say so explicitly.
-- Trigger code cannot be versioned per Dag version. This is a known limitation,
-  not a defect to be fixed by loading bundles.
-- A whole class of "make the triggerer do X" PRs is refused early, which is
-  cheaper for everyone than refusing them after the implementation exists.
+- Features trivial with a database session cost an Execution API endpoint, its
+  schema, and its versioning — the point being to keep the privileged surface
+  enumerable.
+- Shared helper code for triggers must be installed on `sys.path`, not shipped in
+  a Dag bundle. Trigger code cannot be versioned per Dag version — a known
+  limitation, not a defect. And a whole class of "make the triggerer do X" PRs is
+  refused early, cheaper than refusing them after implementation.
 
 A change **violates** this decision when it:
 
@@ -128,21 +116,8 @@ on.
 
 ## Evidence
 
-- #55216 — adding a `TriggerWatermarks` model: the author demonstrated that
-  `@provide_session` from a running trigger raises *"Direct database access via
-  the ORM is not allowed in Airflow 3"*, and that a separate change granting that
-  access would be required. The PR did not land.
-- #63353 — decoupling the triggerer client and server via the Execution API:
-  closed as touching parts of core that require deep familiarity with the
-  components, and reserved for contributors with that standing.
-- #66558 — an earlier attempt at the deadline/server-context problem, closed by
-  its author as a duplicate of #64022, which then **merged** and is the shape now
-  on `main`. Cited here for the history, not as a prohibition — setting the
-  callbacks: closed as the parallel of another in-flight change; setting a server
-  context on a triggerer path is exactly the shortcut this ADR forbids.
-- #65457 — "Fix triggerer subprocess unable to import helpers from Dag bundle
-  root": closed with the documentation quoted back — a trigger must not come from
-  a Dag bundle; anywhere else on `sys.path` is fine.
-- #52091 — "Triggerer: support loading triggers from zip archives": closed for the
-  same reason, citing the AIP-66 release note that bundles are not initialized in
-  the triggerer because it cannot handle trigger code changing over time.
+- #55216 — adding a `TriggerWatermarks` model: the author showed `@provide_session` from a running trigger raises *"Direct database access via the ORM is not allowed in Airflow 3"*; did not land.
+- #63353 — decoupling the triggerer client and server via the Execution API: closed as touching core internals reserved for contributors with deep familiarity.
+- #66558 — earlier attempt at the deadline/server-context problem, closed by its author as a duplicate of #64022, which then **merged** and is the shape now on `main`. Cited for history, not as a prohibition.
+- #65457 — "Fix triggerer subprocess unable to import helpers from Dag bundle root": closed with the docs quoted back — a trigger must not come from a Dag bundle; anywhere else on `sys.path` is fine.
+- #52091 — "Triggerer: support loading triggers from zip archives": closed for the same reason, citing the AIP-66 note that bundles are not initialized in the triggerer because it cannot handle trigger code changing over time.

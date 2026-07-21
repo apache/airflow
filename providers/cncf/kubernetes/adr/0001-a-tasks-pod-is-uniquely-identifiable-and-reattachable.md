@@ -27,52 +27,32 @@ Accepted
 
 ## Context
 
-A Kubernetes pod outlives the Airflow process that created it. The scheduler
-running `KubernetesExecutor` can be restarted, rescheduled onto another node, or
-scaled to several replicas; a worker running `KubernetesPodOperator` can be
-killed mid-task. In every one of those cases the pod keeps running, and Airflow
-has to find it again from nothing but the Kubernetes API.
+A Kubernetes pod outlives the Airflow process that created it. A scheduler running
+`KubernetesExecutor` can restart, reschedule, or scale to several replicas; a
+worker running `KubernetesPodOperator` can be killed mid-task. The pod keeps
+running, and Airflow has to find it again from nothing but the Kubernetes API —
+and there is no stable name to find it by. `create_unique_id` / `add_unique_suffix`
+slugify and truncate `dag_id`/`task_id` to `POD_NAME_MAX_LENGTH` and append a
+random suffix, so two tasks can collapse onto one prefix and the same task gets a
+different name every launch. The name is a display handle, not a key.
 
-There is no stable name to find it by. `create_unique_id` and
-`add_unique_suffix` (`kubernetes_helper_functions.py`) slugify `dag_id` and
-`task_id`, truncate the result to `POD_NAME_MAX_LENGTH`, and append a random
-suffix — because Kubernetes object names are DNS-label-constrained and Airflow
-identifiers are not. Two different tasks can collapse onto the same truncated
-prefix, and the same task produces a different name on every launch. The name is
-a display handle, not a key.
-
-The identity therefore lives in metadata. `build_labels_for_k8s_executor_pod`
+Identity lives in metadata. `build_labels_for_k8s_executor_pod`
 (`pod_generator.py`) and `KubernetesPodOperator._get_ti_pod_labels`
 (`operators/pod.py`) stamp `dag_id`, `task_id`, `run_id`, `map_index` and
-`try_number` onto the pod as labels — each passed through `make_safe_label_value`
-so it survives Kubernetes' label-value grammar — and the executor additionally
-writes them as annotations, which `annotations_to_key` reverses back into a
-`TaskInstanceKey`. Labels are what a selector can query; annotations are what
-survives without the grammar restrictions. Ownership is a label too:
-`airflow-worker` carries the scheduler job id, which is how
-`try_adopt_task_instances` and `_adopt_completed_pods`
-(`executors/kubernetes_executor.py`) decide which pods a restarted or surviving
-scheduler is entitled to take over, and how `build_selector_for_k8s_executor_pod`
-excludes KubernetesPodOperator pods from executor sweeps.
-
-The stakes are asymmetric. If lookup returns *nothing* when a pod exists, Airflow
-launches a second pod for the same try — the task runs twice, against the same
-external systems, with no error anywhere. If lookup returns *the wrong* pod,
-Airflow attributes another task's state and logs to this one. Both failures are
-silent, and both are produced by changes that look local: an unsafe label value,
-a renamed key, a widened selector.
-
-Reattachment on the operator side is built on the same metadata.
-`reattach_on_restart` makes `find_pod` search by
-`_build_find_pod_label_selector` rather than launch, and the `POD_CHECKED_KEY`
-(`already_checked`) label — added by `patch_already_checked` — is what stops the
-*next* try from reattaching to the *previous* try's pod. That marker is a
-lifecycle boundary encoded in a label, and removing or mistiming it converts a
-retry into a reattachment to a dead pod.
-
-None of this metadata is versioned with the provider release. During a rolling
-upgrade there are pods in the cluster created by the *previous* provider version,
-and the new code must still recognise them.
+`try_number` as labels, each through `make_safe_label_value`; the executor also
+writes them as annotations, which `annotations_to_key` reverses into a
+`TaskInstanceKey`. Ownership is a label too: `airflow-worker` carries the scheduler
+job id, which is how `try_adopt_task_instances` / `_adopt_completed_pods` decide
+which pods a restarted scheduler may take, and how
+`build_selector_for_k8s_executor_pod` separates executor pods from
+KubernetesPodOperator pods. The stakes are asymmetric and silent: lookup returning
+*nothing* launches a second pod for the same try (the task runs twice); returning
+*the wrong* pod attributes another task's state and logs. Reattachment uses the
+same metadata — `reattach_on_restart` makes `find_pod` search by
+`_build_find_pod_label_selector`, and the `already_checked` label
+(`patch_already_checked`) stops the next try reattaching to the previous try's pod.
+None of this metadata is versioned with the release, so during a rolling upgrade
+the new code must still recognise pods created by the previous version.
 
 ## Decision
 
@@ -99,18 +79,14 @@ Concretely:
 
 ## Consequences
 
-- A scheduler restart, a scheduler failover, or a worker crash resumes monitoring
-  the existing pod instead of orphaning it or launching a second one — the
-  property that keeps a task from executing twice.
+- A scheduler restart, failover, or worker crash resumes monitoring the existing
+  pod instead of orphaning it or launching a second one.
 - Metadata keys accumulate and are expensive to remove. Cleaning up a label is a
-  multi-release operation gated on no in-flight pod carrying the old key, not a
-  rename.
-- Label-grammar handling looks like defensive noise in the diff and cannot be
-  dropped: it is the difference between "found the pod" and "silently duplicated
-  the task".
+  multi-release operation gated on no in-flight pod carrying the old key.
+- Label-grammar handling looks like defensive noise but cannot be dropped: it is
+  the difference between "found the pod" and "silently duplicated the task".
 - Multi-scheduler deployments require adoption logic to reason about *other*
-  schedulers' liveness, which is more code than a single-scheduler design would
-  need.
+  schedulers' liveness — more code than a single-scheduler design would need.
 
 A change **violates** this decision when it:
 
@@ -134,23 +110,12 @@ during a rolling provider upgrade, and under a scheduler restart, is unstated.
 
 ## Evidence
 
-- #53477 — "Fix `KubernetesPodOperator` fails to delete pods with None value
-  labels": a `None` label value breaking the selector, exactly the silent-lookup
-  failure this decision guards.
-- #58391 — "fix(kubernetes): Account for job- prefix when truncating job names":
-  concrete demonstration that generated names are truncated and cannot carry
-  identity.
-- #66400 — "KubernetesExecutor: scope periodic completed-pod adoption to dead
-  schedulers": adoption narrowed to pods whose owning scheduler is gone, so
-  multiple schedulers stop contending for the same pods.
-- #67850 — "Fix scheduler crashloop from KubernetesExecutor completed-pod
-  adoption": the cost of getting adoption wrong is paid by the whole scheduler.
-- #68674 — "KubernetesExecutor: self.completed adoption set is never drained":
-  adoption bookkeeping that must actually converge.
-- #68507 — "Make pod patching logic explicitly reflect when a pod is retained":
-  the `already_checked` / retention boundary made explicit rather than implied.
-- #50803 — "Add task context labels to driver and executor pods for
-  SparkKubernetesOperator reattach_on_restart functionality" and #60717 — "Ensure
-  deterministic Spark driver pod selection during reattach": the same identity
-  requirement re-derived for the Spark operator once reattachment was needed
-  there.
+- #53477 — a `None` label value breaking the selector: the silent-lookup failure
+  this decision guards.
+- #58391 — generated names are truncated and cannot carry identity.
+- #66400 — adoption narrowed to pods whose owning scheduler is gone.
+- #67850 — the cost of getting adoption wrong is paid by the whole scheduler.
+- #68674 — adoption bookkeeping that must actually converge.
+- #68507 — the `already_checked` / retention boundary made explicit.
+- #50803, #60717 — the same identity requirement re-derived for the Spark operator's
+  reattachment.

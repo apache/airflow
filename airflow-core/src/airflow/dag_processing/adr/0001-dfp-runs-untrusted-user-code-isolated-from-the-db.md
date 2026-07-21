@@ -28,31 +28,20 @@ Accepted
 ## Context
 
 The Dag File Processor (DFP) is the one core component whose job is to **import
-and execute Dag-author Python**. To turn a Dag file into a serialized Dag it
-must run the module top level — arbitrary author code, custom operators,
-timetable construction, `params` builders — none of which Airflow controls or
-trusts.
-
-Airflow's security model (see the project security model doc) treats that author
-code as untrusted. The scheduler avoids the problem by never importing it
-(see the scheduler's own ADR on this). The DFP cannot avoid it — running the
-code *is* its purpose — so the boundary is drawn a different way: the DFP is
+and execute Dag-author Python** — running the module top level (custom operators,
+timetables, `params` builders) is arbitrary code Airflow does not trust. The
+scheduler avoids the problem by never importing author code; the DFP cannot, since
+running it *is* its purpose. So the boundary is drawn differently: the DFP is
 **isolated from the server's privileged database session**. Each parse runs in a
-subprocess launched with `_AIRFLOW_PROCESS_CONTEXT=client`, and its interactions
-with the metadata database go through the Execution API — the same restricted,
-authenticated surface workers use — via an in-process API server
-(`InProcessExecutionAPI`) rather than a direct ORM session.
+subprocess launched with `_AIRFLOW_PROCESS_CONTEXT=client`, and its DB interactions
+go through the Execution API — the same restricted surface workers use — via an
+in-process API server (`InProcessExecutionAPI`), not a direct ORM session.
 
-These are **software guards that steer** the DFP onto the client path; the
-project security model is explicit that they do not defend against *intentional*
-bypass by malicious or misconfigured code. That makes it all the more important
-that changes here do not casually widen the DFP's database reach, because every
-such widening is a new place author code sits next to server credentials.
-
-The recurring pressure is convenience: parsing already has the file in front of
-it, so "just read this one row from the DB here" or "callbacks need this context,
-let's query it directly" look harmless locally. The decision below is what keeps
-routing those through the API instead.
+These are **software guards that steer** the DFP onto the client path; the security
+model is explicit they do not defend against *intentional* bypass. So changes here
+must not casually widen the DFP's database reach — every widening is a new place
+author code sits next to server credentials, and the recurring pressure is
+convenience ("just read this one row here").
 
 ## Decision
 
@@ -94,12 +83,6 @@ directer route to the metadata database than the Execution API.
 
 ## Evidence
 
-- #66608 — "Fetch deadline callback context via Execution API at runtime":
-  moved callback context retrieval onto the Execution API rather than a direct
-  DB read from the processing side (later reverted in #68909 and reworked —
-  showing how load-bearing and delicate this seam is).
-- #68569 — "Defer `InProcessExecutionAPI` import": kept the in-process API as the
-  DFP's DB path while deferring its import for worker-isolation/startup reasons.
-- #67772 — "Fix exceptions of positional session use in airflow-core
-  dag_processing": tightened session discipline in this module, consistent with
-  keeping DB access explicit and controlled rather than incidental.
+- #66608 — moved deadline callback context onto the Execution API, not a direct DB read (reverted in #68909 and reworked — a delicate seam).
+- #68569 — kept `InProcessExecutionAPI` as the DFP's DB path while deferring its import.
+- #67772 — tightened positional-session discipline in this module.

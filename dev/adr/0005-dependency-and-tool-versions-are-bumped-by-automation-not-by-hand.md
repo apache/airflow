@@ -27,37 +27,28 @@ Accepted
 
 ## Context
 
-The versions that dev tooling depends on are pinned in many places: `dev/breeze`
-dependencies, the CI environment versions consumed by the workflows, hook tool
-versions, base image tags, and the dependency ranges of the plugin templates
-under `dev/`. Every one of them is reachable by a one-line edit, and every one
-of them is a tempting "good first PR".
+Dev tooling's versions are pinned in many places — `dev/breeze` dependencies, CI
+environment versions, hook tool versions, base image tags, and the dependency ranges of
+the `dev/` plugin templates. Each is a one-line edit that looks like an ideal "good first
+PR", and bumping by hand goes wrong in four ways the closed PRs show:
 
-Bumping them by hand goes wrong in four distinct ways, all of which the closed
-pull requests show:
+- **The bump is already in flight.** The dependency bots and the periodic "upgrade
+  important CI environment" run propose these on a schedule; a hand-written bump lands
+  next to the automated one and one is closed as duplicate after both burned a CI cycle.
+- **The cap is deliberate.** Some upper bounds exist because a newer release has a known
+  defect; raising one "because a new version is out" silently reintroduces the bug, and
+  the reason is in a linked upstream issue, not the diff.
+- **When automation picks a wrong version, the pin is the symptom.** A daily-edge image
+  tag instead of a release tag is a defect in the selection predicate; editing the pin
+  leaves the bumper free to repeat the choice next run.
+- **A version bump is rarely only a version bump.** Upgrading a formatter, doc generator
+  or hook tool changes its output repository-wide; the regenerated output belongs in the
+  same PR, and a hand-rolled bump that skips it breaks everyone else's commit.
 
-- **The bump is already in flight.** Automated flows — the grouped dependency
-  bots and the periodic "upgrade important CI environment" run — propose these
-  updates on a schedule. A hand-written bump lands in the queue next to the
-  automated one, and one of the two is closed as duplicate after both have been
-  reviewed and both have burned a CI cycle.
-- **The cap is deliberate.** Some upper bounds exist because a newer release has
-  a known defect. Raising such a bound "because a new version is out" silently
-  reintroduces the bug the cap was protecting against, and the reason is in a
-  linked upstream issue, not in the diff.
-- **When automation picks a wrong version, the pin is the symptom.** Selecting a
-  daily-edge image tag instead of a release tag is a defect in the selection
-  predicate. Editing the resulting pin leaves the bumper free to make exactly the
-  same choice on its next run.
-- **A version bump is rarely only a version bump.** Upgrading a formatter, a doc
-  generator or a hook tool changes what it produces across the whole repository;
-  the regenerated output belongs in the same pull request as the bump, and a
-  hand-rolled bump that skips it breaks everyone else's commit.
-
-A related case: dependency ranges in the templates under `dev/` — the react
-plugin template in particular — are not free-floating. Generated plugins run
-against the host Airflow UI's externalised globals, so a template floor above
-what the host bundle ships produces packages that cannot run.
+A related case: the `dev/` template dependency ranges — the react plugin template in
+particular — are not free-floating. Generated plugins run against the host Airflow UI's
+externalised globals, so a template floor above what the host bundle ships produces
+packages that cannot run.
 
 ## Decision
 
@@ -87,15 +78,14 @@ what the host bundle ships produces packages that cannot run.
 
 ## Consequences
 
-- The pin history stays machine-readable and consistent, and the repository
-  avoids the duplicate-PR churn that hand bumps create.
-- Genuinely urgent upgrades — a security fix, an upstream break — take the
-  hand-bump path described in the Decision, deliberately and with the reason
-  stated, rather than waiting on a schedule.
-- Contributors looking for a small first contribution have to be redirected,
-  because bumping a pin looks like the ideal one and is not.
-- The project carries the cost of maintaining the bumper itself, including its
-  version-selection predicates and cooldown behaviour.
+- The pin history stays machine-readable and consistent, avoiding the duplicate-PR churn
+  hand bumps create.
+- Genuinely urgent upgrades — a security fix, an upstream break — take the hand-bump path
+  in the Decision, with the reason stated, rather than waiting on a schedule.
+- Contributors seeking a small first contribution have to be redirected, because bumping a
+  pin looks ideal and is not.
+- The project carries the cost of maintaining the bumper itself, its selection predicates
+  and cooldown behaviour.
 
 A change **violates** this decision when it:
 
@@ -112,25 +102,21 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #52658 — a click upper-bound raise declined: the cap was held because of an
-  upstream bug in boolean flags fed from `false` environment variables.
-- #62503 → #62602 — "Temporarily pin virtualenv to resolve build issues", then
-  "Upgrade Hatch to 1.16.5 and revert virtualenv pin": both merged by hand, days
-  apart, because builds were broken. Neither waited for the bots, and the cap
-  itself was never written down anywhere a later contributor could find it — which
-  is why the bullet above asks whether raising is *now safe* rather than why the
-  cap was added.
-- #66580 — an automated CI environment bump that selected an Alpine daily-edge
-  tag over the release tag; closed and redone as #66600 after the version
-  selection predicate in the bumper itself was fixed.
-- #65907 — a hand-written pip bump closed once it was clear the automated run
-  would pick it up in the following week.
-- #58305, #57361 — hand-written and bot-written bumps of the same tool versions
-  racing each other, one of each pair closed as superseded.
-- #65221 — a doc-generator upgrade that required running the hook across all
-  files and committing the regenerated output in the same change.
-- #67741 — a template dependency group update closed because it raised the
-  React and Chakra floors above the versions the host Airflow UI bundle
-  provides to generated plugins.
-- #67649, #67008, #63227, #61604 — grouped dependency pull requests routinely
-  closed, recreated or superseded by the bots' own subsequent runs.
+- #52658 — a click upper-bound raise declined: the cap was held because of an upstream
+  bug in boolean flags fed from `false` environment variables.
+- #62503 → #62602 — "Temporarily pin virtualenv", then "Upgrade Hatch to 1.16.5 and
+  revert virtualenv pin": both merged by hand, days apart, because builds were broken;
+  neither waited for the bots, and the cap was never written down — why the bullet asks
+  whether raising is *now safe* rather than why the cap was added.
+- #66580 — an automated CI-environment bump that selected an Alpine daily-edge tag over
+  the release tag; closed and redone as #66600 after the selection predicate was fixed.
+- #65907 — a hand-written pip bump closed once it was clear the automated run would pick
+  it up the following week.
+- #58305, #57361 — hand-written and bot-written bumps of the same tool racing each other,
+  one of each pair closed as superseded.
+- #65221 — a doc-generator upgrade that required running the hook across all files and
+  committing the regenerated output in the same change.
+- #67741 — a template dependency update closed because it raised the React and Chakra
+  floors above the versions the host Airflow UI bundle provides.
+- #67649, #67008, #63227, #61604 — grouped dependency PRs routinely closed, recreated or
+  superseded by the bots' own subsequent runs.

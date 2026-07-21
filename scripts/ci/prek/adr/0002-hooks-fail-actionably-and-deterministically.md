@@ -44,34 +44,26 @@ Accepted
 
 ## Context
 
-A static check is a conversation with a contributor who is, by definition, in
-the middle of something else. They ran `git commit`; the commit did not happen.
-Whether that is a thirty-second correction or a thirty-minute detour is decided
-entirely by what the hook printed.
+A static check is a conversation with a contributor in the middle of something else: they
+ran `git commit`, it did not happen, and whether that is a thirty-second correction or a
+thirty-minute detour is decided entirely by what the hook printed.
 
-The determinism half is a distinct failure and a worse one. A hook that depends
-on network reachability, on a stale cached artifact, on the directory the
-contributor happened to run from, or on an unpinned upstream tool produces the
-symptom the project can least afford: it passes locally and fails in CI, or
-passes for one contributor and fails for another on the same commit. That
-destroys trust in the whole static-check layer far faster than a missing check
-ever would, because the contributor cannot tell whether their change is wrong or
-the tooling is. The repository has repeatedly had to fix hooks that read a stale
-`uvx` cache instead of local sources, or resolved a git remote by an assumed
-name, precisely because those inputs vary between checkouts.
-
-Contributors who cannot trust the hooks start bypassing them, at which point the
-checks protect nothing.
+The determinism half is a distinct and worse failure. A hook that depends on network
+reachability, a stale cache, the directory the contributor ran from, or an unpinned
+upstream tool passes locally and fails in CI — or passes for one contributor and fails for
+another on the same commit. That destroys trust in the static-check layer faster than a
+missing check would, because the contributor cannot tell whether their change is wrong or
+the tooling is. The repository has repeatedly had to fix hooks that read a stale `uvx`
+cache instead of local sources, or resolved a git remote by an assumed name. Contributors
+who cannot trust the hooks start bypassing them, at which point the checks protect nothing.
 
 ## Consequences
 
-A failing hook becomes a short, self-contained instruction rather than an
-investigation, and a green local run is a real signal about CI. Auto-fixing
-hooks convert a class of failures into a `git add` and a re-commit.
-
-The cost is that hook authors carry an explicit error-message and input-hygiene
-burden: it is no longer enough for the check to be correct, it also has to
-explain itself and to depend only on the working tree and pinned tooling.
+A failing hook becomes a short instruction rather than an investigation, and a green local
+run is a real signal about CI; auto-fixing hooks convert a class of failures into a
+`git add` and a re-commit. The cost is an error-message and input-hygiene burden on hook
+authors: the check has to explain itself and depend only on the working tree and pinned
+tooling.
 
 A change **violates** this decision when it:
 

@@ -27,41 +27,29 @@ Accepted
 
 ## Context
 
-Trigger `run()` bodies are **user-authored code**. A trigger is a
-custom operator's async counterpart — it polls a REST API, watches a broker,
-waits on an external job — and Airflow neither controls nor trusts what that
-code does. This puts the triggerer in the same position as the Dag File
-Processor: it *must* execute untrusted author code to do its job, so it cannot
-avoid the problem the way the scheduler does (by never importing user code, see
-the scheduler's ADR).
+Trigger `run()` bodies are **user-authored code** — a custom operator's async
+counterpart polling a REST API, watching a broker, waiting on an external job —
+which Airflow neither controls nor trusts. This puts the triggerer in the Dag
+File Processor's position: it *must* execute untrusted author code, so it cannot
+avoid the problem the way the scheduler does by never importing user code.
 
-The boundary is therefore drawn the same way it is for the DFP: the code runs,
-but it does **not** hold a direct, privileged server database session. The
-async trigger runner executes in a subprocess launched with
-`_AIRFLOW_PROCESS_CONTEXT=client`, and its interactions with server state go
-through the Execution API (the same restricted, authenticated surface workers
-use) via the supervisor and an in-process API server, rather than an
-`airflow.models` ORM session. Where a trigger needs server-held state, the
-runner **injects an accessor** (for example `asset_state_store` /
-`AssetStateStoreAccessors` on `BaseEventTrigger`) so the trigger reads through
-that accessor instead of opening its own query. As with the DFP, these are
+The boundary is drawn as for the DFP: the code runs but does **not** hold a
+direct, privileged server DB session. The async trigger runner executes in a
+subprocess launched with `_AIRFLOW_PROCESS_CONTEXT=client`, and reaches server
+state through the Execution API (via the supervisor and an in-process API server)
+rather than an `airflow.models` ORM session. Where a trigger needs server-held
+state, the runner **injects an accessor** (e.g. `asset_state_store` /
+`AssetStateStoreAccessors` on `BaseEventTrigger`). As with the DFP, these are
 software guards that *steer* trigger code onto the client path; the security
-model is explicit that they do not defend against *intentional* bypass — which
-is exactly why a change here must not casually widen the runner's DB reach.
+model is explicit they do not defend against *intentional* bypass — which is why
+a change here must not casually widen the runner's DB reach.
 
-The second half of this decision is delivery semantics. Because triggers are
-reconstructed and re-run across restart, redistribution, and HA duplication, a
-`TriggerEvent` can be delivered to the task **more than once**. The system is
-**at-least-once**, not exactly-once, by design — losing an event (a task stuck
-deferred forever) is worse than delivering one twice. Handlers that resume a
-task must therefore be idempotent; code that assumes a single delivery breaks
-silently under perfectly normal triggerer churn.
-
-The recurring pressure is convenience on both fronts: the trigger is already
-running server-side code, so "just read this row from the DB here" looks
-harmless, and "this event only fires once" looks locally true. The decision
-below is what keeps trigger code on the API path and keeps handlers honest
-about redelivery.
+Delivery semantics are the second half. Because triggers are re-run across
+restart, redistribution, and HA duplication, a `TriggerEvent` can be delivered
+**more than once**. The system is **at-least-once** by design — losing an event
+(a task stuck deferred forever) is worse than delivering it twice — so resumption
+handlers must be idempotent; code assuming single delivery breaks silently under
+normal triggerer churn.
 
 ## Decision
 
@@ -79,15 +67,13 @@ and its event delivery is at-least-once. Concretely:
 
 ## Consequences
 
-- The triggerer's blast radius stays bounded: user trigger code runs, but it
-  is not handed the server's DB credentials or an unrestricted query surface —
-  the same isolation property the DFP has.
-- New trigger features that need server data must express that need as an
-  Execution-API call or an injected accessor, keeping the isolation seam
-  visible and reviewable.
-- Task-resumption logic must be written to survive redelivery, which is more
-  work than assuming exactly-once — and intentionally so, because at-least-once
-  is what makes deferral robust across triggerer restarts and HA.
+- The triggerer's blast radius stays bounded: trigger code runs but is not handed
+  the server's DB credentials or an unrestricted query surface, the DFP's
+  isolation property.
+- New trigger features needing server data express it as an Execution-API call or
+  injected accessor, keeping the isolation seam visible.
+- Resumption logic must survive redelivery — more work than exactly-once, and
+  intentionally so, since at-least-once is what makes deferral robust.
 
 A change **violates** this decision when, in trigger code reachable from the
 triggerer, it:
@@ -107,17 +93,11 @@ events fire exactly once.
 
 ## Evidence
 
-- #62645 — "Move `ExecutorCallback` execution into a supervised process":
-  pushed callback execution into a supervised subprocess rather than running it
-  inline with server privileges, consistent with keeping user-triggered code on
-  the isolated, supervised side.
-- #66608 — "Fetch deadline callback context via Execution API at runtime":
-  moved callback context retrieval onto the Execution API instead of a direct
-  DB read from the trigger side (later reverted in #68909 and reworked —
-  showing how load-bearing and delicate this seam is).
-- #67839 — "AIP-103: Passing `AssetStateStoreAccessors` through to
-  `BaseEventTrigger`": injects an accessor into the trigger so it reads
-  asset state through that surface rather than opening its own DB query.
-- #68888 — "Add `shared_stream_cohort_grace_period` to reduce missed events on
-  triggerer restart": tunes redelivery behaviour around triggerer restart,
-  reflecting the at-least-once delivery model this decision codifies.
+- #62645 — moved `ExecutorCallback` execution into a supervised subprocess rather
+  than inline with server privileges.
+- #66608 — moved deadline-callback context onto the Execution API instead of a
+  direct trigger-side DB read (reverted in #68909 and reworked — a delicate seam).
+- #67839 — AIP-103 injects `AssetStateStoreAccessors` so the trigger reads asset
+  state through that surface, not its own DB query.
+- #68888 — `shared_stream_cohort_grace_period` tunes redelivery on restart,
+  reflecting the at-least-once model.

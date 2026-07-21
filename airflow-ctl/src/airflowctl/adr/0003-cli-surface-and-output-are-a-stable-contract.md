@@ -27,29 +27,21 @@ Accepted
 
 ## Context
 
-`airflowctl` is driven by humans at a terminal and, just as often, by scripts,
-CI pipelines, and automation that shell out to it and parse its output. That
-makes the *shape* of the CLI — the command/subcommand tree, the flag names, the
-required-vs-optional argument arity, and the `--output` formats — a contract, in
-the same way an API's request/response shapes are. The command tree is
-registered declaratively in `ctl/cli_parser.py` + `ctl/cli_config.py`, the
-handlers live in `ctl/commands/…`, help text is data in `ctl/help_texts.yaml`,
-and `ctl/console_formatting.py` (`AirflowConsole`) renders results as `json`,
-`yaml`, `table`, or `plain`.
+`airflowctl` is driven by humans at a terminal and, just as often, by scripts and
+CI pipelines that shell out to it and parse its output. That makes the *shape* of
+the CLI — the command/subcommand tree, flag names, required-vs-optional arity, and
+`--output` formats — a contract, like an API's request/response shapes. The tree
+is registered declaratively in `ctl/cli_parser.py` + `ctl/cli_config.py`, handlers
+live in `ctl/commands/…`, help text is data in `ctl/help_texts.yaml`, and
+`ctl/console_formatting.py` (`AirflowConsole`) renders `json`/`yaml`/`table`/`plain`.
 
-A change that reads as a harmless tidy-up in a diff — renaming a command,
-flipping an option to a positional argument, renaming a flag, or altering the
-`json`/`yaml`/`table` output shape — silently breaks every script built on the
-old surface. The breakage is invisible in review because the consumers are not
-in the repository. The `json`/`yaml` modes in particular are a machine
-contract: anything that leaks a log line or warning into the payload on stdout
-corrupts a downstream parser.
-
-Unlike airflow-core, this distribution is **released from `main`** and does
-**not** consume newsfragments; its release manager regenerates the changelog and
-user-facing notes are recorded in `airflow-ctl/RELEASE_NOTES.rst`. So the
-place a surface change is announced is the RELEASE_NOTES, not a
-`newsfragments/` entry.
+A change that reads as a harmless tidy-up — renaming a command, flipping an option
+to positional, renaming a flag, altering an output shape — silently breaks every
+script on the old surface, invisibly, because the consumers are not in the repo.
+The `json`/`yaml` modes are a machine contract in particular: anything that leaks a
+log line or warning into the stdout payload corrupts a downstream parser. Unlike
+airflow-core, this distribution is **released from `main`** and does **not** consume
+newsfragments; surface changes are recorded in `airflow-ctl/RELEASE_NOTES.rst`.
 
 ## Decision
 
@@ -72,11 +64,10 @@ backward-compatibility-sensitive contract:
 ## Consequences
 
 Operators and automation can pin to `airflowctl`'s commands and output shapes
-across releases without rework, and the `json`/`yaml` modes stay safe to parse.
-Surface changes carry real process cost — justification plus a RELEASE_NOTES
-entry — which is intentional friction that protects the scripts wrapped around
-the tool. The trade-off is that fixing an awkward command name or flag is not a
-free cleanup; it is a deliberate, documented, compatibility-aware change.
+across releases, and the `json`/`yaml` modes stay safe to parse. Surface changes
+carry real process cost — justification plus a RELEASE_NOTES entry — intentional
+friction that protects the scripts wrapped around the tool: fixing an awkward name
+or flag is a deliberate, documented, compatibility-aware change, not a free cleanup.
 
 A change **violates** this decision when it:
 
@@ -93,16 +84,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #66768 — "airflowctl: make required CLI params positional, keep optional as
-  --flag": establishes the argument-arity convention that the surface then holds
-  stable.
-- #62665 — "Fix `airflowctl pools export` ignoring --output table/yaml/plain": a
-  command that dropped an `--output` mode broke the output contract and was
-  fixed.
-- #68522 — "Rename assets list-by-alias to list-aliases in airflowctl": a
-  deliberate, documented command rename — the kind of surface change that must
-  be handled as breaking, not slipped in.
-- #65608 — "Fix airflowctl dagrun list crash when --state is omitted": an
-  optional flag must keep the command working when unset, not crash.
-- #65052 — "Fix CLI error handling and exit codes for failed commands": exit
-  codes are part of the machine contract scripts depend on.
+- #66768 — makes required CLI params positional, optional as `--flag`: establishes
+  the arity convention the surface then holds stable.
+- #62665 — `pools export` ignoring `--output table/yaml/plain` broke the output
+  contract and was fixed.
+- #68522 — `assets list-by-alias` → `list-aliases`: a deliberate, documented rename
+  handled as breaking, not slipped in.
+- #65608 — an optional flag (`--state`) must keep the command working when unset.
+- #65052 — exit codes are part of the machine contract scripts depend on.

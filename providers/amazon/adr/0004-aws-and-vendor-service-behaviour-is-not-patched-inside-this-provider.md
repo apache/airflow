@@ -27,44 +27,27 @@ Accepted
 
 ## Context
 
-This provider sits between Airflow and three layers it does not own: the AWS
-APIs themselves, the `boto3` / `botocore` / `aiobotocore` client stack, and the
-managed Airflow offerings that repackage Airflow on AWS. Bugs surface *here*,
-because this is where users see them, but they frequently do not belong here.
-A fix written at the point of observation rather than the point of cause becomes
-a permanent workaround: it survives the upstream fix, it is invisible to the
-next person reading the code, and removing it later requires reconstructing a
-condition nobody remembers.
+This provider sits between Airflow and three layers it does not own: the AWS APIs,
+the `boto3` / `botocore` / `aiobotocore` client stack, and the managed Airflow
+offerings that repackage Airflow on AWS. Bugs surface *here*, because this is
+where users see them, but frequently do not belong here. A fix written at the
+point of observation rather than the point of cause becomes a permanent
+workaround: it survives the upstream fix, it is invisible to the next reader, and
+removing it later requires reconstructing a condition nobody remembers.
 
-Three variants recur.
-
-The first is a **botocore bug already fixed upstream**. A client-stack defect
-gets a guard in Airflow code while, in parallel, the vendor ships a release that
-fixes it — and this provider's dependency floor already requires that release or
-better. Two successive PRs proposed pre-creating a botocore credential cache
-directory to dodge a race, first in the `cncf.kubernetes` provider and then here;
-both were closed once it was established that the pinned botocore floor already
-contained the fix. The workaround would have shipped guard code with no live
-condition to guard.
-
-The second is a **managed-offering behaviour**. A restriction that exists only
-inside a vendor's hosted Airflow product — not in Airflow and not in AWS — is
-not fixed by adding a parameter to an operator that every self-hosted user also
-carries. The remedy is a report to the offering's own support channel. The
-project explicitly leaves room for the vendor's own maintainers, who participate
-here, to argue otherwise; absent that, the default is "won't fix".
-
-The third is **AWS-side semantics inferred from a single log line**. AWS error
-messages are terse and frequently describe a transient state rather than a
-rule. Reading "a paused cluster cannot be deleted" out of one failure and
-encoding it as an ordering requirement in an operator turned out to describe a
-mid-transition window, correctly handled by retrying — a smaller and more honest
-fix than the state machine that was first proposed. The same shape appeared in a
-deferrable Neptune change written from a traceback whose real cause was an
-async-to-sync botocore context problem the change did not touch.
-
-The common cost is the same: workarounds accumulate faster than they are
-retired, and the provider slowly acquires behaviour that AWS does not have.
+Three variants recur. A **botocore bug already fixed upstream**: a guard is added
+in Airflow while the vendor ships a fix the provider's floor already requires —
+two successive PRs to pre-create a botocore credential-cache directory were closed
+once it was established the pinned floor already contained the fix. A
+**managed-offering behaviour**: a restriction that exists only inside a vendor's
+hosted product is not fixed by adding a parameter every self-hosted user also
+carries; the remedy is a report to that offering's support, with room left for the
+vendor's own maintainers to argue otherwise. And **AWS-side semantics inferred
+from a single log line**: "a paused cluster cannot be deleted" read from one
+failure turned out to describe a mid-transition window handled by retrying — a
+smaller, more honest fix than the state machine first proposed. The common cost is
+that workarounds accumulate faster than they are retired, and the provider slowly
+acquires behaviour AWS does not have.
 
 ## Decision
 
@@ -93,13 +76,13 @@ behaviour; it does not re-implement or paper over it.
 
 - The provider stays close to AWS semantics, so an operator's behaviour can be
   predicted from AWS documentation rather than from this package's history.
-- Some user-visible pain persists longer, because the fix has to travel through
-  a vendor release before the floor can move. This is accepted as the cost of
-  not carrying permanent guards.
-- Contributors must do upstream research — vendor changelogs, issue trackers —
-  before proposing a fix here, which is slower than writing the guard.
-- The workarounds that do exist are individually justified and removable,
-  because each one names the condition that would retire it.
+- Some user-visible pain persists longer, because the fix has to travel through a
+  vendor release before the floor can move — accepted as the cost of not carrying
+  permanent guards.
+- Contributors must do upstream research before proposing a fix here, which is
+  slower than writing the guard.
+- The workarounds that exist are individually justified and removable, because
+  each names the condition that would retire it.
 
 A change **violates** this decision when it:
 
@@ -121,21 +104,13 @@ A change **violates** this decision when it:
 ## Evidence
 
 - #63610 and #62307 — two attempts to pre-create the botocore credential cache
-  directory to avoid an exec-plugin race, first via the `cncf.kubernetes` hook
-  and then here. Closed once review established the fix was already released in
-  botocore and covered by this provider's declared floor: "I don't understand
-  what we are fixing here."
-- #63400 — a `deserialize_payload` option on the Lambda invoke operator, closed
-  as a won't-fix: the problem is specific to one vendor's serverless Airflow
-  offering, and the author was directed to that vendor's support channel, with
-  the door left open for the vendor's own maintainers to disagree.
-- #68922 — resuming a paused Redshift cluster before deleting it, withdrawn by
-  the author once the claimed AWS rule turned out to describe a mid-transition
-  window that a retry already handles.
+  directory, closed once the fix was found already released and covered by the
+  floor: "I don't understand what we are fixing here."
+- #63400 — a Lambda `deserialize_payload` option closed as won't-fix: specific to
+  one vendor's serverless offering, author directed to its support channel.
+- #68922 — resuming a paused Redshift cluster before deletion, withdrawn once the
+  claimed AWS rule turned out to be a mid-transition window a retry already handles.
 - #69838 — a Neptune deferrable fix withdrawn after the real traceback showed an
-  async-to-sync botocore context failure that the waiter rename and parameter
-  forwarding did not touch.
-- #61664 — a `sagemaker-studio` floor bump closed on an explicit vendor request
-  to leave the dependency as it was, with the follow-up recorded.
-- #59793 — a fallback instance-type change asked to state its reason in the
-  provider changelog before being considered.
+  async-to-sync botocore context failure the change did not touch.
+- #61664 — a `sagemaker-studio` floor bump closed on an explicit vendor request.
+- #59793 — a fallback instance-type change asked to state its reason in the changelog.

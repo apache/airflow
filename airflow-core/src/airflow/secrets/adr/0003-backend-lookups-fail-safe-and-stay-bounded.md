@@ -27,39 +27,24 @@ Accepted
 
 ## Context
 
-Secret resolution walks a chain of backends — configured custom backend, then
-environment variables, then the metastore — and returns the first hit. That chain
-runs on the hot path of task setup and operator execution, and one of its links,
-a Vault or cloud secret store, is a **remote service** that can be slow, rate-
-limited, or down. Two properties keep this from becoming a reliability or
-correctness problem:
+Secret resolution walks a chain — configured custom backend, environment variables,
+metastore — returning the first hit, on the hot path of task setup and operator
+execution where one link (Vault or a cloud store) is a remote service that can be
+slow, rate-limited, or down. Three properties keep this safe:
 
-- **Fail-safe fall-through.** A backend that errors while resolving one key must
-  not abort the whole lookup. The resolver catches the failure, logs the backend
-  *type* at debug, and moves on to the next backend; only when every backend
-  comes up empty does it raise "not found". The one deliberate exception is an
-  **authoritative access-denied** (`AirflowSecretsBackendAccessDenied`): that must
-  re-raise immediately and **not** fall through to a less-restrictive backend, or
-  a deny would be silently downgraded to an allow.
-
-- **Bounded external access.** Lookups go through `SecretCache` first, and
-  provider backends expose opt-outs (e.g. `connections_prefix=None`) so a
-  deployment can skip a store it doesn't use. A change that adds an
-  unconditional, uncached, per-call round-trip to an external store turns every
-  task startup into a burst of remote calls.
-
-The metastore link has its own version of "bounded": it is the **DB-mediated**
-backend. On the server side it opens a session, fetches the row with a `limit(1)`
-query, and `expunge`s the ORM object so a detached, safe value is returned. It
-must obey the repo DB rules — keyword-only `session`, no `session.commit()` inside
-a function that takes a `session`. Crucially, a **worker does not reach the
-metastore with a direct session**: it resolves secrets through the Execution API
-using the client-side search path, so untrusted task code never gets a privileged
-metadata-DB connection just to read a variable.
-
-The recurring pressure is, again, convenience: "if the backend throws, just
-re-raise so the user sees it", or "read the row directly here, it's simpler than
-the API". Both break the properties above.
+- **Fail-safe fall-through.** A backend that errors on one key catches, logs the
+  backend *type* at debug, and moves on; only when all come up empty is "not found"
+  raised. The one exception is an **authoritative access-denied**
+  (`AirflowSecretsBackendAccessDenied`), which re-raises immediately and must **not**
+  fall through to a looser backend, or a deny is silently downgraded.
+- **Bounded external access.** Lookups go through `SecretCache` first, and backends
+  expose opt-outs (e.g. `connections_prefix=None`). An unconditional, uncached
+  per-call round-trip turns every task startup into a burst of remote calls.
+- **DB-mediated metastore.** Server-side it opens a session, fetches with
+  `limit(1)`, and `expunge`s the object, obeying the repo DB rules (keyword-only
+  `session`, no `session.commit()` in a session-taking function). A **worker does
+  not reach the metastore with a direct session** — it resolves through the
+  Execution API, so untrusted task code gets no privileged metadata-DB connection.
 
 ## Decision
 
@@ -81,14 +66,12 @@ Secret lookups must fail safe and stay bounded:
 
 ## Consequences
 
-- A single misconfigured or unreachable backend degrades to the next source
-  instead of failing every task that resolves a secret.
-- An authoritative deny stays authoritative — it is never silently downgraded by
-  the fall-through logic.
-- External secret stores are hit through a cache and can be opted out of, keeping
-  task startup from stampeding a remote service.
-- The metastore path keeps its DB access explicit, bounded, and — for workers —
-  routed through the Execution API rather than a direct session.
+- A single misconfigured or unreachable backend degrades to the next source instead
+  of failing every task that resolves a secret; an authoritative deny stays
+  authoritative.
+- External stores are hit through a cache and can be opted out of, sparing task
+  startup a remote stampede; the metastore path keeps DB access explicit, bounded,
+  and — for workers — routed through the Execution API.
 
 **A violating change looks like:** re-raising a generic backend error so it aborts
 the chain (or, conversely, swallowing an access-denied and falling through to a
@@ -99,11 +82,9 @@ place of the Execution API. Such a change is rejected.
 
 ## Evidence
 
-- #56602 — "Fix Connection or Variable access in Server context": corrected how
-  secrets are resolved depending on execution context, keeping the server/worker
-  paths distinct rather than letting the wrong one run.
-- #67810 — "Fix exceptions of positional session use in airflow-core ... leftover
-  non-models modules": tightened session discipline in this area, consistent with
-  keeping the metastore path's DB access explicit and correct.
-- #63080 — "Replace expunge_all with expunge in MetastoreBackend": bounded the
-  session hygiene so only the fetched object is detached, not the whole session.
+- #56602 — "Fix Connection or Variable access in Server context": kept the
+  server/worker resolution paths distinct.
+- #67810 — "Fix ... positional session use in airflow-core ...": tightened session
+  discipline in this area.
+- #63080 — "Replace expunge_all with expunge in MetastoreBackend": detached only the
+  fetched object, not the whole session.

@@ -42,35 +42,24 @@ Accepted
 
 ## Context
 
-The hooks in this directory are not runtime code and ship to no user, so the
-cost of a defect here is easy to underestimate. But every hook registered in a
-`.pre-commit-config.yaml` runs on **every contributor's machine, on every
-commit**, and again in CI. There are over a hundred hooks in the repo-wide
-config alone, plus per-distribution configs for `airflow-core`, `providers`,
-`task-sdk`, `chart`, `airflow-ctl`, and others.
-
-That multiplier turns small inefficiencies into a project-wide tax. A hook that
-takes two seconds longer than it needs to, multiplied across every commit by
-every contributor, costs the project far more time than the hook itself was
-worth. A hook scoped with a bare `files: \.py$` when it only inspects
-`providers/` makes every core, SDK, and dev-tooling commit pay for a check that
-can never fire on it.
-
-The failure mode is also social, not just mechanical: when the commit hooks feel
-slow, contributors reach for `--no-verify`, and the whole static-check layer
-quietly stops protecting the repository. Keeping the default set fast is what
-keeps it running at all.
+The hooks here ship to no user, so the cost of a defect is easy to underestimate. But
+every hook in a `.pre-commit-config.yaml` runs on **every contributor's machine, on
+every commit**, and again in CI — over a hundred in the repo-wide config alone, plus
+per-distribution configs for `airflow-core`, `providers`, `task-sdk`, `chart`,
+`airflow-ctl`, and others. That multiplier turns small inefficiencies into a
+project-wide tax: a hook scoped with a bare `files: \.py$` when it only inspects
+`providers/` makes every core, SDK, and dev-tooling commit pay for a check that can
+never fire. The failure mode is also social — when the hooks feel slow, contributors
+reach for `--no-verify` and the whole static-check layer quietly stops protecting the
+repository.
 
 ## Consequences
 
-Contributors get fast feedback on the checks that can actually apply to their
-change, and the default hook set stays cheap enough that bypassing it is not
-tempting. Slow-but-valuable checks remain available behind the manual stage or
-at the tail of the config, where they cost nothing on a routine commit.
-
-The cost is that adding a hook is slightly more work: the author has to think
-about the pattern rather than reaching for `\.py$`, and has to measure the
-all-files run before opening the PR.
+Contributors get fast feedback on the checks that can apply to their change, and the
+default set stays cheap enough that bypassing it is not tempting; slow-but-valuable
+checks remain behind the manual stage or at the config tail. The cost is that adding a
+hook is more work — the author thinks about the pattern and measures the all-files run
+before opening the PR.
 
 A change **violates** this decision when it:
 

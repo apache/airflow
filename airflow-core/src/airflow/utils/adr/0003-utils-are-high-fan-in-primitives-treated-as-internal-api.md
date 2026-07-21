@@ -30,45 +30,36 @@ Accepted
 Almost nothing in `airflow-core/src/airflow/utils/` is a leaf. `provide_session`,
 `with_row_locks`, `nulls_first`, `UtcDateTime`, `ExtendedJSON`,
 `ExecutorConfigType`, `retry_db_transaction`, and the `helpers.py` grab-bag are
-imported by the scheduler, the API server, the Dag processor, the migration
-chain, and — because these modules have always been importable — by providers
-and user code as well.
+imported by the scheduler, API server, Dag processor, migration chain — and,
+because these modules have always been importable, by providers and user code.
+That fan-in changes the economics three ways.
 
-That fan-in changes the economics of a change here in three ways.
+**The diff understates the blast radius.** A one-line helper change is a
+behaviour change at every call site the reviewer cannot see — argument reordering,
+a changed default, a different return type, or a "cleanup" dropping a seemingly
+redundant branch (the dialect fallbacks in `with_row_locks` and `nulls_first`
+look redundant and are not) propagates instantly and silently.
 
-**The diff understates the blast radius.** A one-line change to a helper is a
-behaviour change at every call site the reviewer cannot see. Argument reordering,
-a changed default, a subtly different return type, or a "cleanup" that drops a
-seemingly redundant branch (the dialect fallbacks in `with_row_locks` and
-`nulls_first` look redundant and are not) propagates instantly and silently.
+**These modules load in every process** — schedulers, workers, triggerers, CLI
+invocations. Import-time work (a config read, provider discovery, a heavyweight
+import) is paid by every process, so expensive dependencies are imported lazily
+where the pattern exists (Alembic in `db_manager`, Kubernetes models in
+`sqlalchemy.py`'s pod helpers) and hot lookups get appropriate data structures.
 
-**These modules load in every process.** Schedulers, workers, triggerers, and
-short-lived CLI invocations all import them at startup. Work done at import time
-— a config read, provider discovery, a heavyweight third-party import — is paid
-by every process, every time. Expensive dependencies are therefore imported
-lazily where the pattern already exists (Alembic inside `db_manager`, Kubernetes
-models inside `sqlalchemy.py`'s pod helpers), and hot lookups are given
-appropriate data structures rather than linear scans.
+**Correctness details pedantic elsewhere are load-bearing here.** Durations use
+`time.monotonic()`, never `time.time()` (a wall-clock delta goes negative or jumps
+across an NTP step or DST, corrupting every metric and timeout built on it), and
+signal-/thread-sensitive helpers (`timeout_with_traceback`) degrade rather than
+crash where the primitive is unavailable, being called from contexts their author
+never saw.
 
-**Correctness details that would be pedantic elsewhere are load-bearing here.**
-A helper used inside the scheduler loop must be cheap and side-effect-free.
-Durations must be measured with `time.monotonic()`, never `time.time()`, because
-a wall-clock delta goes negative or jumps across an NTP step or a DST boundary —
-and a helper that returns a nonsense duration corrupts every metric and timeout
-built on it. Signal- and thread-sensitive helpers (`timeout_with_traceback`)
-must degrade rather than crash on platforms and threads where the primitive is
-unavailable, because they are called from contexts their author never saw.
-
-The project has drawn the corresponding structural conclusion: this directory is
-a **closed set**. The `check-no-new-airflow-core-utils-modules` prek hook freezes
-the list of top-level modules against
-`scripts/ci/prek/known_airflow_core_utils_modules.txt`. New shared code belongs
-in `shared/` (reused across distributions), in the feature's own sub-package
-alongside the code it serves, or in `task-sdk/`. The directory has been actively
-shrinking on that basis — `timezone`, `setup_teardown`, `timeout`, the trigger
-rule and weight rule modules, and the entry-point helpers have all moved out,
-each leaving a redirect shim registered through `add_deprecated_classes` in
-`utils/__init__.py` so external imports keep working with a warning.
+The structural conclusion: this directory is a **closed set**. The
+`check-no-new-airflow-core-utils-modules` prek hook freezes the top-level modules
+against `scripts/ci/prek/known_airflow_core_utils_modules.txt`. New shared code
+belongs in `shared/`, the feature's own sub-package, or `task-sdk/`. It has been
+shrinking on that basis — `timezone`, `setup_teardown`, `timeout`, the trigger-
+and weight-rule modules, and entry-point helpers all moved out, each leaving a
+redirect shim registered via `add_deprecated_classes` in `utils/__init__.py`.
 
 ## Decision
 
@@ -98,16 +89,16 @@ each leaving a redirect shim registered through `add_deprecated_classes` in
 
 ## Consequences
 
-- Consumers across airflow-core, providers, and user code can rely on these
-  helpers without version-gating every call.
-- Refactors here are larger and slower than they look: the diff includes every
-  call site, which is the correct cost, not an obstacle to route around.
-- Genuinely new utility code lands where it is owned, so this directory keeps
-  shrinking toward the primitives that must live in core.
-- Import-time frugality is a standing constraint: a convenient top-level import
-  of an expensive dependency is not acceptable even when it reads better.
-- Legacy import paths accumulate shims. That is the accepted price of moving
-  modules out without breaking external code.
+- Consumers across airflow-core, providers, and user code rely on these helpers
+  without version-gating every call.
+- Refactors here are larger than they look: the diff includes every call site,
+  the correct cost, not an obstacle to route around.
+- New utility code lands where it is owned, so this directory keeps shrinking
+  toward the primitives that must live in core.
+- Import-time frugality is a standing constraint: a convenient top-level import of
+  an expensive dependency is not acceptable even when it reads better.
+- Legacy import paths accumulate shims — the accepted price of moving modules out
+  without breaking external code.
 
 A change **violates** this decision when it:
 
@@ -132,23 +123,15 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #66105 — "CI: Block new modules under `airflow-core/src/airflow/utils/`":
-  freezes the module set and makes the "put it in `shared/` or the feature's own
-  package" rule mechanical.
-- #62927 — "refactor: remove modules that are supposed to be removed in Airflow
-  3.2": the ongoing shrinking of this directory.
-- #53196 — "Extend `add_deprecated_classes` to support wildcard patterns":
-  strengthens the shim mechanism that lets whole modules move out without
-  breaking importers.
-- #60061 — "Update usages of entry_points helpers and deprecate it from utils":
-  a module leaving `utils/` for `shared/` with the redirect shim in place.
-- #65655 — "Lazy-load Alembic in db_manager imports": import-time cost of a
-  heavyweight dependency paid by every process.
-- #66306 — "Convert `RUNTIME_VARYING_CALLS` to frozenset for O(1) membership
-  lookup": data structure chosen for the hot-path access pattern.
-- #63664 — "Fix `timeout_with_traceback` crashes on Windows and non-main
-  threads": a helper that must degrade rather than crash in contexts its author
-  did not enumerate.
-- #56982 — "Fix remaining MyPy type errors in utils/": keeping the contracts of
-  these primitives statically checkable, precisely because their call sites are
-  everywhere.
+- #66105 — freezes the module set, making "put it in `shared/` or the feature's
+  own package" mechanical.
+- #62927 — the ongoing shrinking of this directory (removing modules due in 3.2).
+- #53196 — wildcard `add_deprecated_classes` strengthens the module-move shim.
+- #60061 — entry-point helpers leave `utils/` for `shared/` with a redirect shim.
+- #65655 — lazy-load Alembic in `db_manager`: import-time cost paid by every
+  process.
+- #66306 — `RUNTIME_VARYING_CALLS` to frozenset for O(1) hot-path membership.
+- #63664 — `timeout_with_traceback` must degrade rather than crash on Windows /
+  non-main threads.
+- #56982 — keeping these primitives' contracts statically checkable, since their
+  call sites are everywhere.

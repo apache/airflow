@@ -28,26 +28,18 @@ Accepted
 ## Context
 
 Several serializable objects are defined **twice**: once in the Task SDK
-(`airflow.sdk`, the surface Dag authors use) and once in `airflow-core` (the
-side that serializes, stores, and reconstructs them). The two definitions
-describe the same object and must expose the same set of fields. If they drift —
-the SDK grows a field the core class does not know about, or the two disagree on
-a field's name — an object authored against one side round-trips incorrectly
-through the other: attributes silently vanish on serialize, or reconstruction
-falls back to constructor defaults on deserialize.
+(`airflow.sdk`, the authoring surface) and once in `airflow-core` (which serializes,
+stores, and reconstructs them). The two must expose the same fields; if they drift,
+an object round-trips incorrectly — attributes silently vanish on serialize, or
+reconstruction falls back to constructor defaults on deserialize.
 
-To catch this mechanically, a `check-...-in-sync` prek hook compares the two
-class bodies field-for-field. The hook only works if the fields are actually
-*visible in the class body* — declared as class-level attributes it can read.
-Definitions that hide fields (assembling them dynamically, pulling them from a
-computed list, or setting them only inside `__init__`) are invisible to the
-hook, which then reports parity while the objects have in fact diverged.
-
-Separately, `serialize()` and the constructor are two ends of the same
-round-trip: `serialize()` must emit **every** field the constructor consumes.
-If `serialize()` omits a field that `__init__` needs, deserialization silently
-reconstructs the object with that field at its default — so the value the author
-set is lost after a scheduler/worker restart, with no error.
+A `check-...-in-sync` prek hook compares the two class bodies field-for-field, but
+only works if the fields are *visible in the class body* as class-level attributes.
+Definitions that hide fields (assembled dynamically, from a computed list, or set
+only in `__init__`) are invisible, so the hook reports parity while the objects have
+diverged. Separately, `serialize()` must emit **every** field the constructor
+consumes, or deserialization silently reconstructs with that field at its default
+and the author's value is lost after a restart, with no error.
 
 ## Decision
 
@@ -64,12 +56,12 @@ parity, and keep the parity machine-checkable.
 
 ## Consequences
 
-- The prek hook fails the build the moment the two definitions drift, so parity
-  is caught at commit time rather than as a silent runtime data-loss bug.
-- Objects survive the full serialize/deserialize round-trip — and therefore a
-  component restart — with every constructor-supplied value preserved.
-- Contributors adding a field to one side are forced to add it to the other and
-  to include it in `serialize()`.
+- The prek hook fails the build the moment the definitions drift, catching it at
+  commit time rather than as a silent runtime data-loss bug.
+- Objects survive the full round-trip — and a component restart — with every
+  constructor-supplied value preserved.
+- Contributors adding a field to one side are forced to add it to the other and to
+  `serialize()`.
 
 A **violating change** looks like any of:
 
@@ -85,10 +77,9 @@ A **violating change** looks like any of:
 
 ## Evidence
 
-The primary evidence is the enforcement itself, which is committed and runs on
-every relevant edit — three prek hooks in `.pre-commit-config.yaml` exist for no
-other purpose than this decision, each pinned to the exact pair of core and SDK
-files it compares:
+The primary evidence is the enforcement itself — three prek hooks in
+`.pre-commit-config.yaml` for no other purpose, each pinned to the pair of files it
+compares:
 
 - `check-partition-mapper-defaults-in-sync` —
   `airflow-core/src/airflow/partition_mappers/{temporal,window,fixed_key}.py`
@@ -97,11 +88,9 @@ files it compares:
 - `check-template-context-variable-in-sync` — `models/taskinstance.py` against
   `sdk/definitions/context.py` and the templates reference.
 
-Each hook reads class bodies, which is why the decision requires fields to be
-declared there: hollowing the class body does not fail the hook, it makes the hook
-blind.
+Each hook reads class bodies, which is why fields must be declared there: hollowing
+the class body makes the hook blind rather than failing it.
 
-- #69311 — fixes an asset-event ingestion crash for Dags using `FixedKeyMapper`, a
-  case where the serialized/reconstructed object must carry the same fields the
-  constructor expects. This is the only PR citation behind the ADR; the mechanism
-  above, not the review history, is what the decision rests on.
+- #69311 — fixes an asset-event ingestion crash for Dags using `FixedKeyMapper`,
+  where the reconstructed object must carry the fields the constructor expects. The
+  only PR citation; the mechanism, not review history, is what this rests on.

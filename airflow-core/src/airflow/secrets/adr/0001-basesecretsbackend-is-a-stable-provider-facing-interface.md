@@ -27,41 +27,27 @@ Accepted
 
 ## Context
 
-`BaseSecretsBackend` is not an internal-only base class. It is the contract that
-every bundled backend (`EnvironmentVariablesBackend`, `MetastoreBackend`,
-`LocalFilesystemBackend`) and every out-of-tree backend inherits from: Vault, AWS
-Secrets Manager, GCP Secret Manager, Azure Key Vault, and custom deployment
-backends all subclass it and override its hooks (`get_conn_value` /
-`get_connection`, `get_variable`, `get_config`), reusing the base helpers
-(`build_path`, `deserialize_connection`).
+`BaseSecretsBackend` is the contract every bundled backend
+(`EnvironmentVariablesBackend`, `MetastoreBackend`, `LocalFilesystemBackend`) and
+every out-of-tree backend (Vault, AWS Secrets Manager, GCP Secret Manager, Azure
+Key Vault, custom deployment backends) subclasses, overriding its hooks
+(`get_conn_value` / `get_connection`, `get_variable`, `get_config`) and reusing its
+helpers (`build_path`, `deserialize_connection`). Those backends are versioned and
+released **independently** of `airflow-core` — a deployment routinely runs a newer
+provider on older core or vice versa — which makes the public shape a cross-version
+compatibility boundary, and is why it was moved into the `secrets_backend` shared
+library and stripped of core-only imports.
 
-Those backends live in provider distributions — or in wholly private code —
-versioned and released **independently** of `airflow-core`. A deployment
-routinely runs a newer provider on an older core, or an older custom backend on a
-newer core. That makes the public shape of `BaseSecretsBackend` a cross-version
-compatibility boundary, which is *why* the class was moved into the
-`secrets_backend` shared library and stripped of its core-only imports, so the
-Task SDK and core could depend on the same contract without pulling in
-`airflow.models`.
-
-The interface is not only method names — it is also the **lookup order**.
-`DEFAULT_SECRETS_SEARCH_PATH` is `[EnvironmentVariablesBackend,
-MetastoreBackend]`, and `initialize_secrets_backends()` prepends a configured
-custom backend *ahead* of those defaults. The resolver walks the chain in that
-order and returns the first hit. The order is a documented, security-relevant
-guarantee: which source wins when the same `conn_id`/key exists in two places is
-behaviour deployments rely on.
-
-The recurring pressure is "cleanup": renaming a method to something tidier,
-tightening a signature, moving a helper, or reordering the default list all look
-local to core — but each silently breaks backends running in the mixed-version
-combinations we support, or changes which secret a deployment resolves.
-
-A concrete near-miss: AIP-67 (multi-team) added a `team_name` keyword to the
-lookup methods. Rather than force every custom backend to grow the parameter,
-the change forwards `team_name` *only* to backends whose signature accepts it
-(`_accepts_team_name` / `call_secrets_backend_method`) and omits it for pre-3.2
-overrides — precisely because the interface must stay callable by older backends.
+The interface is also the **lookup order**: `DEFAULT_SECRETS_SEARCH_PATH` is
+`[EnvironmentVariablesBackend, MetastoreBackend]`, `initialize_secrets_backends()`
+prepends a configured custom backend, and the resolver returns the first hit. Which
+source wins when a `conn_id`/key exists in two places is a documented,
+security-relevant guarantee. The recurring pressure is "cleanup" — renaming a
+method, tightening a signature, reordering the list — each of which silently breaks
+mixed-version backends or changes which secret resolves. AIP-67's `team_name`
+keyword is the model: forwarded *only* to backends whose signature accepts it
+(`_accepts_team_name` / `call_secrets_backend_method`), omitted for pre-3.2
+overrides.
 
 ## Decision
 
@@ -89,10 +75,8 @@ provider-facing API:
 
 - Provider and custom backends can be upgraded ahead of, or behind, core without
   `AttributeError` / `TypeError` at the lookup boundary.
-- Core carries some deprecated shims and signature-forwarding logic; that cost is
-  accepted in exchange for the version-mix guarantee.
-- Refactors that want to tidy the interface must do so additively and leave the
-  old names and the established order intact.
+- Core carries some deprecated shims and signature-forwarding logic — accepted for
+  the version-mix guarantee; interface tidy-ups must be additive.
 
 **A violating change looks like:** renaming or deleting a public
 `BaseSecretsBackend` method, tightening `get_conn_value(...)`'s signature with no
@@ -103,13 +87,10 @@ resolves a different secret. Such a change is rejected.
 
 ## Evidence
 
-- #58621 — "Move BaseSecretsBackend to shared library for client server
-  separation": established the base class as a shared, client/server-neutral
-  contract rather than a core-internal one.
+- #58621 — "Move BaseSecretsBackend to shared library": made it a shared,
+  client/server-neutral contract.
 - #61523 — "Remove Connection dependency from shared secrets backend": kept the
-  shared surface free of a core type, injecting the concrete class instead.
-- #59597 — "Remove core references in secrets backend logic in sdk": same
-  direction — no core coupling in the shared/SDK-facing interface.
-- #59476 / #58905 — "Check team boundaries in connections" / "... in variables":
-  added the `team_name` keyword additively, forwarded only to backends that
-  accept it so older overrides keep working.
+  shared surface free of a core type, injecting the concrete class.
+- #59597 — "Remove core references in secrets backend logic in sdk": same direction.
+- #59476 / #58905 — team boundaries in connections / variables: added `team_name`
+  additively, forwarded only to backends that accept it.

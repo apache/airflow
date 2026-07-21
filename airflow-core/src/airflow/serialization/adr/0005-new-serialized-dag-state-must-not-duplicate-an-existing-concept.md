@@ -27,38 +27,23 @@ Accepted
 
 ## Context
 
-Adding a field to the serialized Dag is close to irreversible. It has to be
-optional and ignorable so older readers survive it (ADR 0001), it has to stay in
-parity between core and the Task SDK (ADR 0003), it becomes part of the blob every
-deployment persists and every adjacent-version component parses, and once Dag
-authors write it into their Dags it cannot be withdrawn without a deprecation
-cycle measured in releases. The write is cheap; the commitment is not.
-
-That asymmetry is why the review question is not "is this field useful?" but "does
+Adding a field to the serialized Dag is close to irreversible. It must be optional
+and ignorable (ADR 0001), stay in parity between core and the Task SDK (ADR 0003),
+becomes part of the blob every deployment persists and every adjacent-version
+component parses, and once Dag authors write it into their Dags it cannot be
+withdrawn without a deprecation cycle measured in releases. The write is cheap; the
+commitment is not. So the review question is not "is this field useful?" but "does
 the model already express this?" — and often it does, under a name the proposer did
 not recognise.
 
-The clearest case is a user-supplied "processing date" for a Dag run. It is a real
-need, it has an obvious API, and it is refused, because the data interval already
-*is* that concept: a run that processes one day's data has a half-open interval
-whose start and end bound that day, and where there is no interval the two are set
-to the same instant. The interval is produced by the timetable, which is the
-extension point for exactly this. A parallel field would have given two answers to
-"what is this run processing", one of them unknown to every timetable, every
-scheduler decision and every existing Dag.
-
-The second shape is a new *layer* rather than a new field: configuration that can
-be set in three places with a precedence order between them, over state that is
-already serialized per Dag and per run. Each level is individually reasonable and
-the combination is not — the interaction with clearing a run, with which Dag
-version a task actually executes against, and with the race between two sources of
-the same version, could not be settled in review. The PR was closed by its author
-in favour of a simplified one, which is the outcome this decision aims at reaching
-before the code is written rather than after.
-
-The third is simple duplication: the same attribute proposed twice by two
-contributors within days, because neither checked for in-flight work on a
-serialized-Dag attribute that had already been designed elsewhere.
+Three shapes recur. A user-supplied "processing date" is refused because the data
+interval already *is* that concept (a half-open interval produced by the timetable,
+the extension point for exactly this). A new *layer* — config settable in three
+places with a precedence order, over state already serialized per Dag and per run —
+is refused because its interaction with clearing a run, with which Dag version a
+task executes against, and with the race between two version sources could not be
+settled in review. And simple duplication — the same attribute proposed twice within
+days because neither author checked for in-flight work.
 
 ## Decision
 
@@ -86,14 +71,12 @@ already carries.**
 
 ## Consequences
 
-- The serialized document stays a description of the Dag rather than an
-  accumulation of near-synonyms, and readers on adjacent versions have fewer fields
-  whose meaning they must agree on.
+- The serialized document stays a description of the Dag rather than an accumulation
+  of near-synonyms, so adjacent-version readers have fewer fields to agree on.
 - Genuinely new concepts still land — the requirement is an argument, not a veto.
-- The cost is borne by contributors solving a real problem who discover the answer
-  is an existing field used differently, or a timetable rather than an attribute.
-  That redirection is slower than merging the field, and cheaper than living with two
-  spellings of one concept in a format that cannot be edited retroactively.
+- The cost falls on contributors solving a real problem who find the answer is an
+  existing field used differently, or a timetable — slower than merging, cheaper than
+  two spellings of one concept in a format that cannot be edited retroactively.
 
 A change **violates** this decision when it:
 
@@ -117,19 +100,16 @@ The overlapping question of whether a *core model column* duplicates an existing
 concept (#67329) is decided in `../../models/adr/0005`; it is summarised below for
 context but judged there, so one PR does not trip two areas.
 
-- #61448 — "Add three-level `run_on_latest_version` configuration hierarchy":
-  discussion turned on the interaction with clearing a run, on `DagModel.bundle_version`
-  versus `DagBundleModel.version` and the race between them, and on which serialized
-  Dag code tasks actually execute; closed by the author in favour of a simplified
-  proposal. Note that a configuration hierarchy for the adjacent rerun behaviour
-  (#63884) did merge — the objection was to the unresolved version race, not to
-  hierarchies.
-- #67329 — "Add `target_date` — a user-defined processing date for Dag runs":
-  declined because `data_interval_start` / `data_interval_end` already carry that
-  meaning. Decided in `../../models/adr/0005`.
-- #61063 — "Add configurable bundle version defaults": review required it be split
-  into the configurable default and the operator change, and flagged that it depended
-  on an execution-API endpoint that does not exist; did not land in that form.
-- #65595 — adding a `team_name` attribute to the Dag for multi-team context:
-  closed as duplicating #65617, which was already designing the same serialized
-  attribute.
+- #61448 — "Add three-level `run_on_latest_version` configuration hierarchy": turned
+  on clearing a run, on `DagModel.bundle_version` versus `DagBundleModel.version` and
+  their race, and on which serialized Dag code tasks execute; closed by the author
+  for a simplified proposal. A hierarchy for the adjacent rerun behaviour (#63884)
+  *did* merge — the objection was the unresolved version race, not hierarchies.
+- #67329 — "Add `target_date` ... processing date for Dag runs": declined because
+  `data_interval_start` / `data_interval_end` already carry that meaning. Decided in
+  `../../models/adr/0005`.
+- #61063 — "Add configurable bundle version defaults": review required splitting the
+  default from the operator change, and flagged a non-existent execution-API
+  dependency; did not land in that form.
+- #65595 — a `team_name` attribute on the Dag: closed as duplicating #65617, already
+  designing the same serialized attribute.

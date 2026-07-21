@@ -27,28 +27,20 @@ Accepted
 
 ## Context
 
-A Dag's schedule is not stored as live Python. When a Dag is serialized, its
-timetable is asked to `serialize()` itself to a JSON-serializable dict, and the
-timetable class is recorded by classpath. When the serialized Dag is read back —
-by the scheduler on every tick, or by any component that reconstructs the Dag —
-the class is looked up and `deserialize(data)` rebuilds the timetable from that
-dict. Custom (user-authored) timetables participate in exactly the same
-mechanism: they are registered and resolved by import path.
+A Dag's schedule is not stored as live Python. On serialization a timetable
+`serialize()`s itself to a JSON dict and records its class by classpath; on read
+back the class is looked up and `deserialize(data)` rebuilds it. Custom
+(user-authored) timetables use exactly the same mechanism, resolved by import
+path.
 
-This makes the serialized form an *interface*, and interfaces across a rolling
-deploy are versioned by reality rather than by choice. During an upgrade,
-different components run different Airflow versions at the same moment: a Dag
-serialized by a *newer* processor may be deserialized by an *older* scheduler,
-and vice versa. If `serialize()` drops a field the timetable needs, or a key is
-silently renamed or changes type, or a timetable class is moved without an
-alias, the reconstructed timetable is wrong — and the failure surfaces as
-mis-scheduled runs after the deploy, not as an error at the change site.
-
-The history here is a run of exactly these misses: a description that was not
-persisted and so was lost on round-trip; a datetime serialized without an
-explicit isoformat separator; and a schedule class whose serialized shape had to
-be made compatible across minor releases so already-serialized Dags kept
-working. Each was cheap to write and expensive to discover.
+This makes the serialized form an *interface* versioned by reality across a
+rolling deploy: a Dag serialized by a *newer* processor may be deserialized by an
+*older* scheduler, and vice versa. If `serialize()` drops a needed field, a key
+is renamed or retyped, or a class is moved without an alias, the reconstructed
+timetable is wrong — surfacing as mis-scheduled runs after the deploy, not as an
+error at the change site. The history is exactly these misses: a description lost
+on round-trip, a datetime serialized without an explicit isoformat separator, a
+schedule class whose shape had to be made compatible across minor releases.
 
 ## Decision
 
@@ -74,13 +66,11 @@ changes to it must preserve round-trip fidelity across versions.
 
 ## Consequences
 
-- A Dag's schedule survives serialization and rolling upgrades unchanged; the
-  scheduler reconstructs the same timetable the author declared.
-- Contributors adding state to a timetable must extend `serialize()` /
-  `deserialize()` together and provide a compatibility path for already-stored
-  Dags, rather than assuming a fresh re-serialize everywhere.
-- Custom timetables remain resolvable across releases because their classpath
-  and serialized keys are treated as public surface.
+- A Dag's schedule survives serialization and rolling upgrades unchanged.
+- Adding state to a timetable means extending `serialize()` / `deserialize()`
+  together with a compatibility path for already-stored Dags.
+- Custom timetables stay resolvable across releases because their classpath and
+  serialized keys are public surface.
 
 A change **violates** this decision when it:
 
@@ -97,13 +87,8 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #51203 — "Persist EventsTimetable's description during serialization": the
-  description was dropped on round-trip because `serialize()` did not emit it;
-  fixed by persisting it so `deserialize()` restores the same timetable.
-- #48732 — "Set explicit separator for isoformat when serializing
-  EventsTimetable": pins an explicit, unambiguous datetime encoding in the
-  serialized form rather than relying on an implicit default.
-- #49350 — "Make `DatasetOrTimeSchedule` compatible with Airflow 2.10.x" and
-  #48097 — "Add backwards compatibility for `DatasetOrTimeSchedule`": make the
-  serialized schedule shape readable across releases so already-serialized Dags
-  keep scheduling after an upgrade.
+- #51203 — `EventsTimetable` description dropped on round-trip; `serialize()`
+  did not emit it.
+- #48732 — pins an explicit isoformat separator rather than an implicit default.
+- #49350, #48097 — make the `DatasetOrTimeSchedule` serialized shape readable
+  across releases so already-serialized Dags keep scheduling after an upgrade.

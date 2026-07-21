@@ -27,38 +27,25 @@ Accepted
 
 ## Context
 
-Serialization is a funnel: an open set of Python objects goes in, one JSON
-document comes out, and a small number of generic helpers do the narrowing. A
-defect in one of those helpers therefore does not present as one bug. It presents
-as a stream of apparently unrelated reports — this parameter type serializes
-unstably, that templated field crashes on deserialization, this operator's
-attribute silently becomes a string — each of which has an obvious local fix.
+Serialization is a funnel: an open set of Python objects goes in, one JSON document
+comes out, and a few generic helpers do the narrowing. A defect in a helper presents
+not as one bug but as a stream of unrelated-looking reports — this type serializes
+unstably, that templated field crashes on deserialization — each with an obvious
+local fix. Local fixes get closed here.
 
-Local fixes are what get closed here. The recurring case is unstable
-representation: an object without a defined `__repr__` serializes as
-`<... object at 0x7f...>`, the address changes every parse cycle, the serialized
-Dag hashes differently, and a new `DagVersion` is minted for a Dag nobody edited.
-Two separate PRs arrived proposing to special-case the one parameter type where
-the symptom was observed. Both were closed and the work consolidated into a single
-change in the shared template-field serialization helper — because the address was
-never a property of that type, it was a property of any object reaching the
-fallback path.
-
-The same shape appears at the boundary between serialization and the API. A
-payload too large for its column raises a database error on write. The local fix
-is per-route validation with a size limit, a configuration knob and a new exception
-class — one endpoint's worth of machinery. The accepted fix was one exception
-handler for the database's data error, registered once on the public REST API and
-once on the execution API, which then covers Dag-run `conf`, connection extras,
-variable values, XCom values, task-instance notes, and every write endpoint added
-in the future. Less code, more coverage, no new configuration surface.
-
-There is a second cost to the local fix that matters more here than elsewhere.
-Serialization output is persisted and read back by components on adjacent
-versions, so a per-type special case is not just duplicated logic — it is a
-divergence in the *format* that some readers will have and others will not. The
-generic path is the only place where a fix is guaranteed to reach everything that
-round-trips.
+The recurring case is unstable representation: an object without a `__repr__`
+serializes as `<... object at 0x7f...>`, the address changes every parse, and a new
+`DagVersion` is minted for a Dag nobody edited. Two PRs proposed to special-case the
+one type where the symptom showed; both were closed and consolidated into the shared
+template-field helper, because the address was a property of any object reaching the
+fallback. The same shape appears at the API boundary: a too-large payload raises a
+database error, and the local fix is per-route validation with a size limit, a knob,
+and a new exception. The accepted fix was one handler for the database data error,
+registered once on the public REST API and once on the execution API — covering
+Dag-run `conf`, connection extras, variable values, XCom values, task-instance
+notes, and every future write endpoint. And because serialized output is persisted
+and read back across adjacent versions, a per-type special case is a format
+divergence some readers have and others do not.
 
 ## Decision
 
@@ -81,15 +68,13 @@ round-trips.
 
 ## Consequences
 
-- One fix retires a class of reports rather than one report, and the format stays
-  uniform across readers.
-- Reviewers can hold a small number of helpers in their head, which is what makes
-  review of this area tractable at all.
-- Consolidation is slower for the contributor who found the symptom: the fix moves
-  to code they did not touch, tests have to cover types they were not chasing, and
-  their PR is sometimes closed in favour of someone else's. That churn is the cost of
-  not accumulating per-type branches in a format that must stay readable across
-  versions.
+- One fix retires a class of reports rather than one, and the format stays uniform
+  across readers.
+- Reviewers can hold a small number of helpers in their head, which makes review of
+  this area tractable at all.
+- Consolidation is slower for the contributor who found the symptom: the fix moves to
+  code they did not touch, and their PR is sometimes closed for someone else's — the
+  cost of not accumulating per-type branches in a format that must stay readable.
 
 A change **violates** this decision when it:
 
@@ -117,18 +102,13 @@ sibling path goes through keeps the old behaviour.
 
 ## Evidence
 
-- #68901 — "Serialize `DagParam` like a normal `Param`", opened to stop a
-  `DagParam` serializing with its memory address inside a mapped operator's
-  `partial`; converted to an issue rather than merged, once it was clear the fix
-  belonged in `serialize_template_field`.
-- #65705 — "Fix Dag version inflation caused by unstable `DagParam` repr": the
-  second attempt at the same symptom, reworked to fix `serialize_template_field` and
-  then closed so the change could land as part of the consolidated work in #63871.
+- #68901 — "Serialize `DagParam` like a normal `Param`": opened to stop a `DagParam`
+  serializing with its address inside a mapped operator's `partial`; converted to an
+  issue once the fix belonged in `serialize_template_field`.
+- #65705 — "Fix Dag version inflation caused by unstable `DagParam` repr": the second
+  attempt; reworked to fix `serialize_template_field` and closed to land in #63871.
 - #66787 — "Validate Dag-run conf payload size at trigger boundary": closed by its
-  own author in favour of #66888, which registers one handler for the SQLAlchemy
-  data error on both the public REST API and the execution API, and so covers Dag-run
-  `conf`, connection extras, variable values, XCom values, task-instance notes and
-  every future write endpoint — instead of a config knob, a new exception class and
-  per-route validation.
+  author for #66888, which registers one handler for the SQLAlchemy data error on
+  both APIs — covering all write endpoints — instead of a knob and per-route checks.
 - #60480 — a `TypeError` deserializing templated date fields in mapped operators,
   superseded by the broader fix in #60414.

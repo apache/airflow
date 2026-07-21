@@ -28,38 +28,25 @@ Accepted
 ## Context
 
 `GoogleBaseHook` (`common/hooks/base_google.py`) is the single place where this
-provider turns an Airflow Connection into Google credentials. It resolves an
-unusually wide authentication surface: Application Default Credentials, a keyfile
-path, an inline keyfile JSON, a key stored in Secret Manager, an external
-credential configuration file, anonymous credentials, and an IdP
-client-credentials grant flow. On top of that it applies `impersonation_chain`
-(turning a string or list into a target principal plus delegates), the
-`quota_project_id` (via `with_quota_project`, with format validation), the OAuth
-scopes, `num_retries`, and the universe domain that decides which endpoints the
-client talks to at all.
+provider turns an Airflow Connection into Google credentials. It resolves a wide
+authentication surface (ADC, keyfile path, inline keyfile JSON, Secret Manager
+key, external credential config, anonymous credentials, IdP client-credentials
+grant) and applies `impersonation_chain`, `quota_project_id` (via
+`with_quota_project`), OAuth scopes, `num_retries`, and the universe domain that
+decides which endpoints a client talks to.
 
-It also owns the *project*. `GoogleBaseHook.project_id` derives the project from
-the resolved credentials, lets the connection's `project` extra override it, and
-falls back to the `PROVIDE_PROJECT_ID` sentinel — a `cast("str", None)` chosen so
-that hook methods can type `project_id: str` without every body handling a `None`
-that cannot occur at runtime. The
-`@GoogleBaseHook.fallback_to_default_project_id` decorator fills the argument in
-when the caller left it out, and deliberately rejects positional arguments so the
-substitution can never land on the wrong parameter. That decorator appears at
-roughly 490 call sites across the package.
-
-This centralisation is what makes the provider's behaviour uniform. Around 60
-hooks subclass `GoogleBaseHook`, and each builds its client the same way —
-`storage.Client(credentials=self.get_credentials(), project=self.project_id,
-client_options=self.get_client_options())` in `GCSHook.get_conn()` is the shape
-every other hook repeats. The moment a piece of code constructs a Google client
-by some other route, it silently opts out of *all* of it: impersonation stops
-being applied, the quota project is not charged, the universe domain reverts to
-the public one, and the project falls back to whatever the ambient environment
-happens to supply.
-
-Regressions of exactly that kind have been fixed repeatedly, which is why this is
-written down rather than left to convention.
+It also owns the *project*: `GoogleBaseHook.project_id` derives it from the
+credentials, lets the connection's `project` extra override, and falls back to the
+`PROVIDE_PROJECT_ID` sentinel (`cast("str", None)`, so methods can type
+`project_id: str`). `@GoogleBaseHook.fallback_to_default_project_id` fills the
+argument in when omitted and rejects positional args so the substitution cannot
+land on the wrong parameter — it appears at ~490 call sites. Around 60 hooks
+subclass `GoogleBaseHook` and build clients the same way
+(`storage.Client(credentials=self.get_credentials(), project=self.project_id,
+client_options=self.get_client_options())`). Constructing a client by any other
+route silently opts out of *all* of it: impersonation, quota project, universe
+domain, and project resolution. Regressions of exactly that kind have been fixed
+repeatedly.
 
 ## Decision
 
@@ -89,17 +76,15 @@ triggers, secret backends and log handlers obtain clients from a hook.
 
 ## Consequences
 
-- One authentication implementation to reason about, test and fix. A credential
-  bug is fixed once, for every service in the package.
-- New capabilities — quota project, universe domain, IdP flow — land in
-  `base_google.py` and are immediately available to all ~60 hooks, instead of
-  being added service by service.
-- `impersonation_chain` behaves identically everywhere, which matters because it
-  is a security control: users rely on it to scope what a task can reach.
-- The cost is that `base_google.py` is a high-blast-radius file. A change there
-  touches every service at once, which is precisely why it is listed as a
-  structural risk path and why such changes are expected to be discussed before
-  the code is written.
+- One authentication implementation to reason about, test and fix — a credential
+  bug is fixed once, for every service.
+- New capabilities (quota project, universe domain, IdP flow) land in
+  `base_google.py` and are immediately available to all ~60 hooks.
+- `impersonation_chain` behaves identically everywhere — it is a security control
+  users rely on to scope what a task can reach.
+- `base_google.py` is a high-blast-radius file: a change there touches every
+  service at once, which is why it is a structural risk path and such changes are
+  discussed before the code is written.
 
 A change **violates** this decision when it:
 
@@ -120,26 +105,17 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #65731 — "Fix `GenAIGenerativeModelHook` ignoring Airflow connection
-  credentials": a hook that reached Google outside the base-hook chain and so
-  ignored the connection entirely. This is the exact failure the decision
-  prevents.
-- #61654 — "Fix `CloudSecretManagerBackend` regression with explicit
-  `project_id`": project resolution diverging from the base hook's, in a
-  component that runs outside the task process.
-- #56324 — "Add quota project id support to Google cloud base hook": a new
-  auth-adjacent capability added once in `GoogleBaseHook`, not per service.
-- #66159 — "Add `universe_domain` support for `GoogleBaseHook`", with
-  #66917 ("Adapt GCP CloudSQL trigger to run in private cloud"), #66404 ("Adjust
-  GCP BigQuery triggers for the private cloud") and #66341 ("Update the Kubernetes
-  Engine components to be able to work on Sovereign Cloud from Google
-  environments") showing what it costs when endpoint selection has to be
-  retro-fitted per service instead of read from the shared client options.
-- #62013 — "Pass credentials object to `GCSFileSystem` for automatic token
-  refresh": handing the hook's credentials object to a third-party filesystem
-  client rather than letting it resolve its own.
-- #61124 — "Move exception handling from Google Bigtable operators to hooks":
-  service-interaction concerns pushed down to the layer that owns the client.
-- #67507 — "Write Cloud SQL `keyfile_dict` credentials with 0600 permissions":
-  credential material handling, at the one place where the hook must materialise a
-  key on disk.
+- #65731 — `GenAIGenerativeModelHook` reached Google outside the base-hook chain
+  and ignored the connection entirely: the exact failure this prevents.
+- #61654 — `CloudSecretManagerBackend` project resolution diverging from the base
+  hook's, in a component running outside the task process.
+- #56324 — quota project id added once in `GoogleBaseHook`, not per service.
+- #66159 — `universe_domain` support; #66917, #66404, #66341 show the cost of
+  retro-fitting endpoint selection per service instead of reading shared client
+  options.
+- #62013 — handed the hook's credentials object to `GCSFileSystem` rather than
+  letting it resolve its own.
+- #61124 — moved exception handling from Bigtable operators down to the hook that
+  owns the client.
+- #67507 — wrote Cloud SQL `keyfile_dict` with 0600, at the one place the hook
+  materialises a key on disk.

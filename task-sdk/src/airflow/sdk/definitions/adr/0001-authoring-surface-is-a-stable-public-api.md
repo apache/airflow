@@ -28,30 +28,22 @@ Accepted
 ## Context
 
 Everything a Dag author imports from `airflow.sdk` — `DAG`, `BaseOperator`,
-`TaskGroup`, `Param`, the mapping API (`partial` / `expand`), the `@task` /
-`@dag` / `@task_group` decorators — is defined in this package. These are not
-internal helpers; they are the API users write their Dags *against*, in files
-that live in the user's repository and that this project neither controls nor can
-migrate. `DAG` makes that contract explicit: it is an `attrs`-defined class whose
-field transformer forces every argument after `dag_id` to be keyword-only, so the
-constructor's *parameter names and defaults are the public interface*. Operator
-construction is the same: `BaseOperatorMeta._apply_defaults` wraps every
-subclass `__init__`, so the accepted kwargs and their defaults are a released
-surface too.
+`TaskGroup`, `Param`, the mapping API (`partial`/`expand`), the `@task`/`@dag`/
+`@task_group` decorators — is defined here. These are the API users write Dags
+*against*, in files this project neither controls nor can migrate. `DAG` makes it
+explicit: an `attrs` class whose field transformer forces every argument after
+`dag_id` keyword-only, so the constructor's *parameter names and defaults are the
+public interface*. Operator construction is the same via
+`BaseOperatorMeta._apply_defaults`.
 
 Because the author's code already exists, a change here is judged against the
 *entire installed base*, not the diff in front of the reviewer. Renaming a
 parameter, tightening a default, deleting a class, or making a previously-valid
-Dag raise is a breaking change for user code — and the people who wrote that code
-are not in the PR to notice. The failure is not a crash in CI; it is thousands of
-Dag files that stop importing after an upgrade.
-
-Airflow already has an established discipline for this: user-facing removals go
-through a `warnings.warn(..., RemovedInAirflow4Warning, stacklevel=…)` cycle —
-the old spelling keeps working while it warns — and *semantic* changes to what a
-construct means to author code go through an AIP or a devlist thread, not a bare
-PR. The recurring pressure is that a rename or a stricter default looks like a
-harmless cleanup locally; it is not, once the name has shipped.
+Dag raise breaks user code whose authors are not in the PR — the failure is
+thousands of Dag files that stop importing after an upgrade. Airflow's discipline:
+user-facing removals go through a `RemovedInAirflow4Warning` cycle (old spelling
+keeps working while it warns), and *semantic* changes go through an AIP or devlist
+thread, not a bare PR.
 
 ## Decision
 
@@ -72,13 +64,12 @@ Treat the authoring surface as a stable public API. Concretely:
 
 ## Consequences
 
-- Author Dags keep importing and running across an upgrade; a deprecated spelling
-  gives users a release to migrate before it is removed.
-- Adding authoring surface is more work — it goes through an AIP or at least a
-  devlist thread — and that friction is intentional, because the project then has
-  to support the surface indefinitely.
-- Reviewers can reject a rename-in-place or a stricter default as a compatibility
-  break without needing to enumerate who it breaks.
+- Author Dags keep importing across an upgrade; a deprecated spelling gives users
+  a release to migrate before removal.
+- Adding authoring surface is more work (AIP or devlist), intentionally — the
+  project then supports it indefinitely.
+- Reviewers can reject a rename-in-place or stricter default as a compatibility
+  break without enumerating who it breaks.
 
 A change **violates** this decision when it:
 
@@ -98,15 +89,11 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #48460 — "Make `sla` params no-op with deprecation warning": the canonical
-  pattern — a retired authoring parameter is kept accepted and warns, rather than
-  removed outright.
-- #56127 — "Add back Deprecation warning for `sla_miss_callback`": a deprecation
-  warning that had been dropped was *restored*, showing the project treats the
-  warning cycle itself as part of the compatibility contract.
+- #48460 — `sla` params made no-op with deprecation warning; the canonical
+  retire-don't-remove pattern.
+- #56127 — a dropped `sla_miss_callback` deprecation warning was *restored* — the
+  warning cycle is itself part of the compatibility contract.
 - #53496 — "Remove warning for `BaseOperator.executor` because it works":
-  correcting a warning on a still-supported attribute — the deprecation surface is
-  maintained deliberately, not casually.
-- #65447 (AIP-76 partition authoring API), #65474 (AIP-105 pluggable retry
-  policies), and #66160 (AIP-103 accessors) — new authoring surface here landed
-  *through an AIP*, not a bare PR, illustrating the bar for semantic additions.
+  correcting a warning on a still-supported attribute; maintained deliberately.
+- #65447 (AIP-76), #65474 (AIP-105), #66160 (AIP-103) — new authoring surface
+  landed *through an AIP*, showing the bar for semantic additions.

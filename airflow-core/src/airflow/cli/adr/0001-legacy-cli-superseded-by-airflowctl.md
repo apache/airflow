@@ -29,43 +29,26 @@ Accepted
 
 AIP-94 migrates CLI functionality away from the local, in-process `airflow`
 command toward the `airflowctl` client, which talks to Airflow exclusively
-through the public REST API. Under the post-3.0 architecture, only the API
-server is allowed to touch the metadata database (see the Architecture
-Boundaries in the project instructions); a local CLI that reaches into
-`DagModel`, session objects, or manager classes directly violates that
-boundary and cannot run against a remote deployment.
+through the public REST API. Under the post-3.0 architecture only the API server
+touches the metadata database, so a local CLI reaching into `DagModel`, sessions,
+or manager classes violates that boundary and cannot run against a remote
+deployment. The local CLI is therefore legacy and deliberately shrinking: commands
+are marked "migrated to airflowctl" one area at a time (e.g. `dags pause` /
+`dags unpause`) with the implementation moving to a shared `ctl/commands/…` module.
+Adding new capability to the legacy CLI, or re-adding what a generic `airflowctl`
+command already covers, grows the surface still to be ported.
 
-The local CLI is therefore legacy and deliberately shrinking. Commands are
-being marked as "migrated to airflowctl" one area at a time (for example
-`dags pause` / `dags unpause`), and the corresponding implementation moves to
-a shared `ctl/commands/…` module that both the client and any remaining
-local shim call. Adding new capabilities to the legacy CLI, or re-adding a
-capability that a generic `airflowctl` command already covers, works against
-this migration and grows the surface that still has to be ported.
-
-Two boundaries on that statement matter, because without them this ADR reads as
-forbidding work the project merges routinely.
-
-**Not everything in the local CLI can move.** airflowctl is a remote REST client;
-it can only express what the API server can be asked to do. `airflow scheduler`,
-`airflow standalone`, `airflow db` and the local execution paths (`dags test`,
-`tasks run`) are local by nature — they start a process on this host or operate on
-the metadata database before an API server necessarily exists. These commands are
-not waiting to be ported, so improving them is not surface that "still has to be
-ported". The 2026 record is unambiguous: #62055 added `--only-idle` to `airflow
-scheduler`, #56663 added include/exclude arguments to `db clean`, #62234
-re-introduced `--use-migration-files`, #65575 forwarded MySQL SSL parameters to
-`db shell`, and #62344 changed sensitive-value handling in the local `connections`
-/ `variables` listings. None of them had an airflowctl home to go to.
-
-**Direct database access from a local CLI handler is the existing pattern, not an
-aberration.** `provide_session` / `create_session` appear at 44 sites across ten
-modules under `cli/commands/`. Those commands *are* the local-administration path
-and the boundary they must respect is the one in the project's Architecture
-Boundaries — schedulers, workers and Dag processors do not touch the metadata
-database; an operator running `airflow db clean` on the database host does. What
-this ADR forbids is a *new remote-capable* command reaching into the ORM instead of
-going through the client, not the pre-existing local-administration commands.
+Two boundaries keep this from forbidding routine work. **Not everything can
+move:** airflowctl is a remote REST client, so local-by-nature commands —
+`scheduler`, `standalone`, `db`, and the local execution paths (`dags test`,
+`tasks run`) — have no airflowctl home and are not waiting to be ported. This is
+borne out by PRs #62055, #56663, #62234, #65575, and #62344, which all added
+flags to such commands and merged in 2026. **Direct DB access from a local
+handler is the existing pattern:**
+`provide_session` / `create_session` appear at 44 sites under `cli/commands/`;
+those *are* the local-administration path. What this ADR forbids is a *new
+remote-capable* command reaching into the ORM, not the pre-existing
+local-administration commands.
 
 ## Decision
 
@@ -98,12 +81,9 @@ going through the client, not the pre-existing local-administration commands.
 
 ## Consequences
 
-The legacy CLI stops accumulating new surface, so the AIP-94 migration converges
-instead of chasing a moving target. Contributors are steered to add
-capabilities once, in the shared `ctl/commands` layer, where both the remote
-client and any transitional local path pick them up. This ADR is
-transitional and should be revisited once the migration to `airflowctl`
-completes.
+The legacy CLI stops accumulating surface, so the AIP-94 migration converges;
+contributors add capability once, in the shared `ctl/commands` layer. This ADR is
+transitional and should be revisited once the migration completes.
 
 A change **violates** this decision when it:
 
@@ -120,12 +100,8 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #65519 — new `team_name` support added to legacy CLI pool creation; closed rather than extending the legacy CLI.
-- #66223 — legacy-CLI JSON-output cleanup that overlapped work better done in the migrated command path; closed.
-- #68650 — `dags pause`/`unpause` marked as migrated to airflowctl, moving the behavior to the shared command layer.
-- #58584 — proposed new `airflow db would-migrate` legacy-CLI command; closed rather than growing the legacy surface.
-- #62055 (`--only-idle` on `airflow scheduler`), #56663 (`db clean` include/exclude
-  arguments), #62234 (`--use-migration-files`), #65575 (MySQL SSL parameters for
-  `db shell`) — all merged in 2026: the counter-cases that bound this decision.
-  Each adds a flag to a local-only command that airflowctl, as a remote REST
-  client, cannot host.
+- #65519 — new `team_name` on legacy-CLI pool creation; closed rather than extending the legacy CLI.
+- #66223 — legacy-CLI JSON-output cleanup better done in the migrated path; closed.
+- #68650 — `dags pause`/`unpause` marked migrated to airflowctl, moved to the shared layer.
+- #58584 — proposed new `airflow db would-migrate` legacy command; closed.
+- #62055, #56663, #62234, #65575 — merged in 2026: flags on local-only commands airflowctl cannot host (the bounding counter-cases).

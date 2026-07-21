@@ -27,38 +27,25 @@ Accepted
 
 ## Context
 
-When a value does not fit a column, the smallest possible patch is to make the
-column bigger. When a table is in the way, the smallest possible patch is to drop
-it. Both arrive here regularly, and both are refused for the same reason: the
-migration is permanent (ADR 0001) while the problem it papers over is not
-understood.
+When a value does not fit a column, the smallest patch is to make the column
+bigger; when a table is in the way, the smallest patch is to drop it. Both arrive
+here regularly and both are refused for the same reason: the migration is
+permanent (ADR 0001) while the problem it papers over is not understood. The
+recurring shapes are concrete: a column overflows because something is stored in
+it that should never have been stored — widening freezes the wrong design into the
+schema, including its security properties when the value is a credential-bearing
+URL that expires within hours; a length limit is raised to a new number just as
+arbitrary as the old one, when the real question is whether the value should be a
+bounded identifier at all; a table is dropped on the assumption one consumer is the
+only one, when a reviewer who knows the wider system points out the others and the
+correct fix is several layers away at the source.
 
-The recurring shapes are concrete:
-
-- A column overflows because something is being stored in it that should never
-  have been stored at all. Widening the column makes the overflow stop and freezes
-  the wrong design into the schema — including its security properties, when the
-  value is a credential-bearing URL that also expires within hours and is therefore
-  useless by the time it is read back.
-- A length limit is raised to a new number that is just as arbitrary as the old
-  one. The value is produced by an external system whose bounds Airflow does not
-  control, so the next report is inevitable; the real question — should this be a
-  bounded identifier at all, or unbounded text that participates in no join or key
-  — goes unasked.
-- A model or table is dropped because one consumer of it was believed to be the
-  only one. The reviewer who knows the wider system points out the other consumers,
-  and the correct change turns out to be at the source of the behaviour, several
-  layers away from the schema.
-
-In each case the schema change was the *first* idea rather than the conclusion of
-a diagnosis, and the schema is the worst place in this codebase to record a guess:
-a column that ships wide cannot be narrowed again without a new revision that must
-cope with the rows written in the meantime, and a table that ships dropped takes
-its data with it.
-
-The corollary is that a migration is judged against the design it encodes, not
-only against its DDL correctness. A reviewer can confirm that a widening runs
-cleanly on all three backends and still be obliged to refuse it.
+In each case the schema change was the *first* idea rather than the conclusion of a
+diagnosis, and the schema is the worst place to record a guess: a column that ships
+wide cannot be narrowed without a new revision coping with the rows written
+meanwhile, and a table that ships dropped takes its data with it. So a migration is
+judged against the design it encodes, not only its DDL correctness — a widening can
+round-trip cleanly on all three backends and still be refused.
 
 ## Decision
 
@@ -87,10 +74,9 @@ elsewhere. It is never the vehicle for discovering one.**
 - The schema stays a statement of the data model rather than a record of past
   incidents.
 - Some legitimate fixes take longer, because the discussion moves to where the value
-  is produced and that is a wider conversation than a two-line migration.
-- Contributors who arrive with a widening and leave with a redesign sometimes leave
-  the work unfinished. That is an accepted cost: an unfinished redesign is
-  recoverable, a released migration is not.
+  is produced. Contributors who arrive with a widening and leave with a redesign
+  sometimes leave the work unfinished — an accepted cost, since an unfinished
+  redesign is recoverable and a released migration is not.
 
 A change **violates** this decision when it:
 
@@ -107,23 +93,8 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #62224 — a `String(200)` column widened to `Text` so a signed bundle URL would
-  fit: refused because signed URLs should not be persisted at all — they are
-  sensitive and expire within hours — and because the PR title described the DDL
-  rather than the reason. Closed by the author in favour of the wider bundle
-  redesign.
-- #59813 — raising the `external_executor_id` length: reviewers questioned both the
-  missing linked issue and the new ceiling itself, noting that the value is set by
-  external executors and that a column used in no join or key has no reason to carry
-  a bound at all.
-- #69520 — "Drop the LogTemplate DB model": declined because the model is used well
-  beyond the one consumer assumed — it generates the log-file suffix passed to
-  workers and is needed to read historical task logs back from remote storage. The
-  author reoriented onto the root cause in a separate PR.
-- #54511 — schema hardening for concurrent `rendered_task_instance_fields`
-  insertions, withdrawn once it became clear the failure was a single report rather
-  than a systemic defect.
-- #53820 — "Serialize Dags before making `TI.dag_version_id` non-nullable": a
-  data-shape problem where deleting the serialized rows was considered and rejected
-  because it would lose real run history; closed in favour of the approach taken in
-  #54366.
+- #62224 — a `String(200)` column widened to `Text` for a signed bundle URL: refused because signed URLs should not be persisted (sensitive, expire within hours) and the title described the DDL not the reason. Closed for the wider bundle redesign.
+- #59813 — raising `external_executor_id` length: reviewers questioned the missing linked issue and the new ceiling, noting the value is set by external executors and a column used in no join or key has no reason to carry a bound.
+- #69520 — "Drop the LogTemplate DB model": declined — the model generates the log-file suffix passed to workers and is needed to read historical logs from remote storage. Author reoriented onto the root cause in a separate PR.
+- #54511 — schema hardening for concurrent `rendered_task_instance_fields` insertions, withdrawn once the failure proved a single report rather than a systemic defect.
+- #53820 — "Serialize Dags before making `TI.dag_version_id` non-nullable": deleting the serialized rows was rejected because it would lose real run history; closed in favour of #54366.

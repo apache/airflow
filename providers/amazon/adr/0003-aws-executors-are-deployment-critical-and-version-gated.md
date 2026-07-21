@@ -30,42 +30,27 @@ Accepted
 `AwsEcsExecutor`, `AwsBatchExecutor` and `AwsLambdaExecutor` — registered in
 `provider.yaml` under `executors:` and living in
 `aws/executors/{ecs,batch,aws_lambda}/` — are unlike everything else in this
-provider. The rest of the provider is worker-side code whose blast radius is the
-tasks that use it. An executor is the component that *runs* tasks. It is loaded
-by the scheduler, it subclasses core's `BaseExecutor`, and it is the one part of
-this provider that runs inside airflow-core rather than on a worker. A defect
-here does not break an S3 operator; it stops task execution for the entire
-deployment.
+provider. The rest is worker-side code whose blast radius is the tasks that use
+it; an executor is loaded by the scheduler, subclasses core's `BaseExecutor`, and
+runs inside airflow-core. A defect here does not break an S3 operator; it stops
+task execution for the entire deployment.
 
-That placement puts the executors on the wrong side of the usual provider
-assumption. A worker-side hook mostly talks to AWS, and its exposure to core is
-a handful of stable SDK entry points. An executor talks to core's most actively
-evolving internals: workload types, `ExecuteCallback`, `try_adopt_task_instances`,
-task-log plumbing, and the queueing surface. Those changed materially across
-Airflow 3.0, 3.1 and 3.3 — while this provider still declares a floor of
-`apache-airflow>=2.11.0` and ships on its own cadence. A deployment routinely
-runs the newest amazon provider on an older core.
-
-The executors therefore branch explicitly on `AIRFLOW_V_3_0_PLUS` and
-`AIRFLOW_V_3_3_PLUS` imported from the provider's own `version_compat.py`, and
-that gating is load-bearing, not defensive decoration. Wiring it wrong has
-already broken an executor at import time on a supported core, and executor
-compatibility fixes for `try_adopt_task_instances` have been needed separately
-for ECS and for Batch — the same core API, the same gap, found twice, because
-the three executors were not kept in step.
-
-A second consequence of running inside core is that the SDK-only boundary the
-parent `providers/adr/` sets for worker code does not apply the same way here:
-the prek hook that forbids importing `conf` from `airflow.configuration` in
-providers deliberately excludes executor modules. That carve-out is narrow and
-exists for exactly this reason — it is not a general licence for executor code
-to reach into core internals.
-
-Finally, an executor's configuration *is* production behaviour. Its retry
-budgets, adoption semantics, capacity defaults and config keys are what an
-operator of a cluster tunes. Changing a default is not a code cleanup; it is a
-change that lands on every existing user on their next provider upgrade, with no
-Dag change to signal it.
+That places the executors on the wrong side of the usual provider assumption.
+They talk to core's most actively evolving internals — workload types,
+`ExecuteCallback`, `try_adopt_task_instances`, task-log plumbing, the queueing
+surface — which changed materially across Airflow 3.0, 3.1 and 3.3, while this
+provider still declares `apache-airflow>=2.11.0` and ships on its own cadence.
+They therefore branch explicitly on `AIRFLOW_V_3_0_PLUS` / `AIRFLOW_V_3_3_PLUS`
+from the provider's own `version_compat.py`, and that gating is load-bearing:
+wiring it wrong has broken an executor at import time, and
+`try_adopt_task_instances` compatibility was needed separately for ECS and Batch —
+the same gap found twice, because the executors were not kept in step. Two further
+consequences of running inside core: the prek hook forbidding `conf` imports from
+`airflow.configuration` deliberately excludes executor modules (a narrow
+carve-out, not a licence to reach into core internals); and an executor's config
+*is* production behaviour — retry budgets, adoption semantics and defaults are what
+a cluster operator tunes, so a changed default lands on every user at their next
+upgrade with no Dag change to signal it.
 
 ## Decision
 
@@ -99,14 +84,13 @@ cross-version contract.
 ## Consequences
 
 - A cluster can upgrade the amazon provider independently of core without its
-  executor failing to load or silently losing task adoption.
-- Executor code carries visible version branches. That verbosity is accepted:
-  it is the mechanism by which one distribution serves several core releases.
-- Executor changes cost more review than an equivalent operator change, and are
-  a poor fit for a contributor who cannot exercise the executor in a real
-  cluster.
-- Some core capabilities arrive in the executors later than in core, because
-  they must be added behind a gate rather than adopted directly.
+  executor failing to load or losing task adoption.
+- Executor code carries visible version branches — the mechanism by which one
+  distribution serves several core releases.
+- Executor changes cost more review than an equivalent operator change and are a
+  poor fit for a contributor who cannot exercise the executor in a real cluster.
+- Some core capabilities arrive in the executors later, because they must be added
+  behind a gate rather than adopted directly.
 
 A change **violates** this decision when it:
 
@@ -128,25 +112,14 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #56280 — "Fix wrong import of `AIRFLOW_V_3_0_PLUS` in `AwsLambdaExecutor`":
-  the gating mechanism itself mis-wired, in the component that must load for
-  tasks to run at all.
-- #62192 — "Fix ECS Executor compatibility with Airflow 3.x in
-  `try_adopt_task_instances`" and #68027 — "Adds Airflow 3 compatibility in
-  `try_adopt_task_instances` for BatchExec": the same core-API gap fixed twice,
+- #56280 — the gating mechanism itself mis-wired, in the component that must load
+  for tasks to run.
+- #62192, #68027 — the same `try_adopt_task_instances` core-API gap fixed twice,
   months apart, because the executors were not kept in step.
-- #63657 — "Add `ExecuteCallback` support to AWS ECS Executor", #63035 — "Add
-  `ExecuteCallback` support to `AwsLambdaExecutor`", #62984 — "feat: add
-  callback support to aws batch executor": a core capability rolled out across
-  all three executors rather than one.
-- #52121 — "Add Airflow 3.0+ Task SDK support to AWS Batch Executor" and
-  #51009 — "Remove Airflow 2 code path in executors": adoption behind a gate,
-  and removal of the old path only once the floor allowed it.
-- #60301 — "Remove the compatibility shim for `log_task_event`
-  `AwsEcsExecutor` and `AwsBatchExecutor`": a deliberate shim retirement.
-- #60666 — "Fix lambda executor max attempts config": executor configuration
-  behaving as operational contract.
-- #61321 — "`AwsLambdaExecutor`: Support multi-team configuration" and
-  #60920 — "AIP-67 - Multi-team: `AwsBatchExecutor` per team executor config":
-  a core-side architectural change that had to be threaded through the
-  executors deliberately.
+- #63657, #63035, #62984 — `ExecuteCallback` rolled out across all three executors.
+- #52121, #51009 — adoption behind a gate, and removal of the old path only once
+  the floor allowed it.
+- #60301 — a deliberate shim retirement.
+- #60666 — executor configuration behaving as operational contract.
+- #61321, #60920 — a core-side multi-team change threaded through the executors
+  deliberately.

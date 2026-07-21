@@ -28,32 +28,21 @@ Accepted
 ## Context
 
 The worker is where **untrusted Dag-author code actually runs** — the operator
-body, the `python_callable`, hooks, user-supplied templates. Airflow's security
-model treats that code as hostile: a task must not be able to reach the metadata
-database directly, because a direct ORM session would hand author code the
-server's credentials and an unrestricted query surface over every other
-deployment's data.
+body, the `python_callable`, hooks, user templates. Airflow's security model
+treats that code as hostile: a task must not reach the metadata database directly,
+because a direct ORM session would hand author code the server's credentials and
+an unrestricted query surface over every other deployment's data.
 
-The runtime in this directory is what enforces that. The task subprocess
-(`task_runner.py`) holds **no** database session; every interaction it needs
-with metadata — reading a Variable/Connection/XCom, updating task state, sending
-an asset event, fetching a rendered field — is sent as a message up to the
-**supervisor** (`supervisor.py`), which is the only side that talks to the API
-server's Execution API. The supervisor authenticates with a **short-lived JWT
-scoped to that one task instance**; the token is refreshed by the supervisor as
-it nears expiry and redacted from logs, so even the supervisor's authority is
-bounded to the task it is running and time-boxed.
-
-The mirror image of this decision lives on the server: the Execution API is a
-restricted, authenticated surface whose token scopes and per-task-instance
-(`ti:self`) validation are what make handing a worker a token safe. The worker
-runtime's obligation is to keep *all* of its metadata access on that path.
-
-The recurring pressure is convenience and latency: reading one row "directly"
-from inside the task looks harmless and saves a round-trip, and secrets backends
-tempt a local fallback when an Execution-API authorization is denied. The
-decision below is what keeps every metadata touch on the mediated, token-scoped
-path instead.
+The runtime here enforces that. The task subprocess (`task_runner.py`) holds
+**no** database session; every metadata interaction it needs — reading a
+Variable/Connection/XCom, updating task state, sending an asset event, fetching a
+rendered field — is sent as a message up to the **supervisor**
+(`supervisor.py`), the only side that talks to the Execution API. The supervisor
+authenticates with a **short-lived JWT scoped to that one task instance**,
+refreshed near expiry and redacted from logs, so even its authority is bounded and
+time-boxed. The recurring pressure is convenience and latency: reading one row
+"directly" saves a round-trip, and secrets backends tempt a local fallback when an
+Execution-API authorization is denied.
 
 ## Decision
 
@@ -73,14 +62,12 @@ raw DB connection. Concretely:
 
 ## Consequences
 
-- The worker's blast radius stays bounded: author code runs, but it is never
-  handed the server's DB credentials or an unrestricted query surface, and its
-  authority expires with the task.
-- Every metadata need a new runtime feature has must be expressed as an
-  Execution-API call, which keeps the isolation seam visible and reviewable
+- The worker's blast radius stays bounded: author code runs, but is never handed
+  the server's DB credentials or an unrestricted query surface, and its authority
+  expires with the task.
+- Every metadata need is an Execution-API call, keeping the isolation seam visible
   instead of buried in an incidental query.
-- There is friction and an extra round-trip — going through the supervisor is
-  more work than a local read — and that friction is intentional.
+- The extra round-trip through the supervisor is intentional friction.
 
 A change **violates** this decision when, in worker-runtime code reachable from
 the task subprocess, it:
@@ -101,15 +88,11 @@ call on its own task-scoped token.
 
 ## Evidence
 
-- #48597 — "Issue refreshed Execution API JWT to tasks if their current token is
-  expiring": keeps the task-scoped token short-lived by refreshing it from the
-  supervisor rather than widening its lifetime.
-- #66575 — "Refuse secrets-backend fallback on Execution-API authz deny": when
-  the Execution API denies access, the runtime does **not** fall back to a direct
-  secrets-backend read — the mediated decision is honored.
-- #62343 — "Add async connection testing via workers for security isolation":
-  routes connection testing through the worker/Execution-API path specifically to
-  preserve isolation rather than testing connections with server-side access.
-- #48614 — "Ensure that jwt token is redacted in executor logs" (and #55499,
-  "Once again redact JWT tokens in task logs"): keeps the task token out of logs,
-  reinforcing that the credential stays bounded to the supervisor.
+- #48597 — task-scoped token refreshed from the supervisor rather than widening
+  its lifetime.
+- #66575 — on an Execution-API deny the runtime does **not** fall back to a direct
+  secrets-backend read.
+- #62343 — async connection testing routed through the worker/Execution-API path
+  to preserve isolation.
+- #48614 (with #55499) — task token redacted from logs, keeping the credential
+  bounded to the supervisor.

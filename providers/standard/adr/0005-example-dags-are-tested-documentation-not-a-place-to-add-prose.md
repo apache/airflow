@@ -27,33 +27,23 @@ Accepted
 
 ## Context
 
-`example_dags/` in this provider is not a folder of samples. Its files are
-imported and parsed by the test suite, are pulled into the published
-documentation region by region — `docs/operators/*.rst` uses
-`exampleinclude` with `[START …]` / `[END …]` markers, so the *line ranges*
-inside these files are load-bearing — and are the first Airflow code most new
-users read. Because this provider owns `PythonOperator`, `BashOperator` and the
-branch and sensor operators, these are the canonical examples for the whole
-project.
+`example_dags/` is not a folder of samples. Its files are imported and parsed by
+the test suite, pulled into the published docs region by region (`docs/operators/*.rst`
+uses `exampleinclude` with `[START …]` / `[END …]` markers, so the *line ranges*
+are load-bearing), and are the first Airflow code most new users read — the
+canonical examples for the whole project, since this provider owns `PythonOperator`,
+`BashOperator` and the branch and sensor operators.
 
-This is also the single most common target of low-value change in the area.
-A steady stream of PRs adds `doc_md=` to a Dag, converts a comment to a module
-docstring, "standardises" docstrings across every example file, or adds
-descriptive text that restates the line below it. They are easy to write, easy to
-generate, touch many files, and look like documentation work.
-
-They are rejected for consistent reasons. A comment that describes what the next
-line does is duplication: it is obvious from the code, it adds nothing a reader
-did not have, and it drifts out of date the moment the code changes — the DRY
-argument applies to prose about code, not only to code. Text added *inside* a
-region an `exampleinclude` extracts changes the published page without the author
-seeing the rendered result. And a sweep across every example file is expensive to
-review in proportion to the value: reviewers must read every hunk to find the one
-that broke a marker or a parse.
-
-Comments in examples earn their place by supplying *context* — why this operator
-rather than another, what the surrounding pipeline assumes, what the reader should
-notice — which is precisely what is not visible from the code.
+It is also the most common target of low-value change here: a steady stream of PRs
+adding `doc_md=`, converting a comment to a module docstring, "standardising"
+docstrings across every file, or adding text that restates the line below.
+They are rejected consistently — a comment describing the next line is duplication
+that drifts out of date (DRY applies to prose about code too); text *inside* an
+`exampleinclude` region changes the published page without the author seeing the
+render; and a folder-wide sweep is expensive to review for the one hunk that broke
+a marker or a parse. Comments earn their place by supplying *context* — why this
+operator, what the pipeline assumes, what to notice — which is exactly what is not
+visible from the code.
 
 ## Decision
 
@@ -81,17 +71,15 @@ reader, and must keep it runnable.**
 
 ## Consequences
 
-- The examples stay short, executable, and worth reading, and the docs build
-  keeps working because nobody moved a marker by accident.
-- Reviewer attention is spent on operator behaviour rather than on prose diffs
-  across twenty files.
-- The cost falls on newcomers, and it is a genuine one: "improve the docs" is
-  standard first-contribution advice, this folder is the most inviting target in
-  the repo, and a well-intentioned first PR here is very likely to be closed. The
-  mitigation is to say so up front — in this provider's `AGENTS.md` and in this
-  ADR — rather than after the work is done.
-- Some examples remain thinner than they could be, because "this could use more
-  explanation" is not on its own sufficient reason to change them.
+- The examples stay short, executable, and worth reading, and the docs build keeps
+  working because nobody moved a marker by accident.
+- Reviewer attention goes to operator behaviour, not prose diffs across twenty files.
+- The cost falls on newcomers and is genuine: "improve the docs" is standard
+  first-contribution advice and this folder is the most inviting target, so a
+  well-intentioned first PR here is likely closed. The mitigation is saying so up
+  front, in this provider's `AGENTS.md` and this ADR.
+- Some examples stay thinner than they could be — "this could use more explanation"
+  is not on its own a reason to change them.
 
 A change **violates** this decision when it:
 
@@ -108,21 +96,15 @@ A change **violates** this decision when it:
 
 ## Evidence
 
-- #60119 — "Add `doc_md` documentation to python decorator example Dag": closed.
-  The review found no meaningful documentation improvement, and set out the
-  general rule — comments that literally describe what is in the code are useless
-  when the code already shows it, they duplicate and so drift, and comments in
-  examples should add context, not content.
-- #60563 — "Add `doc_md` to `example_bash_decorator` Dag", #66443 — "Set `doc_md`
-  on TaskFlow decorator example Dags": the same change proposed again, closed.
-- #60657 and #61481 — "Standardize example Dag docs via module docstring", twice:
-  both closed. The mechanical sweep across the folder is the shape this decision
-  names explicitly.
-- #60149 — "Add meaningful Dag-level documentation to example Dags": closed after
-  review found broken documentation links introduced by the added prose — the
-  concrete cost of adding text nobody rendered.
-- #61953 — "Examples: add measurement correction storyline example Dags": closed;
-  new examples need a capability to illustrate that the existing set does not.
-- #60665 — a docs PR closed in favour of a broader one already in flight for the
-  same issue: this folder attracts duplicate work, and checking for an existing
-  PR first is part of the criteria.
+- #60119 — `doc_md` on the python decorator example, closed: no meaningful
+  improvement, and set out the rule — comments restating the code duplicate and
+  drift; examples add context, not content.
+- #60563, #66443 — the same `doc_md` change proposed again, closed.
+- #60657, #61481 — "standardize docs via module docstring" twice, both closed: the
+  mechanical folder-wide sweep this decision names.
+- #60149 — Dag-level docs closed after review found broken documentation links from
+  the added prose: the cost of adding text nobody rendered.
+- #61953 — new storyline example Dags closed: new examples need a capability the
+  existing set does not show.
+- #60665 — a docs PR closed for a broader one already in flight: this folder
+  attracts duplicate work, so checking for an existing PR first is in the criteria.
