@@ -33,9 +33,8 @@
 //     into per-field, name-based binding instead of consuming one positional
 //     slot as a whole-value decode target. Each exported field binds by name
 //     against the Dag's TaskFlow call arguments: an `arg:"<name>"` tag names
-//     the argument to claim, and a field with no tag falls back to its own Go
-//     field name, snake_cased. At most one such parameter is allowed per
-//     function.
+//     the argument to claim, and a field with no tag claims its own Go field
+//     name, verbatim. At most one such parameter is allowed per function.
 //
 // A TaskInput struct's fields are resolved first, by name, claiming entries
 // out of the argument spec; the remaining unclaimed entries are then
@@ -71,8 +70,6 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
-	"strings"
-	"unicode"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
@@ -99,7 +96,7 @@ const (
 // so this package stays decoupled from the generated coordinator schema types.
 type Arg interface {
 	// ArgName is the stub function's parameter name this binding fills; used
-	// to match a TaskInput struct field's `arg:` tag (or its snake_cased
+	// to match a TaskInput struct field's `arg:` tag (or its verbatim
 	// field-name fallback).
 	ArgName() string
 	// DeclaredType is the Dag-declared language-neutral type for the argument;
@@ -166,7 +163,7 @@ type taskInputField struct {
 	goName    string
 	fieldType reflect.Type
 	// argName is the name to claim from the argument spec: the field's `arg:`
-	// tag, or its snake_cased Go name when the tag is omitted.
+	// tag, or its Go field name verbatim when the tag is omitted.
 	argName string
 }
 
@@ -557,7 +554,7 @@ func buildTaskInputFields(
 		tif := taskInputField{structIndex: i, goName: f.Name, fieldType: f.Type}
 		tif.argName = f.Tag.Get("arg")
 		if tif.argName == "" {
-			tif.argName = snakeCase(f.Name)
+			tif.argName = f.Name
 		}
 		if existing, ok := seenArgNames[tif.argName]; ok {
 			return nil, fmt.Errorf(
@@ -569,29 +566,6 @@ func buildTaskInputFields(
 		fields = append(fields, tif)
 	}
 	return fields, nil
-}
-
-// snakeCase converts a Go exported field name (UpperCamelCase, acronyms
-// preserved as a run) to the wire's snake_case convention, e.g.
-// "RatioValue" -> "ratio_value", "TaskID" -> "task_id". Used as the fallback
-// arg name for a TaskInput struct field with no explicit `arg:` tag.
-func snakeCase(name string) string {
-	runes := []rune(name)
-	var b strings.Builder
-	for i, r := range runes {
-		if unicode.IsUpper(r) {
-			prevLower := i > 0 && unicode.IsLower(runes[i-1])
-			prevUpper := i > 0 && unicode.IsUpper(runes[i-1])
-			nextLower := i+1 < len(runes) && unicode.IsLower(runes[i+1])
-			if i > 0 && (prevLower || (prevUpper && nextLower)) {
-				b.WriteByte('_')
-			}
-			b.WriteRune(unicode.ToLower(r))
-		} else {
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
 }
 
 // checkDataType verifies the Dag-declared type can bind to the Go parameter

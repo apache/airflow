@@ -142,8 +142,10 @@ def via_flat_args(
 ): ...
 
 
+# Capitalized parameters on purpose: with no ``arg:`` tags on the Go side, each
+# struct field binds the argument spelled exactly like its Go field name.
 @task.stub(queue="golang")
-def via_struct_no_tags(region_code: str, threshold: float): ...
+def via_struct_no_tags(RegionCode: str, Threshold: float): ...
 
 
 @task.stub(queue="golang")
@@ -178,10 +180,13 @@ def taskflow_binding_dag():
     Three further tasks demonstrate the Go SDK's ``sdk.TaskInput`` struct injection
     mode, one field-binding mode at a time:
 
-    * ``via_struct_no_tags``: both struct fields fall back to their Go field name
-      snake_cased -- no ``arg:`` tags at all.
-    * ``via_struct_arg_tag``: one field is renamed via an explicit ``arg:`` tag,
-      proving the tag remaps the name rather than coincidentally matching it.
+    * ``via_struct_no_tags``: no ``arg:`` tags at all -- each struct field binds
+      the argument spelled exactly like its Go field name, hence this stub's
+      capitalized ``RegionCode``/``Threshold`` parameters.
+    * ``via_struct_arg_tag``: every field names its argument via an explicit
+      ``arg:`` tag -- ``Region`` is genuinely renamed to ``region_code``, and
+      ``Threshold`` is tagged ``threshold`` to pull the snake_case argument its
+      verbatim field name would miss.
     * ``via_struct_unmatched_arg``: the Go struct declares a field with no
       corresponding argument in this TaskFlow call at all -- it stays at its Go
       zero value rather than failing the task.
@@ -195,7 +200,7 @@ def taskflow_binding_dag():
         config=make_config(),
         numbers=make_numbers(),
     )
-    via_struct_no_tags(region_code="eu-west-1", threshold=0.75)
+    via_struct_no_tags(RegionCode="eu-west-1", Threshold=0.75)
     via_struct_arg_tag(region_code="eu-west-1", threshold=0.75)
     via_struct_unmatched_arg(region_code="eu-west-1")
 

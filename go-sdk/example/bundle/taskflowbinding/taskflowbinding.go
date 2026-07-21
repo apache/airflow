@@ -24,8 +24,8 @@
 // instead show the sdk.TaskInput struct-field injection mode -- conceptually
 // keyword-argument binding, where fields match by name and an unmatched name
 // is left at its zero value rather than failing the task -- one field-binding
-// mode at a time: ViaStructNoTags (plain snake_case name fallback),
-// ViaStructArgTag (an explicit `arg:` rename), and ViaStructUnmatchedArg (a
+// mode at a time: ViaStructNoTags (verbatim field-name fallback),
+// ViaStructArgTag (explicit `arg:` naming), and ViaStructUnmatchedArg (a
 // field whose name has no corresponding TaskFlow call argument at all).
 package taskflowbinding
 
@@ -136,8 +136,9 @@ func ViaFlatArgs(
 }
 
 // ViaStructNoTagsInput demonstrates the sdk.TaskInput struct-field injection
-// mode with no field tags at all: both fields fall back to their Go field
-// name snake_cased ("region_code", "threshold").
+// mode with no field tags at all: each field binds the TaskFlow call argument
+// spelled exactly like its Go field name ("RegionCode", "Threshold"), which
+// is why the stub declares capitalized parameters.
 type ViaStructNoTagsInput struct {
 	sdk.TaskInput
 	RegionCode string
@@ -146,7 +147,7 @@ type ViaStructNoTagsInput struct {
 
 // ViaStructNoTags is called as
 //
-//	via_struct_no_tags(region_code="eu-west-1", threshold=0.75)
+//	via_struct_no_tags(RegionCode="eu-west-1", Threshold=0.75)
 func ViaStructNoTags(
 	ctx sdk.TIRunContext,
 	log *slog.Logger,
@@ -171,14 +172,15 @@ func ViaStructNoTags(
 }
 
 // ViaStructArgTagInput demonstrates the sdk.TaskInput struct-field injection
-// mode with an explicit arg: tag: Region binds to the "region_code" TaskFlow
+// mode with explicit arg: tags: Region binds to the "region_code" TaskFlow
 // argument under a renamed Go field, proving the tag remaps the name rather
-// than coincidentally matching it; Threshold has no tag and falls back to its
-// snake_cased field name.
+// than coincidentally matching it; Threshold is intentionally tagged
+// "threshold" because an untagged field would only match an argument spelled
+// exactly "Threshold".
 type ViaStructArgTagInput struct {
 	sdk.TaskInput
-	Region    string `arg:"region_code"`
-	Threshold float64
+	Region    string  `arg:"region_code"`
+	Threshold float64 `arg:"threshold"`
 }
 
 // ViaStructArgTag is called as

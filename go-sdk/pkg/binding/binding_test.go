@@ -288,7 +288,7 @@ type extractResult struct {
 }
 
 // simpleTaskInput is the minimal TaskInput struct: one field, no tags, so it
-// falls back to matching its own (lowercased) field name.
+// falls back to matching its own field name, verbatim.
 type simpleTaskInput struct {
 	sdk.TaskInput
 	Name string
@@ -310,7 +310,7 @@ type nonEmbeddingStruct struct {
 }
 
 // combineInput exercises both TaskInput field-binding modes side by side:
-// Name falls back to its snake_cased field name, Count is explicitly named
+// Name falls back to its verbatim field name, Count is explicitly named
 // via its `arg:` tag.
 type combineInput struct {
 	sdk.TaskInput
@@ -467,7 +467,7 @@ func (s *BindingSuite) TestAnalyzeTaskInputValidation() {
 	type duplicateArgNames struct {
 		sdk.TaskInput
 		A string
-		B string `arg:"a"`
+		B string `arg:"A"`
 	}
 	type nonDecodableField struct {
 		sdk.TaskInput
@@ -480,7 +480,7 @@ func (s *BindingSuite) TestAnalyzeTaskInputValidation() {
 	}{
 		"duplicate-arg-names": {
 			func(input duplicateArgNames) error { return nil },
-			`fields A and B both bind arg name "a"`,
+			`fields A and B both bind arg name "A"`,
 		},
 		"non-decodable-field": {
 			func(input nonDecodableField) error { return nil },
@@ -504,13 +504,13 @@ func (s *BindingSuite) TestAnalyzeTaskInputValidation() {
 func (s *BindingSuite) TestResolveTaskInputAllStruct() {
 	fn := func(input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 		LiteralArg{Name: "count", Value: 7, DataType: DataTypeInteger},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 
 	input := got[0].Interface().(combineInput)
-	s.Equal("widget", input.Name, "the untagged field claims its snake_cased field name")
+	s.Equal("widget", input.Name, "the untagged field claims its verbatim field name")
 	s.Equal(7, input.Count, "the `arg:` tag claims its named entry")
 }
 
@@ -519,7 +519,7 @@ func (s *BindingSuite) TestResolveTaskInputMixedWithFlat() {
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "prefix", Value: "head", DataType: DataTypeString},
 		XComArg{Name: "region", TaskID: "make_region", DataType: DataTypeString},
-		LiteralArg{Name: "ratio", Value: 0.5, DataType: DataTypeNumber},
+		LiteralArg{Name: "Ratio", Value: 0.5, DataType: DataTypeNumber},
 		LiteralArg{Name: "suffix", Value: "footer", DataType: DataTypeString},
 	}, &fakeXComClient{values: map[string]any{"make_region/return_value": "east"}})
 	s.Require().NoError(err)
@@ -542,7 +542,7 @@ func (s *BindingSuite) TestResolveTaskInputMixedWithFlat() {
 func (s *BindingSuite) TestResolveTaskInputLiteralThroughArgName() {
 	fn := func(input simpleTaskInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal("widget", got[0].Interface().(simpleTaskInput).Name)
@@ -551,7 +551,7 @@ func (s *BindingSuite) TestResolveTaskInputLiteralThroughArgName() {
 func (s *BindingSuite) TestResolveTaskInputPointerStruct() {
 	fn := func(input *simpleTaskInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	input := got[0].Interface().(*simpleTaskInput)
@@ -575,7 +575,7 @@ func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameLeavesFieldZeroValued
 func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameZeroValuedAlongsideMatch() {
 	fn := func(input twoFieldTaskInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	input := got[0].Interface().(twoFieldTaskInput)
@@ -586,7 +586,7 @@ func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameZeroValuedAlongsideMa
 func (s *BindingSuite) TestResolveTaskInputArityMismatchForLeftoverArgs() {
 	fn := func(input simpleTaskInput, extra string) error { return nil }
 	_, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	if s.Assert().Error(err) {
 		s.Contains(err.Error(), "argument count mismatch")

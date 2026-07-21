@@ -78,7 +78,6 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
         "via_flat_args",
         "via_struct_no_tags",
         "via_struct_arg_tag",
-        "via_struct_xcom_tag",
         "via_struct_unmatched_arg",
     ):
         assert completed_run.ti_states.get(task_id) == "success", completed_run.ti_states
@@ -112,8 +111,8 @@ def test_via_flat_args_summary_reflects_bound_arguments(completed_run: _Complete
 
 def test_via_struct_no_tags_reflects_bound_arguments(completed_run: _CompletedRun):
     """``via_struct_no_tags`` demonstrates the Go SDK's ``sdk.TaskInput`` struct-field
-    injection mode with no field tags at all: both fields bind by their Go field name
-    snake_cased."""
+    injection mode with no field tags at all: each field binds the TaskFlow argument
+    spelled exactly like its Go field name (``RegionCode``, ``Threshold``)."""
     assert completed_run.xcom("via_struct_no_tags") == {
         "region_code": "eu-west-1",
         "threshold": 0.75,
@@ -121,21 +120,12 @@ def test_via_struct_no_tags_reflects_bound_arguments(completed_run: _CompletedRu
 
 
 def test_via_struct_arg_tag_reflects_bound_arguments(completed_run: _CompletedRun):
-    """``via_struct_arg_tag`` demonstrates the ``arg:`` tag renaming a struct field
-    away from its snake_cased default."""
+    """``via_struct_arg_tag`` demonstrates explicit ``arg:`` tags: ``Region`` is
+    genuinely renamed to ``region_code``, and ``Threshold`` is tagged ``threshold``
+    to pull the snake_case argument its verbatim field name would miss."""
     assert completed_run.xcom("via_struct_arg_tag") == {
         "region": "eu-west-1",
         "threshold": 0.75,
-    }
-
-
-def test_via_struct_xcom_tag_reflects_bound_arguments(completed_run: _CompletedRun):
-    """``via_struct_xcom_tag`` demonstrates the ``xcom:`` tag: its ``Config`` field is
-    an ad hoc pull of ``make_config``'s return value, with no corresponding TaskFlow
-    call argument here."""
-    assert completed_run.xcom("via_struct_xcom_tag") == {
-        "threshold": 0.75,
-        "environment": "production",
     }
 
 

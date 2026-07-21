@@ -158,7 +158,7 @@ back to a caller-side default in a kwargs-style call.
 type CombineInput struct {
     sdk.TaskInput            // one-line opt-in, zero runtime cost
     Region    string  `arg:"region_code"` // named lookup against the TaskFlow call argument "region_code"
-    Threshold float64                     // no tag -> falls back to the snake_cased field name "threshold"
+    Threshold float64 `arg:"threshold"`   // tags also bridge Go's UpperCamelCase to a snake_case argument
 }
 
 func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error) {
@@ -169,10 +169,10 @@ func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, e
 
 Each exported field binds from the TaskFlow call argument named by its optional `arg:"<name>"` tag
 (matched against the stub function's Python parameter name, independent of declaration order on
-either side). With no tag, the field's own Go name, snake_cased (`RatioValue` → `ratio_value`,
-`TaskID` → `task_id`), is used. If no TaskFlow call argument carries that name, the field is simply
-left at its Go zero value — it does not fail the task, kwarg-style (see `ViaStructUnmatchedArg`
-below).
+either side). With no tag, the field's own Go name is matched verbatim — an untagged `Threshold`
+only binds an argument literally spelled `Threshold`, so a snake_case Python parameter needs an
+explicit tag. If no TaskFlow call argument carries that name, the field is simply left at its Go
+zero value — it does not fail the task, kwarg-style (see `ViaStructUnmatchedArg` below).
 
 When a `TaskInput` struct and plain flat parameters coexist in the same function, the struct's fields
 claim entries out of the TaskFlow call's argument spec by name first; the *remaining, unclaimed*

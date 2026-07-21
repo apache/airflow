@@ -113,8 +113,9 @@ type DagRun struct {
 // that struct into per-field, name-based TaskFlow argument binding -- an
 // ergonomic alternative to a long flat parameter list. Each exported field of
 // such a struct may carry an `arg:"<name>"` tag naming the stub's TaskFlow
-// argument to bind, falling back to the field's own name, snake_cased, when
-// omitted:
+// argument to bind, falling back to the field's own name, verbatim, when
+// omitted -- so an untagged Name binds the argument "Name", and a snake_case
+// argument like "count" needs an explicit tag:
 //
 //	type CombineInput struct {
 //		sdk.TaskInput
