@@ -32,6 +32,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"go.opentelemetry.io/otel/trace"
 	"resty.dev/v3"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
@@ -115,8 +116,17 @@ func (s *WorkerSuite) ExpectTaskRun(taskId string) {
 // ExpectTaskState sets up a matcher for the "/task-instances/{id}/state" with the given state end point
 func (s *WorkerSuite) ExpectTaskState(taskId string, state api.TerminalTIState) {
 	s.T().Helper()
+	s.expectTaskState(taskId, state, mock.AnythingOfType("context.backgroundCtx"))
+}
+
+func (s *WorkerSuite) expectTaskState(
+	taskId string,
+	state api.TerminalTIState,
+	contextMatcher any,
+) {
+	s.T().Helper()
 	s.ti.EXPECT().
-		UpdateState(mock.AnythingOfType("context.backgroundCtx"), uuid.MustParse(taskId), mock.AnythingOfType("*api.TIUpdateStatePayload")).
+		UpdateState(contextMatcher, uuid.MustParse(taskId), mock.AnythingOfType("*api.TIUpdateStatePayload")).
 		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIUpdateStatePayload) error {
 			if payload, err := body.AsTITerminalStatePayload(); err == nil {
 				if payload.State == api.TerminalStateNonSuccess(state) {
@@ -148,6 +158,36 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 		"ExecuteTaskWorkload should not report an error %#v",
 		s.transport.GetCallCountInfo(),
 	)
+}
+
+func (s *WorkerSuite) TestTaskReceivesTraceContext() {
+	id := uuid.New().String()
+	testWorkload := newTestWorkLoad(id, id[:8])
+	contextCarrier := map[string]any{
+		"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+		"tracestate":  "vendor=value",
+	}
+	testWorkload.TI.ContextCarrier = &contextCarrier
+
+	var spanContext trace.SpanContext
+	s.registry.AddDag(testWorkload.TI.DagId).
+		AddTaskWithName(testWorkload.TI.TaskId, func(ctx context.Context) error {
+			spanContext = trace.SpanContextFromContext(ctx)
+			return nil
+		})
+
+	s.ExpectTaskRun(id)
+	s.expectTaskState(id, api.TerminalTIStateSuccess, mock.Anything)
+
+	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
+
+	s.NoError(err)
+	s.True(spanContext.IsValid())
+	s.True(spanContext.IsRemote())
+	s.Equal("4bf92f3577b34da6a3ce929d0e0e4736", spanContext.TraceID().String())
+	s.Equal("00f067aa0ba902b7", spanContext.SpanID().String())
+	s.True(spanContext.IsSampled())
+	s.Equal("vendor=value", spanContext.TraceState().String())
 }
 
 // TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't

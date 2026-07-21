@@ -81,6 +81,18 @@ type server struct {
 	bundle bundlev1.Bundle
 }
 
+func buildContextCarrier(otelContext map[string]string) *map[string]any {
+	if len(otelContext) == 0 {
+		return nil
+	}
+
+	contextCarrier := make(map[string]any, len(otelContext))
+	for key, value := range otelContext {
+		contextCarrier[key] = value
+	}
+	return &contextCarrier
+}
+
 func (g *server) GetMetadata(
 	ctx context.Context,
 	_ *proto.GetMetadata_Request,
@@ -142,13 +154,12 @@ func (g *server) executeTask(ctx context.Context, executeTask *proto.ExecuteTask
 	workload := api.ExecuteTaskWorkload{
 		Token: executeTask.GetToken(),
 		TI: bundlev1.TaskInstance{
-			DagId:     ti.GetDagId(),
-			Id:        id,
-			RunId:     ti.GetRunId(),
-			TaskId:    ti.GetTaskId(),
-			TryNumber: int(ti.GetTryNumber()),
-			// TODO: support otel context carrier
-			// ContextCarrier: (map[string]any)(ti.GetOtelContext()),
+			ContextCarrier: buildContextCarrier(ti.GetOtelContext()),
+			DagId:          ti.GetDagId(),
+			Id:             id,
+			RunId:          ti.GetRunId(),
+			TaskId:         ti.GetTaskId(),
+			TryNumber:      int(ti.GetTryNumber()),
 		},
 		BundleInfo: bundlev1.BundleInfo{
 			Name: bundle.GetName(),

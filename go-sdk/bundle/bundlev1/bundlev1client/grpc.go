@@ -64,6 +64,20 @@ func (p *BundleGRPCPlugin) GRPCClient(
 // GRPCClient is an implementation of DagBundle that talks over RPC.
 type GRPCClient struct{ client proto.DagBundleClient }
 
+func buildOTelContext(contextCarrier *map[string]any) map[string]string {
+	if contextCarrier == nil {
+		return nil
+	}
+
+	otelContext := make(map[string]string, len(*contextCarrier))
+	for key, value := range *contextCarrier {
+		if stringValue, ok := value.(string); ok {
+			otelContext[key] = stringValue
+		}
+	}
+	return otelContext
+}
+
 func (c *GRPCClient) GetMetadata(ctx context.Context) (bundlev1.GetMetadataResponse, error) {
 	ret := bundlev1.GetMetadataResponse{}
 	rpcResp, err := c.client.GetMetadata(ctx, proto.GetMetadata_Request_builder{}.Build())
@@ -90,14 +104,13 @@ func (c *GRPCClient) ExecuteTaskWorkload(
 	workload bundlev1.ExecuteTaskWorkload,
 ) error {
 	tiBuilder := proto.TaskInstance_builder{
-		Id:        proto.UUID_builder{Value: ptr(workload.TI.Id.String())}.Build(),
-		DagId:     &workload.TI.DagId,
-		RunId:     &workload.TI.RunId,
-		TaskId:    &workload.TI.TaskId,
-		Hostname:  workload.TI.Hostname,
-		TryNumber: ptr((int32)(workload.TI.TryNumber)),
-		// TODO: OtelContext support!
-		// OtelContext: map[string]string{},
+		Id:          proto.UUID_builder{Value: ptr(workload.TI.Id.String())}.Build(),
+		DagId:       &workload.TI.DagId,
+		RunId:       &workload.TI.RunId,
+		TaskId:      &workload.TI.TaskId,
+		Hostname:    workload.TI.Hostname,
+		TryNumber:   ptr((int32)(workload.TI.TryNumber)),
+		OtelContext: buildOTelContext(workload.TI.ContextCarrier),
 	}
 
 	if workload.TI.MapIndex != nil {
