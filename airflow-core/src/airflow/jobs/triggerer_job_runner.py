@@ -979,7 +979,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         if new_trigger_ids:
             workloads_to_create = self.build_trigger_workloads(new_trigger_ids)
 
-            queued_at = time.time()
+            queued_at = time.monotonic()
 
             for workload in workloads_to_create:
                 workload.queued_at = queued_at
@@ -1345,6 +1345,12 @@ class TriggerRunner:
 
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
+        # Emit batch creation duration only when triggers were processed.
+        has_work = bool(self.to_create)
+
+        if has_work:
+            creation_start = time.monotonic()
+
         while self.to_create:
             await asyncio.sleep(0)
             context: Context | None = None
@@ -1401,9 +1407,11 @@ class TriggerRunner:
                     inlets=[Asset(name=name, uri=uri) for name, uri in workload.watched_assets.items()]
                 )
             if workload.queued_at is not None:
+                # `queued_at` is captured by the supervisor process and consumed by the runner process.
+                # Both run on the same host, so their monotonic timestamps are comparable.
                 stats.timing(
                     "triggerer.trigger_queue_delay",
-                    int((time.time() - workload.queued_at) * 1000),
+                    int((time.monotonic() - workload.queued_at) * 1000),
                     tags=prune_dict({"team_name": self.team_name}),
                 )
 
@@ -1416,6 +1424,13 @@ class TriggerRunner:
                 "name": trigger_name,
                 "events": 0,
             }
+
+        if has_work:
+            stats.timing(
+                "triggerer.batch_trigger_creation_duration",
+                (time.monotonic() - creation_start) * 1000,
+                tags=prune_dict({"team_name": self.team_name}),
+            )
 
     async def cancel_triggers(self):
         """
