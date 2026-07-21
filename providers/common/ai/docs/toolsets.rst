@@ -260,6 +260,14 @@ published through Google's Discovery REST surface. Requires the ``gcp`` extra:
     :start-after: [START howto_operator_agent_gcp]
     :end-before: [END howto_operator_agent_gcp]
 
+For a multi-service troubleshooting example, use a small read-only allow-list
+across Cloud Storage, BigQuery, and Cloud Monitoring:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_gcp_troubleshooting_agent.py
+    :language: python
+    :start-after: [START howto_operator_agent_gcp_troubleshooting]
+    :end-before: [END howto_operator_agent_gcp_troubleshooting]
+
 ``GoogleCloudToolset`` exposes ``list_gcp_methods``,
 ``describe_gcp_method``, and ``call_gcp``. The allow-list is required and
 deny-by-default. Entries use ``"<api>/<version>:<resource.method>"`` form:
