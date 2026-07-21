@@ -153,11 +153,11 @@ def set_mock_auth_manager__batch_is_authorized_dag(
     return mock_batch_is_authorized_dag
 
 
-def set_mock_auth_manager__is_authorized_view(
-    mock_auth_manager: mock.Mock, is_authorized_view_return_value: bool = False
+def set_mock_auth_manager__authorize_view(
+    mock_auth_manager: mock.Mock, authorize_view_return_value: bool = False
 ) -> mock.Mock:
-    mock_method = mock_auth_manager.return_value.is_authorized_view
-    mock_method.return_value = is_authorized_view_return_value
+    mock_method = mock_auth_manager.return_value.authorize_view
+    mock_method.return_value = authorize_view_return_value
     return mock_method
 
 
@@ -293,9 +293,7 @@ class TestGetImportError:
         """
         import_error_id = import_errors[0].id
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
-        mock_method = set_mock_auth_manager__is_authorized_view(
-            mock_get_auth_manager, can_view_all_import_errors
-        )
+        mock_method = set_mock_auth_manager__authorize_view(mock_get_auth_manager, can_view_all_import_errors)
 
         response = test_client.get(f"/importErrors/{import_error_id}")
 
@@ -348,7 +346,7 @@ class TestGetImportError:
         # Readable other-bundle Dag must not grant visibility into the
         # same-named file's error in BUNDLE_NAME.
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {"dag_in_other_bundle"})
-        mock_method = set_mock_auth_manager__is_authorized_view(mock_get_auth_manager, False)
+        mock_method = set_mock_auth_manager__authorize_view(mock_get_auth_manager, False)
 
         response = test_client.get(f"/importErrors/{import_error_id}")
 
@@ -615,7 +613,7 @@ class TestGetImportErrors:
         # the same-named file's error in BUNDLE_NAME.
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, {"dag_in_other_bundle"})
         set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
-        mock_view = set_mock_auth_manager__is_authorized_view(mock_get_auth_manager, True)
+        mock_view = set_mock_auth_manager__authorize_view(mock_get_auth_manager, True)
 
         response = test_client.get("/importErrors")
 
@@ -821,7 +819,7 @@ class TestGetImportErrors:
         # IMPORT_ERRORS_ALL view -- which this caller does not hold, so the row
         # is hidden. (Matching on filename alone would have wrongly treated it as
         # registered via the same-named Dag in the other bundle.)
-        set_mock_auth_manager__is_authorized_view(mock_get_auth_manager, False)
+        set_mock_auth_manager__authorize_view(mock_get_auth_manager, False)
 
         response2 = test_client.get("/importErrors")
 
@@ -859,7 +857,7 @@ class TestGetImportErrors:
         results and ``total_entries``, so the file's existence does not leak).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
-        set_mock_auth_manager__is_authorized_view(mock_get_auth_manager, can_view_all_import_errors)
+        set_mock_auth_manager__authorize_view(mock_get_auth_manager, can_view_all_import_errors)
 
         response = test_client.get("/importErrors")
 
@@ -1021,7 +1019,7 @@ class TestImportErrorFileAuthorization:
         holding it see the raw stacktrace; others are denied (403).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
-        set_mock_auth_manager__is_authorized_view(mock_get_auth_manager, can_view_all_import_errors)
+        set_mock_auth_manager__authorize_view(mock_get_auth_manager, can_view_all_import_errors)
         response = test_client.get(f"/importErrors/{import_errors[0].id}")
         assert response.status_code == expected_status_code
         if expected_status_code == 200:
@@ -1094,7 +1092,7 @@ class TestImportErrorFileAuthorization:
         ``total_entries``).
         """
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
-        set_mock_auth_manager__is_authorized_view(mock_get_auth_manager, can_view_all_import_errors)
+        set_mock_auth_manager__authorize_view(mock_get_auth_manager, can_view_all_import_errors)
         response = test_client.get("/importErrors")
         assert response.status_code == 200
         body = response.json()
@@ -1140,7 +1138,7 @@ class TestImportErrorFileAuthorization:
         the file's team, resolved from its bundle. A caller not in that team is
         denied (403)."""
         set_mock_auth_manager__get_authorized_dag_ids(mock_get_auth_manager, set())
-        mock_method = set_mock_auth_manager__is_authorized_view(mock_get_auth_manager, False)
+        mock_method = set_mock_auth_manager__authorize_view(mock_get_auth_manager, False)
 
         response = test_client.get(f"/importErrors/{team_scoped_unregistered_import_error.id}")
 
