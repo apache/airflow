@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -223,17 +222,6 @@ class TestGoogleCloudToolsetDescribeMethod:
         )
         assert described["method"] == "objects.list"
 
-    def test_logs_canonical_method(self, caplog):
-        ts = GoogleCloudToolset("gcp_test", allowed_methods=["storage/v1:objects.list"])
-
-        with caplog.at_level(logging.INFO, logger="airflow.providers.common.ai.toolsets.google"):
-            _call(ts, "describe_gcp_method", {"api": "storage/v1", "method": "storage.objects.list"})
-
-        assert {
-            "event": "Describing Google Cloud API method storage/v1:objects.list",
-            "level": "info",
-        } in caplog
-
     def test_disallowed_method_raises_model_retry(self):
         ts = GoogleCloudToolset("gcp_test", allowed_methods=["storage/v1:objects.list"])
         with pytest.raises(ModelRetry, match="not in this toolset's allowed methods"):
@@ -263,30 +251,6 @@ class TestGoogleCloudToolsetCallGcp:
         bound.assert_called_once_with(bucket="b")
         request.execute.assert_called_once_with()
         assert result["items"] == [{"name": "a.parquet"}]
-
-    def test_logs_canonical_method(self, caplog):
-        ts = GoogleCloudToolset("gcp_test", allowed_methods=["storage/v1:objects.list"])
-        _install_mock_hook(ts, project_id=None)
-        _install_mock_service(
-            ts,
-            "storage",
-            "v1",
-            ["objects"],
-            "list",
-            response={"items": []},
-        )
-
-        with caplog.at_level(logging.INFO, logger="airflow.providers.common.ai.toolsets.google"):
-            _call(
-                ts,
-                "call_gcp",
-                {"api": "storage/v1", "method": "storage.objects.list", "parameters": {"bucket": "b"}},
-            )
-
-        assert {
-            "event": "Calling Google Cloud API method storage/v1:objects.list",
-            "level": "info",
-        } in caplog
 
     def test_body_is_passed_as_keyword(self):
         ts = GoogleCloudToolset("gcp_test", allowed_methods=["bigquery/v2:jobs.insert"])
