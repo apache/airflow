@@ -71,15 +71,16 @@ side-by-side comparison, including how ``logical_date`` and ``run_id`` differ.
 
 All dates in Airflow are tied to the data interval concept in some way. The
 "logical date" (also called ``execution_date`` in Airflow versions prior to 2.2)
-of a Dag run is defined by the timetable: for a trigger timetable it is the
-trigger time; for a data-interval timetable it is the start of the data
-interval, not when the Dag is actually executed.
+of a Dag run is defined by the timetable: for both timetable kinds it is
+``data_interval_start``. For the default (zero-width) trigger timetable that
+equals the trigger time. With a non-zero ``interval=`` on a trigger timetable
+it is ``trigger_time - interval``. For a data-interval timetable it is the
+start of the contiguous window, not when the Dag is actually executed.
 
 Similarly, since the ``start_date`` argument for the Dag and its tasks points to
 the same logical date, it marks the start of scheduling for the Dag (the first
 possible logical date), not when tasks in the Dag will start running. In other
-words, a Dag run will only be scheduled once the timetable advances past
-``start_date``.
+words, a Dag run will only be scheduled once the timetable reaches ``start_date``.
 
 .. tip::
 
