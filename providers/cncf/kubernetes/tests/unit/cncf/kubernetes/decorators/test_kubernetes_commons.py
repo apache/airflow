@@ -111,6 +111,7 @@ class TestKubernetesDecoratorsBase:
             }
         )
         self.mock_hook = mock.patch(HOOK_CLASS).start()
+        self.mock_hook.return_value.get_xcom_sidecar_container_security_context.return_value = None
 
         # Without this patch each time pod manager would try to extract logs from the pod
         # and log an error about it's inability to get containers for the log

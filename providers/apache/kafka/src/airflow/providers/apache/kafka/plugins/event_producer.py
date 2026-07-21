@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-CONFIG_SECTION = "kafka_listener"
+CONFIG_SECTION = "kafka_event_producer"
 SCHEMA_VERSION = 1
 
 
@@ -152,7 +152,7 @@ def _task_instance_event_allowed(dag_id: str, task_id: str) -> bool:
     )
 
 
-# Listener-owned producer and topic state for the lifetime of the process.
+# Plugin-owned producer and topic state for the lifetime of the process.
 # The producer is built once via KafkaProducerHook and kept for the process lifetime;
 # the topic flags track whether the topic exists on the broker and whether we're
 # currently in a back-off window after a failed topic check.
@@ -179,7 +179,7 @@ os.register_at_fork(after_in_child=_reset_state_after_fork)
 
 
 def _get_producer() -> Producer | None:
-    """Build (once) and return the listener's producer, or ``None`` on init failure."""
+    """Build (once) and return the plugin's Kafka producer, or ``None`` on init failure."""
     global _producer
     if _producer is not None:
         return _producer
@@ -194,7 +194,7 @@ def _get_producer() -> Producer | None:
             hook_kwargs["kafka_config_id"] = _get_kafka_config_id()
         producer = KafkaProducerHook(**hook_kwargs).get_producer()
     except Exception as exc:
-        log.warning("Kafka listener: failed to initialize producer (%s).", exc)
+        log.warning("Kafka event producer: failed to initialize producer (%s).", exc)
         return None
 
     atexit.register(_flush_producer_at_exit, producer)
@@ -224,7 +224,7 @@ def _check_topic_exists() -> bool:
         topics = producer.list_topics(timeout=_get_topic_check_timeout()).topics
     except Exception as exc:
         log.warning(
-            "Kafka listener: topic check failed (%s). Will retry after %ds.",
+            "Kafka event producer: topic check failed (%s). Will retry after %ds.",
             exc,
             _get_topic_check_retry_interval(),
         )
@@ -233,7 +233,7 @@ def _check_topic_exists() -> bool:
 
     if _get_topic() not in topics:
         log.warning(
-            "Kafka listener: topic %r not found on the broker. Will retry after %ds. "
+            "Kafka event producer: topic %r not found on the broker. Will retry after %ds. "
             "Create the topic on the broker to enable publishing.",
             _get_topic(),
             _get_topic_check_retry_interval(),
@@ -242,7 +242,7 @@ def _check_topic_exists() -> bool:
         return False
 
     log.info(
-        "Kafka listener attached: pid=%s source=%r topic=%r",
+        "Kafka event producer attached: pid=%s source=%r topic=%r",
         os.getpid(),
         _get_source(),
         _get_topic(),
@@ -255,16 +255,16 @@ def _flush_producer_at_exit(producer: Producer) -> None:
     try:
         producer.flush(5)
     except Exception:
-        log.debug("Kafka listener: error flushing producer on exit", exc_info=True)
+        log.debug("Kafka event producer: error flushing producer on exit", exc_info=True)
 
 
 def _on_delivery(err, _msg) -> None:
     if err is None:
         return
-    log.warning("Kafka listener: delivery failed: %s", err)
+    log.warning("Kafka event producer: delivery failed: %s", err)
     # If the broker or local metadata says the topic is gone, the confirmation cached at
     # attach-time is stale. Flip it back so the next _check_topic_exists re-verifies with
-    # the broker, gated by the same cooldown used elsewhere. Lets the listener auto-recover
+    # the broker, gated by the same cooldown used elsewhere. Lets the plugin auto-recover
     # if the topic gets recreated instead of requiring a component restart.
     from confluent_kafka import KafkaError
 
@@ -291,7 +291,7 @@ def _produce_dr_message(event: str, dag_run: DagRun, msg: str) -> None:
             _get_dr_payload(dag_run, msg),
         )
     except Exception:
-        log.exception("Kafka listener: %s failed", event)
+        log.exception("Kafka event producer: %s failed", event)
 
 
 def _get_dr_payload(dag_run, msg) -> dict[str, Any]:
@@ -325,7 +325,7 @@ def _produce_ti_message(
             _get_ti_payload(task_instance, previous_state, error=error),
         )
     except Exception:
-        log.exception("Kafka listener: %s failed", event)
+        log.exception("Kafka event producer: %s failed", event)
 
 
 def _get_ti_payload(ti, previous_state, error=None) -> dict[str, Any]:
@@ -373,9 +373,12 @@ def _produce_message(event: str, dag_id: str, run_id: str, payload: dict[str, An
         )
         producer.poll(0)
     except Exception as ex:
-        log.warning("Kafka listener: failed to enqueue %s for %s/%s: %s", event, dag_id, run_id, ex)
+        log.warning("Kafka event producer: failed to enqueue %s for %s/%s: %s", event, dag_id, run_id, ex)
 
 
+# DagRunListener / TaskListener are pluggy hookimpl classes that plug into Airflow's
+# listener API (``AirflowPlugin.listeners``). These classes listen for Airflow events
+# and then produce a message for every event.
 class DagRunListener:
     """Publishes DagRun state-change event messages to Kafka."""
 
@@ -463,8 +466,8 @@ def _get_enabled_listeners() -> list[object]:
     return listeners
 
 
-class KafkaListenerPlugin(AirflowPlugin):
+class KafkaEventProducerPlugin(AirflowPlugin):
     """Publishes Airflow DagRun and TaskInstance event messages to a defined Kafka topic."""
 
-    name = "kafka_listener"
+    name = "kafka_event_producer"
     listeners = _get_enabled_listeners()
