@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``HttpHook no longer forwards Connection extra headers across a cross-host redirect (#70000)``
+
+  Headers defined in an HTTP Connection's ``extra`` field are documented as a way to carry credentials, and ``requests`` only strips ``Authorization`` when a redirect leaves the original host. ``HttpHook`` now gives those Connection-supplied headers the same treatment, so a secret held under any header name (``X-API-Key``, ``Private-Token``, ...) is no longer replayed to the redirect target. Same-host redirects are unaffected. If you relied on those headers reaching a different host - for example an API that redirects downloads to a CDN or object store that needs the same key - either configure a Connection whose host matches the final destination, or follow the redirect explicitly by passing ``allow_redirects=False`` in ``extra_options`` and issuing the second request yourself. ``HttpAsyncHook`` still forwards the headers; that is tracked in https://github.com/apache/airflow/issues/70164.
+
 6.0.4
 .....
 

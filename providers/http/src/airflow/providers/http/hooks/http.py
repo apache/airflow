@@ -652,6 +652,9 @@ class HttpAsyncHook(BaseHook):
                     auth = self.auth_type(conn.login, conn.password)
 
                 if conn.extra:
+                    # Unlike HttpHook these headers survive a cross-host redirect, because aiohttp
+                    # has no per-redirect hook to drop them from;
+                    # tracked at https://github.com/apache/airflow/issues/70164
                     conn_extra_options, extra_options = _process_extra_options_from_connection(
                         conn=conn, extra_options={}
                     )
