@@ -67,8 +67,8 @@ class GitDagBundle(BaseDagBundle):
         Set to False for components that share the bundle storage with a component that already keeps
         it fresh - e.g. ephemeral worker pods mounting a volume that the dag processor refreshes - so
         they skip the per-process network fetch on startup. The repository is still cloned when it is
-        not present on disk, and explicit ``refresh()`` calls still fetch. Only applies to unversioned
-        initialization; version-pinned initialization is unaffected.
+        not present on disk, and explicit ``refresh()`` calls still fetch. Only applies when the bundle
+        has no pinned version; version-pinned initialization is unaffected.
     """
 
     supports_versioning = True
