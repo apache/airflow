@@ -595,6 +595,21 @@ class SerializedDagModel(Base):
         }
 
     @classmethod
+    def _has_task_instances(cls, dag_id: str, dag_version_id: UUID, *, session: Session) -> bool:
+        """Check whether any task instance references the given DagVersion."""
+        return bool(
+            session.scalar(
+                select(
+                    exists().where(
+                        # Using dag_id filter to speed up query via the composite index.
+                        TaskInstance.dag_id == dag_id,
+                        TaskInstance.dag_version_id == dag_version_id,
+                    )
+                )
+            )
+        )
+
+    @classmethod
     @provide_session
     def write_dag(
         cls,
@@ -688,38 +703,44 @@ class SerializedDagModel(Base):
 
         new_dag_hash = cls.hash(dag.data)
 
+        preserve_pinned_version_data = False
         if serialized_dag_hash == new_dag_hash and dag_version and dag_version.bundle_name == bundle_name:
-            # Serialized content is unchanged, so we don't create a new DagVersion.
-            # But if the bundle advanced, refresh the latest version's pointer in place — tasks resolve
+            # Serialized content is unchanged, so we normally don't create a new DagVersion.
+            # If the bundle advanced, refresh the latest version's pointer in place — tasks resolve
             # their code from ``ti.dag_version.bundle_version`` at run time, so a stale
             # pointer makes runs execute an outdated commit.
             bundle_metadata_changed = (
                 dag_version.bundle_version != bundle_version or dag_version.version_data != version_data
             )
-            if bundle_metadata_changed:
-                dag_version.bundle_version = bundle_version
-                dag_version.version_data = version_data
-                session.merge(dag_version)
-                DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
-            if name_updated or bundle_metadata_changed:
-                # A write occurred — a deadline alert name update and/or a bundle
-                # metadata refresh — so report True so callers know the DB changed.
-                return True
-            log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
-            return False
+            # The in-place refresh is safe only for bundles whose ``bundle_version`` alone can recover the
+            # code (e.g. Git: the commit SHA resolves against the immutable object store). When
+            # ``version_data`` is involved (e.g. For bundles like the S3 bundle a json manifest of S3 object
+            # versions), this row holds the only copy of the data which is needed for runs pinned to the old
+            # bundle_version to reconstruct their code. Overwriting it would break their reproducibility. In
+            # that case fall through and create a new DagVersion instead: the old row keeps serving pinned
+            # runs, the new row becomes the latest for new runs.
+            preserve_pinned_version_data = (
+                bundle_metadata_changed
+                and (dag_version.version_data is not None or version_data is not None)
+                and cls._has_task_instances(dag.dag_id, dag_version.id, session=session)
+            )
+            if not preserve_pinned_version_data:
+                if bundle_metadata_changed:
+                    dag_version.bundle_version = bundle_version
+                    dag_version.version_data = version_data
+                    session.merge(dag_version)
+                    DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+                if name_updated or bundle_metadata_changed:
+                    # A write occurred — a deadline alert name update and/or a bundle
+                    # metadata refresh — so report True so callers know the DB changed.
+                    return True
+                log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
+                return False
 
         has_task_instances: bool = False
         if dag_version:
-            has_task_instances = bool(
-                session.scalar(
-                    select(
-                        exists().where(
-                            # Using dag_id filter to speed up query via the composite index.
-                            TaskInstance.dag_id == dag.dag_id,
-                            TaskInstance.dag_version_id == dag_version.id,
-                        )
-                    )
-                )
+            has_task_instances = preserve_pinned_version_data or cls._has_task_instances(
+                dag.dag_id, dag_version.id, session=session
             )
 
         if dag_version and not has_task_instances:
