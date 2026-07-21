@@ -20,7 +20,13 @@ import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
-import { getDuration, renderDuration, getRelativeTime } from "./datetimeUtils";
+import {
+  getDuration,
+  getDurationTickStep,
+  renderCompactDuration,
+  renderDuration,
+  getRelativeTime,
+} from "./datetimeUtils";
 
 dayjs.extend(dayjsDuration);
 
@@ -120,5 +126,47 @@ describe("getRelativeTime", () => {
     const futureDate = "2024-03-14T10:00:20.000Z";
 
     expect(getRelativeTime(futureDate)).toBe("in a few seconds");
+  });
+});
+
+describe("renderCompactDuration", () => {
+  it.each([
+    [0, "0s"],
+    [-5, "0s"],
+    [Number.NaN, "0s"],
+    [Number.POSITIVE_INFINITY, "0s"],
+    [0.25, "250ms"],
+    [45, "45s"],
+    [540, "9m"],
+    [545, "9m 5s"],
+    [3600, "1h"],
+    [5400, "1h 30m"],
+    [86_400, "1d"],
+    [102_600, "1d 4h"],
+  ])("formats %s seconds as %s", (seconds, expected) => {
+    expect(renderCompactDuration(seconds)).toBe(expected);
+  });
+});
+
+describe("getDurationTickStep", () => {
+  it.each([
+    [0, 1],
+    [-1, 1],
+    [Number.NaN, 1],
+    [8, 1],
+    [45, 10],
+    [300, 60],
+    [2000, 300],
+    [36_000, 7200],
+  ])("picks a %s second range step of %s seconds", (maxSeconds, expected) => {
+    expect(getDurationTickStep(maxSeconds)).toBe(expected);
+  });
+
+  it("keeps the tick count within the requested budget", () => {
+    expect(getDurationTickStep(2000) * 8).toBeGreaterThanOrEqual(2000);
+  });
+
+  it("falls back to an even split beyond the largest known step", () => {
+    expect(getDurationTickStep(10_000_000)).toBe(1_250_000);
   });
 });
