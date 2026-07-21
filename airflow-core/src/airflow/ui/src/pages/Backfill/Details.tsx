@@ -18,25 +18,16 @@
  */
 import { Box, Table, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 
-import { useBackfillServiceGetBackfill } from "openapi/queries";
-import { ErrorAlert } from "src/components/ErrorAlert";
+import type { BackfillResponse } from "openapi/requests/types.gen";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 
 export const Details = () => {
   const { t: translate } = useTranslation();
-  const { backfillId = "" } = useParams();
-
-  const { data: backfill, error } = useBackfillServiceGetBackfill({
-    backfillId: Number(backfillId),
-  });
-
-  if (error !== null && error !== undefined) {
-    return <ErrorAlert error={error} />;
-  }
+  const backfill = useOutletContext<BackfillResponse | undefined>();
 
   if (backfill === undefined) {
     return undefined;

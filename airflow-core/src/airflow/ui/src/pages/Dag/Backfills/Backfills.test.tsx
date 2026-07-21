@@ -22,7 +22,6 @@ import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BackfillResponse } from "openapi/requests/types.gen";
-import type * as Utils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Backfills } from "./Backfills";
@@ -46,22 +45,6 @@ vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof ReactRouterDom>();
 
   return { ...actual, useParams: () => ({ dagId: "example_dag" }) };
-});
-
-vi.mock("src/components/BackfillProgress", () => ({
-  BackfillProgress: ({
-    backfillId,
-    refetchInterval,
-  }: {
-    readonly backfillId: number;
-    readonly refetchInterval: number | false;
-  }) => <span>{`progress-${backfillId}-${refetchInterval}`}</span>,
-}));
-
-vi.mock("src/utils", async (importOriginal) => {
-  const actual = await importOriginal<typeof Utils>();
-
-  return { ...actual, useAutoRefresh: () => 5000 };
 });
 
 vi.mock("src/components/Time", () => ({
@@ -91,7 +74,7 @@ const makeBackfill = (overrides: Partial<BackfillResponse> = {}): BackfillRespon
 describe("Backfills", () => {
   beforeEach(() => mocks.listBackfills.mockReset());
 
-  it("links backfill dates to details and shows live or completed progress", () => {
+  it("links each backfill to its Dag runs screen without loading progress", () => {
     const backfills = [makeBackfill(), makeBackfill({ completed_at: "2026-07-06T00:00:00Z", id: 8 })];
 
     mocks.listBackfills.mockReturnValue({
@@ -107,8 +90,7 @@ describe("Backfills", () => {
 
     expect(destinations).toContain("/dags/example_dag/backfills/7");
     expect(destinations).toContain("/dags/example_dag/backfills/8");
-    expect(screen.getByText("progress-7-5000")).toBeInTheDocument();
-    expect(screen.getByText("Completed")).toBeInTheDocument();
+    expect(screen.queryByText("table.progress")).not.toBeInTheDocument();
     expect(mocks.listBackfills).toHaveBeenCalledWith({
       dagId: "example_dag",
       limit: 25,

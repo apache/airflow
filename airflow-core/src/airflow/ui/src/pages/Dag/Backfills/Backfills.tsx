@@ -23,17 +23,15 @@ import { useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
-import { BackfillProgress } from "src/components/BackfillProgress";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
-import { getDuration, useAutoRefresh } from "src/utils";
+import { getDuration } from "src/utils";
 
 const getColumns = (
   dagId: string,
-  refetchInterval: number | false,
   translate: (key: string) => string,
 ): Array<ColumnDef<BackfillResponse>> => [
   {
@@ -107,28 +105,6 @@ const getColumns = (
     enableSorting: false,
     header: translate("table.maxActiveRuns"),
   },
-  {
-    accessorKey: "progress",
-    cell: ({ row }) => {
-      if (row.original.completed_at !== null) {
-        return (
-          <Text fontSize="sm" fontWeight="medium">
-            {translate("common:completed")}
-          </Text>
-        );
-      }
-
-      return (
-        <BackfillProgress
-          backfillId={row.original.id}
-          isCompleted={false}
-          refetchInterval={refetchInterval}
-        />
-      );
-    },
-    enableSorting: false,
-    header: translate("table.progress"),
-  },
 ];
 
 export const Backfills = () => {
@@ -138,15 +114,13 @@ export const Backfills = () => {
   const { pagination } = tableURLState;
 
   const { dagId = "" } = useParams();
-  const refetchInterval = useAutoRefresh({ dagId });
-
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
-  const columns = getColumns(dagId, refetchInterval, translate);
+  const columns = getColumns(dagId, translate);
 
   return (
     <Box>

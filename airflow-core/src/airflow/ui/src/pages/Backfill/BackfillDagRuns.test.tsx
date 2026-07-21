@@ -22,6 +22,7 @@ import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BackfillDagRunResponse } from "openapi/requests/types.gen";
+import type * as Utils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { BackfillDagRuns } from "./BackfillDagRuns";
@@ -37,7 +38,11 @@ vi.mock("openapi/queries", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     // eslint-disable-next-line id-length
-    t: (key: string) => (key === "states.success" ? "Success" : key),
+    t: (key: string) =>
+      ({
+        "components:backfill.exceptionReason.alreadyExists": "Already exists",
+        "states.success": "Success",
+      })[key] ?? key,
   }),
 }));
 
@@ -51,13 +56,19 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => (key === "fallback_page_limit" ? 25 : undefined),
 }));
 
+vi.mock("src/utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof Utils>();
+
+  return { ...actual, useAutoRefresh: () => 5000 };
+});
+
 const dagRuns: Array<BackfillDagRunResponse> = [
   {
     backfill_id: 7,
     dag_id: "example_dag",
     dag_run_id: null,
     dag_run_state: null,
-    exception_reason: "slot skipped",
+    exception_reason: "already exists",
     id: 1,
     logical_date: null,
     partition_key: "partition-a",
@@ -90,7 +101,7 @@ describe("BackfillDagRuns", () => {
     render(<BackfillDagRuns />, { wrapper: Wrapper });
 
     expect(screen.getByText("partition-a")).toBeInTheDocument();
-    expect(screen.getByText("slot skipped")).toBeInTheDocument();
+    expect(screen.getByText("Already exists")).toBeInTheDocument();
     expect(screen.getByText("Success")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "scheduled__2026-07-02" })).toHaveAttribute(
       "href",
@@ -108,10 +119,14 @@ describe("BackfillDagRuns", () => {
 
     render(<BackfillDagRuns />, { wrapper: Wrapper });
 
-    expect(mocks.useBackfillServiceListBackfillDagRuns).toHaveBeenCalledWith({
-      backfillId: 7,
-      limit: 25,
-      offset: 0,
-    });
+    expect(mocks.useBackfillServiceListBackfillDagRuns).toHaveBeenCalledWith(
+      {
+        backfillId: 7,
+        limit: 25,
+        offset: 0,
+      },
+      undefined,
+      { refetchInterval: 5000 },
+    );
   });
 });

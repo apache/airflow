@@ -27,11 +27,7 @@ import { Wrapper } from "src/utils/Wrapper";
 import { Details } from "./Details";
 
 const mocks = vi.hoisted(() => ({
-  useBackfillServiceGetBackfill: vi.fn(),
-}));
-
-vi.mock("openapi/queries", () => ({
-  useBackfillServiceGetBackfill: mocks.useBackfillServiceGetBackfill,
+  useOutletContext: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -53,7 +49,7 @@ vi.mock("src/components/RenderedJsonField", () => ({
 vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof ReactRouterDom>();
 
-  return { ...actual, useParams: () => ({ backfillId: "7" }) };
+  return { ...actual, useOutletContext: mocks.useOutletContext };
 });
 
 vi.mock("src/queries/useConfig", () => ({
@@ -76,11 +72,9 @@ const backfill: BackfillResponse = {
 };
 
 describe("Backfill details", () => {
-  beforeEach(() => mocks.useBackfillServiceGetBackfill.mockReset());
+  beforeEach(() => mocks.useOutletContext.mockReturnValue(backfill));
 
   it("renders metadata and Dag run configuration", () => {
-    mocks.useBackfillServiceGetBackfill.mockReturnValue({ data: backfill, error: undefined });
-
     render(<Details />, { wrapper: Wrapper });
 
     expect(screen.getByText("example_dag")).toBeInTheDocument();
@@ -92,10 +86,7 @@ describe("Backfill details", () => {
   });
 
   it("omits the configuration row when none was provided", () => {
-    mocks.useBackfillServiceGetBackfill.mockReturnValue({
-      data: { ...backfill, dag_run_conf: null },
-      error: undefined,
-    });
+    mocks.useOutletContext.mockReturnValue({ ...backfill, dag_run_conf: null });
 
     render(<Details />, { wrapper: Wrapper });
 

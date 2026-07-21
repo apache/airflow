@@ -43,7 +43,13 @@ export const Backfill = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={tabs}>
+      <DetailsLayout
+        error={error}
+        isLoading={isLoading}
+        outletContext={backfill}
+        showBackfillBanner={false}
+        tabs={tabs}
+      >
         {backfill === undefined ? undefined : <Header backfill={backfill} />}
       </DetailsLayout>
     </ReactFlowProvider>
