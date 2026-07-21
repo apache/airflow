@@ -83,9 +83,9 @@ type myBundle struct{}
 var _ v1.BundleProvider = (*myBundle)(nil)
 
 func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-    simpleDag := dagbag.AddDag("simple_dag")
-    simpleDag.AddTask(extract)
-    simpleDag.AddTask(transform, []string{"extract"})
+    simpleDag := dagbag.AddDag(v1.DagSpec{DagId: "simple_dag"})
+    extracted := simpleDag.Task(extract)
+    simpleDag.Task(transform, v1.Inputs(extracted))
     return nil
 }
 
@@ -96,10 +96,10 @@ func main() {
 }
 ```
 
-A task is an ordinary Go function. The runtime inspects its signature and injects arguments by type:
-`sdk.TIRunContext`, `*slog.Logger`, and an `sdk.Client` (or a narrower interface such as
-`sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
-the task failed.
+A task is an ordinary Go function. Runtime parameters such as `sdk.TIRunContext`, `*slog.Logger`, and
+`sdk.Client` are injected by type. Other parameters receive Python stub-call arguments in coordinator
+mode or upstream XCom values declared with `v1.Inputs(...)`. A `(result, error)` return becomes the
+task's XCom; an `error` return marks the task failed.
 
 Any other parameter is a **data parameter**, filled in declaration order from the arguments of the
 Python stub Dag's TaskFlow call. A literal in the Dag file (`transform("uk", ...)`) decodes straight
@@ -112,22 +112,22 @@ but need no Go parameter, so adding a defaulted parameter to a stub doesn't brea
 already bound to it.
 
 ```go
-func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
-    conn, err := client.GetConnection(ctx, "test_http")
-    // ... do work, honour ctx cancellation ...
-    return map[string]any{"go_version": runtime.Version()}, nil
+type ExtractResult struct {
+    GoVersion string `json:"go_version"`
 }
 
-// The stub's literal and XCom arguments bind to country and extracted.
-func transform(
-    ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger,
-    country string, extracted map[string]any,
-) error {
+func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (ExtractResult, error) {
+    conn, err := client.GetConnection(ctx, "test_http")
+    // ... do work, honour ctx cancellation ...
+    return ExtractResult{GoVersion: runtime.Version()}, nil
+}
+
+func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger, in ExtractResult) error {
     val, err := client.GetVariable(ctx, "my_variable")
     if err != nil {
         return err
     }
-    log.Info("Obtained variable", "my_variable", val, "country", country)
+    log.Info("Obtained variable", "my_variable", val, "upstream_go_version", in.GoVersion)
     return nil
 }
 ```

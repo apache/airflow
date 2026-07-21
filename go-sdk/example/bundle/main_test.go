@@ -60,7 +60,7 @@ func TestRegisterDags(t *testing.T) {
 
 	simpleDag := dags[0]
 	assert.Equal(t, "simple_dag", simpleDag.DagID)
-	assert.Equal(t, v1.DagSpec{}, simpleDag.Spec)
+	assert.Equal(t, v1.DagSpec{DagId: "simple_dag"}, simpleDag.Spec)
 	require.Len(t, simpleDag.Tasks, 3)
 	assert.Equal(t, "extract", simpleDag.Tasks[0].ID)
 	assert.Empty(t, simpleDag.Tasks[0].Downstream)
@@ -75,7 +75,9 @@ func TestRegisterDags(t *testing.T) {
 	assert.Equal(t, []string{"example", "go-sdk"}, nativeDag.Spec.Tags)
 	require.Len(t, nativeDag.Tasks, 3)
 	assert.Equal(t, []string{"nativeTransform"}, nativeDag.Tasks[0].Downstream)
+	assert.Equal(t, []string{"nativeExtract"}, nativeDag.Tasks[1].Inputs)
 	assert.Equal(t, []string{"nativeLoad"}, nativeDag.Tasks[1].Downstream)
+	assert.Equal(t, []string{"nativeTransform"}, nativeDag.Tasks[2].Inputs)
 	assert.Empty(t, nativeDag.Tasks[2].Downstream)
 }
 

@@ -41,22 +41,7 @@ func errorTask() error                { return errors.New("fail") }
 func resultTask() (string, error)     { return "result", nil }
 func nilResultTask() (*string, error) { return nil, nil }
 
-type recordingClient struct {
-	sdk.Client
-	values []any
-}
-
-func (c *recordingClient) PushXCom(
-	_ context.Context,
-	_ sdk.TaskInstance,
-	_ string,
-	value any,
-) error {
-	c.values = append(c.values, value)
-	return nil
-}
-
-func taskContext(client sdk.Client) context.Context {
+func registryTaskContext(client sdk.Client) context.Context {
 	ctx := context.WithValue(context.Background(), sdkcontext.SdkClientContextKey, client)
 	ti := sdk.TaskInstance{DagID: "dag1", RunID: "run1", TaskID: "task1"}
 	runtimeContext := sdk.NewTIRunContext(context.Background(), ti, sdk.DagRun{
@@ -70,6 +55,18 @@ func NotErrorRet() int {
 	return 0
 }
 
+// producer / consumer fixtures for Inputs wiring.
+type payload struct {
+	Value int `json:"value"`
+}
+
+func produce() (payload, error)             { return payload{Value: 1}, nil }
+func consume(in payload) error              { _ = in; return nil }
+func relay(in payload) (payload, error)     { return in, nil }
+func consumeTwo(a payload, b payload) error { _, _ = a, b; return nil }
+func consumeLoose(in map[string]any) error  { _ = in; return nil }
+func consumeString(in string) error         { _ = in; return nil }
+
 type RegistrySuite struct {
 	suite.Suite
 	reg Registry
@@ -82,94 +79,104 @@ func TestRegistrySuite(t *testing.T) {
 
 func (s *RegistrySuite) SetupTest() {
 	s.reg = New()
-	s.dag = s.reg.AddDag("dag1")
+	s.dag = s.reg.AddDag(DagSpec{DagId: "dag1"})
 }
 
 func (s *RegistrySuite) TestAddDag_NewDagRegisters() {
 	s.NotNil(s.dag)
 }
 
-func (s *RegistrySuite) TestAddDag_DuplicatePanics() {
-	s.PanicsWithError(`Dag "dag1" already exists in bundle`, func() {
-		s.reg.AddDag("dag1")
+func (s *RegistrySuite) TestAddDag_MissingIdPanics() {
+	s.PanicsWithError("Dag ID must not be empty", func() {
+		s.reg.AddDag(DagSpec{})
 	})
 }
 
 func (s *RegistrySuite) TestAddDag_ValidatesID() {
 	for name, id := range map[string]string{
-		"empty":         "",
 		"invalid-char":  "bad/id",
 		"over-max-size": strings.Repeat("a", maxIDLength+1),
 	} {
 		s.Run(name, func() {
-			s.Panics(func() { New().AddDag(id) })
+			s.Panics(func() { New().AddDag(DagSpec{DagId: id}) })
 		})
 	}
 }
 
-func (s *RegistrySuite) TestAddTask_RegistersAndFindsTask() {
-	s.dag.AddTask(myTask)
+func (s *RegistrySuite) TestAddDag_DuplicatePanics() {
+	s.PanicsWithError(`Dag "dag1" already exists in bundle`, func() {
+		s.reg.AddDag(DagSpec{DagId: "dag1"})
+	})
+}
+
+func (s *RegistrySuite) TestTask_RegistersAndFindsTask() {
+	ref := s.dag.Task(myTask)
+	s.Equal("myTask", ref.ID())
 	task, exists := s.reg.LookupTask("dag1", "myTask")
 	s.True(exists)
 	s.NotNil(task)
 }
 
-func (s *RegistrySuite) TestAddTaskWithName_RegistersAndFindsTask() {
-	s.dag.AddTaskWithName("special", myTask)
-	task, exists := s.reg.LookupTask("dag1", "special")
+func (s *RegistrySuite) TestTask_ExplicitIdViaSpec() {
+	ref := s.dag.Task(myTask, TaskSpec{TaskId: "special"})
+	s.Equal("special", ref.ID())
+	_, exists := s.reg.LookupTask("dag1", "special")
 	s.True(exists)
-	s.NotNil(task)
 
-	// Lets just make sure it didn't exist under the fn name
 	_, exists = s.reg.LookupTask("dag1", "myTask")
 	s.False(exists)
 }
 
-func (s *RegistrySuite) TestAddTaskWithName_ValidatesID() {
+func (s *RegistrySuite) TestTask_ValidatesExplicitID() {
 	for name, id := range map[string]string{
-		"empty":         "",
 		"invalid-char":  "bad/id",
 		"over-max-size": strings.Repeat("a", maxIDLength+1),
 	} {
 		s.Run(name, func() {
-			s.Panics(func() { s.dag.AddTaskWithName(id, myTask) })
+			s.Panics(func() { s.dag.Task(myTask, TaskSpec{TaskId: id}) })
 		})
 	}
 }
 
-func (s *RegistrySuite) TestRegisterTaskWithName_DuplicatePanics() {
-	s.dag.AddTaskWithName("special", myTask)
+func (s *RegistrySuite) TestTask_DuplicateIdPanics() {
+	s.dag.Task(myTask, TaskSpec{TaskId: "special"})
 	s.PanicsWithError("taskId \"special\" is already registered for DAG \"dag1\"", func() {
-		s.dag.AddTaskWithName("special", myTask)
+		s.dag.Task(myTask, TaskSpec{TaskId: "special"})
 	})
 }
 
-func (s *RegistrySuite) TestAddTask_NonFuncPanics() {
+func (s *RegistrySuite) TestTask_NonFuncPanics() {
 	s.PanicsWithError("task fn was a string, not a func", func() {
-		s.dag.AddTask("not a func")
+		s.dag.Task("not a func")
 	})
 }
 
-func (s *RegistrySuite) TestAddTaskWithArgs_BindsCorrectArgs() {
-	s.dag.AddTask(myTaskWithArgs)
+func (s *RegistrySuite) TestTask_InjectedArgsBind() {
+	s.dag.Task(myTaskWithArgs)
 	task, exists := s.reg.LookupTask("dag1", "myTaskWithArgs")
 	s.True(exists)
 	s.NotNil(task)
 }
 
-func (s *RegistrySuite) TestAddTask_InvalidReturnType() {
+func (s *RegistrySuite) TestTask_InvalidReturnType() {
 	s.PanicsWithError(
 		"error registering task \"NotErrorRet\" for DAG \"dag1\": expected task function github.com/apache/airflow/go-sdk/bundle/bundlev1.NotErrorRet last return value to return error but found int",
 		func() {
-			s.dag.AddTask(NotErrorRet)
+			s.dag.Task(NotErrorRet)
 		},
 	)
 }
 
-func (s *RegistrySuite) TestAddTask_ErrorReturnType() {
-	s.dag.AddTask(errorTask)
+func (s *RegistrySuite) TestTask_ErrorReturnType() {
+	s.dag.Task(errorTask)
 	_, exists := s.reg.LookupTask("dag1", "errorTask")
 	s.True(exists)
+}
+
+func (s *RegistrySuite) TestTask_TooManySpecsPanics() {
+	s.PanicsWithError("Task accepts at most one TaskSpec", func() {
+		s.dag.Task(myTask, TaskSpec{}, TaskSpec{})
+	})
 }
 
 func (s *RegistrySuite) TestOrderedDags_Empty() {
@@ -182,14 +189,14 @@ func (s *RegistrySuite) TestOrderedDags_PreservesRegistrationOrder() {
 	reg := New()
 	// Register dags out of alphabetical order so the test fails if OrderedDags
 	// ever sorts instead of preserving AddDag order.
-	zeta := reg.AddDag("zeta")
-	zeta.AddTaskWithName("z1", myTask)
-	zeta.AddTaskWithName("z2", myTask)
+	zeta := reg.AddDag(DagSpec{DagId: "zeta"})
+	zeta.Task(myTask, TaskSpec{TaskId: "z1"})
+	zeta.Task(myTask, TaskSpec{TaskId: "z2"})
 
-	alpha := reg.AddDag("alpha")
-	alpha.AddTaskWithName("a1", myTask)
+	alpha := reg.AddDag(DagSpec{DagId: "alpha"})
+	alpha.Task(myTask, TaskSpec{TaskId: "a1"})
 
-	reg.AddDag("mid") // dag with no tasks
+	reg.AddDag(DagSpec{DagId: "mid"}) // dag with no tasks
 
 	enum, ok := reg.(EnumerableBundle)
 	s.Require().True(ok)
@@ -215,8 +222,8 @@ func (s *RegistrySuite) TestOrderedDags_PreservesRegistrationOrder() {
 	s.Empty(got[2].Tasks)
 }
 
-func (s *RegistrySuite) TestAddTask_WithSpec() {
-	s.dag.AddTask(myTask, TaskSpec{Queue: "high_mem", Retries: 3, DoXComPush: Bool(false)})
+func (s *RegistrySuite) TestTask_WithSpec() {
+	s.dag.Task(myTask, TaskSpec{Queue: "high_mem", Retries: 3, DoXComPush: Bool(false)})
 	enum, ok := s.reg.(EnumerableBundle)
 	s.Require().True(ok)
 	dags := enum.OrderedDags()
@@ -230,139 +237,150 @@ func (s *RegistrySuite) TestAddTask_WithSpec() {
 	s.False(*got.Spec.DoXComPush)
 }
 
-func (s *RegistrySuite) TestAddTask_HonorsDoXComPush() {
-	s.dag.AddTask(resultTask, TaskSpec{DoXComPush: Bool(false)})
+func (s *RegistrySuite) TestTask_HonorsDoXComPush() {
+	s.dag.Task(resultTask, TaskSpec{DoXComPush: Bool(false)})
 	task, exists := s.reg.LookupTask("dag1", "resultTask")
 	s.Require().True(exists)
-	client := &recordingClient{}
-	s.Require().NoError(task.Execute(taskContext(client), slog.Default(), nil))
-	s.Empty(client.values)
+	client := &fakeClient{}
+	s.Require().NoError(task.Execute(registryTaskContext(client), slog.Default(), nil))
+	s.Empty(client.pushed)
 }
 
-func (s *RegistrySuite) TestAddTask_PushesNilResult() {
-	s.dag.AddTask(nilResultTask)
+func (s *RegistrySuite) TestTask_PushesNilResult() {
+	s.dag.Task(nilResultTask)
 	task, exists := s.reg.LookupTask("dag1", "nilResultTask")
 	s.Require().True(exists)
-	client := &recordingClient{}
-	s.Require().NoError(task.Execute(taskContext(client), slog.Default(), nil))
-	s.Require().Len(client.values, 1)
-	s.Nil(client.values[0])
+	client := &fakeClient{}
+	s.Require().NoError(task.Execute(registryTaskContext(client), slog.Default(), nil))
+	value, exists := client.pushed[sdk.XComReturnValueKey]
+	s.True(exists)
+	s.Nil(value)
 }
 
-func (s *RegistrySuite) TestAddTaskWithName_WithSpec() {
-	s.dag.AddTaskWithName("special", myTask, TaskSpec{Queue: "gpu", Pool: "gpu_pool"})
-	enum, ok := s.reg.(EnumerableBundle)
-	s.Require().True(ok)
-	dags := enum.OrderedDags()
-	s.Require().Len(dags, 1)
-	s.Require().Len(dags[0].Tasks, 1)
-	got := dags[0].Tasks[0]
-	s.Equal("special", got.ID)
-	s.Equal("gpu", got.Spec.Queue)
-	s.Equal("gpu_pool", got.Spec.Pool)
-}
-
-func (s *RegistrySuite) TestAddTask_DependsRecordsDownstream() {
-	s.dag.AddTaskWithName("extract", myTask)
-	s.dag.AddTaskWithName("transform", myTask, []string{"extract"})
-	s.dag.AddTaskWithName("load", myTask, []string{"transform"})
-
+func (s *RegistrySuite) infoByID() map[string]TaskInfo {
 	enum := s.reg.(EnumerableBundle)
 	tasks := enum.OrderedDags()[0].Tasks
 	byID := make(map[string]TaskInfo, len(tasks))
 	for _, t := range tasks {
 		byID[t.ID] = t
 	}
+	return byID
+}
+
+func (s *RegistrySuite) TestTask_InputsRecordEdgesAndBindings() {
+	extract := s.dag.Task(produce, TaskSpec{TaskId: "extract"})
+	transform := s.dag.Task(relay, TaskSpec{TaskId: "transform"}, Inputs(extract))
+	s.dag.Task(consume, TaskSpec{TaskId: "load"}, Inputs(transform))
+
+	byID := s.infoByID()
 	s.Equal([]string{"transform"}, byID["extract"].Downstream)
 	s.Equal([]string{"load"}, byID["transform"].Downstream)
 	s.Nil(byID["load"].Downstream)
+
+	s.Nil(byID["extract"].Inputs)
+	s.Equal([]string{"extract"}, byID["transform"].Inputs)
+	s.Equal([]string{"transform"}, byID["load"].Inputs)
 }
 
-func (s *RegistrySuite) TestAddTask_FanOutFanIn() {
-	s.dag.AddTaskWithName("extract", myTask)
-	s.dag.AddTaskWithName("transform_a", myTask, []string{"extract"})
-	s.dag.AddTaskWithName("transform_b", myTask, []string{"extract"})
-	s.dag.AddTaskWithName("load", myTask, []string{"transform_a", "transform_b"})
+func (s *RegistrySuite) TestTask_FanOutFanIn() {
+	extract := s.dag.Task(produce, TaskSpec{TaskId: "extract"})
+	a := s.dag.Task(relay, TaskSpec{TaskId: "transform_a"}, Inputs(extract))
+	b := s.dag.Task(relay, TaskSpec{TaskId: "transform_b"}, Inputs(extract))
+	s.dag.Task(consumeTwo, TaskSpec{TaskId: "load"}, Inputs(a, b))
 
-	enum := s.reg.(EnumerableBundle)
-	tasks := enum.OrderedDags()[0].Tasks
-	byID := make(map[string]TaskInfo, len(tasks))
-	for _, t := range tasks {
-		byID[t.ID] = t
-	}
+	byID := s.infoByID()
 	s.ElementsMatch([]string{"transform_a", "transform_b"}, byID["extract"].Downstream)
 	s.Equal([]string{"load"}, byID["transform_a"].Downstream)
 	s.Equal([]string{"load"}, byID["transform_b"].Downstream)
+	s.Equal([]string{"transform_a", "transform_b"}, byID["load"].Inputs)
 }
 
-func (s *RegistrySuite) TestAddTask_DependsDuplicatesIgnored() {
-	s.dag.AddTaskWithName("extract", myTask)
-	s.dag.AddTaskWithName("load", myTask, []string{"extract", "extract"})
+func (s *RegistrySuite) TestTask_AfterRecordsOrderingEdge() {
+	first := s.dag.Task(myTask, TaskSpec{TaskId: "first"})
+	s.dag.Task(myTask, TaskSpec{TaskId: "second"}, After(first))
 
-	enum := s.reg.(EnumerableBundle)
-	tasks := enum.OrderedDags()[0].Tasks
-	byID := make(map[string]TaskInfo, len(tasks))
-	for _, t := range tasks {
-		byID[t.ID] = t
-	}
+	byID := s.infoByID()
+	s.Equal([]string{"second"}, byID["first"].Downstream)
+	s.Nil(byID["second"].Inputs)
+}
+
+func (s *RegistrySuite) TestTask_InputsAndAfterDeduplicateEdges() {
+	extract := s.dag.Task(produce, TaskSpec{TaskId: "extract"})
+	// The same upstream named as both a data input and an After ref records
+	// only one downstream edge.
+	s.dag.Task(consume, TaskSpec{TaskId: "load"}, Inputs(extract), After(extract))
+
+	byID := s.infoByID()
 	s.Equal([]string{"load"}, byID["extract"].Downstream)
 }
 
-func (s *RegistrySuite) TestAddTask_DependsUnknownPanics() {
+func (s *RegistrySuite) TestTask_InputsCountMismatchPanics() {
+	extract := s.dag.Task(produce, TaskSpec{TaskId: "extract"})
 	s.PanicsWithError(
-		`task "load" depends on unknown task "extract" in DAG "dag1"; register upstream tasks first`,
+		`task "consumeTwo" in DAG "dag1" declares 2 data parameter(s) but Inputs supplies 1`,
 		func() {
-			s.dag.AddTaskWithName("load", myTask, []string{"extract"})
+			s.dag.Task(consumeTwo, Inputs(extract))
 		},
 	)
 }
 
-func (s *RegistrySuite) TestAddTask_DependsOnSelfPanics() {
-	s.PanicsWithError(`task "self" cannot depend on itself in DAG "dag1"`, func() {
-		s.dag.AddTaskWithName("self", myTask, []string{"self"})
+func (s *RegistrySuite) TestTask_DataParamWithoutInputsSupportsCoordinatorArgs() {
+	s.dag.Task(consume)
+	s.Nil(s.infoByID()["consume"].Inputs)
+}
+
+func (s *RegistrySuite) TestTask_InputTypeMismatchPanics() {
+	extract := s.dag.Task(produce, TaskSpec{TaskId: "extract"})
+	s.PanicsWithError(
+		`task "consumeString" in DAG "dag1": input 0: task "extract" returns bundlev1.payload, which cannot fill parameter type string`,
+		func() {
+			s.dag.Task(consumeString, Inputs(extract))
+		},
+	)
+}
+
+func (s *RegistrySuite) TestTask_InputLooseMapAccepted() {
+	extract := s.dag.Task(produce, TaskSpec{TaskId: "extract"})
+	s.NotPanics(func() {
+		s.dag.Task(consumeLoose, Inputs(extract))
 	})
 }
 
-func (s *RegistrySuite) TestAddTask_TooManySpecsPanics() {
+func (s *RegistrySuite) TestTask_InputFromValuelessTaskPanics() {
+	first := s.dag.Task(myTask, TaskSpec{TaskId: "first"})
 	s.PanicsWithError(
-		"AddTask accepts at most two optional arguments: depends []string, then TaskSpec; got 3",
+		`task "consume" in DAG "dag1": input task "first" returns no value; use After for an ordering-only dependency`,
 		func() {
-			s.dag.AddTask(myTask, nil, TaskSpec{}, TaskSpec{})
+			s.dag.Task(consume, Inputs(first))
 		},
 	)
 }
 
-func (s *RegistrySuite) TestAddTaskWithName_TooManySpecsPanics() {
+func (s *RegistrySuite) TestTask_CrossDagRefPanics() {
+	other := s.reg.AddDag(DagSpec{DagId: "dag2"})
+	upstream := other.Task(produce, TaskSpec{TaskId: "extract"})
 	s.PanicsWithError(
-		"AddTaskWithName accepts at most two optional arguments: depends []string, then TaskSpec; got 3",
+		`task "consume" in DAG "dag1": Inputs ref "extract" belongs to DAG "dag2"; dependencies cannot cross dags`,
 		func() {
-			s.dag.AddTaskWithName("special", myTask, nil, TaskSpec{}, TaskSpec{})
+			s.dag.Task(consume, Inputs(upstream))
 		},
 	)
 }
 
-func (s *RegistrySuite) TestAddTask_RejectsSpecBeforeDepends() {
+func (s *RegistrySuite) TestTask_ForeignRegistryRefPanics() {
+	foreign := New().AddDag(DagSpec{DagId: "dag1"})
+	upstream := foreign.Task(produce, TaskSpec{TaskId: "extract"})
 	s.PanicsWithError(
-		"AddTask first optional argument must be depends []string, got bundlev1.TaskSpec",
+		`task "consume" in DAG "dag1": Inputs ref "extract" belongs to a different registry`,
 		func() {
-			s.dag.AddTask(myTask, TaskSpec{}, []string{"upstream"})
-		},
-	)
-}
-
-func (s *RegistrySuite) TestAddTask_RejectsInvalidOptionalArgument() {
-	s.PanicsWithError(
-		"AddTask optional argument must be depends []string or TaskSpec, got string",
-		func() {
-			s.dag.AddTask(myTask, "upstream")
+			s.dag.Task(consume, Inputs(upstream))
 		},
 	)
 }
 
 func (s *RegistrySuite) TestAddDag_WithSpec() {
 	dag2 := s.reg.AddDag(
-		"dag2",
-		DagSpec{Schedule: "@daily", Tags: []string{"etl"}, MaxActiveRuns: 4},
+		DagSpec{DagId: "dag2", Schedule: "@daily", Tags: []string{"etl"}, MaxActiveRuns: 4},
 	)
 	s.NotNil(dag2)
 	enum, ok := s.reg.(EnumerableBundle)
@@ -383,7 +401,7 @@ func (s *RegistrySuite) TestAddDag_WithSpec() {
 }
 
 func (s *RegistrySuite) TestAddDag_ContinuousDefaultsToOneActiveRun() {
-	s.reg.AddDag("continuous", DagSpec{Schedule: "@continuous"})
+	s.reg.AddDag(DagSpec{DagId: "continuous", Schedule: "@continuous"})
 	dags := s.reg.(EnumerableBundle).OrderedDags()
 	s.Equal(1, dags[1].Spec.MaxActiveRuns)
 	s.Equal(1, dags[1].Spec.SchemaFields()["max_active_runs"])
@@ -393,13 +411,44 @@ func (s *RegistrySuite) TestAddDag_ContinuousRejectsConcurrentRuns() {
 	s.PanicsWithError(
 		`Dag "continuous" uses @continuous and requires MaxActiveRuns <= 1, got 2`,
 		func() {
-			s.reg.AddDag("continuous", DagSpec{Schedule: "@continuous", MaxActiveRuns: 2})
+			s.reg.AddDag(DagSpec{
+				DagId:         "continuous",
+				Schedule:      "@continuous",
+				MaxActiveRuns: 2,
+			})
 		},
 	)
 }
 
-func (s *RegistrySuite) TestAddDag_TooManySpecsPanics() {
-	s.PanicsWithError("AddDag accepts at most one spec, got 2", func() {
-		s.reg.AddDag("dag3", DagSpec{}, DagSpec{})
+func producePtr() (*payload, error) { return &payload{Value: 1}, nil }
+func consumePtr(in *payload) error  { _ = in; return nil }
+
+// Pointer and value shapes must be interchangeable on both sides of a data
+// edge: the value crosses XCom as its JSON shape, so *T and T are equivalent.
+func (s *RegistrySuite) TestTask_InputPointerValueShapesCompatible() {
+	val := s.dag.Task(produce, TaskSpec{TaskId: "val"})
+	ptr := s.dag.Task(producePtr, TaskSpec{TaskId: "ptr"})
+
+	s.NotPanics(func() {
+		s.dag.Task(consume, TaskSpec{TaskId: "val_to_val"}, Inputs(val))
+		s.dag.Task(consumePtr, TaskSpec{TaskId: "val_to_ptr"}, Inputs(val))
+		s.dag.Task(consume, TaskSpec{TaskId: "ptr_to_val"}, Inputs(ptr))
+		s.dag.Task(consumePtr, TaskSpec{TaskId: "ptr_to_ptr"}, Inputs(ptr))
 	})
+}
+
+func (s *RegistrySuite) TestTask_AnonymousFnWithoutIdPanics() {
+	s.PanicsWithError(
+		`task function in DAG "dag1" is anonymous (its derived name would be "1"); set TaskSpec.TaskId explicitly`,
+		func() {
+			s.dag.Task(func() error { return nil })
+		},
+	)
+}
+
+func (s *RegistrySuite) TestTask_AnonymousFnWithExplicitIdRegisters() {
+	ref := s.dag.Task(func() error { return nil }, TaskSpec{TaskId: "inline"})
+	s.Equal("inline", ref.ID())
+	_, exists := s.reg.LookupTask("dag1", "inline")
+	s.True(exists)
 }

@@ -25,6 +25,8 @@ import (
 
 // TaskSpec configures a registered task. Zero values use schema defaults.
 type TaskSpec struct {
+	// TaskId overrides the function-derived ID.
+	TaskId string
 	// Owner maps to the schema key "owner" (schema default "airflow").
 	Owner string
 	// StartDate maps to the schema key "start_date".
@@ -177,6 +179,8 @@ func (s TaskSpec) SchemaFields() map[string]any {
 
 // DagSpec configures a registered Dag. Zero values use schema defaults.
 type DagSpec struct {
+	// DagId is required.
+	DagId string
 	// Schedule accepts "@once", "@continuous", a cron expression, or "".
 	Schedule string
 	// Catchup maps to the schema key "catchup"; always serialized.

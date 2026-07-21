@@ -17,6 +17,8 @@
 
 package bundlev1
 
+import "fmt"
+
 type (
 	// TaskInfo describes a registered task.
 	TaskInfo struct {
@@ -28,6 +30,8 @@ type (
 		PkgPath string
 		// Spec configures the task.
 		Spec TaskSpec
+		// Inputs lists data dependencies in parameter order.
+		Inputs []string
 		// Downstream lists dependent task IDs in registration order.
 		Downstream []string
 	}
@@ -44,4 +48,14 @@ type (
 // Bool returns a pointer for nullable spec fields.
 func Bool(b bool) *bool {
 	return &b
+}
+
+// applyTask lets a TaskSpec value be passed directly as a TaskOption to
+// Dag.Task. Passing more than one spec panics at registration time.
+func (s TaskSpec) applyTask(c *taskConfig) {
+	if c.specSet {
+		panic(fmt.Errorf("Task accepts at most one TaskSpec"))
+	}
+	c.spec = s
+	c.specSet = true
 }

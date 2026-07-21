@@ -43,28 +43,79 @@ type Bundle interface {
 	LookupTask(dagId, taskId string) (Task, bool)
 }
 
+// InputBinding names the upstream task whose return-value XCom fills one data
+// parameter.
+type InputBinding struct {
+	TaskID string
+}
+
 type taskFunction struct {
 	fn         reflect.Value
 	fullName   string
 	plan       *binding.Plan
+	inputs     []binding.Arg
 	doXComPush bool
 }
 
 var _ Task = (*taskFunction)(nil)
 
 // NewTaskFunction validates and wraps a Go function as a Task.
-func NewTaskFunction(fn any) (Task, error) {
-	return newTaskFunction(fn, true)
+func NewTaskFunction(fn any, inputs ...InputBinding) (Task, error) {
+	return newTaskFunction(fn, true, inputs)
 }
 
-func newTaskFunction(fn any, doXComPush bool) (Task, error) {
+func newTaskFunction(fn any, doXComPush bool, inputs []InputBinding) (Task, error) {
 	v := reflect.ValueOf(fn)
 	fullName := runtime.FuncForPC(v.Pointer()).Name()
 	f := &taskFunction{fn: v, fullName: fullName, doXComPush: doXComPush}
 	if err := f.validateFn(v.Type()); err != nil {
 		return nil, err
 	}
+	if err := f.bindInputs(v.Type(), inputs); err != nil {
+		return nil, err
+	}
 	return f, nil
+}
+
+// dataParamTypes returns non-injected parameter types in declaration order.
+func dataParamTypes(fnType reflect.Type) []reflect.Type {
+	if fnType.Kind() != reflect.Func {
+		return nil
+	}
+	var out []reflect.Type
+	for i := range fnType.NumIn() {
+		if in := fnType.In(i); !isInjectable(in) {
+			out = append(out, in)
+		}
+	}
+	return out
+}
+
+func isInjectable(in reflect.Type) bool {
+	return isTIRunContext(in) || isContext(in) || isLogger(in) || isClient(in)
+}
+
+func (f *taskFunction) bindInputs(fnType reflect.Type, inputs []InputBinding) error {
+	if len(inputs) == 0 {
+		return nil
+	}
+	dataParams := dataParamTypes(fnType)
+	if len(dataParams) != len(inputs) {
+		return fmt.Errorf(
+			"task function %s declares %d data parameter(s) but %d input binding(s) were supplied",
+			f.fullName, len(dataParams), len(inputs),
+		)
+	}
+	f.inputs = make([]binding.Arg, len(inputs))
+	for i, in := range inputs {
+		if in.TaskID == "" {
+			return fmt.Errorf(
+				"task function %s: input binding %d has an empty task id", f.fullName, i,
+			)
+		}
+		f.inputs[i] = binding.XComArg{Kind: "xcom", TaskID: in.TaskID}
+	}
+	return nil
 }
 
 // Execute binds the supplied TaskFlow arguments and runs the task.
@@ -76,6 +127,9 @@ func (f *taskFunction) Execute(
 	sdkClient, err := clientFrom(ctx)
 	if err != nil {
 		return err
+	}
+	if len(args) == 0 && len(f.inputs) > 0 {
+		args = f.inputs
 	}
 	reflectArgs, err := f.plan.Resolve(ctx, logger, sdkClient, args)
 	if err != nil {
@@ -197,8 +251,31 @@ func isValidResultType(inType reflect.Type) bool {
 	return true
 }
 
-var errorType = reflect.TypeFor[error]()
+var (
+	errorType        = reflect.TypeFor[error]()
+	contextType      = reflect.TypeFor[context.Context]()
+	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
+	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
+	clientType       = reflect.TypeFor[sdk.Client]()
+)
 
 func isError(inType reflect.Type) bool {
 	return inType != nil && inType.Implements(errorType)
+}
+
+func isContext(inType reflect.Type) bool {
+	return inType != nil && inType.Implements(contextType)
+}
+
+func isTIRunContext(inType reflect.Type) bool {
+	return inType == tiRunContextType
+}
+
+func isLogger(inType reflect.Type) bool {
+	return inType != nil && inType.AssignableTo(slogLoggerType)
+}
+
+func isClient(inType reflect.Type) bool {
+	return inType != nil && inType.Kind() == reflect.Interface &&
+		inType.NumMethod() > 0 && clientType.Implements(inType)
 }

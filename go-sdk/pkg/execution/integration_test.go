@@ -107,8 +107,8 @@ func newStartupDetails(
 
 func TestDagParsing(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		d := r.AddDag("test_dag")
-		d.AddTask(simpleTask, nil)
+		d := r.AddDag(bundlev1.DagSpec{DagId: "test_dag"})
+		d.Task(simpleTask)
 	})
 
 	req := &genmodels.DagFileParseRequest{
@@ -146,8 +146,8 @@ func TestDagParsing(t *testing.T) {
 
 func TestDagParsingMultipleDagsPreservesOrder(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("dag1").AddTask(simpleTask, nil)
-		r.AddDag("dag2").AddTask(failingTask, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "dag1"}).Task(simpleTask)
+		r.AddDag(bundlev1.DagSpec{DagId: "dag2"}).Task(failingTask)
 	})
 
 	req := &genmodels.DagFileParseRequest{File: "/bundle/main.go", BundlePath: "/bundle"}
@@ -165,7 +165,7 @@ func TestDagParsingMultipleDagsPreservesOrder(t *testing.T) {
 
 func TestTaskRunnerSuccess(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(simpleTask)
 	})
 
 	details := newStartupDetails("simpleTask")
@@ -179,7 +179,7 @@ func TestTaskRunnerSuccess(t *testing.T) {
 
 func TestTaskRunnerFailure(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(failingTask)
 	})
 
 	details := newStartupDetails("failingTask")
@@ -193,7 +193,7 @@ func TestTaskRunnerFailure(t *testing.T) {
 
 func TestTaskRunnerRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(failingTask, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(failingTask)
 	})
 
 	details := newStartupDetails("failingTask")
@@ -209,7 +209,7 @@ func TestTaskRunnerRetry(t *testing.T) {
 
 func TestTaskRunnerTaskNotFound(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(simpleTask, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(simpleTask)
 	})
 
 	details := newStartupDetails("nonexistent")
@@ -223,7 +223,7 @@ func TestTaskRunnerTaskNotFound(t *testing.T) {
 
 func TestTaskRunnerPanic(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(panicTask)
 	})
 
 	details := newStartupDetails("panicTask")
@@ -237,7 +237,7 @@ func TestTaskRunnerPanic(t *testing.T) {
 
 func TestTaskRunnerPanicRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTask(panicTask, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(panicTask)
 	})
 
 	details := newStartupDetails("panicTask")
@@ -255,12 +255,12 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 	var gotCountry string
 	var gotMeta map[string]any
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("transform",
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 			func(log *slog.Logger, country string, meta map[string]any) error {
 				gotCountry = country
 				gotMeta = meta
 				return nil
-			}, nil)
+			}, bundlev1.TaskSpec{TaskId: "transform"})
 	})
 
 	details := newStartupDetails(
@@ -291,11 +291,11 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("transform",
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 			func(country string, meta map[string]any) error {
 				ran = true
 				return nil
-			}, nil)
+			}, bundlev1.TaskSpec{TaskId: "transform"})
 	})
 
 	details := newStartupDetails(
@@ -323,11 +323,11 @@ type regionInput struct {
 func TestTaskRunnerBindsStructArgs(t *testing.T) {
 	var got regionInput
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("transform",
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 			func(input regionInput) error {
 				got = input
 				return nil
-			}, nil)
+			}, bundlev1.TaskSpec{TaskId: "transform"})
 	})
 
 	details := newStartupDetails(
@@ -351,11 +351,11 @@ func TestTaskRunnerBindsStructArgs(t *testing.T) {
 func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 	var got regionInput
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("transform",
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 			func(input regionInput) error {
 				got = input
 				return nil
-			}, nil)
+			}, bundlev1.TaskSpec{TaskId: "transform"})
 	})
 
 	details := newStartupDetails(
@@ -385,8 +385,8 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 
 func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(count int) error { return nil }, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
+			func(count int) error { return nil }, bundlev1.TaskSpec{TaskId: "transform"})
 	})
 
 	details := newStartupDetails(
@@ -409,11 +409,11 @@ func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("transform",
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 			func(country string) error {
 				ran = true
 				return nil
-			}, nil)
+			}, bundlev1.TaskSpec{TaskId: "transform"})
 	})
 
 	details := newStartupDetails(
@@ -432,11 +432,11 @@ func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
 func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
 	ran := false
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("transform",
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 			func(country string) error {
 				ran = true
 				return nil
-			}, nil)
+			}, bundlev1.TaskSpec{TaskId: "transform"})
 	})
 
 	details := newStartupDetails(
@@ -481,11 +481,11 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ran := false
 			bundle := buildBundle(t, func(r bundlev1.Registry) {
-				r.AddDag("test_dag").AddTaskWithName("transform",
+				r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 					func(country string) error {
 						ran = true
 						return nil
-					}, nil)
+					}, bundlev1.TaskSpec{TaskId: "transform"})
 			})
 
 			details := newStartupDetails("transform", tc.spec)
@@ -502,8 +502,8 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("transform",
-			func(country string) error { return nil }, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
+			func(country string) error { return nil }, bundlev1.TaskSpec{TaskId: "transform"})
 	})
 
 	details := newStartupDetails(
@@ -521,8 +521,9 @@ func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
 
 func TestRunTaskHonorsContextCancellation(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
-			func(ctx context.Context) error { return ctx.Err() }, nil)
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
+			func(ctx context.Context) error { return ctx.Err() },
+			bundlev1.TaskSpec{TaskId: "ctxcheck"})
 	})
 
 	details := newStartupDetails("ctxcheck")
@@ -546,11 +547,11 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 
 	var got sdk.TIRunContext
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 			func(ctx sdk.TIRunContext) error {
 				got = ctx
 				return nil
-			}, nil)
+			}, bundlev1.TaskSpec{TaskId: "ctxgrab"})
 	})
 
 	details := &genmodels.StartupDetails{
@@ -606,11 +607,11 @@ func TestRunTaskInjectsRuntimeContext(t *testing.T) {
 func TestRunTaskRuntimeContextMappedIndex(t *testing.T) {
 	var got sdk.TIRunContext
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
-		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
+		r.AddDag(bundlev1.DagSpec{DagId: "test_dag"}).Task(
 			func(ctx sdk.TIRunContext) error {
 				got = ctx
 				return nil
-			}, nil)
+			}, bundlev1.TaskSpec{TaskId: "ctxgrab"})
 	})
 
 	details := newStartupDetails("ctxgrab")
@@ -679,8 +680,16 @@ func TestServeDagFileParseEndToEnd(t *testing.T) {
 
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
-			d := r.AddDag("simple_dag")
-			d.AddTask(simpleTask, nil)
+			d := r.AddDag(bundlev1.DagSpec{DagId: "simple_dag"})
+			extract := d.Task(
+				func() (string, error) { return "data", nil },
+				bundlev1.TaskSpec{TaskId: "extract"},
+			)
+			d.Task(
+				func(in string) error { return nil },
+				bundlev1.TaskSpec{TaskId: "transform"},
+				bundlev1.Inputs(extract),
+			)
 			return nil
 		},
 	}
@@ -717,6 +726,16 @@ func TestServeDagFileParseEndToEnd(t *testing.T) {
 	dag := dags[0].(map[string]any)["data"].(map[string]any)["dag"].(map[string]any)
 	assert.Equal(t, "simple_dag", dag["dag_id"])
 
+	// The Inputs wiring must surface as downstream_task_ids on the upstream.
+	tasks := dag["tasks"].([]any)
+	require.Len(t, tasks, 2)
+	extractData := tasks[0].(map[string]any)["__var"].(map[string]any)
+	assert.Equal(t, "extract", extractData["task_id"])
+	assert.Equal(t, []any{"transform"}, extractData["downstream_task_ids"])
+	transformData := tasks[1].(map[string]any)["__var"].(map[string]any)
+	assert.Equal(t, "transform", transformData["task_id"])
+	assert.Nil(t, transformData["downstream_task_ids"])
+
 	select {
 	case err := <-done:
 		require.NoError(t, err)
@@ -731,7 +750,7 @@ func TestServeStartupDetailsEndToEnd(t *testing.T) {
 
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTask(simpleTask, nil)
+			r.AddDag(bundlev1.DagSpec{DagId: "dag1"}).Task(simpleTask)
 			return nil
 		},
 	}
@@ -789,7 +808,7 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 	var gotVar string
 	provider := &fakeProvider{
 		register: func(r bundlev1.Registry) error {
-			r.AddDag("dag1").AddTaskWithName("getvar",
+			r.AddDag(bundlev1.DagSpec{DagId: "dag1"}).Task(
 				func(ctx context.Context, c sdk.Client) (string, error) {
 					v, err := c.GetVariable(ctx, varKey)
 					if err != nil {
@@ -797,7 +816,7 @@ func TestServeClientRoundTripEndToEnd(t *testing.T) {
 					}
 					gotVar = v
 					return "xval", nil
-				}, nil)
+				}, bundlev1.TaskSpec{TaskId: "getvar"})
 			return nil
 		},
 	}

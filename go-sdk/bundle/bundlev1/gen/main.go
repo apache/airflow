@@ -80,6 +80,13 @@ var specConfigs = []specConfig{
 		typeOverrides: map[string]string{
 			"retry_exponential_backoff": "float64",
 		},
+		extraFields: []extraField{
+			{
+				goName: "TaskId",
+				goType: "string",
+				doc:    []string{"TaskId overrides the function-derived ID."},
+			},
+		},
 	},
 	{
 		defName:   "dag",
@@ -109,6 +116,11 @@ var specConfigs = []specConfig{
 			"is_paused_upon_creation": {kind: behaviorEmitWhenSet},
 		},
 		extraFields: []extraField{
+			{
+				goName: "DagId",
+				goType: "string",
+				doc:    []string{"DagId is required."},
+			},
 			{
 				goName: "Schedule",
 				goType: "string",
