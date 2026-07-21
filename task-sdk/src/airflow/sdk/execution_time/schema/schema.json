@@ -4649,11 +4649,6 @@
         "task_id": {
           "title": "Task Id",
           "type": "string"
-        },
-        "key": {
-          "default": "return_value",
-          "title": "Key",
-          "type": "string"
         }
       },
       "required": [

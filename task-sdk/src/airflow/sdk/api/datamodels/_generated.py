@@ -547,7 +547,6 @@ class XComArgBinding(BaseModel):
     name: Annotated[str, Field(title="Name")]
     data_type: ArgBindingDataType | None = ArgBindingDataType.ANY
     task_id: Annotated[str, Field(title="Task Id")]
-    key: Annotated[str | None, Field(title="Key")] = "return_value"
 
 
 class XComResponse(BaseModel):

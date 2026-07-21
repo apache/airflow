@@ -3429,26 +3429,14 @@ def test_stub_task_args_round_trip():
         },
         {
             Encoding.TYPE: DAT.DICT,
-            Encoding.VAR: {
-                "name": "extracted",
-                "kind": "xcom",
-                "data_type": "object",
-                "task_id": "extract",
-                "key": "return_value",
-            },
+            Encoding.VAR: {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
         },
     ]
 
     round_tripped = DagSerialization.from_dict(ser_dag)
     assert round_tripped.task_dict["transform"]._arg_bindings == [
         {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-        {
-            "name": "extracted",
-            "kind": "xcom",
-            "data_type": "object",
-            "task_id": "extract",
-            "key": "return_value",
-        },
+        {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
     ]
     assert not hasattr(round_tripped.task_dict["extract"], "_arg_bindings") or (
         round_tripped.task_dict["extract"]._arg_bindings is None

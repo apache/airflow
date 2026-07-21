@@ -331,7 +331,7 @@ func (m *TriggerDagRun) DecodeMsgpack(dec *msgpack.Decoder) error {
 // DecodeMsgpack applies XComArgBinding's schema defaults that msgpack would otherwise skip.
 func (m *XComArgBinding) DecodeMsgpack(dec *msgpack.Decoder) error {
 	type alias XComArgBinding
-	v := alias{DataType: ArgBindingDataType("any"), Key: "return_value"}
+	v := alias{DataType: ArgBindingDataType("any")}
 	if err := dec.Decode(&v); err != nil {
 		return err
 	}

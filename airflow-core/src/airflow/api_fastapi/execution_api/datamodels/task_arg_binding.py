@@ -20,12 +20,6 @@ Positional-argument binding spec for stub (foreign-runtime) tasks.
 Captured at parse time from a stub task's TaskFlow call (``@task.stub``), stored in the
 serialized Dag, and delivered to the lang-SDK runtime through ``TIRunContext.arg_bindings``
 so it can bind the values onto the native task function's parameters.
-
-Each binding is one variant of a union discriminated on ``kind``: an ``XComArgBinding``
-pulls the value from an upstream task's XCom, a ``LiteralArgBinding`` carries an inline
-value from the Dag file. Both variants still emit plain named structs
-(``$defs/XComArgBinding``, ``$defs/LiteralArgBinding``) for the foreign-language SDKs
-consuming the supervisor schema.
 """
 
 from __future__ import annotations
@@ -55,9 +49,6 @@ class ArgBindingDataType(str, Enum):
 class XComArgBinding(BaseModel):
     """One positional stub-task argument pulled from an upstream task's XCom."""
 
-    # No default on purpose: a required ``kind`` stays non-nullable through the OpenAPI
-    # round trip, which discriminated-union codegen needs (a defaulted field turns
-    # ``Literal`` into ``Literal | None`` in the generated task-sdk models).
     kind: Literal["xcom"]
 
     name: str
@@ -67,17 +58,13 @@ class XComArgBinding(BaseModel):
     """Declared type from the stub function's annotation; runtimes type-check against it."""
 
     task_id: str
-    """Upstream task id to pull the XCom from."""
-
-    key: str = "return_value"
-    """XCom key to pull."""
+    """Upstream task id to pull the XCom from; the ``return_value`` XCom is always the one pulled."""
 
 
 class LiteralArgBinding(BaseModel):
     """One positional stub-task argument carrying an inline literal from the Dag file."""
 
     kind: Literal["literal"]
-    """Required like ``XComArgBinding.kind``; see the note there."""
 
     name: str
     """The stub function's parameter name this binding fills, in declaration order."""

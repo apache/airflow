@@ -1887,9 +1887,6 @@ type XComArgBinding struct {
 	// DataType corresponds to the JSON schema field "data_type".
 	DataType ArgBindingDataType `msgpack:"data_type,omitempty"`
 
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key,omitempty"`
-
 	// Kind corresponds to the JSON schema field "kind".
 	Kind string `msgpack:"kind"`
 

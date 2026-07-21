@@ -130,6 +130,10 @@ def make_numbers(): ...
 
 
 @task.stub(queue="golang")
+def make_region(): ...
+
+
+@task.stub(queue="golang")
 def via_flat_args(
     name: str,
     count: int,
@@ -178,7 +182,10 @@ def taskflow_binding_dag():
     verifies every bound value and fails the task on any mismatch.
 
     Three further tasks demonstrate the Go SDK's ``sdk.TaskInput`` struct injection
-    mode, one field-binding mode at a time:
+    mode. Each call mixes a literal (``threshold``) with an XCom reference: the
+    ``region_code`` argument is ``make_region``'s output, so every struct example
+    also proves an XCom-sourced value binds onto a struct field. One field-binding
+    mode at a time:
 
     * ``via_struct_no_tags``: no ``arg:`` tags at all -- each struct field binds
       the argument spelled exactly like its Go field name, hence this stub's
@@ -200,9 +207,10 @@ def taskflow_binding_dag():
         config=make_config(),
         numbers=make_numbers(),
     )
-    via_struct_no_tags(RegionCode="eu-west-1", Threshold=0.75)
-    via_struct_arg_tag(region_code="eu-west-1", threshold=0.75)
-    via_struct_unmatched_arg(region_code="eu-west-1")
+    region = make_region()
+    via_struct_no_tags(RegionCode=region, Threshold=0.75)
+    via_struct_arg_tag(region_code=region, threshold=0.75)
+    via_struct_unmatched_arg(region_code=region)
 
 
 taskflow_binding_dag()

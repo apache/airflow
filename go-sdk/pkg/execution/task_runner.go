@@ -145,7 +145,7 @@ func RunTask(
 // the Python stub Dag's TaskFlow call) onto the runtime binding sum type. The
 // wire union generates untyped items (msgpack delivers each XComArgBinding /
 // LiteralArgBinding as a plain map), so the kind dispatch and the schema
-// defaults (data_type "any", xcom key "return_value") are applied here.
+// default (data_type "any") are applied here.
 func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) {
 	if specsPtr == nil || len(*specsPtr) == 0 {
 		return nil, nil
@@ -165,11 +165,7 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		switch kind, _ := m["kind"].(string); kind {
 		case "xcom":
 			taskID, _ := m["task_id"].(string)
-			key := "return_value"
-			if s, ok := m["key"].(string); ok && s != "" {
-				key = s
-			}
-			args[i] = binding.XComArg{Name: name, TaskID: taskID, Key: key, DataType: dataType}
+			args[i] = binding.XComArg{Name: name, TaskID: taskID, DataType: dataType}
 		case "literal":
 			args[i] = binding.LiteralArg{Name: name, Value: m["value"], DataType: dataType}
 		default:

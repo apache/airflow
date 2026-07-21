@@ -75,6 +75,7 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
     for task_id in (
         "make_config",
         "make_numbers",
+        "make_region",
         "via_flat_args",
         "via_struct_no_tags",
         "via_struct_arg_tag",
@@ -84,13 +85,14 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
 
 
 def test_upstream_xcoms_keep_their_shapes(completed_run: _CompletedRun):
-    """The Go struct arrives as an object XCom and the ``[]int`` as an array."""
+    """The Go struct arrives as an object XCom, the ``[]int`` as an array, the region as a string."""
     assert completed_run.xcom("make_config") == {
         "environment": "production",
         "region": "eu-west-1",
         "debug": True,
     }
     assert completed_run.xcom("make_numbers") == [1, 1, 2, 3, 5, 8]
+    assert completed_run.xcom("make_region") == "eu-west-1"
 
 
 def test_via_flat_args_summary_reflects_bound_arguments(completed_run: _CompletedRun):
@@ -112,7 +114,8 @@ def test_via_flat_args_summary_reflects_bound_arguments(completed_run: _Complete
 def test_via_struct_no_tags_reflects_bound_arguments(completed_run: _CompletedRun):
     """``via_struct_no_tags`` demonstrates the Go SDK's ``sdk.TaskInput`` struct-field
     injection mode with no field tags at all: each field binds the TaskFlow argument
-    spelled exactly like its Go field name (``RegionCode``, ``Threshold``)."""
+    spelled exactly like its Go field name (``RegionCode``, ``Threshold``). The region
+    is ``make_region``'s XCom, so a struct field binds an XCom-sourced value here."""
     assert completed_run.xcom("via_struct_no_tags") == {
         "region_code": "eu-west-1",
         "threshold": 0.75,
@@ -121,8 +124,9 @@ def test_via_struct_no_tags_reflects_bound_arguments(completed_run: _CompletedRu
 
 def test_via_struct_arg_tag_reflects_bound_arguments(completed_run: _CompletedRun):
     """``via_struct_arg_tag`` demonstrates explicit ``arg:`` tags: ``Region`` is
-    genuinely renamed to ``region_code``, and ``Threshold`` is tagged ``threshold``
-    to pull the snake_case argument its verbatim field name would miss."""
+    genuinely renamed to ``region_code`` (bound from ``make_region``'s XCom), and
+    ``Threshold`` is tagged ``threshold`` to pull the snake_case literal its
+    verbatim field name would miss."""
     assert completed_run.xcom("via_struct_arg_tag") == {
         "region": "eu-west-1",
         "threshold": 0.75,

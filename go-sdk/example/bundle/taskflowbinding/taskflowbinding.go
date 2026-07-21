@@ -26,7 +26,9 @@
 // is left at its zero value rather than failing the task -- one field-binding
 // mode at a time: ViaStructNoTags (verbatim field-name fallback),
 // ViaStructArgTag (explicit `arg:` naming), and ViaStructUnmatchedArg (a
-// field whose name has no corresponding TaskFlow call argument at all).
+// field whose name has no corresponding TaskFlow call argument at all). Each
+// ViaStruct* call binds MakeRegion's XCom onto its region field alongside a
+// literal, so struct fields are exercised with both argument sources.
 package taskflowbinding
 
 import (
@@ -67,6 +69,15 @@ func MakeNumbers(log *slog.Logger) (any, error) {
 	numbers := []int{1, 1, 2, 3, 5, 8}
 	log.Info("Pushing numbers", "numbers", fmt.Sprint(numbers))
 	return numbers, nil
+}
+
+// MakeRegion pushes a string XCom that every ViaStruct* task binds onto a
+// struct field, so each field-binding mode is exercised with an XCom-sourced
+// argument and not just literals.
+func MakeRegion(log *slog.Logger) (any, error) {
+	region := "eu-west-1"
+	log.Info("Pushing region", "region", region)
+	return region, nil
 }
 
 // ViaFlatArgs receives every argument shape the stub Dag can express as plain,
@@ -147,7 +158,9 @@ type ViaStructNoTagsInput struct {
 
 // ViaStructNoTags is called as
 //
-//	via_struct_no_tags(RegionCode="eu-west-1", Threshold=0.75)
+//	via_struct_no_tags(RegionCode=make_region(), Threshold=0.75)
+//
+// so RegionCode arrives via make_region's XCom and Threshold as a literal.
 func ViaStructNoTags(
 	ctx sdk.TIRunContext,
 	log *slog.Logger,
@@ -185,7 +198,9 @@ type ViaStructArgTagInput struct {
 
 // ViaStructArgTag is called as
 //
-//	via_struct_arg_tag(region_code="eu-west-1", threshold=0.75)
+//	via_struct_arg_tag(region_code=make_region(), threshold=0.75)
+//
+// so Region arrives via make_region's XCom and Threshold as a literal.
 func ViaStructArgTag(
 	ctx sdk.TIRunContext,
 	log *slog.Logger,
@@ -222,10 +237,11 @@ type ViaStructUnmatchedArgInput struct {
 
 // ViaStructUnmatchedArg is called as
 //
-//	via_struct_unmatched_arg(region_code="eu-west-1")
+//	via_struct_unmatched_arg(region_code=make_region())
 //
-// -- the stub only declares region_code, so Missing's arg name never appears
-// among the call's arguments and stays at its Go zero value ("").
+// -- the stub only declares region_code (bound from make_region's XCom), so
+// Missing's arg name never appears among the call's arguments and stays at
+// its Go zero value ("").
 func ViaStructUnmatchedArg(
 	ctx sdk.TIRunContext, log *slog.Logger, input ViaStructUnmatchedArgInput,
 ) (any, error) {

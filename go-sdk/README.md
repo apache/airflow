@@ -144,8 +144,9 @@ source of truth for which `dag_id`s and `task_id`s a bundle can run.
 ### TaskInput structs
 
 A struct that anonymously embeds `sdk.TaskInput` opts into **per-field, name-based** binding instead
-of a long flat parameter list — at most one such parameter is allowed per function, and it can be
-mixed with plain flat parameters.
+of a long flat parameter list. At most one such parameter is allowed per function, and it cannot be
+combined with plain flat data parameters — a task function declares one shape or the other, and
+registration fails on a signature that mixes them.
 
 Conceptually, a plain flat parameter list is **positional-argument** binding: order matters, and
 every parameter must be filled or the task fails before its body runs. A `TaskInput` struct is
@@ -174,11 +175,7 @@ only binds an argument literally spelled `Threshold`, so a snake_case Python par
 explicit tag. If no TaskFlow call argument carries that name, the field is simply left at its Go
 zero value — it does not fail the task, kwarg-style (see `ViaStructUnmatchedArg` below).
 
-When a `TaskInput` struct and plain flat parameters coexist in the same function, the struct's fields
-claim entries out of the TaskFlow call's argument spec by name first; the *remaining, unclaimed*
-entries are then distributed, in their original relative order, onto the flat parameters in
-declaration order. With no `TaskInput` struct present, this is exactly today's positional-only
-behaviour. A plain custom struct type *without* the `sdk.TaskInput` embed is unaffected by any of
+A plain custom struct type *without* the `sdk.TaskInput` embed is unaffected by any of
 this — it keeps working as a single flat data parameter, JSON-decoded whole from one TaskFlow
 argument (see `Config` in
 [`example/bundle/taskflowbinding/taskflowbinding.go`](./example/bundle/taskflowbinding/taskflowbinding.go)),

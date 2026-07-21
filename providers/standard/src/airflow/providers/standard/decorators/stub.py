@@ -155,22 +155,26 @@ def _build_arg_bindings(
         value = bound.arguments[name]
         data_type = _data_type_from_annotation(annotation_for(name, param))
         if isinstance(value, PlainXComArg):
+            if value.key != "return_value":
+                raise ValueError(
+                    f"@task.stub task {task_id!r} parameter {name!r} references the XCom key "
+                    f"{value.key!r}; only an upstream task's return value can cross the language "
+                    "boundary -- indexing an output by a custom key is not supported"
+                )
             spec.append(
                 {
                     "name": name,
                     "kind": "xcom",
                     "data_type": data_type,
                     "task_id": value.operator.task_id,
-                    "key": value.key,
                 }
             )
             continue
         if isinstance(value, XComArg):
             raise ValueError(
                 f"@task.stub task {task_id!r} parameter {name!r} received a "
-                f"{type(value).__name__}; only direct upstream task outputs (optionally "
-                "indexed by key) can cross the language boundary -- .map()/.zip()/.concat() "
-                "results are not supported"
+                f"{type(value).__name__}; only direct upstream task outputs can cross the "
+                "language boundary -- .map()/.zip()/.concat() results are not supported"
             )
         try:
             json.dumps(value)

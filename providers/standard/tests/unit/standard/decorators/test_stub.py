@@ -103,13 +103,7 @@ class TestStubTaskflowArgs:
         op = result.operator
         assert op._arg_bindings == [
             {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-            {
-                "name": "extracted",
-                "kind": "xcom",
-                "data_type": "object",
-                "task_id": "fn_extract",
-                "key": "return_value",
-            },
+            {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "fn_extract"},
             {"name": "retries_num", "kind": "literal", "data_type": "integer", "value": 3},
         ]
         assert op.upstream_task_ids == {"fn_extract"}
@@ -117,19 +111,19 @@ class TestStubTaskflowArgs:
     def test_kwargs_normalize_to_declaration_order(self):
         with DAG(dag_id="d"):
             extracted = stub(fn_extract)()
-            result = stub(fn_transform)(extracted=extracted["part"], country="fr", retries_num=7)
+            result = stub(fn_transform)(extracted=extracted, country="fr", retries_num=7)
 
         assert result.operator._arg_bindings == [
             {"name": "country", "kind": "literal", "data_type": "string", "value": "fr"},
-            {
-                "name": "extracted",
-                "kind": "xcom",
-                "data_type": "object",
-                "task_id": "fn_extract",
-                "key": "part",
-            },
+            {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "fn_extract"},
             {"name": "retries_num", "kind": "literal", "data_type": "integer", "value": 7},
         ]
+
+    def test_custom_xcom_key_rejected(self):
+        with DAG(dag_id="d"):
+            extracted = stub(fn_extract)()
+            with pytest.raises(ValueError, match="indexing an output by a custom key"):
+                stub(fn_transform)("uk", extracted["part"])
 
     def test_zero_param_stub_has_no_spec(self):
         assert stub(fn_pass)().operator._arg_bindings is None

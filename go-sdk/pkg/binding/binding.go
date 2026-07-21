@@ -36,13 +36,11 @@
 //     the argument to claim, and a field with no tag claims its own Go field
 //     name, verbatim. At most one such parameter is allowed per function.
 //
-// A TaskInput struct's fields are resolved first, by name, claiming entries
-// out of the argument spec; the remaining unclaimed entries are then
-// distributed, in their original relative order, onto the plain flat data
-// parameters in declaration order -- so flat parameters and a TaskInput
-// struct can coexist in the same function signature regardless of where each
-// sits, and (with no TaskInput struct present) this reduces to exactly
-// today's positional-only behaviour.
+// The two data-parameter shapes are mutually exclusive: a function declares
+// either plain flat data parameters or one TaskInput struct, never both.
+// Analyze rejects a signature that mixes them -- splitting one TaskFlow
+// call's arguments between by-name claiming and positional order is too
+// ambiguous to reason about.
 //
 // Conceptually, flat data parameters are positional-argument binding: order
 // matters, and every parameter must be filled or Resolve fails the task
@@ -70,30 +68,35 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strings"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // DataType is the language-neutral value type the Dag declared for an
-// argument (from the stub function's annotation on the Python side).
-type DataType string
+// argument (from the stub function's annotation on the Python side). It
+// aliases the enum generated from the supervisor schema so the vocabulary
+// cannot drift from the wire model.
+type DataType = genmodels.ArgBindingDataType
 
 const (
-	DataTypeString  DataType = "string"
-	DataTypeInteger DataType = "integer"
-	DataTypeNumber  DataType = "number"
-	DataTypeBoolean DataType = "boolean"
-	DataTypeObject  DataType = "object"
-	DataTypeArray   DataType = "array"
-	DataTypeAny     DataType = "any"
+	DataTypeString  = genmodels.ArgBindingDataTypeString
+	DataTypeInteger = genmodels.ArgBindingDataTypeInteger
+	DataTypeNumber  = genmodels.ArgBindingDataTypeNumber
+	DataTypeBoolean = genmodels.ArgBindingDataTypeBoolean
+	DataTypeObject  = genmodels.ArgBindingDataTypeObject
+	DataTypeArray   = genmodels.ArgBindingDataTypeArray
+	DataTypeAny     = genmodels.ArgBindingDataTypeAny
 )
 
 // Arg is one positional argument for a task function's data parameters, in
-// declaration order: an XComArg or a LiteralArg. A sealed sum type mirroring
-// the wire model's XComArgBinding/LiteralArgBinding split, kept runtime-neutral
-// so this package stays decoupled from the generated coordinator schema types.
+// declaration order: an XComArg or a LiteralArg. A sealed sum type over the
+// wire model's XComArgBinding/LiteralArgBinding split; each variant is
+// defined in terms of its generated schema struct so the fields cannot drift
+// from the coordinator protocol.
 type Arg interface {
 	// ArgName is the stub function's parameter name this binding fills; used
 	// to match a TaskInput struct field's `arg:` tag (or its verbatim
@@ -107,27 +110,15 @@ type Arg interface {
 	sealedArg()
 }
 
-// XComArg sources the argument from an upstream task's XCom.
-type XComArg struct {
-	// Name is the stub function's parameter name this binding fills.
-	Name string
-	// TaskID is the upstream task to pull from.
-	TaskID string
-	// Key is the XCom key to pull; empty means the return-value key.
-	Key string
-	// DataType is the declared type to check the Go parameter against.
-	DataType DataType
-}
+// XComArg sources the argument from an upstream task's return-value XCom.
+// Kind is carried by the generated shape but unused here: the Go type itself
+// is the discriminant.
+type XComArg genmodels.XComArgBinding
 
-// LiteralArg carries an inline value from the Dag file.
-type LiteralArg struct {
-	// Name is the stub function's parameter name this binding fills.
-	Name string
-	// Value is the literal value from the Dag file.
-	Value any
-	// DataType is the declared type to check the Go parameter against.
-	DataType DataType
-}
+// LiteralArg carries an inline value from the Dag file. Kind is carried by
+// the generated shape but unused here: the Go type itself is the
+// discriminant.
+type LiteralArg genmodels.LiteralArgBinding
 
 func (a XComArg) ArgName() string    { return a.Name }
 func (a LiteralArg) ArgName() string { return a.Name }
@@ -184,9 +175,10 @@ type paramPlan struct {
 // Plan is the precomputed recipe for filling a task function's parameters. It
 // is built once by Analyze and reused for every execution of that function.
 type Plan struct {
-	fnName  string
-	params  []paramPlan
-	numData int
+	fnName       string
+	params       []paramPlan
+	numData      int
+	hasTaskInput bool
 }
 
 // NumData returns how many data parameters the analyzed function declares.
@@ -221,15 +213,24 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 		}
 		p.params[i] = plan
 	}
+	if seenTaskInput >= 0 {
+		p.hasTaskInput = true
+		if p.numData > 0 {
+			return nil, fmt.Errorf(
+				"task function %s: cannot mix a TaskInput struct parameter (parameter %d) with "+
+					"plain data parameters; declare either flat data parameters or one TaskInput struct",
+				fnName, seenTaskInput,
+			)
+		}
+	}
 	return p, nil
 }
 
 // Resolve builds the ordered argument values for one call. Injectable
 // parameters receive values derived from ctx, logger, or client. A TaskInput
-// struct's fields are resolved first, by name, claiming entries out of args;
-// the remaining unclaimed entries are then distributed, in their original
-// relative order, onto the plain flat data parameters in declaration order.
-// An error fails the task before its body runs.
+// struct's fields claim entries out of args by name; plain flat data
+// parameters consume args in declaration order (the two shapes are mutually
+// exclusive; see Analyze). An error fails the task before its body runs.
 func (p *Plan) Resolve(
 	ctx context.Context,
 	logger *slog.Logger,
@@ -265,6 +266,24 @@ func (p *Plan) Resolve(
 		}
 	}
 	if remaining != p.numData {
+		if p.hasTaskInput {
+			names := make([]string, 0, remaining)
+			for i, c := range claimed {
+				if c {
+					continue
+				}
+				name := "<nil>"
+				if args[i] != nil {
+					name = fmt.Sprintf("%q", args[i].ArgName())
+				}
+				names = append(names, name)
+			}
+			return nil, fmt.Errorf(
+				"task function %s: %d TaskFlow call argument(s) not claimed by any TaskInput "+
+					"field: %s",
+				p.fnName, remaining, strings.Join(names, ", "),
+			)
+		}
 		return nil, fmt.Errorf(
 			"task function %s: argument count mismatch: the Dag passes %d positional argument(s) "+
 				"but the Go function declares %d data parameter(s)",
@@ -424,17 +443,16 @@ func (p *Plan) resolveOne(
 				p.fnName, generalCtx,
 			)
 		}
-		key := a.Key
-		if key == "" {
-			key = api.XComReturnValueKey
-		}
-		// Pull from the upstream's unmapped instance (map_index nil); mapped
-		// upstream fan-in is out of scope for now.
-		raw, err := c.GetXCom(ctx, workload.TI.DagId, workload.TI.RunId, a.TaskID, nil, key, nil)
+		// Always the return-value XCom -- a stub Dag cannot reference any other
+		// key. Pull from the upstream's unmapped instance (map_index nil);
+		// mapped upstream fan-in is out of scope for now.
+		raw, err := c.GetXCom(
+			ctx, workload.TI.DagId, workload.TI.RunId, a.TaskID, nil, api.XComReturnValueKey, nil,
+		)
 		if err != nil {
 			return reflect.Value{}, fmt.Errorf(
-				"task function %s: %s: pulling xcom from task %q (key %q): %w",
-				p.fnName, generalCtx, a.TaskID, key, err,
+				"task function %s: %s: pulling xcom from task %q: %w",
+				p.fnName, generalCtx, a.TaskID, err,
 			)
 		}
 		v, err := decodeValue(raw, targetType)

@@ -327,20 +327,27 @@ type reportInput struct {
 	Region string `arg:"region"`
 }
 
+// mixedInput pairs a TaskInput struct with a plain data parameter in the
+// functions that assert Analyze rejects that combination.
+type mixedInput struct {
+	sdk.TaskInput
+	Name string
+}
+
 func (s *BindingSuite) TestResolveXComArgs() {
 	client := &fakeXComClient{values: map[string]any{
 		"extract/return_value": map[string]any{"go_version": "go1.24", "timestamp": int64(42)},
-		"extract/part":         "part-value",
+		"probe/return_value":   "probe-value",
 	}}
 
-	fn := func(res extractResult, part string) error { return nil }
+	fn := func(res extractResult, probe string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		XComArg{TaskID: "extract", DataType: DataTypeObject},
-		XComArg{TaskID: "extract", Key: "part", DataType: DataTypeString},
+		XComArg{TaskID: "probe", DataType: DataTypeString},
 	}, client)
 	s.Require().NoError(err)
 	s.Equal(extractResult{GoVersion: "go1.24", Timestamp: 42}, got[0].Interface())
-	s.Equal("part-value", got[1].Interface())
+	s.Equal("probe-value", got[1].Interface())
 
 	s.Require().Len(client.calls, 2)
 	s.Equal("dag1", client.calls[0].dagID)
@@ -349,10 +356,10 @@ func (s *BindingSuite) TestResolveXComArgs() {
 	s.Equal(
 		api.XComReturnValueKey,
 		client.calls[0].key,
-		"an empty key must default to the return-value key",
+		"an XCom argument always pulls the return-value key",
 	)
 	s.Nil(client.calls[0].mapIndex, "v1 always pulls the unmapped upstream instance")
-	s.Equal("part", client.calls[1].key)
+	s.Equal(api.XComReturnValueKey, client.calls[1].key)
 }
 
 func (s *BindingSuite) TestResolveXComStrictStructDecode() {
@@ -490,6 +497,14 @@ func (s *BindingSuite) TestAnalyzeTaskInputValidation() {
 			func(a simpleTaskInput, b simpleTaskInput) error { return nil },
 			"only one TaskInput struct parameter is allowed",
 		},
+		"mixed-with-flat-data-param": {
+			func(prefix string, input mixedInput) error { return nil },
+			"cannot mix a TaskInput struct parameter",
+		},
+		"mixed-with-trailing-flat-data-param": {
+			func(input mixedInput, suffix string) error { return nil },
+			"cannot mix a TaskInput struct parameter",
+		},
 	}
 	for name, tt := range cases {
 		s.Run(name, func() {
@@ -514,29 +529,17 @@ func (s *BindingSuite) TestResolveTaskInputAllStruct() {
 	s.Equal(7, input.Count, "the `arg:` tag claims its named entry")
 }
 
-func (s *BindingSuite) TestResolveTaskInputMixedWithFlat() {
-	fn := func(prefix string, input reportInput, suffix string) error { return nil }
+func (s *BindingSuite) TestResolveTaskInputXComArg() {
+	fn := func(log *slog.Logger, input reportInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "prefix", Value: "head", DataType: DataTypeString},
 		XComArg{Name: "region", TaskID: "make_region", DataType: DataTypeString},
 		LiteralArg{Name: "Ratio", Value: 0.5, DataType: DataTypeNumber},
-		LiteralArg{Name: "suffix", Value: "footer", DataType: DataTypeString},
 	}, &fakeXComClient{values: map[string]any{"make_region/return_value": "east"}})
 	s.Require().NoError(err)
 
-	s.Equal(
-		"head",
-		got[0].Interface(),
-		"the leading flat parameter claims the first unclaimed wire entry",
-	)
 	input := got[1].Interface().(reportInput)
 	s.Equal("east", input.Region, "Region resolves by name despite being declared after Ratio")
 	s.Equal(0.5, input.Ratio)
-	s.Equal(
-		"footer",
-		got[2].Interface(),
-		"the trailing flat parameter claims the last unclaimed wire entry",
-	)
 }
 
 func (s *BindingSuite) TestResolveTaskInputLiteralThroughArgName() {
@@ -559,16 +562,15 @@ func (s *BindingSuite) TestResolveTaskInputPointerStruct() {
 	s.Equal("widget", input.Name)
 }
 
-func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameLeavesFieldZeroValued() {
+func (s *BindingSuite) TestResolveTaskInputUnclaimedArgFailsLoudly() {
 	fn := func(input simpleTaskInput) error { return nil }
 	_, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "different_name", Value: "x", DataType: DataTypeString},
 	}, &fakeXComClient{})
-	// simpleTaskInput has no other flat parameter to absorb "different_name",
-	// so the arity check (0 unclaimed args expected) still fails the task --
-	// this asserts the unmatched TaskInput field itself is not what errors.
+	// No TaskInput field claims "different_name"; the leftover argument fails
+	// the task rather than being dropped silently.
 	if s.Assert().Error(err) {
-		s.Contains(err.Error(), "argument count mismatch")
+		s.Contains(err.Error(), `not claimed by any TaskInput field: "different_name"`)
 	}
 }
 
@@ -581,16 +583,4 @@ func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameZeroValuedAlongsideMa
 	input := got[0].Interface().(twoFieldTaskInput)
 	s.Equal("widget", input.Name, "the matched field binds normally")
 	s.Equal("", input.Missing, "the unmatched field is left at its Go zero value, not an error")
-}
-
-func (s *BindingSuite) TestResolveTaskInputArityMismatchForLeftoverArgs() {
-	fn := func(input simpleTaskInput, extra string) error { return nil }
-	_, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
-	}, &fakeXComClient{})
-	if s.Assert().Error(err) {
-		s.Contains(err.Error(), "argument count mismatch")
-		s.Contains(err.Error(), "passes 0 positional argument(s)")
-		s.Contains(err.Error(), "declares 1 data parameter(s)")
-	}
 }

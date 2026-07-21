@@ -130,8 +130,7 @@ def _get_arg_bindings(dag_version_id: UUID | None, task_id: str, *, session) -> 
     dag_version = session.get(DagVersion, dag_version_id)
     if dag_version is None or dag_version.serialized_dag is None:
         return None
-    data = dag_version.serialized_dag.data
-    if not data:
+    if not (data := dag_version.serialized_dag.data):
         return None
     for task in data.get("dag", {}).get("tasks", []):
         var = task.get(Encoding.VAR) or {}

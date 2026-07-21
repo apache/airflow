@@ -59,6 +59,7 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	bindingDag := dagbag.AddDag("taskflow_binding_dag")
 	bindingDag.AddTaskWithName("make_config", taskflowbinding.MakeConfig)
 	bindingDag.AddTaskWithName("make_numbers", taskflowbinding.MakeNumbers)
+	bindingDag.AddTaskWithName("make_region", taskflowbinding.MakeRegion)
 	bindingDag.AddTaskWithName("via_flat_args", taskflowbinding.ViaFlatArgs)
 	bindingDag.AddTaskWithName("via_struct_no_tags", taskflowbinding.ViaStructNoTags)
 	bindingDag.AddTaskWithName("via_struct_arg_tag", taskflowbinding.ViaStructArgTag)

@@ -421,13 +421,7 @@ class TestRealBundleArgBindingsDowngrade:
                 max_tries=1,
                 arg_bindings=[
                     {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-                    {
-                        "name": "extracted",
-                        "kind": "xcom",
-                        "data_type": "object",
-                        "task_id": "extract",
-                        "key": "return_value",
-                    },
+                    {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
                 ],
             ),
             sentry_integration="",
