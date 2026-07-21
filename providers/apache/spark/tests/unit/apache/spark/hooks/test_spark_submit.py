@@ -1666,10 +1666,15 @@ class TestSparkSubmitHook:
         return f"{cls._RM_BASE_URL}/ws/v1/cluster/apps/{app_id or cls._RM_APP_ID}/state"
 
     @classmethod
-    def _rm_status_resp(cls, final_status: str, state: str = "FINISHED") -> MagicMock:
+    def _rm_status_resp(
+        cls, final_status: str, state: str = "FINISHED", diagnostics: str | None = None
+    ) -> MagicMock:
         resp = MagicMock(spec=requests.Response)
         resp.status_code = 200
-        resp.json.return_value = {"app": {"id": cls._RM_APP_ID, "state": state, "finalStatus": final_status}}
+        app = {"id": cls._RM_APP_ID, "state": state, "finalStatus": final_status}
+        if diagnostics is not None:
+            app["diagnostics"] = diagnostics
+        resp.json.return_value = {"app": app}
         return resp
 
     @staticmethod
@@ -1772,6 +1777,42 @@ class TestSparkSubmitHook:
             hook._start_yarn_application_status_tracking(self._RM_APP_ID)
 
         mock_sleep.assert_not_called()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_tracking_includes_diagnostics_on_state_failure(self, mock_get, mock_sleep):
+        """RM state FAILED/KILLED -> raised message includes the RM's diagnostics field."""
+        mock_get.return_value = self._rm_status_resp(
+            "KILLED", diagnostics="Application application_1700000000000_0001 was killed by user root"
+        )
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match="Diagnostics: Application .* was killed by user root"):
+            hook._start_yarn_application_status_tracking(self._RM_APP_ID)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_tracking_includes_diagnostics_on_final_status_failure(self, mock_get, mock_sleep):
+        """RM finalStatus FAILED (state FINISHED) -> raised message includes diagnostics."""
+        mock_get.return_value = self._rm_status_resp(
+            "FAILED", diagnostics="AM Container exited with exitCode: 1"
+        )
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match="Diagnostics: AM Container exited with exitCode: 1"):
+            hook._start_yarn_application_status_tracking(self._RM_APP_ID)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_tracking_omits_diagnostics_suffix_when_absent(self, mock_get, mock_sleep):
+        """RM response with no diagnostics field -> message has no 'Diagnostics:' suffix."""
+        mock_get.return_value = self._rm_status_resp("KILLED")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError) as exc_info:
+            hook._start_yarn_application_status_tracking(self._RM_APP_ID)
+
+        assert "Diagnostics:" not in str(exc_info.value)
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
