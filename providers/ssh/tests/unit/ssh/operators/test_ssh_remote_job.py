@@ -360,7 +360,7 @@ class TestSSHRemoteJobOperator:
 
         self.mock_hook.exec_ssh_client_command.assert_called_once()
         call_args = self.mock_hook.exec_ssh_client_command.call_args
-        assert "rm -rf '/tmp-data/airflow-ssh-jobs/test_job_123'" == call_args[0][1]
+        assert call_args[0][1] == "rm -rf '/tmp-data/airflow-ssh-jobs/test_job_123'"
 
     def test_on_kill(self):
         """Test on_kill attempts to kill remote process."""

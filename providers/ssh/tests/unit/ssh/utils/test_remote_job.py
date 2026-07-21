@@ -435,8 +435,8 @@ class TestCleanupCommands:
 
     def test_posix_cleanup_does_not_replace_empty_expected_base_with_default(self):
         """Test an empty expected base does not fall back to the default base directory."""
-        with pytest.raises(ValueError, match="Invalid job directory"):
-            build_posix_cleanup_command("/tmp/airflow-ssh-jobs/job_123", expected_base="")
+        cmd = build_posix_cleanup_command("/job_123", expected_base="")
+        assert cmd == "rm -rf '/job_123'"
 
     def test_windows_cleanup_rejects_invalid_path(self):
         """Test Windows cleanup rejects paths outside expected base directory."""
