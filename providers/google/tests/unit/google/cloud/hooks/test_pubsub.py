@@ -653,9 +653,8 @@ class TestPubSubHook:
 
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.subscriber_client")
     def test_pull_deprecation_warning(self, mock_subscriber_client):
-        hook = PubSubHook()
         with pytest.warns(AirflowProviderDeprecationWarning, match="return_immediately"):
-            hook.pull(
+            self.pubsub_hook.pull(
                 project_id=TEST_PROJECT,
                 subscription=TEST_SUBSCRIPTION,
                 max_messages=10,

@@ -492,7 +492,7 @@ class PubSubHook(GoogleBaseHook):
         subscription: str,
         max_messages: int,
         project_id: str = PROVIDE_PROJECT_ID,
-        return_immediately: bool = False,
+        return_immediately: bool | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -520,11 +520,14 @@ class PubSubHook(GoogleBaseHook):
             the base64-encoded message content. See
             https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.ReceivedMessage
         """
-        warnings.warn(
-            "The `return_immediately` parameter is deprecated and will be removed in a future release.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+        if return_immediately is not None:
+            warnings.warn(
+                "The `return_immediately` parameter is deprecated and will be removed in a future release.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            return_immediately = False
 
         subscriber = self.subscriber_client
         # E501
@@ -690,7 +693,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         subscription: str,
         max_messages: int,
         project_id: str = PROVIDE_PROJECT_ID,
-        return_immediately: bool = False,
+        return_immediately: bool | None = None,
         retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -718,11 +721,14 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
             the base64-encoded message content. See
             https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.ReceivedMessage
         """
-        warnings.warn(
-            "The `return_immediately` parameter is deprecated and will be removed in a future release.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+        if return_immediately is not None:
+            warnings.warn(
+                "The `return_immediately` parameter is deprecated and will be removed in a future release.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            return_immediately = False
 
         subscriber = await self._get_subscriber_client()
         subscription_path = f"projects/{project_id}/subscriptions/{subscription}"

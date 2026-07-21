@@ -828,7 +828,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 300,
-        return_immediately: bool = True,
+        return_immediately: bool | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -841,15 +841,17 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-        self.return_immediately = return_immediately
-
-        warnings.warn(
-            "The `return_immediately` parameter is deprecated and will be removed in a future release. "
-            "Its default value will be changed to `False` in the next major release. "
-            "Planned removal date: August 01, 2026.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+        if return_immediately is not None:
+            warnings.warn(
+                "The `return_immediately` parameter is deprecated and will be removed in a future release. "
+                "Its default value will be changed to `False` in the next major release. "
+                "Planned removal date: August 01, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.return_immediately = return_immediately
+        else:
+            self.return_immediately = True
 
     def execute(self, context: Context) -> list:
         if self.deferrable:

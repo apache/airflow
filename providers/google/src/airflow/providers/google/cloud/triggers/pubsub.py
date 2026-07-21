@@ -75,7 +75,7 @@ class PubsubPullTrigger(BaseEventTrigger):
         gcp_conn_id: str,
         poke_interval: float = 10.0,
         impersonation_chain: str | Sequence[str] | None = None,
-        return_immediately: bool = True,
+        return_immediately: bool | None = None,
     ):
         super().__init__()
         self.project_id = project_id
@@ -85,15 +85,17 @@ class PubsubPullTrigger(BaseEventTrigger):
         self.poke_interval = poke_interval
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.return_immediately = return_immediately
-
-        warnings.warn(
-            "The `return_immediately` parameter is deprecated and will be removed in a future release. "
-            "Its default value will be changed to `False` in the next major release. "
-            "Planned removal date: August 01, 2026.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+        if return_immediately is not None:
+            warnings.warn(
+                "The `return_immediately` parameter is deprecated and will be removed in a future release. "
+                "Its default value will be changed to `False` in the next major release. "
+                "Planned removal date: August 01, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.return_immediately = return_immediately
+        else:
+            self.return_immediately = True
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize PubsubPullTrigger arguments and classpath."""

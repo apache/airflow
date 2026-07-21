@@ -115,7 +115,7 @@ class PubSubPullSensor(BaseSensorOperator):
         project_id: str,
         subscription: str,
         max_messages: int = 5,
-        return_immediately: bool = True,
+        return_immediately: bool | None = None,
         ack_messages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
@@ -129,21 +129,23 @@ class PubSubPullSensor(BaseSensorOperator):
         self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
-        self.return_immediately = return_immediately
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poke_interval = poke_interval
         self._return_value = None
-
-        warnings.warn(
-            "The `return_immediately` parameter is deprecated and will be removed in a future release. "
-            "Its default value will be changed to `False` in the next major release. "
-            "Planned removal date: August 01, 2026.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+        if return_immediately is not None:
+            warnings.warn(
+                "The `return_immediately` parameter is deprecated and will be removed in a future release. "
+                "Its default value will be changed to `False` in the next major release. "
+                "Planned removal date: August 01, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.return_immediately = return_immediately
+        else:
+            self.return_immediately = True
 
     def poke(self, context: Context) -> bool:
         hook = PubSubHook(
