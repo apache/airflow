@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Cuerpo",
-    "createdAtFrom": "Creado Desde",
-    "createdAtTo": "Creado Hasta",
+    "createdAt": "Creado en",
     "response": {
       "all": "Todas",
       "pending": "Pendientes",
@@ -26,6 +25,20 @@
     "responded_by_user_name": "Respondido por (Nombre de usuario)",
     "success": "Respuesta de {{taskId}} exitosa",
     "title": "Instancia de Tarea Humana - {{taskId}}"
+  },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Selecciona una acción requerida para ver detalles"
+    },
+    "list": {
+      "completedRequiredActions": "Acciones requeridas completadas ({{count}})",
+      "loadError": "No se pudieron cargar las acciones requeridas",
+      "loadingActions": "Cargando acciones requeridas...",
+      "pendingRequiredActions": "Acciones requeridas pendientes ({{count}})"
+    },
+    "openReviewDrawer": "Abrir Panel de Revisión",
+    "pageLimitHint": "Solo se muestran aquí las primeras acciones. Usa \"$t(review.viewAll)\" para ver todas.",
+    "viewAll": "Ver todas las acciones requeridas"
   },
   "state": {
     "approvalReceived": "Aprobación recibida",

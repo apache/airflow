@@ -133,7 +133,7 @@ Airflow unit test types
 Airflow tests in the CI environment are split into several test types. You can narrow down which
 test types you want to use in various ``breeze testing`` sub-commands in three ways:
 
-* By specifying the ``--test-type`` when running a single test type in ``breeze testing core-tests``, ``breeze testing providers-tests``, or ``breeze testing integration-tests`` commands.
+* By specifying the ``--test-type`` when running a single test type in ``breeze testing core-tests``, ``breeze testing providers-tests``, or ``breeze testing core-integration-tests`` commands.
 * By specifying a space-separated list of test types via the ``--parallel-test-types`` or ``--excluded-parallel-test-types`` options when running tests in parallel.
 
 The defined test types are:
@@ -154,7 +154,7 @@ We also have types that run "all" tests (ignoring folders, but looking at ``pyte
 * ``All-Quarantined`` - Tests that are flaky and need to be fixed (``quarantined`` marker).
 * ``All`` - All tests are run (this is the default).
 
-We also have ``Integration`` tests that run with external software via the ``--integration`` flag in the ``breeze`` environment (via ``breeze testing integration-tests``).
+We also have ``Integration`` tests that run with external software via the ``--integration`` flag in the ``breeze`` environment (via ``breeze testing core-integration-tests`` and ``breeze testing providers-integration-tests``).
 
 * ``Integration`` - Tests that require external integration images running in docker-compose.
 
