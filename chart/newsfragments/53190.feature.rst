@@ -1,0 +1,1 @@
+Allow Dag processor pod labels to be configured separately with ``dagProcessor.podLabels``.

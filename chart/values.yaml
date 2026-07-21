@@ -2316,8 +2316,12 @@ dagProcessor:
     securityContexts:
       container: {}
 
-  # Labels specific to dag processor objects
+  # Labels for dag processor objects. If podLabels is not set, these labels are
+  # applied to pods but not the Deployment for backward compatibility.
   labels: {}
+
+  # Labels for dag processor pods. Set to {} to use only global labels on pods.
+  podLabels: ~
 
   # Environment variables to add to dag processor container
   env: []

@@ -57,6 +57,82 @@ class TestDagProcessorDeployment:
             == "test_component_label_value"
         )
 
+    def test_should_preserve_component_labels_on_pods_when_pod_labels_are_unset(self):
+        docs = render_chart(
+            values={
+                "labels": {
+                    "test_global_label": "test_global_label_value",
+                    "common_label": "global_value",
+                },
+                "dagProcessor": {
+                    "labels": {
+                        "test_component_label": "test_component_label_value",
+                        "common_label": "component_value",
+                    },
+                },
+            },
+            show_only=[self.TEMPLATE_FILE],
+        )
+
+        deployment_labels = jmespath.search("metadata.labels", docs[0])
+        pod_labels = jmespath.search("spec.template.metadata.labels", docs[0])
+        assert deployment_labels["test_global_label"] == "test_global_label_value"
+        assert "test_component_label" not in deployment_labels
+        assert deployment_labels["common_label"] == "global_value"
+        assert pod_labels["test_global_label"] == "test_global_label_value"
+        assert pod_labels["test_component_label"] == "test_component_label_value"
+        assert pod_labels["common_label"] == "component_value"
+
+    def test_should_separate_deployment_and_pod_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {
+                    "test_global_label": "test_global_label_value",
+                    "common_label": "global_value",
+                },
+                "dagProcessor": {
+                    "labels": {
+                        "test_component_label": "test_component_label_value",
+                        "common_label": "component_value",
+                    },
+                    "podLabels": {
+                        "test_pod_label": "test_pod_label_value",
+                        "common_label": "pod_value",
+                    },
+                },
+            },
+            show_only=[self.TEMPLATE_FILE],
+        )
+
+        deployment_labels = jmespath.search("metadata.labels", docs[0])
+        pod_labels = jmespath.search("spec.template.metadata.labels", docs[0])
+        assert deployment_labels["test_global_label"] == "test_global_label_value"
+        assert deployment_labels["test_component_label"] == "test_component_label_value"
+        assert "test_pod_label" not in deployment_labels
+        assert deployment_labels["common_label"] == "component_value"
+        assert pod_labels["test_global_label"] == "test_global_label_value"
+        assert "test_component_label" not in pod_labels
+        assert pod_labels["test_pod_label"] == "test_pod_label_value"
+        assert pod_labels["common_label"] == "pod_value"
+
+    def test_should_treat_empty_pod_labels_as_separate(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_global_label": "test_global_label_value"},
+                "dagProcessor": {
+                    "labels": {"test_component_label": "test_component_label_value"},
+                    "podLabels": {},
+                },
+            },
+            show_only=[self.TEMPLATE_FILE],
+        )
+
+        deployment_labels = jmespath.search("metadata.labels", docs[0])
+        pod_labels = jmespath.search("spec.template.metadata.labels", docs[0])
+        assert deployment_labels["test_component_label"] == "test_component_label_value"
+        assert "test_component_label" not in pod_labels
+        assert pod_labels["test_global_label"] == "test_global_label_value"
+
     def test_should_merge_global_and_component_specific_labels(self):
         """Test adding both .Values.labels and .Values.dagProcessor.labels."""
         docs = render_chart(

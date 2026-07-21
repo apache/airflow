@@ -4883,9 +4883,20 @@
                     }
                 },
                 "labels": {
-                    "description": "Labels specific to dag processor objects and pods",
+                    "description": "Labels for dag processor objects. If podLabels is not set, these labels are applied to pods but not the Deployment for backward compatibility.",
                     "type": "object",
                     "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "podLabels": {
+                    "description": "Labels for dag processor pods. Set to an empty object to use only global labels on pods.",
+                    "type": [
+                        "object",
+                        "null"
+                    ],
+                    "default": null,
                     "additionalProperties": {
                         "type": "string"
                     }
