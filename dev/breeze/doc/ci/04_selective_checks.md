@@ -227,6 +227,15 @@ The same matched-file approach drives the **prek hook skip list** (`skip_prek_ho
 compile / lint hook is skipped when nothing in its area changed. See
 [Skipping prek hooks](#skipping-prek-hooks-static-checks).
 
+#### The run's platform (`--platform`)
+
+Some integrations and providers only work on one CPU architecture, so the selection above is filtered
+by the platform the run's tests will execute on:
+
+* **Integrations** in `DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM` are dropped on ARM.
+* **Providers** that declare `excluded-platforms` in their `provider.yaml` (e.g. `ibm.mq` excludes
+  `linux/arm64`) are removed from the providers test-type matrix on that platform.
+
 ## Individually simple rules
 
 The list of rules is long, but each rule is a one-liner you can reason about in isolation. A few
@@ -575,6 +584,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-mypy                                                | Whether mypy check is supposed to run in this build                                                     | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
 | run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
+| run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on `ts-sdk/`, TS e2e test, or Node coordinator changes ("true"/"false")          | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
@@ -642,6 +652,7 @@ This table summarizes the labels you can use on PRs to control the selective che
 |----------------------------------|----------------------------------|-------------------------------------------------------------------------------------------|
 | all versions                     | all-versions, *-versions-*       | Run tests for all python and k8s versions.                                                |
 | allow suspended provider changes | allow-suspended-provider-changes | Allow changes to suspended providers.                                                     |
+| area:e2e-tests                   | prod-image-build                 | If set, the Airflow E2E tests are run regardless of changed files (does not force the full test matrix). |
 | area:kubernetes-tests            | run-kubernetes-tests             | If set, the Kubernetes tests job is run regardless of changed files (does not force the full test matrix). |
 | canary                           | is-canary-run                    | If set, the PR run from apache/airflow repo behaves as `canary` run.                      |
 | debug ci resources               | debug-ci-resources               | If set, then debugging resources is enabled during parallel tests and you can see them.   |
