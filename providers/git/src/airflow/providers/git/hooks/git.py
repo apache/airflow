@@ -26,8 +26,12 @@ import shlex
 import stat
 import tempfile
 import warnings
+from functools import lru_cache
 from typing import Any
 from urllib.parse import quote as urlquote
+
+from git import Git
+from git.exc import GitCommandError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
@@ -131,6 +135,15 @@ class GitHook(BaseHook):
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
     _SSH_REPO_URL_PATTERN = re.compile(r"^[^/@:]+@[^/:]+:")
+    _MIN_PROACTIVE_AUTH_GIT_VERSION = (2, 46)
+
+    @staticmethod
+    @lru_cache(maxsize=1)
+    def _get_git_version_info() -> tuple[int, ...] | None:
+        try:
+            return Git().version_info
+        except (GitCommandError, OSError, ValueError):
+            return None
 
     def _uses_ssh_transport_options(self) -> bool:
         # Heuristic: any SSH-specific option implies SSH; otherwise fall back to the URL scheme.
@@ -187,9 +200,11 @@ class GitHook(BaseHook):
         if not isinstance(self.repo_url, str):
             return
         if self.auth_token and self.repo_url.startswith("https://"):
+            original_url = self.repo_url
             encoded_user = urlquote(self.user_name, safe="")
             encoded_token = urlquote(self.auth_token, safe="")
             self.repo_url = self.repo_url.replace("https://", f"https://{encoded_user}:{encoded_token}@", 1)
+            self._configure_proactive_http_auth(original_url)
         elif self.auth_token and self.repo_url.startswith("http://"):
             encoded_user = urlquote(self.user_name, safe="")
             encoded_token = urlquote(self.auth_token, safe="")
@@ -199,6 +214,31 @@ class GitHook(BaseHook):
             pass
         elif not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
             self.repo_url = os.path.expanduser(self.repo_url)
+
+    def _configure_proactive_http_auth(self, repo_url: str) -> None:
+        git_version = self._get_git_version_info()
+        if git_version is None:
+            warnings.warn(
+                "Could not determine the installed Git version, so proactive HTTPS authentication "
+                "is disabled. Git 2.46 or newer is required; challenge-based authentication remains active.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            return
+        if git_version < self._MIN_PROACTIVE_AUTH_GIT_VERSION:
+            version = ".".join(map(str, git_version))
+            warnings.warn(
+                f"Installed Git {version} does not support proactive HTTPS authentication. "
+                "Git 2.46 or newer is required; challenge-based authentication remains active.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            return
+
+        count = int(self.env.get("GIT_CONFIG_COUNT", os.environ.get("GIT_CONFIG_COUNT", "0")))
+        self.env["GIT_CONFIG_COUNT"] = str(count + 1)
+        self.env[f"GIT_CONFIG_KEY_{count}"] = f"http.{repo_url}.proactiveAuth"
+        self.env[f"GIT_CONFIG_VALUE_{count}"] = "basic"
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
