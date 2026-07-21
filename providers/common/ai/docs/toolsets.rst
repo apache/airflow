@@ -54,6 +54,44 @@ passed to any pydantic-ai ``Agent``, including via
     integration, and the connection UI, but you are not locked in.
 
 
+Choosing between HookToolset and provider API toolsets
+------------------------------------------------------
+
+For provider-backed actions, Airflow supports two complementary approaches.
+
+Use ``HookToolset`` when the task maps to methods that already exist on an
+Airflow Hook. Its allow-list contains Python method names on that hook, such as
+``list`` or ``get_records``. This is a good fit when the provider already wraps
+the operation in a stable, workflow-oriented hook method.
+
+Use provider API toolsets, such as ``AWSToolset`` and ``GoogleCloudToolset``,
+when the task needs selected operations from the cloud provider API surface
+itself. Their allow-lists use the provider's operation language, such as AWS
+actions or Google Discovery REST methods. This is useful when the provider API
+has operations that are not wrapped by Airflow Hooks, or when one agent task
+needs to inspect several low-level services during troubleshooting.
+
+For example, use ``HookToolset`` when an agent should call an existing storage
+hook to list objects, an existing database hook to run a query, or an existing
+HTTP hook to call an internal API.
+
+Use a provider API toolset when an agent should compare signals across services,
+such as storage object arrivals, query job status, and monitoring time series,
+or inspect cloud resources and configuration where Airflow does not provide a
+dedicated hook method.
+
+The distinction is the allow-list contract:
+
+- ``HookToolset`` allow-lists Airflow Hook method names.
+- ``AWSToolset`` allow-lists AWS service/API actions.
+- ``GoogleCloudToolset`` allow-lists Google Discovery REST methods.
+
+Toolset allow-lists are application-level guardrails: they limit what the agent
+can ask the toolset to call. They are not a replacement for least-privilege
+cloud credentials. The connection used by the toolset should still be scoped to
+the minimum permissions needed for the agent's task.
+
+
 Using Toolsets Directly with PydanticAI
 ---------------------------------------
 
