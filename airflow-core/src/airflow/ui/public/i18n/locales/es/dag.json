@@ -193,11 +193,11 @@
       "direction": "Dirección",
       "label": "Filtro",
       "mode": "Modo",
+      "modeTooltip": "El modo Estático mantiene la vista actual al navegar a diferentes tareas, mientras que el modo Recorrer actualiza automáticamente el filtro activo a la tarea en la que se hace clic para facilitar el recorrido del Dag.",
       "modes": {
         "static": "Estático",
         "traverse": "Recorrer"
       },
-      "modeTooltip": "El modo Estático mantiene la vista actual al navegar a diferentes tareas, mientras que el modo Recorrer actualiza automáticamente el filtro activo a la tarea en la que se hace clic para facilitar el recorrido del Dag.",
       "options": {
         "both": "Upstream y Downstream",
         "downstream": "Downstream",
