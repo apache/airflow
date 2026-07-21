@@ -434,9 +434,7 @@ class TestAirflowCommon:
             mounts = jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
             # airflow.cfg / airflow_local_settings.py are now served from the mounted directory
             assert dir_mount in mounts
-            assert not [
-                m for m in mounts if m.get("subPath") in ("airflow.cfg", "airflow_local_settings.py")
-            ]
+            assert not [m for m in mounts if m.get("subPath") in ("airflow.cfg", "airflow_local_settings.py")]
             # AIRFLOW_CONFIG points Airflow at the config in the mounted directory
             env = jmespath.search("spec.template.spec.containers[0].env", doc)
             assert {"name": "AIRFLOW_CONFIG", "value": "/opt/airflow/config/airflow.cfg"} in env
