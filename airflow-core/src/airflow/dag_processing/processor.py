@@ -411,7 +411,6 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
 def _execute_dag_skipped_intervals_callback(
     dagbag: DagBag, request: DagSkippedIntervalsCallbackRequest, log: FilteringBoundLogger
 ) -> None:
-
     dag, _ = _get_dag_with_task(dagbag, request.dag_id)
     callbacks = dag.on_skipped_intervals_callback
     if not callbacks:
