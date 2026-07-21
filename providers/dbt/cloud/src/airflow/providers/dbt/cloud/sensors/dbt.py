@@ -126,6 +126,12 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         self.log.info(event["message"])
         return int(event["run_id"])
 
+    def get_openlineage_facets_on_start(self, task_instance) -> OperatorLineage:
+        """Expose dbt Cloud job metadata on the Airflow task START event when available."""
+        from airflow.providers.dbt.cloud.utils.openlineage import _build_dbt_cloud_job_lineage
+
+        return _build_dbt_cloud_job_lineage(self)
+
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """Implement _on_complete because job_run needs to be triggered first in execute method."""
         return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)

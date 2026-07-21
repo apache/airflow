@@ -351,20 +351,29 @@ class DbtCloudRunJobOperator(BaseOperator):
         """Returns DBT Cloud hook."""
         return DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
 
+    def get_openlineage_facets_on_start(self, task_instance) -> OperatorLineage:
+        """Expose dbt Cloud job metadata on the Airflow task START event when available."""
+        from airflow.providers.dbt.cloud.utils.openlineage import _build_dbt_cloud_job_lineage
+
+        return _build_dbt_cloud_job_lineage(self)
+
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """
         Implement _on_complete because job_run needs to be triggered first in execute method.
 
         This should send additional events only if operator `wait_for_termination` is set to True.
         """
-        from airflow.providers.openlineage.extractors import OperatorLineage
+        from airflow.providers.dbt.cloud.utils.openlineage import (
+            _build_dbt_cloud_job_lineage,
+            generate_openlineage_events_from_dbt_cloud_run,
+        )
 
         if not isinstance(self.run_id, int):
             self.log.info("Skipping OpenLineage event extraction: `self.run_id` is not set.")
-            return OperatorLineage()
+            return _build_dbt_cloud_job_lineage(self)
         if not self.wait_for_termination:
             self.log.info("Skipping OpenLineage event extraction: `self.wait_for_termination` is False.")
-            return OperatorLineage()
+            return _build_dbt_cloud_job_lineage(self)
         return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
 
 

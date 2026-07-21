@@ -28,6 +28,7 @@ from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureEx
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
 from airflow.providers.dbt.cloud.utils.openlineage import (
+    _build_dbt_cloud_job_lineage,
     _get_parent_run_metadata,
     generate_openlineage_events_from_dbt_cloud_run,
 )
@@ -157,6 +158,31 @@ def test_get_parent_run_metadata():
     assert result.root_parent_job_name == "dag_id"
 
 
+class TestBuildDbtCloudJobLineage:
+    def test_includes_job_and_run_ids(self):
+        operator = MagicMock()
+        operator.job_id = 1500
+        operator.run_id = 5555
+        operator.account_id = 11111
+
+        lineage = _build_dbt_cloud_job_lineage(operator)
+        tag_keys = {tag.key: tag.value for tag in lineage.job_facets["tags"].tags}
+
+        assert tag_keys == {
+            "dbt_cloud_job_id": "1500",
+            "dbt_cloud_run_id": "5555",
+            "dbt_cloud_account_id": "11111",
+        }
+
+    def test_returns_empty_lineage_without_ids(self):
+        operator = MagicMock()
+        operator.job_id = None
+        operator.run_id = None
+        operator.account_id = None
+
+        assert _build_dbt_cloud_job_lineage(operator) == OperatorLineage()
+
+
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
     @patch("importlib.metadata.version", return_value="3.0.0")
     @patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
@@ -203,6 +229,7 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_get_job_run_artifact.side_effect = get_dbt_artifact
         mock_operator.task_id = TASK_ID
         mock_operator.run_id = 188471607
+        mock_operator.job_id = 160645
 
         mock_task_instance = MagicMock()
         mock_task_instance.task_id = TASK_ID
@@ -216,10 +243,17 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
 
         mock_build_task_instance_run_id.return_value = TASK_UUID
         mock_build_dag_run_id.return_value = DAG_UUID
-        generate_openlineage_events_from_dbt_cloud_run(mock_operator, task_instance=mock_task_instance)
+        lineage = generate_openlineage_events_from_dbt_cloud_run(
+            mock_operator, task_instance=mock_task_instance
+        )
         assert mock_adapter.emit.call_count == 4
+        tag_keys = {tag.key: tag.value for tag in lineage.job_facets["tags"].tags}
+        assert tag_keys["dbt_cloud_job_id"] == "160645"
+        assert tag_keys["dbt_cloud_run_id"] == "188471607"
 
     def test_do_not_raise_error_if_runid_not_set_on_operator(self):
         operator = DbtCloudRunJobOperator(task_id="dbt-job-runid-taskid", job_id=1500)
         assert operator.run_id is None
-        assert operator.get_openlineage_facets_on_complete(MagicMock()) == OperatorLineage()
+        lineage = operator.get_openlineage_facets_on_complete(MagicMock())
+        tag_keys = {tag.key: tag.value for tag in lineage.job_facets["tags"].tags}
+        assert tag_keys == {"dbt_cloud_job_id": "1500"}

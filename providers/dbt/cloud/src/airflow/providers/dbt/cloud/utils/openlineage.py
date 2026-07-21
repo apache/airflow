@@ -97,6 +97,56 @@ def _get_parent_run_metadata(task_instance):
     )
 
 
+def _build_dbt_cloud_job_lineage(
+    operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor,
+) -> OperatorLineage:
+    """
+    Attach dbt Cloud job metadata to the Airflow task OpenLineage event.
+
+    Short-term approach until top-level dbt invocation events land upstream
+    (OpenLineage/OpenLineage#4720).
+    """
+    from openlineage.client.facet_v2 import tags_job
+
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    tags: list[tags_job.TagsJobFacetFields] = []
+    job_id = getattr(operator, "job_id", None)
+    if isinstance(job_id, int):
+        tags.append(
+            tags_job.TagsJobFacetFields(
+                key="dbt_cloud_job_id",
+                value=str(job_id),
+                source="dbt-cloud",
+            )
+        )
+
+    run_id = getattr(operator, "run_id", None)
+    if isinstance(run_id, int):
+        tags.append(
+            tags_job.TagsJobFacetFields(
+                key="dbt_cloud_run_id",
+                value=str(run_id),
+                source="dbt-cloud",
+            )
+        )
+
+    account_id = getattr(operator, "account_id", None)
+    if isinstance(account_id, int):
+        tags.append(
+            tags_job.TagsJobFacetFields(
+                key="dbt_cloud_account_id",
+                value=str(account_id),
+                source="dbt-cloud",
+            )
+        )
+
+    if not tags:
+        return OperatorLineage()
+
+    return OperatorLineage(job_facets={"tags": tags_job.TagsJobFacet(tags=tags)})
+
+
 @require_openlineage_version(provider_min_version="2.5.0")
 def generate_openlineage_events_from_dbt_cloud_run(
     operator: DbtCloudRunJobOperator | DbtCloudJobRunSensor, task_instance: TaskInstance
@@ -212,4 +262,4 @@ def generate_openlineage_events_from_dbt_cloud_run(
         log.debug("Emitted all OpenLineage events for artifact no. %s.", counter)
 
     log.info("OpenLineage has successfully finished processing information about DBT job run.")
-    return OperatorLineage()
+    return _build_dbt_cloud_job_lineage(operator)
