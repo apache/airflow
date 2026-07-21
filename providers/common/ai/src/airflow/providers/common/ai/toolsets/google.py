@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 
 try:
     import googleapiclient.discovery_cache
-    from googleapiclient.discovery import build
+    from googleapiclient.discovery import ResourceMethodParameters, build
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -537,12 +537,8 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                     f"Media upload ({media_param}) is not supported by this toolset; "
                     "metadata calls on the same resource work."
                 )
-        for param_name in list(params):
-            if "." in param_name:
-                client_param_name = param_name.replace(".", "_")
-                params.setdefault(client_param_name, params[param_name])
-                del params[param_name]
         self._apply_project_guard(method_doc=method_doc, params=params)
+        params = _normalize_parameters_for_google_client(method_doc=method_doc, parameters=params)
 
         service = self._get_service(api=api, version=version)
         *resource_path, method_name = canonical.split(".")
@@ -725,6 +721,40 @@ def _get_method_doc(doc: dict[str, Any], method_path: str) -> dict[str, Any]:
     for resource in resource_path:
         node = node["resources"][resource]
     return node["methods"][method_name]
+
+
+def _normalize_parameters_for_google_client(
+    *,
+    method_doc: dict[str, Any],
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Convert documented Google REST parameter names to googleapiclient keyword names.
+
+    Discovery documents describe parameters using the public REST names shown in
+    Google docs and APIs Explorer, for example ``interval.startTime`` or
+    ``options.requestedPolicyVersion``. The generated ``googleapiclient`` Python
+    methods cannot accept those names directly as keyword arguments, so the
+    client converts them to safe Python names such as ``interval_startTime`` and
+    ``options_requestedPolicyVersion``.
+
+    Keep the tool contract model-facing and doc-facing by accepting the REST
+    names from ``describe_gcp_method``, then translate only at the final
+    ``googleapiclient`` call boundary using the same per-method mapping the
+    client uses internally.
+    """
+    method_params = ResourceMethodParameters(method_doc)
+    rest_to_client = {rest_name: client_name for client_name, rest_name in method_params.argmap.items()}
+
+    normalized: dict[str, Any] = {}
+    for name, value in parameters.items():
+        client_name = rest_to_client.get(name, name)
+        if client_name in normalized and normalized[client_name] != value:
+            raise ValueError(
+                f"Parameter {name!r} conflicts with another parameter mapped to {client_name!r}."
+            )
+        normalized[client_name] = value
+    return normalized
 
 
 def _describe_parameters(method_doc: dict[str, Any]) -> dict[str, Any]:

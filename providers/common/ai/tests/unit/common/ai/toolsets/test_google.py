@@ -357,6 +357,64 @@ class TestGoogleCloudToolsetCallGcp:
             interval_endTime="2026-07-20T01:00:00Z",
         )
 
+    def test_leading_underscore_parameters_are_passed_as_client_keyword_names(self):
+        ts = GoogleCloudToolset(
+            "gcp_test", allowed_methods=["healthcare/v1:projects.locations.datasets.fhirStores.fhir.history"]
+        )
+        _install_mock_hook(ts, project_id=None)
+        _, bound, _ = _install_mock_service(
+            ts,
+            "healthcare",
+            "v1",
+            ["projects", "locations", "datasets", "fhirStores", "fhir"],
+            "history",
+            response={"entry": []},
+        )
+
+        _call(
+            ts,
+            "call_gcp",
+            {
+                "api": "healthcare/v1",
+                "method": "projects.locations.datasets.fhirStores.fhir.history",
+                "parameters": {
+                    "name": "projects/p/locations/us/datasets/d/fhirStores/s/fhir/Patient/123",
+                    "_count": 10,
+                    "_page_token": "next",
+                },
+            },
+        )
+
+        bound.assert_called_once_with(
+            name="projects/p/locations/us/datasets/d/fhirStores/s/fhir/Patient/123",
+            x_count=10,
+            x_page_token="next",
+        )
+
+    def test_rejects_conflicting_rest_and_client_parameter_names(self):
+        ts = GoogleCloudToolset("gcp_test", allowed_methods=["monitoring/v3:projects.timeSeries.list"])
+        _install_mock_hook(ts, project_id=None)
+        _, bound, _ = _install_mock_service(
+            ts, "monitoring", "v3", ["projects", "timeSeries"], "list", response={"timeSeries": []}
+        )
+
+        with pytest.raises(ModelRetry, match="conflicts with another parameter"):
+            _call(
+                ts,
+                "call_gcp",
+                {
+                    "api": "monitoring/v3",
+                    "method": "projects.timeSeries.list",
+                    "parameters": {
+                        "name": "projects/p",
+                        "interval.startTime": "2026-07-20T00:00:00Z",
+                        "interval_startTime": "2026-07-20T01:00:00Z",
+                    },
+                },
+            )
+
+        bound.assert_not_called()
+
     def test_follows_pagination_up_to_max_pages(self):
         ts = GoogleCloudToolset("gcp_test", allowed_methods=["storage/v1:objects.list"], max_pages=2)
         _install_mock_hook(ts, project_id=None)
