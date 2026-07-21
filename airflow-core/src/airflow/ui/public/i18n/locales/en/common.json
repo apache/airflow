@@ -32,6 +32,7 @@
   },
   "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
+  "completed": "Completed",
   "consumingAsset": "Consuming Asset",
   "createdAssetEvent_one": "Created $t(assetEvent_one)",
   "createdAssetEvent_other": "Created $t(assetEvent_other)",
@@ -286,6 +287,7 @@
   },
   "showDetailsPanel": "Show Details Panel",
   "signedInAs": "Signed in as",
+  "slot": "Slot",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",
@@ -324,6 +326,7 @@
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
     "noTagsFound": "No tags found",
+    "progress": "Progress",
     "tagMode": {
       "all": "All",
       "any": "Any"

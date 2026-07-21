@@ -23,19 +23,25 @@ import { useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
+import { BackfillProgress } from "src/components/BackfillProgress";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+import { RouterLink } from "src/components/ui";
+import { getDuration, useAutoRefresh } from "src/utils";
 
-const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
+const getColumns = (
+  dagId: string,
+  refetchInterval: number | false,
+  translate: (key: string) => string,
+): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
-      <Text>
+      <RouterLink fontWeight="bold" to={`/dags/${dagId}/backfills/${row.original.id}`}>
         <Time datetime={row.original.from_date} />
-      </Text>
+      </RouterLink>
     ),
     enableSorting: false,
     header: translate("table.from"),
@@ -43,9 +49,9 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
   {
     accessorKey: "date_to",
     cell: ({ row }) => (
-      <Text>
+      <RouterLink fontWeight="bold" to={`/dags/${dagId}/backfills/${row.original.id}`}>
         <Time datetime={row.original.to_date} />
-      </Text>
+      </RouterLink>
     ),
     enableSorting: false,
     header: translate("table.to"),
@@ -101,6 +107,28 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
     enableSorting: false,
     header: translate("table.maxActiveRuns"),
   },
+  {
+    accessorKey: "progress",
+    cell: ({ row }) => {
+      if (row.original.completed_at !== null) {
+        return (
+          <Text fontSize="sm" fontWeight="medium">
+            {translate("common:completed")}
+          </Text>
+        );
+      }
+
+      return (
+        <BackfillProgress
+          backfillId={row.original.id}
+          isCompleted={false}
+          refetchInterval={refetchInterval}
+        />
+      );
+    },
+    enableSorting: false,
+    header: translate("table.progress"),
+  },
 ];
 
 export const Backfills = () => {
@@ -110,6 +138,7 @@ export const Backfills = () => {
   const { pagination } = tableURLState;
 
   const { dagId = "" } = useParams();
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
@@ -117,7 +146,7 @@ export const Backfills = () => {
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
-  const columns = getColumns(translate);
+  const columns = getColumns(dagId, refetchInterval, translate);
 
   return (
     <Box>

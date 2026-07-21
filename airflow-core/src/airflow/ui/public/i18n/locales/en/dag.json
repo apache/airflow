@@ -213,6 +213,7 @@
     "backfills": "Backfills",
     "calendar": "Calendar",
     "code": "Code",
+    "dagRuns": "Dag Runs",
     "details": "Details",
     "logs": "Logs",
     "mappedTaskInstances_one": "Task Instance [{{count}}]",
