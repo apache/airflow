@@ -100,8 +100,7 @@ PIP package                                 Version required
 ==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``apache-beam``                             ``>=2.72.0``
-``betterproto``                             ``==2.0.0b6; python_version >= "3.11"``
+``apache-beam``                             ``>=2.76.0``
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
 ``numpy``                                   ``>=1.22.4; python_version < "3.11"``
@@ -143,7 +142,7 @@ Install them when installing from PyPI. For example:
 ==========  ============================
 Extra       Dependencies
 ==========  ============================
-``google``  ``apache-beam[gcp]>=2.72.0``
+``google``  ``apache-beam[gcp]>=2.76.0``
 ==========  ============================
 
 Downloading official packages
