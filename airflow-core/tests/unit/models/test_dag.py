@@ -1958,6 +1958,33 @@ class TestDag:
         assert parked_states_seen == [TaskInstanceState.AWAITING_INPUT]
         assert resume_calls == [(["Approve"], {})]
 
+    @pytest.mark.execution_timeout(60)
+    def test_dag_test_preserves_defer_kwargs_through_inline_trigger(self, testing_dag_bundle):
+        """dag.test() must keep defer()-time kwargs when the inline trigger yields an event."""
+        from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
+
+        seen_kwargs: list = []
+
+        class DeferKwargOperator(BaseOperator):
+            def execute(self, context):
+                self.defer(
+                    trigger=TimeDeltaTrigger(datetime.timedelta(seconds=0)),
+                    method_name="resume",
+                    kwargs={"vpc_id": "vpc-abc123"},
+                )
+
+            def resume(self, context, event=None, vpc_id=""):
+                seen_kwargs.append(vpc_id)
+
+        dag = DAG(dag_id="test_dag_test_defer_kwargs", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            DeferKwargOperator(task_id="defer_task")
+        sync_dag_to_db(dag)
+
+        dag.test()
+
+        assert seen_kwargs == ["vpc-abc123"]  # was [""] before the fix
+
     def test_dag_connection_file(self, tmp_path, testing_dag_bundle):
         test_connections_string = """
 ---

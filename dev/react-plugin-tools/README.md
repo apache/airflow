@@ -25,6 +25,7 @@
   - [Overview](#overview)
   - [Files](#files)
   - [Quick Start](#quick-start)
+  - [Optional AI Agent Rules](#optional-ai-agent-rules)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -57,3 +58,10 @@ python bootstrap.py my-awesome-plugin
 # Or specify a custom directory
 python bootstrap.py my-awesome-plugin --dir /path/to/my-projects/my-awesome-plugin
 ```
+
+## Optional AI Agent Rules
+
+The bootstrap tool asks whether to include AI agent coding rules. Answering yes adds an
+`ai-agent-rules/` directory to the generated project with Airflow React plugin conventions and
+validation commands. The files use tool-agnostic Markdown, so follow the generated directory's
+README to adapt them to the format supported by your AI coding tool.
