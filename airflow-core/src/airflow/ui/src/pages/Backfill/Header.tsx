@@ -21,15 +21,13 @@ import { useTranslation } from "react-i18next";
 import { RiArrowGoBackFill } from "react-icons/ri";
 
 import type { BackfillResponse } from "openapi/requests/types.gen";
-import { BackfillProgress } from "src/components/BackfillProgress";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
-import { getDuration, useAutoRefresh } from "src/utils";
+import { getDuration } from "src/utils";
 
 export const Header = ({ backfill }: { readonly backfill: BackfillResponse }) => {
   const { t: translate } = useTranslation();
   const isCompleted = backfill.completed_at !== null;
-  const refetchInterval = useAutoRefresh({ dagId: backfill.dag_id });
 
   return (
     <HeaderCard
@@ -50,20 +48,6 @@ export const Header = ({ backfill }: { readonly backfill: BackfillResponse }) =>
         {
           label: translate("duration"),
           value: isCompleted ? getDuration(backfill.created_at, backfill.completed_at) : "—",
-        },
-        {
-          label: translate("table.progress"),
-          value: isCompleted ? (
-            <Text fontSize="sm" fontWeight="medium">
-              {translate("common:completed")}
-            </Text>
-          ) : (
-            <BackfillProgress
-              backfillId={backfill.id}
-              isCompleted={false}
-              refetchInterval={refetchInterval}
-            />
-          ),
         },
       ]}
       title={

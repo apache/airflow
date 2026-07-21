@@ -33,7 +33,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const DagBreadcrumb = () => {
   const { t: translate } = useTranslation();
-  const { dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
+  const { backfillId, dagId = "", groupId, mapIndex = "-1", runId, taskId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
   const parsedMapIndex = parseInt(mapIndex, 10);
 
@@ -77,6 +77,21 @@ export const DagBreadcrumb = () => {
         value: `/dags/${dagId}`,
       },
     ];
+
+  if (backfillId !== undefined) {
+    links.push(
+      {
+        label: translate("backfill", { count: 2 }),
+        title: translate("backfill", { count: 2 }),
+        value: `/dags/${dagId}/backfills`,
+      },
+      {
+        label: `${translate("backfill_one")} #${backfillId}`,
+        title: translate("backfill_one"),
+        value: `/dags/${dagId}/backfills/${backfillId}`,
+      },
+    );
+  }
 
   // Add dag run breadcrumb
   if (runId !== undefined) {

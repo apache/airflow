@@ -41,16 +41,11 @@ vi.mock("openapi/queries", () => ({
   useBackfillServiceUnpauseBackfill: () => ({ isPending: false, mutate: mocks.unpauseBackfill }),
 }));
 
-vi.mock("src/components/BackfillProgress", () => ({
-  BackfillProgress: ({
-    backfillId,
-    refetchInterval,
-    trackColor,
-  }: {
-    readonly backfillId: number;
-    readonly refetchInterval: number | false;
-    readonly trackColor: string;
-  }) => <span>{`progress-${backfillId}-${refetchInterval}-${trackColor}`}</span>,
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    // eslint-disable-next-line id-length
+    t: (key: string) => (key === "banner.backfillInProgress" ? "Backfill in progress" : key),
+  }),
 }));
 
 vi.mock("src/components/Time", () => ({
@@ -81,7 +76,7 @@ const backfill: BackfillResponse = {
 describe("BackfillBanner", () => {
   beforeEach(() => mocks.listBackfills.mockReset());
 
-  it("shows API-backed progress for the active backfill", () => {
+  it("links the active banner to its Dag runs screen", () => {
     mocks.listBackfills.mockReturnValue({
       data: { backfills: [backfill], total_entries: 1 },
       isLoading: false,
@@ -89,6 +84,9 @@ describe("BackfillBanner", () => {
 
     render(<BackfillBanner dagId="example_dag" />, { wrapper: Wrapper });
 
-    expect(screen.getByText("progress-7-5000-whiteAlpha.400")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Backfill in progress" })).toHaveAttribute(
+      "href",
+      "/dags/example_dag/backfills/7",
+    );
   });
 });

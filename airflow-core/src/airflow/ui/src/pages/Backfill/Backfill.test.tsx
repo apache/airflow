@@ -49,7 +49,21 @@ vi.mock("react-router-dom", async (importOriginal) => {
 });
 
 vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({ children }: { readonly children: ReactNode }) => <div>{children}</div>,
+  DetailsLayout: ({
+    children,
+    outletContext,
+    showBackfillBanner,
+  }: {
+    readonly children: ReactNode;
+    readonly outletContext?: BackfillResponse;
+    readonly showBackfillBanner?: boolean;
+  }) => (
+    <div>
+      {children}
+      <span>{outletContext?.dag_id}</span>
+      <span>{`show-banner-${String(showBackfillBanner)}`}</span>
+    </div>
+  ),
 }));
 
 vi.mock("./Header", () => ({
@@ -89,6 +103,8 @@ describe("Backfill page", () => {
 
     expect(mocks.useBackfillServiceGetBackfill).toHaveBeenCalledWith({ backfillId: 7 });
     expect(screen.getByText("backfill header")).toBeInTheDocument();
+    expect(screen.getByText("example_dag")).toBeInTheDocument();
+    expect(screen.getByText("show-banner-false")).toBeInTheDocument();
   });
 
   it("does not render a header while the response is pending", () => {

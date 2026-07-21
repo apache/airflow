@@ -29,6 +29,18 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
+import { useAutoRefresh } from "src/utils";
+
+const translateExceptionReason = (reason: string, translate: (key: string) => string) => {
+  switch (reason) {
+    case "already exists":
+      return translate("components:backfill.exceptionReason.alreadyExists");
+    case "in flight":
+      return translate("components:backfill.exceptionReason.inFlight");
+    default:
+      return translate("components:backfill.exceptionReason.unknown");
+  }
+};
 
 const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillDagRunResponse>> => [
   {
@@ -57,7 +69,7 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
       if (row.original.exception_reason !== null && row.original.exception_reason !== "") {
         return (
           <Badge colorPalette="orange" variant="subtle">
-            {row.original.exception_reason}
+            {translateExceptionReason(row.original.exception_reason, translate)}
           </Badge>
         );
       }
@@ -102,13 +114,18 @@ export const BackfillDagRuns = () => {
   const { t: translate } = useTranslation();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
-  const { backfillId = "" } = useParams();
+  const { backfillId = "", dagId = "" } = useParams();
+  const refetchInterval = useAutoRefresh({ dagId });
 
-  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillDagRuns({
-    backfillId: Number(backfillId),
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-  });
+  const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillDagRuns(
+    {
+      backfillId: Number(backfillId),
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+    },
+    undefined,
+    { refetchInterval },
+  );
 
   const columns = getColumns(translate);
 

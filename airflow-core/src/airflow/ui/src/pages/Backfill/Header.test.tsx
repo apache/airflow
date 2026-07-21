@@ -21,22 +21,9 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { BackfillResponse } from "openapi/requests/types.gen";
-import type * as Utils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Header } from "./Header";
-
-vi.mock("src/components/BackfillProgress", () => ({
-  BackfillProgress: ({ refetchInterval }: { readonly refetchInterval: number | false }) => (
-    <span>{`progress-${refetchInterval}`}</span>
-  ),
-}));
-
-vi.mock("src/utils", async (importOriginal) => {
-  const actual = await importOriginal<typeof Utils>();
-
-  return { ...actual, useAutoRefresh: () => 5000 };
-});
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -65,19 +52,18 @@ const backfill: BackfillResponse = {
 };
 
 describe("Backfill header", () => {
-  it("renders live progress for an active backfill", () => {
+  it("renders metadata without loading every Dag run", () => {
     render(<Header backfill={backfill} />, { wrapper: Wrapper });
 
     expect(screen.getByText("Backfill #7")).toBeInTheDocument();
-    expect(screen.getByText("progress-5000")).toBeInTheDocument();
+    expect(screen.queryByText("table.progress")).not.toBeInTheDocument();
   });
 
-  it("renders completed status instead of polling progress", () => {
+  it("renders duration when the backfill is completed", () => {
     render(<Header backfill={{ ...backfill, completed_at: "2026-07-02T00:00:00Z" }} />, {
       wrapper: Wrapper,
     });
 
-    expect(screen.getByText("Completed")).toBeInTheDocument();
-    expect(screen.queryByText("progress-5000")).not.toBeInTheDocument();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 });
