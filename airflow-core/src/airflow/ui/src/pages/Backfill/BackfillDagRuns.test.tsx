@@ -21,7 +21,7 @@ import { render, screen } from "@testing-library/react";
 import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { BackfillDagRunResponse } from "openapi/requests/types.gen";
+import type { BackfillDagRunResponse, BackfillResponse } from "openapi/requests/types.gen";
 import type * as Utils from "src/utils";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -29,6 +29,8 @@ import { BackfillDagRuns } from "./BackfillDagRuns";
 
 const mocks = vi.hoisted(() => ({
   useBackfillServiceListBackfillDagRuns: vi.fn(),
+  useOutletContext: vi.fn(),
+  useParams: vi.fn(),
 }));
 
 vi.mock("openapi/queries", () => ({
@@ -49,7 +51,7 @@ vi.mock("react-i18next", () => ({
 vi.mock("react-router-dom", async (importOriginal) => {
   const actual = await importOriginal<typeof ReactRouterDom>();
 
-  return { ...actual, useParams: () => ({ backfillId: "7", dagId: "example_dag" }) };
+  return { ...actual, useOutletContext: mocks.useOutletContext, useParams: mocks.useParams };
 });
 
 vi.mock("src/queries/useConfig", () => ({
@@ -87,8 +89,27 @@ const dagRuns: Array<BackfillDagRunResponse> = [
   },
 ];
 
+const backfill: BackfillResponse = {
+  completed_at: null,
+  created_at: "2026-07-01T00:00:00Z",
+  dag_display_name: "Example Dag",
+  dag_id: "example_dag",
+  dag_run_conf: null,
+  from_date: "2026-07-01T00:00:00Z",
+  id: 7,
+  is_paused: false,
+  max_active_runs: 4,
+  reprocess_behavior: "failed",
+  to_date: "2026-07-05T00:00:00Z",
+  updated_at: "2026-07-01T00:00:00Z",
+};
+
 describe("BackfillDagRuns", () => {
-  beforeEach(() => mocks.useBackfillServiceListBackfillDagRuns.mockReset());
+  beforeEach(() => {
+    mocks.useBackfillServiceListBackfillDagRuns.mockReset();
+    mocks.useOutletContext.mockReturnValue(backfill);
+    mocks.useParams.mockReturnValue({ backfillId: "7", dagId: "example_dag" });
+  });
 
   it("renders partition slots, skipped reasons, and links to created Dag runs", () => {
     mocks.useBackfillServiceListBackfillDagRuns.mockReturnValue({
@@ -126,7 +147,43 @@ describe("BackfillDagRuns", () => {
         offset: 0,
       },
       undefined,
-      { refetchInterval: 5000 },
+      { enabled: true, refetchInterval: 5000 },
+    );
+  });
+
+  it("stops polling when the backfill is completed", () => {
+    mocks.useOutletContext.mockReturnValue({ ...backfill, completed_at: "2026-07-02T00:00:00Z" });
+    mocks.useBackfillServiceListBackfillDagRuns.mockReturnValue({
+      data: { backfill_dag_runs: [], total_entries: 0 },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+
+    render(<BackfillDagRuns />, { wrapper: Wrapper });
+
+    expect(mocks.useBackfillServiceListBackfillDagRuns).toHaveBeenCalledWith(
+      expect.anything(),
+      undefined,
+      expect.objectContaining({ refetchInterval: false }),
+    );
+  });
+
+  it("does not request a malformed backfill ID", () => {
+    mocks.useParams.mockReturnValue({ backfillId: "invalid", dagId: "example_dag" });
+    mocks.useBackfillServiceListBackfillDagRuns.mockReturnValue({
+      data: undefined,
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+
+    render(<BackfillDagRuns />, { wrapper: Wrapper });
+
+    expect(mocks.useBackfillServiceListBackfillDagRuns).toHaveBeenCalledWith(
+      expect.objectContaining({ backfillId: 0 }),
+      undefined,
+      expect.objectContaining({ enabled: false }),
     );
   });
 });

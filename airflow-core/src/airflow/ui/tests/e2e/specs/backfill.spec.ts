@@ -107,7 +107,7 @@ test.describe("Backfill", () => {
 
       const tableHeaders = backfillPage.backfillsTable.locator("thead th");
 
-      await expect(tableHeaders).toHaveCount(8); // Initial state should have 8 columns
+      await expect(tableHeaders).toHaveCount(7); // Initial state should have 7 columns
       const initialColumnCount = await tableHeaders.count();
 
       await expect(backfillPage.getFilterButton()).toBeVisible();

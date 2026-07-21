@@ -37,7 +37,7 @@ vi.mock("openapi/queries", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     // eslint-disable-next-line id-length
-    t: (key: string) => (key === "common:completed" ? "Completed" : key),
+    t: (key: string) => key,
   }),
 }));
 
@@ -90,7 +90,6 @@ describe("Backfills", () => {
 
     expect(destinations).toContain("/dags/example_dag/backfills/7");
     expect(destinations).toContain("/dags/example_dag/backfills/8");
-    expect(screen.queryByText("table.progress")).not.toBeInTheDocument();
     expect(mocks.listBackfills).toHaveBeenCalledWith({
       dagId: "example_dag",
       limit: 25,

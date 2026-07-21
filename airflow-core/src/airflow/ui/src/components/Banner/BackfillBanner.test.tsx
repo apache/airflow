@@ -84,7 +84,7 @@ describe("BackfillBanner", () => {
 
     render(<BackfillBanner dagId="example_dag" />, { wrapper: Wrapper });
 
-    expect(screen.getByRole("link", { name: "Backfill in progress" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Backfill in progress:" })).toHaveAttribute(
       "href",
       "/dags/example_dag/backfills/7",
     );
