@@ -307,8 +307,8 @@ airflowLocalSettings: ~
 
 # Mount the Airflow config ConfigMap as a directory (at ``{airflowHome}/config``) and set
 # ``AIRFLOW_CONFIG`` accordingly, instead of mounting ``airflow.cfg`` via ``subPath``. This avoids
-# the Kubernetes ``subPath`` + ConfigMap stale-inode race that can fail containers at init with a
-# runc ``StartError`` on node/volume lifecycle events. ``airflow_local_settings.py`` keeps its
+# the Kubernetes ``subPath`` + ConfigMap stale-mount race that can fail containers at init with a
+# ``runc`` ``StartError`` on node/volume lifecycle events. ``airflow_local_settings.py`` keeps its
 # default path. Opt-in; the default preserves the historical ``subPath`` mount.
 mountConfigAsDir: false
 
