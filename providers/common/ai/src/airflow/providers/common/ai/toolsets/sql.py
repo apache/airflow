@@ -112,20 +112,29 @@ class SQLToolset(AbstractToolset[Any]):
         excluded by lexical scope (a same-named CTE in another scope never hides a real
         table). Constructs the list cannot describe are rejected outright while it is
         active: table-valued functions (``dblink``), ``TABLE('name')`` row sources, the
-        ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL, and **inline comments**
-        (where parser-vs-engine differences such as MySQL ``/*! ... */`` executable
-        comments hide).
+        ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL, ``COPY`` (file/program I/O),
+        **inline comments** (where parser-vs-engine differences such as MySQL
+        ``/*! ... */`` executable comments hide), and **any function the parser cannot
+        recognize** -- the channel through which ``pg_read_file`` (a file),
+        ``query_to_xml`` (SQL over another table), or a scalar ``dblink`` (a remote
+        database) reach data with no table node for the walk to catch. Ordinary builtins
+        (``count``, ``lower``) are recognized and pass; a legitimate function sqlglot does
+        not recognize (``json_build_object``, a bespoke UDF) is rejected unless named in
+        ``allowed_functions``.
 
         .. note::
             This is an application-level guardrail, enforced by parsing the SQL with
             sqlglot. It is strong defense-in-depth but not a substitute for database
-            permissions: it cannot police data reached through a function whose
-            argument is itself SQL or a path -- ``pg_read_file('...')`` (a file) or
-            ``query_to_xml('SELECT ... FROM other_table', ...)`` and ``dblink`` in
-            scalar position (a table, read through a string the parser cannot inspect)
-            -- and any query the engine parses differently from sqlglot is a residual
-            gap. For a hard guarantee, also point ``db_conn_id`` at a least-privilege
-            role whose ``SELECT`` grants are limited to the same tables.
+            permissions: an engine or query that sqlglot parses differently is a residual
+            gap. For a hard guarantee, point ``db_conn_id`` at a least-privilege role whose
+            ``SELECT`` grants are limited to the same tables -- the database role is the
+            boundary that holds even when the parser cannot see through a function.
+
+    :param allowed_functions: Names of functions that sqlglot does not recognize as
+        builtins but that are safe to run while ``allowed_tables`` is active -- e.g.
+        ``["json_build_object"]`` or a project UDF. Matching is case-insensitive. Only
+        consulted when ``allowed_tables`` is set; ``None`` (default) rejects every
+        unrecognized function.
 
     :param schema: Default schema/namespace for table listing and introspection,
         used for unqualified ``allowed_tables`` entries and unqualified
@@ -142,12 +151,18 @@ class SQLToolset(AbstractToolset[Any]):
         db_conn_id: str,
         *,
         allowed_tables: list[str] | None = None,
+        allowed_functions: list[str] | None = None,
         schema: str | None = None,
         allow_writes: bool = False,
         max_rows: int = 50,
     ) -> None:
         self._db_conn_id = db_conn_id
         self._allowed_tables: frozenset[str] | None = frozenset(allowed_tables) if allowed_tables else None
+        # Case-folded so matching a query's function names (also case-folded) is
+        # case-insensitive, mirroring how allowed_tables is compared.
+        self._allowed_functions: frozenset[str] = (
+            frozenset(f.casefold() for f in allowed_functions) if allowed_functions else frozenset()
+        )
         self._schema = schema
         self._allow_writes = allow_writes
         self._max_rows = max_rows
@@ -394,14 +409,16 @@ class SQLToolset(AbstractToolset[Any]):
         No-op when ``allowed_tables`` is unset (allow-all). Otherwise every table the
         query references (resolved scope-correctly, including catalog) must be on the
         list, and any construct the list cannot describe -- a table-valued function,
-        ``SHOW``, dynamic SQL, an inline comment, or the ``TABLE <name>`` shorthand --
-        is refused. Raises :class:`SQLSafetyError` -- ``call_tool`` turns it into a
+        ``SHOW``, dynamic SQL, an inline comment, the ``TABLE <name>`` shorthand,
+        ``COPY``, or any function the parser cannot verify (``pg_read_file``,
+        ``query_to_xml``, ``dblink``, or any UDF not in ``allowed_functions``) -- is
+        refused. Raises :class:`SQLSafetyError` -- ``call_tool`` turns it into a
         ``ModelRetry`` so the agent can re-target an allowed table, while
         ``check_query`` reports it invalid.
         """
         if self._allowed_canonical is None:
             return
-        scan = collect_table_references(statements)
+        scan = collect_table_references(statements, allowed_functions=self._allowed_functions)
         if scan.unverifiable_sources:
             raise SQLSafetyError(
                 f"Query uses a data source that cannot be checked against allowed_tables: "
