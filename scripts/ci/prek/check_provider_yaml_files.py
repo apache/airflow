@@ -45,21 +45,22 @@ def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
     conn-fields check runs even when only the hook changes.
 
     All paths are relative to the ``providers/`` directory, as supplied by
-    prek.  The first path segment is the provider package name
-    (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``).
+    prek.  The provider package root is everything before the ``src``
+    segment (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``,
+    ``apache/beam/src/airflow/...`` → ``apache/beam/provider.yaml``) --
+    taking only the first path segment breaks namespaced providers such as
+    ``apache/beam`` or ``common/sql``, whose package root is two segments
+    deep.
     """
     result: set[str] = set()
     for f in raw_files:
         p = pathlib.PurePosixPath(f)
         if p.name == "provider.yaml":
             result.add(f)
-        else:
-            # Map any Python file to the provider.yaml of its package root.
-            # Path structure: <provider-pkg>/<rest...>
-            # e.g. samba/src/airflow/providers/samba/hooks/samba.py
-            parts = p.parts
-            if parts:
-                result.add(f"{parts[0]}/provider.yaml")
+        elif "src" in p.parts:
+            root_parts = p.parts[: p.parts.index("src")]
+            if root_parts:
+                result.add("/".join(root_parts) + "/provider.yaml")
     return sorted(result)
 
 
