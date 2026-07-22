@@ -539,9 +539,9 @@ class TestIterableOperator:
             assert materialized == [(1, 10, None), (2, 20, None), (3, 30, None)]
 
     @pytest.mark.db_test
-    def test_timeout_reads_mapped_operator_and_iterable_execution_timeout_is_none(self, dag_maker, session):
-        """Ensure IterableOperator.timeout reads the wrapped operator.execution_timeout
-        and the IterableOperator.execution_timeout remains None (not propagated to parent)."""
+    def test_iterable_execution_timeout_is_none_wrapped_operator_retains_it(self, dag_maker, session):
+        """IterableOperator.execution_timeout is None (not propagated to the outer TI);
+        the wrapped operator retains its own execution_timeout for per-task enforcement."""
         with dag_maker(session=session) as dag:
             expand_input = ListOfDictsExpandInput([{"a": 1}])
             execution_timeout = timedelta(seconds=7)
@@ -553,7 +553,6 @@ class TestIterableOperator:
 
             assert iterable_op._operator.execution_timeout == execution_timeout
             assert iterable_op.execution_timeout is None
-            assert iterable_op.timeout == 7.0
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(

@@ -21,7 +21,6 @@ import copy
 import os
 from collections import deque
 from collections.abc import Iterable, Mapping, Sequence
-from functools import cached_property
 from itertools import repeat
 from typing import TYPE_CHECKING, Any
 
@@ -202,12 +201,6 @@ class IterableOperator(BaseOperator):
     def task_retries(self) -> int:
         return self._operator.retries or 0
 
-    @cached_property
-    def timeout(self) -> float | None:
-        if self._operator.execution_timeout:
-            return self._operator.execution_timeout.total_seconds()
-        return None
-
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -278,7 +271,6 @@ class IterableOperator(BaseOperator):
                         repeat(executor),
                         repeat(context),
                         tasks,
-                        timeout=self.timeout,
                     ):
                         do_xcom_push = task.do_xcom_push
 
