@@ -704,6 +704,27 @@ This will generate the following scheduler deployment:
            - name: scheduler
          ...
 
+Omitting ``runAsUser`` and ``fsGroup``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+On OpenShift, the ``restricted`` SCC assigns ``runAsUser`` and ``fsGroup`` automatically and rejects Pods
+that request specific values without the ``anyuid`` SCC in place. To let OpenShift assign these values,
+set ``runAsUser`` and ``fsGroup`` to ``null`` explicitly instead of leaving ``securityContexts`` empty
+(an empty ``securityContexts.pod`` falls back to :ref:`uid <parameters:Airflow>` /
+:ref:`gid <parameters:Airflow>`, as shown above):
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   securityContexts:
+     pod:
+       runAsUser: null
+       fsGroup: null
+
+This omits ``runAsUser`` and ``fsGroup`` from the rendered pod ``securityContext`` entirely, allowing the
+SCC to supply its own values. The same can be applied to any workload's local ``securityContexts.pod``
+(e.g. ``scheduler.securityContexts.pod``).
+
 Built-in secrets and environment variables
 ------------------------------------------
 
