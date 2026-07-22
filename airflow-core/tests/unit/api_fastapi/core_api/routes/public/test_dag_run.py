@@ -1609,7 +1609,7 @@ class TestPatchDagRun:
         listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
-        assert listener.state == listener_state
+        assert listener.state == expected_dagrun_state
         if expected_msg is not None:
             assert listener.dag_run_msg == expected_msg
             assert listener.dag_has_dag_attr is True
