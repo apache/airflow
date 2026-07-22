@@ -65,6 +65,7 @@
     "lastDagRun_other": "마지막 {{count}}개 Dag 실행",
     "lastTaskInstance_one": "마지막 태스크 인스턴스",
     "lastTaskInstance_other": "마지막 {{count}}개 태스크 인스턴스",
+    "medianTotalDuration": "총: {{duration}}",
     "queuedDuration": "대기열 대기 시간",
     "runAfter": "실행 후",
     "runDuration": "실행 기간"
