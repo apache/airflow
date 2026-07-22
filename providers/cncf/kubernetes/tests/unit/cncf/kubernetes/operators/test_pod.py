@@ -472,6 +472,34 @@ class TestKubernetesPodOperator:
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
         }
 
+    @patch(HOOK_CLASS)
+    def test_build_pod_request_obj_dry_run_skips_live_kube_client(self, hook_mock):
+        """dry_run must not require a live Kubernetes API client (e.g. no kube config available)."""
+        type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
+            side_effect=RuntimeError("kube config not available")
+        )
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+        )
+        pod = k.build_pod_request_obj(dry_run=True)
+        assert "airflow_kpo_in_cluster" not in pod.metadata.labels
+
+        with pytest.raises(RuntimeError, match="kube config not available"):
+            k.build_pod_request_obj()
+
+    @patch(HOOK_CLASS)
+    def test_dry_run_method_does_not_require_live_kube_client(self, hook_mock):
+        type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
+            side_effect=RuntimeError("kube config not available")
+        )
+        hook_mock.return_value.get_namespace.return_value = "default"
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+        )
+        k.dry_run()
+
     def test_find_custom_pod_labels(self):
         k = KubernetesPodOperator(
             labels={"foo": "bar", "hello": "airflow"},
