@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-21T19:44:29.581054
+# This constraints file was automatically generated on 2026-07-22T17:32:17.587121
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -304,7 +304,7 @@ fastavro==1.12.2
 fastcore==2.1.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.30.3
+filelock==3.31.0
 flask-appbuilder==5.2.1
 flask-babel==4.0.0
 flower==2.0.1
@@ -537,7 +537,7 @@ pexpect==4.9.0
 pgvector==0.5.0
 pinecone==9.1.0
 pinotdb==9.1.2
-platformdirs==4.10.0
+platformdirs==4.10.1
 pluggy==1.6.0
 polars-runtime-32==1.42.1
 polars==1.42.1
@@ -565,9 +565,9 @@ pybreaker==1.4.1
 pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
-pydantic-ai-slim==2.12.0
+pydantic-ai-slim==2.13.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.12.0
+pydantic-graph==2.13.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -602,7 +602,7 @@ pyvespa==1.2.4
 pywinrm==0.5.0
 pyzmq==27.1.0
 qdrant-client==1.18.0
-ray==2.56.0
+ray==2.56.1
 reactivex==4.1.0
 redis==6.4.0
 redshift_connector==2.1.15
@@ -704,7 +704,7 @@ wcwidth==0.8.2
 weaviate-client==4.16.2
 webencodings==0.5.1
 websocket-client==1.8.0
-websockets==16.1
+websockets==16.1.1
 wheel==0.47.0
 wirerope==1.0.0
 wrapt==2.2.2
