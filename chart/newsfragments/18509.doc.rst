@@ -1,0 +1,1 @@
+Document how to rotate the Fernet key when deploying with the Helm chart.
