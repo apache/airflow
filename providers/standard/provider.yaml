@@ -81,6 +81,7 @@ integrations:
       - /docs/apache-airflow-providers-standard/sensors/datetime.rst
       - /docs/apache-airflow-providers-standard/sensors/file.rst
       - /docs/apache-airflow-providers-standard/sensors/external_task_sensor.rst
+      - /docs/apache-airflow-providers-standard/sensors/asset.rst
 
 operators:
   - integration-name: Standard
