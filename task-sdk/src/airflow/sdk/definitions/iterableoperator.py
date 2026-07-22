@@ -38,6 +38,7 @@ from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import MapXComArg, XComArg  # noqa: F401
 from airflow.sdk.exceptions import (
     AirflowFailException,
+    AirflowRescheduleException,
     AirflowRescheduleTaskInstanceException,
     TaskDeferred,
 )
@@ -103,6 +104,10 @@ class IterableOperator(BaseOperator):
         Deferred operators (those that raise :class:`~airflow.sdk.exceptions.TaskDeferred`) are not
         supported yet inside IterableOperator. A ``TaskDeferred`` exception raised by an indexed task
         instance will propagate as an error rather than pausing and resuming the task.
+
+        Reschedule-mode sensors (those that raise :class:`~airflow.sdk.exceptions.AirflowRescheduleException`)
+        are also not supported. A reschedule raised by an indexed task instance will fail the whole
+        IterableOperator immediately with a clear error rather than being silently mishandled.
     """
 
     _operator: MappedOperator
@@ -283,7 +288,12 @@ class IterableOperator(BaseOperator):
                                 "Deferrable operators are not supported inside IterableOperator."
                             )
 
-                        if isinstance(raised, AirflowRescheduleTaskInstanceException):
+                        if isinstance(raised, AirflowRescheduleException):
+                            if not isinstance(raised, AirflowRescheduleTaskInstanceException):
+                                raise AirflowFailException(
+                                    f"Sub-task {task.task_id}[{task.index}] attempted to reschedule. "
+                                    "Reschedule-mode sensors are not supported inside IterableOperator."
+                                )
                             reschedule_date = max(reschedule_date, raised.reschedule_date)
                             self.log.exception(
                                 "An exception occurred for task_id %s with index %s, it has been rescheduled at %s",

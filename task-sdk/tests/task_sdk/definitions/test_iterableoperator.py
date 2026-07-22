@@ -33,7 +33,7 @@ from airflow.sdk import DAG, BaseOperator, BaseXCom, get_current_context
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRIES
 from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
 from airflow.sdk.definitions.iterableoperator import IterableOperator
-from airflow.sdk.exceptions import AirflowFailException, TaskDeferred
+from airflow.sdk.exceptions import AirflowFailException, AirflowRescheduleException, TaskDeferred
 from airflow.sdk.execution_time.xcom import XCom
 
 from tests_common.test_utils.mock_context import mock_context
@@ -88,6 +88,19 @@ class MockDeferredOperator(BaseOperator):
 
     def execute(self, context):
         raise TaskDeferred(trigger=None, method_name="execute_complete")  # type: ignore[arg-type]
+
+
+class MockRescheduleSensor(BaseOperator):
+    """Operator that raises AirflowRescheduleException on execute, simulating a reschedule-mode sensor."""
+
+    template_fields = ()
+
+    def execute(self, context):
+        from datetime import timedelta
+
+        from airflow.sdk import timezone
+
+        raise AirflowRescheduleException(timezone.utcnow() + timedelta(seconds=60))
 
 
 @pytest.fixture
@@ -608,6 +621,27 @@ class TestIterableOperator:
         mock_xcom_get_one(context)
 
         with pytest.raises(AirflowFailException, match="attempted to defer"):
+            iterable_op.execute(context=context)
+
+    @pytest.mark.db_test
+    def test_reschedule_mode_sensor_raises_airflow_fail_exception(
+        self, dag_maker, session, mock_xcom_get_one
+    ):
+        """A sub-task that raises AirflowRescheduleException must fail the whole IterableOperator
+        immediately with a clear error rather than being silently mishandled."""
+        with dag_maker(session=session) as dag:
+            expand_input = ListOfDictsExpandInput([{}, {}])
+            mapped_op = MockRescheduleSensor.partial(task_id="reschedule_sensor", dag=dag)._expand(
+                expand_input,
+                strict=True,
+                register_with_dag=False,
+            )
+            iterable_op = IterableOperator(operator=mapped_op, expand_input=expand_input, dag=dag)
+
+        context = mock_context(task=iterable_op)
+        mock_xcom_get_one(context)
+
+        with pytest.raises(AirflowFailException, match="attempted to reschedule"):
             iterable_op.execute(context=context)
 
 
