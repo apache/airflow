@@ -21,12 +21,15 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.sensors.quicksight import QuickSightSensor
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.amazon.aws.triggers.quicksight import QuickSightIngestionCompletedTrigger
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 DATA_SET_ID = "DemoDataSet"
 INGESTION_ID = "DemoDataSet_Ingestion"
+AWS_ACCOUNT_ID = "123456789012"
 
 
 @pytest.fixture
@@ -38,6 +41,13 @@ def mocked_get_status():
 @pytest.fixture
 def mocked_get_error_info():
     with mock.patch.object(QuickSightHook, "get_error_info") as m:
+        yield m
+
+
+@pytest.fixture
+def mocked_account_id():
+    with mock.patch.object(QuickSightHook, "account_id", new_callable=mock.PropertyMock) as m:
+        m.return_value = AWS_ACCOUNT_ID
         yield m
 
 
@@ -74,6 +84,8 @@ class TestQuickSightSensor:
         assert sensor.hook._region_name is None
         assert sensor.hook._verify is None
         assert sensor.hook._config is None
+        assert sensor.max_retries == 75
+        assert sensor.deferrable is False
 
     @pytest.mark.parametrize("status", ["COMPLETED"])
     def test_poke_completed(self, status, mocked_get_status):
@@ -91,7 +103,38 @@ class TestQuickSightSensor:
     def test_poke_terminated_status(self, status, mocked_get_status, mocked_get_error_info):
         mocked_get_status.return_value = status
         mocked_get_error_info.return_value = "something bad happen"
-        with pytest.raises(AirflowException, match="Error info: something bad happen"):
+        with pytest.raises(QuickSightIngestionFailedError, match="Error info: something bad happen"):
             QuickSightSensor(**self.default_op_kwargs).poke({})
         mocked_get_status.assert_called_once_with(None, DATA_SET_ID, INGESTION_ID)
         mocked_get_error_info.assert_called_once_with(None, DATA_SET_ID, INGESTION_ID)
+
+    def test_execute_deferrable(self, mocked_account_id):
+        sensor = QuickSightSensor(
+            **self.default_op_kwargs, deferrable=True, poke_interval=20.5, max_retries=3
+        )
+
+        with pytest.raises(TaskDeferred) as defer_exc:
+            sensor.execute({})
+
+        trigger = defer_exc.value.trigger
+        assert isinstance(trigger, QuickSightIngestionCompletedTrigger)
+        assert defer_exc.value.method_name == "execute_complete"
+        _, kwargs = trigger.serialize()
+        assert kwargs["data_set_id"] == DATA_SET_ID
+        assert kwargs["ingestion_id"] == INGESTION_ID
+        assert kwargs["aws_account_id"] == AWS_ACCOUNT_ID
+        assert kwargs["waiter_delay"] == 20
+        assert kwargs["waiter_max_attempts"] == 3
+
+    def test_execute_complete(self):
+        sensor = QuickSightSensor(**self.default_op_kwargs)
+        event = {"status": "success", "ingestion_id": INGESTION_ID}
+
+        assert sensor.execute_complete({}, event) is None
+
+    def test_execute_complete_failure(self):
+        sensor = QuickSightSensor(**self.default_op_kwargs)
+        event = {"status": "error", "message": "Waiter error: max attempts reached"}
+
+        with pytest.raises(QuickSightIngestionFailedError, match="Error while waiting"):
+            sensor.execute_complete({}, event)

@@ -18,10 +18,14 @@
 from __future__ import annotations
 
 import time
+import warnings
 
 from botocore.exceptions import ClientError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.common.compat.sdk import AirflowException
 
 
@@ -52,6 +56,7 @@ class QuickSightHook(AwsBaseHook):
         wait_for_completion: bool = True,
         check_interval: int = 30,
         aws_account_id: str | None = None,
+        waiter_max_attempts: int = 60,
     ) -> dict:
         """
         Create and start a new SPICE ingestion for a dataset; refresh the SPICE datasets.
@@ -66,31 +71,63 @@ class QuickSightHook(AwsBaseHook):
         :param check_interval: the time interval in seconds which the operator
             will check the status of QuickSight Ingestion
         :param aws_account_id: An AWS Account ID, if set to ``None`` then use associated AWS Account ID.
+        :param waiter_max_attempts: The maximum number of attempts to be made.
         :return: Returns descriptive information about the created data ingestion
             having Ingestion ARN, HTTP status, ingestion ID and ingestion status.
         """
         aws_account_id = aws_account_id or self.account_id
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
-        try:
-            create_ingestion_response = self.conn.create_ingestion(
-                DataSetId=data_set_id,
-                IngestionId=ingestion_id,
-                IngestionType=ingestion_type,
-                AwsAccountId=aws_account_id,
+        create_ingestion_response = self.conn.create_ingestion(
+            DataSetId=data_set_id,
+            IngestionId=ingestion_id,
+            IngestionType=ingestion_type,
+            AwsAccountId=aws_account_id,
+        )
+        if wait_for_completion:
+            self.wait_for_ingestion(
+                data_set_id=data_set_id,
+                ingestion_id=ingestion_id,
+                aws_account_id=aws_account_id,
+                waiter_delay=check_interval,
+                waiter_max_attempts=waiter_max_attempts,
             )
+        return create_ingestion_response
 
-            if wait_for_completion:
-                self.wait_for_state(
-                    aws_account_id=aws_account_id,
-                    data_set_id=data_set_id,
-                    ingestion_id=ingestion_id,
-                    target_state={"COMPLETED"},
-                    check_interval=check_interval,
-                )
-            return create_ingestion_response
-        except Exception as general_error:
-            self.log.error("Failed to run Amazon QuickSight create_ingestion API, error: %s", general_error)
-            raise
+    def wait_for_ingestion(
+        self,
+        *,
+        data_set_id: str,
+        ingestion_id: str,
+        aws_account_id: str | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+    ) -> None:
+        """
+        Poll a SPICE ingestion until it completes.
+
+        :param data_set_id: QuickSight Data Set ID
+        :param ingestion_id: QuickSight Ingestion ID
+        :param aws_account_id: An AWS Account ID, if set to ``None`` then use associated AWS Account ID.
+        :param waiter_delay: The amount of time in seconds to wait between attempts.
+        :param waiter_max_attempts: The maximum number of attempts to be made.
+        :raises QuickSightIngestionFailedError: If the ingestion fails, is cancelled or times out.
+        """
+        try:
+            wait(
+                waiter=self.get_waiter("ingestion_complete"),
+                waiter_delay=waiter_delay,
+                waiter_max_attempts=waiter_max_attempts,
+                args={
+                    "AwsAccountId": aws_account_id or self.account_id,
+                    "DataSetId": data_set_id,
+                    "IngestionId": ingestion_id,
+                },
+                failure_message="Amazon QuickSight SPICE ingestion failed.",
+                status_message="Status of Amazon QuickSight SPICE ingestion is",
+                status_args=["Ingestion.IngestionStatus", "Ingestion.ErrorInfo"],
+            )
+        except AirflowException as e:
+            raise QuickSightIngestionFailedError(str(e)) from e
 
     def get_status(self, aws_account_id: str | None, data_set_id: str, ingestion_id: str) -> str:
         """
@@ -144,14 +181,23 @@ class QuickSightHook(AwsBaseHook):
         """
         Check status of a QuickSight Create Ingestion API.
 
+        .. deprecated::
+            Use :meth:`wait_for_ingestion` instead.
+
         :param aws_account_id: An AWS Account ID, if set to ``None`` then use associated AWS Account ID.
         :param data_set_id: QuickSight Data Set ID
         :param ingestion_id: QuickSight Ingestion ID
         :param target_state: Describes the QuickSight Job's Target State
         :param check_interval: the time interval in seconds which the operator
             will check the status of QuickSight Ingestion
-        :return: response of describe_ingestion call after Ingestion is done
+        :return: the final status of the ingestion
         """
+        warnings.warn(
+            "`QuickSightHook.wait_for_state` is deprecated and will be removed in a future release. "
+            "Use `QuickSightHook.wait_for_ingestion` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         aws_account_id = aws_account_id or self.account_id
 
         while True:
@@ -162,7 +208,7 @@ class QuickSightHook(AwsBaseHook):
                 raise AirflowException(f"The Amazon QuickSight Ingestion failed. Error info: {info}")
             if status == "CANCELLED":
                 raise AirflowException("The Amazon QuickSight SPICE ingestion cancelled!")
-            if status not in self.NON_TERMINAL_STATES or status == target_state:
+            if status not in self.NON_TERMINAL_STATES:
                 break
             time.sleep(check_interval)
 

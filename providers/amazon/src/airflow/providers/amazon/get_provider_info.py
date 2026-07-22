@@ -1018,6 +1018,10 @@ def get_provider_info():
                 "integration-name": "AWS Database Migration Service",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.dms"],
             },
+            {
+                "integration-name": "Amazon QuickSight",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.quicksight"],
+            },
         ],
         "transfers": [
             {

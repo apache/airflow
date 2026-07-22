@@ -22,6 +22,8 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.common.compat.sdk import AirflowException
 
@@ -183,7 +185,10 @@ class TestQuicksight:
     ):
         mocked_get_error_info.return_value = "Something Bad Happen"
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
-        with pytest.raises(AirflowException, match="Error info: Something Bad Happen"):
+        with (
+            pytest.warns(AirflowProviderDeprecationWarning, match="wait_for_ingestion"),
+            pytest.raises(AirflowException, match="Error info: Something Bad Happen"),
+        ):
             hook.wait_for_state(
                 aws_account_id, "data_set_id", "ingestion_id", target_state={"COMPLETED"}, check_interval=0
             )
@@ -193,7 +198,10 @@ class TestQuicksight:
     @mock.patch.object(QuickSightHook, "get_status", return_value="CANCELLED")
     def test_wait_for_state_canceled(self, _):
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
-        with pytest.raises(AirflowException, match="The Amazon QuickSight SPICE ingestion cancelled"):
+        with (
+            pytest.warns(AirflowProviderDeprecationWarning, match="wait_for_ingestion"),
+            pytest.raises(AirflowException, match="The Amazon QuickSight SPICE ingestion cancelled"),
+        ):
             hook.wait_for_state(
                 "aws_account_id", "data_set_id", "ingestion_id", target_state={"COMPLETED"}, check_interval=0
             )
@@ -202,12 +210,11 @@ class TestQuicksight:
     def test_wait_for_state_completed(self, mocked_get_status):
         mocked_get_status.side_effect = ["INITIALIZED", "QUEUED", "RUNNING", "COMPLETED"]
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
-        assert (
-            hook.wait_for_state(
+        with pytest.warns(AirflowProviderDeprecationWarning, match="wait_for_ingestion"):
+            status = hook.wait_for_state(
                 "aws_account_id", "data_set_id", "ingestion_id", target_state={"COMPLETED"}, check_interval=0
             )
-            == "COMPLETED"
-        )
+        assert status == "COMPLETED"
         assert mocked_get_status.call_count == 4
 
     @pytest.mark.parametrize(
@@ -220,7 +227,7 @@ class TestQuicksight:
         mocked_client.create_ingestion.return_value = MOCK_CREATE_INGESTION_RESPONSE
 
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
-        with mock.patch.object(QuickSightHook, "wait_for_state") as mocked_wait_for_state:
+        with mock.patch.object(QuickSightHook, "wait_for_ingestion") as mocked_wait_for_ingestion:
             assert (
                 hook.create_ingestion(
                     data_set_id="DemoDataSet",
@@ -229,23 +236,24 @@ class TestQuicksight:
                     aws_account_id=aws_account_id,
                     wait_for_completion=wait_for_completion,
                     check_interval=0,
+                    waiter_max_attempts=2,
                 )
                 == MOCK_CREATE_INGESTION_RESPONSE
             )
             if wait_for_completion:
-                mocked_wait_for_state.assert_called_once_with(
-                    aws_account_id=expected_account_id,
+                mocked_wait_for_ingestion.assert_called_once_with(
                     data_set_id="DemoDataSet",
                     ingestion_id="DemoDataSet_Ingestion",
-                    target_state={"COMPLETED"},
-                    check_interval=0,
+                    aws_account_id=expected_account_id,
+                    waiter_delay=0,
+                    waiter_max_attempts=2,
                 )
             else:
-                mocked_wait_for_state.assert_not_called()
+                mocked_wait_for_ingestion.assert_not_called()
 
         mocked_client.create_ingestion.assert_called_with(AwsAccountId=expected_account_id, **MOCK_DATA)
 
-    def test_create_ingestion_exception(self, mocked_account_id, mocked_client, caplog):
+    def test_create_ingestion_exception(self, mocked_account_id, mocked_client):
         mocked_client.create_ingestion.side_effect = ValueError("Fake Error")
         hook = QuickSightHook(aws_conn_id=None)
         with pytest.raises(ValueError, match="Fake Error"):
@@ -254,4 +262,46 @@ class TestQuicksight:
                 ingestion_id="DemoDataSet_Ingestion",
                 ingestion_type="INCREMENTAL_REFRESH",
             )
-        assert "create_ingestion API, error: Fake Error" in caplog.text
+
+    @pytest.mark.parametrize(("aws_account_id", "expected_account_id"), ACCOUNT_TEST_CASES)
+    @mock.patch("airflow.providers.amazon.aws.hooks.quicksight.wait")
+    @mock.patch.object(QuickSightHook, "get_waiter")
+    def test_wait_for_ingestion(
+        self, mocked_get_waiter, mocked_wait, aws_account_id, expected_account_id, mocked_account_id
+    ):
+        hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
+        hook.wait_for_ingestion(
+            data_set_id="DemoDataSet",
+            ingestion_id="DemoDataSet_Ingestion",
+            aws_account_id=aws_account_id,
+            waiter_delay=1,
+            waiter_max_attempts=2,
+        )
+        mocked_get_waiter.assert_called_once_with("ingestion_complete")
+        mocked_wait.assert_called_once_with(
+            waiter=mocked_get_waiter.return_value,
+            waiter_delay=1,
+            waiter_max_attempts=2,
+            args={
+                "AwsAccountId": expected_account_id,
+                "DataSetId": "DemoDataSet",
+                "IngestionId": "DemoDataSet_Ingestion",
+            },
+            failure_message="Amazon QuickSight SPICE ingestion failed.",
+            status_message="Status of Amazon QuickSight SPICE ingestion is",
+            status_args=["Ingestion.IngestionStatus", "Ingestion.ErrorInfo"],
+        )
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.hooks.quicksight.wait",
+        side_effect=AirflowException("Waiter error: max attempts reached"),
+    )
+    @mock.patch.object(QuickSightHook, "get_waiter")
+    def test_wait_for_ingestion_failure(self, mocked_get_waiter, mocked_wait):
+        hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
+        with pytest.raises(QuickSightIngestionFailedError, match="max attempts reached"):
+            hook.wait_for_ingestion(
+                data_set_id="DemoDataSet",
+                ingestion_id="DemoDataSet_Ingestion",
+                aws_account_id="123456789012",
+            )
