@@ -324,8 +324,21 @@ Output one row per commit and nothing else, in this exact pipe format
 
    #<NNNN> | <documentation|bugfix|feature|breaking|misc|skip|min_airflow_bump> | <high|medium|low> | <none|maybe|yes> | <one-sentence justification>
 
+A change is only breaking if the thing it breaks was **released**. Removing,
+renaming, or altering a symbol/behavior that was *introduced in this same
+unreleased wave* (i.e. the feature was added in one pending commit and
+changed in another, both after the provider's last release tag) is NOT a
+breaking change — users never received the old form, so there is nothing to
+break. Before classifying any removal/rename as breaking, confirm the affected
+symbol existed at the last released version:
+`git show providers-<id>/<last-version>:providers/<path>/... | grep <symbol>`
+(or grep the last release tag). If it isn't there, treat the change as part of
+delivering the new feature (feature/misc), not breaking. A within-wave rename
+of a brand-new operator or plugin is feature-shaped, not a major bump.
+
 Breaking-change checklist (any of these → BREAKING_RISK >= maybe; usually
-breaking unless clearly behind a deprecation shim):
+breaking unless clearly behind a deprecation shim) — **each item assumes the
+affected symbol/behavior shipped in a released version, per the rule above**:
   * Public class/function/method removed or renamed
     in the **public interface** of the provider — i.e. files under
     `providers/<path>/src/**/{hooks,operators,sensors,triggers,
@@ -352,7 +365,9 @@ breaking unless clearly behind a deprecation shim):
 
 Do NOT trust the PR title alone — read the diff. A PR titled "Refactor X"
 that removes a public method is breaking. A PR titled "BREAKING: rename
-foo" that only renames a private symbol is not.
+foo" that only renames a private symbol is not. A PR that renames a public
+class introduced earlier *in this same unreleased wave* is not breaking
+either — the old name was never released (see the released-only rule above).
 ```
 
 Collect every sub-agent's rows (and any you classified inline) into one
