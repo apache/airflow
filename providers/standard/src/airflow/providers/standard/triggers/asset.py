@@ -65,9 +65,9 @@ def _fetch_asset_events(
 
     accessor = InletEventsAccessor(asset_name=name, asset_uri=uri, alias_name=alias_name)
     if after is not None:
-        accessor.after(after)  # type: ignore[arg-type]
+        accessor.after(after if isinstance(after, str) else after.isoformat())
     if before is not None:
-        accessor.before(before)  # type: ignore[arg-type]
+        accessor.before(before if isinstance(before, str) else before.isoformat())
     accessor.ascending(ascending)
     if limit is not None:
         accessor.limit(limit)
