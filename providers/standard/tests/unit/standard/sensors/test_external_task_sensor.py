@@ -1459,14 +1459,14 @@ class TestExternalTaskSensorV3:
         assert not hasattr(sensor, "poll_interval")
 
     def test_poke_interval_default_when_unset(self):
-        """The sensor-specific default of 2.0 must be preserved, not the base sensor's default of 60."""
+        """The sensor-specific default of 60.0 must be preserved."""
         sensor = ExternalTaskSensor(
             task_id=TASK_ID,
             external_task_id=EXTERNAL_TASK_ID,
             external_dag_id=EXTERNAL_DAG_ID,
         )
 
-        assert sensor.poke_interval == 2.0
+        assert sensor.poke_interval == 60.0
 
     def test_poke_interval_accepts_timedelta(self):
         """poke_interval should accept a timedelta, coerced to seconds, same as the base sensor."""

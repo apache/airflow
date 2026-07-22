@@ -193,7 +193,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
-        poke_interval: datetime.timedelta | float = 2.0,
+        poke_interval: datetime.timedelta | float = 60.0,
         poll_interval: datetime.timedelta | float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
