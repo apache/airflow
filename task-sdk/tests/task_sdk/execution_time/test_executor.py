@@ -393,3 +393,100 @@ class TestTaskExecutor:
         assert ti.state == TaskInstanceState.FAILED
         # try_number should NOT be incremented for BaseException
         assert ti.try_number == 0
+
+    def test_exit_success_fires_on_success_callback(self, make_indexed_ti):
+        """on_success_callback must fire for each indexed sub-task that succeeds."""
+        fired: list[str] = []
+        ti = make_indexed_ti()
+        task = BaseOperator(
+            task_id="cb_task",
+            on_success_callback=lambda ctx: fired.append("success"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        context = mock_context(task)
+        executor = TaskExecutor(task_instance=ti)
+        executor._context = context
+
+        with executor:
+            pass
+
+        assert fired == ["success"]
+
+    def test_exit_failure_fires_on_failure_callback(self, make_indexed_ti):
+        """on_failure_callback must fire for each indexed sub-task that exhausts retries."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=3, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_failure_callback=lambda ctx: fired.append("failure"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        context = mock_context(task)
+        executor = TaskExecutor(task_instance=ti)
+        executor._context = context
+
+        with pytest.raises(RuntimeError):
+            with executor:
+                raise RuntimeError("permanent")
+
+        assert fired == ["failure"]
+
+    def test_exit_retry_fires_on_retry_callback(self, make_indexed_ti):
+        """on_retry_callback must fire for each indexed sub-task that is rescheduled."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=0, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_retry_callback=lambda ctx: fired.append("retry"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        context = mock_context(task)
+        executor = TaskExecutor(task_instance=ti)
+        executor._context = context
+
+        with pytest.raises(AirflowRescheduleTaskInstanceException):
+            with executor:
+                raise RuntimeError("transient")
+
+        assert fired == ["retry"]
+
+    def test_exit_base_exception_fires_on_failure_callback(self, make_indexed_ti):
+        """on_failure_callback must also fire when a non-Exception BaseException marks the task FAILED."""
+        fired: list[str] = []
+        ti = make_indexed_ti(try_number=0, max_tries=3)
+        task = BaseOperator(
+            task_id="cb_task",
+            on_failure_callback=lambda ctx: fired.append("failure"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        context = mock_context(task)
+        executor = TaskExecutor(task_instance=ti)
+        executor._context = context
+
+        with pytest.raises(SystemExit):
+            with executor:
+                raise SystemExit(1)
+
+        assert fired == ["failure"]
+
+    def test_exit_no_context_skips_callbacks(self, make_indexed_ti):
+        """When _context is not set (e.g. __exit__ called directly), callbacks must not fire."""
+        fired: list[str] = []
+        ti = make_indexed_ti()
+        task = BaseOperator(
+            task_id="cb_task",
+            on_success_callback=lambda ctx: fired.append("success"),
+        )
+        get_inline_dag("cb_dag", task)
+        ti.task = task
+        executor = TaskExecutor(task_instance=ti)
+        # _context intentionally left as None
+
+        with executor:
+            pass
+
+        assert fired == []

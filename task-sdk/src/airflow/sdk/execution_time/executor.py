@@ -234,6 +234,7 @@ class TaskExecutor(LoggingMixin):
         self.task_instance = task_instance
         self._result: Any | None = None
         self._start_time: float | None = None
+        self._context: Context | None = None
 
     @property
     def dag_id(self) -> str:
@@ -260,10 +261,12 @@ class TaskExecutor(LoggingMixin):
         return self.task_instance.is_async
 
     def run(self, context: Context):
+        self._context = context
         with set_current_context(context):
             return _execute_task(context, self.task_instance, self.log)
 
     async def arun(self, context: Context):
+        self._context = context
         with set_current_context(context):
             return await _execute_async_task(context, self.task_instance, self.log)
 
@@ -291,6 +294,10 @@ class TaskExecutor(LoggingMixin):
             # Re-raise immediately without retry.
             if not isinstance(exc_value, Exception):
                 self.task_instance.state = TaskInstanceState.FAILED
+                if self._context is not None:
+                    _run_task_state_change_callbacks(
+                        self.task_instance.task, "on_failure_callback", self._context, self.log
+                    )
                 raise exc_value
             if not isinstance(exc_value, TaskDeferred):
                 if self.task_instance.next_try_number > self.task_instance.max_tries:
@@ -303,10 +310,18 @@ class TaskExecutor(LoggingMixin):
                         exc_value,
                     )
                     self.task_instance.state = TaskInstanceState.FAILED
+                    if self._context is not None:
+                        _run_task_state_change_callbacks(
+                            self.task_instance.task, "on_failure_callback", self._context, self.log
+                        )
                     raise exc_value
                 self.task_instance.try_number += 1
                 self.task_instance.end_date = timezone.utcnow()
                 self.task_instance.state = TaskInstanceState.UP_FOR_RESCHEDULE
+                if self._context is not None:
+                    _run_task_state_change_callbacks(
+                        self.task_instance.task, "on_retry_callback", self._context, self.log
+                    )
                 raise AirflowRescheduleTaskInstanceException(
                     task=self.task_instance,
                     reschedule_date=self.task_instance.next_retry_datetime(),
@@ -314,6 +329,10 @@ class TaskExecutor(LoggingMixin):
             raise exc_value
 
         self.task_instance.state = TaskInstanceState.SUCCESS
+        if self._context is not None:
+            _run_task_state_change_callbacks(
+                self.task_instance.task, "on_success_callback", self._context, self.log
+            )
         if self.log.isEnabledFor(logging.INFO):
             self.log.info(
                 "Task instance %s for %s finished successfully in %s attempts in %.2f seconds",
