@@ -125,6 +125,20 @@ class TestStubTaskflowArgs:
             {"name": "retries_num", "kind": "literal", "data_type": "integer", "value": 7},
         ]
 
+    def test_explicitly_passing_the_default_value_is_not_from_default(self):
+        """The flag tracks provenance, not value equality: an author-passed argument is explicit
+        even when it equals the signature default, so keyword-style consumers must still claim it."""
+        with DAG(dag_id="d"):
+            extracted = stub(fn_extract)()
+            result = stub(fn_transform)("uk", extracted, retries_num=3)
+
+        assert result.operator._arg_bindings[2] == {
+            "name": "retries_num",
+            "kind": "literal",
+            "data_type": "integer",
+            "value": 3,
+        }
+
     def test_custom_xcom_key_rejected(self):
         with DAG(dag_id="d"):
             extracted = stub(fn_extract)()
