@@ -54,7 +54,12 @@ from pathlib import Path
 import yaml
 from extract_metadata import fetch_provider_inventory, read_inventory
 from registry_contract_models import validate_modules_catalog, validate_provider_parameters
-from registry_tools.types import BASE_CLASS_IMPORTS, CLASS_LEVEL_SECTIONS, MODULE_LEVEL_SECTIONS
+from registry_tools.types import (
+    BASE_CLASS_IMPORTS,
+    CLASS_LEVEL_CATEGORY_OVERRIDES,
+    CLASS_LEVEL_SECTIONS,
+    MODULE_LEVEL_SECTIONS,
+)
 
 AIRFLOW_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_DIR = Path(__file__).parent
@@ -580,12 +585,6 @@ def discover_classes_from_provider(
                 continue
             cls = candidate
 
-            # Use section name as category for class-level entries
-            category_map = {
-                "notifications": "notifications",
-                "secrets-backends": "secrets",
-            }
-
             discovered.append(
                 make_entry(
                     cls,
@@ -593,7 +592,7 @@ def discover_classes_from_provider(
                     module_type,
                     class_path,
                     module_path,
-                    category=category_map.get(section_name, section_name),
+                    category=CLASS_LEVEL_CATEGORY_OVERRIDES.get(section_name, section_name),
                 )
             )
 

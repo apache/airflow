@@ -196,5 +196,14 @@ CLASS_LEVEL_SECTIONS: dict[str, str] = {
     "db-managers": "db_manager",
 }
 
+# Maps yaml section key -> category string for class-level (FQCN) sections.
+# Includes every yaml key that needs an explicit category, even when it happens
+# to match the key itself (e.g. "notifications"). Callers still fall back to
+# the yaml key via .get(section_name, section_name) for keys not listed here.
+CLASS_LEVEL_CATEGORY_OVERRIDES: dict[str, str] = {
+    "notifications": "notifications",
+    "secrets-backends": "secrets",
+}
+
 # All type ids, ordered consistently.
 ALL_TYPE_IDS: list[str] = list(MODULE_TYPES.keys())
