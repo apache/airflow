@@ -28,6 +28,7 @@ import (
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -124,7 +125,79 @@ func RunTask(
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
 
-	return executeTask(ctx, task, details.TIContext.ShouldRetry, logger)
+	args, err := convertArgBindings(details.TIContext.ArgBindings)
+	if err != nil {
+		logger.Error("Invalid arg_bindings spec from supervisor",
+			"dag_id", details.TI.DagID,
+			"task_id", details.TI.TaskID,
+			"error", err,
+		)
+		// Same retry semantics as a binding failure inside executeTask: an
+		// equally permanent spec error must not terminate differently.
+		if details.TIContext.ShouldRetry {
+			return genmodels.RetryTask{
+				EndDate:     time.Now().UTC(),
+				RetryReason: err.Error(),
+			}
+		}
+		return genmodels.TaskState{
+			State:   genmodels.TaskStateStateFailed,
+			EndDate: time.Now().UTC(),
+		}
+	}
+
+	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
+}
+
+// convertArgBindings maps the wire-model positional-argument spec (captured from
+// the Python stub Dag's TaskFlow call) onto the runtime binding sum type. The
+// wire union generates untyped items (msgpack delivers each XComArgBinding /
+// LiteralArgBinding as a plain map), so the kind dispatch and the schema
+// default (data_type "any") are applied here.
+func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) {
+	if specsPtr == nil || len(*specsPtr) == 0 {
+		return nil, nil
+	}
+	specs := *specsPtr
+	args := make([]binding.Arg, len(specs))
+	for i, raw := range specs {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("arg_bindings[%d]: unexpected wire shape %T", i, raw)
+		}
+		name, ok := m["name"].(string)
+		if !ok || name == "" {
+			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
+		}
+		dataType := binding.DataTypeAny
+		if s, ok := m["data_type"].(string); ok && s != "" {
+			dataType = binding.DataType(s)
+		}
+		switch kind, _ := m["kind"].(string); kind {
+		case "xcom":
+			taskID, ok := m["task_id"].(string)
+			if !ok || taskID == "" {
+				return nil, fmt.Errorf(
+					"arg_bindings[%d] (%q): missing or empty task_id for xcom kind",
+					i,
+					name,
+				)
+			}
+			args[i] = binding.XComArg{Kind: kind, Name: name, TaskID: taskID, DataType: dataType}
+		case "literal":
+			fromDefault, _ := m["from_default"].(bool)
+			args[i] = binding.LiteralArg{
+				Kind:        kind,
+				Name:        name,
+				Value:       m["value"],
+				DataType:    dataType,
+				FromDefault: fromDefault,
+			}
+		default:
+			return nil, fmt.Errorf("arg_bindings[%d]: unknown kind %q", i, kind)
+		}
+	}
+	return args, nil
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form
@@ -142,9 +215,15 @@ func mapIndexPtr(mapIndex *int) *int {
 
 // executeTask runs the task, handling success, failure, and panics, and returns
 // the terminal body: genmodels.SucceedTask, TaskState, or RetryTask.
+//
+// args carries the positional-argument spec from the stub Dag's TaskFlow call;
+// tasks that implement bundlev1.TaskWithArgs bind it (an empty spec still runs
+// the arity check), while a custom Task implementation that receives a
+// non-empty spec fails loudly rather than silently dropping the arguments.
 func executeTask(
 	ctx context.Context,
 	task bundlev1.Task,
+	args []binding.Arg,
 	shouldRetry bool,
 	logger *slog.Logger,
 ) (result any) {
@@ -168,7 +247,19 @@ func executeTask(
 		}
 	}()
 
-	if err := task.Execute(ctx, logger); err != nil {
+	var err error
+	if tw, ok := task.(bundlev1.TaskWithArgs); ok {
+		err = tw.ExecuteArgs(ctx, logger, args)
+	} else if len(args) > 0 {
+		err = fmt.Errorf(
+			"task received %d positional argument(s) from the Dag but its implementation "+
+				"does not support argument binding (does not implement TaskWithArgs)",
+			len(args),
+		)
+	} else {
+		err = task.Execute(ctx, logger)
+	}
+	if err != nil {
 		logger.ErrorContext(ctx, "Task failed", "error", err)
 		// A task that fails when ti_context.should_retry is set is reported as
 		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.

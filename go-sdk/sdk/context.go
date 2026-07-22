@@ -108,3 +108,25 @@ type DagRun struct {
 	DataIntervalStart *time.Time
 	DataIntervalEnd   *time.Time
 }
+
+// TaskInput is a zero-size marker embedded anonymously in a struct to opt
+// that struct into per-field, name-based TaskFlow argument binding -- an
+// ergonomic alternative to a long flat parameter list. Each exported field of
+// such a struct may carry an `arg:"<name>"` tag naming the stub's TaskFlow
+// argument to bind, falling back to the field's own name, verbatim, when
+// omitted -- so an untagged Name binds the argument "Name", and a snake_case
+// argument like "count" needs an explicit tag:
+//
+//	type CombineInput struct {
+//		sdk.TaskInput
+//		Name  string
+//		Count int `arg:"count"`
+//	}
+//
+//	func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error)
+//
+// Embedding costs nothing at runtime: the marker occupies zero bytes and is
+// never read; its only purpose is for the binding package to detect it
+// reflectively at task-registration time. See the go-sdk README's "TaskInput
+// structs" section for the full field-tag reference.
+type TaskInput struct{}

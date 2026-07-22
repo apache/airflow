@@ -52,8 +52,10 @@ var _ sdk.VariableClient = (*mockVars)(nil)
 func Test_transform(t *testing.T) {
 	log := slog.Default()
 	// This is not the best test, but it is a good proof of concept -- you can just call the function.
-	// sdk.NewTIRunContext wraps any context to build a TIRunContext in a test.
+	// sdk.NewTIRunContext wraps any context to build a TIRunContext in a test. The data parameters
+	// (country, extracted) are passed directly, exactly as the runtime would bind them from the
+	// stub Dag's TaskFlow call.
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
-	err := transform(ctx, &mockVars{}, log)
+	err := transform(ctx, &mockVars{}, log, "uk", map[string]any{"go_version": "go1.24"})
 	assert.NoError(t, err)
 }

@@ -105,6 +105,17 @@ A task is an ordinary Go function. The runtime inspects its signature and inject
 `sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
 the task failed.
 
+Any other parameter is a **data parameter**: in declaration order, data parameters receive the
+positional arguments of the Python stub Dag's TaskFlow call. A JSON-serializable literal in the Dag
+file (`transform("uk", ...)`) decodes straight into the parameter; an upstream task output
+(`transform(..., extract())`) is pulled from that task's XCom in the current Dag run and decoded into
+the parameter's type (independent XCom pulls run concurrently). The runtime fails the task loudly when
+the argument count doesn't match the number of data parameters or a declared type can't bind to the Go
+type. Data parameters must be JSON-decodable (no func/chan/unsafe-pointer, no non-empty interfaces) —
+checked once at registration. TaskFlow argument binding arrives over the coordinator protocol, so it is
+coordinator-mode only today; on the Edge Worker path a task with data parameters fails with the arity
+error (and a `TaskInput` struct with bindable fields fails the same way, since nothing can fill them).
+
 ```go
 func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
     conn, err := client.GetConnection(ctx, "test_http")
@@ -112,12 +123,17 @@ func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, er
     return map[string]any{"go_version": runtime.Version()}, nil
 }
 
-func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
+// The stub Dag calls transform("uk", extract()): "uk" binds onto country and
+// extract's return-value XCom is pulled into extracted.
+func transform(
+    ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger,
+    country string, extracted map[string]any,
+) error {
     val, err := client.GetVariable(ctx, "my_variable")
     if err != nil {
         return err
     }
-    log.Info("Obtained variable", "my_variable", val)
+    log.Info("Obtained variable", "my_variable", val, "country", country)
     return nil
 }
 ```
@@ -125,6 +141,57 @@ func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger
 Asking for the narrowest interface a task needs (e.g. `sdk.VariableClient` instead of `sdk.Client`) makes
 unit testing easier and documents which Airflow features the task touches. `RegisterDags` is the single
 source of truth for which `dag_id`s and `task_id`s a bundle can run.
+
+### TaskInput structs
+
+A struct that anonymously embeds `sdk.TaskInput` opts into **per-field, name-based** binding instead
+of a long flat parameter list. At most one such parameter is allowed per function, and it cannot be
+combined with plain flat data parameters — a task function declares one shape or the other, and
+registration fails on a signature that mixes them.
+
+Conceptually, a plain flat parameter list is **positional-argument** binding: order matters, and
+every parameter must be filled or the task fails before its body runs. A `TaskInput` struct is
+closer to **keyword-argument** binding: fields match by name instead of position, and (see the
+`arg:` bullet below) a field whose name has no corresponding TaskFlow call argument is simply left
+at its Go zero value rather than failing the task — the same way an unpassed keyword argument falls
+back to a caller-side default in a kwargs-style call.
+
+```go
+type CombineInput struct {
+    sdk.TaskInput            // one-line opt-in, zero runtime cost
+    Region    string  `arg:"region_code"` // named lookup against the TaskFlow call argument "region_code"
+    Threshold float64 `arg:"threshold"`   // tags also bridge Go's UpperCamelCase to a snake_case argument
+}
+
+func Combine(ctx sdk.TIRunContext, log *slog.Logger, input CombineInput) (any, error) {
+    // input.Region and input.Threshold are both populated.
+    return nil, nil
+}
+```
+
+Each exported field binds from the TaskFlow call argument named by its optional `arg:"<name>"` tag
+(matched against the stub function's Python parameter name, independent of declaration order on
+either side). With no tag, the field's own Go name is matched verbatim — an untagged `Threshold`
+only binds an argument literally spelled `Threshold`, so a snake_case Python parameter needs an
+explicit tag. If no TaskFlow call argument carries that name, the field is simply left at its Go
+zero value — it does not fail the task, kwarg-style (see `ViaStructUnmatchedArg` below).
+
+The matching is checked in the other direction too: every argument the Dag author **explicitly
+passed** in the TaskFlow call must be claimed by some field, so a typo'd field name fails the task
+instead of silently dropping the value. Stub parameters the author left at their Python defaults
+are the exception — the Python side captures them into the spec (marked `from_default` on the
+wire), and the struct is free not to mirror them, the same way a Python callee never sees which
+defaulted kwargs went unpassed. And when no argument spec arrives at all (an argless stub call, or
+the Edge Worker path) a `TaskInput` struct with bindable fields fails loudly rather than running
+fully zero-valued.
+
+A plain custom struct type *without* the `sdk.TaskInput` embed is unaffected by any of
+this — it keeps working as a single flat data parameter, JSON-decoded whole from one TaskFlow
+argument (see `Config` in
+[`example/bundle/taskflowbinding/taskflowbinding.go`](./example/bundle/taskflowbinding/taskflowbinding.go)),
+which is a different mechanism from per-field `TaskInput` binding. See
+[`ViaStructNoTags`, `ViaStructArgTag`, and `ViaStructUnmatchedArg`](./example/bundle/taskflowbinding/taskflowbinding.go)
+for a full worked example of each field-binding mode — and the unmatched-field case — in isolation.
 
 ### Reading the task runtime context
 
