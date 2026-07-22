@@ -26,6 +26,9 @@ class ClassBasedListener:
         self.started_component = None
         self.stopped_component = None
         self.state = []
+        self.dag_run_msg: str | None = None
+        self.dag_has_dag_attr: bool | None = None
+        self.dag_run_note_at_listener: str | None = None
 
     @hookimpl
     def on_starting(self, component):
@@ -60,10 +63,16 @@ class ClassBasedListener:
     @hookimpl
     def on_dag_run_success(self, dag_run, msg: str):
         self.state.append(DagRunState.SUCCESS)
+        self.dag_run_msg = msg
+        self.dag_has_dag_attr = dag_run.dag is not None
+        self.dag_run_note_at_listener = dag_run.note
 
     @hookimpl
     def on_dag_run_failed(self, dag_run, msg: str):
         self.state.append(DagRunState.FAILED)
+        self.dag_run_msg = msg
+        self.dag_has_dag_attr = dag_run.dag is not None
+        self.dag_run_note_at_listener = dag_run.note
 
 
 def clear():
