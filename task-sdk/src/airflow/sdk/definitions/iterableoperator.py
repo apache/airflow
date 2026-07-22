@@ -298,7 +298,10 @@ class IterableOperator(BaseOperator):
                         # because every subsequent task would fail for the same reason.
                         # Re-raise immediately to stop all task iteration.
                         if not isinstance(raised, Exception):
-                            raise AirflowFailException from raised
+                            raise AirflowFailException(
+                                f"Sub-task {task.task_id}[{task.index}] raised a non-Exception BaseException: "
+                                f"{type(raised).__name__}: {raised}"
+                            ) from raised
 
                         self.log.exception(
                             "An exception occurred for task_id %s with index %s",
