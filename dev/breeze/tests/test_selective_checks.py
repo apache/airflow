@@ -2029,7 +2029,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
 
 
 @pytest.mark.parametrize(
-    ("files",),
+    "files",
     [
         pytest.param(
             ("scripts/ci/prek/check_provider_yaml_files.py",),
@@ -2038,6 +2038,13 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         pytest.param(
             ("providers/.pre-commit-config.yaml",),
             id="providers prek config changed",
+        ),
+        pytest.param(
+            (
+                "scripts/ci/prek/check_provider_yaml_files.py",
+                "providers/.pre-commit-config.yaml",
+            ),
+            id="provider yaml check script and providers prek config changed together",
         ),
     ],
 )
