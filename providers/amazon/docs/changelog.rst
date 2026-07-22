@@ -26,6 +26,13 @@
 Changelog
 ---------
 
+.. warning::
+  ``QuickSightHook.create_ingestion`` with ``wait_for_completion=True`` and
+  ``QuickSightCreateIngestionOperator`` no longer wait indefinitely for the ingestion to reach a
+  terminal state. The wait is now bounded by ``waiter_max_attempts`` (default: 60 attempts, spaced
+  by ``waiter_delay``/``check_interval``, default: 30 seconds). Pass a higher ``waiter_max_attempts``
+  for ingestions that take longer.
+
 9.32.0
 ......
 
