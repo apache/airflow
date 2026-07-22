@@ -15909,6 +15909,8 @@ components:
           - asset
           - base
           - dashboard
+          - dag_overview
+          - task_overview
           title: Destination
           default: nav
       additionalProperties: true
