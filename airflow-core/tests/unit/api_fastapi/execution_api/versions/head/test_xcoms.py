@@ -64,11 +64,10 @@ def access_denied(client):
         dag_id: str = Path(),
         run_id: str = Path(),
         task_id: str = Path(),
-        xcom_key: str = Path(alias="key"),
         token=CurrentTIToken,
     ):
         with create_session() as session:
-            has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session, token)
+            has_xcom_access(dag_id, run_id, task_id, request, session, token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -825,45 +824,67 @@ class TestGetXComByKeys:
         assert response.status_code == 200
         assert response.json() == []
 
-    def test_map_index_filter(self, client, create_task_instance, session):
+    def test_map_index_filter(self, client, dag_maker, session):
         """Only XCom rows matching the requested map_index are returned."""
-        ti = create_task_instance()
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["a", "b"])
+        dag_run = dag_maker.create_dagrun(run_id="run")
+        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+
+        # Insert XComs for map_index=0 and map_index=1 (both have real TI rows).
+        # map_index=-1 has no TI row for a mapped task, so it is not inserted.
         session.add(
             XComModel(
                 key="return_value_0",
                 value="for_index_0",
-                dag_run_id=ti.dag_run.id,
-                run_id=ti.run_id,
-                task_id=ti.task_id,
-                dag_id=ti.dag_id,
+                dag_run_id=dag_run.id,
+                run_id=dag_run.run_id,
+                task_id=tis[0].task_id,
+                dag_id=tis[0].dag_id,
                 map_index=0,
             )
         )
         session.add(
             XComModel(
                 key="return_value_0",
-                value="for_default",
-                dag_run_id=ti.dag_run.id,
-                run_id=ti.run_id,
-                task_id=ti.task_id,
-                dag_id=ti.dag_id,
-                map_index=-1,
+                value="for_index_1",
+                dag_run_id=dag_run.id,
+                run_id=dag_run.run_id,
+                task_id=tis[1].task_id,
+                dag_id=tis[1].dag_id,
+                map_index=1,
             )
         )
         session.commit()
 
+        dag_id = tis[0].dag_id
+        task_id = tis[0].task_id
+
+        # Default map_index=-1: no rows stored there, so null is returned.
         response_default = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/keys",
+            f"/execution/xcoms/{dag_id}/{dag_run.run_id}/{task_id}/keys",
             json={"keys": ["return_value_0"]},
         )
-        response_indexed = client.post(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/keys",
+        response_index_0 = client.post(
+            f"/execution/xcoms/{dag_id}/{dag_run.run_id}/{task_id}/keys",
             params={"map_index": 0},
             json={"keys": ["return_value_0"]},
         )
+        response_index_1 = client.post(
+            f"/execution/xcoms/{dag_id}/{dag_run.run_id}/{task_id}/keys",
+            params={"map_index": 1},
+            json={"keys": ["return_value_0"]},
+        )
 
-        assert response_default.json() == ["for_default"]
-        assert response_indexed.json() == ["for_index_0"]
+        assert response_default.json() == [None]
+        assert response_index_0.json() == ["for_index_0"]
+        assert response_index_1.json() == ["for_index_1"]
 
     def test_does_not_return_other_tasks_xcoms(self, client, create_task_instance, session):
         """Keys from a different task_id are not returned."""
