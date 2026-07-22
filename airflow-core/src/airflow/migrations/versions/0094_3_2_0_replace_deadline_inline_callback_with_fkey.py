@@ -54,11 +54,101 @@ _CALLBACK_STATE_FAILED = "failed"
 _ASYNC_CALLBACK_CLASSNAME = "airflow.sdk.definitions.deadline.AsyncCallback"
 
 
+def _serialize_extended(value):
+    """
+    Encode ``value`` in Airflow's extended-JSON format, matching ``BaseSerialization.serialize``.
+
+    ``callback.data`` is an ``ExtendedJSON`` column, so on read the runtime runs
+    ``BaseSerialization.deserialize``, which requires every nested dict to be wrapped as
+    ``{"__type": "dict", "__var": {...}}``. We must write that same wrapping here (recursively)
+    rather than embedding raw nested dicts -- otherwise deserialize raises ``KeyError('__var')``
+    and crashes the scheduler. The dict/list/primitive subset below is all that callback data
+    contains; the logic is inlined so the migration stays independent of runtime serialization code.
+    """
+    if isinstance(value, dict):
+        return {"__type": "dict", "__var": {str(k): _serialize_extended(v) for k, v in value.items()}}
+    if isinstance(value, list):
+        return [_serialize_extended(v) for v in value]
+    return value
+
+
+# Recursive extended-JSON encoder as a session-local (auto-dropped) SQL function, so the
+# Postgres CTE path can wrap nested callback kwargs the same way ``_serialize_extended`` does.
+_PG_ENCODE_EXTENDED_DDL = dedent("""
+    CREATE OR REPLACE FUNCTION pg_temp.encode_extended(node jsonb) RETURNS jsonb AS $$
+    DECLARE k text; v jsonb; out jsonb := '{}'::jsonb;
+    BEGIN
+      IF jsonb_typeof(node) = 'object' THEN
+        FOR k, v IN SELECT * FROM jsonb_each(node) LOOP
+          out := out || jsonb_build_object(k, pg_temp.encode_extended(v));
+        END LOOP;
+        RETURN jsonb_build_object('__type', 'dict', '__var', out);
+      ELSIF jsonb_typeof(node) = 'array' THEN
+        RETURN (SELECT jsonb_agg(pg_temp.encode_extended(e)) FROM jsonb_array_elements(node) e);
+      END IF;
+      RETURN node;
+    END;
+    $$ LANGUAGE plpgsql;
+""")
+
+
+def _deserialize_extended(value):
+    """
+    Inverse of :func:`_serialize_extended`: unwrap extended-JSON back to plain values.
+
+    Used by ``downgrade`` to rebuild the old inline callback ``kwargs`` (which were stored
+    raw). Lenient: already-raw dicts (e.g. produced by the pre-fix version of this migration)
+    pass through unchanged, so downgrade is correct regardless of which version upgraded.
+    """
+    if isinstance(value, dict):
+        if "__type" in value and "__var" in value:
+            if value["__type"] == "dict" and isinstance(value["__var"], dict):
+                return {k: _deserialize_extended(v) for k, v in value["__var"].items()}
+            return value
+        return {k: _deserialize_extended(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_deserialize_extended(v) for v in value]
+    return value
+
+
+# SQL inverse of ``pg_temp.encode_extended`` for the Postgres downgrade path. Lenient in the
+# same way as ``_deserialize_extended`` so it handles data written by either version of upgrade.
+_PG_DECODE_EXTENDED_DDL = dedent("""
+    CREATE OR REPLACE FUNCTION pg_temp.decode_extended(node jsonb) RETURNS jsonb AS $$
+    DECLARE k text; v jsonb; out jsonb := '{}'::jsonb;
+    BEGIN
+      IF jsonb_typeof(node) = 'object' THEN
+        IF node ? '__type' AND node ? '__var' THEN
+          IF node->>'__type' = 'dict' AND jsonb_typeof(node->'__var') = 'object' THEN
+            FOR k, v IN SELECT * FROM jsonb_each(node->'__var') LOOP
+              out := out || jsonb_build_object(k, pg_temp.decode_extended(v));
+            END LOOP;
+            RETURN out;
+          END IF;
+          RETURN node;
+        ELSE
+          FOR k, v IN SELECT * FROM jsonb_each(node) LOOP
+            out := out || jsonb_build_object(k, pg_temp.decode_extended(v));
+          END LOOP;
+          RETURN out;
+        END IF;
+      ELSIF jsonb_typeof(node) = 'array' THEN
+        RETURN (SELECT jsonb_agg(pg_temp.decode_extended(e)) FROM jsonb_array_elements(node) e);
+      END IF;
+      RETURN node;
+    END;
+    $$ LANGUAGE plpgsql;
+""")
+
+
 def _upgrade_postgresql(conn, batch_size):
     """Writable CTE per batch: SELECT window → INSERT callback → UPDATE deadline in one round-trip."""
     timestamp = datetime.now(timezone.utc)
     batch_num = 0
     last_id = "00000000-0000-0000-0000-000000000000"
+
+    # Define the recursive encoder once; used to wrap nested kwargs in the CTE below.
+    conn.execute(sa.text(_PG_ENCODE_EXTENDED_DDL))
 
     while True:
         batch_num += 1
@@ -91,7 +181,7 @@ def _upgrade_postgresql(conn, batch_size):
                         json_build_object(
                             '__var', json_build_object(
                                 'path', b.cb_path,
-                                'kwargs', b.cb_kwargs,
+                                'kwargs', pg_temp.encode_extended(b.cb_kwargs),
                                 'prefix', :prefix,
                                 'dag_id', b.dag_id
                             ),
@@ -233,7 +323,7 @@ def _upgrade_mysql_sqlite(conn, batch_size):
                     "id": callback_id,
                     "type": _CALLBACK_TYPE_TRIGGERER,
                     "fetch_method": _CALLBACK_FETCH_METHOD_IMPORT_PATH,
-                    "data": cb_data,
+                    "data": _serialize_extended(cb_data),
                     "state": cb_state,
                     "priority_weight": 1,
                     "created_at": timestamp,
@@ -303,6 +393,9 @@ def _downgrade_postgresql(conn, batch_size):
     total_migrated = 0
     last_id = "00000000-0000-0000-0000-000000000000"
 
+    # Define the inverse encoder once; used to unwrap nested kwargs back to raw below.
+    conn.execute(sa.text(_PG_DECODE_EXTENDED_DDL))
+
     while True:
         batch_num += 1
 
@@ -323,7 +416,7 @@ def _downgrade_postgresql(conn, batch_size):
                     SET callback = json_build_object(
                             '__data__', json_build_object(
                                 'path', c.data::jsonb->'__var'->>'path',
-                                'kwargs', c.data::jsonb->'__var'->'kwargs'
+                                'kwargs', pg_temp.decode_extended(c.data::jsonb->'__var'->'kwargs')
                             ),
                             '__classname__', :classname,
                             '__version__', 0
@@ -358,7 +451,7 @@ def _downgrade_postgresql(conn, batch_size):
                 SET callback = json_build_object(
                         '__data__', json_build_object(
                             'path', c.data::jsonb->'__var'->>'path',
-                            'kwargs', c.data::jsonb->'__var'->'kwargs'
+                            'kwargs', pg_temp.decode_extended(c.data::jsonb->'__var'->'kwargs')
                         ),
                         '__classname__', :classname,
                         '__version__', 0
@@ -435,7 +528,10 @@ def _downgrade_mysql_sqlite(conn, batch_size):
             cb_inner = cb_data.get("__var", cb_data)
 
             callback_serialized = {
-                "__data__": {"path": cb_inner.get("path", ""), "kwargs": cb_inner.get("kwargs", {})},
+                "__data__": {
+                    "path": cb_inner.get("path", ""),
+                    "kwargs": _deserialize_extended(cb_inner.get("kwargs", {})),
+                },
                 "__classname__": _ASYNC_CALLBACK_CLASSNAME,
                 "__version__": 0,
             }
