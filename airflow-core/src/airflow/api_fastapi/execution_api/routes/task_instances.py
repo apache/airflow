@@ -49,6 +49,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.dag_run import patch_dag_run_note
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
@@ -910,11 +911,10 @@ def update_dag_run_note(
             detail={"reason": "not_found", "message": "Task Instance not found"},
         )
 
-    if dag_run.dag_run_note is None:
-        dag_run.note = (body.note, None)
-    else:
-        dag_run.dag_run_note.content = body.note
-        dag_run.dag_run_note.user_id = None
+    # Reuse the public API note logic so both editing paths stay consistent. A None/empty note
+    # from runtime clears it (removes the row), matching the UI/public API. Runtime notes carry no
+    # acting user, so they are stored unattributed (user_id=None).
+    patch_dag_run_note(dag_run=dag_run, note=body.note or "", user_id=None)
 
 
 @ti_id_router.put(

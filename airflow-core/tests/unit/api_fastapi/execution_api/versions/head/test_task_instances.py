@@ -4300,8 +4300,9 @@ class TestTIDagRunNoteUpdate:
 
         session.expire_all()
         dag_run = session.get(TaskInstance, ti_id).dag_run
+        # Clearing removes the note row entirely, same as the UI/public API path.
         assert dag_run.note is None
-        assert dag_run.dag_run_note.user_id is None
+        assert dag_run.dag_run_note is None
 
     def test_update_dag_run_note_task_instance_not_found(self, client, session):
         response = client.patch(

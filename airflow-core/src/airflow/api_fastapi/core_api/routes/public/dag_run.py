@@ -226,7 +226,7 @@ def patch_dag_run(
     if "note" in data:
         updated_dag_run = session.get(DagRun, dag_run.id)
         if updated_dag_run is not None:
-            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user=user)
+            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user_id=user.get_id())
     if "state" in data and patch_body.state is not None:
         patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
 
