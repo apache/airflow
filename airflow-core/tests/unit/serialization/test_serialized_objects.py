@@ -316,6 +316,7 @@ class MockLazySelectSequence(LazySelectSequence):
         (["array_item", 2], None, equals),
         (("tuple_item", 3), DAT.TUPLE, equals),
         (set(["set_item", 3]), DAT.SET, equals),
+        (frozenset(["frozenset_item", 3]), DAT.FROZENSET, equals),
         (
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
