@@ -289,6 +289,8 @@ class DocumentLoaderOperator(BaseOperator):
 
     def _resolve_backend(self, ext: str) -> str:
         if self.parser != "auto":
+            if self.parser not in set(self.EXTENSION_BACKEND_MAP.values()):
+                raise ValueError(f"No parser found for backend '{self.parser}'.")
             return self.parser
 
         ext = ext.lower()

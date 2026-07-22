@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+import random
 import re
 import shlex
+import string
 from datetime import datetime
 from time import sleep
 from typing import TYPE_CHECKING, Literal
@@ -29,10 +31,15 @@ from docker.errors import APIError
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.utils.strings import get_random_string
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+
+
+def _generate_service_name(prefix: str) -> str:
+    """Generate a unique Docker Swarm service name."""
+    suffix = "".join(random.choices(string.ascii_letters + string.digits, k=8))
+    return f"{prefix}-{suffix}"
 
 
 class DockerSwarmOperator(DockerOperator):
@@ -191,7 +198,7 @@ class DockerSwarmOperator(DockerOperator):
                 placement=self.placement,
                 log_driver=self.log_driver_config,
             ),
-            name=f"{self.service_prefix}-{get_random_string()}",
+            name=_generate_service_name(self.service_prefix),
             labels={"name": f"airflow__{self.dag_id}__{self.task_id}"},
             mode=self.mode,
         )
