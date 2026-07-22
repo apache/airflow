@@ -23,9 +23,12 @@
 # ///
 from __future__ import annotations
 
+import pathlib
 import sys
 
 from common_prek_utils import (
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    get_provider_base_dir_from_path,
     initialize_breeze_prek,
     run_command_via_breeze_run,
     validate_cmd_result,
@@ -33,7 +36,34 @@ from common_prek_utils import (
 
 initialize_breeze_prek(__name__, __file__)
 
-files_to_test = sys.argv[1:]
+
+def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
+    """
+    Accept a mix of provider.yaml paths and Python source files.
+
+    When a Python source file is passed (e.g. a hook whose
+    ``get_connection_form_widgets()`` was edited), map it to the
+    ``provider.yaml`` at the root of the same provider package so the
+    conn-fields check runs even when only the hook changes.
+
+    All paths are relative to the ``providers/`` directory, as supplied by
+    prek.  The first path segment is the provider package name
+    (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``).
+    """
+    result: set[str] = set()
+    for f in raw_files:
+        p = pathlib.PurePosixPath(f)
+        if p.name == "provider.yaml":
+            result.add(f)
+        else:
+            provider_base_dir = get_provider_base_dir_from_path(AIRFLOW_PROVIDERS_ROOT_PATH / p)
+            if provider_base_dir is not None:
+                provider_yaml = provider_base_dir / "provider.yaml"
+                result.add(provider_yaml.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH).as_posix())
+    return sorted(result)
+
+
+files_to_test = _resolve_provider_yaml_files(sys.argv[1:])
 cmd_result = run_command_via_breeze_run(
     ["python3", "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py", *files_to_test],
     backend="sqlite",
