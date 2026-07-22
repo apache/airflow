@@ -1233,6 +1233,20 @@ class TestDagRunOperations:
         )
         assert response == self.dag_run_collection_response
 
+    @pytest.mark.parametrize("suppress_error_log", [False, True])
+    def test_list_passes_error_log_suppression_extension(self, suppress_error_log):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.extensions["airflowctl_suppress_error_log"] is suppress_error_log
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(
+            dag_id=self.dag_id,
+            limit=1,
+            suppress_error_log=suppress_error_log,
+        )
+        assert response == self.dag_run_collection_response
+
     def test_list_with_logical_date_filters_and_order(self):
         logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
 
