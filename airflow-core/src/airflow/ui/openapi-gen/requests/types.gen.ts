@@ -1922,6 +1922,7 @@ export type TaskResponse = {
     end_date: string | null;
     trigger_rule: string | null;
     depends_on_past: boolean;
+    depends_on_previous_tasks: Array<(string)> | null;
     wait_for_downstream: boolean;
     retries: number | null;
     queue: string | null;
