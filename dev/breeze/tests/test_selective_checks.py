@@ -2029,6 +2029,30 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
 
 
 @pytest.mark.parametrize(
+    ("files",),
+    [
+        pytest.param(
+            ("scripts/ci/prek/check_provider_yaml_files.py",),
+            id="provider yaml check script changed",
+        ),
+        pytest.param(
+            ("providers/.pre-commit-config.yaml",),
+            id="providers prek config changed",
+        ),
+    ],
+)
+def test_provider_yaml_check_not_skipped_when_check_scripts_change(files: tuple[str, ...]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+    )
+    skip_prek_hooks = str(stderr).split("skip-prek-hooks=")[1].split("\n")[0]
+    assert "check-provider-yaml-valid" not in skip_prek_hooks.split(",")
+
+
+@pytest.mark.parametrize(
     ("files", "expected_outputs"),
     [
         pytest.param(
