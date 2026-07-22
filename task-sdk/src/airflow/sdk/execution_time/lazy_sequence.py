@@ -194,6 +194,12 @@ class XComIterable(Sequence):
     def __getitem__(self, key: int | slice) -> Any | Sequence[Any]:
         """Allow direct indexing so this works like a sequence."""
         if isinstance(key, slice):
+            # TODO: This issues one XCom.get_one call per element — N round-trips for a full slice.
+            # XComIterable stores results under distinct keys (return_value_0, return_value_1, …)
+            # with the same map_index, so the existing GetXComSequenceSlice endpoint (which ranges
+            # over map_index for a single key) cannot be reused.  A new POST endpoint that accepts
+            # a list of keys and returns values in a single query is needed; once that lands, replace
+            # this loop with a single batched fetch.
             start, stop, step = key.indices(len(self))
             return [self[i] for i in range(start, stop, step)]
 
