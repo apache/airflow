@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,7 +42,10 @@ vi.mock("react-i18next", () => ({
     // eslint-disable-next-line id-length
     t: (key: string) =>
       ({
+        "common:slot": "Slots",
         "components:backfill.exceptionReason.alreadyExists": "Already exists",
+        "components:backfill.notCreatedReason": "Not Created Reason",
+        dagRunState: "Dag Run State",
         "states.success": "Success",
       })[key] ?? key,
   }),
@@ -111,7 +114,7 @@ describe("BackfillDagRuns", () => {
     mocks.useParams.mockReturnValue({ backfillId: "7", dagId: "example_dag" });
   });
 
-  it("renders partition slots, skipped reasons, and links to created Dag runs", () => {
+  it("renders Dag run state and not-created reason in separate columns", () => {
     mocks.useBackfillServiceListBackfillDagRuns.mockReturnValue({
       data: { backfill_dag_runs: dagRuns, total_entries: dagRuns.length },
       error: undefined,
@@ -120,6 +123,19 @@ describe("BackfillDagRuns", () => {
     });
 
     render(<BackfillDagRuns />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("heading", { name: "2 Slots" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Dag Run State" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Not Created Reason" })).toBeInTheDocument();
+
+    const notCreatedRow = screen.getByText("partition-a").closest("tr");
+
+    expect(notCreatedRow).not.toBeNull();
+    expect(
+      within(notCreatedRow as HTMLElement)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    ).toEqual(["partition-a", "—", "Already exists", "—", "1"]);
 
     expect(screen.getByText("partition-a")).toBeInTheDocument();
     expect(screen.getByText("Already exists")).toBeInTheDocument();

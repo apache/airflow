@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, Box, Text } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useOutletContext, useParams } from "react-router-dom";
@@ -67,24 +67,30 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
   {
     accessorKey: "dag_run_state",
     cell: ({ row }) => {
-      if (row.original.exception_reason !== null && row.original.exception_reason !== "") {
-        return (
-          <Badge colorPalette="orange" variant="subtle">
-            {translateExceptionReason(row.original.exception_reason, translate)}
-          </Badge>
-        );
-      }
-
       const state = row.original.dag_run_state;
 
-      return (
-        <StateBadge state={state ?? null}>
-          {state === null || state === undefined ? "—" : translate(`states.${state}`)}
-        </StateBadge>
-      );
+      if (state === null || state === undefined) {
+        return <Text color="fg.muted">—</Text>;
+      }
+
+      return <StateBadge state={state}>{translate(`states.${state}`)}</StateBadge>;
     },
     enableSorting: false,
-    header: translate("state"),
+    header: translate("dagRunState"),
+  },
+  {
+    accessorKey: "exception_reason",
+    cell: ({ row }) => {
+      const reason = row.original.exception_reason;
+
+      if (reason === null || reason === "") {
+        return <Text color="fg.muted">—</Text>;
+      }
+
+      return <Text>{translateExceptionReason(reason, translate)}</Text>;
+    },
+    enableSorting: false,
+    header: translate("components:backfill.notCreatedReason"),
   },
   {
     accessorKey: "dag_run_id",
@@ -145,7 +151,7 @@ export const BackfillDagRuns = () => {
         data={data?.backfill_dag_runs ?? []}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="common:dagRun"
+        modelName="common:slot"
         onStateChange={setTableURLState}
         total={data?.total_entries ?? 0}
       />
