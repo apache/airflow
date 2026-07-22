@@ -119,24 +119,24 @@
   },
   "overview": {
     "buttons": {
-      "failedRun_few": "Неудачные запуски",
-      "failedRun_many": "Неудачные запуски",
+      "failedRun_few": "Неудачных запуска",
+      "failedRun_many": "Неудачных запусков",
       "failedRun_one": "Неудачный запуск",
-      "failedRun_other": "Неудачные запуски",
-      "failedTask_few": "Неудачные задачи",
-      "failedTask_many": "Неудачные задачи",
+      "failedRun_other": "Неудачных запусков",
+      "failedTask_few": "Неудачных задачи",
+      "failedTask_many": "Неудачных задач",
       "failedTask_one": "Неудачная задача",
-      "failedTask_other": "Неудачные задачи",
-      "failedTaskInstance_few": "Неудачные экземпляры задач",
-      "failedTaskInstance_many": "Неудачные экземпляры задач",
+      "failedTask_other": "Неудачных задач",
+      "failedTaskInstance_few": "Неудачных экземпляра задачи",
+      "failedTaskInstance_many": "Неудачных экземпляров задач",
       "failedTaskInstance_one": "Неудачный экземпляр задачи",
-      "failedTaskInstance_other": "Неудачные экземпляры задач"
+      "failedTaskInstance_other": "Неудачных экземпляров задач"
     },
     "charts": {
-      "assetEvent_few": "Созданные события актива",
-      "assetEvent_many": "Созданные события актива",
-      "assetEvent_one": "Созданное событие актива",
-      "assetEvent_other": "Созданные события актива"
+      "assetEvent_few": "События актива",
+      "assetEvent_many": "Событий актива",
+      "assetEvent_one": "Событие актива",
+      "assetEvent_other": "Событий актива"
     },
     "deadlines": {
       "showAll": "Показать все",
@@ -232,10 +232,10 @@
     "code": "Код",
     "details": "Детали",
     "logs": "Логи",
-    "mappedTaskInstances_few": "Экземпляры задач [{{count}}]",
-    "mappedTaskInstances_many": "Экземпляры задач [{{count}}]",
+    "mappedTaskInstances_few": "Экземпляра задачи [{{count}}]",
+    "mappedTaskInstances_many": "Экземпляров задач [{{count}}]",
     "mappedTaskInstances_one": "Экземпляр задачи [{{count}}]",
-    "mappedTaskInstances_other": "Экземпляры задач [{{count}}]",
+    "mappedTaskInstances_other": "Экземпляров задач [{{count}}]",
     "overview": "Обзор",
     "renderedTemplates": "Отрендеренные шаблоны",
     "requiredActions": "Необходимые действия",

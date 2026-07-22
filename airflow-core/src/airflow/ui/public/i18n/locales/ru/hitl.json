@@ -8,14 +8,14 @@
       "received": "Просмотрено"
     }
   },
-  "requiredAction_few": "Необходимые действия",
-  "requiredAction_many": "Необходимые действия",
+  "requiredAction_few": "Необходимых действия",
+  "requiredAction_many": "Необходимых действий",
   "requiredAction_one": "Необходимое действие",
-  "requiredAction_other": "Необходимые действия",
-  "requiredActionCount_few": "Необходимые действия ({{count}})",
-  "requiredActionCount_many": "Необходимые действия ({{count}})",
+  "requiredAction_other": "Необходимых действий",
+  "requiredActionCount_few": "Необходимых действия ({{count}})",
+  "requiredActionCount_many": "Необходимых действий ({{count}})",
   "requiredActionCount_one": "Необходимое действие ({{count}})",
-  "requiredActionCount_other": "Необходимые действия ({{count}})",
+  "requiredActionCount_other": "Необходимых действий ({{count}})",
   "requiredActionState": "Состояние необходимого действия",
   "response": {
     "created": "Ответ создан ",

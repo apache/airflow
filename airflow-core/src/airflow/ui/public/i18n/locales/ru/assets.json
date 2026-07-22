@@ -1,9 +1,9 @@
 {
   "additional_data": "Дополнительные данные",
-  "asset_few": "Активы",
-  "asset_many": "Активы",
+  "asset_few": "Актива",
+  "asset_many": "Активов",
   "asset_one": "Актив",
-  "asset_other": "Активы",
+  "asset_other": "Актива",
   "assetStateStore": {
     "add": "Добавить хранилище состояния актива",
     "clearAll": {
