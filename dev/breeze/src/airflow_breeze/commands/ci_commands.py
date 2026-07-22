@@ -41,6 +41,8 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.global_constants import (
+    CI_AMD_PLATFORM,
+    CI_PLATFORMS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MILESTONE_BUG_LABELS,
     MILESTONE_SKIP_LABELS,
@@ -237,6 +239,16 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     default="",
 )
 @click.option(
+    "--platform",
+    "ci_platform",
+    type=BetterChoice(CI_PLATFORMS),
+    default=CI_AMD_PLATFORM,
+    help="Platform the tests of this run execute on. "
+    "It decides which integrations and providers are testable.",
+    envvar="PLATFORM",
+    show_default=True,
+)
+@click.option(
     "--github-context",
     help="GitHub context (JSON formatted) passed by GitHub Actions",
     envvar="GITHUB_CONTEXT",
@@ -262,6 +274,7 @@ def selective_check(
     github_actor: str,
     github_context: str,
     github_context_input: StringIO | None,
+    ci_platform: str,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -287,6 +300,7 @@ def selective_check(
             github_repository=github_repository,
             github_actor=github_actor,
             github_context_dict=github_context_dict,
+            platform=ci_platform,
         )
         print(str(sc), file=sys.stderr)
     except Exception:

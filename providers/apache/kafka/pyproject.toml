@@ -131,7 +131,7 @@ apache-airflow-providers-standard = {workspace = true}
 provider_info = "airflow.providers.apache.kafka.get_provider_info:get_provider_info"
 
 [project.entry-points."airflow.plugins"]
-kafka_listener = "airflow.providers.apache.kafka.plugins.listener:KafkaListenerPlugin"
+kafka_event_producer = "airflow.providers.apache.kafka.plugins.event_producer:KafkaEventProducerPlugin"
 
 [tool.flit.module]
 name = "airflow.providers.apache.kafka"
