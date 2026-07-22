@@ -20,6 +20,9 @@
 Changelog
 ---------
 
+1.8.1
+.....
+
 .. Behavior note
 
 The ``[datalib]`` extra of the ``openai`` SDK is no longer part of this
@@ -36,6 +39,23 @@ explicitly, or install the SDK extra directly:
 .. code-block:: bash
 
     pip install 'openai[datalib]'
+
+Misc
+~~~~
+
+* ``Remove unused [datalib] extra from OpenAI provider base install (#69408)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix broken class references and truncated wording in OpenAI provider docs (#69710)``
+* ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
+* ``Add quickstart to OpenAI provider (#69590)``
+* ``Document when to use common.ai vs vendor-specific AI providers (#69551)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 
 1.8.0
 .....

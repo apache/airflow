@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+10.20.0
+.......
+
 .. note::
    The ``KubernetesExecutor`` now transparently requeues a worker pod that fails *before* the
    task process starts (node drain, autoscaler scale-down, node boot race, transient image pull
@@ -38,6 +41,27 @@ Changelog
    ``delete_worker_pods_on_failure = False`` and will accumulate. The companion
    ``pod_launch_failure_excluded_container_reasons`` option (default ``Error``) lists container
    reasons that are excluded from the requeue path.
+
+Features
+~~~~~~~~
+
+* ``Add streaming task log support to KubernetesExecutor (#69300)``
+* ``Add running_pod_log_lines config option to KubernetesExecutor (#69301)``
+* ``Allow configuring XCom sidecar container security context (#69613)``
+* ``Requeue KubernetesExecutor tasks whose pod failed before execution started (#69058)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cncf-kubernetes: fix potential race condition in trigger_reentry flow caused by 'is_istio_enabled' (#69269)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Hide non-user-facing entries from ad-hoc provider release notes``
+   * ``Fix flaky KubernetesPodOperator log-timestamp test (#69563)``
+   * ``Prepare ad-hoc providers release 2026-07-01 (cncf.kubernetes, common.io, keycloak) (#69223)``
+   * ``Prepare ad-hoc providers release 2026-07-01``
+
 
 10.19.0
 .......
@@ -772,7 +796,6 @@ Misc
 * ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
 * ``remove superfluous else block (#49199)``
 * ``Remove unused db method in k8s provider (#49186)``
-
 
 
 10.4.2

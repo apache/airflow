@@ -26,6 +26,8 @@
 Changelog
 ---------
 
+5.5.3
+.....
 
 Transitive dependency changes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -45,6 +47,9 @@ Transitive dependency changes
     keyword arguments (e.g. ``GetJobRequest(job_id=...)``) and handle its stricter response validation.
   * ``requests`` is no longer installed by this provider. If your code relied on it being pulled in
     transitively, declare ``requests`` as an explicit dependency of your own project.
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 
 5.5.2

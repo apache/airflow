@@ -25,6 +25,54 @@
 Changelog
 ---------
 
+0.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add AWS services toolset for agents to access 1000+ APIs (#70087)``
+* ``Add pydantic-ai capability matrix references doc to Common AI (#69887)``
+* ``Support excluding files from 'common.ai' Agent Skills discovery (#69924)``
+* ``Use task state store for 'common.ai' durable execution on Airflow 3.3+ (#68926)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow Common AI SQL imports without DataFusion (#69990)``
+* ``Fix HITL review showing altered agent output to reviewers (#70070)``
+* ``Fix 'LLMSQLQueryOperator' not stripping single-line markdown code fences (#70137)``
+* ``Harden common.ai SQLToolset allowed_tables against function/COPY bypass (#70134)``
+* ``Preserve output_type through human approval in LLM operators (#70075)``
+* ``Fix DocumentLoaderOperator ignoring unknown parser on byte input (#70071)``
+* ``Reject unsupported require_approval in LLM branch and schema compare operators (#70069)``
+* ``Fix '@task.llm_branch' import failure on Task SDK-only workers (#70068)``
+* ``Fix common.ai durable execution skipping Toolset-capability tools (#69881)``
+
+Misc
+~~~~
+
+* ``Add dataclasses-json floor to common.ai llamaindex extra (#69755)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add self-hosted model guide for the common.ai provider (#69867)``
+* ``Update retired model ids and fill doc gaps in common.ai provider docs (#69711)``
+* ``Add quick start guide to common.ai provider docs (#69552)``
+* ``Document the dynamic 'system_prompt' pattern for common-ai agents (#69636)``
+* ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
+* ``Add an Examples entry point to the common.ai provider docs (#69650)``
+* ``Document when to use common.ai vs vendor-specific AI providers (#69551)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix toolsets python-modules check for common.ai provider (#70181)``
+   * ``Add toolset as a provider module category (#70122)``
+   * ``[main] Upgrade important CI environment (#69694)``
+   * ``Guard code_mode example DAG on SQLToolset import (#69677)``
+
+
 0.6.0
 .....
 

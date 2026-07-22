@@ -64,11 +64,18 @@ Breaking changes
     ``[database] sql_alchemy_conn = postgresql+psycopg2://...`` explicitly.
 
 * ``Switch the default async Postgres driver from asyncpg to psycopg3 (#69089)``
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+
+Misc
+~~~~
+
+* ``Keep asyncpg installed by default in the Postgres provider (#69690)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Document each provider's optional extras in its docs index (#69478)``
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare providers release 2026-07-06 (#69486)``
 
 6.8.0
 .....

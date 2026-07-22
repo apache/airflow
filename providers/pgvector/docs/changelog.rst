@@ -20,6 +20,24 @@
 Changelog
 ---------
 
+1.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 1.7.2
 .....
 

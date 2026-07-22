@@ -20,12 +20,41 @@
 Changelog
 ---------
 
+3.7.3
+.....
+
 .. note::
     The Azure AD OAuth provider in the FAB auth manager now verifies the ``id_token``
     signature by default: ``verify_signature`` now defaults to ``True`` (previously
     ``False``), consistent with the Authentik provider. Deployments that intentionally
     relied on skipping signature verification must set ``verify_signature: False``
     explicitly in the Azure provider ``client_kwargs`` to keep the previous behaviour.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AUTH_ROLE_PUBLIC returning 401 in FastAPI API server (#69773)``
+* ``Verify Azure AD OAuth id_token signatures by default in FAB auth manager (#69374)``
+
+Misc
+~~~~
+
+* ``Bump eslint (#69932)``
+* ``Bump prettier (#69835)``
+* ``Bump flask-appbuilder to 5.2.2 in FAB provider (#69730)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69664)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify FAB and Auth documentation regarding external_db_managers (#69929)``
+* ``Add upgrade-fab-provider skill and FAB contributing doc (#69729)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky static checks caused by migration-reference hook race (#70170)``
+   * ``[main] Upgrade important CI environment (#69694)``
+
 
 3.7.2
 .....

@@ -25,9 +25,34 @@
 ``apache-airflow-providers-apache-spark``
 
 
-
 Changelog
 ---------
+
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Surface YARN diagnostics for spark on yarn clusters (#70183)``
+
+Misc
+~~~~
+
+* ``Better log when spark k8s driver remains in Unknown Phase (#70176)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 
 6.2.0
 .....

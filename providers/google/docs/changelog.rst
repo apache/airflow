@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+22.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Emit per-statement OpenLineage events for BigQuery script jobs (#69234)``
+* ``Add Vertex AI Agent Engine operators (Create, Get, Query, Update, Delete) (#68479)``
+* ``Adding durable execution to 'BigQueryInsertJobOperator' (#69542)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Preserve Dataform workflow invocation config (#53843) (#69161)``
+* ``Make schema_fields templated in GCSToBigQueryOperator (#69108)``
+* ``Fix Google Links for TPC (Trusted Partner Cloud) (#69805)``
+* ``Fix Google Cloud Batch error messages to include job name (#69783)``
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix the google provider dataform system test (#70136)``
+   * ``Format Dataflow wordcount system-test resource with gofmt (#70174)``
+   * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+
+
 22.2.2
 ......
 

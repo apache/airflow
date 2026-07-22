@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+9.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Beeline JDBC parameters to HiveCliHook (#68144)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Hive metastore partition sensor initialization (#69612)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 9.5.0
 .....
 
