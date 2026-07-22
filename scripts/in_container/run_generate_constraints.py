@@ -212,6 +212,8 @@ def freeze_distributions_to_file(
                 "/opt/airflow",
                 "#",
                 "-e",
+                "uv==",
+                "pip==",
             )
         ):
             continue
