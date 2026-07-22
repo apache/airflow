@@ -3557,6 +3557,40 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
+        "payload",
+        [
+            pytest.param(
+                {"only_failed": True, "only_running": True},
+                id="only_failed_and_only_running",
+            ),
+            pytest.param(
+                {"start_date": "2024-01-02T00:00:00Z", "end_date": "2024-01-01T00:00:00Z"},
+                id="start_date_after_end_date",
+            ),
+            pytest.param(
+                {
+                    "start_date": "2024-01-01T00:00:00Z",
+                    "end_date": "2024-01-02T00:00:00Z",
+                    "dag_run_id": "run_1",
+                },
+                id="dag_run_id_with_start_and_end_date",
+            ),
+            pytest.param(
+                {"start_date": "2024-01-01T00:00:00Z", "dag_run_id": "run_1"},
+                id="dag_run_id_with_start_date",
+            ),
+            pytest.param(
+                {"end_date": "2024-01-01T00:00:00Z", "dag_run_id": "run_1"},
+                id="dag_run_id_with_end_date",
+            ),
+            pytest.param({"task_ids": []}, id="empty_task_ids"),
+        ],
+    )
+    def test_should_respond_422_on_invalid_body(self, test_client, payload):
+        response = test_client.post("/dags/example_python_operator/clearTaskInstances", json=payload)
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
         ("main_dag", "task_instances", "request_dag", "payload", "expected_ti"),
         [
             pytest.param(
