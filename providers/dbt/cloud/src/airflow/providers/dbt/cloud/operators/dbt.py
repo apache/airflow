@@ -234,7 +234,7 @@ class DbtCloudRunJobOperator(BaseOperator):
             )
 
         if self.openlineage_inject_parent_job_info:
-            self.log.info("Injecting OpenLineage parent job information into dbt Cloud run cause.")
+            self.log.info("Replacing dbt Cloud run cause with OpenLineage parent job information.")
             self.trigger_reason = inject_parent_job_information_into_dbt_cloud_cause(
                 self.trigger_reason, context["ti"]
             )
