@@ -1621,6 +1621,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+StreamingLogResponse
 strftime
 Stringified
 stringified
