@@ -422,6 +422,18 @@ class TestSecurityContext:
         for doc in docs[1:]:
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
 
+    def test_main_pod_setting_runasuser_fsgroup_null(self):
+        """runAsUser/fsGroup can be explicitly nulled out, e.g. for OpenShift compatibility."""
+        security_context = {"securityContexts": {"pod": {"runAsUser": None, "fsGroup": None}}}
+        docs = render_chart(
+            values={"scheduler": security_context},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        pod_security_context = jmespath.search("spec.template.spec.securityContext", docs[0])
+        assert pod_security_context["runAsUser"] is None
+        assert pod_security_context["fsGroup"] is None
+
     def test_workers_overwrite_local(self):
         docs = render_chart(
             values={
