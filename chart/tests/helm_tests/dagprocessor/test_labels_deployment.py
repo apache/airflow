@@ -57,6 +57,29 @@ class TestDagProcessorDeployment:
             == "test_component_label_value"
         )
 
+    def test_should_merge_global_and_component_specific_labels_in_deployment_metadata(self):
+        """Test metadata.labels merge both global and component labels."""
+        docs = render_chart(
+            values={
+                "labels": {
+                    "test_global_label": "test_global_label_value",
+                    "common_label": "global_value",
+                },
+                "dagProcessor": {
+                    "labels": {
+                        "test_component_label": "test_component_label_value",
+                        "common_label": "component_value",
+                    },
+                },
+            },
+            show_only=[self.TEMPLATE_FILE],
+        )
+
+        labels = jmespath.search("metadata.labels", docs[0])
+        assert labels["test_global_label"] == "test_global_label_value"
+        assert labels["test_component_label"] == "test_component_label_value"
+        assert labels["common_label"] == "component_value"
+
     def test_should_merge_global_and_component_specific_labels(self):
         """Test adding both .Values.labels and .Values.dagProcessor.labels."""
         docs = render_chart(
