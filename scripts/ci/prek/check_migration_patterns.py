@@ -153,7 +153,7 @@ MIG004 -- Migration description style
 
 **What it does:**
 Checks the first paragraph of the migration module docstring -- the description
-Alembic exposes as ``Script.doc``.  It must start with a capital letter, use the
+Alembic exposes as ``Script.doc``. It must start with a capital letter, use the
 imperative mood ("Add", not "Added"/"Adding"), and end with a period.
 
 **Why is this bad:**
