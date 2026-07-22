@@ -29,7 +29,7 @@ import logging
 import math
 import sys
 import weakref
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Collection, Iterable, Iterator, Mapping
 from functools import cache, cached_property, lru_cache
 from inspect import signature
 from textwrap import dedent
@@ -41,7 +41,7 @@ import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow._shared.module_loading import import_string, qualname
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
@@ -240,6 +240,54 @@ def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
     if priority_weight_strategy_class is None:
         raise _PriorityWeightStrategyNotRegistered(var)
     return priority_weight_strategy_class()
+
+
+# Builtin exceptions the serializer emits as ``BASE_EXC_SER``. Only these are ever
+# serialized (see the encode side), so deserialization resolves the stored name against
+# this fixed map instead of importing it -- ``builtins.eval`` / ``builtins.exec`` and any
+# other name are rejected without importing anything.
+_DESERIALIZABLE_BUILTIN_EXCEPTIONS: dict[str, type[BaseException]] = {
+    "KeyError": KeyError,
+    "AttributeError": AttributeError,
+}
+
+
+def _iter_subclasses(cls: type) -> Iterator[type]:
+    """Yield every (transitive) subclass of ``cls``."""
+    for sub in cls.__subclasses__():
+        yield sub
+        yield from _iter_subclasses(sub)
+
+
+@cache
+def _serializable_airflow_exceptions() -> dict[str, type[AirflowException]]:
+    """
+    Map ``"<module>.<name>" -> AirflowException subclass``, used to resolve ``AIRFLOW_EXC_SER`` nodes.
+
+    Built once, from the in-memory ``AirflowException`` subclass tree (never from the
+    attacker-controlled stored name), and never rebuilt -- a name absent from it is rejected, not
+    imported. ``airflow.exceptions`` is imported by this module, so every built-in Airflow exception
+    is registered by the time this is first called; exceptions defined later are not added.
+    """
+    return {
+        f"{cls.__module__}.{cls.__name__}": cls
+        for cls in (AirflowException, *_iter_subclasses(AirflowException))
+    }
+
+
+def _resolve_airflow_exception(exc_cls_name: str) -> type[AirflowException]:
+    """
+    Resolve a serialized ``AirflowException`` class name to the loaded class, without importing it.
+
+    The name is matched against the once-built ``AirflowException`` subclass map, so deserializing a
+    stored DAG never runs the top-level code of a module named in the blob. A name that is not a
+    registered ``AirflowException`` subclass -- e.g. an attacker's ``subprocess.check_output`` -- is
+    rejected rather than imported.
+    """
+    exc_cls = _serializable_airflow_exceptions().get(exc_cls_name)
+    if exc_cls is None:
+        raise DeserializationError(f"Refusing to deserialize unknown exception class {exc_cls_name!r}")
+    return exc_cls
 
 
 def _encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
@@ -664,9 +712,14 @@ class BaseSerialization:
             kwargs = deser["kwargs"]
             del deser
             if type_ == DAT.AIRFLOW_EXC_SER:
-                exc_cls = import_string(exc_cls_name)
+                exc_cls: type[BaseException] = _resolve_airflow_exception(exc_cls_name)
             else:
-                exc_cls = import_string(f"builtins.{exc_cls_name}")
+                builtin_exc_cls = _DESERIALIZABLE_BUILTIN_EXCEPTIONS.get(exc_cls_name)
+                if builtin_exc_cls is None:
+                    raise DeserializationError(
+                        f"Refusing to deserialize disallowed builtin exception {exc_cls_name!r}"
+                    )
+                exc_cls = builtin_exc_cls
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
