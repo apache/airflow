@@ -44,8 +44,59 @@ except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
 
 
+# broker_transport_options accessed as dict
+# e.g. https://github.com/celery/kombu/blob/4281680ef3a275a7d87433a703790251d9805803/kombu/transport/confluentkafka.py#L338
+_BROKER_TRANSPORT_DICT_OPTIONS = [
+    "client-config",
+    "fetch_message_attributes",
+    "predefined_exchanges",
+    "predefined_queues",
+    "sqs-creation-attributes",
+    "kafka_admin_config",
+    "kafka_common_config",
+    "kafka_consumer_config",
+    "kafka_producer_config",
+    "sentinel_kwargs",
+]
+
+
 def _broker_supports_visibility_timeout(url):
     return url.startswith(("redis://", "rediss://", "sqs://", "sentinel://"))
+
+
+def _broker_transport_options(broker_url: str, conf) -> dict[str, Any]:
+    """
+    Parse broker_transport_options including dict options.
+
+    :param broker_url: Celery broker url
+    :param conf: ExecutorConf object
+    :return: broker_transport_options dict
+    """
+    broker_transport_options = conf.getsection("celery_broker_transport_options") or {}
+    if "visibility_timeout" not in broker_transport_options:
+        if _broker_supports_visibility_timeout(broker_url):
+            broker_transport_options["visibility_timeout"] = 86400
+            log.warning(
+                "No visibility_timeout configured in [celery_broker_transport_options]. "
+                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
+                "will be redelivered by the broker, which terminates the original task. "
+                "If you have long-running tasks, increase this value in your Airflow configuration: "
+                "[celery_broker_transport_options] visibility_timeout = <seconds>"
+            )
+
+    # Parse dict options
+    for option in _BROKER_TRANSPORT_DICT_OPTIONS:
+        if option in broker_transport_options:
+            try:
+                option_value = json.loads(broker_transport_options[option])
+                if not isinstance(option_value, dict):
+                    raise ValueError
+                broker_transport_options[option] = option_value
+            except Exception:
+                raise AirflowException(
+                    f"Broker transport option {option} should be written in the correct dictionary format."
+                )
+    return broker_transport_options
 
 
 def get_default_celery_config(team_conf) -> dict[str, Any]:
@@ -65,26 +116,7 @@ def get_default_celery_config(team_conf) -> dict[str, Any]:
 
     broker_url = team_conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 
-    broker_transport_options: dict = team_conf.getsection("celery_broker_transport_options") or {}
-    if "visibility_timeout" not in broker_transport_options:
-        if _broker_supports_visibility_timeout(broker_url):
-            broker_transport_options["visibility_timeout"] = 86400
-            log.warning(
-                "No visibility_timeout configured in [celery_broker_transport_options]. "
-                "Using default of 86400 seconds (24 hours). Celery tasks running longer than this "
-                "will be redelivered by the broker, which terminates the original task. "
-                "If you have long-running tasks, increase this value in your Airflow configuration: "
-                "[celery_broker_transport_options] visibility_timeout = <seconds>"
-            )
-
-    if "sentinel_kwargs" in broker_transport_options:
-        try:
-            sentinel_kwargs = json.loads(broker_transport_options["sentinel_kwargs"])
-            if not isinstance(sentinel_kwargs, dict):
-                raise ValueError
-            broker_transport_options["sentinel_kwargs"] = sentinel_kwargs
-        except Exception:
-            raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
+    broker_transport_options = _broker_transport_options(broker_url, team_conf)
 
     if team_conf.has_option("celery", "RESULT_BACKEND"):
         result_backend = team_conf.get_mandatory_value("celery", "RESULT_BACKEND")
