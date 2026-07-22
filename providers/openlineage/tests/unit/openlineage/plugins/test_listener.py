@@ -89,10 +89,6 @@ def render_df():
     return pd.DataFrame({"col": [1, 2]})
 
 
-def regular_call(self, callable, callable_name, use_fork):
-    callable()
-
-
 def direct_submit_call(self, callable, *args, **kwargs):
     """Synchronous stand-in for ``OpenLineageListener.submit_callable``.
 
@@ -106,12 +102,19 @@ def direct_submit_call(self, callable, *args, **kwargs):
     """
     from airflow.providers.openlineage.plugins.listener import (
         _emit_manual_state_change_event,
+        _emit_task_instance_event,
         _run_adapter_method,
     )
 
     if callable is _emit_manual_state_change_event:
         adapter_method_name, _stats_key, *_ = args
         return getattr(self.adapter, adapter_method_name)(**kwargs)
+    if callable is _emit_task_instance_event:
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener._get_process_adapter",
+            return_value=self.adapter,
+        ):
+            return _emit_task_instance_event(*args, **kwargs)
     if callable is _run_adapter_method:
         adapter_method_name, *rest = args
         return getattr(self.adapter, adapter_method_name)(*rest, **kwargs)
@@ -472,7 +475,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_start_task_is_called_with_proper_arguments(
         self,
@@ -529,7 +533,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_start_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
@@ -562,7 +567,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_start_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
@@ -596,7 +602,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_fail_task_is_called_with_proper_arguments(
         self,
@@ -657,7 +664,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_fail_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
@@ -692,7 +700,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_fail_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
@@ -727,7 +736,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_proper_arguments(
         self,
@@ -788,7 +798,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
@@ -820,7 +831,8 @@ class TestOpenLineageListenerAirflow2:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
@@ -846,7 +858,8 @@ class TestOpenLineageListenerAirflow2:
         assert listener.adapter.complete_task.call_args.kwargs["job_description_type"] == "text/plain"
 
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_on_task_instance_running_correctly_calls_openlineage_adapter_run_id_method(self):
         """Tests the OpenLineageListener's response when a task instance is in the running state.
@@ -866,7 +879,8 @@ class TestOpenLineageListenerAirflow2:
         )
 
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_on_task_instance_failed_correctly_calls_openlineage_adapter_run_id_method(self):
         """Tests the OpenLineageListener's response when a task instance is in the failed state.
@@ -890,7 +904,8 @@ class TestOpenLineageListenerAirflow2:
         )
 
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_on_task_instance_success_correctly_calls_openlineage_adapter_run_id_method(self):
         """Tests the OpenLineageListener's response when a task instance is in the success state.
@@ -1423,7 +1438,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_start_task_is_called_with_proper_arguments(
         self,
@@ -1516,7 +1532,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_task_hook_emits_with_defaults_when_emission_policy_misconfigured(
         self,
@@ -1552,7 +1569,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_task_hook_failed_emits_with_defaults_when_emission_policy_misconfigured(
         self,
@@ -1585,7 +1603,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_task_hook_success_emits_with_defaults_when_emission_policy_misconfigured(
         self,
@@ -1615,7 +1634,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_extract_operator_metadata_false_skips_extraction(
         self,
@@ -1652,7 +1672,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_include_full_task_info_true_forwarded_to_get_airflow_run_facet(
         self,
@@ -1690,7 +1711,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_start_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
@@ -1724,7 +1746,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_start_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
@@ -1787,7 +1810,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_fail_task_is_called_with_proper_arguments(
         self,
@@ -1883,7 +1907,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_fail_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
@@ -1918,7 +1943,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_fail_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
@@ -2043,7 +2069,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_proper_arguments(
         self,
@@ -2138,7 +2165,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
@@ -2172,7 +2200,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
@@ -2257,7 +2286,8 @@ class TestOpenLineageListenerAirflow3:
         assert mock_emit.assert_called_once
 
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_on_task_instance_running_correctly_calls_openlineage_adapter_run_id_method(self):
         """Tests the OpenLineageListener's response when a task instance is in the running state.
@@ -2277,7 +2307,8 @@ class TestOpenLineageListenerAirflow3:
         )
 
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_on_task_instance_failed_correctly_calls_openlineage_adapter_run_id_method(self):
         """Tests the OpenLineageListener's response when a task instance is in the failed state.
@@ -2301,7 +2332,8 @@ class TestOpenLineageListenerAirflow3:
         )
 
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_on_task_instance_success_correctly_calls_openlineage_adapter_run_id_method(self):
         """Tests the OpenLineageListener's response when a task instance is in the success state.
@@ -2393,7 +2425,8 @@ class TestOpenLineageListenerAirflow3:
         listener.adapter.complete_task.assert_not_called()
 
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_on_task_instance_skipped_correctly_calls_openlineage_adapter_run_id_method(self):
         """Tests the OpenLineageListener's response when a task instance is skipped.
@@ -2470,8 +2503,8 @@ class TestOpenLineageListenerAirflow3:
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute",
-        new=regular_call,
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_adapter_complete_task_is_called_with_proper_arguments_on_skip(
         self,
@@ -2785,7 +2818,8 @@ class TestOpenLineageSelectiveEnableAirflow2:
         ],
     )
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_listener_with_task_enabled(
         self, selective_enable, enable_task, expected_dag_call_count, expected_task_call_count
@@ -2842,7 +2876,8 @@ class TestOpenLineageSelectiveEnableAirflow2:
         ],
     )
     @mock.patch(
-        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener.submit_callable",
+        new=direct_submit_call,
     )
     def test_listener_with_dag_disabled_task_enabled(
         self, selective_enable, enable_task, expected_call_count, expected_task_call_count

@@ -144,6 +144,35 @@ def _emit_manual_state_change_event(adapter_method_name: str, stats_key: str, **
     return event
 
 
+def _emit_task_instance_event(
+    adapter_method_name: str,
+    event_type: str,
+    operator_name: str,
+    team_name: str | None,
+    **kwargs,
+):
+    """
+    Emit an OL event for a task instance lifecycle transition.
+
+    Module-level so it is picklable across the ProcessPoolExecutor boundary.
+    Metadata extraction runs in the parent listener process; only adapter emission
+    and metrics recording run in a forkserver-backed pool worker.
+    """
+    event = getattr(_get_process_adapter(), adapter_method_name)(**kwargs)
+    Stats.gauge(
+        "ol.event.size",
+        len(Serde.to_json(event).encode("utf-8")),
+        tags=prune_dict(
+            {
+                "event_type": event_type,
+                "operator_name": operator_name,
+                "team_name": team_name,
+            }
+        ),
+    )
+    return event
+
+
 class OpenLineageListener:
     """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
 
@@ -214,7 +243,6 @@ class OpenLineageListener:
             )
             return
 
-        # Needs to be calculated outside of inner method so that it gets cached for usage in fork processes
         debug_facet = get_airflow_debug_facet()
 
         @print_warning(self.log)
@@ -287,7 +315,12 @@ class OpenLineageListener:
 
                 task_metadata = OperatorLineage()
 
-            redacted_event = self.adapter.start_task(
+            self.submit_callable(
+                _emit_task_instance_event,
+                "start_task",
+                event_type,
+                operator_name,
+                team_name,
                 run_id=task_uuid,
                 job_name=get_job_name(task_instance),
                 job_description=doc,
@@ -317,19 +350,6 @@ class OpenLineageListener:
                     ),
                     **debug_facet,
                 },
-            )
-            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-
-            Stats.gauge(
-                "ol.event.size",
-                event_size,
-                tags=prune_dict(
-                    {
-                        "event_type": event_type,
-                        "operator_name": operator_name,
-                        "team_name": team_name,
-                    }
-                ),
             )
 
         on_running()
@@ -449,7 +469,12 @@ class OpenLineageListener:
 
                 task_metadata = OperatorLineage()
 
-            redacted_event = self.adapter.complete_task(
+            self.submit_callable(
+                _emit_task_instance_event,
+                "complete_task",
+                event_type,
+                operator_name,
+                team_name,
                 run_id=task_uuid,
                 job_name=get_job_name(task_instance),
                 end_time=end_date.isoformat(),
@@ -478,19 +503,6 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
-            )
-            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-
-            Stats.gauge(
-                "ol.event.size",
-                event_size,
-                tags=prune_dict(
-                    {
-                        "event_type": event_type,
-                        "operator_name": operator_name,
-                        "team_name": team_name,
-                    }
-                ),
             )
 
         on_success()
@@ -624,7 +636,12 @@ class OpenLineageListener:
                 )
                 task_metadata = OperatorLineage()
 
-            redacted_event = self.adapter.fail_task(
+            self.submit_callable(
+                _emit_task_instance_event,
+                "fail_task",
+                event_type,
+                operator_name,
+                team_name,
                 run_id=task_uuid,
                 job_name=get_job_name(task_instance),
                 end_time=end_date.isoformat(),
@@ -654,19 +671,6 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
-            )
-            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-
-            Stats.gauge(
-                "ol.event.size",
-                event_size,
-                tags=prune_dict(
-                    {
-                        "event_type": event_type,
-                        "operator_name": operator_name,
-                        "team_name": team_name,
-                    }
-                ),
             )
 
         on_failure()
@@ -776,7 +780,12 @@ class OpenLineageListener:
                 )
                 task_metadata = OperatorLineage()
 
-            redacted_event = self.adapter.complete_task(
+            self.submit_callable(
+                _emit_task_instance_event,
+                "complete_task",
+                event_type,
+                operator_name,
+                team_name,
                 run_id=task_uuid,
                 job_name=get_job_name(task_instance),
                 end_time=end_date.isoformat(),
@@ -805,19 +814,6 @@ class OpenLineageListener:
                     ),
                     **get_airflow_debug_facet(),
                 },
-            )
-            event_size = len(Serde.to_json(redacted_event).encode("utf-8"))
-
-            Stats.gauge(
-                "ol.event.size",
-                event_size,
-                tags=prune_dict(
-                    {
-                        "event_type": event_type,
-                        "operator_name": operator_name,
-                        "team_name": team_name,
-                    }
-                ),
             )
 
         on_skipped()
