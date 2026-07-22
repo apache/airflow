@@ -1459,7 +1459,7 @@ class TestExternalTaskSensorV3:
         assert not hasattr(sensor, "poll_interval")
 
     def test_poke_interval_default_when_unset(self):
-        """The sensor-specific default of 60.0 must be preserved."""
+        """The BaseSensor default of 60.0 must be preserved."""
         sensor = ExternalTaskSensor(
             task_id=TASK_ID,
             external_task_id=EXTERNAL_TASK_ID,

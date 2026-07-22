@@ -193,7 +193,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
-        poke_interval: datetime.timedelta | float = 60.0,
         poll_interval: datetime.timedelta | float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
@@ -205,9 +204,9 @@ class ExternalTaskSensor(BaseSensorOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            poke_interval = poll_interval
+            kwargs["poke_interval"] = poll_interval
 
-        super().__init__(poke_interval=poke_interval, **kwargs)
+        super().__init__(**kwargs)
 
         self.allowed_states: list[str] = (
             list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
