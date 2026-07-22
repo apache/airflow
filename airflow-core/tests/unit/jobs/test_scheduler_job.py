@@ -46,7 +46,12 @@ from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
-from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    DagRunContext,
+    EmailRequest,
+    TaskCallbackRequest,
+)
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
@@ -518,8 +523,13 @@ class TestSchedulerJob:
                     "scheduler.tasks.killed_externally",
                     tags={"dag_id": dag_id, "task_id": ti1.task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
+                mock.call(
+                    "operator_failures_EmptyOperator",
+                    tags={"dag_id": dag_id, "task_id": ti1.task_id, "run_type": "manual"},
+                ),
+                mock.call(
+                    "ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id, "run_type": "manual"}
+                ),
             ],
             any_order=True,
         )
@@ -645,8 +655,11 @@ class TestSchedulerJob:
                     "scheduler.tasks.killed_externally",
                     tags={"dag_id": dag_id, "task_id": task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": task_id}),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id}),
+                mock.call(
+                    "operator_failures_EmptyOperator",
+                    tags={"dag_id": dag_id, "task_id": task_id, "run_type": "manual"},
+                ),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id, "run_type": "manual"}),
             ],
             any_order=True,
         )
@@ -8767,6 +8780,82 @@ class TestSchedulerJob:
         assert callback_request.context_from_server.dag_run.logical_date == dag_run.logical_date
         assert callback_request.context_from_server.max_tries == ti.max_tries
 
+    def test_heartbeat_timeout_converges_ti_state_before_next_scan(self, dag_maker, session):
+        """A heartbeat-timed-out TI should not be found again on the next scheduler scan."""
+        with dag_maker(dag_id="test_heartbeat_timeout_dedupe", session=session):
+            EmptyOperator(task_id="test_task", on_failure_callback=lambda context: None)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="test_task")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = 0
+        ti.queued_by_job_id = scheduler_job.id
+        ti.start_date = timezone.utcnow() - timedelta(seconds=900)
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+        assert ti.state != TaskInstanceState.RUNNING
+        assert self.job_runner._find_task_instances_without_heartbeats(session=session) == []
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        self.job_runner.executor.callback_sink.send.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("retries", "callback_kind", "expected"),
+        [
+            (1, "retry", TaskInstanceState.UP_FOR_RETRY),
+            (0, "failure", TaskInstanceState.FAILED),
+        ],
+    )
+    def test_heartbeat_timeout_sets_callback_type_param(
+        self, dag_maker, session, retries, callback_kind, expected
+    ):
+        """Heartbeat timeout should mark callback type based on retry eligibility."""
+        with dag_maker(dag_id=f"heartbeat_timeout_{callback_kind}", session=session):
+            if callback_kind == "retry":
+                EmptyOperator(task_id="t1", retries=retries, on_retry_callback=lambda ctx: None)
+            else:
+                EmptyOperator(task_id="t1", retries=retries, on_failure_callback=lambda ctx: None)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = retries
+        ti.queued_by_job_id = scheduler_job.id
+        ti.start_date = timezone.utcnow() - timedelta(seconds=900)
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        self.job_runner.executor.callback_sink.send.assert_called_once()
+        request = self.job_runner.executor.callback_sink.send.call_args[0][0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == expected
+
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+        assert ti.state == expected
+
     @pytest.mark.parametrize(
         ("state", "retries", "try_number", "expected_callback_type", "expected_dispatched_callback"),
         [
@@ -8994,6 +9083,192 @@ class TestSchedulerJob:
         request = executor.send_callback.call_args[0][0]
         assert isinstance(request, TaskCallbackRequest)
         assert request.bundle_version is None
+
+    @time_machine.travel(DEFAULT_DATE, tick=False)
+    def test_heartbeat_timeout_preserves_failure_email(self, dag_maker, session):
+        """
+        The purge path moves the TI out of RUNNING itself, so process_executor_events'
+        external-kill email path never sees this TI. The purge path must send the failure
+        email directly instead of silently dropping it.
+        """
+        with dag_maker(dag_id="heartbeat_timeout_email", session=session):
+            EmptyOperator(
+                task_id="t1",
+                email="test@example.com",
+                email_on_failure=True,
+            )
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = 0
+        ti.queued_by_job_id = scheduler_job.id
+        ti.start_date = timezone.utcnow() - timedelta(seconds=900)
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        sent_requests = [c.args[0] for c in self.job_runner.executor.callback_sink.send.call_args_list]
+        email_requests = [r for r in sent_requests if isinstance(r, EmailRequest)]
+        assert len(email_requests) == 1
+        assert email_requests[0].email_type == "failure"
+
+    def test_heartbeat_timeout_restarting_zero_max_tries_matches_final_state(self, dag_maker, session):
+        """
+        is_eligible_to_retry() always returns True for a RESTARTING TI, independent of
+        max_tries. The task_callback_type sent to the Dag processor must match the state
+        handle_failure() actually persists -- these previously diverged for a RESTARTING TI
+        with max_tries=0, where the callback was typed FAILED but the TI still ended up
+        UP_FOR_RETRY.
+        """
+        with dag_maker(dag_id="hb_timeout_restarting_zero_max_tries", session=session):
+            EmptyOperator(task_id="t1", retries=0)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RESTARTING
+        ti.try_number = 1
+        ti.max_tries = 0
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        self.job_runner.executor.callback_sink.send.assert_called_once()
+        request = self.job_runner.executor.callback_sink.send.call_args[0][0]
+        assert isinstance(request, TaskCallbackRequest)
+        assert request.task_callback_type == TaskInstanceState.UP_FOR_RETRY
+
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+        assert ti.state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_heartbeat_timeout_honors_fail_fast(self, dag_maker, session):
+        """
+        handle_failure() only stops sibling tasks when ti.task.dag.fail_fast is True, which
+        requires ti.task to be loaded. Before the fix, this purge path never loaded ti.task,
+        so fail_fast silently no-opped and a sibling task kept running instead of being
+        stopped.
+        """
+        with dag_maker(dag_id="hb_timeout_fail_fast", fail_fast=True):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="sibling")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = 0
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+
+        sibling = dag_run.get_task_instance(task_id="sibling")
+        sibling.state = TaskInstanceState.RUNNING
+
+        session.merge(ti)
+        session.merge(sibling)
+        session.commit()
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        session.expire_all()
+        sibling.refresh_from_db(session=session)
+        assert sibling.state == TaskInstanceState.FAILED
+
+    def test_heartbeat_timeout_skips_ti_completed_concurrently(self, dag_maker, session):
+        """
+        The heartbeat scan and a worker can race: the worker can commit a terminal state (SUCCESS)
+        around the same time the scan picks the TI up. The purge must revalidate the committed state
+        and skip such a TI, so it neither clobbers the terminal state with FAILED nor emits a
+        spurious failure callback.
+        """
+        with dag_maker(dag_id="hb_timeout_concurrent_success", session=session):
+            EmptyOperator(task_id="t1", on_failure_callback=lambda ctx: None)
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = 0
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        # Simulate the worker winning the race: the DB row is now SUCCESS, but the in-memory ``ti``
+        # still reads RUNNING, exactly as it would after an unlocked scan handed it to the purge.
+        session.execute(
+            update(TaskInstance)
+            .where(TaskInstance.id == ti.id)
+            .values(state=TaskInstanceState.SUCCESS, end_date=timezone.utcnow())
+        )
+        session.commit()
+        assert ti.state == TaskInstanceState.RUNNING
+
+        self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        self.job_runner.executor.callback_sink.send.assert_not_called()
+        session.expire_all()
+        ti.refresh_from_db(session=session)
+        assert ti.state == TaskInstanceState.SUCCESS
+
+    def test_heartbeat_timeout_scan_locks_rows(self, dag_maker, session):
+        """
+        The heartbeat scan must lock the TI rows (``with_row_locks``, ``of=TI``, ``skip_locked=True``)
+        so a worker cannot commit a terminal state on the same TI between the scan and the
+        handle_failure() that follows in the same transaction.
+        """
+        with dag_maker(dag_id="hb_timeout_scan_locks", session=session):
+            EmptyOperator(task_id="t1")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+        session.merge(ti)
+        session.commit()
+
+        with mock.patch(
+            "airflow.jobs.scheduler_job_runner.with_row_locks",
+            wraps=with_row_locks,
+        ) as wrapped:
+            found = self.job_runner._find_task_instances_without_heartbeats(session=session)
+
+        assert [t.id for t in found] == [ti.id]
+        ti_lock_calls = [call for call in wrapped.mock_calls if call.kwargs.get("of") is TaskInstance]
+        assert len(ti_lock_calls) == 1, f"Expected one with_row_locks call for TI, got {ti_lock_calls}"
+        assert ti_lock_calls[0].kwargs["skip_locked"] is True
+        assert ti_lock_calls[0].kwargs["session"] is session
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "1"})
     def test_stuck_in_queued_callback_bundle_version_follows_dag_run(
@@ -9883,8 +10158,10 @@ class TestSchedulerJob:
             assert result2 == mock_executors[1]  # Matched by executor name
 
     @conf_vars({("core", "multi_team"): "true"})
-    def test_multi_team_sets_team_name_on_task_instances(self, dag_maker, mock_executors, session):
-        """Test that _team_name is set on TaskInstance objects during the scheduling loop."""
+    @mock.patch("airflow._shared.observability.metrics.stats.timing")
+    def test_multi_team_sets_team_name_on_task_instances(self, mock_timing, dag_maker, session):
+        """The scheduling loop resolves the bundle's team onto the dag run, so the QUEUED
+        state-change metric (emitted via TaskInstance.stats_tags) carries team_name."""
         clear_db_teams()
         clear_db_dag_bundles()
 
@@ -9903,19 +10180,21 @@ class TestSchedulerJob:
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("task_a", session=session)
         ti.state = State.SCHEDULED
+        ti.scheduled_dttm = timezone.utcnow()
+        session.merge(ti)
         session.flush()
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
-        self.job_runner._multi_team = True
 
-        # Simulate what _executable_task_instances_to_queued does
-        dag_id_to_team_name = self.job_runner._get_team_names_for_dag_ids(["dag_a"], session)
-        if team_name := dag_id_to_team_name.get(ti.dag_id):
-            ti._team_name = team_name
+        queued_tis = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert ti._team_name == "team_a"
-        assert ti.stats_tags == {"dag_id": "dag_a", "task_id": "task_a", "team_name": "team_a"}
+        assert {t.key for t in queued_tis} == {ti.key}
+        scheduled_calls = [
+            c for c in mock_timing.call_args_list if c.args and c.args[0] == "task.scheduled_duration"
+        ]
+        assert scheduled_calls, "expected a task.scheduled_duration metric on QUEUED transition"
+        assert scheduled_calls[0].kwargs["tags"]["team_name"] == "team_a"
 
     @conf_vars({("core", "multi_team"): "true"})
     def test_do_scheduling_multi_team_schedules_task_instances(self, dag_maker, session):
@@ -12248,7 +12527,7 @@ def _extract_bundle_version(ti):
 
 class TestSchedulerCallbackBundleInfoDagVersionNullable:
     """
-    Verify the bundle_name / bundle_version extraction logic used at all four
+    Verify the bundle_name / bundle_version extraction logic used at all five
     TaskCallbackRequest / EmailRequest creation sites in scheduler_job_runner.py.
 
     When dag_version is present  -> use dag_version.bundle_name / bundle_version.

@@ -238,6 +238,29 @@ export type BackfillCollectionResponse = {
 };
 
 /**
+ * BackfillDagRun Collection serializer for responses.
+ */
+export type BackfillDagRunCollectionResponse = {
+    backfill_dag_runs: Array<BackfillDagRunResponse>;
+    total_entries: number;
+};
+
+/**
+ * Serializer for a single BackfillDagRun entry with joined DagRun state.
+ */
+export type BackfillDagRunResponse = {
+    id: number;
+    backfill_id: number;
+    dag_id: string;
+    dag_run_id?: string | null;
+    logical_date: string | null;
+    partition_key: string | null;
+    sort_ordinal: number;
+    exception_reason: string | null;
+    dag_run_state?: DagRunState | null;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -1280,11 +1303,11 @@ export type ExternalViewResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     href: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
 };
 
-export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
+export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
 
 /**
  * Extra Links Response.
@@ -1656,11 +1679,11 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     bundle_url: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard';
     [key: string]: unknown | string;
 };
 
-export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
+export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -2355,6 +2378,7 @@ export type DAGWithLatestDagRunsResponse = {
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -2881,6 +2905,11 @@ export type GetAssetEventsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
      */
     orderBy?: Array<(string)>;
+    partitionKey?: string | null;
+    /**
+     * Filter results by matching this regular expression against the field value.
+     */
+    partitionKeyRegexpPattern?: string | null;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
@@ -2985,6 +3014,18 @@ export type GetBackfillData = {
 };
 
 export type GetBackfillResponse = BackfillResponse;
+
+export type ListBackfillDagRunsData = {
+    backfillId: number;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type ListBackfillDagRunsResponse = BackfillDagRunCollectionResponse;
 
 export type PauseBackfillData = {
     backfillId: number;
@@ -3519,13 +3560,14 @@ export type GetDagsUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
+    teams?: Array<(string)>;
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
@@ -4151,6 +4193,7 @@ export type GetImportErrorsData = {
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
 export type GetJobsData = {
+    dagId?: string | null;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;
@@ -5189,6 +5232,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BackfillResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/backfills/{backfill_id}/dag_runs': {
+        get: {
+            req: ListBackfillDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BackfillDagRunCollectionResponse;
                 /**
                  * Unauthorized
                  */
