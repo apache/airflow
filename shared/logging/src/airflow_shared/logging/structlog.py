@@ -709,6 +709,7 @@ def configure_logging(
             # These ones are too chatty even at info
             "httpx": {"level": "WARN"},
             "sqlalchemy.engine": {"level": "WARN"},
+            "alembic.runtime.plugins": {"level": "WARN"},
         }
     )
     config["root"] = {

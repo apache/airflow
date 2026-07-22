@@ -91,6 +91,9 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+    TaskInstanceState,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1359,6 +1362,9 @@ class TestJobsOperations:
             assert params["job_type"] == "job_type"
             assert params["hostname"] == "hostname"
             assert params["is_alive"] == "true"
+            assert params["dag_id"] == "dag_id"
+            assert params["job_state"] == "success"
+            assert params["order_by"] == "-start_date"
             assert params["limit"] == "50"
             return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
 
@@ -1367,33 +1373,84 @@ class TestJobsOperations:
             job_type="job_type",
             hostname="hostname",
             is_alive=True,
+            dag_id="dag_id",
+            state="success",
+            order_by="-start_date",
         )
         assert response == self.job_collection_response
 
+    def test_list_with_limit_returns_single_page(self):
+        requests = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["limit"] == "1"
+            assert params["order_by"] == "-start_date"
+            return httpx.Response(
+                200,
+                json={
+                    **json.loads(self.job_collection_response.model_dump_json()),
+                    "total_entries": 2,
+                },
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.jobs.list(limit=1)
+
+        assert response.jobs == self.job_collection_response.jobs
+        assert response.total_entries == 2
+        assert len(requests) == 1
+
+    def test_list_with_limit_preserves_explicit_order_by(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/jobs"
+            params = dict(request.url.params)
+            assert params["limit"] == "1"
+            assert params["order_by"] == "id"
+            return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.jobs.list(limit=1, order_by="id")
+
+        assert response == self.job_collection_response
+
     @pytest.mark.parametrize(
-        ("job_type", "hostname", "is_alive", "expected_subset"),
+        ("job_type", "hostname", "is_alive", "dag_id", "state", "expected_subset"),
         [
-            (None, None, None, {}),
-            ("scheduler", None, None, {"job_type": "scheduler"}),
-            (None, "host-a", None, {"hostname": "host-a"}),
-            (None, None, False, {"is_alive": "false"}),
+            (None, None, None, None, None, {}),
+            ("scheduler", None, None, None, None, {"job_type": "scheduler"}),
+            (None, "host-a", None, None, None, {"hostname": "host-a"}),
+            (None, None, False, None, None, {"is_alive": "false"}),
+            (None, None, None, "dag_a", None, {"dag_id": "dag_a"}),
+            (None, None, None, None, "running", {"job_state": "running"}),
         ],
     )
-    def test_list_omits_empty_filters(self, job_type, hostname, is_alive, expected_subset):
+    def test_list_omits_empty_filters(self, job_type, hostname, is_alive, dag_id, state, expected_subset):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/jobs"
             params = dict(request.url.params)
             assert params["limit"] == "50"
+            assert params["order_by"] == "-start_date"
             for key, value in expected_subset.items():
                 assert params[key] == value
 
             assert ("job_type" in params) is ("job_type" in expected_subset)
             assert ("hostname" in params) is ("hostname" in expected_subset)
             assert ("is_alive" in params) is ("is_alive" in expected_subset)
+            assert ("dag_id" in params) is ("dag_id" in expected_subset)
+            assert ("job_state" in params) is ("job_state" in expected_subset)
             return httpx.Response(200, json=json.loads(self.job_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.jobs.list(job_type=job_type, hostname=hostname, is_alive=is_alive)
+        response = client.jobs.list(
+            job_type=job_type,
+            hostname=hostname,
+            is_alive=is_alive,
+            dag_id=dag_id,
+            state=state,
+        )
         assert response == self.job_collection_response
 
 
@@ -1501,6 +1558,40 @@ class TestProvidersOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.providers.list()
         assert response == self.provider_collection_response
+
+
+class TestTaskInstancesOperations:
+    task_instance_response = TaskInstanceResponse(
+        id=uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+        task_id="task_id",
+        dag_id="dag_id",
+        dag_run_id="dag_run_id",
+        map_index=-1,
+        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+        state=TaskInstanceState.SUCCESS,
+        try_number=1,
+        max_tries=0,
+        task_display_name="task_id",
+        dag_display_name="dag_id",
+        pool="default_pool",
+        pool_slots=1,
+        executor_config="{}",
+    )
+    task_instance_collection_response = TaskInstanceCollectionResponse(
+        task_instances=[task_instance_response],
+        total_entries=1,
+    )
+
+    def test_list(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances"
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
+        assert response == self.task_instance_collection_response
 
 
 class TestVariablesOperations:

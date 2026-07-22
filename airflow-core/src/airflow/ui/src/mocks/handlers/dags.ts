@@ -36,6 +36,7 @@ const successDag = {
       end_date: "2025-01-13T04:34:12.143831Z",
       id: 1,
       logical_date: "2025-01-13T04:33:58.396323Z",
+      run_after: "2025-01-13T04:33:58.396323Z",
       run_id: "manual__2025-01-13T04:33:58.387988+00:00",
       start_date: "2025-01-13T04:33:58.496197Z",
       state: "success",
@@ -68,6 +69,7 @@ const failedDag = {
       end_date: "2025-01-13T04:34:12.143831Z",
       id: 2,
       logical_date: "2025-01-13T04:33:58.396323Z",
+      run_after: "2025-01-13T04:33:58.396323Z",
       run_id: "manual__2025-01-13T04:33:58.387988+00:00",
       start_date: "2025-01-13T04:33:58.496197Z",
       state: "success",
@@ -121,6 +123,7 @@ export const handlers: Array<HttpHandler> = [
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");
+    const orderBy = url.searchParams.get("order_by");
     const paused = url.searchParams.get("paused");
 
     if (lastDagRunState === "success") {
@@ -135,7 +138,11 @@ export const handlers: Array<HttpHandler> = [
       });
     }
 
-    const dags = filterDagsByPaused(paused);
+    let dags = filterDagsByPaused(paused);
+
+    if (orderBy === "last_run_run_after" || orderBy === "-last_run_run_after") {
+      dags = [failedDag, successDag, pausedDag].filter((dag) => dags.includes(dag));
+    }
 
     return HttpResponse.json({
       dags,
