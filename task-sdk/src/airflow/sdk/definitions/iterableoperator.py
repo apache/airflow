@@ -132,6 +132,11 @@ class IterableOperator(BaseOperator):
                 "email_on_retry": operator.email_on_retry,
                 "email_on_failure": operator.email_on_failure,
                 "retries": 0,  # We should not retry the IterableOperator, only the indexed runtime ti's should be retried
+                # Known v1 limitation: there is no durable per-index checkpoint. On a worker crash mid-iteration,
+                # clearing or re-running the parent TI reconstructs every IndexedTaskInstance with xcom_pushed=False
+                # and re-executes from index 0, duplicating any external effects that already completed. Until
+                # durable checkpointing is implemented, iteration should be constrained to idempotent work.
+                # AIP-103 Task State Management could be a solution to this known v1 limitation.
                 "retry_delay": operator.retry_delay,
                 "retry_exponential_backoff": operator.retry_exponential_backoff,
                 "max_retry_delay": operator.max_retry_delay,
