@@ -4708,6 +4708,22 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json()["state"] == state
         assert listener.state == listener_state
 
+    def test_patch_task_instance_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session)
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
+
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
         self.create_task_instances(session)
@@ -7010,6 +7026,35 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
 
+    def test_bulk_update_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session, task_instances=[{"state": State.RUNNING}])
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": self.TASK_ID,
+                                "new_state": "success",
+                                "note": "listener_note",
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
+
 
 class TestPatchTaskGroup(TestTaskInstanceEndpoint):
     DAG_ID = "example_task_group"
@@ -7454,6 +7499,22 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         for ti in tis_after:
             assert ti.state == TaskInstanceState.FAILED
             _check_task_instance_note(session, ti.id, {"content": note_value, "user_id": "test"})
+
+    def test_patch_task_group_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "failed", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
 
 
 class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
