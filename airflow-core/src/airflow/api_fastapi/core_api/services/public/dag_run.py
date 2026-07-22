@@ -195,7 +195,12 @@ def patch_dag_run_state(
     if state == DagRunMutableStates.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
         try:
-            get_listener_manager().hook.on_dag_run_success(dag_run=dag_run, msg="")
+            if dag_run.dag is None:
+                dag_run.dag = dag
+            get_listener_manager().hook.on_dag_run_success(
+                dag_run=dag_run,
+                msg=f"Dag Run's state was manually set to `{DagRunMutableStates.SUCCESS.value}`.",
+            )
         except Exception:
             log.exception("error calling listener")
     elif state == DagRunMutableStates.QUEUED:
@@ -206,7 +211,12 @@ def patch_dag_run_state(
     elif state == DagRunMutableStates.FAILED:
         set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
         try:
-            get_listener_manager().hook.on_dag_run_failed(dag_run=dag_run, msg="")
+            if dag_run.dag is None:
+                dag_run.dag = dag
+            get_listener_manager().hook.on_dag_run_failed(
+                dag_run=dag_run,
+                msg=f"Dag Run's state was manually set to `{DagRunMutableStates.FAILED.value}`.",
+            )
         except Exception:
             log.exception("error calling listener")
 
