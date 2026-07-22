@@ -27,6 +27,7 @@ import pytest
 from sqlalchemy import select
 
 from airflow import settings
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1455,17 +1456,78 @@ class TestExternalTaskSensorV3:
         )
 
         assert sensor.poke_interval == 30
-        assert not hasattr(sensor, "poll_interval")  # No longer supported
+        assert not hasattr(sensor, "poll_interval")
 
-    def test_poll_interval_raises_on_init(self):
-        """Test that the removed poll_interval parameter raises a TypeError on instantiation."""
-        with pytest.raises(TypeError, match="Invalid arguments were passed to ExternalTaskSensor"):
-            ExternalTaskSensor(
+    def test_poke_interval_default_when_unset(self):
+        """The sensor-specific default of 2.0 must be preserved, not the base sensor's default of 60."""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+        )
+
+        assert sensor.poke_interval == 2.0
+
+    def test_poke_interval_accepts_timedelta(self):
+        """poke_interval should accept a timedelta, coerced to seconds, same as the base sensor."""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            poke_interval=timedelta(seconds=5),
+        )
+
+        assert sensor.poke_interval == 5.0
+
+    def test_poke_interval_no_warning_when_poll_interval_unset(self, recwarn):
+        """Passing only poke_interval must not emit the poll_interval deprecation warning."""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            poke_interval=15,
+        )
+
+        assert sensor.poke_interval == 15
+        assert not any(issubclass(w.category, AirflowProviderDeprecationWarning) for w in recwarn.list)
+
+    def test_poll_interval_deprecated_and_sets_poke_interval(self):
+        """poll_interval is deprecated, but its value is still respected as poke_interval."""
+        with pytest.warns(AirflowProviderDeprecationWarning, match="poll_interval"):
+            sensor = ExternalTaskSensor(
                 task_id=TASK_ID,
                 external_task_id=EXTERNAL_TASK_ID,
                 external_dag_id=EXTERNAL_DAG_ID,
-                poll_interval=30,  # No longer supported
+                poll_interval=45,
             )
+
+        assert sensor.poke_interval == 45
+        assert not hasattr(sensor, "poll_interval")
+
+    def test_poll_interval_zero_still_deprecated(self):
+        """Regression test: a falsy poll_interval (0) must still take the deprecation path."""
+        with pytest.warns(AirflowProviderDeprecationWarning, match="poll_interval"):
+            sensor = ExternalTaskSensor(
+                task_id=TASK_ID,
+                external_task_id=EXTERNAL_TASK_ID,
+                external_dag_id=EXTERNAL_DAG_ID,
+                poll_interval=0,
+            )
+
+        assert sensor.poke_interval == 0
+
+    def test_poll_interval_overrides_poke_interval_when_both_set(self):
+        """When both are provided, the deprecated poll_interval takes precedence."""
+        with pytest.warns(AirflowProviderDeprecationWarning, match="poll_interval"):
+            sensor = ExternalTaskSensor(
+                task_id=TASK_ID,
+                external_task_id=EXTERNAL_TASK_ID,
+                external_dag_id=EXTERNAL_DAG_ID,
+                poke_interval=10,
+                poll_interval=99,
+            )
+
+        assert sensor.poke_interval == 99
 
     @pytest.mark.execution_timeout(10)
     def test_deferrable_poke_interval_passed_to_trigger(self, dag_maker):
@@ -1730,20 +1792,7 @@ class TestExternalTaskAsyncSensor:
         )
 
         assert sensor.poke_interval == 30
-        assert not hasattr(sensor, "poll_interval")  # No longer supported
-
-    def test_poll_interval_raises_on_init(self):
-        """Test that the removed poll_interval parameter raises an exception on instantiation."""
-        # Determine the exception type based on Airflow version (AF3 removed most usage of AirflowException)
-        exception_type = TypeError if AIRFLOW_V_3_0_PLUS else AirflowException
-
-        with pytest.raises(exception_type, match="Invalid arguments were passed to ExternalTaskSensor"):
-            ExternalTaskSensor(
-                task_id=TASK_ID,
-                external_task_id=EXTERNAL_TASK_ID,
-                external_dag_id=EXTERNAL_DAG_ID,
-                poll_interval=30,  # No longer supported
-            )
+        assert not hasattr(sensor, "poll_interval")
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Needs Flask app context fixture for AF 2")

@@ -23,6 +23,7 @@ import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DagModel
 from airflow.providers.common.compat.sdk import (
     AirflowSkipException,
@@ -171,6 +172,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         external_task_id is None), and immediately cease waiting if the external task
         or DAG does not exist (default value: False).
     :param poke_interval: polling period in seconds to check for the status
+    :param poll_interval: (DEPRECATED) use ``poke_interval`` instead
     :param deferrable: Run sensor in deferrable mode
     """
 
@@ -191,11 +193,21 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
-        poke_interval: float = 2.0,
+        poke_interval: datetime.timedelta | float = 2.0,
+        poll_interval: datetime.timedelta | float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        if poll_interval is not None:
+            warnings.warn(
+                "Parameter `poll_interval` is deprecated and will be removed in a future release. "
+                "Use `poke_interval` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            poke_interval = poll_interval
+
+        super().__init__(poke_interval=poke_interval, **kwargs)
 
         self.allowed_states: list[str] = (
             list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
@@ -263,7 +275,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.check_existence = check_existence
         self._has_checked_existence = False
         self.deferrable = deferrable
-        self.poke_interval = poke_interval
         self.external_dates_filter: str | None = None
 
     def _get_dttm_filter(self, context: Context) -> Sequence[datetime.datetime]:
