@@ -72,6 +72,29 @@ class _ConnectionMetadata:
             raise TypeError(f"Expected JSON-Object or dict, got {type(extra).__name__}.")
         return extra
 
+def _parse_service_endpoint(endpoint_url: str | None, use_https: bool | None = None) -> str | None:
+    """
+    Add the HTTP scheme to the endpoint_url if it is missing.
+
+    :param endpoint_url: URL string to parse
+    :param use_https: use https instead of http as the scheme
+
+    Returns
+    --------
+    endpoint_url with the http(s) scheme appended if it is missing.
+    """
+    if endpoint_url is None:
+        return endpoint_url
+    if use_https is None:
+        use_https = True
+
+    if endpoint_url.startswith("http"):
+        return endpoint_url
+    if "://" in endpoint_url:
+        raise ValueError(f"Invalid endpoint_url: {endpoint_url}")
+
+    scheme = "https" if use_https else "http"
+    return f"{scheme}://{endpoint_url}"
 
 @dataclass
 class AwsConnectionWrapper(LoggingMixin):
@@ -117,6 +140,8 @@ class AwsConnectionWrapper(LoggingMixin):
     profile_name: str | None = field(init=False, default=None)
     # Custom endpoint_url for boto3.client and boto3.resource
     endpoint_url: str | None = field(init=False, default=None)
+    # Use https or http with endpoint URL. Ignored if scheme is specified in url.
+    use_https: bool | None = field(init=False, default=None)
 
     # Assume Role Configurations
     role_arn: str | None = field(init=False, default=None)
@@ -143,6 +168,7 @@ class AwsConnectionWrapper(LoggingMixin):
     ) -> str | None:
         service_config = self.get_service_config(service_name=service_name)
         global_endpoint_url = self.endpoint_url
+        global_use_https = self.use_https
 
         if service_name == "sts" and True in (sts_connection_assume, sts_test_connection):
             # There are different logics exists historically for STS Client
@@ -156,7 +182,10 @@ class AwsConnectionWrapper(LoggingMixin):
                     "`sts_connection` and `sts_test_connection` set to True."
                 )
 
-        return service_config.get("endpoint_url", global_endpoint_url)
+        return _parse_service_endpoint(
+            service_config.get("endpoint_url", global_endpoint_url),
+            service_config.get("use_https", global_use_https),
+        )
 
     def __post_init__(self, conn: Connection | AwsConnectionWrapper | _ConnectionMetadata | None) -> None:
         """Initialize the AwsConnectionWrapper object after instantiation."""

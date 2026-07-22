@@ -122,8 +122,12 @@ Extra (optional)
     * ``config_kwargs``: Additional **kwargs** used to construct a
       `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
       To anonymously access public AWS resources (equivalent of `signature_version=botocore.UNSGINED`), set `"signature_version"="unsigned"` within `config_kwargs`.
-    * ``endpoint_url``: Global Endpoint URL for the connection. You could specify endpoint url per AWS service by utilize
-      ``service_config``, for more details please refer to :ref:`howto/connection:aws:per-service-endpoint-configuration`
+    * ``endpoint_url``: Global Endpoint URL for the connection. Can be specified with or without the http scheme.
+      You could specify endpoint url per AWS service by utilize ``service_config``,
+      for more details please refer to :ref:`howto/connection:aws:per-service-endpoint-configuration`
+
+    * ``use_https``: If the HTTP scheme is not provided for any endpoint_url, the https (if true) or http (if false) scheme will be prepended.
+      This can be specified in the ``service_config`` as well (see :ref:`howto/connection:aws:per-service-endpoint-configuration`).
 
     * ``verify``: Whether or not to verify SSL certificates.
 
@@ -339,6 +343,7 @@ AWS Service Endpoint URL configuration
 
 To use ``endpoint_url`` per specific AWS service in the single connection you might setup it in service config.
 For enforce to default ``botocore``/``boto3`` behaviour you might set value to ``null``.
+If not provided in the ``endpoint_url``, you can set the http scheme to https using ``use_https``
 The precedence rules are as follows:
 
   1. ``endpoint_url`` specified per service level.
@@ -350,7 +355,8 @@ The precedence rules are as follows:
 .. code-block:: json
 
     {
-      "endpoint_url": "s3.amazonaws.com"
+      "endpoint_url": "s3.amazonaws.com",
+      "use_https": true
       "service_config": {
         "s3": {
           "endpoint_url": "https://s3.eu-west-1.amazonaws.com"
@@ -360,6 +366,10 @@ The precedence rules are as follows:
         },
         "ec2": {
           "endpoint_url": null
+        },
+        "eks": {
+          "endpoint_url": "localhost",
+          "use_https": false
         }
       }
     }
