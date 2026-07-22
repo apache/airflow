@@ -401,6 +401,8 @@ the chart only creates the ``HTTPRoute`` resources and attaches them to the Gate
 .. code-block:: yaml
    :caption: values.yaml
 
+   executor: CeleryExecutor
+
    apiServer:
      httpRoute:
        enabled: true
@@ -410,8 +412,6 @@ the chart only creates the ``HTTPRoute`` resources and attaches them to the Gate
            sectionName: https
        hostnames:
          - airflow.example.com
-
-   executor: CeleryExecutor
 
    flower:
      enabled: true
@@ -429,8 +429,7 @@ Flower HTTPRoute resources are only created when Flower itself is created, so ``
 
 For fine-grained routing, supply ``apiServer.httpRoute.rules`` or ``flower.httpRoute.rules`` directly —
 the entry mirrors the upstream ``HTTPRouteRule`` schema and overrides the default rule generated from
-``path`` + ``pathType``. For Flower deployments that customize ``flower.service.ports`` away from the
-standard ``ports.flowerUI`` value, use ``flower.httpRoute.rules`` to point at the desired backend port.
+``path`` + ``pathType``.
 
 .. note::
 

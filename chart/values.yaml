@@ -215,7 +215,8 @@ ingress:
 
   # Configs for the Ingress of the flower Service
   flower:
-    # Enable web ingress resource
+    # Enable Flower ingress resource.
+    # Mutually exclusive with `flower.httpRoute.enabled` (Gateway API); enable only one of them.
     enabled: false
 
     # Annotations for the flower Ingress
