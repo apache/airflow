@@ -29,9 +29,11 @@ from unittest import mock
 
 import time_machine
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from airflow.api_fastapi.app import create_app, purge_cached_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.models.xcom import XComModel
 from airflow.providers.common.ai.plugins.hitl_review import (
     HITLReviewPlugin,
     _build_session_response,
@@ -392,6 +394,16 @@ class TestReadXcomByPrefix:
             map_index=-1,
         )
         session.commit()
+
+        stored = session.scalar(
+            select(XComModel.value).where(
+                XComModel.dag_id == "d",
+                XComModel.task_id == "t",
+                XComModel.run_id == "r",
+                XComModel.key == f"{XCOM_AGENT_OUTPUT_PREFIX}1",
+            )
+        )
+        assert stored == output_value
 
         result = _read_xcom_by_prefix(
             session,
