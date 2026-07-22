@@ -95,8 +95,8 @@ Extra           Dependencies
 ``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=0.11.0``
 ``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
-``sql``         ``apache-airflow-providers-common-sql``, ``sqlglot>=30.0.0``
-``common.sql``  ``apache-airflow-providers-common-sql``
+``sql``         ``apache-airflow-providers-common-sql>=1.33.0``, ``sqlglot>=30.0.0``
+``common.sql``  ``apache-airflow-providers-common-sql>=1.33.0``
 ``langchain``   ``langchain>=1.0.0``
 ``llamaindex``  ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
 ``pdf``         ``pypdf>=4.0.0``
