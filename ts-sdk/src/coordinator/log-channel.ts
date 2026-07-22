@@ -47,31 +47,48 @@ export interface LogRecord {
 
 const DEFAULT_LOGGER_NAME = "ts-sdk";
 
+const CLOSE_FLUSH_TIMEOUT_MS = 3_000;
+
+interface LogChannelState {
+  sock: Socket;
+  connected: boolean;
+  closed: boolean;
+}
+
 export class LogChannel {
-  private readonly sock: Socket;
+  private readonly shared: LogChannelState;
   private readonly name: string;
   private readonly isRoot: boolean;
 
-  private constructor(sock: Socket, name: string, isRoot: boolean) {
-    this.sock = sock;
+  private constructor(shared: LogChannelState, name: string, isRoot: boolean) {
+    this.shared = shared;
     this.name = name;
     this.isRoot = isRoot;
-    if (isRoot) {
-      sock.on("error", (err) => {
-        process.stderr.write(`[${this.name}] log socket error: ${err.message}\n`);
-      });
-    }
   }
 
   static async connect(addr: string, name: string = DEFAULT_LOGGER_NAME): Promise<LogChannel> {
-    return new LogChannel(await connectTcp(addr), name, true);
+    const shared: LogChannelState = {
+      sock: await connectTcp(addr),
+      connected: true,
+      closed: false,
+    };
+    shared.sock.on("error", (err) => {
+      shared.connected = false;
+      process.stderr.write(`[${name}] log socket error: ${err.message}\n`);
+    });
+    shared.sock.on("close", () => {
+      if (shared.closed || !shared.connected) return;
+      shared.connected = false;
+      process.stderr.write(`[${name}] log socket closed unexpectedly; further logs go to stderr\n`);
+    });
+    return new LogChannel(shared, name, true);
   }
 
   /** Create a sibling logger that shares the underlying socket but
    *  carries a hierarchical name (`parent.suffix`). Only the root
    *  owns the socket — children's `close()` is a no-op. */
   child(suffix: string): LogChannel {
-    return new LogChannel(this.sock, `${this.name}.${suffix}`, false);
+    return new LogChannel(this.shared, `${this.name}.${suffix}`, false);
   }
 
   /** Name reported in the `logger` field of every record this
@@ -87,7 +104,7 @@ export class LogChannel {
     },
   ): void {
     // Drop late records after the log socket has closed.
-    if (this.sock.writableEnded) return;
+    if (this.shared.closed) return;
     // Prepend the logger name to the event message so it surfaces in
     // the Airflow UI task log view, which renders the message text but
     // hides the `logger` JSON field. The field is still emitted for
@@ -99,7 +116,12 @@ export class LogChannel {
       event: `[${this.name}] ${record.event}`,
       timestamp: record.timestamp ?? new Date().toISOString(),
     });
-    this.sock.write(Buffer.from(line + "\n", "utf8"));
+    const payload = line + "\n";
+    if (!this.shared.connected || !this.shared.sock.writable) {
+      process.stderr.write(payload);
+      return;
+    }
+    this.shared.sock.write(Buffer.from(payload, "utf8"));
   }
 
   debug(event: string, args: Record<string, unknown> = {}): void {
@@ -120,8 +142,21 @@ export class LogChannel {
 
   async close(): Promise<void> {
     if (!this.isRoot) return;
+    this.shared.closed = true;
+    if (!this.shared.connected) {
+      this.shared.sock.destroy();
+      return;
+    }
     return new Promise((resolve) => {
-      this.sock.end(() => resolve());
+      const timer = setTimeout(() => {
+        this.shared.sock.destroy();
+        resolve();
+      }, CLOSE_FLUSH_TIMEOUT_MS);
+      timer.unref();
+      this.shared.sock.end(() => {
+        clearTimeout(timer);
+        resolve();
+      });
     });
   }
 }

@@ -410,6 +410,11 @@ class TestFileDiscovery:
         with pytest.raises(ValueError, match="No parser registered"):
             op.execute(context=MagicMock())
 
+    def test_unknown_parser_on_source_bytes_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_bytes=b"a,b\n1,2", file_type=".csv", parser="cvs")
+        with pytest.raises(ValueError, match="No parser found"):
+            op.execute(context=MagicMock())
+
     def test_nonexistent_glob_raises_file_not_found(self, tmp_path):
         op = DocumentLoaderOperator(task_id="test", source_path=str(tmp_path / "*.nope"))
         with pytest.raises(FileNotFoundError, match="No files found"):

@@ -83,12 +83,14 @@ images:
   # timeout (in seconds) for airflow-migrations to complete
   migrationsWaitTimeout: 60
   pod_template:
-    # Note that `images.pod_template.repository` and `images.pod_template.tag` parameters can be overridden
-    # in `config.kubernetes_executor` section. So for these parameters to have effect
-    # `config.kubernetes_executor.worker_container_repository` and
+    # Note that `images.pod_template.repository`, `images.pod_template.tag` and `images.pod_template.digest`
+    # parameters can be overridden in `config.kubernetes_executor` section. So for these parameters
+    # to have effect `config.kubernetes_executor.worker_container_repository` and
     # `config.kubernetes_executor.worker_container_tag` must be not set .
     repository: ~
     tag: ~
+    # Specifying digest takes precedence over tag.
+    digest: ~
     pullPolicy: IfNotPresent
   flower:
     repository: ~

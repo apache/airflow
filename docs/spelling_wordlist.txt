@@ -1175,6 +1175,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OPA
 OpenAI
 openai
 openapi
@@ -1226,6 +1227,7 @@ paramiko
 Params
 params
 parsers
+passthrough
 passwd
 pathlib
 pathType
@@ -1318,6 +1320,8 @@ proto
 Protobuf
 protobuf
 provisioner
+proxied
+proxies
 psql
 psrp
 psycopg
@@ -1422,6 +1426,7 @@ requeue
 requeued
 requeues
 reserialize
+Reserializing
 resetdb
 resizable
 ResourceRequirements
@@ -1616,6 +1621,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+StreamingLogResponse
 strftime
 Stringified
 stringified

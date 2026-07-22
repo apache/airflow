@@ -27,9 +27,9 @@ from fastapi import FastAPI
 from fastapi.routing import Mount
 
 from airflow.api_fastapi.common.dagbag import create_dag_bag
+from airflow.api_fastapi.common.exceptions import init_error_handlers
 from airflow.api_fastapi.core_api.app import (
     init_config,
-    init_error_handlers,
     init_flask_plugins,
     init_middlewares,
     init_views,
@@ -128,15 +128,11 @@ def create_app(apps: str = "all") -> FastAPI:
     if "all" in apps_list or "execution" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
         task_exec_api_app.state.dag_bag = dag_bag
-        init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
     if "all" in apps_list or "core" in apps_list:
-        from airflow import plugins_manager
-
         app.state.dag_bag = dag_bag
         init_plugins(app)
-        plugins_manager.validate_plugin_teams()
         init_auth_manager(app)
         init_flask_plugins(app)
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
