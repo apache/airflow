@@ -748,13 +748,14 @@ class KubernetesExecutor(BaseExecutor):
             messages.append(f"Reading from k8s pod logs failed: {e}")
         return messages, log or [""]
 
+    @staticmethod
+    def _create_log_stream(logs: Iterable[bytes]) -> RawLogStream:
+        for line in logs:
+            yield remove_escape_codes(line.decode())
+
     def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
         messages: list[str] = []
         log_streams: list[RawLogStream] = []
-
-        def create_log_stream(logs: Iterable[bytes]) -> RawLogStream:
-            for line in logs:
-                yield remove_escape_codes(line.decode())
 
         try:
             from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
@@ -793,7 +794,7 @@ class KubernetesExecutor(BaseExecutor):
             log_iter = iter(res)
             first_line = next(log_iter, None)
             if first_line is not None:
-                log_streams.append(create_log_stream(chain([first_line], log_iter)))
+                log_streams.append(self._create_log_stream(chain([first_line], log_iter)))
                 messages.append("Found logs through kube API")
         except Exception as e:
             messages.append(f"Reading from k8s pod logs failed: {e}")
