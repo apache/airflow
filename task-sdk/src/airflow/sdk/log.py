@@ -139,12 +139,19 @@ def configure_logging(
         callsite_parameters=callsite_params,
     )
 
-    # dictConfig has now run — safe to build the watchtower handler.
-    # We append remote processors into the already-configured structlog chain,
-    # inserting before the final renderer (last processor in the chain).
-    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
+    # dictConfig has now run, so it is safe to build the remote handler. Re-inject the remote
+    # processors into the global structlog chain (before the final renderer) for parity with the old
+    # extra_process layout. Task-log streaming itself does not rely on this: it uses the
+    # file-backed logger built from logging_processors(), which loads remote.processors lazily.
+    if (
+        not sending_to_supervisor
+        and (remote := load_remote_log_handler())
+        and (remote_processors := getattr(remote, "processors", None))
+    ):
         current_processors = list(structlog.get_config()["processors"])
         # Insert before the final renderer
+        # NOTE: unlike the old extra_processors path, stdlib-routed records (ProcessorFormatter's
+        # foreign_pre_chain) intentionally do NOT pass through the remote processors.
         updated_processors = current_processors[:-1] + list(remote_processors) + [current_processors[-1]]
         structlog.configure(processors=updated_processors)
 
