@@ -26,15 +26,12 @@ REST API, and the UI). They originated in `java-sdk/adr/` and were moved here fo
 discussion on [apache/airflow#70059](https://github.com/apache/airflow/pull/70059), because they
 bind core interfaces and apply to every language SDK, not just the Java SDK.
 
-- [ADR-0001](0001-java-sdk-airflow-integration.md): Java SDK / Airflow integration and the
-  coordinator extension point.
+- [ADR-0001](0001-java-sdk-airflow-integration.md): Java SDK / Airflow integration and the coordinator extension point.
 - [ADR-0002](0002-workload-execution.md): workload execution through coordinators.
 - [ADR-0003](0003-pure-java-dags.md): pure Java Dags — build-time packaging and code visibility.
 - [ADR-0004](0004-dag-parsing.md): language-specific Dag file processing.
-- [ADR-0005](0005-coordinator-packaging.md): coordinator packaging, module layout, and
-  registration.
-- [ADR-0006](0006-no-lang-sdk-source-display.md): no Lang-SDK source display for mixed-language
-  (`@task.stub`) Dags.
+- [ADR-0005](0005-coordinator-packaging.md): coordinator packaging, module layout, and registration.
+- [ADR-0006](0006-no-lang-sdk-source-display.md): no Lang-SDK source display for mixed-language (`@task.stub`) Dags.
 
 Decisions specific to a single SDK stay next to that SDK — for example, the Go SDK's bundle-format
 decisions live in [`go-sdk/adr/`](../../../go-sdk/adr).
