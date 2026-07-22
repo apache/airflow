@@ -262,6 +262,7 @@ repos:
         name: Update migration ref doc
         language: python
         entry: ../scripts/ci/prek/migration_reference.py
+        args: ["--app", "airflow"]
         pass_filenames: false
         files:
           (?x)
