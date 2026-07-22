@@ -230,6 +230,388 @@ func TestTaskRunnerPanicRetry(t *testing.T) {
 	assertRetryTask(t, result, "panic: something went wrong")
 }
 
+// TestTaskRunnerBindsArgs covers the TaskFlow path through RunTask: the
+// positional-argument spec in ti_context.arg_bindings binds literals onto the
+// task function's data parameters.
+func TestTaskRunnerBindsArgs(t *testing.T) {
+	var gotCountry string
+	var gotMeta map[string]any
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(log *slog.Logger, country string, meta map[string]any) error {
+				gotCountry = country
+				gotMeta = meta
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{
+					"name":      "country",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "uk",
+				},
+				map[string]any{
+					"name":      "meta",
+					"kind":      "literal",
+					"data_type": "object",
+					"value":     map[string]any{"k": "v"},
+				},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+	assert.Equal(t, "uk", gotCountry)
+	assert.Equal(t, map[string]any{"k": "v"}, gotMeta)
+}
+
+// TestTaskRunnerArgBindingsArityMismatch: an argument spec that does not match
+// the function's data parameters fails the task loudly instead of running it
+// with zero values.
+func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
+	ran := false
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(country string, meta map[string]any) error {
+				ran = true
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{
+					"name":      "country",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "uk",
+				},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+	assert.False(t, ran, "the task body must not run on an arity mismatch")
+}
+
+// combineInput is a TaskInput struct whose sole field claims a named entry
+// out of ti_context.arg_bindings.
+type combineInput struct {
+	sdk.TaskInput
+	Region string `arg:"region"`
+}
+
+// TestTaskRunnerBindsTaskInputStructArgs covers the TaskFlow path through
+// RunTask for a TaskInput struct parameter: convertArgBindings must propagate
+// each spec's Name through to binding.Arg so the struct's `arg:"region"` field
+// can claim it by name.
+func TestTaskRunnerBindsTaskInputStructArgs(t *testing.T) {
+	var got combineInput
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(input combineInput) error {
+				got = input
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{
+					"name":      "region",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "eu-west-1",
+				},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+	assert.Equal(t, "eu-west-1", got.Region)
+}
+
+// TestTaskRunnerTaskInputIgnoresUnclaimedDefault: convertArgBindings must
+// propagate from_default so a spec entry the Python side filled from the stub
+// signature's default may go unclaimed by the TaskInput struct.
+func TestTaskRunnerTaskInputIgnoresUnclaimedDefault(t *testing.T) {
+	var got combineInput
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(input combineInput) error {
+				got = input
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{
+					"name":      "region",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "eu-west-1",
+				},
+				map[string]any{
+					"name":         "threshold",
+					"kind":         "literal",
+					"data_type":    "number",
+					"value":        0.75,
+					"from_default": true,
+				},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+	assert.Equal(t, "eu-west-1", got.Region)
+}
+
+// TestTaskRunnerArgBindingsTypeMismatch: a declared Dag type that cannot bind to
+// the Go parameter type fails the task loudly before the body runs.
+func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(count int) error { return nil })
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{
+					"name":      "count",
+					"kind":      "literal",
+					"data_type": "string",
+					"value":     "uk",
+				},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+}
+
+// TestTaskRunnerArgBindingsUnknownKind: a wire spec whose kind is neither xcom
+// nor literal fails the task before the body runs.
+func TestTaskRunnerArgBindingsUnknownKind(t *testing.T) {
+	ran := false
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(country string) error {
+				ran = true
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{"name": "country", "kind": "template", "value": "x"},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+	assert.False(t, ran, "the task body must not run on an unknown binding kind")
+}
+
+// TestTaskRunnerArgBindingsMalformedElement: a wire spec element that is not a
+// map at all fails the task before the body runs.
+func TestTaskRunnerArgBindingsMalformedElement(t *testing.T) {
+	ran := false
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(country string) error {
+				ran = true
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ArgBindings: &genmodels.ArgBindings{"bogus"},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertTaskState(t, result, genmodels.TaskStateStateFailed)
+	assert.False(t, ran, "the task body must not run on a malformed binding element")
+}
+
+// TestTaskRunnerArgBindingsMissingRequiredFields: a wire spec entry without a
+// usable name, or an xcom entry without a task_id, fails the task before the
+// body runs instead of silently binding empty strings.
+func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
+	cases := []struct {
+		name string
+		spec map[string]any
+	}{
+		{name: "missing name", spec: map[string]any{"kind": "literal", "value": "x"}},
+		{name: "empty name", spec: map[string]any{"name": "", "kind": "literal", "value": "x"}},
+		{name: "xcom missing task_id", spec: map[string]any{"name": "country", "kind": "xcom"}},
+		{
+			name: "xcom empty task_id",
+			spec: map[string]any{"name": "country", "kind": "xcom", "task_id": ""},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ran := false
+			bundle := buildBundle(t, func(r bundlev1.Registry) {
+				r.AddDag("test_dag").AddTaskWithName("transform",
+					func(country string) error {
+						ran = true
+						return nil
+					})
+			})
+
+			details := &genmodels.StartupDetails{
+				TI: genmodels.TaskInstance{
+					ID:       "550e8400-e29b-41d4-a716-446655440000",
+					DagID:    "test_dag",
+					TaskID:   "transform",
+					RunID:    "run1",
+					MapIndex: ptr(-1),
+				},
+				BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+				TIContext: genmodels.TIRunContext{
+					ArgBindings: &genmodels.ArgBindings{tc.spec},
+				},
+			}
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+			result := RunTask(context.Background(), bundle, details, comm, logger)
+			assertTaskState(t, result, genmodels.TaskStateStateFailed)
+			assert.False(t, ran, "the task body must not run on an incomplete binding spec")
+		})
+	}
+}
+
+// TestTaskRunnerMalformedSpecHonorsShouldRetry: a spec that fails
+// convertArgBindings terminates with the same retry semantics as a binding
+// failure inside executeTask, not an unconditional FAILED.
+func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
+	bundle := buildBundle(t, func(r bundlev1.Registry) {
+		r.AddDag("test_dag").AddTaskWithName("transform",
+			func(country string) error { return nil })
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "transform",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+		TIContext: genmodels.TIRunContext{
+			ShouldRetry: true,
+			ArgBindings: &genmodels.ArgBindings{
+				map[string]any{"name": "country", "kind": "template", "value": "x"},
+			},
+		},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertRetryTask(t, result, `unknown kind "template"`)
+}
+
 func TestRunTaskHonorsContextCancellation(t *testing.T) {
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("ctxcheck",
