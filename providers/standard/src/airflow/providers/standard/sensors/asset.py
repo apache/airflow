@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     Asset,
@@ -27,6 +26,7 @@ from airflow.providers.common.compat.sdk import (
     PokeReturnValue,
     conf,
 )
+from airflow.providers.standard.exceptions import UnexpectedAssetEventTriggerEventError
 from airflow.providers.standard.triggers.asset import (
     AssetEventTrigger,
     _count_satisfied,
@@ -36,7 +36,7 @@ from airflow.providers.standard.triggers.asset import (
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_4_PLUS
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
     from datetime import datetime
 
     from airflow.providers.common.compat.sdk import Context
@@ -66,15 +66,31 @@ class AssetEventSensor(BaseSensorOperator):
     :param partition_key_regexp_pattern: Filter by partition key regexp pattern.
     :param extra: Filter by key/value pairs contained in the event ``extra`` field.
     :param expected_count: The number of events required to succeed. ``-1`` (the default) means
-        "at least one"; any other value requires an exact match.
+        "at least one" (``count >= 1``); ``0`` means "exactly zero"; any other positive value
+        requires an exact match. Note that if ``limit`` is set below an exact ``expected_count``
+        the condition can never be satisfied (the sensor will wait until it times out).
     :param process_result: A callable (or a dotted import path to one) applied to the fetched
         events before the count check, to transform, deduplicate or filter them. It receives the
         list of asset events and must return a list. In ``deferrable`` mode it must be a top-level
-        importable function (not a lambda or nested function) and its return value must be
-        JSON-serializable, because it runs in the triggerer and its result is returned via the
-        trigger event.
+        importable function (not a lambda, nested function, or bound method) that lives in a module
+        installed on the triggerer -- a function defined in a DAG file will import on the worker but
+        typically fail to import in the triggerer process. Its return value must be JSON-serializable,
+        because it runs in the triggerer and its result is returned via the trigger event. It should
+        be **idempotent / side-effect free**: in deferrable mode it runs once during the initial
+        synchronous poke and again on every fetch in the triggerer.
     :param deferrable: Run the sensor in deferrable mode.
     """
+
+    template_fields: Sequence[str] = (
+        "name",
+        "uri",
+        "alias_name",
+        "partition_key",
+        "partition_key_regexp_pattern",
+        "extra",
+        "after",
+        "before",
+    )
 
     def __init__(
         self,
@@ -111,6 +127,10 @@ class AssetEventSensor(BaseSensorOperator):
                 raise TypeError(f"`asset` must be an Asset or AssetAlias, got {type(asset).__name__}")
         if not (name or uri or alias_name):
             raise ValueError("One of `asset`, `name`, `uri`, or `alias_name` must be provided.")
+        if expected_count < -1:
+            raise ValueError(
+                f"`expected_count` must be -1 (at least one) or a non-negative integer, got {expected_count}."
+            )
 
         self.name = name
         self.uri = uri
@@ -137,16 +157,30 @@ class AssetEventSensor(BaseSensorOperator):
         if self.process_result is None:
             return None
         if isinstance(self.process_result, str):
-            return self.process_result
-        func = self.process_result
-        module = getattr(func, "__module__", "")
-        qualname = getattr(func, "__qualname__", "")
-        if not module or not qualname or "<" in qualname:
+            path = self.process_result
+        else:
+            func = self.process_result
+            module = getattr(func, "__module__", "")
+            qualname = getattr(func, "__qualname__", "")
+            if not module or not qualname or "<" in qualname:
+                raise ValueError(
+                    "In deferrable mode, `process_result` must be a top-level importable function "
+                    "(or a dotted import path string), not a lambda or a nested/local function."
+                )
+            path = f"{module}.{qualname}"
+        # Fail fast at defer time rather than in the triggerer: e.g. a bound method resolves to
+        # ``module.Class.method`` which ``import_string`` cannot import. This validates importability
+        # on the *worker*; the callable must also live in a module installed on the triggerer (a
+        # function defined in a DAG file may import here yet fail there).
+        try:
+            import_string(path)
+        except Exception as exc:
             raise ValueError(
-                "In deferrable mode, `process_result` must be a top-level importable function "
-                "(or a dotted import path string), not a lambda or a nested/local function."
-            )
-        return f"{module}.{qualname}"
+                "In deferrable mode, `process_result` must be importable by a dotted path, but the "
+                f"resolved path {path!r} is not importable ({exc}). Pass a top-level function "
+                "(defined in an installed module, not a DAG file) or an explicit import-path string."
+            ) from exc
+        return path
 
     def poke(self, context: Context) -> PokeReturnValue:
         events = _fetch_asset_events(
@@ -205,4 +239,6 @@ class AssetEventSensor(BaseSensorOperator):
         """Return the processed events once the trigger fires successfully."""
         if event and event.get("status") == "success":
             return event.get("events")
-        raise AirflowException(f"AssetEventSensor received an unexpected trigger event: {event}")
+        raise UnexpectedAssetEventTriggerEventError(
+            f"AssetEventSensor received an unexpected trigger event: {event}"
+        )
