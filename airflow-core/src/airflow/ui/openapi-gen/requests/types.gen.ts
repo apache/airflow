@@ -2378,6 +2378,7 @@ export type DAGWithLatestDagRunsResponse = {
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -3566,6 +3567,7 @@ export type GetDagsUiData = {
     paused?: boolean | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
+    teams?: Array<(string)>;
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
