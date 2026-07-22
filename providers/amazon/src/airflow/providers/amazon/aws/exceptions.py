@@ -78,3 +78,7 @@ class NeptuneImportTaskCancellationFailedError(AirflowException):
 
 class NeptuneImportTaskFailedError(AirflowException):
     """Raised when a Neptune Analytics import task fails to complete successfully."""
+
+
+class QuickSightIngestionFailedError(AirflowException):
+    """Raised when an Amazon QuickSight SPICE ingestion fails or is cancelled."""
