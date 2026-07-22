@@ -524,6 +524,7 @@ downstreams
 dp
 dq
 Drillbit
+driverless
 dropdown
 druidHook
 ds
@@ -1320,6 +1321,8 @@ proto
 Protobuf
 protobuf
 provisioner
+proxied
+proxies
 psql
 psrp
 psycopg
@@ -1424,6 +1427,7 @@ requeue
 requeued
 requeues
 reserialize
+Reserializing
 resetdb
 resizable
 ResourceRequirements
@@ -1618,6 +1622,7 @@ StoredInfoType
 storedInfoType
 str
 Streamable
+StreamingLogResponse
 strftime
 Stringified
 stringified
