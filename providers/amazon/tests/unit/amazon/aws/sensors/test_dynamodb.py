@@ -17,10 +17,13 @@
 
 from __future__ import annotations
 
+import pytest
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
+from airflow.providers.amazon.aws.triggers.dynamodb import DynamoDBValueSensorTrigger
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 
 class TestDynamoDBValueSensor:
@@ -117,6 +120,57 @@ class TestDynamoDBValueSensor:
 
         self.sensor_pk.partition_key_name = "no such key"
         assert self.sensor_pk.poke(None) is False
+
+    def test_sensor_deferrable(self):
+        sensor = DynamoDBValueSensor(
+            task_id="dynamodb_value_sensor_deferrable",
+            table_name=self.table_name,
+            partition_key_name=self.pk_name,
+            partition_key_value=self.pk_value,
+            attribute_name=self.attribute_name,
+            attribute_value=self.attribute_value,
+            sort_key_name=self.sk_name,
+            sort_key_value=self.sk_value,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as defer:
+            sensor.execute({})
+        trigger = defer.value.trigger
+        assert isinstance(trigger, DynamoDBValueSensorTrigger)
+        assert trigger.table_name == self.table_name
+        assert trigger.partition_key_name == self.pk_name
+        assert trigger.partition_key_value == self.pk_value
+        assert trigger.attribute_name == self.attribute_name
+        assert trigger.attribute_value == [self.attribute_value]
+        assert trigger.sort_key_name == self.sk_name
+        assert trigger.sort_key_value == self.sk_value
+
+    def test_execute_complete(self):
+        sensor = DynamoDBValueSensor(
+            task_id="dynamodb_value_sensor_deferrable",
+            table_name=self.table_name,
+            partition_key_name=self.pk_name,
+            partition_key_value=self.pk_value,
+            attribute_name=self.attribute_name,
+            attribute_value=self.attribute_value,
+            deferrable=True,
+        )
+        sensor.execute_complete(context={}, event={"status": "success"})
+
+    def test_fail_execute_complete(self):
+        sensor = DynamoDBValueSensor(
+            task_id="dynamodb_value_sensor_deferrable",
+            table_name=self.table_name,
+            partition_key_name=self.pk_name,
+            partition_key_value=self.pk_value,
+            attribute_name=self.attribute_name,
+            attribute_value=self.attribute_value,
+            deferrable=True,
+        )
+        event = {"status": "failed"}
+        message = f"Trigger error: event is {event}"
+        with pytest.raises(RuntimeError, match=message):
+            sensor.execute_complete(context={}, event=event)
 
 
 class TestDynamoDBMultipleValuesSensor:
