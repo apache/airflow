@@ -20,15 +20,18 @@ import shlex
 import subprocess
 import sys
 import textwrap
+from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast
 
 import rich_click as click
 from rich.console import Console
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
+    from fastapi.routing import RouteContext
+    from starlette.routing import BaseRoute
 
 
 click.rich_click.COLOR_SYSTEM = "standard"
@@ -39,6 +42,10 @@ AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src"
 AIRFLOW_PROVIDERS_PATH = AIRFLOW_ROOT_PATH / "providers"
 AIRFLOW_DOCS_PATH = AIRFLOW_ROOT_PATH / "docs"
 AIRFLOW_DIST_PATH = Path("/dist")
+
+
+class _OpenAPIRoute(Protocol):
+    include_in_schema: bool
 
 
 @contextmanager
@@ -67,13 +74,21 @@ def run_command(cmd: list[str], github_actions: bool, **kwargs) -> subprocess.Co
 def generate_openapi_file(app: FastAPI, file_path: Path, prefix: str = "", only_ui: bool = False):
     import yaml
     from fastapi.openapi.utils import get_openapi
-    from fastapi.routing import APIRoute
+    from fastapi.routing import APIRoute, iter_route_contexts
 
+    routes: Sequence[BaseRoute | RouteContext] = app.routes
     if only_ui:
-        for route in app.routes:
-            if not isinstance(route, APIRoute):
-                continue
-            route.include_in_schema = route.path.startswith("/ui/")
+        route_contexts = [
+            route_context
+            for route_context in iter_route_contexts(app.routes)
+            if isinstance(route_context.original_route, APIRoute)
+            and (route_path := route_context.path) is not None
+            and route_path.startswith("/ui/")
+        ]
+        # UI routers are excluded from the public schema, so opt their materialized contexts back in.
+        for route_context in route_contexts:
+            cast("_OpenAPIRoute", route_context._effective_route).include_in_schema = True
+        routes = route_contexts
 
     with file_path.open("w+") as f:
         openapi_schema = get_openapi(
@@ -81,7 +96,7 @@ def generate_openapi_file(app: FastAPI, file_path: Path, prefix: str = "", only_
             version=app.version,
             openapi_version=app.openapi_version,
             description=app.description,
-            routes=app.routes,
+            routes=routes,
         )
         if prefix:
             openapi_schema["paths"] = {

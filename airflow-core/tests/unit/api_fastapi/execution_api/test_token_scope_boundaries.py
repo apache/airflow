@@ -37,9 +37,9 @@ Maintenance:
 from __future__ import annotations
 
 import pytest
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, iter_route_contexts
 
-from airflow.api_fastapi.execution_api.routes import execution_api_router
+from airflow.api_fastapi.execution_api.routes import build_execution_api_router
 
 # Routes that intentionally deviate from the default (execution-only) policy.
 # Any route NOT listed here must accept only {"execution"}.
@@ -55,12 +55,13 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
 def _all_route_policies() -> dict[str, set[str]]:
     """Return a map of all API routes and their allowed token types."""
     policy_map: dict[str, set[str]] = {}
-    for route in execution_api_router.routes:
-        if isinstance(route, APIRoute):
-            allowed_tokens = set(getattr(route, "allowed_token_types", {"execution"}))
-            if route.methods:
-                for method in route.methods:
-                    policy_map[f"{method} {route.path}"] = allowed_tokens
+    router = build_execution_api_router()
+    for route_context in iter_route_contexts(router.routes):
+        if isinstance(route_context.route, APIRoute):
+            allowed_tokens = set(getattr(route_context.original_route, "allowed_token_types", {"execution"}))
+            if route_context.methods:
+                for method in route_context.methods:
+                    policy_map[f"{method} {route_context.path}"] = allowed_tokens
     return policy_map
 
 

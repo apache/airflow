@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from fastapi import APIRouter
+from fastapi.routing import iter_route_contexts
+
 from airflow.api_fastapi.core_api.routes.public import authenticated_router, public_router
 
 # Set of paths that are allowed to be accessible without authentication
@@ -27,21 +30,41 @@ NO_AUTH_PATHS = {
 }
 
 
+def _get_paths_excluded_from_authentication(public: APIRouter, authenticated: APIRouter) -> set[str]:
+    public_paths = {route.path for route in iter_route_contexts(public.routes) if route.path is not None}
+    authenticated_paths = {
+        f"{public.prefix}{route.path}"
+        for route in iter_route_contexts(authenticated.routes)
+        if route.path is not None
+    }
+    return public_paths - authenticated_paths
+
+
 def test_no_auth_routes():
     """
     Verify that only the routes with NO_AUTH_PATHS are excluded from the `authenticated_router`. This
     test ensures that a router is not added to the non-authenticated router by mistake.
     """
-    paths_in_public_router = {route.path for route in public_router.routes}
-    paths_in_authenticated_router = {
-        f"{public_router.prefix}{route.path}" for route in authenticated_router.routes
+    assert _get_paths_excluded_from_authentication(public_router, authenticated_router) == NO_AUTH_PATHS
+
+
+def test_no_auth_routes_guard_detects_unprotected_route():
+    """Prove the guard reports a route accidentally registered outside the authenticated router."""
+    test_public_router = APIRouter(prefix="/api/v2")
+    test_authenticated_router = APIRouter()
+
+    @test_public_router.get("/unprotected")
+    def unprotected_route():
+        return None
+
+    assert _get_paths_excluded_from_authentication(test_public_router, test_authenticated_router) == {
+        "/api/v2/unprotected"
     }
-    assert paths_in_public_router - paths_in_authenticated_router == NO_AUTH_PATHS
 
 
 def test_routes_with_responses():
     """Verify that each route in `public_router` has appropriate responses configured."""
-    for route in public_router.routes:
+    for route in iter_route_contexts(public_router.routes):
         if route.path in NO_AUTH_PATHS:
             # Routes in NO_AUTH_PATHS should not have 401 or 403 response codes
             assert 401 not in route.responses, f"Route {route.path} should not require auth (401)"
