@@ -47,7 +47,7 @@ const MockIntersectionObserver = function MockIntersectionObserver(
     callback,
     disconnect: vi.fn(),
     observe: vi.fn(),
-    root: null,
+    root: options?.root ?? null,
     rootMargin: options?.rootMargin ?? "0px",
     scrollMargin: options?.scrollMargin ?? "0px",
     takeRecords: vi.fn(takeNoRecords),
@@ -90,7 +90,7 @@ describe("useNearViewport", () => {
     expect(screen.queryByText("first controls")).not.toBeInTheDocument();
     expect(observers).toHaveLength(1);
     expect(observers[0]?.rootMargin).toBe("600px 0px");
-    expect(observers[0]?.scrollMargin).toBe("600px 0px");
+    expect(observers[0]?.scrollMargin).toBe("0px");
 
     const [observer] = observers;
     const shell = screen.getByTestId("first-shell");
@@ -139,6 +139,56 @@ describe("useNearViewport", () => {
 
     expect(screen.getByText("first placeholder")).toBeInTheDocument();
     expect(screen.getByText("second controls")).toBeInTheDocument();
+  });
+
+  it("uses the nearest scroll container as the preload root", () => {
+    installIntersectionObserver();
+    render(
+      <div
+        data-testid="scroll-root"
+        ref={(element) => {
+          if (element !== null) {
+            Object.defineProperties(element, {
+              clientHeight: { configurable: true, value: 100 },
+              scrollHeight: { configurable: true, value: 1000 },
+            });
+          }
+        }}
+        style={{ overflowY: "auto" }}
+      >
+        <TestCard name="first" />
+      </div>,
+    );
+
+    expect(observers).toHaveLength(1);
+    expect(observers[0]?.root).toBe(screen.getByTestId("scroll-root"));
+    expect(observers[0]?.rootMargin).toBe("600px 0px");
+  });
+
+  it("skips an overflow wrapper that does not actually scroll", () => {
+    installIntersectionObserver();
+    render(
+      <div
+        data-testid="scroll-root"
+        ref={(element) => {
+          if (element !== null) {
+            Object.defineProperties(element, {
+              clientHeight: { configurable: true, value: 100 },
+              scrollHeight: { configurable: true, value: 1000 },
+            });
+          }
+        }}
+        style={{ overflowY: "auto" }}
+      >
+        <div data-testid="overflow-wrapper" style={{ overflowY: "auto" }}>
+          <TestCard name="first" />
+        </div>
+      </div>,
+    );
+
+    expect(observers).toHaveLength(1);
+    expect(observers[0]?.root).toBe(screen.getByTestId("scroll-root"));
+    expect(observers[0]?.root).not.toBe(screen.getByTestId("overflow-wrapper"));
   });
 
   it("unobserves a pending shell and releases the shared observer on unmount", () => {

@@ -16,22 +16,57 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { startTransition, useEffect, useRef, useState, type RefObject } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
 const NEAR_VIEWPORT_MARGIN = "600px 0px";
 
-const listeners = new Map<Element, () => void>();
-let sharedObserver: IntersectionObserver | undefined;
+type ObserverState = {
+  readonly listeners: Map<Element, () => void>;
+  readonly observer: IntersectionObserver;
+};
 
-const releaseObserverWhenIdle = () => {
-  if (listeners.size === 0) {
-    sharedObserver?.disconnect();
-    sharedObserver = undefined;
+const observerStates = new Map<Element | null, ObserverState>();
+
+const getScrollRoot = (element: Element): Element | null => {
+  let ancestor = element.parentElement;
+  let overflowAncestor: Element | null = null;
+
+  while (ancestor !== null) {
+    const { overflowY } = globalThis.getComputedStyle(ancestor);
+
+    if (/^(?:auto|overlay|scroll)$/u.test(overflowY)) {
+      overflowAncestor ??= ancestor;
+
+      if (ancestor.scrollHeight > ancestor.clientHeight) {
+        return ancestor;
+      }
+    }
+
+    ancestor = ancestor.parentElement;
+  }
+
+  return overflowAncestor;
+};
+
+const releaseObserverWhenIdle = (root: Element | null, state: ObserverState) => {
+  if (state.listeners.size === 0) {
+    state.observer.disconnect();
+
+    if (observerStates.get(root) === state) {
+      observerStates.delete(root);
+    }
   }
 };
 
-const getSharedObserver = (observerConstructor: typeof IntersectionObserver) => {
-  sharedObserver ??= new observerConstructor(
+const getSharedObserver = (observerConstructor: typeof IntersectionObserver, root: Element | null) => {
+  const currentState = observerStates.get(root);
+
+  if (currentState !== undefined) {
+    return currentState;
+  }
+
+  const listeners = new Map<Element, () => void>();
+  const observer = new observerConstructor(
     (entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) {
@@ -42,44 +77,58 @@ const getSharedObserver = (observerConstructor: typeof IntersectionObserver) => 
 
         if (listener !== undefined) {
           listeners.delete(entry.target);
-          sharedObserver?.unobserve(entry.target);
+          observer.unobserve(entry.target);
           listener();
         }
       });
-      releaseObserverWhenIdle();
+      const observerState = observerStates.get(root);
+
+      if (observerState !== undefined) {
+        releaseObserverWhenIdle(root, observerState);
+      }
     },
-    { rootMargin: NEAR_VIEWPORT_MARGIN, scrollMargin: NEAR_VIEWPORT_MARGIN },
+    { root, rootMargin: NEAR_VIEWPORT_MARGIN },
   );
 
-  return sharedObserver;
+  const state = { listeners, observer };
+
+  observerStates.set(root, state);
+
+  return state;
 };
 
 const observeNearViewport = (element: Element, listener: () => void) => {
   const observerConstructor = (globalThis as { IntersectionObserver?: typeof IntersectionObserver })
     .IntersectionObserver;
 
+  // If observation is unavailable, we immediately call the listener.
   if (observerConstructor === undefined) {
     listener();
 
     return undefined;
   }
 
-  listeners.set(element, listener);
-  getSharedObserver(observerConstructor).observe(element);
+  const root = getScrollRoot(element);
+  const state = getSharedObserver(observerConstructor, root);
+
+  state.listeners.set(element, listener);
+  state.observer.observe(element);
 
   return () => {
-    listeners.delete(element);
-    sharedObserver?.unobserve(element);
-    releaseObserverWhenIdle();
+    state.listeners.delete(element);
+    state.observer.unobserve(element);
+    releaseObserverWhenIdle(root, state);
   };
 };
 
 export const useNearViewport = <TElement extends Element>(): {
   readonly isNearViewport: boolean;
   readonly ref: RefObject<TElement | null>;
+  readonly showContent: () => void;
 } => {
   const ref = useRef<TElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(false);
+  const showContent = useCallback(() => setIsNearViewport(true), []);
 
   useEffect(() => {
     const element = ref.current;
@@ -89,9 +138,9 @@ export const useNearViewport = <TElement extends Element>(): {
     }
 
     return observeNearViewport(element, () => {
-      startTransition(() => setIsNearViewport(true));
+      startTransition(showContent);
     });
-  }, [isNearViewport]);
+  }, [isNearViewport, showContent]);
 
-  return { isNearViewport, ref };
+  return { isNearViewport, ref, showContent };
 };

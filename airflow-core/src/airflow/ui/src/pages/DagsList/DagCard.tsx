@@ -44,7 +44,7 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
-  const { isNearViewport, ref } = useNearViewport<HTMLDivElement>();
+  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>();
 
   const refetchInterval = useAutoRefresh({});
 
@@ -55,6 +55,7 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
       borderWidth={1}
       data-testid="dag-card"
       minHeight="140px"
+      onFocusCapture={showContent}
       overflow="hidden"
       ref={ref}
     >
@@ -67,7 +68,7 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
           </Tooltip>
           <DagTags tags={dag.tags} />
         </HStack>
-        <HStack data-testid="dag-card-actions" gap={1} minHeight="32px" minWidth="200px">
+        <HStack data-testid="dag-card-actions" gap={1} minHeight="32px">
           {isNearViewport ? <DagCardActions dag={dag} /> : undefined}
         </HStack>
       </Flex>
@@ -144,7 +145,7 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
           </Box>
         </GridItem>
         <GridItem alignSelf="end" gridColumn={1} gridRow={2}>
-          <Box minHeight="22px" minWidth="200px">
+          <Box minHeight="22px">
             {isNearViewport ? (
               <DagRunStateCounts
                 counts={runStateCounts}
