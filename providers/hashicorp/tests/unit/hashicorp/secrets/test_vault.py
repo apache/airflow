@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.hashicorp.secrets.vault import VaultBackend
 
 from tests_common.test_utils.config import conf_vars
@@ -910,3 +911,37 @@ class TestVaultSecrets:
         test_client = VaultBackend(**kwargs)
         assert test_client.get_config("test") is None
         mock_hvac.Client.assert_not_called()
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_global_secrets_path(self, mock_hvac, secret_not_found, connection_result):
+        """
+        Verify if the (deprecated) global_secrets_path is appended to connections path.
+        """
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.side_effect = [secret_not_found, connection_result]
+
+        kwargs = {
+            "connections_path": "connections",
+            "global_secrets_path": "connections/common",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        }
+
+        with pytest.warns(AirflowProviderDeprecationWarning):  # Ensure global_secrets_path raises a deprecation warning
+            test_client = VaultBackend(**kwargs)
+        connection = test_client.get_connection(conn_id="test_postgres")
+        mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
+            [
+                mock.call(
+                    path=path,
+                    mount_point="airflow",
+                    version=None,
+                    raise_on_deleted_version=True,
+                )
+                for path in ("connections/test_postgres", "connections/common/test_postgres")
+            ]
+        )
+        assert connection.get_uri() == "postgres://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
