@@ -81,6 +81,8 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @param data.sourceTaskId
 * @param data.sourceRunId
 * @param data.sourceMapIndex
+* @param data.partitionKey
+* @param data.partitionKeyRegexpPattern Filter results by matching this regular expression against the field value.
 * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
 *
 * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``name_prefix_pattern`` parameter when possible.
@@ -93,7 +95,7 @@ export const prefetchUseAssetServiceGetAssetAlias = (queryClient: QueryClient, {
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }: {
   assetId?: number;
   extra?: string[];
   limit?: number;
@@ -101,6 +103,8 @@ export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, 
   namePrefixPattern?: string;
   offset?: number;
   orderBy?: string[];
+  partitionKey?: string;
+  partitionKeyRegexpPattern?: string;
   sourceDagId?: string;
   sourceMapIndex?: number;
   sourceRunId?: string;
@@ -109,7 +113,7 @@ export const prefetchUseAssetServiceGetAssetEvents = (queryClient: QueryClient, 
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, timestampGt, timestampGte, timestampLt, timestampLte }) });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -198,6 +202,23 @@ export const prefetchUseBackfillServiceListBackfills = (queryClient: QueryClient
 export const prefetchUseBackfillServiceGetBackfill = (queryClient: QueryClient, { backfillId }: {
   backfillId: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceGetBackfillKeyFn({ backfillId }), queryFn: () => BackfillService.getBackfill({ backfillId }) });
+/**
+* List Backfill Dag Runs
+* List Dag runs associated with a backfill, including skipped slots.
+* @param data The data for the request.
+* @param data.backfillId
+* @param data.limit
+* @param data.offset
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+* @returns BackfillDagRunCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseBackfillServiceListBackfillDagRuns = (queryClient: QueryClient, { backfillId, limit, offset, orderBy }: {
+  backfillId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string[];
+}) => queryClient.prefetchQuery({ queryKey: Common.UseBackfillServiceListBackfillDagRunsKeyFn({ backfillId, limit, offset, orderBy }), queryFn: () => BackfillService.listBackfillDagRuns({ backfillId, limit, offset, orderBy }) });
 /**
 * List Backfills Ui
 * @param data The data for the request.
@@ -1420,13 +1441,15 @@ export const prefetchUseImportErrorServiceGetImportErrors = (queryClient: QueryC
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dag_id, state, job_type, start_date, end_date, latest_heartbeat, executor_class, hostname, unixname`
 * @param data.jobState
+* @param data.dagId
 * @param data.jobType
 * @param data.hostname
 * @param data.executorClass
 * @returns JobCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }: {
+export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }: {
+  dagId?: string;
   endDateGt?: string;
   endDateGte?: string;
   endDateLt?: string;
@@ -1443,7 +1466,7 @@ export const prefetchUseJobServiceGetJobs = (queryClient: QueryClient, { endDate
   startDateGte?: string;
   startDateLt?: string;
   startDateLte?: string;
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseJobServiceGetJobsKeyFn({ endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => JobService.getJobs({ endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }) });
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseJobServiceGetJobsKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => JobService.getJobs({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, executorClass, hostname, isAlive, jobState, jobType, limit, offset, orderBy, startDateGt, startDateGte, startDateLt, startDateLte }) });
 /**
 * Get Plugins
 * @param data The data for the request.
