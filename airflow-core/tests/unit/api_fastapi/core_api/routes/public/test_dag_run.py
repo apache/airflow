@@ -1612,7 +1612,7 @@ class TestPatchDagRun:
         assert listener.state == listener_state
         if expected_msg is not None:
             assert listener.dag_run_msg == expected_msg
-            assert listener.dag_has_dag_attr is True
+            assert listener.dag_run_has_dag_attr is True
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_patch_dag_run_listener_sees_note_when_note_and_state_both_patched(
