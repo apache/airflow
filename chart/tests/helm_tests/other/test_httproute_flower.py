@@ -290,7 +290,7 @@ class TestHTTPRouteFlower:
         )
         assert docs == []
 
-    @pytest.mark.parametrize("executor", ["LocalExecutor", "KubernetesExecutor"])
+    @pytest.mark.parametrize("executor", ["LocalExecutor", "KubernetesExecutor", "LocalExecutor,KubernetesExecutor"])
     def test_should_not_render_without_celery_executor(self, executor):
         docs = render_chart(
             values={
