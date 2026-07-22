@@ -477,7 +477,6 @@ class KubernetesExecutor(BaseExecutor):
         self.running.discard(task.key)
         if self.event_buffer.get(task.key) == (TaskInstanceState.QUEUED, self.scheduler_job_id):
             self.event_buffer.pop(task.key, None)
-        Stats.incr("kubernetes_executor.stale_workload_dropped")
 
     def sync(self) -> None:
         """Synchronize task state."""
