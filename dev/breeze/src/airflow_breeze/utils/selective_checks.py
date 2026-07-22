@@ -93,6 +93,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
+AREA_E2E_TESTS_LABEL = "area:e2e-tests"
 AREA_KUBERNETES_TESTS_LABEL = "area:kubernetes-tests"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
@@ -135,6 +136,7 @@ class FileGroupForCi(Enum):
     GO_SDK_E2E_FILES = auto()
     OPENLINEAGE_E2E_FILES = auto()
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
+    TS_SDK_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -270,6 +272,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/conftest\.py$",
             r"^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$",
             r"^airflow-e2e-tests/docker/openlineage-compat\.Dockerfile$",
+        ],
+        FileGroupForCi.TS_SDK_E2E_FILES: [
+            r"^ts-sdk/(?!.*\.md$).*",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/ts_sdk_tests/.*",
+            r"^airflow-e2e-tests/docker/ts\.yml$",
+            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -1079,6 +1088,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_COMPAT_FILES)
 
     @cached_property
+    def run_ts_sdk_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TS_SDK_E2E_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1208,6 +1221,12 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
+        if AREA_E2E_TESTS_LABEL in self._pr_labels:
+            console_print(
+                "[warning]Building the PROD image to run Airflow E2E tests because "
+                f"label '{AREA_E2E_TESTS_LABEL}' is in {self._pr_labels}[/]"
+            )
+            return True
         return (
             self.run_kubernetes_tests
             or self.run_helm_tests
@@ -1222,6 +1241,7 @@ class SelectiveChecks:
             or self.run_go_sdk_e2e_tests
             or self.run_openlineage_e2e_tests
             or self.run_openlineage_e2e_compat_tests
+            or self.run_ts_sdk_e2e_tests
             or self.run_ui_e2e_tests
         )
 

@@ -1,4 +1,18 @@
 {
+  "deadlines": {
+    "pending": {
+      "empty": "No hay plazos próximos",
+      "title": "Próximos"
+    },
+    "recentlyMissed": {
+      "empty": "No hay plazos incumplidos",
+      "title": "Plazos Incumplidos"
+    },
+    "showMore": "Mostrar más",
+    "title": "Plazos"
+  },
+  "deferredSlotsNotCounted": "Diferidos no contados en slots: {{count}}",
+  "deferredSlotsNotCountedTooltip": "Las tareas diferidas mostradas en la barra se cuentan contra los slots del pool. Las tareas diferidas mostradas debajo de la barra provienen de pools que no cuentan las tareas diferidas contra los slots.",
   "favorite": {
     "favoriteDags_many": "Primeros {{count}} Dags Favoritos",
     "favoriteDags_one": "Primer {{count}} Dag Favorito",
@@ -31,7 +45,8 @@
   "poolSlots": "Slots del Pool",
   "sortBy": {
     "newestFirst": "Más Recientes",
-    "oldestFirst": "Más Antiguos"
+    "oldestFirst": "Más Antiguos",
+    "placeholder": "Ordenar por"
   },
   "source": "Origen",
   "stats": {

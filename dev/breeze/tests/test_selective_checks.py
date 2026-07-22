@@ -813,6 +813,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("ts-sdk/src/coordinator/runtime.ts",),
+                {
+                    "prod-image-build": "true",
+                    "run-unit-tests": "false",
+                    "run-task-sdk-tests": "false",
+                    "run-task-sdk-integration-tests": "false",
+                    "run-ts-sdk-e2e-tests": "true",
+                    "run-go-sdk-e2e-tests": "false",
+                    "full-tests-needed": "false",
+                },
+                id="TypeScript SDK files changed - TS SDK e2e tests and prod image build should run",
+            )
+        ),
+        (
+            pytest.param(
+                ("ts-sdk/README.md",),
+                {
+                    "prod-image-build": "false",
+                    "run-ts-sdk-e2e-tests": "false",
+                    "full-tests-needed": "false",
+                },
+                id="TypeScript SDK README-only change - TS SDK e2e tests should be skipped",
+            )
+        ),
+        (
+            pytest.param(
                 ("airflow-ctl/src/airflowctl/random.py",),
                 {
                     "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1083,7 +1109,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
                 "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1110,9 +1136,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
-                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
-                            "Providers[google]",
+                            "common.ai,common.compat,common.messaging,common.sql,databricks,exasol,ftp,"
+                            "http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,"
+                            "teradata] Providers[google]",
                         }
                     ]
                 ),
@@ -1155,7 +1181,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
                 "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1179,9 +1205,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
-                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
-                            "Providers[google]",
+                            "common.ai,common.compat,common.messaging,common.sql,databricks,exasol,ftp,"
+                            "http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,"
+                            "teradata] Providers[google]",
                         }
                     ]
                 ),
@@ -3489,6 +3515,19 @@ def test_run_kubernetes_tests_forced_by_label_with_no_changed_files():
         pr_labels=("area:kubernetes-tests",),
     )
     assert checks.run_kubernetes_tests is True
+    assert checks.full_tests_needed is False
+
+
+@pytest.mark.parametrize("files", [("INTHEWILD.md",), ()], ids=["unrelated-file", "no-files"])
+def test_prod_image_build_forced_by_e2e_tests_label(files):
+    checks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+        pr_labels=("area:e2e-tests",),
+    )
+    assert checks.prod_image_build is True
     assert checks.full_tests_needed is False
 
 
