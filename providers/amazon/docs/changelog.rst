@@ -26,6 +26,13 @@
 Changelog
 ---------
 
+.. note::
+    ``RedshiftSQLHook.get_sqlalchemy_engine()``, used for the SQLAlchemy engine backing
+    lineage/reflection, now resolves an explicit Postgres DB-API driver for a bare
+    ``postgresql://`` URL, preferring ``psycopg`` (v3) when importable and falling back to
+    ``psycopg2``. Where both drivers are installed, this engine now uses ``psycopg`` (v3),
+    matching the sync Postgres driver default change in ``apache-airflow-providers-postgres``.
+
 9.32.0
 ......
 
