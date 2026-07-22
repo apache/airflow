@@ -344,6 +344,7 @@ class TestTaskInstanceOperations:
                     assert actual_body["pid"] == 100
                     assert actual_body["start_date"] == start_date
                     assert actual_body["state"] == "running"
+                    assert actual_body["external_executor_id"] == "launch-token"
                     return httpx.Response(
                         status_code=200,
                         json=ti_context.model_dump(mode="json"),
@@ -351,7 +352,7 @@ class TestTaskInstanceOperations:
                 return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
             client = make_client(transport=httpx.MockTransport(handle_request))
-            resp = client.task_instances.start(ti_id, 100, start_date)
+            resp = client.task_instances.start(ti_id, 100, start_date, external_executor_id="launch-token")
             assert resp == ti_context
             assert call_count == 3
 

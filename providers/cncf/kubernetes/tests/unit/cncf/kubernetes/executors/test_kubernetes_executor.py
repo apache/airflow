@@ -969,6 +969,94 @@ class TestKubernetesExecutor:
             finally:
                 kubernetes_executor.end()
 
+    @pytest.mark.db_test
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="workloads include external_executor_id on Airflow 3.2+"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_sync_drops_workload_with_stale_external_executor_id(
+        self,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        create_task_instance,
+        session,
+    ):
+        """A delayed Kubernetes workload must not create a pod after its launch token changes."""
+        from airflow.executors.workloads import ExecuteTask
+
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            ti = create_task_instance(state=TaskInstanceState.QUEUED)
+            ti.queued_by_job_id = executor.job_id
+            ti.external_executor_id = "current-launch-token"
+            session.merge(ti)
+            session.commit()
+
+            workload = ExecuteTask.make(ti)
+            executor.queue_workload(workload, session=session)
+            executor._process_workloads([workload])
+
+            ti.external_executor_id = "new-launch-token"
+            session.merge(ti)
+            session.commit()
+
+            assert executor.kube_scheduler is not None
+            executor.kube_scheduler.run_next = mock.Mock()
+            executor.sync()
+
+            executor.kube_scheduler.run_next.assert_not_called()
+            assert executor.task_queue is not None
+            assert executor.task_queue.empty()
+            assert ti.key not in executor.running
+            assert ti.key not in executor.event_buffer
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_2_PLUS, reason="workloads include external_executor_id on Airflow 3.2+"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_sync_creates_pod_when_external_executor_id_matches(
+        self,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        create_task_instance,
+        session,
+    ):
+        """A Kubernetes workload whose launch token still matches the DB must create a pod."""
+        from airflow.executors.workloads import ExecuteTask
+
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            ti = create_task_instance(state=TaskInstanceState.QUEUED)
+            ti.queued_by_job_id = executor.job_id
+            ti.external_executor_id = "current-launch-token"
+            session.merge(ti)
+            session.commit()
+
+            workload = ExecuteTask.make(ti)
+            executor.queue_workload(workload, session=session)
+            executor._process_workloads([workload])
+            assert executor.event_buffer[ti.key] == (TaskInstanceState.QUEUED, "current-launch-token")
+
+            # The DB token is left untouched, so the queued workload still owns the launch.
+            assert executor.kube_scheduler is not None
+            executor.kube_scheduler.run_next = mock.Mock()
+            executor.sync()
+
+            executor.kube_scheduler.run_next.assert_called_once()
+            created_job = executor.kube_scheduler.run_next.call_args.args[0]
+            assert created_job.key == ti.key
+            assert executor.task_queue is not None
+            assert executor.task_queue.empty()
+        finally:
+            executor.end()
+
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )

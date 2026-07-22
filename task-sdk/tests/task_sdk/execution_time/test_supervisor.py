@@ -801,7 +801,7 @@ class TestWatchedSubprocess:
         assert exit_code == 0, captured_logs
 
         # Validate calls to the client
-        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
+        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY, None)
         mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,
@@ -957,6 +957,8 @@ class TestWatchedSubprocess:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == f"/task-instances/{ti_id}/run":
+                body = json.loads(request.read())
+                assert body["external_executor_id"] == "launch-token"
                 return httpx.Response(
                     409,
                     json={
@@ -985,6 +987,7 @@ class TestWatchedSubprocess:
                     try_number=1,
                     dag_version_id=uuid7(),
                     queue="default",
+                    external_executor_id="launch-token",
                 ),
                 client=make_client(transport=httpx.MockTransport(handle_request)),
                 target=subprocess_main,

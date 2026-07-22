@@ -24,7 +24,7 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from subprocess import check_call, check_output
+from subprocess import CalledProcessError, check_call, check_output
 from typing import Literal
 
 import pytest
@@ -129,7 +129,26 @@ class BaseK8STest:
 
     @staticmethod
     def _num_pods_in_namespace(namespace: str):
-        air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
+        last_error: CalledProcessError | None = None
+        for attempt in range(5):
+            try:
+                air_pod = check_output(
+                    ["kubectl", "get", "pods", "-n", namespace], stderr=subprocess.STDOUT
+                ).decode()
+                break
+            except CalledProcessError as ex:
+                last_error = ex
+                output = (ex.output or b"").decode(errors="replace")
+                if "NotFound" in output or "not found" in output:
+                    return 0
+                print(
+                    f"Attempt {attempt}: unable to list pods in namespace {namespace}, retrying. "
+                    f"kubectl output: {output}"
+                )
+                time.sleep(2)
+        else:
+            assert last_error is not None
+            raise last_error
         pod_lines = air_pod.splitlines()
         names = [re.compile(r"\s+").split(x)[0] for x in pod_lines if "airflow" in x]
         return len(names)

@@ -163,6 +163,7 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
+            TI.external_executor_id,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -190,6 +191,13 @@ def ti_run(
 
     # We exclude_unset to avoid updating fields that are not set in the payload
     data = ti_run_payload.model_dump(exclude_unset=True)
+    # Only fence on the launch token when the worker actually presented one. Older Task SDK
+    # clients (e.g. mid rolling-upgrade, before this field existed) omit it entirely; treating
+    # that as a stale launch would 409 every task start for pre-assigning executors
+    # (KubernetesExecutor, CeleryExecutor) until every worker is upgraded. When it is absent we
+    # fall back to state-based validation, matching the pre-token behavior.
+    payload_has_external_executor_id = "external_executor_id" in data
+    payload_external_executor_id = data.pop("external_executor_id", None)
 
     # don't update start date when resuming from deferral
     if ti.next_kwargs:
@@ -208,6 +216,23 @@ def ti_run(
         ti_run_payload.pid,
     ):
         log.info("Duplicate start request received", hostname=ti_run_payload.hostname)
+    elif (
+        payload_has_external_executor_id
+        and ti.external_executor_id is not None
+        and ti.external_executor_id != payload_external_executor_id
+    ):
+        log.warning(
+            "Cannot start Task Instance with stale executor launch token",
+            expected_external_executor_id=ti.external_executor_id,
+            provided_external_executor_id=payload_external_executor_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "stale_executor_launch",
+                "message": "TI executor launch token does not match the current queued task instance",
+            },
+        )
     elif previous_state not in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING):
         log.warning(
             "Cannot start Task Instance in invalid state",

@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
@@ -59,7 +59,7 @@ from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -100,6 +100,7 @@ class KubernetesExecutor(BaseExecutor):
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
     supports_multi_team: bool = True
+    pre_assigns_external_executor_id: ClassVar[bool] = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
         # In the v3 path, we store workloads, not commands as strings.
@@ -363,9 +364,21 @@ class KubernetesExecutor(BaseExecutor):
                     queue,
                 )
 
-        self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
         self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
+        event_info = self.scheduler_job_id
+        try:
+            from airflow.executors.workloads import ExecuteTask
+        except ImportError:
+            pass
+        else:
+            try:
+                if len(command) == 1 and isinstance(command[0], ExecuteTask):
+                    event_info = getattr(command[0].ti, "external_executor_id", None) or self.scheduler_job_id
+            except TypeError:
+                pass
+
+        self.event_buffer[key] = (TaskInstanceState.QUEUED, event_info)
         self.task_queue.put(job)
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
@@ -393,6 +406,98 @@ class KubernetesExecutor(BaseExecutor):
             del self.queued_tasks[key]
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
+
+    def _should_create_pod_for_job(self, task: KubernetesJob, *, session: Session | None = None) -> bool:
+        """Check whether a queued Kubernetes job still owns the current task launch token."""
+        try:
+            from airflow.executors.workloads import ExecuteTask
+        except ImportError:
+            return True
+
+        from airflow.models.taskinstance import TaskInstance
+
+        if not task.command or not isinstance(task.command[0], ExecuteTask):
+            return True
+
+        workload = task.command[0]
+        workload_ti = workload.ti
+        launch_token = getattr(workload_ti, "external_executor_id", None)
+
+        if session is None:
+            with create_session() as session:
+                return self._should_create_pod_for_job(task, session=session)
+
+        try:
+            scheduler_job_id = int(self.scheduler_job_id) if self.scheduler_job_id is not None else None
+        except ValueError:
+            self.log.debug(
+                "Skipping stale Kubernetes workload check because scheduler_job_id %r is not numeric",
+                self.scheduler_job_id,
+            )
+            return True
+
+        ti = session.execute(
+            select(
+                TaskInstance.id,
+                TaskInstance.state,
+                TaskInstance.try_number,
+                TaskInstance.queued_by_job_id,
+                TaskInstance.external_executor_id,
+            ).where(TaskInstance.id == workload_ti.id)
+        ).one_or_none()
+        if ti is None:
+            self.log.info(
+                "Dropping stale Kubernetes workload for %s because task instance id %s no longer exists",
+                task.key,
+                workload_ti.id,
+            )
+            return False
+
+        _, state, try_number, queued_by_job_id, external_executor_id = ti
+        if (
+            state == TaskInstanceState.QUEUED
+            and try_number == workload_ti.try_number
+            and queued_by_job_id == scheduler_job_id
+            and (launch_token is None or external_executor_id == launch_token)
+        ):
+            return True
+
+        self.log.info(
+            "Dropping stale Kubernetes workload for %s because current task instance launch does not "
+            "match queued workload: ti_id=%s state=%s try_number=%s queued_by_job_id=%s "
+            "external_executor_id=%s workload_try_number=%s workload_external_executor_id=%s "
+            "scheduler_job_id=%s",
+            task.key,
+            workload_ti.id,
+            state,
+            try_number,
+            queued_by_job_id,
+            external_executor_id,
+            workload_ti.try_number,
+            launch_token,
+            scheduler_job_id,
+        )
+        return False
+
+    def _discard_stale_pod_creation_task(self, task: KubernetesJob) -> None:
+        """
+        Remove executor bookkeeping for a stale job that will not create a pod.
+
+        We intentionally do not fail the task instance here. Dropping the pod creation leaves the
+        row in its current DB state (typically still QUEUED under the *newer* launch that replaced
+        this workload). The newer launch owns the task from now on: either its own workload creates
+        the pod, or the scheduler's queued-task timeout / task-instance adoption reclaims the row.
+        Failing it here would clobber that newer launch.
+        """
+        self.running.discard(task.key)
+        queued_event = self.event_buffer.get(task.key)
+        if queued_event is not None and queued_event[0] == TaskInstanceState.QUEUED:
+            self.event_buffer.pop(task.key, None)
+        self.task_publish_retries.pop(task.key, None)
+        Stats.incr(
+            "kubernetes_executor.stale_workload_dropped",
+            tags=prune_dict({"team_name": self.team_name}),
+        )
 
     def sync(self) -> None:
         """Synchronize task state."""
@@ -471,6 +576,9 @@ class KubernetesExecutor(BaseExecutor):
 
                 try:
                     key = task.key
+                    if not self._should_create_pod_for_job(task):
+                        self._discard_stale_pod_creation_task(task)
+                        continue
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
