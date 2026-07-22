@@ -173,6 +173,11 @@ class IterableOperator(BaseOperator):
         task_concurrency = self.partial_kwargs.pop("task_concurrency", None)
         if task_concurrency is not None and task_concurrency < 1:
             raise ValueError(f"task_concurrency must be at least 1, got {task_concurrency}")
+        # Known v1 limitation: pool_slots is reserved once by the scheduler for this IterableOperator TI,
+        # but up to max_workers sub-tasks run concurrently inside it. Operators that set pool_slots > 1 to
+        # protect a shared resource (e.g. a DB connection pool) will be under-accounted — the pool sees one
+        # reservation while max_workers connections can be active simultaneously. A proper fix requires the
+        # scheduler to reserve pool_slots * max_workers slots, which needs scheduler-side changes.
         self.max_workers = task_concurrency if task_concurrency is not None else (os.cpu_count() or 1)
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
