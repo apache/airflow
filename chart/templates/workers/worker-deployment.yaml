@@ -217,7 +217,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false "Component" "worker") .) | indent 10 }}
         {{- end }}
         {{- if .Values.workers.celery.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
@@ -242,7 +242,7 @@ spec:
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false "Component" "worker") .) | indent 10 }}
             {{- if .Values.workers.celery.waitForMigrations.env }}
               {{- tpl (toYaml .Values.workers.celery.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
@@ -325,7 +325,7 @@ spec:
             - name: DUMB_INIT_SETSID
               value: "0"
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false "Component" "worker") .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.workers.celery.env) | indent 10 }}
             {{- if .Values.workers.celery.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
@@ -431,7 +431,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false "Component" "worker") .) | indent 10 }}
         {{- end }}
         {{- if .Values.workers.celery.extraContainers }}
           {{- tpl (toYaml .Values.workers.celery.extraContainers) . | nindent 8 }}
