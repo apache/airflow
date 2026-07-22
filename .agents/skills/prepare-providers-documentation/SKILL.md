@@ -567,6 +567,19 @@ version of the referenced provider and removes the comment.
 > doc preparation and PR creation, so it is easy to forget when the skill
 > hands back to the regular release workflow.
 
+**Provider dependency-bump CI guard.** Every `>=` bump this produces (and any
+inter-provider `>=` bump made during the wave, e.g. a `breaking` provider that
+dependents must now require) trips the `check_provider_dependency_bumps`
+selective-check (`dev/breeze/src/airflow_breeze/utils/selective_checks.py`),
+which fails CI with *"Provider dependency version bumps detected that should
+only be performed by Release Managers!"*. That guard exists to stop
+**contributors** from silently changing inter-provider `>=` floors; for a
+release wave the bumps are legitimate. The release PR **must carry the
+`allow provider dependency bump` label** to bypass it — every prior "Prepare
+providers release …" PR carries this label. Tell the release manager to add
+the label to the PR (it re-triggers the check via the `labeled` event); the
+bumps are not a mistake to revert.
+
 ### Phase 5 — Validate
 
 Run the same checks the release manager would run:
@@ -596,12 +609,21 @@ provider-by-provider:
   written at the wrong indentation level or position.
 - Confirm Phase 4d ran: no `# use next version` comment remains where the
   referenced provider was bumped in this wave.
+- **If any inter-provider `>=` floor changed** (Phase 4d resolved a pin, or a
+  `breaking` provider forced a dependent to require its new major), tell the
+  release manager the PR needs the `allow provider dependency bump` label —
+  otherwise the `check_provider_dependency_bumps` CI check fails with
+  *"Provider dependency version bumps detected that should only be performed
+  by Release Managers!"*. `git diff` the changed `pyproject.toml` files for
+  `apache-airflow-providers-*` `>=` changes and list them for the RM.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
 
 Stop here. Do not commit, do not push — the release manager opens the PR
 themselves following the regular release workflow in
 `dev/README_RELEASE_PROVIDERS.md`. Make sure Phase 4d
-(`update-providers-next-version`) has been run before that PR is opened.
+(`update-providers-next-version`) has been run before that PR is opened, and
+that the PR carries the `allow provider dependency bump` label whenever any
+inter-provider `>=` floor changed (see Phase 4d).
 
 ---
 
