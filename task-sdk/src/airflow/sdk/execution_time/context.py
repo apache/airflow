@@ -322,7 +322,9 @@ def _mask_and_deserialize_variable(raw: str, key: str, deserialize_json: bool) -
     if not deserialize_json:
         return raw
     val = json.loads(raw)
-    if not isinstance(val, str):
+    if isinstance(val, str):
+        mask_secret(val, key)
+    elif isinstance(val, dict):
         mask_secret(val)
     return val
 

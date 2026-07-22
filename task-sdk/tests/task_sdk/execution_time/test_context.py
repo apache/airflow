@@ -414,15 +414,29 @@ class TestVariableAccessor:
         mock_mask_secret.assert_any_call({"endpoint": "https://api.example.com", "token": "abc123"})
 
     @mock.patch("airflow.sdk.execution_time.context.mask_secret")
-    def test_var_json_string_value_skips_second_mask(self, mock_mask_secret, mock_supervisor_comms):
-        """var.json with a JSON string value calls mask_secret once; the dict-walk call is skipped."""
+    def test_var_json_string_value_masks_both_forms(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json with a JSON string value masks both the quoted raw and the unquoted value."""
         accessor = VariableAccessor(deserialize_json=True)
         mock_supervisor_comms.send.return_value = VariableResult(key="my_token", value='"s3cr3t"')
 
         val = accessor.my_token
 
         assert val == "s3cr3t"
-        mock_mask_secret.assert_called_once_with('"s3cr3t"', "my_token")
+        assert mock_mask_secret.call_count == 2
+        mock_mask_secret.assert_any_call('"s3cr3t"', "my_token")
+        mock_mask_secret.assert_any_call("s3cr3t", "my_token")
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_list_value_does_not_over_mask(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json with a non-sensitive list variable does not mask individual list elements."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '["us-east-1", "eu-west-1"]'
+        mock_supervisor_comms.send.return_value = VariableResult(key="aws_regions", value=raw_json)
+
+        val = accessor.aws_regions
+
+        assert val == ["us-east-1", "eu-west-1"]
+        mock_mask_secret.assert_called_once_with(raw_json, "aws_regions")
 
     @mock.patch("airflow.sdk.execution_time.context.mask_secret")
     def test_var_json_invalid_json_raises(self, mock_mask_secret):
