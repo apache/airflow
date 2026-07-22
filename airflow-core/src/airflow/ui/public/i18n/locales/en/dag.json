@@ -102,11 +102,6 @@
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "Navigation: Shift+{{arrow}}",
-    "openGraphFilters": "Task Filters: Ctrl+Shift+F",
-    "toggleGroup": "Toggle group: Space"
-  },
   "notFound": {
     "back": "Go Back",
     "backToDags": "Back to Dags",

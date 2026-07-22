@@ -1237,7 +1237,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     if consecutive_unknown >= max_consecutive_unknown:
                         raise RuntimeError(
                             f"Spark application {app_id} reported Unknown phase "
-                            f"{consecutive_unknown} times consecutively; giving up."
+                            f"{consecutive_unknown} times consecutively (the pod's state could not "
+                            f"be obtained, typically due to an error communicating with the node the "
+                            f"pod should be running on); giving up."
                         )
                 else:
                     consecutive_unknown = 0

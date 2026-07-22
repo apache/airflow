@@ -26,6 +26,7 @@ from typing import Generic, TypeVar
 from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import DatabaseError, DataError, IntegrityError
 
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.utils.strings import get_random_string
@@ -137,7 +138,7 @@ class DataErrorHandler(_DatabaseErrorHandler[DataError]):
     range, or the wrong type for its column), so it is a client error, not a 500.
     """
 
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code = HTTP_422_UNPROCESSABLE_CONTENT
     reason = "Value rejected by database"
 
     def __init__(self):
@@ -152,9 +153,21 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
 
     def exception_handler(self, request: Request, exc: DeserializationError):
         """Handle Dag deserialization exceptions."""
+        if conf.get("api", "expose_stacktrace") == "True":
+            log.error("Error while trying to deserialize Dag: %s", exc, exc_info=exc)
+            detail = f"An error occurred while trying to deserialize Dag: {exc}"
+        else:
+            # Only mint a correlation id when the detail is redacted, so the
+            # generic client message can be tied back to the server-side log.
+            exception_id = get_random_string()
+            log.error("Error with id %s while trying to deserialize Dag: %s", exception_id, exc, exc_info=exc)
+            detail = (
+                "An error occurred while trying to deserialize the Dag. Check the api server "
+                f"logs for more details - look for ID {exception_id}."
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while trying to deserialize Dag: {exc}",
+            detail=detail,
         )
 
 

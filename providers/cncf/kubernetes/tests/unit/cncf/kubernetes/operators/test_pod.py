@@ -883,7 +883,7 @@ class TestKubernetesPodOperator:
             assert result == mock_pod_request_obj
 
     def test_xcom_sidecar_container_image_custom(self):
-        image = "private.repo/alpine:3.24.0"
+        image = "private.repo/alpine:3.24.1"
         with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):
             k = KubernetesPodOperator(
                 name="test",
@@ -900,7 +900,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.0"
+        assert pod.spec.containers[1].image == "alpine:3.24.1"
 
     def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(
@@ -929,6 +929,60 @@ class TestKubernetesPodOperator:
             )
             pod = k.build_pod_request_obj(create_context(k))
             assert pod.spec.containers[1].resources == resources
+
+    def test_xcom_sidecar_container_security_context_default(self):
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].security_context is None
+
+    @patch(f"{HOOK_CLASS}.get_xcom_sidecar_container_security_context")
+    def test_xcom_sidecar_container_security_context_from_connection(self, mock_get_security_context):
+        security_context = {
+            "allowPrivilegeEscalation": False,
+            "readOnlyRootFilesystem": True,
+            "seccompProfile": {"type": "RuntimeDefault"},
+        }
+        mock_get_security_context.return_value = security_context
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].security_context == security_context
+
+    @patch(f"{HOOK_CLASS}.get_xcom_sidecar_container_security_context")
+    def test_xcom_sidecar_container_security_context_operator_overrides_connection(
+        self, mock_get_security_context
+    ):
+        mock_get_security_context.return_value = {"readOnlyRootFilesystem": False}
+        operator_security_context = {"readOnlyRootFilesystem": True}
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+            xcom_sidecar_container_security_context=operator_security_context,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].security_context == operator_security_context
+
+    @patch(f"{HOOK_CLASS}.get_xcom_sidecar_container_security_context")
+    def test_xcom_sidecar_container_security_context_empty_operator_overrides_connection(
+        self, mock_get_security_context
+    ):
+        mock_get_security_context.return_value = {"readOnlyRootFilesystem": True}
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+            xcom_sidecar_container_security_context={},
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].security_context == {}
 
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
@@ -1993,6 +2047,7 @@ class TestKubernetesPodOperator:
     ):
         hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
         hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
+        hook_mock.return_value.get_xcom_sidecar_container_security_context.return_value = None
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -2974,7 +3029,7 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.0"
+        assert pod.spec.containers[1].image == "alpine:3.24.1"
 
     def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self):
         k = KubernetesPodOperator(

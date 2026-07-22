@@ -17,7 +17,7 @@
 ---
 services:
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.70.0
+    image: otel/opentelemetry-collector-contrib:0.155.0
     labels:
       breeze.description: "Integration required for OTEL/opentelemetry hooks."
     container_name: "breeze-otel-collector"
@@ -29,9 +29,12 @@ services:
       - "28889:8889"    # Prometheus exporter metrics
 
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:v3.5.4
     container_name: "breeze-prometheus"
     user: "0"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--enable-feature=native-histograms"
     ports:
       - "29090:9090"
     volumes:

@@ -37,25 +37,96 @@ Generic Parameters
 Operators
 ---------
 
-.. _howto/operator:GlueCrawlerOperator:
+.. _howto/operator:GlueCrawlerCreateOperator:
 
 Create an AWS Glue crawler
 ==========================
 
 AWS Glue Crawlers allow you to easily extract data from various data sources.
-To create a new AWS Glue Crawler or run an existing one you can
-use :class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator`.
+To create a crawler, use
+:class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerCreateOperator`.
 
 .. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_glue_crawler]
-    :end-before: [END howto_operator_glue_crawler]
+    :start-after: [START howto_operator_glue_crawler_create]
+    :end-before: [END howto_operator_glue_crawler_create]
 
 .. note::
   The AWS IAM role included in the ``config`` needs access to the source data location
   (e.g. s3:PutObject access if data is stored in Amazon S3) as well as the ``AWSGlueServiceRole``
   policy. See the References section below for a link to more details.
+
+.. _howto/operator:GlueCrawlerUpdateOperator:
+
+Update an AWS Glue crawler
+==========================
+
+To update the configuration of an existing crawler, use
+:class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerUpdateOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue_crawler_update]
+    :end-before: [END howto_operator_glue_crawler_update]
+
+.. _howto/operator:GlueCrawlerRunOperator:
+
+Run an AWS Glue crawler
+=======================
+
+To run an existing crawler and wait for it to complete, use
+:class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerRunOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue_crawler_run]
+    :end-before: [END howto_operator_glue_crawler_run]
+
+The operator waits for completion by default. Set ``deferrable=True`` to perform the wait without
+occupying a worker slot.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue_crawler_run_deferrable]
+    :end-before: [END howto_operator_glue_crawler_run_deferrable]
+
+.. _howto/operator:GlueCrawlerDeleteOperator:
+
+Delete an AWS Glue crawler
+==========================
+
+To delete an existing crawler, use
+:class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerDeleteOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue_crawler_delete]
+    :end-before: [END howto_operator_glue_crawler_delete]
+
+.. _howto/operator:GlueCrawlerOperator:
+
+Legacy AWS Glue crawler operator
+================================
+
+.. warning::
+  :class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOperator` is deprecated.
+  Existing Dags can continue using it during the deprecation period, but new Dags should use the
+  operation-specific operators above.
+
+The legacy operator creates or updates a crawler and then runs it. Existing Dags can continue using
+the same configuration while migrating each operation to the dedicated operators:
+
+.. code-block:: python
+
+    crawl_s3 = GlueCrawlerOperator(
+        task_id="crawl_s3",
+        config=glue_crawler_config,
+    )
 
 .. _howto/operator:GlueJobOperator:
 

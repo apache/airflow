@@ -168,18 +168,6 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
-  - name: "dag_processing.manager_stalls"
-    description: "Number of stalled ``DagFileProcessorManager``"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "dag_file_refresh_error"
-    description: "Number of failures loading any Dag files"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
   - name: "scheduler.tasks.killed_externally"
     description: "Number of tasks killed externally. Metric with dag_id and task_id tagging."
     type: "counter"
@@ -194,6 +182,33 @@ metrics:
 
   - name: "scheduler.orphaned_tasks.adopted"
     description: "Number of Orphaned tasks adopted by the Scheduler"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.loop_exceptions"
+    description: "Number of times the scheduler loop exited with an unhandled exception.
+    Metric with exception_class tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.processed"
+    description: "Number of executor events processed per ``process_executor_events`` call."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.failed"
+    description: "Number of times ``process_executor_events`` raised an exception.
+    Metric with exception_class tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.zombies.detected"
+    description: "Number of zombie task instances detected by the Scheduler.
+    Metric with reason tagging (``heartbeat_timeout``)."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -426,6 +441,12 @@ metrics:
 
   - name: "scheduler.tasks.starving"
     description: "Number of tasks that cannot be scheduled because of no open slot in pool"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_events.batch_size"
+    description: "Number of executor events in the batch processed per ``process_executor_events`` call."
     type: "gauge"
     legacy_name: "-"
     name_variables: []
@@ -677,6 +698,12 @@ metrics:
     legacy_name: "dagrun.schedule_delay.{dag_id}"
     name_variables: ["dag_id"]
 
+  - name: "triggerer.batch_trigger_creation_duration"
+    description: "Time in milliseconds spent creating a batch of pending triggers."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "scheduler.critical_section_duration"
     description: "Milliseconds spent in the critical section of scheduler loop"
     type: "timer"
@@ -702,6 +729,13 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "triggerer.trigger_queue_delay"
+    description: "Time in milliseconds between a trigger workload being queued and being processed by
+      the TriggerRunner."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dagrun.first_task_scheduling_delay"
     description: "Milliseconds elapsed between first task start_date and dagrun expected start"
     type: "timer"
@@ -710,18 +744,6 @@ metrics:
 
   - name: "dagrun.first_task_start_delay"
     description: "Milliseconds elapsed between dagrun queued_at and first task start_date"
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "collect_db_dags"
-    description: "Milliseconds taken for fetching all Serialized Dags from DB"
-    type: "timer"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "kubernetes_executor.clear_not_launched_queued_tasks.duration"
-    description: "Milliseconds taken for clearing not launched queued tasks in Kubernetes Executor"
     type: "timer"
     legacy_name: "-"
     name_variables: []

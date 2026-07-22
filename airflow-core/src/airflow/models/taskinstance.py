@@ -100,13 +100,11 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -201,6 +199,27 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)
+
+
+def _add_and_prime_mapped_ti(
+    ti: TaskInstance,
+    task: Operator,
+    dag_run: DagRun,
+    *,
+    session: Session,
+    context_carrier: dict | None = None,
+) -> None:
+    """
+    Attach a newly-created mapped TI to the session and prime its ``dag_run`` cache.
+
+    :meta private:
+    """
+    task_instance_mutation_hook(ti, dag_run=dag_run)
+    session.add(ti)
+    if context_carrier is not None:
+        ti.context_carrier = context_carrier
+    ti.refresh_from_task(task, dag_run=dag_run)
+    set_committed_value(ti, "dag_run", dag_run)
 
 
 def _recalculate_dagrun_queued_at_deadlines(
@@ -407,7 +426,12 @@ def clear_task_instances(
             session.merge(ti)
 
     if dag_run_state is not False and tis:
-        from airflow.models.dagrun import DagRun  # Avoid circular import
+        from airflow.models.dagrun import (  # Avoid circular import
+            DagRun,
+            dagrun_trace_attributes,
+            parent_trace_context,
+            trace_sampled_override,
+        )
 
         run_ids_by_dag_id = defaultdict(set)
         for instance in tis:
@@ -429,7 +453,10 @@ def clear_task_instances(
             dr.clear_number += 1
             dr.queued_at = timezone.utcnow()
             dr.context_carrier = new_dagrun_trace_carrier(
-                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None
+                task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None,
+                attributes=dagrun_trace_attributes(dr),
+                force_sampled=trace_sampled_override(dr.conf),
+                parent_context=parent_trace_context(dr.conf),
             )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
@@ -593,9 +620,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     )
     _rendered_map_index: Mapped[str | None] = mapped_column("rendered_map_index", String(250), nullable=True)
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
@@ -732,9 +756,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return prune_dict(
-            {"dag_id": self.dag_id, "task_id": self.task_id, "team_name": getattr(self, "_team_name", None)}
-        )
+        # Reuse the dag run's tags and add the task-level ones.
+        return {**self.dag_run.stats_tags, "task_id": self.task_id}
 
     @staticmethod
     def insert_mapping(
@@ -1524,6 +1547,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         *,
         session: Session = NEW_SESSION,
     ) -> None:
+        # Fast path: a task with no outlets and no outlet events has nothing to
+        # register. Returning early avoids the AssetModel lookup below (which
+        # would run with empty IN () clauses) and all downstream work. This is
+        # the common case -- most tasks declare no outlets -- and it sits on the
+        # task-success path that gates scheduling the next task.
+        if not task_outlets and not outlet_events:
+            return
+
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
             SerializedAssetNameRef,
@@ -1546,6 +1577,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 OutletEventPayload(extra=outlet_event["extra"], partition_key=partition_key)
             )
         dag_run_partition_key = ti.dag_run.partition_key
+        dag_run_partition_date = ti.dag_run.partition_date
 
         asset_keys = {
             SerializedAssetUniqueKey(o.name, o.uri)
@@ -1581,6 +1613,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     asset=am,
                     extra=None,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
                     session=session,
                 )
                 return
@@ -1588,11 +1621,26 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 effective_pk = (
                     payload.partition_key if payload.partition_key is not None else dag_run_partition_key
                 )
+                # Carry partition_date only when the effective key matches the
+                # DagRun's — the run-level date refers to the run-level key and
+                # would mis-label an event emitted for a different partition.
+                if effective_pk == dag_run_partition_key:
+                    payload_partition_date = dag_run_partition_date
+                else:
+                    payload_partition_date = None
+                    if dag_run_partition_date is not None:
+                        ti.log.debug(
+                            "Task-emitted partition_key %r differs from DagRun partition_key %r; "
+                            "consumer partition_date will be None.",
+                            payload.partition_key,
+                            dag_run_partition_key,
+                        )
                 asset_manager.register_asset_change(
                     task_instance=ti,
                     asset=am,
                     extra=payload.extra,
                     partition_key=effective_pk,
+                    partition_date=payload_partition_date,
                     session=session,
                 )
 
@@ -1676,6 +1724,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
                     partition_key=dag_run_partition_key,
+                    partition_date=dag_run_partition_date,
                     session=session,
                 )
                 if event is None:
@@ -1688,6 +1737,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
                         partition_key=dag_run_partition_key,
+                        partition_date=dag_run_partition_date,
                         session=session,
                     )
 
@@ -2253,9 +2303,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             return query.values(
                 {
                     "end_date": end_date,
-                    "duration": (
-                        (func.strftime("%s", end_date) - func.strftime("%s", cls.start_date))
-                        + func.round((func.strftime("%f", end_date) - func.strftime("%f", cls.start_date)), 3)
+                    "duration": func.round(
+                        (func.julianday(end_date) - func.julianday(cls.start_date)) * 86400, 3
                     ),
                 }
             )

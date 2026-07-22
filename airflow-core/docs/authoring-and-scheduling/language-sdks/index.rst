@@ -122,6 +122,13 @@ XCom references should be defined inside the Python Dag (they are task dependenc
 actually read the values out in the language implementation, and vice versa. See specific language SDK
 documentation on how to do this correctly.
 
+.. note::
+
+    For a Dag containing stub tasks, the **Code** view in the Airflow UI shows only the Python Dag
+    file — including the stub declarations — as the Dag's source. The non-Python implementation source
+    is not displayed anywhere in the UI; consult your project repository or the build artifact shipped
+    in the bundle to inspect it. This is an intentional architecture decision, not a bug.
+
 .. _language-sdks/coordinator-config:
 
 Coordinator configuration
@@ -138,7 +145,8 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
         coordinators = {
             "my-coordinator": {
                 "classpath": "path.to.CoordinatorClass",
-                "kwargs": {}
+                "kwargs": {},
+                "extra": {}
             }
         }
 
@@ -146,6 +154,14 @@ Coordinators are registered in ``airflow.cfg`` (or via environment variables) un
     to the coordinator's constructor.  See the language-specific guide for the accepted kwargs
     of each coordinator (e.g. :ref:`java-sdk/coordinator-config` for
     :class:`~airflow.sdk.coordinators.java.JavaCoordinator`).
+
+    ``extra`` is an optional object for any additional information you want to associate with a
+    coordinator without coupling it to the coordinator instance. The coordinator itself never
+    receives it; other components read it as needed. For example, KubernetesExecutor reads
+    ``extra.pod_template_file`` to launch a queue's worker pod from a specific pod template, and
+    ``extra.worker_container_repository`` + ``extra.worker_container_tag`` to override that queue's
+    worker base image (both keys are required), e.g. an image that bundles the JVM for a Java
+    coordinator.
 
 ``queue_to_coordinator``
     A JSON object mapping Celery queue names to coordinator names:

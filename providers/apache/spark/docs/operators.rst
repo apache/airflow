@@ -190,9 +190,9 @@ independently on the cluster. If the Airflow worker dies while the Spark job is 
 Airflow loses track of it and the behaviour to submit a brand new job would be wasting
 the compute already done or even cause conflicts if the Spark job itself is not designed to be idempotent.
 
-Now, the ``SparkSubmitOperator`` solves this by persisting the driver ID to ``task_state_store`` immediately after
-submission. On retry, it reads the ID back and reconnects to the already-running driver instead of
-resubmitting.
+Now, the ``SparkSubmitOperator`` solves this by persisting the driver ID to :doc:`task state store
+<apache-airflow:core-concepts/task-state-store>` immediately after submission. On retry, it reads
+the ID back and reconnects to the already-running driver instead of resubmitting.
 
 This is the **synchronous path** — the worker holds a slot for the duration of polling. This is
 a crash-safety net for teams running sync operators for log observability, org constraints, or
@@ -236,7 +236,7 @@ Python Kubernetes client rather than holding ``spark-submit`` open for the full 
        conn_id="spark_k8s",
        deploy_mode="cluster",
        track_driver_via_k8s_api=True,
-       reconnect_on_retry=True,
+       durable=True,
    )
 
 **Requirements**
@@ -246,9 +246,9 @@ Python Kubernetes client rather than holding ``spark-submit`` open for the full 
   conflicts with the flag and a ``ValueError`` will be raised at task start.
 * The Airflow worker must be able to reach the Kubernetes API server and have permission to
   read and delete pods in the driver's namespace; otherwise pod tracking and cleanup will fail.
-* Set ``reconnect_on_retry=True`` (the default) to enable crash recovery: the driver pod name is
+* Set ``durable=True`` (the default) to enable crash recovery: the driver pod name is
   persisted to task state before polling begins, so a worker crash and retry reconnects to the
-  existing pod instead of submitting a fresh one. Set ``reconnect_on_retry=False`` to always
+  existing pod instead of submitting a fresh one. Set ``durable=False`` to always
   submit a fresh driver on retry.
 * Pod completion is detected from ``pod.status.phase``. If your driver pods have sidecar
   containers (e.g. Istio injection enabled for the driver namespace), the pod phase may not

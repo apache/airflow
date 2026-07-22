@@ -18,7 +18,6 @@
  */
 import { Box, Heading } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -27,6 +26,8 @@ import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { Dialog } from "src/components/ui";
 import { LOG_SHOW_SOURCE_KEY, LOG_SHOW_TIMESTAMP_KEY, LOG_WRAP_KEY } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
@@ -160,12 +161,30 @@ export const Logs = () => {
   const toggleFullscreen = () => setFullscreen(!fullscreen);
   const toggleExpanded = () => setExpanded((act) => !act);
 
-  useHotkeys("w", toggleWrap);
-  useHotkeys("f", toggleFullscreen);
-  useHotkeys("e", toggleExpanded);
-  useHotkeys("t", toggleTimestamp);
-  useHotkeys("s", toggleSource);
-  useHotkeys("d", downloadLogs);
+  useShortcut({
+    ...SHORTCUTS.logs.toggleWrap,
+    callback: toggleWrap,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleFullscreen,
+    callback: toggleFullscreen,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleExpand,
+    callback: toggleExpanded,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleTimestamp,
+    callback: toggleTimestamp,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.toggleSource,
+    callback: toggleSource,
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.downloadLogs,
+    callback: downloadLogs,
+  });
 
   const onOpenChange = () => {
     setFullscreen(false);

@@ -84,6 +84,66 @@ export type AssetEventResponse = {
 };
 
 /**
+ * An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.
+ */
+export type AssetExpressionAlias = {
+    alias: AssetExpressionAliasInfo;
+};
+
+/**
+ * Body of an ``alias`` leaf node.
+ */
+export type AssetExpressionAliasInfo = {
+    name: string;
+    group: string;
+};
+
+/**
+ * An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied.
+ */
+export type AssetExpressionAll = {
+    all: Array<(AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll)>;
+};
+
+/**
+ * An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied.
+ */
+export type AssetExpressionAny = {
+    any: Array<(AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll)>;
+};
+
+/**
+ * An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``.
+ */
+export type AssetExpressionAsset = {
+    asset: AssetExpressionAssetInfo;
+};
+
+/**
+ * Body of an ``asset`` leaf node.
+ *
+ * ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when the expression is
+ * persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
+ * optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+ * degrades gracefully instead of failing response validation.
+ */
+export type AssetExpressionAssetInfo = {
+    uri: string;
+    name: string;
+    group: string;
+    id?: number | null;
+};
+
+/**
+ * An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``.
+ */
+export type AssetExpressionRef = {
+    asset_ref: {
+        [key: string]: (string);
+    };
+};
+
+/**
  * Asset serializer for responses.
  */
 export type AssetResponse = {
@@ -175,6 +235,29 @@ export type AsyncConnectionTestResponse = {
 export type BackfillCollectionResponse = {
     backfills: Array<BackfillResponse>;
     total_entries: number;
+};
+
+/**
+ * BackfillDagRun Collection serializer for responses.
+ */
+export type BackfillDagRunCollectionResponse = {
+    backfill_dag_runs: Array<BackfillDagRunResponse>;
+    total_entries: number;
+};
+
+/**
+ * Serializer for a single BackfillDagRun entry with joined DagRun state.
+ */
+export type BackfillDagRunResponse = {
+    id: number;
+    backfill_id: number;
+    dag_id: string;
+    dag_run_id?: string | null;
+    logical_date: string | null;
+    partition_key: string | null;
+    sort_ordinal: number;
+    exception_reason: string | null;
+    dag_run_state?: DagRunState | null;
 };
 
 /**
@@ -347,6 +430,18 @@ export type BulkDAGRunBody = {
  * Request body for the bulk clear Dag Runs endpoint.
  */
 export type BulkDAGRunClearBody = {
+    /**
+     * Select runs by exact partition key match. Mutually exclusive with the other partition selectors.
+     */
+    partition_key?: string | null;
+    /**
+     * Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_start?: string | null;
+    /**
+     * Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_end?: string | null;
     dry_run?: boolean;
     only_failed?: boolean;
     /**
@@ -358,7 +453,7 @@ export type BulkDAGRunClearBody = {
      */
     run_on_latest_version?: boolean | null;
     note?: string | null;
-    dag_runs: Array<BulkDAGRunBody>;
+    dag_runs?: Array<BulkDAGRunBody>;
 };
 
 export type BulkDeleteAction_BulkDAGRunBody_ = {
@@ -537,6 +632,45 @@ export type BulkUpdateAction_VariableBody_ = {
      */
     update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
+};
+
+/**
+ * Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
+ */
+export type ClearPartitionsBody = {
+    /**
+     * Select runs by exact partition key match. Mutually exclusive with the other partition selectors.
+     */
+    partition_key?: string | null;
+    /**
+     * Inclusive start of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_start?: string | null;
+    /**
+     * Inclusive end of the partition date window. The value is interpreted in the Dag's timetable timezone. Mutually exclusive with the other partition selectors.
+     */
+    partition_date_end?: string | null;
+    /**
+     * Select runs by exact run_id. Mutually exclusive with ``partition_key`` and partition date window.
+     */
+    run_id?: string | null;
+    /**
+     * Also clear task instances on the matched runs.
+     */
+    clear_task_instances?: boolean;
+    /**
+     * If True, compute counts without writing any changes.
+     */
+    dry_run?: boolean;
+};
+
+/**
+ * Response for the clearPartitions endpoint.
+ */
+export type ClearPartitionsResponse = {
+    dag_runs_cleared: number;
+    task_instances_cleared: number;
+    dry_run: boolean;
 };
 
 /**
@@ -726,7 +860,7 @@ export type DAGDetailsResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
@@ -746,9 +880,7 @@ export type DAGDetailsResponse = {
     owners: Array<(string)>;
     catchup: boolean;
     dag_run_timeout: string | null;
-    asset_expression: {
-    [key: string]: unknown;
-} | null;
+    asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     doc_md: string | null;
     start_date: string | null;
     end_date: string | null;
@@ -811,7 +943,7 @@ export type DAGResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
@@ -917,6 +1049,7 @@ export type DAGRunResponse = {
     bundle_version: string | null;
     dag_display_name: string;
     partition_key: string | null;
+    partition_date: string | null;
 };
 
 /**
@@ -1106,7 +1239,7 @@ export type DagVersionResponse = {
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
  */
-export type DagWarningType = 'asset conflict' | 'non-existent pool' | 'runtime varying value';
+export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1170,11 +1303,11 @@ export type ExternalViewResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     href: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
 };
 
-export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base';
+export type destination = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
 
 /**
  * Extra Links Response.
@@ -1372,6 +1505,7 @@ export type MaterializeAssetBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
+    bundle_version?: string | null;
 };
 
 /**
@@ -1423,6 +1557,7 @@ export type PluginImportErrorResponse = {
  */
 export type PluginResponse = {
     name: string;
+    team_name?: string | null;
     macros: Array<(string)>;
     flask_blueprints: Array<(string)>;
     fastapi_apps: Array<FastAPIAppResponse>;
@@ -1544,11 +1679,11 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     bundle_url: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard';
     [key: string]: unknown | string;
 };
 
-export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'base' | 'dashboard';
+export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -1879,6 +2014,7 @@ export type TriggerDAGRunPostBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
+    bundle_version?: string | null;
 };
 
 /**
@@ -2073,6 +2209,23 @@ export type BaseNodeResponse = {
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
 
 /**
+ * Response model for calendar deadline aggregation results.
+ */
+export type CalendarDeadlineCollectionResponse = {
+    total_entries: number;
+    deadlines: Array<CalendarDeadlineResponse>;
+};
+
+/**
+ * Represents aggregated deadline counts for a specific calendar time bucket.
+ */
+export type CalendarDeadlineResponse = {
+    date: string;
+    missed: boolean;
+    count: number;
+};
+
+/**
  * Response model for calendar time range results.
  */
 export type CalendarTimeRangeCollectionResponse = {
@@ -2162,6 +2315,16 @@ export type DAGRunLightResponse = {
 };
 
 /**
+ * Per-Dag counts of DagRuns grouped by state.
+ */
+export type DAGRunStateCountsResponse = {
+    dag_id: string;
+    state_counts: {
+        [key: string]: (number);
+    };
+};
+
+/**
  * DAG Run States for responses.
  */
 export type DAGRunStates = {
@@ -2193,7 +2356,7 @@ export type DAGWithLatestDagRunsResponse = {
     bundle_name: string | null;
     bundle_version: string | null;
     relative_fileloc: string | null;
-    fileloc: string;
+    fileloc: string | null;
     description: string | null;
     timetable_summary: string | null;
     timetable_description: string | null;
@@ -2211,12 +2374,11 @@ export type DAGWithLatestDagRunsResponse = {
     next_dagrun_run_after: string | null;
     allowed_run_types: Array<DagRunType> | null;
     owners: Array<(string)>;
-    asset_expression: {
-    [key: string]: unknown;
-} | null;
+    asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -2225,6 +2387,14 @@ export type DAGWithLatestDagRunsResponse = {
      * Return file token.
      */
     readonly file_token: string;
+};
+
+/**
+ * Collection of per-Dag DagRun-state counts for the Dag list page.
+ */
+export type DAGsRunStateCountsCollectionResponse = {
+    dags: Array<DAGRunStateCountsResponse>;
+    state_count_limit: number;
 };
 
 /**
@@ -2386,6 +2556,7 @@ export type GridRunsResponse = {
     run_type: DagRunType;
     dag_versions?: Array<DagVersionResponse>;
     has_missed_deadline: boolean;
+    has_note: boolean;
     readonly duration: number;
 };
 
@@ -2420,6 +2591,7 @@ export type LightGridTaskInstanceSummary = {
     min_start_date: string | null;
     max_end_date: string | null;
     dag_version_number?: number | null;
+    has_note?: boolean;
 };
 
 /**
@@ -2456,9 +2628,7 @@ export type NextRunAssetEventResponse = {
  * Response for the ``next_run_assets`` endpoint.
  */
 export type NextRunAssetsResponse = {
-    asset_expression?: {
-    [key: string]: unknown;
-} | null;
+    asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     events: Array<NextRunAssetEventResponse>;
     pending_partition_count?: number | null;
 };
@@ -2477,6 +2647,8 @@ export type NodeResponse = {
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    ui_color?: string | null;
+    ui_fgcolor?: string | null;
 };
 
 export type OklchColor = string;
@@ -2505,9 +2677,7 @@ export type PartitionedDagRunCollectionResponse = {
     partitioned_dag_runs: Array<PartitionedDagRunResponse>;
     total: number;
     asset_expressions?: {
-    [key: string]: ({
-    [key: string]: unknown;
-} | null);
+    [key: string]: (AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null);
 } | null;
 };
 
@@ -2524,9 +2694,7 @@ export type PartitionedDagRunDetailResponse = {
     assets: Array<PartitionedDagRunAssetResponse>;
     total_required: number;
     total_received: number;
-    asset_expression?: {
-    [key: string]: unknown;
-} | null;
+    asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
 };
 
 /**
@@ -2671,6 +2839,10 @@ export type GetAssetsData = {
      */
     orderBy?: Array<(string)>;
     /**
+     * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
+     */
+    uri?: Array<(string)>;
+    /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``uri_prefix_pattern`` parameter when possible.
@@ -2713,6 +2885,10 @@ export type GetAssetAliasResponse = unknown;
 
 export type GetAssetEventsData = {
     assetId?: number | null;
+    /**
+     * Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).
+     */
+    extra?: Array<(string)>;
     limit?: number;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
@@ -2729,6 +2905,11 @@ export type GetAssetEventsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
      */
     orderBy?: Array<(string)>;
+    partitionKey?: string | null;
+    /**
+     * Filter results by matching this regular expression against the field value.
+     */
+    partitionKeyRegexpPattern?: string | null;
     sourceDagId?: string | null;
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
@@ -2833,6 +3014,18 @@ export type GetBackfillData = {
 };
 
 export type GetBackfillResponse = BackfillResponse;
+
+export type ListBackfillDagRunsData = {
+    backfillId: number;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type ListBackfillDagRunsResponse = BackfillDagRunCollectionResponse;
 
 export type PauseBackfillData = {
     backfillId: number;
@@ -3116,6 +3309,13 @@ export type ClearDagRunsData = {
 
 export type ClearDagRunsResponse = ClearTaskInstanceCollectionResponse | DAGRunCollectionResponse;
 
+export type ClearDagRunPartitionsData = {
+    dagId: string;
+    requestBody: ClearPartitionsBody;
+};
+
+export type ClearDagRunPartitionsResponse = ClearPartitionsResponse;
+
 export type GetDagRunStatsData = {
     dagId: string;
     dagRunId: string;
@@ -3341,6 +3541,10 @@ export type GetDagsUiData = {
     dagIdPrefixPattern?: string | null;
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
+    /**
+     * Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
+     */
+    dagRunState?: DagRunState | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling
@@ -3356,13 +3560,14 @@ export type GetDagsUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
+    teams?: Array<(string)>;
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
@@ -3372,6 +3577,12 @@ export type GetLatestRunInfoData = {
 };
 
 export type GetLatestRunInfoResponse = DAGRunLightResponse | null;
+
+export type GetDagRunStateCountsUiData = {
+    dagIds: Array<(string)>;
+};
+
+export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -3982,6 +4193,7 @@ export type GetImportErrorsData = {
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
 export type GetJobsData = {
+    dagId?: string | null;
     endDateGt?: string | null;
     endDateGte?: string | null;
     endDateLt?: string | null;
@@ -4399,6 +4611,8 @@ export type GenerateTokenResponse2 = GenerateTokenResponse;
 export type GetPartitionedDagRunsData = {
     dagId?: string | null;
     hasCreatedDagRunId?: boolean | null;
+    limit?: number;
+    offset?: number;
 };
 
 export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
@@ -4560,6 +4774,17 @@ export type GetCalendarData = {
 };
 
 export type GetCalendarResponse = CalendarTimeRangeCollectionResponse;
+
+export type GetCalendarDeadlinesData = {
+    dagId: string;
+    deadlineTimeGt?: string | null;
+    deadlineTimeGte?: string | null;
+    deadlineTimeLt?: string | null;
+    deadlineTimeLte?: string | null;
+    granularity?: 'hourly' | 'daily';
+};
+
+export type GetCalendarDeadlinesResponse = CalendarDeadlineCollectionResponse;
 
 export type ListTeamsData = {
     limit?: number;
@@ -4992,6 +5217,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -5003,6 +5232,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BackfillResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/backfills/{backfill_id}/dag_runs': {
+        get: {
+            req: ListBackfillDagRunsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BackfillDagRunCollectionResponse;
                 /**
                  * Unauthorized
                  */
@@ -5143,6 +5399,10 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+                /**
+                 * Service Unavailable
+                 */
+                503: HTTPExceptionResponse;
             };
         };
     };
@@ -5727,6 +5987,37 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/{dag_id}/clearPartitions': {
+        post: {
+            req: ClearDagRunPartitionsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ClearPartitionsResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats': {
         get: {
             req: GetDagRunStatsData;
@@ -6191,6 +6482,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/run_state_counts': {
+        get: {
+            req: GetDagRunStateCountsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGsRunStateCountsCollectionResponse;
                 /**
                  * Validation Error
                  */
@@ -8138,7 +8444,7 @@ export type $OpenApiTs = {
             };
         };
     };
-    '/ui/pending_partitioned_dag_run/{dag_id}/{partition_key}': {
+    '/ui/pending_partitioned_dag_run/{dag_id}': {
         get: {
             req: GetPendingPartitionedDagRunData;
             res: {
@@ -8362,6 +8668,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/calendar/{dag_id}/deadlines': {
+        get: {
+            req: GetCalendarDeadlinesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CalendarDeadlineCollectionResponse;
                 /**
                  * Validation Error
                  */

@@ -22,6 +22,8 @@ import pytest
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
+from tests_common.test_utils.config import conf_vars
+
 
 class TestLoginRouter:
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
@@ -77,6 +79,99 @@ class TestLoginRouter:
         assert "_token" in response.cookies
         assert response.cookies["_token"] == token
         assert response.cookies["_id_token"] == "id_token"
+
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_login_sets_secure_state_cookie_behind_tls_proxy(self, mock_get_keycloak_client, client):
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.auth_url.return_value = "redirect_url"
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        response = client.get(
+            "https://testserver" + AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login",
+            follow_redirects=False,
+        )
+        set_cookies = response.headers.get_list("set-cookie")
+        assert any("_oauth_state" in c and "Secure" in c for c in set_cookies)
+
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_login_callback_sets_secure_cookies_behind_tls_proxy(
+        self, mock_get_keycloak_client, mock_get_auth_manager, client
+    ):
+        state = "state"
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.token.return_value = {
+            "access_token": "access_token",
+            "refresh_token": "refresh_token",
+            "id_token": "id_token",
+        }
+        mock_keycloak_client.userinfo.return_value = {
+            "sub": "sub",
+            "preferred_username": "preferred_username",
+        }
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        mock_auth_manager = Mock()
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.generate_jwt.return_value = "token"
+        response = client.get(
+            "https://testserver"
+            + AUTH_MANAGER_FASTAPI_APP_PREFIX
+            + f"/login_callback?code=code&state={state}",
+            follow_redirects=False,
+            cookies={"_oauth_state": state},
+        )
+        set_cookies = response.headers.get_list("set-cookie")
+        assert any("_token=" in c and "Secure" in c for c in set_cookies)
+        assert any("_id_token=" in c and "Secure" in c for c in set_cookies)
+
+    @conf_vars({("api", "base_url"): "https://airflow.example.com"})
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_login_redirect_uri_uses_configured_base_url(self, mock_get_keycloak_client, client):
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.auth_url.return_value = "redirect_url"
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        client.get(
+            "https://attacker.example.net" + AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login",
+            follow_redirects=False,
+        )
+        redirect_uri = mock_keycloak_client.auth_url.call_args.kwargs["redirect_uri"]
+        assert (
+            redirect_uri
+            == "https://airflow.example.com" + AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback"
+        )
+
+    @conf_vars({("api", "base_url"): "https://airflow.example.com"})
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_login_callback_redirect_uri_uses_configured_base_url(
+        self, mock_get_keycloak_client, mock_get_auth_manager, client
+    ):
+        state = "state"
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.token.return_value = {
+            "access_token": "access_token",
+            "refresh_token": "refresh_token",
+            "id_token": "id_token",
+        }
+        mock_keycloak_client.userinfo.return_value = {
+            "sub": "sub",
+            "preferred_username": "preferred_username",
+        }
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        mock_auth_manager = Mock()
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.generate_jwt.return_value = "token"
+        client.get(
+            "https://attacker.example.net"
+            + AUTH_MANAGER_FASTAPI_APP_PREFIX
+            + f"/login_callback?code=code&state={state}",
+            follow_redirects=False,
+            cookies={"_oauth_state": state},
+        )
+        redirect_uri = mock_keycloak_client.token.call_args.kwargs["redirect_uri"]
+        assert (
+            redirect_uri
+            == "https://airflow.example.com" + AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback"
+        )
 
     def test_login_callback_without_code(self, client):
         response = client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/login_callback")

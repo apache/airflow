@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { BasicTooltip } from "src/components/BasicTooltip";
 
@@ -66,6 +67,30 @@ export const CalendarCell = ({
   const isMixedState =
     typeof backgroundColor === "object" && "secondary" in backgroundColor && "primary" in backgroundColor;
 
+  const { deadlineCounts } = cellData ?? {};
+  const hasMissedDeadline = (deadlineCounts?.missed ?? 0) > 0;
+  const hasPendingDeadline = (deadlineCounts?.pending ?? 0) > 0;
+  const hasDeadline = hasMissedDeadline || hasPendingDeadline;
+  const DeadlineIcon = hasMissedDeadline ? FiAlertTriangle : FiClock;
+
+  const deadlineIndicator = hasDeadline ? (
+    <Box
+      alignItems="center"
+      data-testid="deadline-indicator"
+      display="flex"
+      fontSize="10px"
+      height="100%"
+      justifyContent="center"
+      left="0"
+      lineHeight={1}
+      position="absolute"
+      top="0"
+      width="100%"
+    >
+      <DeadlineIcon />
+    </Box>
+  ) : undefined;
+
   const cellBox = isMixedState ? (
     <Box
       _hover={hasData ? { transform: "scale(1.1)" } : {}}
@@ -95,6 +120,7 @@ export const CalendarCell = ({
         position="absolute"
         width="100%"
       />
+      {deadlineIndicator}
     </Box>
   ) : (
     <Box
@@ -108,8 +134,11 @@ export const CalendarCell = ({
       data-view-mode={viewMode}
       height="14px"
       marginRight={computedMarginRight}
+      position="relative"
       width="14px"
-    />
+    >
+      {deadlineIndicator}
+    </Box>
   );
 
   if (!hasTooltip) {

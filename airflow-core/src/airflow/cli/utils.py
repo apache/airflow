@@ -17,13 +17,10 @@
 
 from __future__ import annotations
 
-import functools
+import logging
 import sys
-import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
-
-from airflow.exceptions import RemovedInAirflow4Warning
 
 # Placeholder for masking sensitive values in CLI output
 SENSITIVE_PLACEHOLDER = "***"
@@ -44,25 +41,22 @@ def deprecated_for_airflowctl(replacement: str) -> Callable[[F], F]:
     """
     Mark an ``airflow`` CLI command as deprecated in favour of an ``airflowctl`` equivalent.
 
-    These commands now reach Airflow through the API server via the ``airflowctl`` client. They
-    are kept for backwards compatibility but will be removed in a future Airflow release; users
-    should switch to ``airflowctl`` directly.
+    The command keeps its existing implementation and stays in the ``airflow`` CLI as a supported
+    entry point, so it emits **no user-facing deprecation warning** at runtime. The intent is to
+    point future development at ``airflowctl``: the equivalent ``airflowctl`` command is recorded
+    for maintainers only, on the ``_migrated_to_airflowctl`` attribute (the migration registry test
+    in ``test_command_deprecations.py`` reads it). The decorator at the command's definition site is
+    the developer-facing trace -- it is source-only and never rendered to users.
+
+    See ``contributing-docs/27_cli_implementation_guide.rst`` for the CLI / ``airflowctl``
+    development guidance.
 
     :param replacement: The equivalent ``airflowctl`` command, e.g. ``airflowctl dags trigger``.
     """
 
     def decorator(func: F) -> F:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            warnings.warn(
-                f"This `airflow` CLI command is deprecated and will be removed in a future "
-                f"Airflow release. Use `{replacement}` instead.",
-                RemovedInAirflow4Warning,
-                stacklevel=2,
-            )
-            return func(*args, **kwargs)
-
-        return wrapper  # type: ignore[return-value]
+        func._migrated_to_airflowctl = replacement  # type: ignore[attr-defined]
+        return func
 
     return decorator
 
@@ -83,6 +77,20 @@ def is_stdout(fileio: IOBase) -> bool:
 
     """
     return fileio is sys.stdout
+
+
+def redirect_stdout_log_handlers_to_stderr() -> None:
+    """
+    Redirect any root-logger ``StreamHandler`` writing to stdout so it writes to stderr.
+
+    Called from the CLI entrypoint for commands that emit structured output on
+    stdout (``-o json|yaml|plain|table``), so log lines do not corrupt that
+    output. ``FileHandler`` is a ``StreamHandler`` subclass; the identity check
+    against ``sys.stdout`` correctly skips it.
+    """
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.StreamHandler) and handler.stream is sys.stdout:
+            handler.setStream(sys.stderr)
 
 
 def print_export_output(command_type: str, exported_items: Collection, file: TextIOWrapper):

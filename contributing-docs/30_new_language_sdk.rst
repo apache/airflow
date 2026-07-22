@@ -128,7 +128,7 @@ string that identifies the schema revision.
 The schema evolves over time, so the SDK must tell the supervisor what API
 version it was built against for this bridging to work. How the target-language
 SDK uses ``schema.json`` to generate or validate its message types is covered in
-`Language SDK`_ below.
+`Language SDK (target language)`_ below.
 
 Adding a new coordinator class
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -236,6 +236,86 @@ Each outbound request sent by the SDK carries a monotonically increasing integer
 match responses to requests. The SDK MUST correlate by ``id`` whenever multiple
 requests can be outstanding simultaneously (e.g. when tasks are executed
 concurrently, or when a single task issues multiple requests).
+
+Task subprocess lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before implementing logging, it helps to see the full lifecycle of the
+subprocess relative to the ``--logs`` socket:
+
+.. code-block:: text
+
+    1. Supervisor launches the subprocess with
+       --comm=<host>:<port> --logs=<host>:<port>
+      │
+      └─► 2. Subprocess starts. Its logger is already active, but the
+              --logs socket is not connected yet.
+             │
+             └─► 3. Subprocess connects to --comm and --logs.
+                    │
+                    └─► 4. Each subsequent record is sent over the
+                            --logs socket.
+
+The gap is stage 2: the SDK's own startup code (argument parsing, the connect
+calls themselves) can already produce log records before the ``--logs`` socket
+in stage 3 exists to carry them. See `Logging`_ below for how to handle that
+gap.
+
+Logging
+~~~~~~~
+
+The SDK should wire the native logging mechanism (the equivalent of Python's
+``logging``, and/or whatever is popular in the ecosystem) to send logs emitted
+during execution to Airflow's task log store, so they appear in the UI with the
+rest of the output. Records travel over the ``--logs`` socket introduced in
+`Startup`_.
+
+Records produced during stage 2 of the `Task subprocess lifecycle`_ — before
+the ``--logs`` socket connects — MUST NOT be dropped. Buffer them in memory and
+flush the buffer, in order, as soon as the socket connects, before sending any
+later record. Both the Go SDK and Java SDK already implement this buffer.
+
+Log messages should be **newline-delimited JSON**. Each log is a UTF-8 encoded
+JSON object in one line, terminated by a newline character (``\n``). Each object
+is a structlog-style event:
+
+.. code-block:: text
+
+    {"event": "Starting extraction", "level": "info", "logger": "com.example.SalesPipeline", "timestamp": "2026-06-22T12:00:00", "rows": 42}
+
+* ``event`` is the log message.
+* ``level`` is the level **name** in lower case. The following levels are
+  supported: ``critical``, ``error``, ``warning``, ``info``, ``debug``, and
+  ``notset``. A line carrying any other level is dropped.
+* ``timestamp`` is an ISO-8601 timestamp.
+* Any remaining keys are forwarded as structured fields on the log record.
+
+See Python documentation on logging for details on log levels. Since log level
+definitions on logging tools differ, the SDK should implement appropriate
+translation logic to convert the levels.
+
+An SDK SHOULD integrate with the language's established logging frameworks
+rather than invent a new API, so task authors keep using the tools they already
+know. The Java SDK, for example, ships adapters for many popular logging APIs,
+including ``System.Logger`` and SLF4J.
+
+The supervisor should not perform filtering on this socket; it should record
+every line it receives. Instead, the supervisor should provide necessary
+information for the SDK to perform filtering. ``SubprocessCoordinator`` (and
+``ExecutableCoordinator`` since its a subclass) does this by setting the
+following environment variables when launching the foreign runtime subprocess:
+
+* ``AIRFLOW__LOGGING__LOGGING_LEVEL`` is the global threshold read configured in
+  ``[logging] logging_level``, e.g. ``INFO``.
+* ``AIRFLOW__LOGGING__NAMESPACE_LEVELS`` contains per-logger overrides from
+  ``[logging] namespace_levels`` e.g. ``sqlalchemy=INFO, botocore=WARNING``.
+
+See configuration documentation on the format and meaning of these
+configurations.
+
+The SDK MUST read these at startup and drop any record below the applicable
+threshold *before* sending it, so that filtering matches what a Python task on
+the same deployment would produce.
 
 Error handling
 ~~~~~~~~~~~~~~

@@ -21,15 +21,23 @@ import warnings
 import weakref
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from unittest import mock
 
 import pytest
 
-from airflow.sdk import Context, Label, PartitionAtRuntime, TaskGroup
+from airflow.sdk import (
+    DAG,
+    Context,
+    Label,
+    Param,
+    PartitionedAtRuntime,
+    TaskGroup,
+    dag as dag_decorator,
+    task,
+)
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.timetable import BaseTimetable
-from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
-from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
-from airflow.sdk.definitions.timetables import assets, events, interval, simple, trigger  # noqa: F401
+from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
 
@@ -439,8 +447,8 @@ class TestDag:
         with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
-    def test_only_partition_at_runtime_has_partitioned_at_runtime_flag(self):
-        """Regression guard: across every BaseTimetable subclass, only PartitionAtRuntime sets partitioned_at_runtime=True."""
+    def test_only_partitioned_at_runtime_has_partitioned_at_runtime_flag(self):
+        """Regression guard: across every BaseTimetable subclass, only PartitionedAtRuntime sets partitioned_at_runtime=True."""
 
         def all_subclasses(cls):
             for sub in cls.__subclasses__():
@@ -448,7 +456,7 @@ class TestDag:
                 yield from all_subclasses(sub)
 
         flagged = {c for c in all_subclasses(BaseTimetable) if c.partitioned_at_runtime}
-        assert flagged == {PartitionAtRuntime}
+        assert flagged == {PartitionedAtRuntime}
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
@@ -703,6 +711,15 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
         assert dag.fileloc == __file__
 
+    def test_bundle_name_defaults_to_none(self):
+        dag = DAG("test_dag", schedule=None)
+        assert dag.bundle_name is None
+
+    def test_bundle_name_can_be_set(self):
+        dag = DAG("test_dag", schedule=None)
+        dag.bundle_name = "my_bundle"
+        assert dag.bundle_name == "my_bundle"
+
     def test_set_dag_id(self):
         """Test that checks you can set dag_id from decorator."""
 
@@ -788,7 +805,6 @@ class TestDagDecorator:
 
     def test_dag_param_resolves(self):
         """Test that dag param is correctly resolved by operator"""
-        from airflow.decorators import task
 
         @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
         def xcom_pass_to_op(value=self.VALUE):
@@ -804,6 +820,34 @@ class TestDagDecorator:
         assert isinstance(self.operator.op_args[0], DagParam)
         self.operator.render_template_fields({})
         assert self.operator.op_args[0] == 42
+
+    def test_ignore_function_result(self, monkeypatch):
+        monkeypatch.setattr(DAG, "add_result", mock.create_autospec(DAG.add_result))
+
+        @dag_decorator
+        def d():
+            @task
+            def return_num(num):
+                return num
+
+            return_num(123)
+            return 123
+
+        dag = d()
+        assert dag.get_task("return_num").returns_dag_result is False
+        assert DAG.add_result.mock_calls == []
+
+    def test_function_result_set_to_xcom_arg(self):
+        @dag_decorator
+        def d():
+            @task
+            def return_num(num):
+                return num
+
+            return return_num(123)
+
+        dag = d()
+        assert dag.get_task("return_num").returns_dag_result is True
 
 
 class DoNothingOperator(BaseOperator):

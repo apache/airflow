@@ -106,11 +106,6 @@
     "viewInExternal": "Veure els registres a {{name}} (intent {{attempt}})",
     "warning": "ADVERTIMENT"
   },
-  "navigation": {
-    "navigation": "Navegació: Shift+{{arrow}}",
-    "openGraphFilters": "Filtres de tasques: Ctrl+Maj+F",
-    "toggleGroup": "Alternar grup: Espai"
-  },
   "notFound": {
     "back": "Enrere",
     "backToDags": "Tornar als Dags",

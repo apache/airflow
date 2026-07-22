@@ -164,6 +164,18 @@ class TestEdgeWorker:
                 importlib.reload(cli_parser)
                 self.parser = cli_parser.get_parser()
 
+    @pytest.fixture(autouse=True)
+    def reset_maintenance_state(self):
+        # EdgeWorker keeps runtime state in class attributes and some tests set them
+        # on class level. Reset before each test so state does not leak between tests.
+        EdgeWorker.maintenance_mode = False
+        EdgeWorker.maintenance_comments = None
+        try:
+            yield
+        finally:
+            EdgeWorker.maintenance_mode = False
+            EdgeWorker.maintenance_comments = None
+
     @pytest.fixture
     def cli_worker_with_team(self, tmp_path: Path) -> EdgeWorker:
         test_worker = EdgeWorker(str(tmp_path / "mock.pid"), "mock", None, 8, team_name="team_a")
@@ -1101,6 +1113,24 @@ class TestEdgeWorker:
         ]:
             assert key in edge_workers[0]
         assert any("test_edge_worker" in h["worker_name"] for h in edge_workers)
+
+    @pytest.mark.db_test
+    def test_list_edge_workers_passes_name_pattern(self, mock_edgeworker: EdgeWorkerModel):
+        args = self.parser.parse_args(
+            ["edge", "list-workers", "--output", "json", "--worker-name-pattern", "prod-*"]
+        )
+        with contextlib.redirect_stdout(StringIO()):
+            with (
+                patch(
+                    "airflow.providers.edge3.cli.edge_command._check_valid_db_connection",
+                ),
+                patch(
+                    "airflow.providers.edge3.models.edge_worker.get_registered_edge_hosts",
+                    return_value=[mock_edgeworker],
+                ) as mock_get_hosts,
+            ):
+                edge_command.list_edge_workers(args)
+        mock_get_hosts.assert_called_once_with(states=None, worker_name_pattern="prod-*")
 
 
 class TestSignalHandling:
