@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import UUID, uuid4
@@ -1601,6 +1601,40 @@ class TestTIUpdateState:
                 assert t[0].queue == "default"
             else:
                 assert t[0].queue is None
+
+    @pytest.mark.parametrize(
+        ("trigger_timeout", "expected_timeout"),
+        [
+            (None, timedelta(hours=1)),
+            ("PT30M", timedelta(minutes=30)),
+            ("PT2H", timedelta(hours=1)),
+        ],
+    )
+    def test_ti_update_state_to_deferred_respects_execution_and_trigger_timeouts(
+        self, client, session, create_task_instance, time_machine, trigger_timeout, expected_timeout
+    ):
+        instant = timezone.datetime(2024, 11, 22)
+        task = EmptyOperator(task_id="test_deferred_execution_timeout", execution_timeout=timedelta(hours=2))
+        ti = create_task_instance(task=task, state=State.RUNNING, session=session)
+        ti.start_date = instant - timedelta(hours=1)
+        session.commit()
+        time_machine.move_to(instant, tick=False)
+
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+            "next_kwargs": {},
+        }
+        if trigger_timeout is not None:
+            payload["trigger_timeout"] = trigger_timeout
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        session.refresh(ti)
+        assert ti.trigger_timeout == instant + expected_timeout
 
     @staticmethod
     def _defer_ti_in_team_bundle(client, session, create_task_instance):

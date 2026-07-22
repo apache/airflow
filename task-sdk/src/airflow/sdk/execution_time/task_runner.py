@@ -2105,6 +2105,7 @@ def _run_execute_callable(
     context: Context,
     execute: Callable[..., Any] | functools.partial[Any],
     task: BaseOperator,
+    ti: RuntimeTaskInstance,
 ) -> Any:
     """
     Run the task's execute callable, applying the execution timeout if one is set.
@@ -2120,8 +2121,9 @@ def _run_execute_callable(
     if task.execution_timeout:
         from airflow.sdk.execution_time.timeout import timeout
 
-        # TODO: handle timeout in case of deferral
         timeout_seconds = task.execution_timeout.total_seconds()
+        if ti._ti_context_from_server and ti._ti_context_from_server.next_method:
+            timeout_seconds -= (datetime.now(tz=timezone.utc) - ti.start_date).total_seconds()
         try:
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
@@ -2175,7 +2177,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    result = _run_execute_callable(context, execute, task)
+    result = _run_execute_callable(context, execute, task, ti)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)

@@ -677,6 +677,15 @@ def _create_ti_state_update_query_and_update_state(
         if ti_patch_payload.trigger_timeout is not None:
             timeout = timezone.utcnow() + ti_patch_payload.trigger_timeout
 
+        ti = session.get(TI, task_instance_id)
+        if ti is not None and ti.start_date is not None:
+            dag = dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+            if dag is not None:
+                with contextlib.suppress(TaskNotFound):
+                    if execution_timeout := dag.get_task(ti.task_id).execution_timeout:
+                        execution_deadline = ti.start_date + execution_timeout
+                        timeout = min(timeout, execution_deadline) if timeout else execution_deadline
+
         trigger_kwargs = ti_patch_payload.trigger_kwargs
         if not isinstance(trigger_kwargs, str):
             # If it's passed as a string, assume the client encrypted it, otherwise assume it doesn't need to
@@ -692,9 +701,6 @@ def _create_ti_state_update_query_and_update_state(
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
         session.flush()
-
-        # TODO: HANDLE execution timeout later as it requires a call to the DB
-        # either get it from the serialised DAG or get it from the API
 
         query = update(TI).where(TI.id == task_instance_id)
 
