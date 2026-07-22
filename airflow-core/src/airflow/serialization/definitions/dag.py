@@ -36,6 +36,7 @@ from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     AirflowException,
+    DagNotFound,
     DagNotPartitionedError,
     DagVersionNotFound,
     InvalidPartitionKeyError,
@@ -1279,6 +1280,7 @@ class SerializedDAG:
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
         include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> set[str]: ...  # pragma: no cover
 
     @overload
@@ -1297,6 +1299,7 @@ class SerializedDAG:
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
         include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1332,6 +1335,7 @@ class SerializedDAG:
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
         include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> int: ...  # pragma: no cover
 
     @overload
@@ -1350,6 +1354,7 @@ class SerializedDAG:
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
         include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> list[TaskInstance]: ...  # pragma: no cover
 
     @overload
@@ -1368,6 +1373,7 @@ class SerializedDAG:
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
         include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> int: ...  # pragma: no cover
 
     @provide_session
@@ -1388,6 +1394,7 @@ class SerializedDAG:
         exclude_run_ids: frozenset[str] | None = frozenset(),
         run_on_latest_version: bool = False,
         include_dependent_dags: bool = False,
+        dag_bag: DBDagBag | None = None,
     ) -> int | Iterable[TaskInstance] | set[str]:
         """
         Clear a set of task instances associated with the current dag for a specified date range.
@@ -1410,6 +1417,9 @@ class SerializedDAG:
         :param include_dependent_dags: If True, also clear tasks in downstream DAGs that are
             linked via ExternalTaskMarker. Follows transitive dependencies up to the
             ``recursion_depth`` configured on each ExternalTaskMarker.
+        :param dag_bag: An existing ``DBDagBag`` to reuse (e.g. the request-scoped bag) when
+            resolving downstream dags for ``include_dependent_dags``, instead of creating a new,
+            uncached, un-configured one.
         """
         from airflow.models.taskinstance import (
             _get_new_task_ids,
@@ -1466,6 +1476,7 @@ class SerializedDAG:
             session=session,
             exclude_task_ids=exclude_task_ids,
             exclude_run_ids=exclude_run_ids,
+            dag_bag=dag_bag,
         )
 
         if dry_run:

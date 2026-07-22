@@ -235,11 +235,24 @@ class DBDagBag:
                 yield dag
 
     def get_latest_version_of_dag(self, dag_id: str, *, session: Session) -> SerializedDAG | None:
-        """Get the latest version of a dag by its id."""
+        """Get the latest version of a dag by its id, using cache if enabled."""
         from airflow.models.serialized_dag import SerializedDagModel
 
         if not (serdag := SerializedDagModel.get(dag_id, session=session)):
             return None
+
+        with self._lock:
+            cached = self._dags.get(serdag.dag_version_id)
+
+        # DAG exists in cache and the cached/serialized DAG hashes match, return cached DAG
+        if cached is not None and cached.dag_hash == serdag.dag_hash:
+            if self._use_cache:
+                stats.incr("api_server.dag_bag.cache_hit")
+            return cached.dag
+
+        if self._use_cache:
+            stats.incr("api_server.dag_bag.cache_miss")
+
         return self._read_dag(serdag)
 
 

@@ -18,10 +18,13 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pendulum
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.models.dagbag import DBDagBag
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 
@@ -105,6 +108,127 @@ def test_clear_follows_external_marker_when_include_dependent_dags_enabled(dag_m
     assert "parent_dag" in dag_ids
     assert "child_dag" in dag_ids
     assert "wait_for_parent" in task_ids
+
+
+def test_clear_reuses_provided_dag_bag_for_external_dags(dag_maker, session):
+    """Passing an existing dag_bag into clear() reuses it instead of creating an uncached, un-configured one."""
+    with dag_maker("parent_dag", session=session, schedule=None):
+        ExternalTaskMarker(
+            task_id="trigger_child",
+            external_dag_id="child_dag",
+            external_task_id="wait_for_parent",
+            recursion_depth=3,
+        )
+
+    dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
+    serialized_parent = dag_maker.serialized_dag
+
+    with dag_maker("child_dag", session=session, schedule=None):
+        ExternalTaskSensor(
+            task_id="wait_for_parent",
+            external_dag_id="parent_dag",
+            external_task_id="trigger_child",
+            poke_interval=5,
+        )
+
+    dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
+    session.flush()
+
+    provided_dag_bag = DBDagBag()
+
+    with mock.patch("airflow.serialization.definitions.dag.DBDagBag", wraps=DBDagBag) as mock_dbdagbag_cls:
+        result = serialized_parent.clear(
+            dry_run=True,
+            only_failed=False,
+            include_dependent_dags=True,
+            session=session,
+            dag_bag=provided_dag_bag,
+        )
+
+    mock_dbdagbag_cls.assert_not_called()
+    dag_ids = {ti.dag_id for ti in result}
+    assert "child_dag" in dag_ids
+
+
+def test_clear_creates_dag_bag_when_none_provided(dag_maker, session):
+    """Without a caller-provided dag_bag, clear() falls back to creating its own."""
+    with dag_maker("parent_dag", session=session, schedule=None):
+        ExternalTaskMarker(
+            task_id="trigger_child",
+            external_dag_id="child_dag",
+            external_task_id="wait_for_parent",
+            recursion_depth=3,
+        )
+
+    dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
+    serialized_parent = dag_maker.serialized_dag
+
+    with dag_maker("child_dag", session=session, schedule=None):
+        ExternalTaskSensor(
+            task_id="wait_for_parent",
+            external_dag_id="parent_dag",
+            external_task_id="trigger_child",
+            poke_interval=5,
+        )
+
+    dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
+    session.flush()
+
+    with mock.patch("airflow.serialization.definitions.dag.DBDagBag", wraps=DBDagBag) as mock_dbdagbag_cls:
+        serialized_parent.clear(dry_run=True, only_failed=False, include_dependent_dags=True, session=session)
+
+    mock_dbdagbag_cls.assert_called_once_with(load_op_links=False)
+
+
+def test_clear_dependent_dags_deserializes_child_dag_once_across_multiple_markers(dag_maker, session):
+    """Multiple ExternalTaskMarkers into the same child dag must not each re-deserialize it."""
+    with dag_maker("parent_dag", session=session, schedule=None):
+        ExternalTaskMarker(
+            task_id="trigger_child_a",
+            external_dag_id="child_dag",
+            external_task_id="wait_for_parent_a",
+            recursion_depth=3,
+        )
+        ExternalTaskMarker(
+            task_id="trigger_child_b",
+            external_dag_id="child_dag",
+            external_task_id="wait_for_parent_b",
+            recursion_depth=3,
+        )
+
+    dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
+    serialized_parent = dag_maker.serialized_dag
+
+    with dag_maker("child_dag", session=session, schedule=None):
+        ExternalTaskSensor(
+            task_id="wait_for_parent_a",
+            external_dag_id="parent_dag",
+            external_task_id="trigger_child_a",
+            poke_interval=5,
+        )
+        ExternalTaskSensor(
+            task_id="wait_for_parent_b",
+            external_dag_id="parent_dag",
+            external_task_id="trigger_child_b",
+            poke_interval=5,
+        )
+
+    dag_maker.create_dagrun(logical_date=EXTERNAL_LOGICAL_DATE)
+    session.flush()
+
+    with mock.patch.object(
+        DBDagBag, "_read_dag", autospec=True, side_effect=DBDagBag._read_dag
+    ) as mock_read_dag:
+        result = serialized_parent.clear(
+            dry_run=True, only_failed=False, include_dependent_dags=True, session=session
+        )
+
+    dag_ids = {ti.dag_id for ti in result}
+    assert "child_dag" in dag_ids
+    # Only the first ExternalTaskMarker into child_dag triggers an actual deserialize; the
+    # second is served from the shared DBDagBag cache instead of re-reading/re-deserializing.
+    child_dag_reads = [call for call in mock_read_dag.call_args_list if call.args[1].dag_id == "child_dag"]
+    assert len(child_dag_reads) == 1
 
 
 def test_clear_raises_when_recursion_depth_exceeded(dag_maker, session):

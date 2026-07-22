@@ -947,6 +947,7 @@ def post_clear_task_instances(
                 only_failed=body.only_failed,
                 only_running=body.only_running,
                 include_dependent_dags=include_dependent_dags,
+                dag_bag=dag_bag,
             )
         else:
             # Use date-based clearing when no dag_run_id or when past/future is specified
@@ -960,6 +961,7 @@ def post_clear_task_instances(
                 only_failed=body.only_failed,
                 only_running=body.only_running,
                 include_dependent_dags=include_dependent_dags,
+                dag_bag=dag_bag,
             )
 
     except MaxRecursionDepthError as e:

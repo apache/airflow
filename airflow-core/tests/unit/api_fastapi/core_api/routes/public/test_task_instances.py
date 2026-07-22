@@ -3699,6 +3699,32 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert mock_clear.call_count == 1
         assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
 
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_run_id_path_passes_request_dag_bag_to_clear(self, mock_clear, test_client, session):
+        """dag_run_id code path: the request-scoped dag_bag must reach dag.clear()."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False, "dag_run_id": "TEST_DAG_RUN_ID"},
+        )
+
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["dag_bag"] is test_client.app.state.dag_bag
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_date_range_path_passes_request_dag_bag_to_clear(self, mock_clear, test_client, session):
+        """Date-range code path (no dag_run_id): the request-scoped dag_bag must reach dag.clear()."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False},
+        )
+
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["dag_bag"] is test_client.app.state.dag_bag
+
     @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances")
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.get_auth_manager")
