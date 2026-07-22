@@ -148,7 +148,13 @@ def decode_deadline_reference(reference_data: dict):
     """Decode a previously serialized deadline reference."""
     ref_name = reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)
 
-    if ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
+    # ``__class_path`` is stamped only for custom references and takes precedence over the
+    # ``reference_type`` name (a custom reference may share a name with a builtin).
+    if "__class_path" in reference_data:
+        reference_class: type[SerializedReferenceModels.SerializedBaseDeadlineReference] = (
+            SerializedReferenceModels.SerializedCustomReference
+        )
+    elif ref_name and SerializedReferenceModels.is_builtin_reference(ref_name):
         reference_class = SerializedReferenceModels.get_reference_class(ref_name)
     else:
         reference_class = SerializedReferenceModels.SerializedCustomReference
