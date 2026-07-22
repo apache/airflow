@@ -135,6 +135,10 @@ class AssetEventTrigger(BaseTrigger):
         poke_interval: float = 60,
     ) -> None:
         super().__init__()
+        if expected_count < -1:
+            raise ValueError(
+                f"`expected_count` must be -1 (at least one) or a non-negative integer, got {expected_count}."
+            )
         self.name = name
         self.uri = uri
         self.alias_name = alias_name

@@ -57,6 +57,14 @@ class DuplicateStateError(AirflowExternalTaskSensorException):
     """Raised when duplicate states are provided across allowed, skipped and failed states."""
 
 
+class AssetEventSensorException(AirflowException):
+    """Base exception for all AssetEventSensor related errors."""
+
+
+class UnexpectedAssetEventTriggerEventError(AssetEventSensorException):
+    """Raised when the AssetEventTrigger returns an unexpected event to the sensor."""
+
+
 class HITLTriggerEventError(Exception):
     """Raised when TriggerEvent contains error."""
 
