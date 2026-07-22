@@ -1616,6 +1616,7 @@ StatsD
 statsd
 stderr
 stdin
+stdlib
 stdout
 StorageClass
 storages
