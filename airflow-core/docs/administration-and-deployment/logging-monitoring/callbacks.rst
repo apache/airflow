@@ -67,6 +67,9 @@ Name                                        Description                         
                                             is not started to be executed because of a preceding branching
                                             decision in the Dag or a trigger rule which causes execution
                                             to skip so that the task execution is never scheduled.
+``on_skipped_intervals_callback``           Invoked when a Dag with ``catchup=False`` skips one or more             Dag
+                                            scheduled data intervals without creating Dag runs (for example
+                                            after a scheduler restart or when a paused Dag is re-enabled).
 =========================================== ======================================================================= =================
 
 
@@ -94,6 +97,55 @@ For example, a timeout may be caused by a number of stalling tasks, but only one
 .. note::
     Before Airflow 3.2.0, the rules above did not apply and the task instance passed to Dag callback was not related to Dag state, rather being selected as the latest task in the Dag
     lexicographically.
+
+Skipped Intervals Callback
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When a Dag is defined with ``catchup=False``, the scheduler may advance past missed scheduled
+intervals without creating Dag runs for them. Set ``on_skipped_intervals_callback`` on the Dag
+to be notified when that happens.
+
+The callback is invoked once per scheduler decision that creates a new scheduled Dag run while
+intervals were skipped between the previous automated run and the new run. No Dag runs are
+created for the skipped intervals.
+
+The callback runs in the dag processor (like other Dag-level callbacks), not in the scheduler.
+The context mapping contains:
+
+* ``dag`` -- the Dag object
+* ``reason`` -- always ``"skipped_intervals"``
+* ``skipped_range`` -- a :class:`~airflow.timetables.base.DataInterval` from the
+  previous automated run's ``data_interval_end`` to the new run's ``data_interval_start``
+
+To enumerate every skipped interval, call
+:meth:`~airflow.serialization.definitions.dag.SerializedDAG.iter_dagrun_infos_between`
+on ``context["dag"]`` with ``skipped_range.start`` and ``skipped_range.end``.
+
+Example:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+
+    def log_skipped_intervals(context):
+        skipped_range = context["skipped_range"]
+        print(f"Gap: {skipped_range.start} -> {skipped_range.end}")
+        for info in context["dag"].iter_dagrun_infos_between(skipped_range.start, skipped_range.end):
+            if info.data_interval is None:
+                continue
+            interval = info.data_interval
+            print(f"Skipped interval: {interval.start} -> {interval.end}")
+
+
+    with DAG(
+        dag_id="example_skipped_intervals_callback",
+        schedule="@daily",
+        catchup=False,
+        on_skipped_intervals_callback=log_skipped_intervals,
+    ):
+        EmptyOperator(task_id="task")
 
 
 Examples

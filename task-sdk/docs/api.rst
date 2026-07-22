@@ -311,6 +311,10 @@ For a complete list of available context variables (such as ``dag_run``,
 ``task_instance``, ``logical_date``, etc.), see the
 :ref:`Templates reference <templates-ref>`.
 
+.. autoclass:: airflow.sdk.SkippedIntervalsCallbackContext
+
+The ``SkippedIntervalsCallbackContext`` object is passed to ``on_skipped_intervals_callback`` handlers.
+
 .. rubric:: Task State
 
 .. autodata:: airflow.sdk.NEVER_EXPIRE

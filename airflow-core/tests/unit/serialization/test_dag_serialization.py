@@ -1566,6 +1566,7 @@ class TestStringifiedDAGs:
             "tasks",
             "has_on_success_callback",
             "has_on_failure_callback",
+            "has_on_skipped_intervals_callback",
             "dag_dependencies",
             "params",
         }
@@ -2401,6 +2402,37 @@ class TestStringifiedDAGs:
         deserialized_dag = DagSerialization.from_dict(serialized_dag)
 
         assert deserialized_dag.has_on_failure_callback is expected_value
+
+    @pytest.mark.parametrize(
+        ("passed_skipped_intervals_callback", "expected_value"),
+        [
+            ({"on_skipped_intervals_callback": lambda x: print("hi")}, True),
+            ({}, False),
+        ],
+    )
+    def test_dag_on_skipped_intervals_callback_roundtrip(
+        self, passed_skipped_intervals_callback, expected_value
+    ):
+        """
+        Test that when on_skipped_intervals_callback is passed to the DAG,
+        has_on_skipped_intervals_callback is stored in Serialized JSON blob.
+        """
+        dag = DAG(
+            dag_id="test_dag_on_skipped_intervals_callback_roundtrip",
+            schedule=None,
+            **passed_skipped_intervals_callback,
+        )
+        BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+
+        serialized_dag = DagSerialization.to_dict(dag)
+        if expected_value:
+            assert "has_on_skipped_intervals_callback" in serialized_dag["dag"]
+        else:
+            assert "has_on_skipped_intervals_callback" not in serialized_dag["dag"]
+
+        deserialized_dag = DagSerialization.from_dict(serialized_dag)
+
+        assert deserialized_dag.has_on_skipped_intervals_callback is expected_value
 
     @pytest.mark.parametrize(
         ("dag_arg", "conf_arg", "expected"),

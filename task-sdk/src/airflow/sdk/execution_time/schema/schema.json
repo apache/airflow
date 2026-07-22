@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-06-16",
+  "api_version": "2026-06-23",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
     "AssetAliasReferenceAssetEventDagRun": {
@@ -847,6 +847,7 @@
             "discriminator": {
               "mapping": {
                 "DagCallbackRequest": "#/$defs/DagCallbackRequest",
+                "DagSkippedIntervalsCallbackRequest": "#/$defs/DagSkippedIntervalsCallbackRequest",
                 "EmailRequest": "#/$defs/EmailRequest",
                 "TaskCallbackRequest": "#/$defs/TaskCallbackRequest"
               },
@@ -855,6 +856,9 @@
             "oneOf": [
               {
                 "$ref": "#/$defs/DagCallbackRequest"
+              },
+              {
+                "$ref": "#/$defs/DagSkippedIntervalsCallbackRequest"
               },
               {
                 "$ref": "#/$defs/TaskCallbackRequest"
@@ -1394,6 +1398,90 @@
       ],
       "title": "DagRunType",
       "type": "string"
+    },
+    "DagSkippedIntervalsCallbackRequest": {
+      "description": "Store skipped intervals callback data for execution by the Dag processor.",
+      "properties": {
+        "filepath": {
+          "title": "Filepath",
+          "type": "string"
+        },
+        "bundle_name": {
+          "title": "Bundle Name",
+          "type": "string"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Bundle Version"
+        },
+        "version_data": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version Data"
+        },
+        "msg": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Msg"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "skipped_range": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "format": "date-time",
+              "type": "string"
+            }
+          ],
+          "title": "Skipped Range",
+          "type": "array"
+        },
+        "type": {
+          "const": "DagSkippedIntervalsCallbackRequest",
+          "default": "DagSkippedIntervalsCallbackRequest",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "filepath",
+        "bundle_name",
+        "bundle_version",
+        "dag_id",
+        "skipped_range"
+      ],
+      "title": "DagSkippedIntervalsCallbackRequest",
+      "type": "object"
     },
     "DeferTask": {
       "additionalProperties": false,

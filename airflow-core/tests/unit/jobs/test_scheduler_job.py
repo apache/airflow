@@ -46,7 +46,12 @@ from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
-from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext, TaskCallbackRequest
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    DagRunContext,
+    DagSkippedIntervalsCallbackRequest,
+    TaskCallbackRequest,
+)
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
@@ -9910,6 +9915,323 @@ class TestSchedulerJob:
         ti = session.merge(ti)
         session.refresh(ti)
         assert ti.state != State.NONE
+
+    def test_collect_skipped_intervals_returns_empty_when_catchup_true(self, session, dag_maker):
+        with dag_maker(
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=True,
+            on_skipped_intervals_callback=lambda ctx: None,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        serdag = dag_maker.serialized_dag
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        new_info = DagRunInfo.interval(
+            DEFAULT_DATE + timedelta(days=4),
+            DEFAULT_DATE + timedelta(days=5),
+        )
+        assert (
+            self.job_runner._collect_skipped_intervals(serdag, new_info, session, listener_has_impls=False)
+            is None
+        )
+
+    def test_collect_skipped_intervals_returns_empty_without_callback_or_listener(self, session, dag_maker):
+        with dag_maker(
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        prev_start = DEFAULT_DATE
+        prev_end = DEFAULT_DATE + timedelta(days=1)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=prev_start,
+            data_interval=(prev_start, prev_end),
+            state=State.SUCCESS,
+        )
+
+        serdag = dag_maker.serialized_dag
+        assert not serdag.has_on_skipped_intervals_callback
+        new_info = DagRunInfo.interval(
+            DEFAULT_DATE + timedelta(days=4),
+            DEFAULT_DATE + timedelta(days=5),
+        )
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        assert (
+            self.job_runner._collect_skipped_intervals(serdag, new_info, session, listener_has_impls=False)
+            is None
+        )
+
+    def test_collect_skipped_intervals_returns_gap_summary(self, session, dag_maker):
+        with dag_maker(
+            dag_id="test_collect_skipped_intervals",
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            on_skipped_intervals_callback=lambda ctx: None,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        prev_start = DEFAULT_DATE
+        prev_end = DEFAULT_DATE + timedelta(days=1)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=prev_start,
+            data_interval=(prev_start, prev_end),
+            state=State.SUCCESS,
+        )
+
+        new_start = DEFAULT_DATE + timedelta(days=4)
+        new_end = DEFAULT_DATE + timedelta(days=5)
+        serdag = dag_maker.serialized_dag
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        summary = self.job_runner._collect_skipped_intervals(
+            serdag,
+            DagRunInfo.interval(new_start, new_end),
+            session,
+            listener_has_impls=False,
+        )
+
+        assert summary is not None
+        assert summary.skipped_range == DataInterval(start=prev_end, end=new_start)
+
+    def test_collect_skipped_intervals_returns_empty_without_previous_run(self, session, dag_maker):
+        with dag_maker(
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            on_skipped_intervals_callback=lambda ctx: None,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        serdag = dag_maker.serialized_dag
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        new_info = DagRunInfo.interval(
+            DEFAULT_DATE + timedelta(days=1),
+            DEFAULT_DATE + timedelta(days=2),
+        )
+        assert (
+            self.job_runner._collect_skipped_intervals(serdag, new_info, session, listener_has_impls=False)
+            is None
+        )
+
+    def test_collect_skipped_intervals_returns_empty_when_no_gap(self, session, dag_maker):
+        with dag_maker(
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            on_skipped_intervals_callback=lambda ctx: None,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        prev_start = DEFAULT_DATE
+        prev_end = DEFAULT_DATE + timedelta(days=1)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=prev_start,
+            data_interval=(prev_start, prev_end),
+            state=State.SUCCESS,
+        )
+
+        serdag = dag_maker.serialized_dag
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        new_info = DagRunInfo.interval(prev_end, prev_end + timedelta(days=1))
+        assert (
+            self.job_runner._collect_skipped_intervals(serdag, new_info, session, listener_has_impls=False)
+            is None
+        )
+
+    @conf_vars({("scheduler", "create_cron_data_intervals"): "False"})
+    def test_create_dag_runs_does_not_emit_skipped_intervals_for_consecutive_cron_runs(
+        self, session, dag_maker
+    ):
+        """Regression: consecutive CronTriggerTimetable runs must not fire skip callbacks."""
+        with dag_maker(
+            dag_id="test_consecutive_cron_no_false_skip",
+            schedule="@daily",
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            on_skipped_intervals_callback=lambda ctx: None,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dr1 = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+            data_interval=DataInterval.exact(DEFAULT_DATE),
+            state=State.SUCCESS,
+        )
+
+        serdag = dag_maker.serialized_dag
+        next_info = serdag.next_dagrun_info(
+            last_automated_run_info=serdag.timetable.run_info_from_dag_run(dag_run=dr1),
+            restricted=False,
+        )
+        assert next_info is not None
+        dag_model = dag_maker.dag_model
+        dag_model.next_dagrun = next_info.logical_date
+        dag_model.next_dagrun_data_interval = next_info.data_interval
+        dag_model.next_dagrun_create_after = next_info.run_after
+        session.merge(dag_model)
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
+        notifications = self.job_runner._create_dag_runs([dag_model], session)
+
+        assert notifications.skip_callback_requests == []
+        assert notifications.skipped_intervals_listener_events == []
+
+    def test_create_dag_runs_returns_skipped_intervals_callback_request(self, session, dag_maker):
+        with dag_maker(
+            dag_id="test_create_dag_runs_skipped_intervals_callback",
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            on_skipped_intervals_callback=lambda ctx: None,
+            session=session,
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        prev_start = DEFAULT_DATE
+        prev_end = DEFAULT_DATE + timedelta(days=1)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=prev_start,
+            data_interval=(prev_start, prev_end),
+            state=State.SUCCESS,
+        )
+
+        new_start = DEFAULT_DATE + timedelta(days=4)
+        new_end = DEFAULT_DATE + timedelta(days=5)
+        dag_model = dag_maker.dag_model
+        dag_model.next_dagrun = new_start
+        dag_model.next_dagrun_data_interval = DataInterval(start=new_start, end=new_end)
+        dag_model.next_dagrun_create_after = new_end
+        session.merge(dag_model)
+        session.commit()
+
+        scheduler_job = Job()
+        mock_exec = MockExecutor(do_update=False)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[mock_exec])
+
+        notifications = self.job_runner._create_dag_runs([dag_model], session)
+        session.commit()
+
+        skip_requests = notifications.skip_callback_requests
+
+        assert len(skip_requests) == 1
+        request = skip_requests[0]
+        assert isinstance(request, DagSkippedIntervalsCallbackRequest)
+        assert request.dag_id == dag.dag_id
+        assert request.filepath == dag_model.relative_fileloc
+        assert request.bundle_name == dag_model.bundle_name
+        assert request.skipped_range == (prev_end, new_start)
+
+    def test_create_dag_runs_defers_skipped_intervals_listener_notification(
+        self, session, dag_maker, listener_manager
+    ):
+        from unit.listeners import skipped_intervals_listener
+
+        listener_manager(skipped_intervals_listener)
+
+        with dag_maker(
+            dag_id="test_create_dag_runs_deferred_listener",
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        prev_start = DEFAULT_DATE
+        prev_end = DEFAULT_DATE + timedelta(days=1)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=prev_start,
+            data_interval=(prev_start, prev_end),
+            state=State.SUCCESS,
+        )
+
+        new_start = DEFAULT_DATE + timedelta(days=4)
+        new_end = DEFAULT_DATE + timedelta(days=5)
+        dag_model = dag_maker.dag_model
+        dag_model.next_dagrun = new_start
+        dag_model.next_dagrun_data_interval = DataInterval(start=new_start, end=new_end)
+        dag_model.next_dagrun_create_after = new_end
+        session.merge(dag_model)
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        with mock.patch.object(
+            self.job_runner,
+            "_notify_skipped_intervals_listeners",
+            wraps=self.job_runner._notify_skipped_intervals_listeners,
+        ) as mock_notify:
+            notifications = self.job_runner._create_dag_runs([dag_model], session)
+            session.commit()
+            mock_notify.assert_not_called()
+
+        assert len(notifications.skipped_intervals_listener_events) == 1
+        self.job_runner._notify_skipped_intervals_listeners(notifications.skipped_intervals_listener_events)
+        assert len(skipped_intervals_listener.events) == 1
+
+    def test_do_scheduling_dispatches_skipped_intervals_callback(self, session, dag_maker):
+        with dag_maker(
+            dag_id="test_do_scheduling_skipped_intervals_callback",
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            catchup=False,
+            on_skipped_intervals_callback=lambda ctx: None,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        prev_start = DEFAULT_DATE
+        prev_end = DEFAULT_DATE + timedelta(days=1)
+        dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+            logical_date=prev_start,
+            data_interval=(prev_start, prev_end),
+            state=State.SUCCESS,
+        )
+
+        new_start = DEFAULT_DATE + timedelta(days=4)
+        new_end = DEFAULT_DATE + timedelta(days=5)
+        dag_model = dag_maker.dag_model
+        dag_model.next_dagrun = new_start
+        dag_model.next_dagrun_data_interval = DataInterval(start=new_start, end=new_end)
+        dag_model.next_dagrun_create_after = new_end
+        session.merge(dag_model)
+        session.commit()
+
+        scheduler_job = Job()
+        mock_exec = MockExecutor(do_update=False)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[mock_exec])
+
+        with mock.patch.object(mock_exec, "send_callback") as mock_send_callback:
+            self.job_runner._do_scheduling(session)
+
+        mock_send_callback.assert_called_once()
+        request = mock_send_callback.call_args.args[0]
+        assert isinstance(request, DagSkippedIntervalsCallbackRequest)
 
 
 @pytest.mark.need_serialized_dag
