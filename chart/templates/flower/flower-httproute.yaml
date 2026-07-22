@@ -1,0 +1,70 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+###########################
+## Airflow Flower HTTPRoute
+###########################
+{{- if and .Values.flower.enabled .Values.flower.httpRoute.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- if or .Values.ingress.flower.enabled .Values.ingress.enabled }}
+{{- fail "`flower.httpRoute.enabled` and `ingress.flower.enabled`/`ingress.enabled` are both enabled. HTTPRoute (Gateway API) is an alternative to the Flower Ingress; enable only one of them." }}
+{{- end }}
+{{- if not (.Capabilities.APIVersions.Has "gateway.networking.k8s.io/v1") }}
+{{- fail "`flower.httpRoute.enabled` is `true` but the Gateway API HTTPRoute CRD (`gateway.networking.k8s.io/v1`) is not installed in the cluster. Install the Gateway API CRDs (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api) before enabling `flower.httpRoute`." }}
+{{- end }}
+{{- if not .Values.flower.httpRoute.parentRefs }}
+{{- fail "`flower.httpRoute.enabled` is `true` but `flower.httpRoute.parentRefs` is empty. An HTTPRoute must reference at least one parent Gateway; set `flower.httpRoute.parentRefs`." }}
+{{- end }}
+{{- $fullname := include "airflow.fullname" . }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullname }}-flower-httproute
+  labels:
+    tier: airflow
+    component: flower-httproute
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- if or .Values.labels .Values.flower.labels .Values.flower.httpRoute.labels }}
+      {{- mustMerge .Values.flower.httpRoute.labels .Values.flower.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+  {{- with .Values.flower.httpRoute.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs: {{- toYaml .Values.flower.httpRoute.parentRefs | nindent 4 }}
+  {{- with .Values.flower.httpRoute.hostnames }}
+  hostnames:
+    {{- range . }}
+    - {{ tpl . $ | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- if .Values.flower.httpRoute.rules }}
+    {{- toYaml .Values.flower.httpRoute.rules | nindent 4 }}
+    {{- else }}
+    - matches:
+        - path:
+            type: {{ .Values.flower.httpRoute.pathType }}
+            value: {{ .Values.flower.httpRoute.path | quote }}
+      backendRefs:
+        - name: {{ $fullname }}-flower
+          port: {{ .Values.ports.flowerUI }}
+    {{- end }}
+{{- end }}
