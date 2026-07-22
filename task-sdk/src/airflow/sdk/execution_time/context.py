@@ -1149,9 +1149,10 @@ class OutletEventAccessors(
         else:
             raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
 
-        if hashable_key not in self._dict:
-            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
-        return self._dict[hashable_key]
+        # setdefault is atomic under the GIL: if two threads race on the same
+        # key the first writer wins and both threads get back the same accessor,
+        # so neither thread's accumulated events are silently discarded.
+        return self._dict.setdefault(hashable_key, OutletEventAccessor(extra={}, key=hashable_key))
 
 
 @attrs.define(init=False)

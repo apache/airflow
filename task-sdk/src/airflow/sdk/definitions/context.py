@@ -121,8 +121,10 @@ def clone_context(context: Context) -> Context:
       not be shared between concurrent executions.
     - ``outlet_events`` is intentionally **not** copied so that events emitted
       by sub-tasks are captured in the parent's accessor and serialized when
-      the parent task completes. Concurrent writes to the same asset may race,
-      but that is expected behavior for parallel sub-tasks.
+      the parent task completes. ``OutletEventAccessors.__getitem__`` uses
+      ``dict.setdefault`` to guarantee that concurrent sub-tasks always share
+      one accessor per asset key rather than silently overwriting each other's
+      accumulated events.
 
     Use cases
     - Multithreading: when using thread-based executors (``concurrent.futures``
