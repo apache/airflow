@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import inspect
-import json
 from abc import ABC
 from collections.abc import Callable
 
@@ -123,11 +122,12 @@ class BaseSecretsBackend(ABC):
     def _deserialize_connection_value(conn_class: type, conn_id: str, value: str):
         value = value.strip()
         if value[0] == "{":
-            connection_data = json.loads(value)
-            conn_type = connection_data.get("conn_type")
-            uri = connection_data.get("uri")
-            if not (isinstance(conn_type, str) and conn_type.strip() or isinstance(uri, str) and uri.strip()):
-                raise ValueError("Connection secret JSON must include a non-empty 'conn_type' or 'uri'.")
+            # JSON secrets stored by Airflow 2-era backends may lack both "conn_type"
+            # and "uri" (e.g. {"host": ..., "login": ..., "password": ...}). This is
+            # valid: conn_type is intentionally optional on the SDK Connection model
+            # for Airflow 2 -> 3 migration compatibility. Do not add validation here
+            # that rejects such secrets; see
+            # https://github.com/apache/airflow/pull/61728
             return conn_class.from_json(value=value, conn_id=conn_id)  # type: ignore[attr-defined]
 
         # TODO: Only sdk has from_uri defined on it. Is it worthwhile developing the core path or not?

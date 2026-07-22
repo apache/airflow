@@ -124,38 +124,21 @@ class TestBaseSecretsBackend:
         assert conn.conn_id == "test_conn"
         assert conn._kwargs["conn_type"] == "mysql"
 
-    @pytest.mark.parametrize(
-        "value",
-        [
-            '{"host": "example.com"}',
-            '{"conn_type": null}',
-            '{"conn_type": ""}',
-            '{"conn_type": "   "}',
-        ],
-    )
-    def test_deserialize_connection_json_requires_conn_type(self, value):
+    def test_deserialize_connection_json_without_conn_type(self):
+        """Airflow 2-era JSON secrets without conn_type or uri must keep deserializing.
+
+        Guards the Airflow 2 -> 3 migration compatibility established in
+        https://github.com/apache/airflow/pull/61728.
+        """
         backend = _TestBackend()
         backend._set_connection_class(MockConnection)
 
-        with pytest.raises(
-            ValueError, match="Connection secret JSON must include a non-empty 'conn_type' or 'uri'."
-        ):
-            backend.deserialize_connection("test_conn", value)
-
-    @pytest.mark.parametrize(
-        "value",
-        [
-            '{"uri": "http://example.com"}',
-            '{"conn_type": null, "uri": "http://example.com"}',
-        ],
-    )
-    def test_deserialize_connection_json_with_uri_does_not_require_conn_type(self, value):
-        backend = _TestBackend()
-        backend._set_connection_class(MockConnection)
-
-        conn = backend.deserialize_connection("test_conn", value)
-
-        assert conn.uri == "http://example.com"
+        conn = backend.deserialize_connection(
+            "test_conn", '{"host": "example.com", "login": "admin", "password": "secret"}'
+        )
+        assert isinstance(conn, MockConnection)
+        assert conn.conn_id == "test_conn"
+        assert conn._kwargs == {"host": "example.com", "login": "admin", "password": "secret"}
 
     def test_deserialize_connection_uri(self, sample_conn_uri):
         """Test deserialize_connection with URI format through _TestBackend."""
