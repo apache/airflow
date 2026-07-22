@@ -48,6 +48,7 @@ from structlog.contextvars import bind_contextvars
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
@@ -139,6 +140,11 @@ from airflow.sdk.execution_time.context import (
     context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
+)
+from airflow.sdk.execution_time.email_backend import (
+    _DEFAULT_EMAIL_BACKEND,
+    _ErrorEmailNotifier,
+    _LegacyEmailBackendNotifier,
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
@@ -258,10 +264,20 @@ class RuntimeTaskInstance(TaskInstance):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        """Metric tags for this task instance, including team_name when available."""
-        tags: dict[str, str] = {"dag_id": self.dag_id, "task_id": self.task_id}
-        if self._ti_context_from_server and self._ti_context_from_server.dag_run.team_name:
-            tags["team_name"] = self._ti_context_from_server.dag_run.team_name
+        """Metric tags for this task instance, including dag tags and team_name when available."""
+        tags: dict[str, str] = {}
+        if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
+            tags.update(build_dag_metric_tags(self.task.dag.tags))
+        # Built-in keys always win on collision.
+        tags.update(dag_id=self.dag_id, task_id=self.task_id)
+        if self._ti_context_from_server:
+            # run_type keeps the tag set consistent with the scheduler-side TaskInstance.stats_tags.
+            # Coerce the DagRunType enum to its bare value so it serializes as e.g. "scheduled" rather
+            # than "dagruntype.scheduled" (matching the scheduler, which emits the plain string).
+            run_type = self._ti_context_from_server.dag_run.run_type
+            tags["run_type"] = getattr(run_type, "value", run_type)
+            if self._ti_context_from_server.dag_run.team_name:
+                tags["team_name"] = self._ti_context_from_server.dag_run.team_name
         return tags
 
     def __rich_repr__(self):
@@ -2129,19 +2145,38 @@ def _send_error_email_notification(
     error: BaseException | str | None,
     log: Logger,
 ) -> None:
-    """Send email notification for task errors using SmtpNotifier."""
-    try:
-        from airflow.providers.smtp.notifications.smtp import SmtpNotifier
-    except ImportError:
-        log.error(
-            "Failed to send task failure or retry email notification: "
-            "`apache-airflow-providers-smtp` is not installed. "
-            "Install this provider to enable email notifications."
-        )
-        return
+    """
+    Send email notification for task errors through the configured email backend.
 
+    A non-default ``[email] email_backend`` (an SES, SendGrid or org-internal callable with the
+    ``airflow.utils.email.send_email`` signature) is wrapped in
+    :class:`~airflow.sdk.execution_time.email_backend._LegacyEmailBackendNotifier`; otherwise the
+    default :class:`~airflow.providers.smtp.notifications.smtp.SmtpNotifier` is used.
+
+    Both the worker task-runner path (:func:`finalize`) and the DAG-processor callback path
+    (``_execute_email_callbacks``) funnel through this function, so the resolved backend is used
+    consistently regardless of how the task failed.
+    """
     if not task.email:
         return
+
+    email_backend = conf.get("email", "email_backend", fallback=_DEFAULT_EMAIL_BACKEND)
+    notifier_description = "SmtpNotifier"
+
+    if email_backend and email_backend != _DEFAULT_EMAIL_BACKEND:
+        notifier_class: _ErrorEmailNotifier = _LegacyEmailBackendNotifier
+        notifier_description = f"configured email_backend {email_backend!r}"
+    else:
+        try:
+            from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+        except ImportError:
+            log.error(
+                "Failed to send task failure or retry email notification: "
+                "`apache-airflow-providers-smtp` is not installed. "
+                "Install this provider to enable email notifications."
+            )
+            return
+        notifier_class = SmtpNotifier
 
     subject_template_file = conf.get("email", "subject_template", fallback=None)
 
@@ -2185,7 +2220,7 @@ def _send_error_email_notification(
         return
 
     try:
-        notifier = SmtpNotifier(
+        notifier = notifier_class(
             to=to_emails,
             subject=subject,
             html_content=html_content,
@@ -2193,7 +2228,7 @@ def _send_error_email_notification(
         )
         notifier(email_context)
     except Exception:
-        log.exception("Failed to send email notification")
+        log.exception("Failed to send email notification via %s", notifier_description)
 
 
 @detail_span("task.execute")

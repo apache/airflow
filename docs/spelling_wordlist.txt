@@ -1175,6 +1175,7 @@ onboarded
 onboarding
 OnFailure
 Oozie
+OPA
 OpenAI
 openai
 openapi
@@ -1320,6 +1321,8 @@ proto
 Protobuf
 protobuf
 provisioner
+proxied
+proxies
 psql
 psrp
 psycopg
@@ -1424,6 +1427,7 @@ requeue
 requeued
 requeues
 reserialize
+Reserializing
 resetdb
 resizable
 ResourceRequirements

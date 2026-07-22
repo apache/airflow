@@ -104,6 +104,7 @@ export enum SearchParamsKeys {
   TASK_ID = "task_id",
   TASK_ID_PATTERN = "task_id_pattern",
   TASK_STATE = "task_state",
+  TEAMS = "teams",
   TRIGGER_RULE = "trigger_rule",
   TRIGGERING_USER = "triggering_user",
   TRIGGERING_USER_NAME_PATTERN = "triggering_user_name_pattern",

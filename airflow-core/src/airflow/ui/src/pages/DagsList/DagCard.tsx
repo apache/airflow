@@ -28,6 +28,7 @@ import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { RouterLink, Tooltip } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagRunStateCounts } from "./DagRunStateCounts";
@@ -45,6 +46,7 @@ type Props = {
 export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCountLimit }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const refetchInterval = useAutoRefresh({});
 
@@ -78,7 +80,13 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
         </HStack>
       </Flex>
-      <Grid gap={1} px={3} py={2} templateColumns="repeat(4, 1fr)" templateRows="auto auto">
+      <Grid
+        gap={1}
+        px={3}
+        py={2}
+        templateColumns={multiTeamEnabled ? "repeat(5, 1fr)" : "repeat(4, 1fr)"}
+        templateRows="auto auto"
+      >
         <GridItem gridColumn={1} gridRow={1}>
           <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
             <Schedule
@@ -118,10 +126,21 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
             ) : undefined}
           </Stat>
         </GridItem>
+        {multiTeamEnabled ? (
+          <GridItem gridColumn={4} gridRow={1}>
+            <Stat label={translate("dagDetails.team")}>
+              {dag.team_name === undefined || dag.team_name === null ? undefined : (
+                <RouterLink to={`/dags?teams=${encodeURIComponent(dag.team_name)}`}>
+                  {dag.team_name}
+                </RouterLink>
+              )}
+            </Stat>
+          </GridItem>
+        ) : undefined}
         <GridItem
           alignItems="flex-end"
           display="flex"
-          gridColumn={4}
+          gridColumn={multiTeamEnabled ? 5 : 4}
           gridRow="1 / 3"
           justifyContent="flex-end"
         >
