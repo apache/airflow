@@ -452,6 +452,7 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+deletable
 DeleteAgentResponse
 DeleteAgentVersionResponse
 delim
