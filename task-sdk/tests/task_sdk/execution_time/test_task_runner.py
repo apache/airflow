@@ -5529,11 +5529,11 @@ class TestTaskInstanceMetrics:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             # verify ti.start was called in legacy format
-            backend.incr.assert_any_call(f"ti.start.{ti.dag_id}.{ti.task_id}")
+            backend.incr.assert_any_call(f"ti.start.{ti.dag_id}.{ti.task_id}", tags={"run_type": "manual"})
             # verify ti.start was called in tagged format
             backend.incr.assert_any_call(
                 "ti.start",
-                tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+                tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"},
             )
 
     @pytest.mark.parametrize(
@@ -5558,11 +5558,18 @@ class TestTaskInstanceMetrics:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             # verify ti.finish was called in legacy format
-            backend.incr.assert_any_call(f"ti.finish.{ti.dag_id}.{ti.task_id}.{expected_state}")
+            backend.incr.assert_any_call(
+                f"ti.finish.{ti.dag_id}.{ti.task_id}.{expected_state}", tags={"run_type": "manual"}
+            )
             # verify ti.finish was called in tagged format
             backend.incr.assert_any_call(
                 "ti.finish",
-                tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": expected_state},
+                tags={
+                    "dag_id": ti.dag_id,
+                    "task_id": ti.task_id,
+                    "run_type": "manual",
+                    "state": expected_state,
+                },
             )
 
     def test_operator_successes_metrics_emitted(self, create_runtime_ti, mock_supervisor_comms):
@@ -5575,7 +5582,7 @@ class TestTaskInstanceMetrics:
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"}
 
             # verify operator_successes in legacy format
             backend.incr.assert_any_call("operator_successes_PythonOperator", tags=stats_tags)
@@ -5596,7 +5603,7 @@ class TestTaskInstanceMetrics:
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"}
 
             # verify operator_failures in legacy format
             backend.incr.assert_any_call("operator_failures_PythonOperator", tags=stats_tags)
@@ -5627,7 +5634,12 @@ class TestTaskInstanceMetrics:
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-            expected = {"dag_id": ti.dag_id, "task_id": ti.task_id, **expected_tags_extra}
+            expected = {
+                "dag_id": ti.dag_id,
+                "task_id": ti.task_id,
+                "run_type": "manual",
+                **expected_tags_extra,
+            }
             backend.incr.assert_any_call("ti.start", tags=expected)
 
     @pytest.mark.parametrize(
@@ -5649,7 +5661,12 @@ class TestTaskInstanceMetrics:
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "team_name": "team_a"}
+            stats_tags = {
+                "dag_id": ti.dag_id,
+                "task_id": ti.task_id,
+                "run_type": "manual",
+                "team_name": "team_a",
+            }
             backend.incr.assert_any_call(
                 operator_metric,
                 tags={**stats_tags, "operator_name": "PythonOperator"},
@@ -6438,3 +6455,40 @@ class TestRegisterDeserializationAllowedClasses:
         with patch("airflow.sdk.execution_time.task_runner.allow_class", side_effect=ValueError("nope")):
             # Must not raise -- the walk swallows per-class registration errors.
             _register_deserialization_allowed_classes(dag, structlog.get_logger())
+
+
+def _make_dag_tagged_ti(create_runtime_ti, tags):
+    """Build a RuntimeTaskInstance whose in-memory Dag carries the given tags."""
+    from airflow.sdk import DAG
+    from airflow.sdk.bases.operator import BaseOperator
+
+    with DAG("tagged_dag", tags=tags):
+        task = BaseOperator(task_id="t")
+    return create_runtime_ti(task=task)
+
+
+def test_stats_tags_dag_tags_disabled_by_default(create_runtime_ti):
+    """With the flag off (the default), dag tags must not leak into metrics."""
+    ti = _make_dag_tagged_ti(create_runtime_ti, ["env:prod", "validation"])
+    assert ti.stats_tags == {"dag_id": "tagged_dag", "task_id": "t", "run_type": "manual"}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_without_dag_tags(create_runtime_ti):
+    tags = _make_dag_tagged_ti(create_runtime_ti, []).stats_tags
+    assert tags == {"dag_id": "tagged_dag", "task_id": "t", "run_type": "manual"}
+    # run_type must be a plain str, not a DagRunType enum member: DagRunType is a str-enum, so the
+    # dict equality above passes either way, but the enum serializes as "dagruntype.manual" on the wire.
+    assert type(tags["run_type"]) is str
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
+    ti = _make_dag_tagged_ti(create_runtime_ti, ["env:prod", "validation"])
+    assert ti.stats_tags == {
+        "env": "prod",
+        "validation": "",
+        "dag_id": "tagged_dag",
+        "task_id": "t",
+        "run_type": "manual",
+    }

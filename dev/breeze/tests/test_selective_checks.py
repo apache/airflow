@@ -1109,7 +1109,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/provider.yaml",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
                 "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1136,9 +1136,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
-                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
-                            "Providers[google]",
+                            "common.ai,common.compat,common.messaging,common.sql,databricks,exasol,ftp,"
+                            "http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,"
+                            "teradata] Providers[google]",
                         }
                     ]
                 ),
@@ -1181,7 +1181,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("providers/amazon/src/airflow/providers/amazon/file.py",),
             {
-                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "selected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.ai "
                 "common.compat common.messaging common.sql databricks exasol ftp google http imap microsoft.azure "
                 "mongo mysql openlineage postgres salesforce ssh teradata",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
@@ -1205,9 +1205,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                         {
                             "description": "amazon...google",
                             "test_types": "Providers[amazon] Providers[apache.hive,cncf.kubernetes,"
-                            "common.compat,common.messaging,common.sql,databricks,exasol,ftp,http,imap,"
-                            "microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,teradata] "
-                            "Providers[google]",
+                            "common.ai,common.compat,common.messaging,common.sql,databricks,exasol,ftp,"
+                            "http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh,"
+                            "teradata] Providers[google]",
                         }
                     ]
                 ),
@@ -1468,15 +1468,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "prod-image-build": "false",
             },
             id="Skip java unit and e2e tests for java-sdk README-only change",
-        ),
-        pytest.param(
-            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
-            {
-                "run-java-sdk-tests": "false",
-                "run-java-sdk-e2e-tests": "false",
-                "prod-image-build": "false",
-            },
-            id="Skip java unit and e2e tests for java-sdk ADR-only change",
         ),
         pytest.param(
             ("airflow-e2e-tests/docker/java.yml",),
@@ -1776,11 +1767,6 @@ def test_expected_output_pull_request_main(
             ("java-sdk/README.md",),
             True,
             id="ktlint skipped when only java-sdk docs change",
-        ),
-        pytest.param(
-            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
-            True,
-            id="ktlint skipped when only java-sdk ADR docs change",
         ),
     ],
 )

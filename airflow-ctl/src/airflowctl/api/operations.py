@@ -68,6 +68,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TriggerDAGRunPostBody,
     VariableBody,
@@ -635,6 +636,8 @@ class DagRunOperations(BaseOperations):
         logical_date_gte: datetime.datetime | None = None,
         logical_date_lte: datetime.datetime | None = None,
         order_by: str | None = None,
+        *,
+        suppress_error_log: bool = False,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
         List dag runs (at most `limit` results).
@@ -648,6 +651,7 @@ class DagRunOperations(BaseOperations):
             logical_date_gte: Filter dag runs with a logical date greater than or equal to this value.
             logical_date_lte: Filter dag runs with a logical date less than or equal to this value.
             order_by: Order the results by the specified field.
+            suppress_error_log: Skip client-side error logging, for callers handling the error themselves.
         """
         # Use "~" for all DAGs if dag_id is not specified
         if not dag_id:
@@ -664,7 +668,11 @@ class DagRunOperations(BaseOperations):
         )
 
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns",
+                params=params,
+                extensions={"airflowctl_suppress_error_log": suppress_error_log},
+            )
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -686,9 +694,27 @@ class JobsOperations(BaseOperations):
         job_type: str | None = None,
         hostname: str | None = None,
         is_alive: bool | None = None,
+        dag_id: str | None = None,
+        state: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        order_by: str | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        params = _build_query_params(job_type=job_type or None, hostname=hostname or None, is_alive=is_alive)
+        params = _build_query_params(
+            job_type=job_type or None,
+            hostname=hostname or None,
+            is_alive=is_alive,
+            dag_id=dag_id or None,
+            job_state=state or None,
+            order_by=order_by or "-start_date",
+            limit=limit,
+            offset=offset,
+        )
+
+        if limit is not None or offset is not None:
+            self.response = self.client.get("jobs", params=params)
+            return JobCollectionResponse.model_validate_json(self.response.content)
 
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
@@ -749,6 +775,39 @@ class ProvidersOperations(BaseOperations):
     def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
+
+
+class TaskInstancesOperations(BaseOperations):
+    """Task instance operations."""
+
+    def get(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+    ) -> TaskInstanceResponse | ServerResponseError:
+        """
+        Get a task instance.
+
+        When ``map_index`` is non-negative, the mapped task instance endpoint is
+        called; otherwise the standard (unmapped) endpoint is used.
+        """
+        path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+        if map_index is not None and map_index >= 0:
+            path = f"{path}/{map_index}"
+        try:
+            self.response = self.client.get(path)
+            return TaskInstanceResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances for a Dag run."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+        )
 
 
 class VariablesOperations(BaseOperations):
@@ -933,32 +992,6 @@ class XComOperations(BaseOperations):
                 params=params,
             )
             return key
-        except ServerResponseError as e:
-            raise e
-
-
-class TaskInstancesOperations(BaseOperations):
-    """Task instance operations."""
-
-    def get(
-        self,
-        dag_id: str,
-        dag_run_id: str,
-        task_id: str,
-        map_index: int | None = None,
-    ) -> TaskInstanceResponse | ServerResponseError:
-        """
-        Get a task instance.
-
-        When ``map_index`` is non-negative, the mapped task instance endpoint is
-        called; otherwise the standard (unmapped) endpoint is used.
-        """
-        path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
-        if map_index is not None and map_index >= 0:
-            path = f"{path}/{map_index}"
-        try:
-            self.response = self.client.get(path)
-            return TaskInstanceResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 

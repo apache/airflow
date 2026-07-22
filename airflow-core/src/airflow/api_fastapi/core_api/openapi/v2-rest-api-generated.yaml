@@ -5404,6 +5404,14 @@ paths:
           - type: string
           - type: 'null'
           title: Job State
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: job_type
         in: query
         required: false
@@ -14936,6 +14944,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - asset
           - base
           title: Destination
           default: nav
@@ -15897,6 +15906,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - asset
           - base
           - dashboard
           title: Destination

@@ -1594,20 +1594,38 @@ class TestPatchDagRun:
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
 
     @pytest.mark.parametrize(
-        ("state", "listener_state"),
+        ("state", "listener_state", "expected_msg"),
         [
-            ("queued", []),
-            ("success", [DagRunState.SUCCESS]),
-            ("failed", [DagRunState.FAILED]),
+            ("queued", [], None),
+            ("success", [DagRunState.SUCCESS], "Dag Run's state was manually set to `success`."),
+            ("failed", [DagRunState.FAILED], "Dag Run's state was manually set to `failed`."),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
+    def test_patch_dag_run_notifies_listeners(
+        self, test_client, state, listener_state, expected_msg, listener_manager
+    ):
         listener = ClassBasedListener()
         listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
         assert listener.state == listener_state
+        if expected_msg is not None:
+            assert listener.dag_run_msg == expected_msg
+            assert listener.dag_has_dag_attr is True
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, listener_manager
+    ):
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN2_ID}",
+            json={"state": "success", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.dag_run_note_at_listener == "listener_note"
 
 
 class TestDeleteDagRun:

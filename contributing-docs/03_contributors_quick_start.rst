@@ -669,8 +669,8 @@ You can also switch terminal multiplexer via breeze config:
 
 .. code-block:: bash
 
-  breeze setup config --terminal_multiplexer tmux
-  breeze setup config --terminal_multiplexer mprocs
+  breeze setup config --terminal-multiplexer tmux
+  breeze setup config --terminal-multiplexer mprocs
 
 ** Benefits of using tmux:**
 

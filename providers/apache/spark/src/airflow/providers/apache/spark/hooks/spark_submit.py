@@ -907,7 +907,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         while True:
             self.log.debug("Polling YARN RM REST API for application %s", application_id)
             try:
-                state, final_status = self._query_yarn_application_status(application_id)
+                state, final_status, diagnostics = self._query_yarn_application_status(application_id)
             except RuntimeError as exc:
                 consecutive_failures += 1
                 if consecutive_failures > max_consecutive_failures:
@@ -933,20 +933,23 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             elif poll_count % heartbeat_interval == 0:
                 self.log.info("YARN application %s is still %s", application_id, state)
 
+            diagnostics_suffix = f"\nDiagnostics: {diagnostics}" if diagnostics else ""
             if state in self._YARN_FINAL_FAILURES:
                 raise RuntimeError(
                     f"YARN application {application_id} ended with state: {state}, "
-                    f"final status: {final_status}"
+                    f"final status: {final_status}{diagnostics_suffix}"
                 )
             if final_status == self._YARN_FINAL_SUCCESS:
                 return
             if final_status in self._YARN_FINAL_FAILURES:
                 raise RuntimeError(
                     f"YARN application {application_id} ended with final status: {final_status}"
+                    f"{diagnostics_suffix}"
                 )
             if final_status != self._YARN_FINAL_UNDEFINED:
                 raise RuntimeError(
-                    f"YARN application {application_id} returned unexpected final status: {final_status}"
+                    f"YARN application {application_id} returned unexpected final status: "
+                    f"{final_status}{diagnostics_suffix}"
                 )
             time.sleep(poll_interval)
 
@@ -1001,8 +1004,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return None
 
-    def _query_yarn_application_status(self, application_id: str) -> tuple[str, str]:
-        """GET ``/ws/v1/cluster/apps/{id}`` once and return ``app.state`` and ``app.finalStatus``."""
+    def _query_yarn_application_status(self, application_id: str) -> tuple[str, str, str]:
+        """
+        GET ``/ws/v1/cluster/apps/{id}`` once.
+
+        Returns ``app.state``, ``app.finalStatus``, and ``app.diagnostics`` - diagnostics is
+        where YARN puts the actual human readable failure reason (AM launch error, container
+        OOM, explicit kill, etc.), so failure exceptions can include it instead of just the
+        two terminal-state enum values.
+        """
         url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}"
         try:
             resp = requests.get(url, auth=self._resolved_yarn_rm_auth, timeout=self._HTTP_TIMEOUT)
@@ -1017,7 +1027,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             )
         try:
             app = resp.json()["app"]
-            return app["state"], app["finalStatus"]
+            return app["state"], app["finalStatus"], app.get("diagnostics", "")
         except (ValueError, KeyError, TypeError) as exc:
             raise RuntimeError(
                 f"YARN RM REST API returned unexpected payload for application "
@@ -1237,7 +1247,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     if consecutive_unknown >= max_consecutive_unknown:
                         raise RuntimeError(
                             f"Spark application {app_id} reported Unknown phase "
-                            f"{consecutive_unknown} times consecutively; giving up."
+                            f"{consecutive_unknown} times consecutively (the pod's state could not "
+                            f"be obtained, typically due to an error communicating with the node the "
+                            f"pod should be running on); giving up."
                         )
                 else:
                     consecutive_unknown = 0
@@ -1360,7 +1372,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             - FINISHED + any other finalStatus -> "FAILED"
             - FAILED or KILLED -> "FAILED"
         """
-        state, final_status = self._query_yarn_application_status(application_id)
+        state, final_status, _ = self._query_yarn_application_status(application_id)
         if state in {"NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING"}:
             return state
         if state == "FINISHED" and final_status == self._YARN_FINAL_SUCCESS:

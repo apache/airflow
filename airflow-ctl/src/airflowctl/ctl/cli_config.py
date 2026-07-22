@@ -305,6 +305,17 @@ ARG_MAP_INDEX = Arg(
     default=-1,
     help="If set, query the mapped task instance with this map index (negative means non-mapped)",
 )
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
+)
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
@@ -433,13 +444,7 @@ class CommandFactory:
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
         self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
-        self.exclude_operation_names = [
-            "LoginOperations",
-            "VersionOperations",
-            "BaseOperations",
-            # Task instances are exposed through the hand-written ``tasks`` command group.
-            "TaskInstancesOperations",
-        ]
+        self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
             "__init__",
@@ -1059,15 +1064,6 @@ POOL_COMMANDS = (
     ),
 )
 
-VARIABLE_COMMANDS = (
-    ActionCommand(
-        name="import",
-        help="Import variables from a file exported with local CLI.",
-        func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
-        args=(ARG_FILE, ARG_ACTION_ON_EXISTING_KEY),
-    ),
-)
-
 TASK_COMMANDS = (
     ActionCommand(
         name="state",
@@ -1080,6 +1076,30 @@ TASK_COMMANDS = (
             ARG_MAP_INDEX,
             ARG_OUTPUT,
         ),
+    ),
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get the status of all task instances in a Dag run",
+        description=(
+            "Get the status of all task instances in a Dag run. "
+            "Select the run with either run_id or --logical-date (pass exactly one)."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
+VARIABLE_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import variables from a file exported with local CLI.",
+        func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
+        args=(ARG_FILE, ARG_ACTION_ON_EXISTING_KEY),
     ),
 )
 
@@ -1110,6 +1130,11 @@ core_commands: list[CLICommand] = [
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
     ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
+    ),
     ActionCommand(
         name="version",
         help="Show version information",
@@ -1124,11 +1149,6 @@ core_commands: list[CLICommand] = [
         name="variables",
         help="Manage Airflow variables",
         subcommands=VARIABLE_COMMANDS,
-    ),
-    GroupCommand(
-        name="tasks",
-        help="Manage Airflow tasks",
-        subcommands=TASK_COMMANDS,
     ),
 ]
 # Add generated group commands
