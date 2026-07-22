@@ -25,6 +25,12 @@ from airflow.providers.common.compat.sdk import Asset, AssetAlias, PokeReturnVal
 from airflow.providers.standard.sensors.asset import AssetEventSensor
 from airflow.providers.standard.triggers.asset import AssetEventTrigger
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
+
+pytestmark = pytest.mark.skipif(
+    not AIRFLOW_V_3_4_PLUS, reason="AssetEventSensor requires Airflow 3.4+"
+)
+
 FETCH_PATH = "airflow.providers.standard.sensors.asset._fetch_asset_events"
 
 
