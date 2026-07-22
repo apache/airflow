@@ -28,6 +28,12 @@ from airflow.providers.standard.triggers.asset import (
 )
 from airflow.triggers.base import TriggerEvent
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
+
+pytestmark = pytest.mark.skipif(
+    not AIRFLOW_V_3_4_PLUS, reason="AssetEventTrigger requires Airflow 3.4+"
+)
+
 FETCH_PATH = "airflow.providers.standard.triggers.asset._fetch_asset_events"
 
 
