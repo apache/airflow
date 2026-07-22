@@ -1286,12 +1286,18 @@ class TestSparkSubmitHook:
         assert command_masked == expected
 
     @pytest.mark.db_test
-    def test_format_submit_log_tail_formats_and_masks_captured_lines(self) -> None:
+    def test_submit_log_tail_empty_when_no_lines_captured(self) -> None:
+        hook = SparkSubmitHook()
+
+        assert hook._submit_log_tail == ""
+
+    @pytest.mark.db_test
+    def test_submit_log_tail_formats_and_masks_captured_lines(self) -> None:
         hook = SparkSubmitHook()
         hook._last_submit_log_lines.append("Exception in thread main: SparkException: bad jar")
         hook._last_submit_log_lines.append("--password='secret'")
 
-        tail = hook._format_submit_log_tail()
+        tail = hook._submit_log_tail
 
         assert tail == (
             "\nLast spark-submit output:\n"

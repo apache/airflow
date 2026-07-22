@@ -534,9 +534,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return connection_cmd_masked
 
-    def _format_submit_log_tail(self) -> str:
+    @property
+    def _submit_log_tail(self) -> str:
         """
-        Capture the last few lines of the spark-submit process's own output.
+        The last few lines of the spark-submit process's own output.
 
         Appended to submit-failure exceptions so the real root cause is visible instead of just an exit code.
         """
@@ -796,11 +797,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     raise AirflowException(
                         f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
                         f"Kubernetes spark exit code is: {self._spark_exit_code}"
-                        f"{self._format_submit_log_tail()}"
+                        f"{self._submit_log_tail}"
                     )
                 raise AirflowException(
                     f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
-                    f"{self._format_submit_log_tail()}"
+                    f"{self._submit_log_tail}"
                 )
 
             if self._should_track_yarn_application_via_rm_api():
@@ -811,7 +812,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if self._should_track_driver_status and self._driver_id is None:
                 raise AirflowException(
                     "No driver id is known: something went wrong when executing the spark submit command"
-                    f"{self._format_submit_log_tail()}"
+                    f"{self._submit_log_tail}"
                 )
         finally:
             # K8s-API tracking defers post-submit commands to _poll_k8s_driver_via_api's finally
