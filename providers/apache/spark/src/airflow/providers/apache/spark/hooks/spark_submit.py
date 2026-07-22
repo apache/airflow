@@ -948,7 +948,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             if final_status != self._YARN_FINAL_UNDEFINED:
                 raise RuntimeError(
-                    f"YARN application {application_id} returned unexpected final status: {final_status}"
+                    f"YARN application {application_id} returned unexpected final status: "
+                    f"{final_status}{diagnostics_suffix}"
                 )
             time.sleep(poll_interval)
 
