@@ -81,7 +81,6 @@ from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
@@ -91,7 +90,6 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -119,29 +117,18 @@ tracer = trace.get_tracer(__name__)
 # The gate matches the exact class name; a subclass would need its own entry here.
 _STUB_TASK_TYPE = "_StubOperator"
 
-# Specs are immutable per (Dag version, task): a re-serialized Dag gets a new
-# version id, so entries never go stale and the cap only bounds memory.
-_ARG_BINDINGS_CACHE: dict[tuple[UUID, str], list[dict] | None] = {}
-_ARG_BINDINGS_CACHE_MAX_ENTRIES = 4096
 
-
-def _get_arg_bindings(dag_version_id: UUID | None, task_id: str, *, session) -> list[dict] | None:
-    """Extract the stub task's serialized arg spec from its Dag version's serialized blob."""
+def _get_arg_bindings(
+    dag_bag: DagBagDep, dag_version_id: UUID | None, task_id: str, *, session
+) -> list | None:
+    """Extract the stub task's captured TaskFlow arg spec from its Dag version."""
     if dag_version_id is None:
         return None
-    cache_key = (dag_version_id, task_id)
-    if cache_key in _ARG_BINDINGS_CACHE:
-        return _ARG_BINDINGS_CACHE[cache_key]
-    dag_version = session.get(DagVersion, dag_version_id, options=[joinedload(DagVersion.serialized_dag)])
-    if dag_version is None or dag_version.serialized_dag is None:
+    if (dag := dag_bag.get_dag(dag_version_id, session=session)) is None:
         return None
-    if not (data := dag_version.serialized_dag.data):
+    if (task := dag.task_dict.get(task_id)) is None:
         return None
-    bindings = LazyDeserializedDAG(data=data).get_task_arg_bindings(task_id)
-    if len(_ARG_BINDINGS_CACHE) >= _ARG_BINDINGS_CACHE_MAX_ENTRIES:
-        _ARG_BINDINGS_CACHE.clear()
-    _ARG_BINDINGS_CACHE[cache_key] = bindings
-    return bindings
+    return getattr(task, "_arg_bindings", None)
 
 
 @ti_id_router.patch(
@@ -348,7 +335,7 @@ def ti_run(
         # Only set for stub (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
         if ti.operator == _STUB_TASK_TYPE and (
-            arg_bindings := _get_arg_bindings(ti.dag_version_id, ti.task_id, session=session)
+            arg_bindings := _get_arg_bindings(dag_bag, ti.dag_version_id, ti.task_id, session=session)
         ):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)

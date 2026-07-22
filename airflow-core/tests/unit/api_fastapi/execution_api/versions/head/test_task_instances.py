@@ -54,7 +54,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
@@ -411,9 +410,8 @@ class TestTIRunState:
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
 
-    @mock.patch.object(
-        LazyDeserializedDAG,
-        "get_task_arg_bindings",
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.task_instances._get_arg_bindings",
         autospec=True,
         return_value=[{"name": "country", "kind": "hologram", "value": "uk"}],
     )
