@@ -22,6 +22,7 @@ import pytest
 from registry_tools.types import (
     ALL_TYPE_IDS,
     BASE_CLASS_IMPORTS,
+    CLASS_LEVEL_CATEGORY_OVERRIDES,
     CLASS_LEVEL_SECTIONS,
     FLAT_LEVEL_SECTIONS,
     MODULE_LEVEL_SECTIONS,
@@ -92,6 +93,9 @@ class TestDerivedLookups:
         for yaml_key, type_id in CLASS_LEVEL_SECTIONS.items():
             assert yaml_key in FLAT_LEVEL_SECTIONS
             assert FLAT_LEVEL_SECTIONS[yaml_key] == type_id
+
+    def test_class_level_category_overrides_are_subset_of_class_level_sections(self):
+        assert set(CLASS_LEVEL_CATEGORY_OVERRIDES.keys()) <= set(CLASS_LEVEL_SECTIONS.keys())
 
 
 class TestBaseClassImports:
