@@ -232,7 +232,10 @@ repos:
         name: Validate provider.yaml files
         entry: ../scripts/ci/prek/check_provider_yaml_files.py
         language: python
-        files: ^.*/provider\.yaml$
+        files: >
+          (?x)
+          ^.*/provider\.yaml$|
+          ^.*/src/airflow/providers/.*/hooks/[^/]+\.py$
         exclude: ^.*/.venv/.*$
         require_serial: true
       - id: check-cli-definition-imports

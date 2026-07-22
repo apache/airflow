@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
 from datetime import datetime
 from enum import Enum
 from typing import (
@@ -41,6 +42,7 @@ from sqlalchemy.inspection import inspect
 from sqlalchemy.sql.functions import FunctionElement
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.security import GetUserDep
@@ -60,6 +62,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.errors import ParseImportError
 from airflow.models.hitl import HITLDetail
@@ -68,6 +71,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.typing_compat import Self
+from airflow.utils.sqlalchemy import JsonContains, apply_regex_query_timeout
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -515,6 +519,75 @@ def search_param_factory(
     return depends_search
 
 
+class _RegexParam(BaseParam[str]):
+    """
+    Filter using database-level regex matching (regexp_match).
+
+    The pattern is handed to the database's own regex engine (via SQLAlchemy's
+    ``regexp_match``), so this filter is gated behind the ``[api] regexp_query_timeout``
+    setting to contain the ReDoS attack surface: it cannot be instantiated with a value
+    unless a positive timeout is configured (which both enables the feature and bounds it).
+
+    Use :func:`regex_param_factory` to build the FastAPI dependency for this filter. That
+    dependency also applies :func:`airflow.utils.sqlalchemy.apply_regex_query_timeout` to the
+    request's session, so the query runtime is bounded automatically and callers never need to
+    remember to do it in the view.
+    """
+
+    def __init__(self, attribute: ColumnElement, value: str | None = None, skip_none: bool = True) -> None:
+        super().__init__(value=value, skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+        if value is not None and conf.getfloat("api", "regexp_query_timeout") <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Regexp query filters are disabled. "
+                "Set [api] regexp_query_timeout to a positive number of seconds to enable them.",
+            )
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute.regexp_match(self.value))
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use regex_param_factory instead, depends is not implemented.")
+
+
+_DEFAULT_REGEX_DESCRIPTION = "Filter results by matching this regular expression against the field value."
+
+
+def regex_param_factory(
+    attribute: ColumnElement,
+    pattern_name: str,
+    skip_none: bool = True,
+    description: str = _DEFAULT_REGEX_DESCRIPTION,
+) -> Callable[..., Generator[_RegexParam, None, None]]:
+    def depends_regex(
+        session: SessionDep,
+        value: str | None = Query(alias=pattern_name, default=None, description=description),
+    ) -> Generator[_RegexParam, None, None]:
+        if value is not None:
+            try:
+                re.compile(value)
+            except re.error as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid regular expression: {e}",
+                )
+        # ``__init__`` rejects the request (400) when a pattern is supplied while the feature is off.
+        param = _RegexParam(attribute, value, skip_none)
+        if value is None:
+            yield param
+            return
+        # Bound the query runtime for the whole request so a view can never forget to do it; the
+        # previous timeout is restored on teardown (after the response) before the session closes.
+        with apply_regex_query_timeout(session):
+            yield param
+
+    return depends_regex
+
+
 def prefix_search_param_factory(
     attribute: ColumnElement,
     prefix_pattern_name: str,
@@ -551,6 +624,60 @@ def prefix_search_param_factory(
         return search_parm.set_value(value)
 
     return depends_prefix_search
+
+
+class _JsonKVFilter(BaseParam[dict[str, str]]):
+    """
+    Filter on a JSON column by multiple key-value pairs (AND logic).
+
+    Uses dialect-aware SQL: ``@>`` (JSONB containment, GIN-indexable) on
+    PostgreSQL, ``JSON_CONTAINS`` on MySQL, and ``JSON_EXTRACT`` on SQLite.
+    """
+
+    def __init__(
+        self,
+        attribute: ColumnElement,
+        value: dict[str, str] | None = None,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+        self.value = value
+
+    def to_orm(self, select: Select) -> Select:
+        if not self.value:
+            return select
+        return select.where(JsonContains(self.attribute, self.value))
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use json_kv_filter_factory instead.")
+
+
+def json_kv_filter_factory(
+    attribute: ColumnElement,
+    param_name: str = "extra",
+) -> Callable[[list[str]], _JsonKVFilter]:
+    DESCRIPTION = (
+        "Filter by JSON key-value pairs. Repeat for multiple conditions (AND logic). "
+        "Format: key=value (e.g. extra=region=us&extra=env=prod)."
+    )
+
+    def depends_json_kv(
+        values: list[str] = Query(alias=param_name, default_factory=list, description=DESCRIPTION),
+    ) -> _JsonKVFilter:
+        kv_dict: dict[str, str] = {}
+        for item in values:
+            if "=" not in item:
+                raise HTTPException(
+                    status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail=f"Invalid {param_name} parameter format: {item!r}. Expected 'key=value'.",
+                )
+            k, v = item.split("=", 1)
+            kv_dict[k] = v
+        return _JsonKVFilter(attribute, kv_dict or None)
+
+    return depends_json_kv
 
 
 class SortParam(BaseParam[list[str]]):
@@ -718,7 +845,7 @@ class SortParam(BaseParam[list[str]]):
         )
 
         def inner(order_by: list[str] = _order_by_query) -> SortParam:
-            return self.set_value(order_by)
+            return SortParam(self.allowed_attrs, self.model, self.to_replace).set_value(order_by)
 
         return inner
 
@@ -892,6 +1019,29 @@ class _OwnersFilter(BaseParam[list[str]]):
     @classmethod
     def depends(cls, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
         return cls().set_value(owners)
+
+
+class _TeamsFilter(BaseParam[list[str]]):
+    """Filter Dags by team name (via bundle association)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        from airflow.models.team import Team
+
+        return select.where(
+            DagModel.bundle_name.in_(
+                sql_select(DagBundleModel.name).join(DagBundleModel.teams).where(Team.name.in_(self.value))
+            )
+        )
+
+    @classmethod
+    def depends(cls, teams: list[str] = Query(default_factory=list)) -> _TeamsFilter:
+        return cls().set_value(teams)
 
 
 def _safe_parse_datetime(date_to_check: str) -> datetime:
@@ -1142,6 +1292,7 @@ QueryDagIdPrefixPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+QueryTeamsFilter = Annotated[_TeamsFilter, Depends(_TeamsFilter.depends)]
 
 
 class _HasAssetScheduleFilter(BaseParam[bool]):
@@ -1283,11 +1434,42 @@ class _PendingActionsFilter(BaseParam[bool]):
 
 QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingActionsFilter.depends)]
 
+
+class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
+    """Filter Dags that have any DagRun in the given state, not only the latest one."""
+
+    # Only these states have a partial index on dag_run; others would force a full table scan.
+    SUPPORTED_STATES = (DagRunState.QUEUED, DagRunState.RUNNING)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        run_subquery = sql_select(DagRun.dag_id).where(DagRun.state == self.value).distinct()
+        return select.where(DagModel.dag_id.in_(run_subquery))
+
+    @classmethod
+    def depends(
+        cls,
+        dag_run_state: DagRunState | None = Query(
+            None,
+            description="Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.",
+        ),
+    ) -> _AnyDagRunStateFilter:
+        if dag_run_state is not None and dag_run_state not in cls.SUPPORTED_STATES:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"dag_run_state only supports {[state.value for state in cls.SUPPORTED_STATES]}.",
+            )
+        return cls().set_value(dag_run_state)
+
+
 # DagRun
 QueryLastDagRunStateFilter = Annotated[
     FilterParam[DagRunState | None],
     Depends(filter_param_factory(DagRun.state, DagRunState | None, filter_name="last_dag_run_state")),
 ]
+QueryAnyDagRunStateFilter = Annotated[_AnyDagRunStateFilter, Depends(_AnyDagRunStateFilter.depends)]
 
 
 def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
@@ -1578,15 +1760,42 @@ QueryUriPatternSearch = Annotated[_SearchParam, Depends(search_param_factory(Ass
 QueryUriPrefixPatternSearch = Annotated[
     _PrefixSearchParam, Depends(prefix_search_param_factory(AssetModel.uri, "uri_prefix_pattern"))
 ]
+QueryUriExactMatch = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            AssetModel.uri,
+            list[str],
+            FilterOptionEnum.ANY_EQUAL,
+            filter_name="uri",
+            default_factory=list,
+            description=(
+                "Exact-match filter on the full asset URI. Compiles to an indexed equality "
+                "comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match "
+                "multiple assets."
+            ),
+        )
+    ),
+]
 QueryAssetAliasNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(AssetAliasModel.name, "name_pattern"))
 ]
 QueryAssetAliasNamePrefixPatternSearch = Annotated[
     _PrefixSearchParam, Depends(prefix_search_param_factory(AssetAliasModel.name, "name_prefix_pattern"))
 ]
+QueryAssetEventPartitionKeyFilter = Annotated[
+    FilterParam[str | None],
+    Depends(filter_param_factory(AssetEvent.partition_key, str | None, filter_name="partition_key")),
+]
+QueryAssetEventPartitionKeyRegex = Annotated[
+    _RegexParam,
+    # ``function`` scope so the dependency can depend on the (function-scoped) session it bounds.
+    Depends(regex_param_factory(AssetEvent.partition_key, "partition_key_regexp_pattern"), scope="function"),
+]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter.depends)
 ]
+QueryAssetEventExtraFilter = Annotated[_JsonKVFilter, Depends(json_kv_filter_factory(AssetEvent.extra))]
 QueryPartitionedDagRunHasCreatedDagRunIdFilter = Annotated[
     FilterParam[bool | None],
     Depends(

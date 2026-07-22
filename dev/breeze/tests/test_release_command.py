@@ -538,3 +538,55 @@ def test_remove_old_release_no_task_sdk_version(monkeypatch, release_cmd):
     assert "task-sdk" not in " ".join(console_messages).lower()
     assert run_command_calls == []
     assert chdir_calls == [svn_release_repo, "/original/dir"]
+
+
+@pytest.mark.parametrize(
+    ("version", "expected_branch"),
+    [
+        ("3.3.0", "constraints-3-3"),
+        ("3.0.5", "constraints-3-0"),
+        ("3.12.10", "constraints-3-12"),
+    ],
+)
+def test_get_constraints_branch_for_version(release_cmd, version, expected_branch):
+    assert release_cmd.get_constraints_branch_for_version(version) == expected_branch
+
+
+def test_retag_constraints_from_rc_tag_by_default(monkeypatch, release_cmd):
+    run_command_calls: list[list[str]] = []
+
+    def fake_confirm_action(prompt: str, **_kwargs) -> bool:
+        # Decline basing on the branch tip; accept the retag and the push.
+        return not prompt.startswith("Base the final constraints on the latest")
+
+    monkeypatch.setattr(release_cmd, "confirm_action", fake_confirm_action)
+    monkeypatch.setattr(release_cmd, "run_command", lambda cmd, **_kwargs: run_command_calls.append(cmd))
+
+    release_cmd.retag_constraints("3.3.0rc2", "3.3.0")
+
+    assert ["git", "checkout", "constraints-3.3.0rc2"] in run_command_calls
+    assert ["git", "tag", "-s", "constraints-3.3.0", "-m", "Constraints for Apache Airflow 3.3.0"] in (
+        run_command_calls
+    )
+    assert ["git", "push", "origin", "tag", "constraints-3.3.0"] in run_command_calls
+    # The branch tip is not fetched when basing on the RC tag.
+    assert not any(cmd[:2] == ["git", "fetch"] for cmd in run_command_calls)
+
+
+def test_retag_constraints_from_branch_tip_when_confirmed(monkeypatch, release_cmd):
+    run_command_calls: list[list[str]] = []
+
+    def fake_confirm_action(prompt: str, **_kwargs) -> bool:
+        return True
+
+    monkeypatch.setattr(release_cmd, "confirm_action", fake_confirm_action)
+    monkeypatch.setattr(release_cmd, "run_command", lambda cmd, **_kwargs: run_command_calls.append(cmd))
+
+    release_cmd.retag_constraints("3.3.0rc2", "3.3.0")
+
+    assert ["git", "fetch", "origin", "constraints-3-3"] in run_command_calls
+    assert ["git", "checkout", "origin/constraints-3-3"] in run_command_calls
+    assert ["git", "checkout", "constraints-3.3.0rc2"] not in run_command_calls
+    assert ["git", "tag", "-s", "constraints-3.3.0", "-m", "Constraints for Apache Airflow 3.3.0"] in (
+        run_command_calls
+    )

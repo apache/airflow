@@ -245,6 +245,16 @@ ever need the min-Airflow-bump case (`v`), that one is still a `needs_llm`
 judgement: a sub-agent should flag it when a PR bumps the provider's minimum
 Airflow version.
 
+> [!NOTE]
+> A `needs_llm` commit can still be classified as `skip` by the LLM. The
+> deterministic classifier only catches test/example-only changes by looking
+> at which files were modified in the commit. PRs that change build tooling,
+> packaging infrastructure, or breeze templates (files under `dev/breeze/`,
+> `scripts/`, etc.) and only regenerate template-generated files in the
+> provider slice (e.g. `README.rst`, `index.rst`, `pyproject.toml`) are NOT
+> caught by the deterministic rules but should still be classified as `skip`
+> — they have zero user-facing impact on the provider package itself.
+
 #### Classify the `needs_llm` commits — batched per provider, not one agent per PR
 
 Only the commits the classifier returned as `needs_llm` still need a sub-agent.
@@ -292,9 +302,18 @@ For EACH commit above:
    - feature:       adds new capability, parameter, operator, sensor, hook,
                     or extends an existing one in a backwards-compatible way
    - breaking:      see "Breaking-change checklist" below
-   - misc:          dependency bumps, internal refactors, packaging-only
-                    changes, type-hint cleanups, no user-visible behavior
-   - skip:          only tests/examples/CI for this provider's slice
+   - misc:          dependency bumps, internal refactors, type-hint
+                    cleanups, no user-visible behavior
+   - skip:          only tests/examples/CI for this provider's slice,
+                    OR changes that only touch build tooling, packaging
+                    infrastructure, or template-generated files (e.g.
+                    README.rst, index.rst, pyproject.toml regeneration,
+                    flit/sdist config, breeze templates) — even when
+                    those files live under the provider path. If the
+                    PR's actual code changes are entirely in dev/breeze/
+                    or similar tooling and the provider-scoped diff is
+                    limited to regenerated docs/metadata, classify as
+                    skip.
    - min_airflow_bump: explicitly bumps the minimum Airflow version pin
 4. Set BREAKING_RISK to "maybe" whenever the diff has any signal from the
    breaking-change checklist below, even if you think the author intended
@@ -453,9 +472,23 @@ Doc-only
 
 Rules:
 
-- Include the `.. note::` block **only** when the version bump was driven by
-  a `min_airflow_bump` (or by a `breaking` whose breaking aspect is the
-  Airflow min bump).
+- A `.. note::` block at the top of the version section (directly under the
+  `<dots>` underline, before the first `~~~` header) is used in two distinct
+  situations. Include it whenever **either** applies — combine the wording
+  into a single note, or stack two notes, when both do:
+  - **Airflow min-version bump** — when the bump was driven by a
+    `min_airflow_bump` (or by a `breaking` whose breaking aspect *is* the
+    Airflow min bump), use the support-policy wording shown in the skeleton.
+  - **Breaking change** — for **every** `breaking` classification (major
+    bump, including a `0.x` minor that ships a breaking change), add a note
+    explaining *what* breaks and *how users should adapt* (the migration
+    path). Write it from the PR description and the actual diff, not as a
+    restatement of the commit subject — the reader must learn how to react
+    without opening the PR. This mirrors the standing changelog convention
+    ("only add notes … when there are some breaking changes and you want to
+    add an explanation to the users on how they are supposed to deal with
+    them"). The bullet under `Breaking changes` still lists the commit
+    subject as usual; the note is in addition to it, not a replacement.
 - Drop a section entirely if it has no entries (e.g. no `Breaking changes`
   section if there were none — don't leave an empty header).
 - The `.. Below changes are excluded ...` block at the end is required even
@@ -463,6 +496,14 @@ Rules:
   indent, double backticks).
 - Subjects must be the original commit subject with backticks replaced by
   single quotes (matches `message_without_backticks`). Don't paraphrase.
+- **Strip Conventional Commit prefixes** before writing to the changelog.
+  If the subject starts with a prefix like `feat:`, `fix:`, `chore:`,
+  `docs:`, `refactor:`, `ci:`, `test:`, `perf:`, `build:`, or `style:`
+  (with or without a scope in parentheses, e.g. `fix(amazon):`), remove
+  the prefix and capitalize the first letter of the remaining text.
+  Example: `refactor: Fix _is_http_client_closed ...` →
+  `Fix _is_http_client_closed ...`. Airflow does not use Conventional
+  Commits and these prefixes should not appear in changelogs.
 - Always keep the `(#NNNN)` PR suffix.
 
 #### 4c. Regenerate templates with breeze
@@ -487,6 +528,30 @@ new versions you just wrote. It will not touch `changelog.rst`.
 > `airflow-providers-commits` directive). It will be regenerated on the
 > next full release. No action needed here.
 
+#### 4d. Resolve `# use next version` inter-provider pins
+
+Contributors can defer an inter-provider dependency bump by pinning it in
+`pyproject.toml` with a trailing `# use next version` comment, instead of
+hard-coding a version that does not exist yet. Now that the versions are
+bumped, resolve those pins:
+
+```bash
+breeze release-management update-providers-next-version
+```
+
+This rewrites every `# use next version` dependency to the just-bumped
+version of the referenced provider and removes the comment.
+
+> [!IMPORTANT]
+> **Run this every time, before opening the PR — even when you believe no
+> provider uses the comment** (the command is a safe no-op when none do).
+> Skipping it ships the wave with stale lower bounds on inter-provider
+> dependencies; once the PR is merged the only remedy is a separate
+> follow-up PR. This is the "Update versions of dependent providers to the
+> next version" step in `dev/README_RELEASE_PROVIDERS.md` — it lives between
+> doc preparation and PR creation, so it is easy to forget when the skill
+> hands back to the regular release workflow.
+
 ### Phase 5 — Validate
 
 Run the same checks the release manager would run:
@@ -506,11 +571,22 @@ provider-by-provider:
 
 - Confirm the version in `provider.yaml` matches the bump rule.
 - Confirm `changelog.rst` has the right sections populated.
+- **Check for misplaced top-level note blocks.** Each provider's
+  `changelog.rst` has a standing `.. NOTE TO CONTRIBUTORS:` RST comment
+  near the top (above all version sections). If you detect any `.. note::`
+  directive that is NOT nested under a specific version section (i.e. it
+  appears before the first version header, or between the `Changelog`
+  heading and the first version), notify the release manager immediately —
+  it likely means a breaking-change or min-version note was accidentally
+  written at the wrong indentation level or position.
+- Confirm Phase 4d ran: no `# use next version` comment remains where the
+  referenced provider was bumped in this wave.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
 
 Stop here. Do not commit, do not push — the release manager opens the PR
 themselves following the regular release workflow in
-`dev/README_RELEASE_PROVIDERS.md`.
+`dev/README_RELEASE_PROVIDERS.md`. Make sure Phase 4d
+(`update-providers-next-version`) has been run before that PR is opened.
 
 ---
 
@@ -643,6 +719,10 @@ If you re-bumped the version in Incremental Phase 3.5, also add or remove the
 `.. note::` block about the Airflow min version requirement to match the
 new bump kind.
 
+If a new commit is classified `breaking`, add (or extend) a `.. note::` at the
+top of the version section explaining what breaks and how users should adapt,
+exactly as in the breaking-change note rule in Phase 4b.
+
 ### Incremental Phase 5 — Validate
 
 Same as Phase 5 of the initial run plus an extra check: confirm there are
@@ -651,6 +731,11 @@ no leftover "Please review …" markers from a prior interactive
 --incremental-update` run. If any are present (someone ran the breeze
 incremental flow before invoking this skill), remove them as part of the
 final pass. Then walk the diff with the release manager.
+
+If the incremental run bumped a provider to a *new* version (Incremental
+Phase 3.5), re-run Phase 4d (`update-providers-next-version`) as well — a
+`# use next version` pin on that provider must resolve to the freshly
+bumped version before the rebased PR is pushed.
 
 ---
 

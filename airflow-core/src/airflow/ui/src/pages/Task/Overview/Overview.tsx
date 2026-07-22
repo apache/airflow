@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton, SimpleGrid } from "@chakra-ui/react";
+import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -103,15 +103,23 @@ export const Overview = () => {
           startDate={startDate}
         />
       </HStack>
-      <SimpleGrid columns={3} gap={5} my={5}>
-        <Box borderRadius={4} borderStyle="solid" borderWidth={1} p={2} width="350px">
+      <HStack alignItems="flex-start" flexWrap="wrap" gap={5} my={5}>
+        <Box
+          borderRadius={4}
+          borderStyle="solid"
+          borderWidth={1}
+          flex="1 1 520px"
+          maxWidth="900px"
+          minWidth="320px"
+          p={2}
+        >
           {isLoadingTaskInstances ? (
-            <Skeleton height="200px" w="full" />
+            <Skeleton height="310px" w="full" />
           ) : (
             <DurationChart entries={tiData?.task_instances.slice().reverse()} kind="Task Instance" />
           )}
         </Box>
-      </SimpleGrid>
+      </HStack>
     </Box>
   );
 };

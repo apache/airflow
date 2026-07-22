@@ -17,7 +17,7 @@
 
 [build-system]
 requires = [
-    "hatchling==1.30.1",
+    "hatchling==1.31.0",
     "packaging==26.2",
     "pathspec==1.1.1",
     "pluggy==1.6.0",
@@ -56,11 +56,11 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
-version = "3.3.0"
+version = "3.4.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.4.0,>=1.3.0",
-    "apache-airflow-core==3.3.0",
+    "apache-airflow-task-sdk<1.5.0,>=1.4.0",
+    "apache-airflow-core==3.4.0",
 ]
 
 packages = []
@@ -109,6 +109,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "amazon" = [
     "apache-airflow-providers-amazon>=9.0.0"
+]
+"anthropic" = [
+    "apache-airflow-providers-anthropic>=0.1.0"
 ]
 "apache.cassandra" = [
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
@@ -187,6 +190,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "common.compat" = [
     "apache-airflow-providers-common-compat>=1.2.1"
+]
+"common.dataquality" = [
+    "apache-airflow-providers-common-dataquality>=0.1.0"
 ]
 "common.io" = [
     "apache-airflow-providers-common-io>=1.4.2"
@@ -411,6 +417,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-akeyless>=0.1.0",
     "apache-airflow-providers-alibaba>=3.0.0",
     "apache-airflow-providers-amazon>=9.0.0",
+    "apache-airflow-providers-anthropic>=0.1.0",
     "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
@@ -437,6 +444,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-cohere>=1.4.0",
     "apache-airflow-providers-common-ai>=0.1.0",
     "apache-airflow-providers-common-compat>=1.2.1",
+    "apache-airflow-providers-common-dataquality>=0.1.0",
     "apache-airflow-providers-common-io>=1.4.2",
     "apache-airflow-providers-common-messaging>=2.0.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-common-sql>=1.18.0",
@@ -528,7 +536,9 @@ apache-airflow = "airflow.__main__:main"
    "apache-airflow-providers-amazon[python3-saml]",
 ]
 "cloudpickle" = [
-    "cloudpickle>=2.2.1",
+    # Remove this cap once snowflake-snowpark-python relaxes its own cloudpickle pin;
+    # tracked at https://github.com/apache/airflow/issues/70084
+    "cloudpickle>=2.2.1,<3.1.2",
 ]
 "github-enterprise" = [
     "apache-airflow-providers-fab>=2.2.0",
@@ -559,7 +569,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.11.19",
+    "uv>=0.11.29",
 ]
 
 [project.urls]
@@ -1090,6 +1100,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/alibaba/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/src",
     "$MYPY_CONFIG_FILE_DIR/providers/amazon/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/anthropic/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/anthropic/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/cassandra/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/drill/src",
@@ -1142,6 +1154,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/common/ai/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/compat/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/dataquality/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/common/dataquality/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/src",
     "$MYPY_CONFIG_FILE_DIR/providers/common/io/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/common/messaging/src",
@@ -1427,6 +1441,7 @@ apache-airflow-providers-airbyte = false
 apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
+apache-airflow-providers-anthropic = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1453,6 +1468,7 @@ apache-airflow-providers-cncf-kubernetes = false
 apache-airflow-providers-cohere = false
 apache-airflow-providers-common-ai = false
 apache-airflow-providers-common-compat = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-common-messaging = false
 apache-airflow-providers-common-sql = false
@@ -1546,10 +1562,12 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides (kept outside the auto-generated block above so the
 # update_airflow_pyproject_toml.py script doesn't clobber them).
-
-# REMOVE BY 2026-06-07 — once 0.155.0 is older than the global 4-day cooldown
-# this override is redundant and should be deleted along with the line below.
-google-cloud-aiplatform = "4 hours"
+# Temporary: pydantic-ai-skills 1.2.0 (adds exclude_resources, required by the
+# apache-airflow-providers-common-ai[skills] floor) was published 2026-07-15,
+# inside the "4 days" exclude-newer window. This pins the per-package cutoff just
+# past that release so 1.2.0 resolves while any later release stays quarantined.
+# Remove once the rolling window advances past 2026-07-15.
+pydantic-ai-skills = "2026-07-16T00:00:00Z"
 
 [tool.uv.pip]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
@@ -1575,6 +1593,7 @@ apache-airflow-providers-airbyte = false
 apache-airflow-providers-akeyless = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-amazon = false
+apache-airflow-providers-anthropic = false
 apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
@@ -1601,6 +1620,7 @@ apache-airflow-providers-cncf-kubernetes = false
 apache-airflow-providers-cohere = false
 apache-airflow-providers-common-ai = false
 apache-airflow-providers-common-compat = false
+apache-airflow-providers-common-dataquality = false
 apache-airflow-providers-common-io = false
 apache-airflow-providers-common-messaging = false
 apache-airflow-providers-common-sql = false
@@ -1694,9 +1714,8 @@ apache-airflow-task-sdk-integration-tests = false
 
 # Manual overrides — see the matching block under
 # `[tool.uv.exclude-newer-package]` above for rationale.
-
-# REMOVE BY 2026-06-07 along with the matching entry above.
-google-cloud-aiplatform = "4 hours"
+# Temporary: see the pydantic-ai-skills note in `[tool.uv.exclude-newer-package]`.
+pydantic-ai-skills = "2026-07-16T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,
@@ -1737,6 +1756,7 @@ apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-akeyless = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
 apache-airflow-providers-amazon = { workspace = true }
+apache-airflow-providers-anthropic = { workspace = true }
 apache-airflow-providers-apache-cassandra = { workspace = true }
 apache-airflow-providers-apache-drill = { workspace = true }
 apache-airflow-providers-apache-druid = { workspace = true }
@@ -1763,6 +1783,7 @@ apache-airflow-providers-cncf-kubernetes = { workspace = true }
 apache-airflow-providers-cohere = { workspace = true }
 apache-airflow-providers-common-ai = { workspace = true }
 apache-airflow-providers-common-compat = { workspace = true }
+apache-airflow-providers-common-dataquality = { workspace = true }
 apache-airflow-providers-common-io = { workspace = true }
 apache-airflow-providers-common-messaging = { workspace = true }
 apache-airflow-providers-common-sql = { workspace = true }
@@ -1876,6 +1897,7 @@ members = [
     "providers/akeyless",
     "providers/alibaba",
     "providers/amazon",
+    "providers/anthropic",
     "providers/apache/cassandra",
     "providers/apache/drill",
     "providers/apache/druid",
@@ -1902,6 +1924,7 @@ members = [
     "providers/cohere",
     "providers/common/ai",
     "providers/common/compat",
+    "providers/common/dataquality",
     "providers/common/io",
     "providers/common/messaging",
     "providers/common/sql",

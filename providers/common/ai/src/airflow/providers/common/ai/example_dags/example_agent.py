@@ -24,7 +24,7 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.toolsets.hook import HookToolset
-from airflow.providers.common.compat.sdk import dag, task
+from airflow.providers.common.compat.sdk import ObjectStoragePath, dag, task
 
 try:
     from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -65,9 +65,19 @@ if SQLToolset is not None:
                 "the schema and answer the question with data."
             ),
             toolsets=[
+                # ``allowed_tables`` scopes the agent's intent, but it is an
+                # application-level guardrail, not a security boundary. Point
+                # ``postgres_default`` at a least-privilege role whose SELECT grants
+                # are limited to these tables -- that is the boundary that holds even
+                # if the agent (which may be under prompt injection) reaches for data
+                # through a function the parser cannot see. See the "Security" section
+                # of the toolsets docs.
                 SQLToolset(
                     db_conn_id="postgres_default",
                     allowed_tables=["customers", "orders"],
+                    # Functions sqlglot cannot type are rejected while allowed_tables is
+                    # set; list any the agent legitimately needs (e.g. to shape output).
+                    allowed_functions=["json_build_object"],
                     max_rows=20,
                 )
             ],
@@ -108,6 +118,42 @@ def example_agent_operator_hook():
 # [END howto_operator_agent_hook]
 
 example_agent_operator_hook()
+
+
+# ---------------------------------------------------------------------------
+# 2b. Hook-based tools against a GET-only endpoint (self-hosted models tutorial)
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_self_hosted]
+@dag(tags=["example"])
+def example_agent_self_hosted():
+    from airflow.providers.http.hooks.http import HttpHook
+
+    # The OpenAI-compatible model list (GET /v1/models) is GET-only; HttpHook defaults to POST.
+    http_hook = HttpHook(http_conn_id="my_api", method="GET")
+
+    AgentOperator(
+        task_id="list_models",
+        prompt="Which models are available?",
+        llm_conn_id="pydanticai_default",
+        system_prompt=(
+            "You are an API assistant. Use the tools to answer questions; "
+            "the server's model list is served at GET /v1/models."
+        ),
+        toolsets=[
+            HookToolset(
+                http_hook,
+                allowed_methods=["run"],
+                tool_name_prefix="http_",
+            )
+        ],
+    )
+
+
+# [END howto_agent_self_hosted]
+
+example_agent_self_hosted()
 
 
 # ---------------------------------------------------------------------------
@@ -230,20 +276,113 @@ example_agent_operator_hitl_review()
 
 
 # [START howto_operator_agent_code_mode]
-@dag(tags=["example"])
-def example_agent_operator_code_mode():
-    AgentOperator(
-        task_id="code_mode_analyst",
-        prompt="For the top 3 customers by order count, what was each one's total spend?",
+if SQLToolset is not None:
+
+    @dag(tags=["example"])
+    def example_agent_operator_code_mode():
+        AgentOperator(
+            task_id="code_mode_analyst",
+            prompt="For the top 3 customers by order count, what was each one's total spend?",
+            llm_conn_id="pydanticai_default",
+            system_prompt="You are a SQL analyst. Write Python that calls the tools to answer.",
+            toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers", "orders"])],
+            # Requires the `code-mode` extra:
+            #   pip install "apache-airflow-providers-common-ai[code-mode]"
+            code_mode=True,
+        )
+
+    # [END howto_operator_agent_code_mode]
+
+    example_agent_operator_code_mode()
+
+
+# ---------------------------------------------------------------------------
+# 8. Multi-turn session — resume a conversation across DAG runs
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_session]
+@dag(tags=["example"], params={"session_id": "demo-session"})
+def example_agent_session():
+    """Resume a conversation across runs via ``message_history``.
+
+    The agent step seeds itself with the prior transcript and re-emits the
+    updated transcript to XCom (key ``message_history``). Loading and storing
+    that transcript under a session key is the DAG's job -- here, a JSON file in
+    object storage keyed by ``session_id``. Swap the path for ``s3://`` /
+    ``gs://`` in a deployment.
+    """
+    sessions_root = ObjectStoragePath("file:///tmp/airflow_agent_sessions")
+
+    @task
+    def load_history(session_id: str) -> str:
+        path = sessions_root / f"{session_id}.json"
+        # First turn: no file yet -> start a fresh session (empty transcript).
+        return path.read_text() if path.exists() else "[]"
+
+    @task.agent(
         llm_conn_id="pydanticai_default",
-        system_prompt="You are a SQL analyst. Write Python that calls the tools to answer.",
-        toolsets=[SQLToolset(db_conn_id="postgres_default", allowed_tables=["customers", "orders"])],
-        # Requires the `code-mode` extra:
-        #   pip install "apache-airflow-providers-common-ai[code-mode]"
-        code_mode=True,
+        system_prompt="You are a helpful assistant. Use the earlier turns for context.",
+        # The XComArg both wires the dependency and resolves to the JSON transcript.
+        message_history=load_history("{{ params.session_id }}"),
     )
+    def ask(question: str) -> str:
+        return question
+
+    @task
+    def save_history(session_id: str, transcript: str) -> None:
+        # Local/fsspec object storage does not auto-create parent dirs on write.
+        sessions_root.mkdir(parents=True, exist_ok=True)
+        (sessions_root / f"{session_id}.json").write_text(transcript)
+
+    answer = ask("And what did I ask you a moment ago?")
+    saved = save_history(
+        "{{ params.session_id }}",
+        # The agent step pushes the post-run transcript under this XCom key.
+        "{{ ti.xcom_pull(task_ids='ask', key='message_history') }}",
+    )
+    # save runs after the agent so the pulled transcript is the fresh one.
+    answer >> saved
 
 
-# [END howto_operator_agent_code_mode]
+# [END howto_agent_session]
 
-example_agent_operator_code_mode()
+example_agent_session()
+
+
+# ---------------------------------------------------------------------------
+# 9. Dynamic system prompt: template system_prompt from an upstream task's XCom
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_dynamic_system_prompt]
+@dag(tags=["example"])
+def example_agent_dynamic_system_prompt():
+    @task
+    def classify(ticket: str) -> dict:
+        category = "shipping" if "order" in ticket.lower() else "other"
+        return {"priority": "high", "category": category}
+
+    @task.agent(
+        llm_conn_id="pydanticai_default",
+        # system_prompt is a templated field -- Jinja renders it at task-run
+        # time, pulling the classification an upstream task already computed.
+        system_prompt=(
+            "You are handling a {{ ti.xcom_pull(task_ids='classify')['priority'] }}-priority "
+            "'{{ ti.xcom_pull(task_ids='classify')['category'] }}' ticket. "
+            "Draft a concise, friendly reply."
+        ),
+    )
+    def draft_reply(ticket: str, triage: dict) -> str:
+        # `triage` creates the task dependency; its content also flows into
+        # system_prompt via Jinja above. The returned string is the *prompt*
+        # sent to the agent -- the drafted reply is this task's XCom output.
+        return f"Draft a reply for: {ticket}"
+
+    ticket = "Where is my order? It still hasn't shipped."
+    draft_reply(ticket, classify(ticket))
+
+
+# [END howto_agent_dynamic_system_prompt]
+
+example_agent_dynamic_system_prompt()

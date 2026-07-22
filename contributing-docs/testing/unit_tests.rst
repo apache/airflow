@@ -133,7 +133,7 @@ Airflow unit test types
 Airflow tests in the CI environment are split into several test types. You can narrow down which
 test types you want to use in various ``breeze testing`` sub-commands in three ways:
 
-* By specifying the ``--test-type`` when running a single test type in ``breeze testing core-tests``, ``breeze testing providers-tests``, or ``breeze testing integration-tests`` commands.
+* By specifying the ``--test-type`` when running a single test type in ``breeze testing core-tests``, ``breeze testing providers-tests``, or ``breeze testing core-integration-tests`` commands.
 * By specifying a space-separated list of test types via the ``--parallel-test-types`` or ``--excluded-parallel-test-types`` options when running tests in parallel.
 
 The defined test types are:
@@ -154,7 +154,7 @@ We also have types that run "all" tests (ignoring folders, but looking at ``pyte
 * ``All-Quarantined`` - Tests that are flaky and need to be fixed (``quarantined`` marker).
 * ``All`` - All tests are run (this is the default).
 
-We also have ``Integration`` tests that run with external software via the ``--integration`` flag in the ``breeze`` environment (via ``breeze testing integration-tests``).
+We also have ``Integration`` tests that run with external software via the ``--integration`` flag in the ``breeze`` environment (via ``breeze testing core-integration-tests`` and ``breeze testing providers-integration-tests``).
 
 * ``Integration`` - Tests that require external integration images running in docker-compose.
 
@@ -658,7 +658,7 @@ You can make the code conditional and mock out ``Variable`` to avoid hitting the
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Handle collection of the test by non-db case
-        Variable = mock.MagicMock()  # type: ignore[misc] # noqa: F811
+        Variable = mock.MagicMock(spec=Variable)  # type: ignore[misc] # noqa: F811
     else:
         initial_db_init()
 
@@ -720,6 +720,66 @@ You can also use a fixture to create an object that needs the database.
     def test_as_json_from_connection(self, conn: Connection):
         conn = request.getfixturevalue(conn)
         ...
+
+Database fixtures and test isolation
+------------------------------------
+
+Database tests must not leak rows into the database that other tests can see. A test that
+depends on rows left behind by an earlier test, or that breaks because of them, is
+order-dependent and flaky. The shared fixtures below own their rows and remove them when the
+test finishes, so individual tests should not need defensive pre-cleaning such as
+``clear_db_dag_bundles()`` or ``clear_db_teams()`` at the top of a test.
+
+Why these fixtures exist
+........................
+
+``dag_maker`` provides one consistent way to create a Dag in the database and remove it again. A
+Dag spans several foreign-key-linked rows (``DagModel``, ``SerializedDagModel``, ``DagVersion``,
+``DagRun``, ``TaskInstance``, and the ``DagBundleModel`` it belongs to), so creating or deleting
+them by hand is error-prone, and a missed row leaks into later tests. ``dag_maker`` keeps that
+setup and teardown in one place.
+
+Bundles and teams were added later with their own ``clear_db_*`` helpers rather than through
+``dag_maker``, which left cleanup to each caller and led tests to add defensive
+``clear_db_dag_bundles()`` / ``clear_db_teams()`` calls against leaked rows. The fixtures now clean
+up after themselves, so that pre-cleaning is no longer required.
+
+``dag_maker``
+.............
+
+``dag_maker`` is the primary fixture for tests that need a Dag in the database. It is a context
+manager that builds a Dag, serializes it, and writes the ``DagModel``, ``DagRun``,
+``SerializedDagModel``, and ``DagVersion`` rows for you:
+
+.. code-block:: python
+
+    def test_something(dag_maker):
+        with dag_maker("my_dag") as dag:
+            EmptyOperator(task_id="task")
+        dr = dag_maker.create_dagrun()
+        ...
+
+On teardown ``dag_maker`` removes everything it created. Because the ``dag_maker`` bundle is shared
+across tests, it drops that ``DagBundleModel`` row only once no Dag still references it
+(``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action, so deleting a referenced
+bundle would fail). Prefer ``dag_maker`` over constructing ``DagBag``, ``DagBundleModel``, or
+``DagModel`` rows by hand.
+
+``testing_dag_bundle`` and ``testing_team``
+...........................................
+
+For tests that need a bundle or a team but do not go through ``dag_maker``, use the
+``testing_dag_bundle`` and ``testing_team`` fixtures. Each one lazily creates a shared
+``"testing"`` row only if it does not already exist, and tears that row down on exit only when
+this fixture is the one that created it, so overlapping usage does not delete a row another
+fixture still needs. ``testing_dag_bundle`` drops the ``"testing"`` bundle only once nothing
+references it, leaving the cleanup of the test's own dags to whichever fixture owns them.
+``testing_team`` deletes its row directly, because every foreign key to ``team.name`` is
+``ON DELETE CASCADE`` or ``ON DELETE SET NULL``.
+
+If you find yourself adding ``clear_db_*`` calls at the start of a test to work around rows left
+by another test, that is a sign the other test's fixture is not cleaning up after itself. Fix the
+fixture rather than spreading defensive cleanup across tests.
 
 Running Unit tests
 ------------------

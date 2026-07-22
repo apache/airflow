@@ -38,6 +38,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_dag_for_run,
     get_dag_for_run_or_latest_version,
     get_latest_version_of_dag,
+    resolve_run_on_latest_version,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
@@ -96,7 +97,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
-from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
     _get_task_group_task_instances,
@@ -607,9 +607,8 @@ def get_task_instances(
             "int", limit.value
         )  # LimitFilter value is guaranteed to be set to the default value of QueryLimit
         cursor_limit = LimitFilter().set_value(page_limit + 1)
-        task_instance_select = apply_filters_to_select(
-            statement=query, filters=[*filters, order_by, cursor_limit]
-        )
+        task_instance_select = apply_filters_to_select(statement=query, filters=[*filters, cursor_limit])
+        task_instance_select = order_by.to_orm(task_instance_select)
 
         is_backward = False
         if cursor:
@@ -617,7 +616,11 @@ def get_task_instances(
             if is_backward:
                 task_instance_select = order_by.to_orm(task_instance_select, reversed=True)
             task_instance_select = apply_cursor_filter(
-                task_instance_select, token, order_by, is_backward=is_backward
+                task_instance_select,
+                token,
+                order_by,
+                session.get_bind().dialect.name,
+                is_backward=is_backward,
             )
 
         fetched = list(session.scalars(task_instance_select))
@@ -970,16 +973,12 @@ def post_clear_task_instances(
     # dag.clear() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if task_instances:
-        task_instances = (
-            session.scalars(
-                select(TI)
-                .options(joinedload(TI.rendered_task_instance_fields))
-                .where(TI.id.in_([ti.id for ti in task_instances]))
-                .execution_options(populate_existing=True)
-            )
-            .unique()
-            .all()
-        )
+        task_instances = session.scalars(
+            select(TI)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .where(TI.id.in_([ti.id for ti in task_instances]))
+            .execution_options(populate_existing=True)
+        ).all()
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
@@ -1136,16 +1135,12 @@ def patch_task_instance_dry_run(
     # set_task_instance_state() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if tis:
-        tis = (
-            session.scalars(
-                select(TI)
-                .options(joinedload(TI.rendered_task_instance_fields))
-                .where(TI.id.in_([ti.id for ti in tis]))
-                .execution_options(populate_existing=True)
-            )
-            .unique()
-            .all()
-        )
+        tis = session.scalars(
+            select(TI)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .where(TI.id.in_([ti.id for ti in tis]))
+            .execution_options(populate_existing=True)
+        ).all()
 
     return TaskInstanceCollectionResponse(
         task_instances=[

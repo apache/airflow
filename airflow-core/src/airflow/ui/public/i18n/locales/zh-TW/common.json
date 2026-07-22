@@ -72,7 +72,8 @@
     "expectedDuration": "預計時長",
     "lastSchedulingDecision": "最後排程決策",
     "mappedPartitionKey": "映射分區鍵",
-    "partitionKey": "資產分區鍵",
+    "partitionDate": "資源分區日期",
+    "partitionKey": "資源分區鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
     "runType": "執行類型",
@@ -192,8 +193,25 @@
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "收到的資源事件"
   },
-  "pendingDagRun_one": "待執行的 Dag 執行",
-  "pendingDagRun_other": "待執行的 Dag 執行",
+  "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
+  "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
+  "presetFilters": {
+    "deleteTitle": "刪除預設篩選條件",
+    "deleteWarning": "預設篩選條件僅儲存在此瀏覽器中。",
+    "duplicate": "預設篩選條件「{{name}}」已儲存完全相同的設定。",
+    "empty": "尚無預設篩選條件",
+    "info": {
+      "default": "將預設篩選條件釘選為預設值後，當您在未套用任何篩選的情況下進入此頁面時，系統會自動套用該篩選條件。",
+      "save": "將目前的篩選與排序儲存為具名的預設篩選條件，之後可隨時切換回來。",
+      "storage": "預設篩選條件儲存在此瀏覽器中。"
+    },
+    "namePlaceholder": "預設篩選條件名稱",
+    "nothingToSave": "沒有可儲存的內容。套用篩選或排序後即可儲存為預設篩選條件。",
+    "save": "儲存",
+    "setDefault": "設為預設",
+    "title": "預設篩選條件",
+    "unsetDefault": "取消預設"
+  },
   "reset": "重置",
   "runId": "執行 ID",
   "runTypes": {
@@ -225,6 +243,47 @@
   },
   "selectLanguage": "選擇語言",
   "selected": "已選取",
+  "shortcuts": {
+    "categories": {
+      "code": "程式碼",
+      "dagView": "Dag 檢視",
+      "filters": "篩選條件",
+      "global": "全域",
+      "logs": "日誌",
+      "navigation": "導覽",
+      "runActions": "執行與任務動作",
+      "search": "搜尋"
+    },
+    "descriptions": {
+      "clearRun": "清除 $t(dagRun_one)",
+      "clearTaskInstance": "清除 $t(taskInstance_one)",
+      "downloadLogs": "下載日誌",
+      "focusFilterSearch": "聚焦篩選搜尋",
+      "focusLogSearch": "搜尋日誌",
+      "focusSearch": "聚焦搜尋",
+      "markRunFailed": "標記 $t(dagRun_one) 為失敗",
+      "markRunSuccess": "標記 $t(dagRun_one) 為成功",
+      "markTaskFailed": "標記 $t(task_one) 為失敗",
+      "markTaskGroupFailed": "標記 $t(taskGroup_one) 為失敗",
+      "markTaskGroupSuccess": "標記 $t(taskGroup_one) 為成功",
+      "markTaskSuccess": "標記 $t(task_one) 為成功",
+      "navigateTasks": "導覽$t(task_other)",
+      "openGraphFilters": "開啟圖形篩選條件",
+      "scrollBottom": "捲動至最下方",
+      "scrollTop": "捲動至最上方",
+      "searchDags": "搜尋 $t(dag_other)",
+      "showHelp": "顯示$t(shortcuts.title)",
+      "toggleExpand": "展開或收合所有群組",
+      "toggleFullscreen": "切換全螢幕",
+      "toggleGraphGrid": "切換圖形／網格檢視",
+      "toggleSource": "切換來源",
+      "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
+      "toggleTimestamp": "切換時間戳記",
+      "toggleWrap": "切換$t(wrap.wrap)"
+    },
+    "empty": "此頁面沒有可用的鍵盤快捷鍵。",
+    "title": "鍵盤快捷鍵"
+  },
   "showDetailsPanel": "顯示詳細資訊",
   "signedInAs": "登入身分：",
   "source": {

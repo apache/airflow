@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import select, union_all
+from fastapi import Depends, HTTPException, Query, status
+from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_quer
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
+    QueryAnyDagRunStateFilter,
     QueryAssetDependencyFilter,
     QueryBundleNameFilter,
     QueryBundleVersionFilter,
@@ -50,6 +51,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryPausedFilter,
     QueryPendingActionsFilter,
     QueryTagsFilter,
+    QueryTeamsFilter,
     SortParam,
     filter_param_factory,
 )
@@ -57,20 +59,24 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dags import DAG_ALIAS_MAPPING, DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
+    DAGRunStateCountsResponse,
+    DAGsRunStateCountsCollectionResponse,
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.routes.ui.dashboard import STATE_COUNT_CAP
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
     ReadableDagsFilterDep,
     requires_access_dag,
 )
+from airflow.configuration import conf
 from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
@@ -91,6 +97,7 @@ def get_dags(
     offset: QueryOffset,
     tags: QueryTagsFilter,
     owners: QueryOwnersFilter,
+    teams: QueryTeamsFilter,
     dag_ids: Annotated[
         FilterParam[list[str] | None],
         Depends(filter_param_factory(DagModel.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
@@ -103,6 +110,7 @@ def get_dags(
     paused: QueryPausedFilter,
     has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    dag_run_state: QueryAnyDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
     order_by: Annotated[
@@ -111,7 +119,11 @@ def get_dags(
             SortParam(
                 ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
                 DagModel,
-                {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
+                {
+                    "last_run_state": DagRun.state,
+                    "last_run_start_date": DagRun.start_date,
+                    "last_run_run_after": DagRun.run_after,
+                },
             ).dynamic_depends()
         ),
     ],
@@ -147,7 +159,9 @@ def get_dags(
             dag_display_name_prefix_pattern,
             tags,
             owners,
+            teams,
             last_dag_run_state,
+            dag_run_state,
             is_favorite,
             has_asset_schedule,
             asset_dependency,
@@ -221,6 +235,13 @@ def get_dags(
         for dag_id, hitl_detail in pending_actions:
             pending_actions_by_dag_id[dag_id].append(hitl_detail)
 
+    # Fetch team names when multi-team is enabled
+    team_names_by_dag_id: dict[str, str | None] = {}
+    if conf.getboolean("core", "multi_team") and dags:
+        team_names_by_dag_id = DagModel.get_dag_id_to_team_name_mapping(
+            [dag.dag_id for dag in dags], session=session
+        )
+
     # aggregate rows by dag_id
     # Build the dict dynamically from DAGResponse.model_fields so that new fields
     # added to DAGResponse are picked up automatically without code changes here.
@@ -238,6 +259,7 @@ def get_dags(
                 "latest_dag_runs": [],
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
                 "is_favorite": dag.dag_id in favorite_dag_ids,
+                "team_name": team_names_by_dag_id.get(dag.dag_id),
             }
         )
         dag_runs_by_dag_id[dag.dag_id] = DAGWithLatestDagRunsResponse.model_validate(dag_data)
@@ -284,3 +306,55 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse
     latest_run_info = session.execute(latest_run_info_select).one_or_none()
 
     return DAGRunLightResponse(**latest_run_info._mapping) if latest_run_info else None
+
+
+@dags_router.get(
+    "/run_state_counts",
+    dependencies=[
+        Depends(requires_access_dag(method="GET")),
+        Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.RUN)),
+    ],
+    operation_id="get_dag_run_state_counts_ui",
+)
+def get_dag_run_state_counts(
+    session: SessionDep,
+    readable_dags_filter: ReadableDagsFilterDep,
+    dag_ids: Annotated[list[str], Query(min_length=1, max_length=conf.getint("api", "maximum_page_limit"))],
+) -> DAGsRunStateCountsCollectionResponse:
+    """Return per-Dag DagRun state counts (zero-filled) for the Dag list page."""
+    permitted_dag_ids = readable_dags_filter.value or set()
+    requested_dag_ids = list(set(dag_ids) & permitted_dag_ids)
+    counts_by_dag: dict[str, dict[DagRunState, int]] = {
+        dag_id: {state: 0 for state in DagRunState} for dag_id in requested_dag_ids
+    }
+
+    if requested_dag_ids:
+        # One capped union per state, not a single (dag, state) union: keeping every
+        # branch on the same state lets the planner pick a uniform, efficient per-branch
+        # plan. A mixed-state union misplans and scans whole partitions (orders of
+        # magnitude slower). Each branch reads at most STATE_COUNT_CAP rows; the UI
+        # shows "N+" once a count reaches the cap.
+        for state in DagRunState:
+            branches = []
+            for dag_id in requested_dag_ids:
+                capped = (
+                    select(literal(dag_id).label("dag_id"))
+                    .select_from(DagRun)
+                    .where(DagRun.dag_id == dag_id, DagRun.state == state)
+                    .limit(STATE_COUNT_CAP)
+                    .subquery()
+                )
+                branches.append(select(capped.c.dag_id))
+            counts = union_all(*branches).subquery()
+            for row in session.execute(
+                select(counts.c.dag_id, func.count().label("cnt")).group_by(counts.c.dag_id)
+            ):
+                counts_by_dag[row.dag_id][state] = row.cnt
+
+    return DAGsRunStateCountsCollectionResponse(
+        dags=[
+            DAGRunStateCountsResponse(dag_id=dag_id, state_counts=counts)
+            for dag_id, counts in counts_by_dag.items()
+        ],
+        state_count_limit=STATE_COUNT_CAP,
+    )

@@ -35,6 +35,38 @@
 Changelog
 ---------
 
+1.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Propagate 'partition_date' to consumers of partitioned assets (#67285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+1.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'awaiting_input' task state for Human-in-the-loop, off the triggerer (#68028)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Block retry_policy argument for StubOperator (#68551)``
+* ``Fix Triggered DAG button not visible during queued/running state (#67327)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename task_store/asset_store to task_state_store/asset_state_store (#68438)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+
 1.14.0
 ......
 
