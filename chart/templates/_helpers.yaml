@@ -84,17 +84,6 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
-  {{- $triggererKedaEnabled := and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
-  {{- $workersKedaNeedsDbConn := and .Values.workers.celery.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.celery.keda.usePgbouncer))) }}
-  {{- $triggererKedaNeedsDbConn := and $triggererKedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.triggerer.keda.usePgbouncer))) }}
-  {{- $component := .Component | default "" }}
-  {{- if or (and (eq $component "worker") $workersKedaNeedsDbConn) (and (eq $component "triggerer") $triggererKedaNeedsDbConn) }}
-  - name: KEDA_DB_CONN
-    valueFrom:
-      secretKeyRef:
-        name: {{ template "airflow_metadata_secret" . }}
-        key: kedaConnection
-  {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY }}
   - name: AIRFLOW__API__SECRET_KEY
     valueFrom:
@@ -156,6 +145,21 @@ If release name contains chart name it will be used as a full name.
     value: "http://{{ include "airflow.fullname" . }}-otel-collector:{{ .Values.ports.otelCollectorOtlpHttp }}/v1/metrics"
   - name: OTEL_METRIC_EXPORT_INTERVAL
     value: {{ .Values.otelCollector.metricExportIntervalMs | quote }}
+  {{- end }}
+{{- end }}
+
+{{/* KEDA scaler database connection for the worker and triggerer autoscalers */}}
+{{- define "keda_airflow_environment" }}
+  {{- $triggererKedaEnabled := and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
+  {{- $workersKedaNeedsDbConn := and .Values.workers.celery.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.celery.keda.usePgbouncer))) }}
+  {{- $triggererKedaNeedsDbConn := and $triggererKedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.triggerer.keda.usePgbouncer))) }}
+  {{- $component := .Component | default "" }}
+  {{- if or (and (eq $component "worker") $workersKedaNeedsDbConn) (and (eq $component "triggerer") $triggererKedaNeedsDbConn) }}
+  - name: KEDA_DB_CONN
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "airflow_metadata_secret" . }}
+        key: kedaConnection
   {{- end }}
 {{- end }}
 
