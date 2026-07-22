@@ -1,0 +1,1 @@
+Fixed ``values.schema.json`` rejecting explicit ``null`` for ``runAsUser``, ``runAsGroup``, and ``fsGroup`` in ``securityContexts.pod``, which blocked OpenShift-style deployments that rely on SCC-assigned UIDs/GIDs.
