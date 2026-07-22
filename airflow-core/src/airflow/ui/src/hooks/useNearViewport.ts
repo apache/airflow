@@ -31,6 +31,8 @@ const getScrollRoot = (element: Element): Element | null => {
   let ancestor = element.parentElement;
   let overflowAncestor: Element | null = null;
 
+  // Use the nearest ancestor that actually scrolls, falling back to the nearest
+  // overflow container when its content currently fits without scrolling.
   while (ancestor !== null) {
     const { overflowY } = globalThis.getComputedStyle(ancestor);
 
