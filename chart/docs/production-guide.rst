@@ -429,7 +429,8 @@ Flower HTTPRoute resources are only created when Flower itself is created, so ``
 
 For fine-grained routing, supply ``apiServer.httpRoute.rules`` or ``flower.httpRoute.rules`` directly —
 the entry mirrors the upstream ``HTTPRouteRule`` schema and overrides the default rule generated from
-``path`` + ``pathType``.
+the corresponding ``apiServer.httpRoute.path`` and ``apiServer.httpRoute.pathType``, or
+``flower.httpRoute.path`` and ``flower.httpRoute.pathType`` values.
 
 .. note::
 
