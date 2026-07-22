@@ -118,7 +118,7 @@ Catchup
 -------
 
 An Airflow Dag defined with a ``start_date``, possibly an ``end_date``, and a non-asset schedule, defines a series of scheduled run times which the scheduler turns into individual Dag runs and executes.
-By default, missed scheduled run times are not created by the scheduler upon activation of a Dag (Airflow config ``scheduler.catchup_by_default=False``). The scheduler creates a Dag run only for the next (or most recently applicable) scheduled run time according to the timetable.
+By default, missed scheduled run times between ``start_date`` and "now" are not backfilled when a Dag is activated (Airflow config ``scheduler.catchup_by_default=False``). The timetable instead selects the most recently applicable scheduled run time (for a trigger timetable, typically the latest cron tick that is not after "now" and not before ``start_date``).
 
 If you set ``catchup=True`` in the Dag, the scheduler will kick off a Dag Run for any scheduled run time that has not been run since the last run (or has been cleared). This concept is called Catchup.
 
@@ -153,9 +153,12 @@ then you will want to turn catchup off, which is the default setting or can be d
 In the example above, if the Dag is picked up by the scheduler daemon on
 2016-01-02 at 6 AM (or from the command line), with the Airflow 3 default of
 :ref:`CronTriggerTimetable` for ``@daily`` and ``catchup=False``, the scheduler
-does **not** create a run for the past midnight. The next Dag run is created at
-midnight on the morning of 2016-01-03, with ``data_interval_start`` and
-``data_interval_end`` both equal to that trigger time.
+does **not** create runs for every midnight since ``start_date``. Instead it
+creates a single Dag run for the most recent applicable tick — midnight on
+**2016-01-02** — with ``data_interval_start`` and ``data_interval_end`` both
+equal to that trigger time. Because that ``run_after`` is already in the past,
+the run can start immediately. The following tick (midnight on 2016-01-03) is
+only created once that schedule time is reached.
 
 If instead the Dag used a data-interval timetable (for example
 :ref:`CronDataIntervalTimetable`, or ``[scheduler] create_cron_data_intervals=True``),
@@ -170,10 +173,10 @@ For a more detailed description of the differences, see
 :ref:`Differences between the cron and delta data interval timetables`.
 
 If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have
-created a Dag Run for each scheduled run time between ``start_date`` and "now" that
-had not yet run (or had been cleared), and would execute them sequentially.
-With the default trigger timetable, those scheduled run times include midnight on 2016-01-02
-(already passed by 6 AM). With a data-interval timetable, the still-open
+created a Dag Run for each scheduled run time between ``start_date`` and "now"
+that had not yet run (or had been cleared), and would execute them sequentially.
+With the default trigger timetable that means every midnight from 2015-12-01
+through 2016-01-02 inclusive. With a data-interval timetable, the still-open
 interval that ends at the next midnight is not created yet.
 
 Catchup is also triggered when you turn off a Dag for a specified period and then re-enable it.
