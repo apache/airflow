@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton } from "@chakra-ui/react";
+import { Box, HStack, Skeleton, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import { usePluginServiceGetPlugins, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
+import type { ReactAppResponse } from "openapi/requests/types.gen";
 import { DurationChart } from "src/components/DurationChart";
 import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { ReactPlugin } from "src/pages/ReactPlugin";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 const defaultHour = "24";
@@ -71,11 +73,18 @@ export const Overview = () => {
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
   );
+  const { data: pluginData } = usePluginServiceGetPlugins();
+  const taskOverviewReactPlugins =
+    pluginData?.plugins
+      .flatMap((plugin) => plugin.react_apps)
+      .filter((plugin: ReactAppResponse) => plugin.destination === "task_overview") ?? [];
 
   return (
-    <Box m={4} spaceY={4}>
-      <NeedsReviewButton taskId={taskId} />
-      <Box my={2}>
+    <VStack alignItems="stretch" gap={4} m={4}>
+      <Box css={{ "&:empty": { display: "none" } }} order={1}>
+        <NeedsReviewButton taskId={taskId} />
+      </Box>
+      <Box my={2} order={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
           endDate={endDate}
@@ -84,7 +93,7 @@ export const Overview = () => {
           startDate={startDate}
         />
       </Box>
-      <HStack flexWrap="wrap">
+      <HStack flexWrap="wrap" order={3}>
         <TrendCountButton
           colorPalette={failedTaskCount === 0 ? "green" : "red"}
           count={failedTaskCount}
@@ -103,7 +112,7 @@ export const Overview = () => {
           startDate={startDate}
         />
       </HStack>
-      <HStack alignItems="flex-start" flexWrap="wrap" gap={5} my={5}>
+      <HStack alignItems="flex-start" flexWrap="wrap" gap={5} my={5} order={4}>
         <Box
           borderRadius={4}
           borderStyle="solid"
@@ -120,6 +129,9 @@ export const Overview = () => {
           )}
         </Box>
       </HStack>
-    </Box>
+      {taskOverviewReactPlugins.map((plugin) => (
+        <ReactPlugin key={plugin.name} reactApp={plugin} />
+      ))}
+    </VStack>
   );
 };
