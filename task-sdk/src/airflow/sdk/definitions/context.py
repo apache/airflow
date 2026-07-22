@@ -155,10 +155,10 @@ def clone_context(context: Context) -> Context:
     templates_dict = cloned_context.get("templates_dict")
     if templates_dict is not None:
         cloned_context["templates_dict"] = copy.deepcopy(templates_dict)
-    cloned_context["inlet_events"] = copy.deepcopy(context["inlet_events"])
+    cloned_context["inlet_events"] = context["inlet_events"]
     # outlet_events is intentionally NOT copied - sub-tasks must emit into the
     # parent's accessor so events are serialized when the parent completes.
-    cloned_context["dag_run"] = copy.deepcopy(context["dag_run"])
+    cloned_context["dag_run"] = context["dag_run"]
     return cloned_context
 
 

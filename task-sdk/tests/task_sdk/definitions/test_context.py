@@ -98,7 +98,7 @@ class TestCurrentContext:
         assert cloned["outlet_events"] is actual["outlet_events"]
         assert len(cloned["outlet_events"]) == 2
         assert Asset(name="another") in cloned["outlet_events"]
-        assert cloned["inlet_events"] is not actual["inlet_events"]
+        assert cloned["inlet_events"] is actual["inlet_events"]
 
         actual["dag_run"].dag_id = "changed"
-        assert cloned["dag_run"].dag_id == "dag"
+        assert cloned["dag_run"].dag_id == "changed"
