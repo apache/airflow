@@ -284,7 +284,8 @@ To provide your own key, either set ``fernetKey`` in the values file:
 
 .. warning::
 
-   Due to security concerns, it is advised to use a Kubernetes Secret instead of setting the Fernet key directly in the values file.
+   Due to security concerns, it is advised to use a Kubernetes Secret instead of setting the Fernet key directly in
+   the values file. Never commit a ``values.yaml`` containing a plaintext Fernet key to version control.
 
 or create your own Kubernetes Secret containing a ``fernet-key`` key with a base64-encoded value, and point the chart at it with ``fernetKeySecretName``:
 
@@ -297,6 +298,12 @@ or create your own Kubernetes Secret containing a ``fernet-key`` key with a base
 
    fernetKeySecretName: my-fernet-key
 
+.. note::
+
+   ``kubectl create secret`` only creates an object in the cluster -- it is not tracked anywhere else. Manage this
+   Secret through your normal Infrastructure-as-Code process (for example a GitOps repository, a Sealed Secret, or
+   an External Secrets Operator resource) so it is not lost on a cluster migration or a full redeploy.
+
 Rotating the Fernet key
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -307,11 +314,27 @@ existing encrypted values unreadable. To rotate the key without losing access to
 
 #. Make sure you are using a self-managed Secret through ``fernetKeySecretName`` -- as noted above, the
    chart-generated Secret cannot be updated through ``helm upgrade``.
-#. Update the ``fernet-key`` value in that Secret to a comma-separated list ``new_fernet_key,old_fernet_key``, then
-   restart the Airflow components (for example with ``kubectl rollout restart``) so they pick up the new value --
+#. Update the ``fernet-key`` value in that Secret to a comma-separated list ``new_fernet_key,old_fernet_key``, using
+   the same ``kubectl create secret`` command as above with ``--dry-run=client -o yaml`` piped into ``kubectl apply``
+   so it updates the existing Secret in place instead of failing because it already exists:
+
+   .. code-block:: bash
+
+      kubectl create secret generic my-fernet-key \
+        --from-literal="fernet-key=new_fernet_key,old_fernet_key" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+   Then restart the Airflow components (for example with ``kubectl rollout restart``) so they pick up the new value --
    Kubernetes does not refresh environment variables sourced from a Secret in already-running pods.
 #. Run ``airflow rotate-fernet-key`` to re-encrypt existing connections, variables and triggers with the new key.
-#. Update the Secret again so it only contains ``new_fernet_key``, and restart the components once more.
+#. Update the Secret again, the same way, so it only contains ``new_fernet_key``, and restart the components once
+   more:
+
+   .. code-block:: bash
+
+      kubectl create secret generic my-fernet-key \
+        --from-literal="fernet-key=new_fernet_key" \
+        --dry-run=client -o yaml | kubectl apply -f -
 
 JWT Secret
 ----------
