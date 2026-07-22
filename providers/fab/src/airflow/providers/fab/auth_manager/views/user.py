@@ -26,6 +26,7 @@ from flask_appbuilder.security.views import (
     UserOAuthModelView,
     UserRemoteUserModelView,
 )
+from flask_appbuilder.widgets import FormVerticalWidget
 from wtforms.validators import DataRequired
 
 from airflow.providers.fab.www.security import permissions
@@ -151,6 +152,12 @@ class CustomUserRemoteUserModelView(MultiResourceUserMixin, UserRemoteUserModelV
     ]
 
 
+class UserEditFormWidget(FormVerticalWidget):
+    """Edit form widget that also renders single-item actions, e.g. the Reset Password button."""
+
+    template = "appbuilder/general/widgets/user_edit_form.html"
+
+
 class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
     """Customize permission names for FAB's builtin UserDBModelView."""
 
@@ -204,3 +211,23 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
     ]
+
+    edit_widget = UserEditFormWidget
+
+    @expose("/edit/<pk>", methods=["GET", "POST"])
+    @has_access
+    def edit(self, pk):
+        pk = self._deserialize_pk_if_composite(pk)
+        widgets = self._edit(pk)
+        if not widgets:
+            return self.post_edit_redirect()
+        # Surface the same "Reset Password" action already available on the Show User view.
+        widgets["edit"].template_args["actions"] = {"resetpasswords": self.actions.get("resetpasswords")}
+        widgets["edit"].template_args["pk"] = pk
+        widgets["edit"].template_args["modelview_name"] = self.__class__.__name__
+        return self.render_template(
+            self.edit_template,
+            title=self.edit_title,
+            widgets=widgets,
+            related_views=self._related_views,
+        )
