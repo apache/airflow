@@ -434,11 +434,9 @@ the entry mirrors the upstream ``HTTPRouteRule`` schema and overrides the defaul
 .. note::
 
    ``HTTPRoute`` is an alternative to ``Ingress`` for the same component, so enable only one routing
-   mechanism for each component. For the API server, enable only one of ``ingress.apiServer`` or
-   ``apiServer.httpRoute``. For Flower, enable only one of ``ingress.flower`` or
-   ``flower.httpRoute``. Enabling both for the same component fails template rendering. When an
-   ``HTTPRoute`` is enabled, the chart also verifies (via Helm ``Capabilities``) that the Gateway API
-   CRDs are installed and fails with a clear message if they are not.
+   mechanism for each component. Enabling both for the same component fails template rendering.
+   When an ``HTTPRoute`` is enabled, the chart also verifies (via Helm ``Capabilities``) that the Gateway
+   API CRDs are installed and fails with a clear message if they are not.
 
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^
