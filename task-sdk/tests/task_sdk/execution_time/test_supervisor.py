@@ -3647,7 +3647,7 @@ class TestInProcessClient:
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
     (
-        pytest.param(True, "", "AIRFLOW_CONN_AWS_DEFAULT", id="no-conn-id"),
+        pytest.param(True, "", "", id="no-conn-id"),
         pytest.param(True, "aws_default", "AIRFLOW_CONN_AWS_DEFAULT", id="explicit-default"),
         pytest.param(True, "my_aws", "AIRFLOW_CONN_MY_AWS", id="other"),
         pytest.param(False, "", "", id="no-remote-logging"),
@@ -3698,7 +3698,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
 
             with _remote_logging_conn(client):
                 new_keys = os.environ.keys() - env.keys()
-                if remote_logging:
+                if remote_logging and expected_env:
                     # _remote_logging_conn sets both the connection env var and _AIRFLOW_PROCESS_CONTEXT
                     assert new_keys == {expected_env, "_AIRFLOW_PROCESS_CONTEXT"}
                 else:

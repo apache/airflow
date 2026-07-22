@@ -1950,6 +1950,7 @@ export class DagService {
      * @param data.tags
      * @param data.tagsMatchMode
      * @param data.owners
+     * @param data.teams
      * @param data.dagIds
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
@@ -1985,6 +1986,7 @@ export class DagService {
                 tags: data.tags,
                 tags_match_mode: data.tagsMatchMode,
                 owners: data.owners,
+                teams: data.teams,
                 dag_ids: data.dagIds,
                 dag_id_pattern: data.dagIdPattern,
                 dag_id_prefix_pattern: data.dagIdPrefixPattern,

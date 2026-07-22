@@ -62,6 +62,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.errors import ParseImportError
 from airflow.models.hitl import HITLDetail
@@ -1020,6 +1021,29 @@ class _OwnersFilter(BaseParam[list[str]]):
         return cls().set_value(owners)
 
 
+class _TeamsFilter(BaseParam[list[str]]):
+    """Filter Dags by team name (via bundle association)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        from airflow.models.team import Team
+
+        return select.where(
+            DagModel.bundle_name.in_(
+                sql_select(DagBundleModel.name).join(DagBundleModel.teams).where(Team.name.in_(self.value))
+            )
+        )
+
+    @classmethod
+    def depends(cls, teams: list[str] = Query(default_factory=list)) -> _TeamsFilter:
+        return cls().set_value(teams)
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -1268,6 +1292,7 @@ QueryDagIdPrefixPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+QueryTeamsFilter = Annotated[_TeamsFilter, Depends(_TeamsFilter.depends)]
 
 
 class _HasAssetScheduleFilter(BaseParam[bool]):
