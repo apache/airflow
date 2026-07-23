@@ -42,6 +42,11 @@ migration might be the only easy way out. This can for example be caused by a br
 network connection between your CLI and the database while the migration happens, so taking
 a backup is an important precaution to avoid problems like this.
 
+Backups are also the only clean rollback path when a newer Airflow version has already written
+metadata rows in a format that an older version cannot read. ``airflow db downgrade`` only
+reverts Alembic schema migrations; it does not rewrite existing metadata row content back to an
+older serialization format.
+
 When you need to upgrade
 ========================
 
