@@ -204,6 +204,35 @@ class TestTIRunState:
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert [e["partition_key"] for e in events] == ["2024-01-15"]
 
+    @mock.patch("sqlalchemy.orm.Session.scalars")
+    def test_ti_run_missing_dagrun(self, mock_scalars, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_run_missing_dagrun",
+            state=State.QUEUED,
+            session=session,
+        )
+        session.commit()
+
+        # Mock the scalars call so that the DagRun lookup returns None
+        mock_scalars.return_value.unique.return_value.one_or_none.return_value = None
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-10-31T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": f"DagRun with dag_id={ti.dag_id} and run_id={ti.run_id} not found.",
+        }
+
     @pytest.mark.parametrize(
         ("max_tries", "should_retry"),
         [
