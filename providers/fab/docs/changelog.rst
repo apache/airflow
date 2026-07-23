@@ -54,6 +54,7 @@ Doc-only
    * ``Bump prettier (#69835)``
    * ``Add upgrade-fab-provider skill and FAB contributing doc (#69729)``
    * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69664)``
+   * ``Bump moment-timezone from 0.6.2 to 0.6.3 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#70308)``
 
 
 3.7.2
