@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import concurrent.futures
 import datetime
 import functools
@@ -28,6 +29,7 @@ import stat
 import warnings
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager, suppress
+from enum import Enum
 from fnmatch import fnmatch
 from io import BytesIO
 from pathlib import Path, PurePosixPath
@@ -49,6 +51,14 @@ if TYPE_CHECKING:
     from paramiko.sftp_client import SFTPClient
 
 CHUNK_SIZE = 64 * 1024  # 64KB
+
+
+class SFTPOperation(str, Enum):
+    """SFTP operation constants."""
+
+    GET = "get"
+    PUT = "put"
+    DELETE = "delete"
 
 
 def handle_connection_management(func: Callable) -> Callable:
@@ -384,25 +394,6 @@ class SFTPHook(SSHHook):
         """
         self.conn.remove(path)  # type: ignore[arg-type, union-attr]
 
-    @staticmethod
-    def _validate_within_directory(base_dir: str, candidate: str) -> str:
-        """
-        Ensure ``candidate`` resolves to a path inside ``base_dir``.
-
-        Directory-entry names are returned by the remote SFTP server and may
-        contain ``..`` components; joining them into the local destination path
-        could otherwise write outside it. Containment is verified before any
-        local write or ``mkdir``.
-        """
-        base_real = os.path.realpath(base_dir)
-        candidate_real = os.path.realpath(candidate)
-        if candidate_real != base_real and os.path.commonpath([base_real, candidate_real]) != base_real:
-            raise ValueError(
-                f"Refusing to write outside the destination directory: "
-                f"{candidate!r} resolves outside {base_dir!r}"
-            )
-        return candidate
-
     def retrieve_directory(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
         """
         Transfer the remote directory to a local location.
@@ -419,14 +410,10 @@ class SFTPHook(SSHHook):
         Path(local_full_path).mkdir(parents=True)
         files, dirs, _ = self.get_tree_map(remote_full_path)
         for dir_path in dirs:
-            new_local_path = self._validate_within_directory(
-                local_full_path, os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
-            )
+            new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
             Path(new_local_path).mkdir(parents=True, exist_ok=True)
         for file_path in files:
-            new_local_path = self._validate_within_directory(
-                local_full_path, os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
-            )
+            new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
             self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
@@ -461,18 +448,12 @@ class SFTPHook(SSHHook):
             new_local_file_paths, remote_file_paths = [], []
             files, dirs, _ = self.get_tree_map(remote_full_path)
             for dir_path in dirs:
-                new_local_path = self._validate_within_directory(
-                    local_full_path,
-                    os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path)),
-                )
+                new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
                 Path(new_local_path).mkdir(parents=True, exist_ok=True)
             for file in files:
                 remote_file_paths.append(file)
                 new_local_file_paths.append(
-                    self._validate_within_directory(
-                        local_full_path,
-                        os.path.join(local_full_path, os.path.relpath(file, remote_full_path)),
-                    )
+                    os.path.join(local_full_path, os.path.relpath(file, remote_full_path))
                 )
         remote_file_chunks = [remote_file_paths[i::workers] for i in range(workers)]
         local_file_chunks = [new_local_file_paths[i::workers] for i in range(workers)]
@@ -625,6 +606,27 @@ class SFTPHook(SSHHook):
             return False
         return True
 
+        @staticmethod
+    def _validate_within_directory(base: str, target: str) -> str:
+        """
+        Validate that target path is within the base directory.
+
+        Prevents directory traversal attacks.
+
+        :param base: The base/destination directory path
+        :param target: The target path to validate
+        :return: The target path if valid
+        :raises ValueError: If target path escapes the base directory
+        """
+        base_real = os.path.realpath(os.path.expanduser(base))
+        target_real = os.path.realpath(os.path.expanduser(target))
+
+        # Ensure target is within base directory
+        if not (target_real == base_real or target_real.startswith(base_real + os.sep)):
+            raise ValueError(f"Path {target} is outside the destination directory {base}")
+
+        return target
+
     def walktree(
         self,
         path: str,
@@ -734,6 +736,71 @@ class SFTPHook(SSHHook):
                 matched_files.append(file.filename)
 
         return matched_files
+
+    def transfer(
+        self,
+        operation: str,
+        local_filepath: str | list[str] | None,
+        remote_filepath: str | list[str],
+        confirm: bool = True,
+        create_intermediate_dirs: bool = False,
+        concurrency: int = 1,
+        prefetch: bool = True,
+    ) -> None:
+        """
+        Perform a synchronous SFTP transfer operation (GET, PUT, or DELETE).
+
+        Centralizes transfer logic so both the operator and the trigger
+        can delegate to the hook, in line with the DRY principle.
+
+        :param operation: The SFTP operation - put, get, or delete.
+        :param local_filepath: Local file path(s).
+        :param remote_filepath: Remote file path(s).
+        :param confirm: Whether to confirm file size after PUT (default: True).
+        :param create_intermediate_dirs: Create missing intermediate directories (default: False).
+        :param concurrency: Number of threads for directory transfers (default: 1).
+        :param prefetch: Whether to prefetch during GET (default: True).
+        """
+        if isinstance(local_filepath, str):
+            local_filepath_array = [local_filepath] if local_filepath else []
+        else:
+            local_filepath_array = local_filepath or []
+
+        if isinstance(remote_filepath, str):
+            remote_filepath_array = [remote_filepath]
+        else:
+            remote_filepath_array = list(remote_filepath)
+
+        if operation.lower() == SFTPOperation.GET:
+            for local, remote in zip(local_filepath_array, remote_filepath_array):
+                if create_intermediate_dirs:
+                    Path(os.path.dirname(local)).mkdir(parents=True, exist_ok=True)
+                if self.isdir(remote):
+                    if concurrency > 1:
+                        self.retrieve_directory_concurrently(
+                            remote, local, workers=concurrency, prefetch=prefetch
+                        )
+                    else:
+                        self.retrieve_directory(remote, local)
+                else:
+                    self.retrieve_file(remote, local, prefetch=prefetch)
+        elif operation.lower() == SFTPOperation.PUT:
+            for local, remote in zip(local_filepath_array, remote_filepath_array):
+                if create_intermediate_dirs:
+                    self.create_directory(os.path.dirname(remote))
+                if os.path.isdir(local):
+                    if concurrency > 1:
+                        self.store_directory_concurrently(remote, local, confirm=confirm, workers=concurrency)
+                    else:
+                        self.store_directory(remote, local, confirm=confirm)
+                else:
+                    self.store_file(remote, local, confirm=confirm)
+        elif operation.lower() == SFTPOperation.DELETE:
+            for remote in remote_filepath_array:
+                if self.isdir(remote):
+                    self.delete_directory(remote, include_files=True)
+                else:
+                    self.delete_file(remote)
 
 
 class SFTPHookAsync(BaseHook):
@@ -1078,3 +1145,64 @@ class SFTPHookAsync(BaseHook):
                     return mod_time
                 except asyncssh.SFTPNoSuchFile:
                     raise AirflowException("No files matching")
+
+    async def transfer(
+        self,
+        operation: str,
+        local_filepath: str | list[str] | None,
+        remote_filepath: str | list[str],
+        confirm: bool = True,
+        create_intermediate_dirs: bool = False,
+        concurrency: int = 1,
+        prefetch: bool = True,
+    ) -> None:
+        """Perform an SFTP transfer operation (GET, PUT, or DELETE) using native async I/O."""
+        if isinstance(local_filepath, str):
+            local_filepath_array = [local_filepath] if local_filepath else []
+        else:
+            local_filepath_array = local_filepath or []
+
+        if isinstance(remote_filepath, str):
+            remote_filepath_array = [remote_filepath]
+        else:
+            remote_filepath_array = list(remote_filepath)
+
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def _bounded(coro):
+            async with semaphore:
+                return await coro
+
+        async with await self._get_conn() as ssh_conn:
+            async with ssh_conn.start_sftp_client() as sftp:
+                if operation.lower() == SFTPOperation.GET:
+
+                    async def _get(local: str, remote: str):
+                        if create_intermediate_dirs:
+                            os.makedirs(os.path.dirname(local), exist_ok=True)
+                        await self.retrieve_file(remote, local)
+
+                    tasks = [
+                        asyncio.create_task(_bounded(_get(local, remote)))
+                        for local, remote in zip(local_filepath_array, remote_filepath_array)
+                    ]
+                    await asyncio.gather(*tasks)
+                elif operation.lower() == SFTPOperation.PUT:
+
+                    async def _put(local: str, remote: str):
+                        await self.store_file(remote, local)
+
+                    tasks = [
+                        asyncio.create_task(_bounded(_put(local, remote)))
+                        for local, remote in zip(local_filepath_array, remote_filepath_array)
+                    ]
+                    await asyncio.gather(*tasks)
+                elif operation.lower() == SFTPOperation.DELETE:
+
+                    async def _delete(remote: str):
+                        await sftp.unlink(remote)
+
+                    tasks = [
+                        asyncio.create_task(_bounded(_delete(remote))) for remote in remote_filepath_array
+                    ]
+                    await asyncio.gather(*tasks)

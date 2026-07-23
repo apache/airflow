@@ -105,6 +105,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-ssh``            ``>=4.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``paramiko``                                ``>=4.0.0,<5.0.0``
+``asgiref``                                 ``>=3.8.1``
 ``asyncssh``                                ``>=2.12.0; python_version < "3.14"``
 ``asyncssh``                                ``>=2.22.0; python_version >= "3.14"``
 ==========================================  ======================================
