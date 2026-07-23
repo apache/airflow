@@ -294,6 +294,8 @@ class BaseDagBundle(ABC):
     :param version: Version of the DAG bundle (Optional)
     :param version_data: Structured metadata for this bundle version, e.g. an S3 manifest.
         Only populated for pinned runs (where dag_run.bundle_version is not None). (Optional)
+    :param dag_id: Dag ID when the bundle is constructed for a specific task run on a worker.
+        ``None`` for the Dag processor and CLI. (Optional)
     """
 
     supports_versioning: bool = False
@@ -308,11 +310,13 @@ class BaseDagBundle(ABC):
         version: str | None = None,
         version_data: dict[str, Any] | None = None,
         view_url_template: str | None = None,
+        dag_id: str | None = None,
     ) -> None:
         self.name = name
         self.version = version
         self.version_data = version_data
         self.refresh_interval = refresh_interval
+        self.dag_id = dag_id
         self.is_initialized: bool = False
 
         self.base_dir = get_bundle_base_folder(bundle_name=self.name)

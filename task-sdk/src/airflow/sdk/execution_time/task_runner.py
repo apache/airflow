@@ -1018,6 +1018,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         name=bundle_info.name,
         version=bundle_info.version,
         version_data=bundle_info.version_data,
+        dag_id=what.ti.dag_id,
     )
     bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)

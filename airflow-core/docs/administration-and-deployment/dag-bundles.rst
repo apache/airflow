@@ -383,6 +383,10 @@ In addition to the abstract methods, you may choose to override the following me
 **initialize**
     This method is called before the bundle is first used in the Dag processor or worker. It allows you to perform expensive operations only when the bundle's content is accessed.
 
+    When a worker runs a task, Airflow sets ``self.dag_id`` on the bundle instance before calling ``initialize()``.
+    In the Dag processor and CLI, ``self.dag_id`` is ``None``.
+    Custom bundles can read ``self.dag_id`` inside ``initialize()`` to tailor bundle setup per Dag (for example, per-Dag sparse checkout) without changing the ``initialize()`` signature.
+
 **view_url**
     This method should return a URL as a string to view the bundle on an external system (e.g., a Git repository's web interface).
 
