@@ -540,3 +540,54 @@ class TestConnection:
             "test_conn2": None,
         }
         clear_db_connections()
+
+    def test_port_validation_valid_ports(self):
+        """Test that valid port numbers (0-65535) are accepted."""
+        for port in [0, 1, 80, 443, 3306, 5432, 8080, 65535]:
+            conn = Connection(conn_id=f"test_{port}", conn_type="test", port=port)
+            assert conn.port == port
+
+    def test_port_validation_invalid_negative_port(self):
+        """Test that negative port numbers are rejected."""
+        with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+            Connection(conn_id="test_neg", conn_type="test", port=-1)
+
+    def test_port_validation_invalid_port_too_large(self):
+        """Test that port numbers > 65535 are rejected."""
+        with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+            Connection(conn_id="test_large", conn_type="test", port=65536)
+
+    def test_port_validation_invalid_port_very_large(self):
+        """Test that very large port numbers are rejected."""
+        with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+            Connection(conn_id="test_very_large", conn_type="test", port=99999999)
+
+    def test_port_validation_none_allowed(self):
+        """Test that None port is allowed (optional field)."""
+        conn = Connection(conn_id="test_none", conn_type="test", port=None)
+        assert conn.port is None
+
+    def test_port_validation_from_uri_valid_port(self):
+        """Test that valid ports from URI are accepted."""
+        conn = Connection(uri="postgres://user:pass@host:5432/db", conn_id="test_uri")
+        assert conn.port == 5432
+
+    def test_port_validation_from_uri_invalid_port(self):
+        """Test that invalid ports from URI are rejected."""
+        with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+            Connection(uri="postgres://user:pass@host:99999/db", conn_id="test_uri_invalid")
+
+    def test_port_validation_from_json_valid_port(self):
+        """Test that valid ports from JSON are accepted."""
+        conn = Connection.from_json('{"conn_type": "postgres", "port": "5432"}', conn_id="test_json")
+        assert conn.port == 5432
+
+    def test_port_validation_from_json_invalid_port(self):
+        """Test that invalid ports from JSON are rejected."""
+        with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+            Connection.from_json('{"conn_type": "postgres", "port": "99999"}', conn_id="test_json_invalid")
+
+    def test_port_validation_from_json_negative_port(self):
+        """Test that negative ports from JSON are rejected."""
+        with pytest.raises(ValueError, match="Port must be between 0 and 65535"):
+            Connection.from_json('{"conn_type": "postgres", "port": "-1"}', conn_id="test_json_neg")

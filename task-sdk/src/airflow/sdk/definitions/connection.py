@@ -123,6 +123,11 @@ class Connection:
 
     EXTRA_KEY = "__extra__"
 
+    def __attrs_post_init__(self) -> None:
+        """Validate port after initialization."""
+        if self.port is not None and not (0 <= self.port <= 65535):
+            raise ValueError(f"Port must be between 0 and 65535, got {self.port}")
+
     @overload
     def __init__(self, *, conn_id: str, uri: str) -> None: ...
 
