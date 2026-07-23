@@ -114,6 +114,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
+    ("ts-sdk", "/opt/airflow/ts-sdk"),
 ]
 
 
