@@ -27,6 +27,14 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
 from airflow.utils.state import TaskInstanceState
 
+
+def _get_execute_tasks_new_python_interpreter(ti: object) -> bool | None:
+    value = getattr(getattr(ti, "task", None), "execute_tasks_new_python_interpreter", None)
+    if value is None or isinstance(value, bool):
+        return value
+    return None
+
+
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models.taskinstance import TaskInstance as TIModel
@@ -67,6 +75,7 @@ class ExecuteTask(BaseDagBundleWorkload):
 
     ti: TaskInstanceDTO
     sentry_integration: str = ""
+    execute_tasks_new_python_interpreter: bool | None = None
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
@@ -122,4 +131,5 @@ class ExecuteTask(BaseDagBundleWorkload):
             log_path=fname,
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
+            execute_tasks_new_python_interpreter=_get_execute_tasks_new_python_interpreter(ti),
         )

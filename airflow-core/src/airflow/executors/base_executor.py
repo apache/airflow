@@ -724,6 +724,7 @@ class BaseExecutor(LoggingMixin):
                 log_path=workload.log_path,
                 subprocess_logs_to_stdout=subprocess_logs_to_stdout,
                 sentry_integration=getattr(workload, "sentry_integration", ""),
+                execute_tasks_new_python_interpreter=workload.execute_tasks_new_python_interpreter,
             )
         if isinstance(workload, ExecuteCallback):
             from airflow.sdk.execution_time.callback_supervisor import supervise_callback
