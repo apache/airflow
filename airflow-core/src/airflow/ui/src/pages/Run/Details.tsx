@@ -26,12 +26,14 @@ import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton, RouterLink } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 import { getDuration, isStatePending, renderDuration, useAutoRefresh } from "src/utils";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "components"]);
   const { dagId = "", runId = "" } = useParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -82,6 +84,16 @@ export const Details = () => {
             </HStack>
           </Table.Cell>
         </Table.Row>
+        {multiTeamEnabled && dagRun.team_name !== undefined && dagRun.team_name !== null ? (
+          <Table.Row>
+            <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
+            <Table.Cell>
+              <RouterLink to={`/dags?teams=${encodeURIComponent(dagRun.team_name)}`}>
+                {dagRun.team_name}
+              </RouterLink>
+            </Table.Cell>
+          </Table.Row>
+        ) : undefined}
         <Table.Row>
           <Table.Cell>{translate("duration")}</Table.Cell>
           <Table.Cell>{getDuration(dagRun.start_date, dagRun.end_date)}</Table.Cell>

@@ -21,17 +21,20 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select, update
 
 from airflow.models.asset import AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count, count_queries
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
@@ -1082,6 +1085,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_periodic": False,
             "timetable_summary": None,
             "timezone": UTC_JSON_REPR,
+            "team_name": None,
         }
         assert res_json == expected
 
@@ -1184,6 +1188,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_partitioned": False,
             "timetable_periodic": False,
             "timezone": UTC_JSON_REPR,
+            "team_name": None,
         }
         assert res_json == expected
 
@@ -1288,6 +1293,35 @@ class TestDagDetails(TestDagEndpoint):
         assert "active_runs_count" in body
         assert isinstance(body["active_runs_count"], int)
         assert body["active_runs_count"] == 0
+
+    def test_dag_details_team_name_none_without_multi_team(self, test_client):
+        """Without multi-team enabled, ``team_name`` stays ``None`` and no lookup happens."""
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        assert response.json()["team_name"] is None
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_dag_details_includes_team_name(self, session, test_client):
+        original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == DAG1_ID))
+        bundle = DagBundleModel(name="team-bundle-details")
+        bundle.teams.append(Team(name="team-details"))
+        session.add(bundle)
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == DAG1_ID).values(bundle_name="team-bundle-details")
+        )
+        session.commit()
+        try:
+            response = test_client.get(f"/dags/{DAG1_ID}/details")
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-details"
+        finally:
+            session.execute(
+                update(DagModel).where(DagModel.dag_id == DAG1_ID).values(bundle_name=original_bundle_name)
+            )
+            session.execute(delete(DagBundleModel).where(DagBundleModel.name == "team-bundle-details"))
+            session.execute(delete(Team).where(Team.name == "team-details"))
+            session.commit()
 
 
 class TestGetDag(TestDagEndpoint):
