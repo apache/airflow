@@ -101,22 +101,11 @@ jobs:
       default-python-version: "3.10"
       registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
       registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
-    if: contains(fromJSON('[
-      "ashb",
-      "bugraoz93",
-      "eladkal",
-      "ephraimbuddy",
-      "jedcunningham",
-      "jscheffl",
-      "kaxil",
-      "pierrejeambrun",
-      "shahar1",
-      "potiuk",
-      "uranusjr",
-      "utkarsharma2",
-      "vincbeck",
-      "vatsrahul1001",
-      ]'), github.event.sender.login)
+    # Access is gated by the RM-only "release" deployment environment, which
+    # replaces the previous hardcoded release-manager allowlist. The environment
+    # must be configured by ASF INFRA with release managers as required
+    # reviewers - see https://github.com/apache/airflow/issues/69460
+    environment: release
     steps:
       - name: "Checkout for wave provider derivation"
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
