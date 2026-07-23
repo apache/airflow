@@ -118,6 +118,7 @@ if not keep_env_variables:
                 del os.environ[env_key]
 
 SUPPORTED_DB_BACKENDS = ("sqlite", "postgres", "mysql")
+_SQLITE_DB_HEALTH_REQUIRED_TABLES = {"alembic_version"}
 
 # A bit of a Hack - but we need to check args before they are parsed by pytest in order to
 # configure the DB before Airflow gets initialized (which happens at airflow import time).
@@ -447,25 +448,190 @@ def initialize_airflow_tests(request):
 
 def _initialize_airflow_db(force_db_init: bool, airflow_home: str | Path):
     db_init_lock_file = Path(airflow_home).joinpath(".airflow_db_initialised")
+    db_health_failure_reason = None
     if not force_db_init and db_init_lock_file.exists():
-        print(
-            "Skipping initializing of the DB as it was initialized already.\n"
-            "You can re-initialize the database by adding --with-db-init flag when running tests."
-        )
-        return
+        db_health_failure_reason = _get_airflow_db_health_failure_reason()
+        if db_health_failure_reason:
+            print(
+                "The DB initialization marker exists, but the DB health check failed.\n"
+                f"{db_health_failure_reason}\n"
+                "Re-initializing the DB."
+            )
+        else:
+            print(
+                "Skipping initializing of the DB as it was initialized already.\n"
+                "You can re-initialize the database by adding --with-db-init flag when running tests."
+            )
+            return
 
     from tests_common.test_utils.db import initial_db_init
 
     if force_db_init:
         print("Initializing the DB - forced with --with-db-init flag.")
+    elif db_health_failure_reason:
+        print("Initializing the DB - existing DB did not pass the health check.")
     else:
         print(
             "Initializing the DB - first time after entering the container.\n"
             "Initialization can be also forced by adding --with-db-init flag when running tests."
         )
 
-    initial_db_init()
+    try:
+        initial_db_init()
+    except _get_db_maintenance_exception_types() as ex:
+        if sqlite_db_file := _get_configured_sqlite_db_file():
+            raise RuntimeError(
+                f"Unable to re-initialize the SQLite test DB. Remove `{sqlite_db_file}` and rerun pytest."
+            ) from ex
+        raise
     db_init_lock_file.touch(exist_ok=True)
+
+
+def _get_airflow_db_health_failure_reason() -> str | None:
+    from airflow.configuration import conf
+    from airflow.models import import_all_models
+    from airflow.models.base import Base
+
+    sql_alchemy_conn = conf.get("database", "sql_alchemy_conn")
+    import_all_models()
+    required_tables = set(Base.metadata.tables) | _SQLITE_DB_HEALTH_REQUIRED_TABLES
+    table_health_failure_reason = _get_sqlite_db_health_failure_reason(
+        sql_alchemy_conn,
+        required_tables=required_tables,
+    )
+    if table_health_failure_reason:
+        return table_health_failure_reason
+
+    if not _is_sqlite_db(sql_alchemy_conn):
+        return None
+
+    core_migration_health_failure_reason = _get_core_migration_health_failure_reason()
+    if core_migration_health_failure_reason:
+        return core_migration_health_failure_reason
+
+    return _get_external_db_manager_health_failure_reason(sql_alchemy_conn)
+
+
+def _is_sqlite_db(sql_alchemy_conn: str) -> bool:
+    from sqlalchemy.engine import make_url
+
+    return make_url(sql_alchemy_conn).get_backend_name() == "sqlite"
+
+
+def _get_core_migration_health_failure_reason() -> str | None:
+    from airflow.utils.db import _configured_alembic_environment
+
+    try:
+        with _configured_alembic_environment() as env:
+            context = env.get_context()
+            source_heads = set(env.script.get_heads())
+            db_heads = set(context.get_current_heads())
+    except _get_db_maintenance_exception_types() as ex:
+        return f"Unable to inspect SQLite test DB core migration state: {ex}"
+
+    if source_heads == db_heads:
+        return None
+
+    db_heads_display = ", ".join(sorted(db_heads)) or "<none>"
+    source_heads_display = ", ".join(sorted(source_heads)) or "<none>"
+    return (
+        "SQLite test DB migration revision does not match the current Airflow migration head. "
+        f"DB heads: {db_heads_display}; source heads: {source_heads_display}."
+    )
+
+
+def _get_external_db_manager_health_failure_reason(sql_alchemy_conn: str) -> str | None:
+    from airflow import settings
+    from airflow.utils.db_manager import RunDBManager
+
+    external_db_manager = RunDBManager()
+    required_tables = external_db_manager.get_required_table_names()
+    if not required_tables:
+        return None
+
+    table_health_failure_reason = _get_sqlite_db_health_failure_reason(
+        sql_alchemy_conn,
+        required_tables=required_tables,
+    )
+    if table_health_failure_reason:
+        return table_health_failure_reason
+
+    session_factory = settings.Session
+    if session_factory is None:
+        return "Unable to inspect SQLite test DB external DB manager migration state: settings.Session is not configured."
+
+    session = session_factory()
+    try:
+        if external_db_manager.check_migration(session):
+            return None
+    except _get_db_maintenance_exception_types() as ex:
+        return f"Unable to inspect SQLite test DB external DB manager migration state: {ex}"
+    finally:
+        session.close()
+
+    return "SQLite test DB external DB manager migrations do not match their current migration heads."
+
+
+def _get_db_maintenance_exception_types() -> tuple[type[Exception], ...]:
+    from alembic.script.revision import RevisionError
+    from alembic.util.exc import CommandError
+    from sqlalchemy.exc import SQLAlchemyError
+
+    return SQLAlchemyError, CommandError, RevisionError
+
+
+def _get_sqlite_db_health_failure_reason(
+    sql_alchemy_conn: str,
+    *,
+    required_tables: set[str],
+) -> str | None:
+    from sqlalchemy import create_engine, inspect
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.exc import SQLAlchemyError
+
+    url = make_url(sql_alchemy_conn)
+    if url.get_backend_name() != "sqlite":
+        return None
+
+    sqlite_db_file = _get_sqlite_db_file(sql_alchemy_conn)
+    if not sqlite_db_file:
+        return "SQLite test DB uses an in-memory URL, so it must be re-initialized for this test run."
+
+    if not sqlite_db_file.exists():
+        return f"SQLite test DB file `{sqlite_db_file}` does not exist."
+
+    engine = create_engine(url)
+    try:
+        try:
+            existing_tables = set(inspect(engine).get_table_names())
+        except SQLAlchemyError as ex:
+            return f"Unable to inspect SQLite test DB schema: {ex}"
+    finally:
+        engine.dispose()
+
+    missing_tables = sorted(required_tables - existing_tables)
+    if missing_tables:
+        missing_table_list = ", ".join(missing_tables[:10])
+        if len(missing_tables) > 10:
+            missing_table_list = f"{missing_table_list}, ... ({len(missing_tables)} total)"
+        return f"SQLite test DB schema is missing expected tables: {missing_table_list}."
+
+    return None
+
+
+def _get_configured_sqlite_db_file() -> Path | None:
+    from airflow.configuration import conf
+
+    return _get_sqlite_db_file(conf.get("database", "sql_alchemy_conn"))
+
+
+def _get_sqlite_db_file(sql_alchemy_conn: str) -> Path | None:
+    from sqlalchemy.engine import make_url
+
+    url = make_url(sql_alchemy_conn)
+    if url.get_backend_name() != "sqlite" or not url.database or url.database == ":memory:":
+        return None
+    return Path(url.database)
 
 
 def _initialize_kerberos():
