@@ -36,6 +36,7 @@ from extract_parameters import (
     get_category,
     is_durable_capable,
     load_resumable_job_mixin,
+    supports_deferrable,
 )
 
 
@@ -243,10 +244,38 @@ class TestIsDurableCapable:
 
 
 # ---------------------------------------------------------------------------
+# supports_deferrable
+# ---------------------------------------------------------------------------
+class DeferrableOperator:
+    def __init__(self, *, deferrable: bool = False):
+        self.deferrable = deferrable
+
+
+class NonDeferrableOperator:
+    def __init__(self, *, some_other_param: str = ""):
+        self.some_other_param = some_other_param
+
+
+class DeferrableViaParentOperator(DeferrableOperator):
+    """Doesn't override __init__ -- still has a working `deferrable` param."""
+
+
+class TestSupportsDeferrable:
+    def test_class_with_deferrable_param_qualifies(self):
+        assert supports_deferrable(DeferrableOperator) is True
+
+    def test_class_without_deferrable_param_disqualifies(self):
+        assert supports_deferrable(NonDeferrableOperator) is False
+
+    def test_inherited_deferrable_param_qualifies(self):
+        assert supports_deferrable(DeferrableViaParentOperator) is True
+
+
+# ---------------------------------------------------------------------------
 # Module dataclass
 # ---------------------------------------------------------------------------
 class TestModuleDataclass:
-    def test_has_all_12_fields(self):
+    def test_has_all_13_fields(self):
         m = Module(
             id="amazon-s3-S3Hook",
             name="S3Hook",
@@ -260,6 +289,7 @@ class TestModuleDataclass:
             provider_id="amazon",
             provider_name="Amazon",
             supports_durable_execution=False,
+            supports_deferrable=False,
         )
         assert m.id == "amazon-s3-S3Hook"
         assert m.provider_name == "Amazon"
@@ -753,6 +783,48 @@ class TestDiscoverClassesFromProviderDurableExecution:
             result = discover_classes_from_provider(yaml_path, base_classes={})
 
         assert result[0]["supports_durable_execution"] is False
+
+
+class TestDiscoverClassesFromProviderDeferrable:
+    def test_marks_deferrable_and_plain_operators(self, tmp_path):
+        class DeferrableProviderOperator(DeferrableOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        class PlainProviderOperator(PlainOperator):
+            __module__ = "airflow.providers.test.operators.spark"
+
+        provider_yaml = {
+            "package-name": "apache-airflow-providers-test",
+            "name": "Test",
+            "operators": [
+                {
+                    "integration-name": "Test",
+                    "python-modules": ["airflow.providers.test.operators.spark"],
+                },
+            ],
+        }
+        provider_dir = tmp_path / "test"
+        provider_dir.mkdir()
+        yaml_path = provider_dir / "provider.yaml"
+        yaml_path.write_text(yaml.dump(provider_yaml))
+
+        mod = _make_module(
+            "airflow.providers.test.operators.spark",
+            {
+                "DeferrableProviderOperator": DeferrableProviderOperator,
+                "PlainProviderOperator": PlainProviderOperator,
+            },
+        )
+
+        with (
+            patch("extract_parameters.PROVIDERS_DIR", tmp_path),
+            patch("extract_parameters.importlib.import_module", return_value=mod),
+        ):
+            result = discover_classes_from_provider(yaml_path, base_classes={})
+
+        by_name = {r["name"]: r for r in result}
+        assert by_name["DeferrableProviderOperator"]["supports_deferrable"] is True
+        assert by_name["PlainProviderOperator"]["supports_deferrable"] is False
 
 
 # ---------------------------------------------------------------------------
