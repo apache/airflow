@@ -48,6 +48,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionPoolBody,
     BulkCreateActionVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConfigOption,
     ConfigSection,
@@ -1591,6 +1592,49 @@ class TestTaskInstancesOperations:
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
+        assert response == self.task_instance_collection_response
+
+
+class TestTasksOperations:
+    dag_id = "dag_id"
+    clear_task_instances = ClearTaskInstancesBody(
+        dry_run=True,
+        task_ids=["task_1"],
+        dag_run_id="dag_run_id",
+    )
+    task_instance_response = TaskInstanceResponse(
+        id=uuid.UUID("0195c8b0-8bb5-7fc1-9ac9-04c286c47b7f"),
+        task_id="task_1",
+        dag_id=dag_id,
+        dag_run_id="dag_run_id",
+        map_index=-1,
+        run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        try_number=1,
+        max_tries=2,
+        task_display_name="task_1",
+        dag_display_name="dag_display_name",
+        pool="default_pool",
+        pool_slots=1,
+        executor_config="{}",
+    )
+    task_instance_collection_response = TaskInstanceCollectionResponse(
+        task_instances=[task_instance_response],
+        total_entries=1,
+    )
+
+    def test_clear(self):
+        expected_body = self.clear_task_instances.model_dump(mode="json", exclude_none=True)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
+            assert request.headers.get("content-type", "").startswith("application/json")
+            assert json.loads(request.content.decode()) == expected_body
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.clear(self.dag_id, self.clear_task_instances)
         assert response == self.task_instance_collection_response
 
 

@@ -37,6 +37,14 @@ repos:
         entry: ../scripts/ci/prek/check_trigger_serialize_init.py
         pass_filenames: true
         files: ^.*/src/airflow/providers/.*/triggers/[^/]+\.py$
+      - id: check-migration-patterns
+        name: Check migration files for anti-patterns and style (MIG001-MIG004)
+        entry: ../scripts/ci/prek/check_migration_patterns.py
+        language: python
+        pass_filenames: true
+        files: ^.*/src/airflow/providers/.*/migrations/versions/.*\.py$
+        additional_dependencies: [rich>=13.6.0]
+        require_serial: true
       - id: update-providers-dependencies
         name: Update dependencies for providers
         entry: ../scripts/ci/prek/update_providers_dependencies.py

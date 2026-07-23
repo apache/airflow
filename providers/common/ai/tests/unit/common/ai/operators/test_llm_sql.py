@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+import sys
 from datetime import timedelta
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -56,6 +58,77 @@ def _make_mock_agent(output: str):
     mock_agent = MagicMock(spec=["run_sync"])
     mock_agent.run_sync.return_value = _make_mock_run_result(output)
     return mock_agent
+
+
+def _run_python_without_datafusion(code: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            f"""
+import builtins
+
+real_import = builtins.__import__
+
+
+def blocked_import(name, *args, **kwargs):
+    if name == "datafusion" or name.startswith("datafusion."):
+        raise ModuleNotFoundError("No module named 'datafusion'")
+    return real_import(name, *args, **kwargs)
+
+
+builtins.__import__ = blocked_import
+{code}
+""",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+class TestDataFusionOptionalDependency:
+    def test_relational_sql_imports_do_not_require_datafusion(self):
+        result = _run_python_without_datafusion(
+            """
+from airflow.providers.common.ai.decorators.llm_sql import llm_sql_task
+from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+"""
+        )
+
+        assert result.returncode == 0, result.stderr
+
+    def test_object_storage_error_explains_how_to_install_datafusion(self):
+        result = _run_python_without_datafusion(
+            """
+from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.sql.config import DataSourceConfig
+
+operator = LLMSQLQueryOperator(
+    task_id="test",
+    prompt="test",
+    llm_conn_id="test",
+    datasource_config=DataSourceConfig(
+        conn_id="aws_default",
+        table_name="sales",
+        uri="s3://bucket/sales/",
+        format="parquet",
+    ),
+)
+
+try:
+    operator._introspect_object_storage_schema()
+except AirflowOptionalProviderFeatureException as error:
+    expected = 'pip install "apache-airflow-providers-common-sql[datafusion]"'
+    if expected not in str(error):
+        raise AssertionError(f"Missing installation guidance in: {{error}}") from error
+else:
+    raise AssertionError("Expected object-storage introspection to require DataFusion")
+"""
+        )
+
+        assert result.returncode == 0, result.stderr
 
 
 class TestStripLLMOutput:
@@ -277,7 +350,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert op._get_schema_context() == "My custom schema info"
 
     @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
         autospec=True,
     )
     def test_introspect_object_storage_schema(self, mock_engine_cls):
@@ -305,7 +378,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert result == schema_text
 
     @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
         autospec=True,
     )
     def test_introspect_schemas_with_db_and_datasource_config(self, mock_engine_cls):
@@ -343,7 +416,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert object_schema in result
 
     @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
         autospec=True,
     )
     def test_introspect_schemas_datasource_config_without_db_tables(self, mock_engine_cls):
@@ -374,11 +447,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert "Table: s3_data" in result
         assert "ts: TIMESTAMP\nvalue: DOUBLE" in result
 
-    @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
-        autospec=True,
-    )
-    def test_introspect_schemas_raises_when_no_tables_and_no_datasource(self, mock_engine_cls):
+    def test_introspect_schemas_raises_when_no_tables_and_no_datasource(self):
         """ValueError is raised when no db tables return schema and no datasource_config is set."""
         mock_db_hook = MagicMock(spec=["get_table_schema", "dialect_name"])
         mock_db_hook.get_table_schema.return_value = []
@@ -397,7 +466,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
         autospec=True,
     )
     def test_execute_with_datasource_config_and_db_tables(self, mock_engine_cls, mock_hook_cls):
