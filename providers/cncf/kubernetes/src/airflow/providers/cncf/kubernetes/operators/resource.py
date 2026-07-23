@@ -84,6 +84,9 @@ class KubernetesResourceBaseOperator(BaseOperator):
         self.namespaced = namespaced
         self.config_file = config_file
 
+    def _validate_yaml_conf(self) -> None:
+        # yaml_conf/yaml_conf_file are template fields; validate after rendering (from execute),
+        # not in __init__ where they are still the un-rendered Jinja expressions.
         if not any([self.yaml_conf, self.yaml_conf_file]):
             raise AirflowException("One of `yaml_conf` or `yaml_conf_file` arguments must be provided")
 
@@ -144,6 +147,7 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
             k8s_resource_iterator(self.create_custom_from_yaml_object, objects)
 
     def execute(self, context) -> None:
+        self._validate_yaml_conf()
         if self.yaml_conf:
             self._create_objects(yaml.safe_load_all(self.yaml_conf))
         elif self.yaml_conf_file and os.path.exists(self.yaml_conf_file):
@@ -176,6 +180,7 @@ class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
             k8s_resource_iterator(self.delete_custom_from_yaml_object, objects)
 
     def execute(self, context) -> None:
+        self._validate_yaml_conf()
         if self.yaml_conf:
             self._delete_objects(yaml.safe_load_all(self.yaml_conf))
         elif self.yaml_conf_file and os.path.exists(self.yaml_conf_file):

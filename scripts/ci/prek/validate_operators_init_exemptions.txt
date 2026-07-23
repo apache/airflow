@@ -32,7 +32,6 @@ providers/apache/kafka/src/airflow/providers/apache/kafka/operators/produce.py::
 providers/apache/spark/src/airflow/providers/apache/spark/operators/spark_submit.py::SparkSubmitOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/kueue.py::KubernetesInstallKueueOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
-providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/resource.py::KubernetesResourceBaseOperator
 providers/cohere/src/airflow/providers/cohere/operators/embedding.py::CohereEmbeddingOperator
 providers/common/ai/src/airflow/providers/common/ai/operators/agent.py::AgentOperator
 providers/common/ai/src/airflow/providers/common/ai/operators/document_loader.py::DocumentLoaderOperator

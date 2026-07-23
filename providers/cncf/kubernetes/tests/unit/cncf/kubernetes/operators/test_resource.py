@@ -27,6 +27,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
     KubernetesDeleteResourceOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import timezone
 
 TEST_VALID_RESOURCE_YAML = """
@@ -92,6 +93,14 @@ class TestKubernetesXResourceOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
+
+    def test_missing_yaml_conf_rejected_at_execute(self, context):
+        # yaml_conf/yaml_conf_file are template fields: the presence check must run at execute
+        # (after rendering), so constructing with neither no longer raises in __init__.
+        for operator_class in (KubernetesCreateResourceOperator, KubernetesDeleteResourceOperator):
+            op = operator_class(task_id="test_task_id")
+            with pytest.raises(AirflowException, match="One of `yaml_conf` or `yaml_conf_file`"):
+                op.execute(context={})
 
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.CoreV1Api.create_namespaced_persistent_volume_claim")
