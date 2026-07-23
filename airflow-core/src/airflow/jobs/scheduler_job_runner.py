@@ -737,6 +737,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         concurrency_map = ConcurrencyMap()
         concurrency_map.load(session=session)
 
+        executor_slots_available: dict[ExecutorName, int] = {}
+        for executor in self.executors:
+            if TYPE_CHECKING:
+                # All executors should have a name if they are initted from the executor_loader.
+                # But we need to check for None to make mypy happy.
+                assert executor.name
+            executor_slots_available[executor.name] = executor.slots_available
+
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
 
@@ -758,7 +766,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 starved_dags,
                 starved_tasks,
                 starved_tasks_task_dagrun_concurrency,
-                max_tis,
+                max_tis - len(executable_tis),
+                excluded_ti_ids=[ti.id for ti in executable_tis],
             )
 
             timer = stats.timer("scheduler.critical_section_query_duration")
@@ -807,15 +816,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # time and stash it on the dag run, where stats_tags reads it for metric tagging.
                     if team := dag_id_to_team_name.get(ti.dag_id):
                         ti.dag_run._team_name = team
-
-            executor_slots_available: dict[ExecutorName, int] = {}
-            # First get a mapping of executor names to slots they have available
-            for executor in self.executors:
-                if TYPE_CHECKING:
-                    # All executors should have a name if they are initted from the executor_loader.
-                    # But we need to check for None to make mypy happy.
-                    assert executor.name
-                executor_slots_available[executor.name] = executor.slots_available
 
             for task_instance in task_instances_to_examine:
                 pool_name = task_instance.pool
@@ -959,7 +959,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 pool_stats["open"] = open_slots
 
-            is_done = executable_tis or len(task_instances_to_examine) < max_tis
             # Check this to avoid accidental infinite loops
             found_new_filters = (
                 len(starved_pools) > num_starved_pools
@@ -968,12 +967,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
             )
 
-            if is_done or not found_new_filters:
+            if len(executable_tis) >= max_tis or not found_new_filters:
                 break
 
             self.log.info(
-                "Found no task instances to queue on query iteration %s "
-                "but there could be more candidate task instances to check.",
+                "Found %s of %s task instances for the batch after query iteration %s "
+                "and checking for more candidates.",
+                len(executable_tis),
+                max_tis,
                 loop_count,
             )
 
@@ -1000,6 +1001,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_tasks: set[tuple[str, str]],
         starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
         max_tis: int,
+        *,
+        excluded_ti_ids: Collection[UUID] = (),
     ) -> Select[tuple[TI]]:
         """
         Build a query that fetches SCHEDULED TIs eligible for execution this cycle.
@@ -1053,6 +1056,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             query = query.where(
                 tuple_(TI.dag_id, TI.run_id, TI.task_id).not_in(starved_tasks_task_dagrun_concurrency)
             )
+
+        if excluded_ti_ids:
+            # TIs already selected in this critical section stay SCHEDULED until it ends.
+            query = query.where(TI.id.not_in(excluded_ti_ids))
 
         # Create a subquery with row numbers partitioned by dag_id and run_id.
         # Different dags can have the same run_id but
