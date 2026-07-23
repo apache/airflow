@@ -697,7 +697,9 @@ class TestConnectionsOperations:
             return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.create(connection=self.connection)
+        response = client.connections.create(
+            connection=self.connection, connection_id=self.connection_id, conn_type=self.conn_type
+        )
         assert response == self.connection_response
 
     def test_create_uses_schema_alias_in_request_body(self):
@@ -719,7 +721,9 @@ class TestConnectionsOperations:
             return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.create(connection=connection)
+        response = client.connections.create(
+            connection=connection, connection_id=connection.connection_id, conn_type=connection.conn_type
+        )
         assert response == self.connection_response
 
     def test_bulk(self):

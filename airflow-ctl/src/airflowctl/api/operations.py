@@ -456,8 +456,7 @@ class ConnectionsOperations(BaseOperations):
         return super().execute_list(path="connections", data_model=ConnectionCollectionResponse)
 
     def create(
-        self,
-        connection: ConnectionBody,
+        self, connection: ConnectionBody, connection_id: str, conn_type: str
     ) -> ConnectionResponse | ServerResponseError:
         """Create a connection."""
         try:
