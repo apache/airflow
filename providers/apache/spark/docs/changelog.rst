@@ -49,9 +49,9 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
-   * ``Prepare ad-hoc provider documentation 2026-06-26``
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
 
 
 6.2.0
