@@ -4034,3 +4034,67 @@ class TestDatabricksTaskOperator:
         expected_task_key = "test_task_key"
 
         assert expected_task_key == operator.databricks_task_key
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill_cancels_run(self, db_mock_class):
+        operator = DatabricksTaskOperator(
+            task_id="task",
+            task_config={"sql_task": {"query": {"query_id": "abc"}}},
+        )
+        db_mock = db_mock_class.return_value
+        operator.databricks_run_id = 1
+        operator.on_kill()
+        db_mock.cancel_run.assert_called_once_with(1)
+
+    def test_on_kill_does_nothing_when_run_id_is_none(self):
+        operator = DatabricksTaskOperator(
+            task_id="task",
+            task_config={"sql_task": {"query": {"query_id": "abc"}}},
+        )
+        with mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook") as db_mock_class:
+            operator.on_kill()
+            db_mock_class.return_value.cancel_run.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill_workflow_member_cancels_child_run(self, db_mock_class):
+        operator = DatabricksTaskOperator(
+            task_id="task",
+            task_config={"sql_task": {"query": {"query_id": "abc"}}},
+        )
+        db_mock = db_mock_class.return_value
+        operator.databricks_run_id = 1
+        with mock.patch.object(
+            operator,
+            "_get_current_databricks_task",
+            return_value={"run_id": 999, "task_key": "task"},
+        ):
+            with mock.patch(
+                "airflow.providers.databricks.operators.databricks"
+                ".DatabricksTaskBaseOperator._databricks_workflow_task_group",
+                new_callable=mock.PropertyMock,
+                return_value=object(),
+            ):
+                operator.on_kill()
+        db_mock.cancel_run.assert_called_once_with(999)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill_workflow_member_get_task_raises_does_not_cancel_parent(self, db_mock_class):
+        operator = DatabricksTaskOperator(
+            task_id="task",
+            task_config={"sql_task": {"query": {"query_id": "abc"}}},
+        )
+        db_mock = db_mock_class.return_value
+        operator.databricks_run_id = 1
+        with mock.patch.object(
+            operator,
+            "_get_current_databricks_task",
+            side_effect=Exception("API error"),
+        ):
+            with mock.patch(
+                "airflow.providers.databricks.operators.databricks"
+                ".DatabricksTaskBaseOperator._databricks_workflow_task_group",
+                new_callable=mock.PropertyMock,
+                return_value=object(),
+            ):
+                operator.on_kill()
+        db_mock.cancel_run.assert_not_called()
