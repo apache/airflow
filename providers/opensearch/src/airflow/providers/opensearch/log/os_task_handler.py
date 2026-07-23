@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import inspect
 import json
 import logging
 import os
@@ -872,6 +873,43 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
     )
 
     processors = ()
+
+    @classmethod
+    def from_config(cls) -> OpensearchRemoteLogIO:
+        """Build the remote log IO from Airflow logging and ``[opensearch]`` configuration."""
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        # remote_task_handler_kwargs mixes FileTaskHandler kwargs with IO kwargs; only the
+        # latter belong to this class (same split as airflow_local_settings.py).
+        fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+            "self",
+            "base_log_folder",
+        }
+        io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in fth_params}
+        port = conf.get("opensearch", "port", fallback="")
+        return cls(
+            **{
+                "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+                "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+                "host": conf.get("opensearch", "host", fallback=""),
+                "port": int(port) if port else None,
+                "username": conf.get_mandatory_value("opensearch", "username"),
+                "password": conf.get_mandatory_value("opensearch", "password"),
+                "write_stdout": conf.getboolean("opensearch", "write_stdout"),
+                "write_to_opensearch": conf.getboolean("opensearch", "write_to_os"),
+                "json_format": conf.getboolean("opensearch", "json_format"),
+                "target_index": conf.get_mandatory_value("opensearch", "target_index"),
+                "host_field": conf.get_mandatory_value("opensearch", "host_field"),
+                "offset_field": conf.get_mandatory_value("opensearch", "offset_field"),
+                "log_id_template": conf.get("opensearch", "log_id_template", fallback="")
+                or "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+            }
+            | io_kwargs,
+        )
 
     def __attrs_post_init__(self):
         self.host = _format_url(self.host)
