@@ -986,8 +986,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 break
 
             self.log.info(
-                "Found %s of %s task instances for the batch after query iteration %s "
-                "and checking for more candidates.",
+                "Selected %s of %s task instances after iteration %s; "
+                "retrying after excluding known blocked candidates.",
                 len(executable_tis),
                 max_tis,
                 loop_count,
