@@ -5365,7 +5365,7 @@
                     "default": null
                 },
                 "args": {
-                    "description": "Args to use when running migrate database job (templated).",
+                    "description": "Args to use when running migrate database job (templated). When unset, the chart embeds a script that reconciles the metadata DB bidirectionally, picking one of: fresh install (no alembic row), forward migrate, no-op, or downgrade via the still-running api-server pod. Set to an explicit list -- including `[]` -- to override and disable the embedded reconciler.",
                     "type": [
                         "array",
                         "null"
@@ -5373,11 +5373,13 @@
                     "items": {
                         "type": "string"
                     },
-                    "default": [
-                        "bash",
-                        "-c",
-                        "exec \\\nairflow db migrate"
-                    ]
+                    "default": null
+                },
+                "drainTimeoutSeconds": {
+                    "description": "Maximum number of seconds the downgrade branch of the reconciler waits for DB-touching pods (api-server, scheduler, triggerer, dag-processor, worker) to terminate after they are scaled to 0. Raise this when workers may be running long tasks that need time to finish.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 300
                 },
                 "annotations": {
                     "description": "Annotations to add to the migrate database job pod (templated).",
