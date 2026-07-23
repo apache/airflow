@@ -23,10 +23,11 @@ from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor  # noqa: TC001
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
@@ -104,7 +105,10 @@ class CeleryKubernetesExecutor(BaseExecutor):
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, Any]:
         """Return queued tasks from celery and kubernetes executor."""
-        return self.celery_executor.queued_tasks | self.kubernetes_executor.queued_tasks  # type: ignore[return-value]
+        queued_tasks = self.celery_executor.queued_tasks.copy()
+        queued_tasks.update(self.kubernetes_executor.queued_tasks)
+
+        return queued_tasks  # type: ignore[return-value]
 
     @queued_tasks.setter
     def queued_tasks(self, value) -> None:
@@ -149,7 +153,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
     @property
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks)
+        return self.celery_executor.slots_occupied + self.kubernetes_executor.slots_occupied
 
     def queue_command(
         self,
