@@ -39,6 +39,7 @@ Features
 Misc
 ~~~~
 
+* ``Include spark submit canonical logs in failure exceptions (#70178)``
 * ``Better log when spark k8s driver remains in Unknown Phase (#70176)``
 
 Doc-only

@@ -45,6 +45,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Replace 'reattach_on_restart' with 'durable' execution in KPO (#69914)``
 * ``Add streaming task log support to KubernetesExecutor (#69300)``
 * ``Add running_pod_log_lines config option to KubernetesExecutor (#69301)``
 * ``Allow configuring XCom sidecar container security context (#69613)``

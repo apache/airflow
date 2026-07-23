@@ -26,11 +26,8 @@
 Changelog
 ---------
 
-5.5.3
+6.0.0
 .....
-
-Transitive dependency changes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
   This release upgrades the provider's ``airbyte-api`` dependency to the ``1.x`` series and switches
@@ -47,6 +44,11 @@ Transitive dependency changes
     keyword arguments (e.g. ``GetJobRequest(job_id=...)``) and handle its stricter response validation.
   * ``requests`` is no longer installed by this provider. If your code relied on it being pulled in
     transitively, declare ``requests`` as an explicit dependency of your own project.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate Airbyte provider to 'airbyte-api' library 1.0 and 'httpx' (#68882)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

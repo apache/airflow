@@ -2904,7 +2904,7 @@ packages = []
 
 [[package]]
 name = "apache-airflow-providers-airbyte"
-version = "5.5.3"
+version = "6.0.0"
 source = { editable = "providers/airbyte" }
 dependencies = [
     { name = "airbyte-api" },
@@ -4539,7 +4539,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-common-compat"
-version = "1.16.0"
+version = "1.17.0"
 source = { editable = "providers/common/compat" }
 dependencies = [
     { name = "apache-airflow" },
