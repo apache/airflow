@@ -262,6 +262,48 @@ class TestSupervisor:
             with expectation:
                 supervise_task(**kw)
 
+    def test_supervise_task_logs_config_hint_on_connection_error(self, mocker):
+        """Test that a connection failure reaching the Execution API is surfaced in the task
+        log, naming the responsible config, and still propagates."""
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+        server = "http://nonexistent-api-server:8080/execution/"
+        coordinator = mocker.Mock()
+        coordinator.execute_task.side_effect = httpx.ConnectError("Name or service not known")
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.get_coordinator_manager"
+        ).return_value.for_queue.return_value = coordinator
+
+        task_logger = mocker.Mock()
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor._configure_logging",
+            return_value=(task_logger, mocker.MagicMock()),
+        )
+
+        with pytest.raises(httpx.ConnectError):
+            supervise_task(
+                ti=ti,
+                dag_rel_path="c.py",
+                token="",
+                server=server,
+                client=mocker.Mock(spec=sdk_client.Client),
+                bundle_info=BundleInfo(name="my-bundle", version=None),
+                log_path="attempt=1.log",
+            )
+
+        task_logger.error.assert_called_once()
+        message, kwargs = task_logger.error.call_args.args[0], task_logger.error.call_args.kwargs
+        assert "execution_api_server_url" in message
+        assert "base_url" in message
+        assert kwargs["server"] == server
+
 
 @pytest.mark.usefixtures("disable_capturing")
 class TestWatchedSubprocess:
