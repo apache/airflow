@@ -7498,6 +7498,10 @@ dependencies = [
 google = [
     { name = "apache-airflow-providers-google" },
 ]
+kerberos = [
+    { name = "krb5" },
+    { name = "smbprotocol", extra = ["kerberos"] },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -7516,9 +7520,11 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-google", marker = "extra == 'google'", editable = "providers/google" },
+    { name = "krb5", marker = "extra == 'kerberos'" },
     { name = "smbprotocol", specifier = ">=1.5.0" },
+    { name = "smbprotocol", extras = ["kerberos"], marker = "extra == 'kerberos'", specifier = ">=1.5.0" },
 ]
-provides-extras = ["google"]
+provides-extras = ["google", "kerberos"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -22175,6 +22181,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0e/ff/1a86a76423210bc9558e6ea978c576b13da448644401f16ee2260d4d3316/smbprotocol-1.17.0.tar.gz", hash = "sha256:bcc27edfff7d727a7eb30424138766e1ee216ae2ffc1af03dab0448f29c4731c", size = 190845, upload-time = "2026-07-07T03:23:20.523Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/d3/250e13e7b3473a0f441f4d680d511ad30ce432d0180115dec9840d88fe89/smbprotocol-1.17.0-py3-none-any.whl", hash = "sha256:bd1abff5417f5af83ca516a64ab8e5acece3dbdcf58d4e5e23e47f5165a77349", size = 128208, upload-time = "2026-07-07T03:23:19.178Z" },
+]
+
+[package.optional-dependencies]
+kerberos = [
+    { name = "pyspnego", extra = ["kerberos"] },
 ]
 
 [[package]]
