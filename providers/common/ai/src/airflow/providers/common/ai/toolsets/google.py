@@ -355,10 +355,6 @@ class GoogleCloudToolset(AbstractToolset[Any]):
             f"{api}/{version}:{path}" for path in set(_get_bundled_method_paths(api, version).values())
         )
 
-    # ------------------------------------------------------------------
-    # AbstractToolset interface
-    # ------------------------------------------------------------------
-
     async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
         tools: dict[str, ToolsetTool[Any]] = {}
 
@@ -436,10 +432,6 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                 "describe_gcp_method to check the expected parameters, then try again."
             ) from e
 
-    # ------------------------------------------------------------------
-    # Authorization
-    # ------------------------------------------------------------------
-
     def _is_method_allowed(self, *, api: str, version: str, method_path: str) -> bool:
         key = _normalize_method(f"{api}/{version}:{method_path}")
         if _normalize_method(f"{api}:{method_path}") in _CREDENTIAL_RETURNING_METHODS:
@@ -456,10 +448,6 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                 f"API {api_version!r} is not in this toolset's allowed methods. Allowed APIs: {allowed}."
             )
         return key
-
-    # ------------------------------------------------------------------
-    # Tool implementations
-    # ------------------------------------------------------------------
 
     def _list_methods(self, *, api_filter: str | None) -> str:
         keys = [self._get_allowed_api(api_version=api_filter)] if api_filter else sorted(self._patterns)
@@ -561,10 +549,6 @@ class GoogleCloudToolset(AbstractToolset[Any]):
             payload["more_pages_available"] = True
         return self._serialize_response(payload)
 
-    # ------------------------------------------------------------------
-    # Project pinning
-    # ------------------------------------------------------------------
-
     def _apply_project_guard(self, *, method_doc: dict[str, Any], params: dict[str, Any]) -> None:
         if not (project := self._get_hook().project_id):
             return
@@ -595,10 +579,6 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                         f"{param_name} references project {segments[1]!r}; this toolset is "
                         f"pinned to {project!r}."
                     )
-
-    # ------------------------------------------------------------------
-    # Lazy hook/service/document resolution and serialization
-    # ------------------------------------------------------------------
 
     def _get_hook(self) -> Any:
         if self._hook is None:
