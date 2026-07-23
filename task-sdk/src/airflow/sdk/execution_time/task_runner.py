@@ -2140,7 +2140,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     outlet_events = context_get_outlet_events(context)
 
-    def _run_hook(span_kind: str, hook, *run_args):
+    def _run_hook(span_kind: str, hook: Callable[..., Any], *run_args: Any) -> None:
         with detail_span(
             f"callback.{span_kind}",
             attributes={"airflow.callback.name": getattr(hook, "__name__", repr(hook))},
