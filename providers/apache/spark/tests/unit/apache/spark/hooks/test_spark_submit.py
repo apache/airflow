@@ -379,6 +379,33 @@ class TestSparkSubmitHook:
         )
 
     @pytest.mark.db_test
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_submit_failure_includes_captured_log_tail(self, mock_popen, sdk_connection_not_found):
+        mock_popen.return_value.stdout = StringIO(
+            "Exception in thread main: SparkException: bad jar\nsome other line"
+        )
+        mock_popen.return_value.stderr = StringIO("")
+        mock_popen.return_value.wait.return_value = 1
+
+        hook = SparkSubmitHook(conn_id="")
+
+        with pytest.raises(AirflowException, match="Last spark-submit output:") as exc_info:
+            hook.submit()
+        assert "Exception in thread main: SparkException: bad jar" in str(exc_info.value)
+
+    @pytest.mark.db_test
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_submit_no_driver_id_includes_captured_log_tail(self, mock_popen, sdk_connection_not_found):
+        mock_popen.return_value.stdout = StringIO("some unrelated spark-submit output")
+        mock_popen.return_value.stderr = StringIO("")
+        mock_popen.return_value.wait.return_value = 0
+
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        with pytest.raises(AirflowException, match="No driver id is known") as exc_info:
+            hook.submit()
+        assert "Last spark-submit output:\nsome unrelated spark-submit output" in str(exc_info.value)
+
+    @pytest.mark.db_test
     def test_resolve_should_track_driver_status(self, sdk_connection_not_found):
         # Given
         hook_default = SparkSubmitHook(conn_id="")
@@ -986,6 +1013,24 @@ class TestSparkSubmitHook:
 
         assert hook._driver_id == "driver-20171128111415-0001"
 
+    def test_process_spark_submit_log_populates_last_submit_log_lines(self):
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        log_lines = [
+            "Running Spark using the REST application submission protocol.",
+            "17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request "
+            "to launch an application in spark://spark-standalone-master:6066",
+        ]
+
+        hook._process_spark_submit_log(log_lines)
+
+        assert list(hook._last_submit_log_lines) == log_lines
+
+    def test_process_spark_submit_log_last_submit_log_lines_truncates_to_maxlen(self):
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        log_lines = [f"line {i}" for i in range(25)]
+        hook._process_spark_submit_log(log_lines)
+        assert list(hook._last_submit_log_lines) == log_lines[-20:]
+
     def test_process_spark_driver_status_log(self):
         # Given
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
@@ -1239,6 +1284,26 @@ class TestSparkSubmitHook:
 
         # Then
         assert command_masked == expected
+
+    @pytest.mark.db_test
+    def test_submit_log_tail_empty_when_no_lines_captured(self) -> None:
+        hook = SparkSubmitHook()
+
+        assert hook._submit_log_tail == ""
+
+    @pytest.mark.db_test
+    def test_submit_log_tail_formats_and_masks_captured_lines(self) -> None:
+        hook = SparkSubmitHook()
+        hook._last_submit_log_lines.append("Exception in thread main: SparkException: bad jar")
+        hook._last_submit_log_lines.append("--password='secret'")
+
+        tail = hook._submit_log_tail
+
+        assert tail == (
+            "\nLast spark-submit output:\n"
+            "Exception in thread main: SparkException: bad jar\n"
+            "--password='******'"
+        )
 
     @pytest.mark.db_test
     def test_create_keytab_path_from_base64_keytab_with_decode_exception(self):
