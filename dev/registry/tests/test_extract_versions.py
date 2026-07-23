@@ -92,10 +92,6 @@ def _extract_class_level_modules(provider_yaml: dict) -> list[dict]:
 
 
 class TestExtractModulesFromYamlClassLevelSections:
-    """Regression coverage for PR #70190 comment C2: extract_versions.py's
-    class-level (FQCN) handling must stay in sync with CLASS_LEVEL_SECTIONS.
-    """
-
     @pytest.mark.parametrize(("yaml_key", "mod_type"), list(CLASS_LEVEL_SECTIONS.items()))
     def test_class_level_section_produces_module(self, yaml_key, mod_type):
         class_path = f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"

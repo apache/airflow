@@ -197,11 +197,10 @@ CLASS_LEVEL_SECTIONS: dict[str, str] = {
 }
 
 # Maps yaml section key -> category string for class-level (FQCN) sections.
-# Includes every yaml key that needs an explicit category, even when it happens
-# to match the key itself (e.g. "notifications"). Callers still fall back to
-# the yaml key via .get(section_name, section_name) for keys not listed here.
+# Only lists yaml keys whose category differs from the key itself. Callers
+# fall back to the yaml key via .get(section_name, section_name) for every
+# other key, including ones like "notifications" where key == category.
 CLASS_LEVEL_CATEGORY_OVERRIDES: dict[str, str] = {
-    "notifications": "notifications",
     "secrets-backends": "secrets",
 }
 
