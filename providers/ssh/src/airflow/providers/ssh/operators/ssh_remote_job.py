@@ -135,9 +135,6 @@ class SSHRemoteJobOperator(BaseOperator):
         self.command = command
         self.remote_host = remote_host
         self.environment = environment
-
-        if remote_base_dir is not None:
-            self._validate_base_dir(remote_base_dir)
         self.remote_base_dir = remote_base_dir
 
         self.poll_interval = poll_interval
@@ -270,6 +267,9 @@ class SSHRemoteJobOperator(BaseOperator):
         """
         if not self.command:
             raise AirflowException("SSH operator error: command not specified.")
+
+        if self.remote_base_dir is not None:
+            self._validate_base_dir(self.remote_base_dir)
 
         ti = context["ti"]
         self._job_id = generate_job_id(
