@@ -187,6 +187,26 @@ def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     )
 
 
+def _resolve_ti_callback_bundle_info(ti: TaskInstance) -> tuple[str, str | None, Any]:
+    """
+    Resolve the bundle name/version/version-data needed to build a TaskCallbackRequest or EmailRequest.
+
+    Used by the heartbeat-timeout purge path. Encapsulates the bundle-pinning semantics: fall back
+    to ``dag_model`` for legacy tasks with no ``dag_version`` (pre-AIP-66 migrations), and leave the
+    bundle version unpinned when the dag run itself wasn't pinned (``disable_bundle_versioning``),
+    so the callback runs against the same code as the task did. ``process_executor_events`` inlines
+    the same resolution for its externally-killed-task path.
+    """
+    bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+    bundle_version = (
+        ti.dag_version.bundle_version
+        if ti.dag_version and ti.dag_run.bundle_version is not None
+        else ti.dag_run.bundle_version
+    )
+    version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+    return bundle_name, bundle_version, version_data
+
+
 def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logger) -> bool:
     """
     Ensure a TaskInstance has a valid dag_version_id for Pydantic serialisation.
@@ -3548,22 +3568,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
-        task_instances_without_heartbeats = list(
-            session.scalars(
-                select(TI)
-                .options(selectinload(TI.dag_model))
-                .options(asset_loader)
-                .options(alias_loader)
-                .options(selectinload(TI.dag_version))
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                .join(DM, TI.dag_id == DM.dag_id)
-                .where(
-                    TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
-                    TI.last_heartbeat_at < limit_dttm,
-                )
-                .where(TI.queued_by_job_id == self.job.id)
+        query = (
+            select(TI)
+            .options(selectinload(TI.dag_model))
+            .options(asset_loader)
+            .options(alias_loader)
+            .options(selectinload(TI.dag_version))
+            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+            .join(DM, TI.dag_id == DM.dag_id)
+            .where(
+                TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
+                TI.last_heartbeat_at < limit_dttm,
             )
+            .where(TI.queued_by_job_id == self.job.id)
         )
+        # Lock the rows (FOR UPDATE, of=TI so the FOR UPDATE isn't applied to the joined dag_model)
+        # so a worker can't commit a terminal state on the same TI between this scan and the
+        # handle_failure() in the purge that follows in the same transaction. skip_locked keeps HA
+        # schedulers from blocking on each other. _purge_task_instances_without_heartbeats still
+        # revalidates each row's state before acting, as defense in depth.
+        query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+        task_instances_without_heartbeats = list(session.scalars(query))
         if task_instances_without_heartbeats:
             self.log.warning(
                 "Failing %s TIs without heartbeat after %s",
@@ -3582,46 +3607,72 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id_to_team_name = {}
 
         for ti in task_instances_without_heartbeats:
+            # The scan locked this row (FOR UPDATE / skip_locked), but revalidate against the
+            # committed state before emitting any side effect: a worker can commit a terminal state
+            # (e.g. SUCCESS) around the same time the scan runs. Failing the TI here would clobber
+            # that terminal state and emit a spurious failure callback. Mirrors the lock-then-recheck
+            # guard in process_executor_events.
+            ti.refresh_from_db(session=session)
+            if ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING):
+                self.log.info(
+                    "Task instance %s is no longer running (state=%s); skipping heartbeat-timeout purge",
+                    ti,
+                    ti.state,
+                )
+                continue
+
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
             )
-            # Safely extract bundle info with fallback for legacy tasks
-            # (dag_version may be None after Airflow 2 → 3 migration).
-            _hb_bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-            # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
-            # leave the callback unpinned so it runs against the same code as the task.
-            _hb_bundle_version = (
-                ti.dag_version.bundle_version
-                if ti.dag_version and ti.dag_run.bundle_version is not None
-                else ti.dag_run.bundle_version
+            msg = str(task_instance_heartbeat_timeout_message_details)
+
+            # Load the serialized task, mirroring how process_executor_events' external-kill path
+            # loads it, so handle_failure() below can see fail_fast (ti.task.dag.fail_fast) instead
+            # of silently skipping it, and so email/callback gating below can check the real task
+            # definition. Unlike that path, there's no executor-reported state to fall back to here,
+            # so a load failure still falls through to fail the TI below, just without task context.
+            try:
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                if not dag:
+                    raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+                task = dag.get_task(ti.task_id)
+            except Exception:
+                self.log.exception(
+                    "Could not load task for heartbeat-timed-out task instance %s; "
+                    "continuing without fail_fast/email context",
+                    ti,
+                )
+                task = None
+            ti.task = task
+
+            # Single source of truth for the retry decision, matching
+            # TaskInstance.fetch_handle_failure_context exactly, so the callback type sent here can
+            # never disagree with the state handle_failure() actually persists below (this previously
+            # diverged for RESTARTING task instances with max_tries=0).
+            task_callback_type = (
+                TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
             )
-            _hb_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+
+            bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):
                 continue
-            # ti.task isn't loaded in this purge path, so is_eligible_to_retry() uses its
-            # no-task fallback (``try_number <= max_tries``), which skips the retries-configured
-            # check its task-loaded branch applies; guard with ``max_tries > 0`` so a task
-            # declared with retries=0 isn't treated as retry-eligible here.
-            if ti.max_tries > 0 and ti.is_eligible_to_retry():
-                task_callback_type = TaskInstanceState.UP_FOR_RETRY
-            else:
-                task_callback_type = TaskInstanceState.FAILED
+            context_from_server = TIRunContext(
+                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                max_tries=ti.max_tries,
+                variables=[],
+                connections=[],
+                xcom_keys_to_clear=[],
+            )
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc or "",
-                bundle_name=_hb_bundle_name,
-                bundle_version=_hb_bundle_version,
-                version_data=_hb_version_data,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
                 ti=ti,
-                msg=str(task_instance_heartbeat_timeout_message_details),
+                msg=msg,
                 task_callback_type=task_callback_type,
-                context_from_server=TIRunContext(
-                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                    max_tries=ti.max_tries,
-                    variables=[],
-                    connections=[],
-                    xcom_keys_to_clear=[],
-                ),
+                context_from_server=context_from_server,
             )
             session.add(
                 Log(
@@ -3642,6 +3693,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 request,
             )
             self.executor.send_callback(request)
+
+            # This purge path leaves the executor's own "task finished but TI still looked queued"
+            # handling in process_executor_events unreachable for this TI once handle_failure() below
+            # moves it out of RUNNING, so the email notification has to be sent from here directly.
+            if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
+                self.executor.send_callback(
+                    EmailRequest(
+                        filepath=ti.dag_model.relative_fileloc or "",
+                        bundle_name=bundle_name,
+                        bundle_version=bundle_version,
+                        version_data=version_data,
+                        ti=ti,
+                        msg=msg,
+                        email_type=(
+                            "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
+                        ),
+                        context_from_server=context_from_server,
+                    )
+                )
+
+            ti.handle_failure(error=msg, session=session)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )

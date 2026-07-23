@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
@@ -187,8 +189,9 @@ class TestDynamoDBMultipleValuesSensor:
         assert sensor.hook._verify is None
         assert sensor.hook._config is None
 
+    @mock.patch.object(DynamoDBValueSensor, "log")
     @mock_aws
-    def test_sensor_with_pk(self):
+    def test_sensor_with_pk(self, mock_log):
         hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name])
 
         hook.conn.create_table(
@@ -204,6 +207,7 @@ class TestDynamoDBMultipleValuesSensor:
         hook.write_batch_data(items)
 
         assert self.sensor_pk.poke(None)
+        mock_log.info.assert_any_call("Got: %s = %s", self.attribute_name, self.attribute_value[1])
 
     @mock_aws
     def test_sensor_with_pk_and_sk(self):

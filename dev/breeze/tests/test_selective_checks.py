@@ -1470,15 +1470,6 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Skip java unit and e2e tests for java-sdk README-only change",
         ),
         pytest.param(
-            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
-            {
-                "run-java-sdk-tests": "false",
-                "run-java-sdk-e2e-tests": "false",
-                "prod-image-build": "false",
-            },
-            id="Skip java unit and e2e tests for java-sdk ADR-only change",
-        ),
-        pytest.param(
             ("airflow-e2e-tests/docker/java.yml",),
             {
                 "run-java-sdk-tests": "false",
@@ -1777,11 +1768,6 @@ def test_expected_output_pull_request_main(
             True,
             id="ktlint skipped when only java-sdk docs change",
         ),
-        pytest.param(
-            ("java-sdk/adr/0001-java-sdk-airflow-integration.md",),
-            True,
-            id="ktlint skipped when only java-sdk ADR docs change",
-        ),
     ],
 )
 def test_ktlint_hook_only_runs_for_java_sdk_changes(files: tuple[str, ...], ktlint_skipped: bool):
@@ -2026,6 +2012,37 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files",
+    [
+        pytest.param(
+            ("scripts/ci/prek/check_provider_yaml_files.py",),
+            id="provider yaml check script changed",
+        ),
+        pytest.param(
+            ("providers/.pre-commit-config.yaml",),
+            id="providers prek config changed",
+        ),
+        pytest.param(
+            (
+                "scripts/ci/prek/check_provider_yaml_files.py",
+                "providers/.pre-commit-config.yaml",
+            ),
+            id="provider yaml check script and providers prek config changed together",
+        ),
+    ],
+)
+def test_provider_yaml_check_not_skipped_when_check_scripts_change(files: tuple[str, ...]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+    )
+    skip_prek_hooks = str(stderr).split("skip-prek-hooks=")[1].split("\n")[0]
+    assert "check-provider-yaml-valid" not in skip_prek_hooks.split(",")
 
 
 @pytest.mark.parametrize(

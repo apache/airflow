@@ -1950,6 +1950,7 @@ export class DagService {
      * @param data.tags
      * @param data.tagsMatchMode
      * @param data.owners
+     * @param data.teams
      * @param data.dagIds
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
@@ -1966,7 +1967,7 @@ export class DagService {
      * @param data.dagRunState Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
      * @param data.isFavorite
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
@@ -1985,6 +1986,7 @@ export class DagService {
                 tags: data.tags,
                 tags_match_mode: data.tagsMatchMode,
                 owners: data.owners,
+                teams: data.teams,
                 dag_ids: data.dagIds,
                 dag_id_pattern: data.dagIdPattern,
                 dag_id_prefix_pattern: data.dagIdPrefixPattern,
