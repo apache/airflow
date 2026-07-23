@@ -19,13 +19,19 @@
 import "@testing-library/jest-dom";
 import { render, screen } from "@testing-library/react";
 import type { DAGDetailsResponse } from "openapi-gen/requests/types.gen";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import i18n from "src/i18n/config";
 import { MOCK_DAG } from "src/mocks/handlers/dag";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Header } from "./Header";
+
+const mockConfig: Record<string, unknown> = { multi_team: false };
+
+vi.mock("src/queries/useConfig", () => ({
+  useConfig: (key: string) => mockConfig[key],
+}));
 
 const mockDag = {
   ...MOCK_DAG,
@@ -50,6 +56,10 @@ const mockDag = {
 } as unknown as DAGDetailsResponse;
 
 describe("Header", () => {
+  afterEach(() => {
+    mockConfig.multi_team = false;
+  });
+
   it("shows a deactivated badge and hides stale-only next actions for stale dags", () => {
     render(
       <Wrapper>
@@ -70,5 +80,30 @@ describe("Header", () => {
 
     expect(screen.getByText(i18n.t("dag:dagDetails.nextRun"))).toBeInTheDocument();
     expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
+  });
+
+  it("replaces the owner stat with the team when multi-team is enabled", () => {
+    mockConfig.multi_team = true;
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, team_name: "team-a" }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("common:dagDetails.team"))).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "team-a" })).toHaveAttribute("href", "/dags?teams=team-a");
+    expect(screen.queryByText(i18n.t("common:dagDetails.owner"))).not.toBeInTheDocument();
+  });
+
+  it("shows the owner stat when multi-team is enabled but no team is resolved", () => {
+    mockConfig.multi_team = true;
+    render(
+      <Wrapper>
+        <Header dag={{ ...mockDag, team_name: null }} />
+      </Wrapper>,
+    );
+
+    expect(screen.getByText(i18n.t("common:dagDetails.owner"))).toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("common:dagDetails.team"))).not.toBeInTheDocument();
   });
 });

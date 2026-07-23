@@ -30,8 +30,9 @@ import RenderedJsonField from "src/components/RenderedJsonField";
 import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton, RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
@@ -42,6 +43,7 @@ export const Details = () => {
   const { t: translate } = useTranslation();
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const parsedMapIndex = parseInt(mapIndex, 10);
@@ -179,6 +181,16 @@ export const Details = () => {
             <Table.Cell>{translate("mapIndex")}</Table.Cell>
             <Table.Cell>{tryInstance?.map_index}</Table.Cell>
           </Table.Row>
+          {multiTeamEnabled && taskInstance?.team_name !== undefined && taskInstance.team_name !== null ? (
+            <Table.Row>
+              <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
+              <Table.Cell>
+                <RouterLink to={`/dags?teams=${encodeURIComponent(taskInstance.team_name)}`}>
+                  {taskInstance.team_name}
+                </RouterLink>
+              </Table.Cell>
+            </Table.Row>
+          ) : undefined}
           <Table.Row>
             <Table.Cell>{translate("task.operator")}</Table.Cell>
             <Table.Cell>{tryInstance?.operator_name}</Table.Cell>

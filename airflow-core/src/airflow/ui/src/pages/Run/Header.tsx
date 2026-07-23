@@ -34,6 +34,7 @@ import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import DeleteRunButton from "src/pages/DagRuns/DeleteRunButton";
+import { useConfig } from "src/queries/useConfig";
 import { useDagRunNote } from "src/queries/useDagRunNote";
 import { getDuration } from "src/utils";
 
@@ -42,6 +43,7 @@ import { DeadlineStatus } from "./DeadlineStatus";
 export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useDagRunNote(dagRun);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
@@ -105,6 +107,18 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
                   ),
                 },
               ]),
+          ...(multiTeamEnabled && dagRun.team_name !== undefined && dagRun.team_name !== null
+            ? [
+                {
+                  label: translate("dagDetails.team"),
+                  value: (
+                    <RouterLink to={`/dags?teams=${encodeURIComponent(dagRun.team_name)}`}>
+                      <Text>{dagRun.team_name}</Text>
+                    </RouterLink>
+                  ),
+                },
+              ]
+            : []),
           {
             label: translate("dagRun.dagVersions"),
             value: (
