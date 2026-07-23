@@ -744,35 +744,27 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         if record is None and self.accept_none:
             record = 0
         match_boolean = True
+
+        # abs() so the tolerance margin widens the bound outward for negative expected values too.
+        def _margin(expected):
+            return abs(expected) * tolerance if tolerance is not None else 0
+
         if "geq_to" in check_values:
-            if tolerance is not None:
-                match_boolean = record >= check_values["geq_to"] * (1 - tolerance)
-            else:
-                match_boolean = record >= check_values["geq_to"]
+            match_boolean = record >= check_values["geq_to"] - _margin(check_values["geq_to"])
         elif "greater_than" in check_values:
-            if tolerance is not None:
-                match_boolean = record > check_values["greater_than"] * (1 - tolerance)
-            else:
-                match_boolean = record > check_values["greater_than"]
+            match_boolean = record > check_values["greater_than"] - _margin(check_values["greater_than"])
         if "leq_to" in check_values:
-            if tolerance is not None:
-                match_boolean = record <= check_values["leq_to"] * (1 + tolerance) and match_boolean
-            else:
-                match_boolean = record <= check_values["leq_to"] and match_boolean
+            match_boolean = (
+                record <= check_values["leq_to"] + _margin(check_values["leq_to"]) and match_boolean
+            )
         elif "less_than" in check_values:
-            if tolerance is not None:
-                match_boolean = record < check_values["less_than"] * (1 + tolerance) and match_boolean
-            else:
-                match_boolean = record < check_values["less_than"] and match_boolean
+            match_boolean = (
+                record < check_values["less_than"] + _margin(check_values["less_than"]) and match_boolean
+            )
         if "equal_to" in check_values:
-            if tolerance is not None:
-                match_boolean = (
-                    check_values["equal_to"] * (1 - tolerance)
-                    <= record
-                    <= check_values["equal_to"] * (1 + tolerance)
-                ) and match_boolean
-            else:
-                match_boolean = record == check_values["equal_to"] and match_boolean
+            expected = check_values["equal_to"]
+            margin = _margin(expected)
+            match_boolean = (expected - margin <= record <= expected + margin) and match_boolean
         return match_boolean
 
     def _column_mapping_validation(self, check, check_values):

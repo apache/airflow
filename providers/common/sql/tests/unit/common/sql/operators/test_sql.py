@@ -1684,6 +1684,36 @@ class TestSQLColumnCheckOperatorBuildCheckResults:
         assert r.expected == ">=1, <=100"
         assert r.params == {"geq_to": 1, "leq_to": 100, "accept_none": True}
 
+    @pytest.mark.parametrize(
+        ("check_values", "record", "tolerance", "expected"),
+        [
+            # Negative thresholds: tolerance widens the bound outward, so a record equal to
+            # the threshold passes.
+            ({"geq_to": -1000}, -1000, 0.1, True),
+            ({"geq_to": -1000}, -1100, 0.1, True),
+            ({"geq_to": -1000}, -1101, 0.1, False),
+            ({"greater_than": -1000}, -1050, 0.1, True),
+            ({"greater_than": -1000}, -1100, 0.1, False),  # strict: equal to the widened bound fails
+            ({"leq_to": -10}, -10, 0.1, True),
+            ({"less_than": -10}, -11, 0.1, True),
+            ({"equal_to": -100}, -100, 0.1, True),
+            ({"equal_to": -100}, -110, 0.1, True),
+            ({"equal_to": -100}, -111, 0.1, False),
+            ({"geq_to": -100, "leq_to": -50}, -75, 0.1, True),
+            # Positive thresholds keep their existing bounds.
+            ({"geq_to": 1000}, 900, 0.1, True),
+            ({"geq_to": 1000}, 899, 0.1, False),
+            ({"equal_to": 100}, 110, 0.1, True),
+            ({"equal_to": 100}, 111, 0.1, False),
+            # No tolerance: exact bounds.
+            ({"geq_to": 10}, 10, None, True),
+            ({"equal_to": 5}, 6, None, False),
+        ],
+    )
+    def test_get_match_tolerance_handles_negative_thresholds(self, check_values, record, tolerance, expected):
+        op = self._make_operator({"col": {"min": {"geq_to": 1}}})
+        assert op._get_match(check_values, record, tolerance) == expected
+
     def test_multiple_checks_correct_names_and_order(self):
         op = self._make_operator(
             {
