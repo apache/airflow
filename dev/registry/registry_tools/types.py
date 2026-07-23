@@ -127,7 +127,7 @@ MODULE_TYPES: dict[str, dict] = {
         "yaml_key": "queues",
         "level": "flat",
         "suffixes": [],
-        "label": "Queues",
+        "label": "Message Queues",
         "icon": "Q",
     },
     "plugin": {
