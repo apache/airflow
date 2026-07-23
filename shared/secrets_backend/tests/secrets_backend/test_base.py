@@ -125,8 +125,7 @@ class TestBaseSecretsBackend:
         assert conn._kwargs["conn_type"] == "mysql"
 
     def test_deserialize_connection_json_without_conn_type(self):
-        """Airflow 2-era JSON secrets without conn_type or uri must keep deserializing.
-
+        """
         Guards the Airflow 2 -> 3 migration compatibility established in
         https://github.com/apache/airflow/pull/61728.
         """
