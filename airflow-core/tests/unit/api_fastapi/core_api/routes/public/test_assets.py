@@ -1827,6 +1827,7 @@ class TestPostAssetMaterialize(TestAssets):
             "triggering_user_name": "test",
             "conf": {},
             "note": None,
+            "team_name": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
