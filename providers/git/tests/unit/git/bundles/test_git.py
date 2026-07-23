@@ -702,6 +702,46 @@ class TestGitDagBundle:
         assert {"test_dag.py"} == files_in_repo
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_tracking_ref_commit_sha_promote_and_rollback(self, mock_githook, git_repo):
+        """Ensure tracking_ref accepts a full commit SHA, and a SHA-pinned bundle can be
+        promoted to a new SHA and rolled back.
+
+        Promotion/rollback is simulated by creating a new bundle object with the updated
+        tracking_ref, mirroring how a bundle config change is applied in practice.
+        """
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        first_commit = repo.head.commit
+
+        file_path = repo_path / "new_test.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        second_commit = repo.index.commit("Another commit")
+
+        # Initial deploy pinned to the first commit's SHA
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=first_commit.hexsha)
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == first_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+        assert_repo_is_closed(bundle)
+
+        # Promote: config change re-creates the bundle pointed at the second commit's SHA
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=second_commit.hexsha)
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == second_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+        # Rollback: config change re-creates the bundle pointed back at the first commit's SHA
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=first_commit.hexsha)
+        bundle.initialize()
+        assert _version_str(bundle.get_current_version()) == first_commit.hexsha
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_after_force_push_does_not_reclone(self, mock_githook, git_repo):
         """Refresh after force-push must fetch+reset, never clone."""
         repo_path, repo = git_repo
