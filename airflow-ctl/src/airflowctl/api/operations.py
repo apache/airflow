@@ -503,8 +503,13 @@ class DagsOperations(BaseOperations):
         """Create a Dag run."""
         if trigger_dag_run.conf is None:
             trigger_dag_run.conf = {}
+        # partition_key and bundle_version were added in Airflow 3.2.0; older API
+        # servers (extra="forbid") reject them as unrecognized fields even when null.
+        # logical_date must stay in the body even when None - the server declares it
+        # without a default, making it a required (though nullable) field.
         self.response = self.client.post(
-            f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json")
+            f"dags/{dag_id}/dagRuns",
+            json=trigger_dag_run.model_dump(mode="json", exclude={"partition_key", "bundle_version"}),
         )
         return DAGRunResponse.model_validate_json(self.response.content)
 
