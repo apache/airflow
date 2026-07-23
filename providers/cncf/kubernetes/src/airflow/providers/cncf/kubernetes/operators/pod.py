@@ -1561,13 +1561,14 @@ class KubernetesPodOperator(BaseOperator):
         template file.
         """
         self.log.debug("Creating pod for KubernetesPodOperator task %s", self.task_id)
+        default_pod_template_file = conf.get("kubernetes_executor", "pod_template_file", fallback=None)
 
         self.env_vars = convert_env_vars_or_raise_error(self.env_vars) if self.env_vars else []
         if self.pod_runtime_info_envs:
             self.env_vars.extend(self.pod_runtime_info_envs)
 
         if self.pod_template_file:
-            self.log.debug("Pod template file found, will parse for base pod")
+            self.log.debug("Using pod template file %s", self.pod_template_file)
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
             if self.full_pod_spec:
                 pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
@@ -1578,6 +1579,9 @@ class KubernetesPodOperator(BaseOperator):
                 pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
         elif self.full_pod_spec:
             pod_template = self.full_pod_spec
+        elif default_pod_template_file:
+            self.log.debug("Using pod template_file %s for base pod", default_pod_template_file)
+            pod_template = pod_generator.PodGenerator.deserialize_model_file(default_pod_template_file)
         else:
             pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta())
 
