@@ -184,6 +184,7 @@ export const useFilterConfigs = () => {
       icon: <FiDatabase />,
       label: translate("assets:group"),
       placeholder: translate("assets:filters.groupPlaceholder"),
+      supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.HOSTNAME]: {

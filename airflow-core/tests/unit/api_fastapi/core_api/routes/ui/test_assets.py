@@ -23,6 +23,7 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -30,6 +31,7 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
+    DagScheduleAssetReference,
     PartitionedAssetKeyLog,
 )
 from airflow.partition_mappers.base import RollupMapper
@@ -39,7 +41,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.db import (
     clear_db_apdr,
     clear_db_assets,
@@ -600,6 +602,19 @@ class TestGetAssetsUi:
         assert response.status_code == 200
         assert [a["name"] for a in response.json()["assets"]] == ["billing_asset"]
 
+    def test_filter_by_group_prefix_pattern(self, test_client, session):
+        billing = AssetModel(name="billing_asset", uri="s3://bucket/billing_prefix", group="billing")
+        rebilling = AssetModel(name="rebilling_asset", uri="s3://bucket/rebilling", group="rebilling")
+        session.add_all([billing, rebilling])
+        session.add(AssetActive.for_asset(billing))
+        session.add(AssetActive.for_asset(rebilling))
+        session.commit()
+
+        # Prefix match anchors at the start, so "bill" excludes "rebilling" (substring would not).
+        response = test_client.get("/assets?group_prefix_pattern=bill")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["billing_asset"]
+
     def test_filter_by_last_asset_event_timestamp_range(self, test_client, session):
         older = AssetModel(name="older", uri="s3://bucket/older_range", group="asset")
         newer = AssetModel(name="newer", uri="s3://bucket/newer_range", group="asset")
@@ -638,3 +653,142 @@ class TestGetAssetsUi:
         body = response.json()
         assert len(body["assets"]) == 1
         assert body["assets"][0]["aliases"] == [{"id": alias.id, "name": "my-alias", "group": ""}]
+
+    def test_total_entries_counts_assets_not_events(self, test_client, session):
+        """The outer join to AssetEvent must not inflate total_entries for assets with many events."""
+        multi = AssetModel(name="multi", uri="s3://bucket/multi", group="reporting")
+        solo = AssetModel(name="solo", uri="s3://bucket/solo", group="reporting")
+        other = AssetModel(name="other", uri="s3://bucket/other", group="ops")
+        session.add_all([multi, solo, other])
+        for asset in (multi, solo, other):
+            session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        base = pendulum.datetime(2024, 1, 1)
+        for offset in range(3):
+            session.add(AssetEvent(asset_id=multi.id, timestamp=base.add(hours=offset)))
+        session.add(AssetEvent(asset_id=solo.id, timestamp=base))
+        session.commit()
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+        assert sorted(a["name"] for a in body["assets"]) == ["multi", "other", "solo"]
+
+        response = test_client.get("/assets?group_pattern=report")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert sorted(a["name"] for a in body["assets"]) == ["multi", "solo"]
+
+    def test_pagination_with_never_evented_assets(self, test_client, session):
+        """Under the default desc sort, paging is stable and never-evented assets land last."""
+        evented_new = AssetModel(name="evented_new", uri="s3://bucket/en", group="asset")
+        evented_old = AssetModel(name="evented_old", uri="s3://bucket/eo", group="asset")
+        never_a = AssetModel(name="never_a", uri="s3://bucket/na", group="asset")
+        never_b = AssetModel(name="never_b", uri="s3://bucket/nb", group="asset")
+        session.add_all([evented_new, evented_old, never_a, never_b])
+        for asset in (evented_new, evented_old, never_a, never_b):
+            session.add(AssetActive.for_asset(asset))
+        session.flush()
+
+        base = pendulum.datetime(2024, 1, 1)
+        session.add(AssetEvent(asset_id=evented_old.id, timestamp=base))
+        session.add(AssetEvent(asset_id=evented_new.id, timestamp=base.add(days=1)))
+        session.commit()
+
+        page_one = test_client.get("/assets?limit=2&offset=0")
+        assert page_one.status_code == 200
+        assert page_one.json()["total_entries"] == 4
+        assert [a["name"] for a in page_one.json()["assets"]] == ["evented_new", "evented_old"]
+
+        page_two = test_client.get("/assets?limit=2&offset=2")
+        assert page_two.status_code == 200
+        assert page_two.json()["total_entries"] == 4
+        assert {a["name"] for a in page_two.json()["assets"]} == {"never_a", "never_b"}
+
+    def test_timestamp_range_filter_excludes_never_evented_assets(self, test_client, session):
+        """A timestamp range filter excludes assets with no event (NULL fails the range predicate)."""
+        evented = AssetModel(name="evented", uri="s3://bucket/re", group="asset")
+        never = AssetModel(name="never", uri="s3://bucket/rn", group="asset")
+        session.add_all([evented, never])
+        session.add(AssetActive.for_asset(evented))
+        session.add(AssetActive.for_asset(never))
+        session.flush()
+
+        base = pendulum.datetime(2024, 1, 1)
+        session.add(AssetEvent(asset_id=evented.id, timestamp=base))
+        session.commit()
+
+        response = test_client.get(
+            "/assets", params={"last_asset_event_timestamp_gte": base.subtract(days=1).isoformat()}
+        )
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["evented"]
+
+    def test_filter_by_only_active(self, test_client, session):
+        active = AssetModel(name="active", uri="s3://bucket/active", group="asset")
+        inactive = AssetModel(name="inactive", uri="s3://bucket/inactive", group="asset")
+        session.add_all([active, inactive])
+        session.add(AssetActive.for_asset(active))
+        session.commit()
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["active"]
+
+        response = test_client.get("/assets?only_active=false")
+        assert response.status_code == 200
+        assert sorted(a["name"] for a in response.json()["assets"]) == ["active", "inactive"]
+
+    def test_filter_by_uri_pattern(self, test_client, session):
+        s3 = AssetModel(name="s3_asset", uri="s3://bucket/key", group="asset")
+        gcs = AssetModel(name="gcs_asset", uri="gcs://bucket/key", group="asset")
+        session.add_all([s3, gcs])
+        session.add(AssetActive.for_asset(s3))
+        session.add(AssetActive.for_asset(gcs))
+        session.commit()
+
+        response = test_client.get("/assets?uri_pattern=s3")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["s3_asset"]
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_filter_by_dag_ids(self, test_client, session):
+        referenced = AssetModel(name="referenced", uri="s3://bucket/referenced", group="asset")
+        unreferenced = AssetModel(name="unreferenced", uri="s3://bucket/unreferenced", group="asset")
+        session.add_all([referenced, unreferenced])
+        session.add(AssetActive.for_asset(referenced))
+        session.add(AssetActive.for_asset(unreferenced))
+        session.add(DagModel(dag_id="consumer_dag", bundle_name="testing"))
+        session.add(DagScheduleAssetReference(dag_id="consumer_dag", asset=referenced))
+        session.commit()
+
+        response = test_client.get("/assets?dag_ids=consumer_dag")
+        assert response.status_code == 200
+        assert [a["name"] for a in response.json()["assets"]] == ["referenced"]
+
+    def test_query_count_does_not_scale_with_asset_count(self, test_client, session):
+        """
+        The five asset relationships are eager-loaded via subqueryload in a fixed number of
+        queries. A regression to lazy loading would issue queries per asset (N+1), so the count
+        must not grow between one asset and many.
+        """
+
+        def add_active_assets(prefix: str, count: int) -> None:
+            for i in range(count):
+                asset = AssetModel(name=f"{prefix}{i}", uri=f"s3://bucket/{prefix}{i}", group="asset")
+                session.add(asset)
+                session.add(AssetActive.for_asset(asset))
+            session.commit()
+
+        add_active_assets("one", 1)
+        with count_queries() as single:
+            assert test_client.get("/assets").status_code == 200
+
+        add_active_assets("many", 4)
+        with count_queries() as multiple:
+            assert test_client.get("/assets").status_code == 200
+
+        assert sum(single.values()) == sum(multiple.values())

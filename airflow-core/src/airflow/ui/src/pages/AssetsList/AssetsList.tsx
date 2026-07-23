@@ -31,7 +31,7 @@ import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
+import { useAdvancedSearch, useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
 import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
@@ -110,19 +110,26 @@ export const AssetsList = () => {
   const namePattern = searchParams.get(NAME_PATTERN) ?? "";
   const advancedSearch = useAdvancedSearch("assets");
 
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    sorting: [{ desc: true, id: "last_asset_event_timestamp" }],
+  });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-last_asset_event_timestamp"];
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(assetsFilterKeys);
 
-  const groupPattern = searchParams.get(SearchParamsKeys.GROUP_PATTERN);
   const lastAssetEventTimestampGte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE);
   const lastAssetEventTimestampLte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_LTE);
+  const groupArg = useAdvancedSearchArg({
+    patternApiKey: "groupPattern",
+    prefixApiKey: "groupPrefixPattern",
+    storageKey: SearchParamsKeys.GROUP_PATTERN,
+    value: searchParams.get(SearchParamsKeys.GROUP_PATTERN),
+  });
 
   const { data, error, isLoading } = useAssetServiceGetAssetsUi({
-    groupPattern: groupPattern ?? undefined,
+    ...groupArg,
     lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
     lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
     limit: pagination.pageSize,

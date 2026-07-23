@@ -1050,6 +1050,7 @@ export type DAGRunResponse = {
     dag_display_name: string;
     partition_key: string | null;
     partition_date: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1679,11 +1680,11 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     bundle_url: string;
-    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard';
+    destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
 };
 
-export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard';
+export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -1848,6 +1849,7 @@ export type TaskInstanceResponse = {
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
+    team_name?: string | null;
 };
 
 /**
@@ -2378,6 +2380,7 @@ export type DAGWithLatestDagRunsResponse = {
     latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
+    team_name?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -3239,9 +3242,17 @@ export type GetDagRunsData = {
     logicalDateLte?: string | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      */
     orderBy?: Array<(string)>;
+    /**
+     * Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. Runs from the start of this day onwards match.
+     */
+    partitionDateGte?: string | null;
+    /**
+     * Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. The whole day is included: runs up to the end of this day match.
+     */
+    partitionDateLte?: string | null;
     /**
      * Case-insensitive substring match; `%` / `_` wildcards allowed. The pipe `|` is matched literally, not as an OR separator. Not index-friendly — prefer ``partition_key_prefix_pattern`` on large tables.
      */
@@ -3268,6 +3279,7 @@ export type GetDagRunsData = {
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    teams?: Array<(string)>;
     /**
      * Case-insensitive substring match; `%` / `_` wildcards allowed. Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Not index-friendly — prefer ``triggering_user_name_prefix_pattern`` on large tables.
      */
@@ -3556,7 +3568,7 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     /**
-     * Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
+     * Filter Dags that have any DagRun in the given state.
      */
     dagRunState?: DagRunState | null;
     excludeStale?: boolean;
@@ -3574,13 +3586,14 @@ export type GetDagsUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
+    teams?: Array<(string)>;
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
@@ -3937,6 +3950,7 @@ export type GetTaskInstancesData = {
      */
     taskGroupId?: string | null;
     taskId?: string | null;
+    teams?: Array<(string)>;
     tryNumber?: Array<(number)>;
     updatedAtGt?: string | null;
     updatedAtGte?: string | null;
