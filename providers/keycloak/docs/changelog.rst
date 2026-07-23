@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+0.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Derive keycloak oauth redirect_uri from configured base url (#69801)``
+* ``Set 'secure' flag on keycloak login cookies behind a tls proxy (#69594)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Hide non-user-facing entries from ad-hoc provider release notes``
+   * ``Prepare ad-hoc providers release 2026-07-01 (cncf.kubernetes, common.io, keycloak) (#69223)``
+   * ``Prepare ad-hoc providers release 2026-07-01``
+
+
 0.8.1
 .....
 
