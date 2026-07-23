@@ -270,12 +270,9 @@ Use the ``--team-name`` option with ``airflow pools set`` to assign a pool to a 
     The specified team must exist in the database (create it first with ``airflow teams create``).
 
     When ``core.multi_team`` is enabled, ``airflow teams create`` automatically
-    creates a default pool named ``default_pool_<team_name>``. Tasks in DAG
-    bundles associated with that team that do not explicitly specify a pool will
-    use the team's default pool automatically.
-
-    Existing multi-team deployments should run ``airflow teams sync`` after upgrading
-    to provision default pools for existing teams before DAG parsing assigns tasks to them.
+    creates a default pool named ``default_pool_<team_name>``. By default, tasks
+    in DAG bundles associated with that team are automatically assigned to
+    the team's default pool unless another pool is explicitly configured.
 
 Creating Team-scoped Pools via the REST API
 """""""""""""""""""""""""""""""""""""""""""
