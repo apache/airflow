@@ -3410,6 +3410,18 @@
           "title": "End Date",
           "type": "string"
         },
+        "rendered_map_index": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rendered Map Index"
+        },
         "type": {
           "const": "RescheduleTask",
           "default": "RescheduleTask",

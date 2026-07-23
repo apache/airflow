@@ -29,6 +29,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun,
     TaskInstance,
     TIAwaitingInputStatePayload,
+    TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,
 )
@@ -141,3 +142,13 @@ class AddPartitionDateField(VersionChange):
         """Strip ``partition_date`` from the nested ``dag_run`` payload for older clients."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("partition_date", None)
+
+
+class AddRenderedMapIndexToReschedulePayload(VersionChange):
+    """Add ``rendered_map_index`` field to ``TIRescheduleStatePayload``."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIRescheduleStatePayload).field("rendered_map_index").didnt_exist,
+    )

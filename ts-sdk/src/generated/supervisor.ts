@@ -526,11 +526,12 @@ export type Type61 = "PutVariable";
 export type State5 = "up_for_reschedule" | null;
 export type RescheduleDate = string;
 export type EndDate5 = string;
+export type RenderedMapIndex2 = string | null;
 export type Type62 = "RescheduleTask";
 export type Type63 = "ResendLoggingFD";
 export type State6 = "up_for_retry" | null;
 export type EndDate6 = string;
-export type RenderedMapIndex2 = string | null;
+export type RenderedMapIndex3 = string | null;
 export type RetryDelaySeconds = number | null;
 export type RetryReason = string | null;
 export type Type64 = "RetryTask";
@@ -543,7 +544,7 @@ export type Uri9 = string;
 export type Key16 = string;
 export type Type67 = "SetAssetStateStoreByUri";
 export type Type68 = "SetRenderedFields";
-export type RenderedMapIndex3 = string;
+export type RenderedMapIndex4 = string;
 export type Type69 = "SetRenderedMapIndex";
 export type TiId8 = string;
 export type Key17 = string;
@@ -571,7 +572,7 @@ export type OutletEvents =
       [k: string]: unknown;
     }[]
   | null;
-export type RenderedMapIndex4 = string | null;
+export type RenderedMapIndex5 = string | null;
 export type Type74 = "SucceedTask";
 export type Count1 = number;
 export type Type75 = "TICount";
@@ -584,7 +585,7 @@ export type Type77 = "TaskRescheduleStartDate";
 export type State8 = "failed" | "skipped" | "removed";
 export type EndDate8 = string | null;
 export type Type78 = "TaskState";
-export type RenderedMapIndex5 = string | null;
+export type RenderedMapIndex6 = string | null;
 export type Type79 = "TaskStateStoreResult";
 export type Type80 = "TaskStatesResult";
 export type LogicalDate6 = string | null;
@@ -1600,6 +1601,7 @@ export interface RescheduleTask {
   state?: State5;
   reschedule_date: RescheduleDate;
   end_date: EndDate5;
+  rendered_map_index?: RenderedMapIndex2;
   type?: Type62;
 }
 /**
@@ -1618,7 +1620,7 @@ export interface ResendLoggingFD {
 export interface RetryTask {
   state?: State6;
   end_date: EndDate6;
-  rendered_map_index?: RenderedMapIndex2;
+  rendered_map_index?: RenderedMapIndex3;
   retry_delay_seconds?: RetryDelaySeconds;
   retry_reason?: RetryReason;
   type?: Type64;
@@ -1671,7 +1673,7 @@ export interface RenderedFields {
  * via the `definition` "SetRenderedMapIndex".
  */
 export interface SetRenderedMapIndex {
-  rendered_map_index: RenderedMapIndex3;
+  rendered_map_index: RenderedMapIndex4;
   type?: Type69;
 }
 /**
@@ -1734,7 +1736,7 @@ export interface SucceedTask {
   end_date: EndDate7;
   task_outlets?: TaskOutlets;
   outlet_events?: OutletEvents;
-  rendered_map_index?: RenderedMapIndex4;
+  rendered_map_index?: RenderedMapIndex5;
   type?: Type74;
 }
 /**
@@ -1779,7 +1781,7 @@ export interface TaskState {
   state: State8;
   end_date?: EndDate8;
   type?: Type78;
-  rendered_map_index?: RenderedMapIndex5;
+  rendered_map_index?: RenderedMapIndex6;
 }
 /**
  * Response to GetTaskStateStore; wraps the generated API response for supervisor to worker comms.
