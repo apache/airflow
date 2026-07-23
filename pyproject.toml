@@ -1864,6 +1864,7 @@ members = [
     "airflow-core",
     "airflow-e2e-tests",
     "dev/breeze",
+    "dev/mcp_server",
     "dev/mypy",
     "dev/registry",
     "airflow-ctl",

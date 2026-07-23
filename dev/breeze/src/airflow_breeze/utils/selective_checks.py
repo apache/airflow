@@ -157,6 +157,7 @@ class FileGroupForCi(Enum):
     UNIT_TEST_FILES = auto()
     DEVEL_TOML_FILES = auto()
     SCRIPTS_FILES = auto()
+    MCP_SERVER_FILES = auto()
     UV_LOCK_FILE = auto()
     PREK_FILES = auto()
     KERBEROS_FILES = auto()
@@ -504,6 +505,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^scripts/cov/.*\.py$",
             r"^scripts/tools/.*\.py$",
             r"^scripts/tests/.*\.py$",
+        ],
+        FileGroupForCi.MCP_SERVER_FILES: [
+            r"^dev/mcp_server/",
         ],
         FileGroupForCi.PREK_FILES: [
             r"^scripts/ci/prek",
@@ -1132,6 +1136,10 @@ class SelectiveChecks:
     @cached_property
     def run_scripts_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.SCRIPTS_FILES)
+
+    @cached_property
+    def run_mcp_server_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.MCP_SERVER_FILES)
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:

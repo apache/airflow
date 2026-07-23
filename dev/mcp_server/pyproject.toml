@@ -1,0 +1,65 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[build-system]
+requires = [
+    "hatchling==1.30.1",
+    "packaging==26.2",
+    "pathspec==1.1.1",
+    "pluggy==1.6.0",
+    "tomli==2.4.1; python_version < '3.11'",
+    "trove-classifiers==2026.6.1.19",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "apache-airflow-dev-mcp-server"
+description = "Internal development MCP server for inspecting/debugging a running Airflow instance (e.g. in Breeze) through the public Airflow REST API. Not released, not shipped to users."
+version = "0.1.0"
+requires-python = ">=3.10"
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+    # Brings in the official `mcp` SDK and `httpx` transitively.
+    "fastmcp>=3.4,<4.0",
+]
+
+[project.scripts]
+airflow-dev-mcp = "airflow_mcp_server.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    # Parses Airflow's generated OpenAPI spec in the REST-contract test.
+    "pyyaml>=6.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/airflow_mcp_server"]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+src = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore Doc rules et al for anything outside of src (tests don't need pydocstyle,
+# banned top-level imports, S101 assert-usage, or the raise-Exception ban).
+"!src/*" = ["D", "TID253", "S101", "TRY002"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

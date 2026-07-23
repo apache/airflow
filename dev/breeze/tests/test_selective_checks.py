@@ -1829,6 +1829,32 @@ def test_check_ts_sdk_supervisor_schema_hook_only_runs_for_relevant_changes(
     assert ("check-ts-sdk-supervisor-schema" in skipped_hooks) is hook_skipped
 
 
+@pytest.mark.parametrize(
+    ("files", "run_mcp_server_tests"),
+    [
+        pytest.param(
+            ("dev/mcp_server/src/airflow_mcp_server/server.py",),
+            "true",
+            id="runs when dev MCP server files change",
+        ),
+        pytest.param(
+            ("SECURITY.md",),
+            "false",
+            id="skipped when no dev MCP server files change",
+        ),
+    ],
+)
+def test_mcp_server_tests_only_run_for_mcp_server_changes(files: tuple[str, ...], run_mcp_server_tests: str):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=tuple(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed({"run-mcp-server-tests": run_mcp_server_tests}, str(stderr))
+
+
 def test_java_sdk_version_is_emitted_as_output():
     # The lang-SDK k8s job reads this to pick the JDK for the native Java build via actions/setup-java.
     stderr = SelectiveChecks(

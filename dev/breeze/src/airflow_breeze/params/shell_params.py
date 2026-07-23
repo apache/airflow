@@ -55,6 +55,7 @@ from airflow_breeze.global_constants import (
     FLOWER_HOST_PORT,
     GREMLIN_HOST_PORT,
     KEYCLOAK_INTEGRATION,
+    MCP_HOST_PORT,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
     MOUNT_REMOVE,
@@ -207,6 +208,7 @@ class ShellParams:
     keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
+    mcp_server: bool = False
     mount_sources: str = MOUNT_SELECTED
     mount_ui_dist: bool = False
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
@@ -674,6 +676,10 @@ services:
         _set_var(_env, "ISSUE_ID", self.issue_id)
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
+        _set_var(_env, "AIRFLOW_MCP_ALLOW_WRITES", None, "true")
+        _set_var(_env, "AIRFLOW_MCP_ALLOW_DELETES", None, "false")
+        _set_var(_env, "MCP_SERVER", self.mcp_server)
+        _set_var(_env, "MCP_HOST_PORT", None, MCP_HOST_PORT)
         _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)

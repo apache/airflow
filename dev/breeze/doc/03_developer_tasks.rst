@@ -445,6 +445,35 @@ These are all available flags of ``start-airflow`` command:
   :width: 100%
   :alt: Breeze start-airflow
 
+MCP server for AI-assisted debugging
+-------------------------------------
+
+Breeze can start an internal, development-only MCP (Model Context Protocol) server alongside
+the other Airflow components. It exposes the running breeze Airflow instance's public REST API
+as MCP tools, so any MCP-capable coding agent (Claude Code, Cursor, or any other client of the
+vendor-neutral MCP protocol) can inspect and help debug your local Dags, Dag runs, task logs,
+and import errors without you copy-pasting API responses by hand. It is internal tooling only -
+it is never shipped to users or included in any released distribution.
+
+Start it with:
+
+.. code-block:: bash
+
+    breeze start-airflow --mcp-server
+
+Once running, the server is reachable from the host at ``http://localhost:28081/mcp``. Point any
+MCP client that supports streamable HTTP transport at that URL.
+
+The server is read-only unless ``AIRFLOW_MCP_ALLOW_WRITES`` is set. ``DELETE`` calls are gated more
+strictly still, behind a separate ``AIRFLOW_MCP_ALLOW_DELETES`` flag that stays off even when writes
+are enabled, since deletions are irreversible. The breeze deployment sets ``AIRFLOW_MCP_ALLOW_WRITES=true``
+by default (the environment is disposable) but leaves deletions disabled - start breeze with
+``AIRFLOW_MCP_ALLOW_WRITES=false breeze start-airflow --mcp-server`` for a strictly read-only server,
+or set ``AIRFLOW_MCP_ALLOW_DELETES=true`` if you deliberately need deletions. See
+`dev/mcp_server/README.md <../../mcp_server/README.md>`__ for host-side
+``stdio`` usage (your MCP client spawns the server as a local subprocess, no breeze flag needed),
+the full tool list, and the complete safety model.
+
 Running External System Integrations with Breeze
 ------------------------------------------------
 
