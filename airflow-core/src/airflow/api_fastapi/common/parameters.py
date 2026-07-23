@@ -1044,6 +1044,43 @@ class _TeamsFilter(BaseParam[list[str]]):
         return cls().set_value(teams)
 
 
+class _RelativeFilelocPrefixFilter(BaseParam[str | None]):
+    """
+    Filter Dags by the folder they live in, derived from ``relative_fileloc``.
+
+    The value is treated as a directory path relative to the bundle root (e.g.
+    ``team_a/etl``). It matches every Dag whose file lives directly in that folder
+    or in any of its subfolders, using an escaped ``LIKE 'team_a/etl/%'`` so a
+    folder name is never a substring/prefix of another (``team_a`` won't match
+    ``team_alpha``). Dags at the bundle root (no ``/`` in ``relative_fileloc``)
+    are not matched by any folder value and appear only when no folder is selected.
+    """
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if not self.value:
+            return select
+
+        directory = self.value.rstrip("/")
+        escaped = _escape_like_pattern(directory)
+        return select.where(DagModel.relative_fileloc.like(f"{escaped}/%", escape=_LIKE_ESCAPE_CHAR))
+
+    @classmethod
+    def depends(
+        cls,
+        relative_fileloc_prefix: str | None = Query(
+            default=None,
+            description=(
+                "Filter Dags by the folder (directory of ``relative_fileloc``) they live in. "
+                "Matches the given folder and all of its subfolders."
+            ),
+        ),
+    ) -> _RelativeFilelocPrefixFilter:
+        return cls().set_value(relative_fileloc_prefix)
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -1293,6 +1330,9 @@ QueryDagIdPrefixPatternSearchWithNone = Annotated[
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
 QueryTeamsFilter = Annotated[_TeamsFilter, Depends(_TeamsFilter.depends)]
+QueryRelativeFilelocPrefixFilter = Annotated[
+    _RelativeFilelocPrefixFilter, Depends(_RelativeFilelocPrefixFilter.depends)
+]
 
 
 class _HasAssetScheduleFilter(BaseParam[bool]):
