@@ -48,7 +48,7 @@ Use the :class:`~airflow.providers.standard.operators.python.PythonOperator` to 
             :end-before: [END howto_operator_python]
 
 Running selected tasks in a new interpreter
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default, task process creation follows the global
 :ref:`execute_tasks_new_python_interpreter <config:core__execute_tasks_new_python_interpreter>`
