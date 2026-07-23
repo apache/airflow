@@ -99,6 +99,7 @@ TEST_COMMANDS = [
     # Tasks commands
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
     'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
+    'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
     # Task Instances commands
     'taskinstances list example_bash_operator "manual__{date_param}"',
     # XCom commands - need a Dag run with completed tasks
