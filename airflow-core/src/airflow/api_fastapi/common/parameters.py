@@ -1438,29 +1438,26 @@ QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingAct
 class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
     """Filter Dags that have any DagRun in the given state, not only the latest one."""
 
-    # Only these states have a partial index on dag_run; others would force a full table scan.
-    SUPPORTED_STATES = (DagRunState.QUEUED, DagRunState.RUNNING)
-
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
 
-        run_subquery = sql_select(DagRun.dag_id).where(DagRun.state == self.value).distinct()
-        return select.where(DagModel.dag_id.in_(run_subquery))
+        # EXISTS resolves each Dag via the (dag_id, state) index instead of scanning every run in the state.
+        has_run_in_state = (
+            sql_select(DagRun.dag_id)
+            .where(DagRun.dag_id == DagModel.dag_id, DagRun.state == self.value)
+            .exists()
+        )
+        return select.where(has_run_in_state)
 
     @classmethod
     def depends(
         cls,
         dag_run_state: DagRunState | None = Query(
             None,
-            description="Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.",
+            description="Filter Dags that have any DagRun in the given state.",
         ),
     ) -> _AnyDagRunStateFilter:
-        if dag_run_state is not None and dag_run_state not in cls.SUPPORTED_STATES:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                detail=f"dag_run_state only supports {[state.value for state in cls.SUPPORTED_STATES]}.",
-            )
         return cls().set_value(dag_run_state)
 
 
