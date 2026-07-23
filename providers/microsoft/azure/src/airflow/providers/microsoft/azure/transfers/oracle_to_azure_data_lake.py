@@ -68,12 +68,10 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if sql_params is None:
-            sql_params = {}
         self.filename = filename
         self.oracle_conn_id = oracle_conn_id
         self.sql = sql
-        self.sql_params = sql_params
+        self.sql_params = sql_params if sql_params is not None else {}
         self.azure_data_lake_conn_id = azure_data_lake_conn_id
         self.azure_data_lake_path = azure_data_lake_path
         self.delimiter = delimiter
