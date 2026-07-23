@@ -135,29 +135,30 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 previous_run_after = dag_run["run_after"]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session):
-        # Backwards backfill: an older run is still running while the latest run already finished.
+    @pytest.mark.parametrize("state", ["queued", "running", "failed", "success"])
+    def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session, state):
+        # Give DAG1 an older run in the probed state while its latest run ends in a
+        # different state, so a latest-run filter misses it but an any-run filter finds it
+        # (e.g. failure history hidden behind a green latest run).
         older_run = session.scalar(
             select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_1")
         )
-        older_run.state = DagRunState.RUNNING
+        older_run.state = DagRunState(state)
+        latest_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_5")
+        )
+        latest_run.state = DagRunState.FAILED if state == "success" else DagRunState.SUCCESS
         session.commit()
 
-        # last_dag_run_state only looks at the latest run, which is not running
-        last_state = test_client.get("/dags", params={"last_dag_run_state": "running"})
+        # last_dag_run_state only looks at the latest run, which is in a different state
+        last_state = test_client.get("/dags", params={"last_dag_run_state": state, "dag_ids": [DAG1_ID]})
         assert last_state.status_code == 200
         assert [dag["dag_id"] for dag in last_state.json()["dags"]] == []
 
         # dag_run_state matches a Dag that has any run in the state
-        any_state = test_client.get("/dags", params={"dag_run_state": "running"})
+        any_state = test_client.get("/dags", params={"dag_run_state": state, "dag_ids": [DAG1_ID]})
         assert any_state.status_code == 200
         assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
-
-    @pytest.mark.parametrize("unsupported_state", ["success", "failed"])
-    def test_dag_run_state_rejects_unsupported_states(self, test_client, unsupported_state):
-        # Only running/queued have a partial index; other states would force a full table scan.
-        response = test_client.get("/dags", params={"dag_run_state": unsupported_state})
-        assert response.status_code == 400
 
     @pytest.fixture
     def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):
