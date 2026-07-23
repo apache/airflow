@@ -17,20 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence, Sized
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attrs
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
+from airflow.sdk.definitions.xcom_arg import XComArg
 
 if TYPE_CHECKING:
     from typing import TypeGuard
 
-    from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.types import Operator
-
-ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
 # Each keyword argument to expand() can be an XComArg, sequence, or dict (not
 # any mapping since we need the value to be ordered).
@@ -79,6 +78,95 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
     return isinstance(v, (MappedArgument, XComArg))
 
 
+def count(expand_input: ExpandInput, iterable: Iterable[Any]) -> Iterable[Any]:
+    expand_input._length = None
+    counter = 0
+
+    for item in iterable:
+        counter += 1
+        yield item
+
+    expand_input._length = counter
+
+
+@attrs.define(slots=False)
+class ExpandInput(ABC, ResolveMixin):
+    EXPAND_INPUT_TYPE: ClassVar[str]
+
+    def __attrs_post_init__(self) -> None:
+        self._length: int | None = None
+
+    @property
+    @abstractmethod
+    def value(self) -> Any:
+        """The value of the expand input."""
+        ...
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        raise NotImplementedError()
+
+    def resolve(self, context: Mapping[str, Any]) -> Any:
+        raise NotImplementedError()
+
+    def __len__(self) -> int:
+        if self._length is None:
+            raise RuntimeError(f"Length of {type(self).__name__} is not yet known")
+        return self._length
+
+
+class DecoratedExpandInput(ExpandInput):
+    EXPAND_INPUT_TYPE: ClassVar[str] = "decorated"
+
+    def __init__(self, expand_input: ExpandInput):
+        super().__init__()
+        self.delegate = expand_input
+
+    @property
+    def value(self) -> Any:
+        return self.delegate.value
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return self.delegate.iter_references()
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
+        return count(
+            self,
+            map(lambda value: {"op_kwargs": value}, self.delegate.iter_values(context)),
+        )
+
+    def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
+        return self.delegate.resolve(context)
+
+
+class BatchedExpandInput(DecoratedExpandInput):
+    """
+    ExpandInput that batches another ExpandInput into N chunks.
+
+    This affects mapping cardinality, NOT resolve-time behavior.
+    """
+
+    EXPAND_INPUT_TYPE: ClassVar[str] = "batched"
+
+    def __init__(self, expand_input: ExpandInput, size: int):
+        if size < 2:
+            raise ValueError(f"batch size must be at least 2, got {size}")
+
+        super().__init__(expand_input=expand_input)
+        self.size = size
+
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[dict]:
+        map_index = context["ti"].map_index
+
+        return count(
+            self,
+            (
+                item
+                for index, item in enumerate(self.delegate.iter_values(context))
+                if index % self.size == map_index
+            ),
+        )
+
+
 @attrs.define(kw_only=True)
 class MappedArgument(ResolveMixin):
     """
@@ -107,7 +195,7 @@ class MappedArgument(ResolveMixin):
 
 
 @attrs.define()
-class DictOfListsExpandInput(ResolveMixin):
+class DictOfListsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -184,6 +272,43 @@ class DictOfListsExpandInput(ResolveMixin):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        from airflow.sdk.definitions.xcom_arg import XComArg
+
+        def _to_iterable(v: Any) -> Iterable:
+            return v if hasattr(v, "__iter__") and not isinstance(v, (str, bytes)) else (v,)
+
+        def _make_factory(v: Any) -> Callable[[], Iterable]:
+            # Capture v (already bound to self.value[k]) so each factory closes
+            # over its own value rather than a shared loop variable.
+            def factory() -> Iterable:
+                resolved = v.resolve(context) if isinstance(v, XComArg) else v
+                return _to_iterable(resolved)
+
+            return factory
+
+        def _lazy_product(*factories: Callable[[], Iterable]) -> Iterator[tuple]:
+            """
+            Streaming cross-product with fully deferred resolution.
+
+            Each factory is called to produce a fresh iterable only when that
+            position is first needed. The first factory is called exactly once;
+            each subsequent factory is called once per element yielded by all
+            preceding factories combined, so XComArg sources are resolved (and
+            pages re-fetched) on demand rather than materialized upfront.
+            """
+            if not factories:
+                yield ()
+                return
+            first_factory, *rest_factories = factories
+            for item in first_factory():
+                for tail in _lazy_product(*rest_factories):
+                    yield (item, *tail)
+
+        keys = list(self.value)
+        factories = [_make_factory(self.value[k]) for k in keys]
+        return count(self, (dict(zip(keys, combo)) for combo in _lazy_product(*factories)))
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index: int | None = context["ti"].map_index
         if map_index is None or map_index < 0:
@@ -217,7 +342,7 @@ def _describe_type(value: Any) -> str:
 
 
 @attrs.define()
-class ListOfDictsExpandInput(ResolveMixin):
+class ListOfDictsExpandInput(ExpandInput):
     """
     Storage type of a mapped operator's mapped kwargs.
 
@@ -238,12 +363,25 @@ class ListOfDictsExpandInput(ResolveMixin):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
+    def iter_values(self, context: Mapping[str, Any]) -> Iterable[Any]:
+        def iterate():
+            if isinstance(self.value, XComArg):
+                for item in self.value.resolve(context):
+                    yield item
+            else:
+                for item in self.value:
+                    if isinstance(item, XComArg):
+                        yield from item.resolve(context)
+                    else:
+                        yield item
+
+        return count(self, iterate())
+
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
-        if map_index < 0:
+        if map_index is None or map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
 
-        mapping: Any = None
         if isinstance(self.value, Sized):
             mapping = self.value[map_index]
             if not isinstance(mapping, Mapping):

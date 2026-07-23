@@ -95,6 +95,75 @@ class Context(TypedDict, total=False):
 KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
 
 
+def clone_context(context: Context) -> Context:
+    """
+    Create a safe, per-task copy of an execution ``Context`` for concurrent execution.
+
+    The execution context is a mutable mapping that contains many nested
+    structures (``params``, ``templates_dict``, ``outlet_events``, ``dag_run``,
+    etc.). When running the same logical task concurrently (for example when
+    the ``IterableOperator`` spawns multiple indexed task instances that run in
+    parallel using threads, processes or asyncio tasks), those mutable objects
+    could be mutated by one indexed runtime and unintentionally observed by
+    another. That leads to subtle race conditions, corrupted state, and
+    flakiness in task execution.
+
+    ``clone_context`` returns a new :class:`Context` mapping where the top-level
+    mapping is copied and specific mutable sub-objects that are commonly
+    mutated during execution are deep-copied or shallow-copied as appropriate:
+
+    - ``params`` and ``templates_dict`` are deep-copied because they are
+      dictionaries that users and operators commonly mutate.
+    - ``inlets`` and ``outlets`` are converted to new lists (shallow copy)
+      because the sequence identity must be isolated but the elements are
+      typically read-only accessor objects.
+    - ``dag_run`` is deep-copied because it carries nested state that must
+      not be shared between concurrent executions.
+    - ``outlet_events`` is intentionally **not** copied so that events emitted
+      by sub-tasks are captured in the parent's accessor and serialized when
+      the parent task completes. ``OutletEventAccessors.__getitem__`` uses
+      ``dict.setdefault`` to guarantee that concurrent sub-tasks always share
+      one accessor per asset key rather than silently overwriting each other's
+      accumulated events.
+
+    Use cases
+    - Multithreading: when using thread-based executors (``concurrent.futures``
+      ThreadPoolExecutor) multiple threads share memory; cloning prevents
+      concurrent mutation of shared structures.
+    - Async concurrency: when running coroutine-based tasks concurrently in
+      the same event loop, tasks may still mutate shared mappings; cloning
+      avoids interference.
+    - Multiprocessing: while processes do not share memory, cloning keeps the
+      semantics consistent and avoids accidentally capturing references that
+      would be pickled.
+
+    Performance
+    - The implementation intentionally copies only a small set of commonly
+      mutated fields rather than performing a blanket deep copy of the entire
+      context to keep the operation cheap. If future code stores additional
+      mutable state in the context that needs isolation, this function should
+      be extended appropriately.
+
+    :param context: The original execution context to clone.
+    :returns: A new :class:`Context` safe to hand to a concurrently running task.
+
+    :meta private:
+    """
+    cloned_context = Context()
+    cloned_context.update(context)
+    cloned_context["params"] = copy.deepcopy(context.get("params", {}))
+    cloned_context["inlets"] = list(context.get("inlets", []))
+    cloned_context["outlets"] = list(context.get("outlets", []))
+    templates_dict = cloned_context.get("templates_dict")
+    if templates_dict is not None:
+        cloned_context["templates_dict"] = copy.deepcopy(templates_dict)
+    cloned_context["inlet_events"] = context["inlet_events"]
+    # outlet_events is intentionally NOT copied - sub-tasks must emit into the
+    # parent's accessor so events are serialized when the parent completes.
+    cloned_context["dag_run"] = context["dag_run"]
+    return cloned_context
+
+
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     """
     Merge parameters into an existing context.

@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 import structlog
+from task_sdk.definitions.conftest import make_xcom_arg
 
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
@@ -416,3 +417,39 @@ class TestPlainXComArgResolveMappedGroup:
         assert resolved == "value-0"
         ti.xcom_pull.assert_called_once()
         assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0
+
+
+class TestXComArg:
+    @pytest.mark.parametrize(
+        ("actual", "expected"),
+        [
+            (1, [1]),  # scalar
+            ("hello", ["hello"]),  # string
+            ([1, 2, 3], [1, 2, 3]),  # list
+            ((x for x in [4, 5]), [4, 5]),  # generator
+        ],
+    )
+    def test_plain_xcomarg_iter_values(self, actual, expected):
+        xcom_arg = make_xcom_arg(actual)
+        result = list(xcom_arg.iter_values({}))
+        assert result == expected
+
+    def test_map_xcomarg_iter_values(self):
+        base = make_xcom_arg([1, 2, 3])
+        mapped = base.map(lambda x: x * 10)
+        result = list(mapped.iter_values({}))
+        assert result == [10, 20, 30]
+
+    def test_zip_xcomarg_iter_values(self):
+        a = make_xcom_arg([1, 2])
+        b = make_xcom_arg([10, 20])
+        zipped = a.zip(b)
+        result = list(zipped.iter_values({}))
+        assert result == [(1, 10), (2, 20)]
+
+    def test_concat_xcomarg_iter_values(self):
+        a = make_xcom_arg([1, 2])
+        b = make_xcom_arg([10, 20])
+        concatenated = a.concat(b)
+        result = list(concatenated.iter_values({}))
+        assert result == [1, 2, 10, 20]

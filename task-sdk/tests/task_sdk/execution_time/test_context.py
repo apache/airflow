@@ -879,6 +879,32 @@ class TestOutletEventAccessors:
         outlet_event_accessors.for_asset_alias(name="name")
         assert mocked__getitem__.call_args[0][0] == TEST_ASSET_ALIAS
 
+    def test_concurrent_access_same_asset_preserves_accessor(self):
+        """Concurrent __getitem__ for the same asset must not overwrite an existing accessor."""
+        import threading
+
+        accessors = OutletEventAccessors()
+        asset = Asset("concurrent-test")
+        results: list[OutletEventAccessor] = []
+
+        barrier = threading.Barrier(2)
+
+        def access():
+            barrier.wait()
+            results.append(accessors[asset])
+
+        threads = [threading.Thread(target=access) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert len(results) == 2
+        # Both threads must have received the identical accessor object so
+        # that neither thread's accumulated events can be silently discarded.
+        assert results[0] is results[1]
+        assert len(accessors) == 1
+
 
 class TestInletEventAccessor:
     @pytest.fixture
