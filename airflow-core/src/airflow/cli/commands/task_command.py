@@ -493,6 +493,7 @@ def task_render(args, dag: DAG | None = None) -> None:
         )
 
 
+@deprecated_for_airflowctl("airflowctl tasks clear")
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_clear(args) -> None:
