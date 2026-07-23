@@ -50,7 +50,8 @@ repos:
             (?x)
             .github/PULL_REQUEST_TEMPLATE\.md$|
             .github/instructions/|
-            .github/skills/
+            .github/skills/|
+            ^dev/adr/
         args:
           - "--maxlevel"
           - "2"

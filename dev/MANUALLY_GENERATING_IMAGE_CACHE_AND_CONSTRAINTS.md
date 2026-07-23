@@ -300,8 +300,10 @@ make all PRs "red" until the constraint is fixed. However, if this is the case t
 the problem by fixing the tests or dependencies and the automated CI process should be able to self-heal.
 The main build does not use constraints and it will attempt to upgrade (or downgrade) the dependencies to
 the latest version matching the dependency specification we have in `pyproject.toml` files (note that provider
-dependencies in `pyproject.toml` are generated from provider.yaml files being the single source of truth for
-provider dependencies). Also, the constraints are pushed without `--force` so there is no risk of destroying
+dependencies are edited in place in each provider's generated `pyproject.toml` and are preserved when that file
+is regenerated — run `prek update-providers-dependencies --all-files` after changing them; `provider.yaml` is
+the source of truth for provider metadata, not for dependencies). Also, the constraints are pushed without
+`--force` so there is no risk of destroying
 anything. The history is kept in Git, so you can always revert to the previous version if needed.
 
 # Manually updating already tagged constraint files
