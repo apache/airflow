@@ -91,6 +91,9 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+    TaskInstanceState,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -1555,6 +1558,40 @@ class TestProvidersOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.providers.list()
         assert response == self.provider_collection_response
+
+
+class TestTaskInstancesOperations:
+    task_instance_response = TaskInstanceResponse(
+        id=uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+        task_id="task_id",
+        dag_id="dag_id",
+        dag_run_id="dag_run_id",
+        map_index=-1,
+        run_after=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+        state=TaskInstanceState.SUCCESS,
+        try_number=1,
+        max_tries=0,
+        task_display_name="task_id",
+        dag_display_name="dag_id",
+        pool="default_pool",
+        pool_slots=1,
+        executor_config="{}",
+    )
+    task_instance_collection_response = TaskInstanceCollectionResponse(
+        task_instances=[task_instance_response],
+        total_entries=1,
+    )
+
+    def test_list(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances"
+            return httpx.Response(
+                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
+        assert response == self.task_instance_collection_response
 
 
 class TestVariablesOperations:

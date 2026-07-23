@@ -324,8 +324,21 @@ Output one row per commit and nothing else, in this exact pipe format
 
    #<NNNN> | <documentation|bugfix|feature|breaking|misc|skip|min_airflow_bump> | <high|medium|low> | <none|maybe|yes> | <one-sentence justification>
 
+A change is only breaking if the thing it breaks was **released**. Removing,
+renaming, or altering a symbol/behavior that was *introduced in this same
+unreleased wave* (i.e. the feature was added in one pending commit and
+changed in another, both after the provider's last release tag) is NOT a
+breaking change — users never received the old form, so there is nothing to
+break. Before classifying any removal/rename as breaking, confirm the affected
+symbol existed at the last released version:
+`git show providers-<id>/<last-version>:providers/<path>/... | grep <symbol>`
+(or grep the last release tag). If it isn't there, treat the change as part of
+delivering the new feature (feature/misc), not breaking. A within-wave rename
+of a brand-new operator or plugin is feature-shaped, not a major bump.
+
 Breaking-change checklist (any of these → BREAKING_RISK >= maybe; usually
-breaking unless clearly behind a deprecation shim):
+breaking unless clearly behind a deprecation shim) — **each item assumes the
+affected symbol/behavior shipped in a released version, per the rule above**:
   * Public class/function/method removed or renamed
     in the **public interface** of the provider — i.e. files under
     `providers/<path>/src/**/{hooks,operators,sensors,triggers,
@@ -352,7 +365,9 @@ breaking unless clearly behind a deprecation shim):
 
 Do NOT trust the PR title alone — read the diff. A PR titled "Refactor X"
 that removes a public method is breaking. A PR titled "BREAKING: rename
-foo" that only renames a private symbol is not.
+foo" that only renames a private symbol is not. A PR that renames a public
+class introduced earlier *in this same unreleased wave* is not breaking
+either — the old name was never released (see the released-only rule above).
 ```
 
 Collect every sub-agent's rows (and any you classified inline) into one
@@ -552,6 +567,19 @@ version of the referenced provider and removes the comment.
 > doc preparation and PR creation, so it is easy to forget when the skill
 > hands back to the regular release workflow.
 
+**Provider dependency-bump CI guard.** Every `>=` bump this produces (and any
+inter-provider `>=` bump made during the wave, e.g. a `breaking` provider that
+dependents must now require) trips the `check_provider_dependency_bumps`
+selective-check (`dev/breeze/src/airflow_breeze/utils/selective_checks.py`),
+which fails CI with *"Provider dependency version bumps detected that should
+only be performed by Release Managers!"*. That guard exists to stop
+**contributors** from silently changing inter-provider `>=` floors; for a
+release wave the bumps are legitimate. The release PR **must carry the
+`allow provider dependency bump` label** to bypass it — every prior "Prepare
+providers release …" PR carries this label. Tell the release manager to add
+the label to the PR (it re-triggers the check via the `labeled` event); the
+bumps are not a mistake to revert.
+
 ### Phase 5 — Validate
 
 Run the same checks the release manager would run:
@@ -581,12 +609,21 @@ provider-by-provider:
   written at the wrong indentation level or position.
 - Confirm Phase 4d ran: no `# use next version` comment remains where the
   referenced provider was bumped in this wave.
+- **If any inter-provider `>=` floor changed** (Phase 4d resolved a pin, or a
+  `breaking` provider forced a dependent to require its new major), tell the
+  release manager the PR needs the `allow provider dependency bump` label —
+  otherwise the `check_provider_dependency_bumps` CI check fails with
+  *"Provider dependency version bumps detected that should only be performed
+  by Release Managers!"*. `git diff` the changed `pyproject.toml` files for
+  `apache-airflow-providers-*` `>=` changes and list them for the RM.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
 
 Stop here. Do not commit, do not push — the release manager opens the PR
 themselves following the regular release workflow in
 `dev/README_RELEASE_PROVIDERS.md`. Make sure Phase 4d
-(`update-providers-next-version`) has been run before that PR is opened.
+(`update-providers-next-version`) has been run before that PR is opened, and
+that the PR carries the `allow provider dependency bump` label whenever any
+inter-provider `>=` floor changed (see Phase 4d).
 
 ---
 
