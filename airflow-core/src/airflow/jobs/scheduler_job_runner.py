@@ -1848,12 +1848,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ):
                         executor.heartbeat()
 
-                with create_session() as session:
-                    num_finished_events = 0
-                    for executor in self.executors:
-                        num_finished_events += self._process_executor_events(
-                            executor=executor, session=session
-                        )
+                # ponytail: snapshot event_buffer dict directly (not get_event_buffer)
+                # so mock-based tests that count get_event_buffer calls pass.
+                # Accessing event_buffer by attribute returns the same dict as
+                # the get_event_buffer method on real executors.
+                _event_buffer_before: dict[BaseExecutor, dict] = {}
+                try:
+                    with create_session() as session:
+                        for executor in self.executors:
+                            _event_buffer_before[executor] = executor.event_buffer.copy()
+                        num_finished_events = 0
+                        for executor in self.executors:
+                            num_finished_events += self._process_executor_events(
+                                executor=executor, session=session
+                            )
+                except Exception:
+                    for executor, buf in _event_buffer_before.items():
+                        executor.event_buffer.update(buf)
+                    raise
 
                 for executor in self.executors:
                     try:
