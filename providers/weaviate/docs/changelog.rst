@@ -20,6 +20,29 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+.. note::
+    The minimum ``weaviate-client`` requirement moves from ``4.4.0`` to ``4.16.0`` (the
+    ``!=4.16.7`` exclusion for the known protobuf issue is unchanged). Every 4.4–4.15 release is
+    excluded, so an environment pinned to one of those will no longer resolve this provider. The
+    provider's own hooks and operators are unchanged and did not need the newer client — the floor
+    follows the example Dags, which were rewritten for the 4.16 vector configuration API
+    (``vector_config`` / ``Configure.Vectors`` instead of the deprecated ``vectorizer_config`` /
+    ``Configure.Vectorizer``). To migrate, upgrade ``weaviate-client`` to 4.16.0 or newer; if you
+    cannot, stay on this provider's 3.3.x line, which still works with 4.4+.
+
+Misc
+~~~~
+
+* ``Update Weaviate examples for client 4.16 API (#67343)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 3.3.5
 .....
 

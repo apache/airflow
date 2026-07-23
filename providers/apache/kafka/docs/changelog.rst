@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+1.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Kafka Event Producer publishing DagRun and TaskInstance state-change events (#68082, #70014)``
+* ``Add Amazon MSK IAM (OAUTHBEARER) support to Apache Kafka provider (#69427)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document 'apply_function' dot notation requirement for Kafka message queues (#68414)``
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky KubernetesPodOperator log-timestamp test (#69563)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 1.14.0
 ......
 

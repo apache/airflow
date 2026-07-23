@@ -27,6 +27,7 @@ import pathlib
 import sys
 
 from common_prek_utils import (
+    KNOWN_SECOND_LEVEL_PATHS,
     initialize_breeze_prek,
     run_command_via_breeze_run,
     validate_cmd_result,
@@ -46,7 +47,10 @@ def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
 
     All paths are relative to the ``providers/`` directory, as supplied by
     prek.  The first path segment is the provider package name
-    (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``).
+    (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``), except for
+    namespace packages in ``KNOWN_SECOND_LEVEL_PATHS`` (e.g. ``apache``,
+    ``common``), which nest an extra level (e.g.
+    ``apache/beam/src/airflow/...`` → ``apache/beam/provider.yaml``).
     """
     result: set[str] = set()
     for f in raw_files:
@@ -59,7 +63,10 @@ def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
             # e.g. samba/src/airflow/providers/samba/hooks/samba.py
             parts = p.parts
             if parts:
-                result.add(f"{parts[0]}/provider.yaml")
+                if parts[0] in KNOWN_SECOND_LEVEL_PATHS and len(parts) > 1:
+                    result.add(f"{parts[0]}/{parts[1]}/provider.yaml")
+                else:
+                    result.add(f"{parts[0]}/provider.yaml")
     return sorted(result)
 
 
