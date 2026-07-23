@@ -27,6 +27,7 @@ from airflow.providers.standard.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
+    from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 
@@ -62,13 +63,43 @@ class BranchMixIn(SkipMixin):
             branches_to_execute = [branches_to_execute]
 
         for branch in branches_to_execute:
-            if branch in dag.task_group_dict:
-                tg = dag.task_group_dict[branch]
+            # Use the task, dag, and branch to resolve the branch ID
+            resolved = self._resolve_branch_id(task, dag, branch)
+
+            if resolved in dag.task_group_dict:
+                tg = dag.task_group_dict[resolved]
                 root_ids = [root.task_id for root in tg.roots]
                 self.log.info("Expanding task group %s into %s", tg.group_id, root_ids)
                 yield from root_ids
             else:
-                yield branch
+                yield resolved
+
+    def _resolve_branch_id(self, task: BaseOperator, dag: DAG, branch: str) -> str:
+        """
+        Resolve a branch id, allowing relative ids when called from inside a task group. This came logic
+        exists in task-sdk/src/airflow/sdk/bases/branch.py.
+
+        :param task: BaseOperator task
+        :param dag: DAG
+        :param branch: Branch ID
+        :return: Resolved branch ID
+        """
+        # Tasks that are NOT in the TaskGroup take precedence over those that may be in a TaskGroup
+        if branch in dag.task_group_dict or branch in dag.task_dict:
+            return branch
+
+        # Attempt to extract the task_group from the
+        tg = getattr(task, "task_group", None)
+
+        # Create a candidate using a task_group ID and specified branch
+        if tg is not None and tg.group_id and tg.prefix_group_id:
+            candidate = f"{tg.group_id}.{branch}"
+
+            if candidate in dag.task_group_dict or candidate in dag.task_dict:
+                self.log.info("Resolving relative branch %s as %s", branch, candidate)
+                return candidate
+
+        return branch
 
 
 class BaseBranchOperator(BaseOperator, BranchMixIn):
