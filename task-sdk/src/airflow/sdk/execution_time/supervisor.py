@@ -2562,6 +2562,20 @@ def supervise_task(
                 final_state=result.final_state,
             )
             return result.exit_code
+        except httpx.RequestError as e:
+            # Otherwise a UI-only user sees a failed task with an empty log.
+            if logger is not None:
+                # Close any group the child left open so the error renders at the top level, not
+                # folded inside a collapsed group.
+                logger.info("::endgroup::")
+                logger.error(
+                    "Could not reach the Execution API server. Verify the `[core] "
+                    "execution_api_server_url` (or `[api] base_url`) setting points at a reachable "
+                    "Airflow API server.",
+                    server=server,
+                    error=str(e),
+                )
+            raise
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
