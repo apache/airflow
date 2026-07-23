@@ -19,9 +19,11 @@ from __future__ import annotations
 
 from unittest import mock
 
+from airflow.models.dag import DAG
 from airflow.providers.snowflake.operators.snowflake_cortex_agent import (
     SnowflakeCortexAgentOperator,
 )
+from airflow.utils import timezone
 
 TASK_ID = "run_agent"
 CONN_ID = "snowflake_default"
@@ -74,3 +76,30 @@ class TestSnowflakeCortexAgentOperator:
         )
 
         assert result == response
+
+    def test_template_fields(self):
+        dag = DAG(
+            dag_id="test_template_fields",
+            start_date=timezone.datetime(2024, 1, 1),
+        )
+
+        operator = SnowflakeCortexAgentOperator(
+            task_id=TASK_ID,
+            dag=dag,
+            database="{{ var.value.database }}",
+            schema="{{ params.schema }}",
+            agent_name="{{ dag_run.conf['agent_name'] }}",
+            messages=[
+                {
+                    "role": "user",
+                    "content": "{{ ds }}",
+                }
+            ],
+        )
+
+        assert operator.template_fields == (
+            "database",
+            "schema",
+            "agent_name",
+            "messages",
+        )

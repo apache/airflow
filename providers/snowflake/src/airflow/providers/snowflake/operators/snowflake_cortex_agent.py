@@ -22,7 +22,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.models import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake_cortex_agent import SnowflakeCortexAgentHook
 
 if TYPE_CHECKING:
@@ -58,7 +58,12 @@ class SnowflakeCortexAgentOperator(BaseOperator):
         ``snowflake_default``.
     """
 
-    template_fields: Sequence[str] = ("messages",)
+    template_fields: Sequence[str] = (
+        "database",
+        "schema",
+        "agent_name",
+        "messages",
+    )
 
     template_fields_renderers = {
         "messages": "json",
