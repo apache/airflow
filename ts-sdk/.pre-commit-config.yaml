@@ -54,12 +54,7 @@ repos:
         entry: ./scripts/ci/prek/compile_ts_sdk.py
         language: node
         stages: [manual]
-        files: >
-          (?x)
-          ^src/.*|
-          ^package\.json$|
-          ^pnpm-lock\.yaml$|
-          ^tsconfig.*\.json$
+        always_run: true
         additional_dependencies: ['pnpm@10.28.1']
         pass_filenames: false
         require_serial: true
