@@ -591,6 +591,15 @@ def get_dag_runs(
         dag = get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
         query = query.filter(DagRun.dag_id == dag_id).options()
         if partition_date_start is not None or partition_date_end is not None:
+            # Runs of a non-partitioned Dag never carry a partition_date (this includes
+            # partitioned-at-runtime Dags, whose runs keep it NULL), so the filter would
+            # silently match nothing; reject it instead.
+            if not dag.timetable.partitioned:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Dag with dag_id: '{dag_id}' is not partitioned; "
+                    "partition_date_start and partition_date_end are not supported.",
+                )
             # The bounds are calendar days, so the whole of partition_date_end belongs to the
             # window: widen it to the following local midnight and exclude that edge.
             query = DagRun.apply_partition_date_window(
