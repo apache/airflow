@@ -22,7 +22,7 @@ import inspect
 import os
 import re
 from collections.abc import Iterator
-from datetime import datetime as std_datetime, timezone
+from datetime import datetime as std_datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock, mock as async_mock
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -1136,6 +1136,36 @@ class TestAwsS3Hook:
         )
 
         assert response == {"message": "test_bucket/test between pokes.", "status": "error"}
+
+    @pytest.mark.asyncio
+    @mock.patch.object(S3Hook, "_list_keys_async", autospec=True)
+    async def test_s3_key_hook_is_keys_unchanged_success_async(self, mock_list_keys, time_machine):
+        frozen_dt = std_datetime(2026, 1, 1, 12, 0, 5, tzinfo=timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
+        mock_list_keys.return_value = ["test"]
+
+        s3_hook_async = S3Hook()
+        mock_client = AsyncMock()
+
+        response = await s3_hook_async.is_keys_unchanged_async(
+            client=mock_client,
+            bucket_name="test_bucket",
+            prefix="test",
+            inactivity_period=3,
+            min_objects=1,
+            previous_objects={"test"},
+            inactivity_seconds=0,
+            allow_delete=False,
+            last_activity_time=frozen_dt - timedelta(seconds=5),
+        )
+
+        assert response == {
+            "status": "success",
+            "message": (
+                "SUCCESS: Sensor found 1 objects at test_bucket/test. "
+                "Waited at least 3 seconds, with no new objects uploaded."
+            ),
+        }
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")

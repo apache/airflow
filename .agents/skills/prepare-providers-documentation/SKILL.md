@@ -324,8 +324,21 @@ Output one row per commit and nothing else, in this exact pipe format
 
    #<NNNN> | <documentation|bugfix|feature|breaking|misc|skip|min_airflow_bump> | <high|medium|low> | <none|maybe|yes> | <one-sentence justification>
 
+A change is only breaking if the thing it breaks was **released**. Removing,
+renaming, or altering a symbol/behavior that was *introduced in this same
+unreleased wave* (i.e. the feature was added in one pending commit and
+changed in another, both after the provider's last release tag) is NOT a
+breaking change — users never received the old form, so there is nothing to
+break. Before classifying any removal/rename as breaking, confirm the affected
+symbol existed at the last released version:
+`git show providers-<id>/<last-version>:providers/<path>/... | grep <symbol>`
+(or grep the last release tag). If it isn't there, treat the change as part of
+delivering the new feature (feature/misc), not breaking. A within-wave rename
+of a brand-new operator or plugin is feature-shaped, not a major bump.
+
 Breaking-change checklist (any of these → BREAKING_RISK >= maybe; usually
-breaking unless clearly behind a deprecation shim):
+breaking unless clearly behind a deprecation shim) — **each item assumes the
+affected symbol/behavior shipped in a released version, per the rule above**:
   * Public class/function/method removed or renamed
     in the **public interface** of the provider — i.e. files under
     `providers/<path>/src/**/{hooks,operators,sensors,triggers,
@@ -352,7 +365,9 @@ breaking unless clearly behind a deprecation shim):
 
 Do NOT trust the PR title alone — read the diff. A PR titled "Refactor X"
 that removes a public method is breaking. A PR titled "BREAKING: rename
-foo" that only renames a private symbol is not.
+foo" that only renames a private symbol is not. A PR that renames a public
+class introduced earlier *in this same unreleased wave* is not breaking
+either — the old name was never released (see the released-only rule above).
 ```
 
 Collect every sub-agent's rows (and any you classified inline) into one
@@ -496,6 +511,27 @@ Rules:
   indent, double backticks).
 - Subjects must be the original commit subject with backticks replaced by
   single quotes (matches `message_without_backticks`). Don't paraphrase.
+- **Exception — collapse within-wave "add then rename/rework" chains into one
+  net entry.** When several pending commits are steps toward *one* net change —
+  a feature added in one PR and renamed or reworked in a later PR, both since
+  the last release (the released-only situation from Phase 3) — do **not** list
+  the intermediate steps as separate entries. A reader who never saw the
+  released intermediate form gets no context from ``Add X listener (#a)`` under
+  Features plus ``Rename X to Y (#b)`` under Misc. Write a **single** entry that
+  describes the **net user-facing change** and references **all** related PRs,
+  placed in the section of the most-impactful step. Real example: #68082 added
+  a Kafka listener and #70014 renamed it to the Kafka Event Producer in the same
+  wave → ``Add Kafka Event Producer publishing DagRun and TaskInstance
+  state-change events (#68082, #70014)`` under Features (and *no* separate Misc
+  "Rename …" line). This is the changelog counterpart of the unreleased-feature
+  classification rule: classify the rename as non-breaking (Phase 3) **and**
+  describe only what shipped, naming every PR involved.
+- **Capitalize the first letter of every entry**, not only after stripping a
+  Conventional Commit prefix. Contributors sometimes write a lowercase subject
+  (`derive keycloak oauth redirect_uri …`) or a pseudo-scope
+  (`cncf-kubernetes: fix …`); the changelog convention is a leading capital, so
+  render them as ``Derive keycloak oauth redirect_uri …`` /
+  ``Cncf-kubernetes: fix …``.
 - **Strip Conventional Commit prefixes** before writing to the changelog.
   If the subject starts with a prefix like `feat:`, `fix:`, `chore:`,
   `docs:`, `refactor:`, `ci:`, `test:`, `perf:`, `build:`, or `style:`
@@ -504,7 +540,17 @@ Rules:
   Example: `refactor: Fix _is_http_client_closed ...` →
   `Fix _is_http_client_closed ...`. Airflow does not use Conventional
   Commits and these prefixes should not appear in changelogs.
-- Always keep the `(#NNNN)` PR suffix.
+- **Send no-PR release-tooling commits to the excluded block**, even when the
+  Phase 1 deterministic classifier labeled them `documentation`. Subjects like
+  ``Prepare … providers release/documentation …`` and ``Hide non-user-facing
+  entries from ad-hoc provider release notes`` (often with no `(#NNNN)` suffix
+  because they were committed directly) are release plumbing, not user-facing
+  changes — a `(#NNNN)`-less line in a visible section reads as a mistake. Put
+  them under the `.. Below changes are excluded …` block. breeze's deterministic
+  classification can even be inconsistent for the same commit across providers,
+  so normalize to excluded.
+- Always keep the `(#NNNN)` PR suffix (or, for a collapsed chain, the
+  comma-separated list of all involved PRs).
 
 #### 4c. Regenerate templates with breeze
 
@@ -552,6 +598,19 @@ version of the referenced provider and removes the comment.
 > doc preparation and PR creation, so it is easy to forget when the skill
 > hands back to the regular release workflow.
 
+**Provider dependency-bump CI guard.** Every `>=` bump this produces (and any
+inter-provider `>=` bump made during the wave, e.g. a `breaking` provider that
+dependents must now require) trips the `check_provider_dependency_bumps`
+selective-check (`dev/breeze/src/airflow_breeze/utils/selective_checks.py`),
+which fails CI with *"Provider dependency version bumps detected that should
+only be performed by Release Managers!"*. That guard exists to stop
+**contributors** from silently changing inter-provider `>=` floors; for a
+release wave the bumps are legitimate. The release PR **must carry the
+`allow provider dependency bump` label** to bypass it — every prior "Prepare
+providers release …" PR carries this label. Tell the release manager to add
+the label to the PR (it re-triggers the check via the `labeled` event); the
+bumps are not a mistake to revert.
+
 ### Phase 5 — Validate
 
 Run the same checks the release manager would run:
@@ -581,12 +640,29 @@ provider-by-provider:
   written at the wrong indentation level or position.
 - Confirm Phase 4d ran: no `# use next version` comment remains where the
   referenced provider was bumped in this wave.
+- **If any inter-provider `>=` floor changed** (Phase 4d resolved a pin, or a
+  `breaking` provider forced a dependent to require its new major), tell the
+  release manager the PR needs the `allow provider dependency bump` label —
+  otherwise the `check_provider_dependency_bumps` CI check fails with
+  *"Provider dependency version bumps detected that should only be performed
+  by Release Managers!"*. `git diff` the changed `pyproject.toml` files for
+  `apache-airflow-providers-*` `>=` changes and list them for the RM.
+- **Scan the new changelog sections for three entry defects** — grep the lines
+  you added: (1) a bullet whose text starts with a lowercase letter → capitalize
+  it (Phase 4b); (2) a bullet in a *visible* section (Features / Bug Fixes /
+  Misc / Doc-only) with no `(#NNNN)` suffix → usually no-PR release-tooling that
+  belongs in the excluded block (Phase 4b); (3) an "add then rename" pair for
+  the same feature left as two separate entries → collapse into one net entry
+  naming both PRs (Phase 4b). Reviewers reliably catch all three, so fix them
+  before handing off.
 - Flag anything where Phase 3.5 had to escalate, so the RM can double-check.
 
 Stop here. Do not commit, do not push — the release manager opens the PR
 themselves following the regular release workflow in
 `dev/README_RELEASE_PROVIDERS.md`. Make sure Phase 4d
-(`update-providers-next-version`) has been run before that PR is opened.
+(`update-providers-next-version`) has been run before that PR is opened, and
+that the PR carries the `allow provider dependency bump` label whenever any
+inter-provider `>=` floor changed (see Phase 4d).
 
 ---
 

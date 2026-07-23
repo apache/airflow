@@ -49,6 +49,20 @@ Breaking changes
     To keep using asyncpg on Airflow 3.4.0+, set
     ``[database] sql_alchemy_conn_async = postgresql+asyncpg://...`` explicitly.
 
+.. note::
+    On Airflow 3.4.0 and later, ``psycopg`` (psycopg3) becomes the default synchronous Postgres
+    driver, mirroring the async default above. ``psycopg[binary]`` is installed by default to serve it.
+
+    ``psycopg2-binary`` remains installed by default as well. This provider still supports Airflow
+    cores older than 3.4.0, which normalize the synchronous metadata-database connection to
+    ``postgresql+psycopg2://`` and have no psycopg fallback; Airflow 2.11 additionally ships
+    SQLAlchemy 1.4, which has no native ``psycopg`` (v3) dialect at all — so psycopg2 must stay
+    present for those cores to work. It will become opt-in-only (via the existing ``[psycopg2]``
+    extra) in a future release once the minimum supported Airflow is 3.4.0.
+
+    To keep using psycopg2 on Airflow 3.4.0+, set
+    ``[database] sql_alchemy_conn = postgresql+psycopg2://...`` explicitly.
+
 * ``Switch the default async Postgres driver from asyncpg to psycopg3 (#69089)``
 
 .. Below changes are excluded from the changelog. Move them to

@@ -18,14 +18,12 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, NoReturn, Protocol, TypeAlias, cast, overload
 
 from more_itertools import chunked
-from psycopg2 import connect as ppg2_connect
-from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_values
 
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -54,9 +52,35 @@ if USE_PSYCOPG3:
     from psycopg.rows import dict_row, namedtuple_row
     from psycopg.types.json import register_default_adapters
 
+try:
+    import psycopg2 as _psycopg2
+    import psycopg2.extras as _psycopg2_extras
+except (ImportError, ModuleNotFoundError):
+    _psycopg2 = None
+    _psycopg2_extras = None
+
+ppg2_connect: Callable[..., Any] | None = _psycopg2.connect if _psycopg2 else None
+DictCursor: type | None = _psycopg2_extras.DictCursor if _psycopg2_extras else None
+NamedTupleCursor: type | None = _psycopg2_extras.NamedTupleCursor if _psycopg2_extras else None
+RealDictCursor: type | None = _psycopg2_extras.RealDictCursor if _psycopg2_extras else None
+execute_values: Callable[..., Any] | None = _psycopg2_extras.execute_values if _psycopg2_extras else None
+
+
+def _require_psycopg2() -> NoReturn:
+    raise AirflowOptionalProviderFeatureException(
+        "psycopg2 is not installed. Please install it with "
+        "`pip install apache-airflow-providers-postgres[psycopg2]`."
+    )
+
+
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
+    from psycopg2.extras import (
+        DictCursor as _DictCursorType,
+        NamedTupleCursor as _NamedTupleCursorType,
+        RealDictCursor as _RealDictCursorType,
+    )
     from sqlalchemy.engine import URL
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
@@ -65,7 +89,7 @@ if TYPE_CHECKING:
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
 
-    CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
+    CursorType: TypeAlias = _DictCursorType | _RealDictCursorType | _NamedTupleCursorType
     CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
 
 
@@ -204,6 +228,9 @@ class PostgresHook(DbApiHook):
             valid_cursors = "dictcursor, namedtuplecursor"
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
+        if DictCursor is None:
+            _require_psycopg2()
+
         cursor_types = {
             "dictcursor": DictCursor,
             "realdictcursor": RealDictCursor,
@@ -234,6 +261,9 @@ class PostgresHook(DbApiHook):
                 connection.add_notice_handler(self._notice_handler)
 
             return connection
+
+        if ppg2_connect is None:
+            _require_psycopg2()
 
         return ppg2_connect(**conn_args)
 
@@ -691,6 +721,8 @@ class PostgresHook(DbApiHook):
             )
 
         # if fast_executemany is enabled with psycopg2, use optimized execute_values from psycopg
+        if execute_values is None:
+            _require_psycopg2()
         self._insert_statement_format = "INSERT INTO {} {} VALUES %s"
 
         nb_rows = 0
