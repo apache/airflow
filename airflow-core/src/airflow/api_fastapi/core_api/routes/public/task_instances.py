@@ -1010,6 +1010,14 @@ def patch_task_group_instances(
     )
 
     response_tis = tis
+    # Apply "note" before "state" so listeners fired inside _patch_task_group_state() see the updated note.
+    if "note" in data:
+        _patch_task_instance_note(
+            task_instance_body=body,
+            tis=response_tis,
+            user=user,
+            update_mask=update_mask,
+        )
     if "new_state" in data:
         response_tis = _patch_task_group_state(
             group_id=group_id,
@@ -1018,13 +1026,6 @@ def patch_task_group_instances(
             body=body,
             data=data,
             session=session,
-        )
-    if "note" in data:
-        _patch_task_instance_note(
-            task_instance_body=body,
-            tis=response_tis,
-            user=user,
-            update_mask=update_mask,
         )
 
     response_tis = _reload_tis_with_rendered_fields(response_tis, session)
@@ -1206,36 +1207,34 @@ def patch_task_instance(
         dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
     )
 
-    for key, _ in data.items():
-        if key == "new_state":
-            # Create BulkTaskInstanceBody object with map_index field
-            bulk_ti_body = BulkTaskInstanceBody(
-                task_id=task_id,
-                map_index=map_index,
-                new_state=body.new_state,
-                note=body.note,
-                include_upstream=body.include_upstream,
-                include_downstream=body.include_downstream,
-                include_future=body.include_future,
-                include_past=body.include_past,
-            )
-
-            _patch_task_instance_state(
-                task_id=task_id,
-                dag_run_id=dag_run_id,
-                dag=dag,
-                task_instance_body=bulk_ti_body,
-                data=data,
-                session=session,
-            )
-
-        elif key == "note":
-            _patch_task_instance_note(
-                task_instance_body=body,
-                tis=tis,
-                user=user,
-                update_mask=update_mask,
-            )
+    # Apply "note" before "state" so listeners fired inside _patch_task_instance_state() see the updated note.
+    if "note" in data:
+        _patch_task_instance_note(
+            task_instance_body=body,
+            tis=tis,
+            user=user,
+            update_mask=update_mask,
+        )
+    if "new_state" in data:
+        # Create BulkTaskInstanceBody object with map_index field
+        bulk_ti_body = BulkTaskInstanceBody(
+            task_id=task_id,
+            map_index=map_index,
+            new_state=body.new_state,
+            note=body.note,
+            include_upstream=body.include_upstream,
+            include_downstream=body.include_downstream,
+            include_future=body.include_future,
+            include_past=body.include_past,
+        )
+        _patch_task_instance_state(
+            task_id=task_id,
+            dag_run_id=dag_run_id,
+            dag=dag,
+            task_instance_body=bulk_ti_body,
+            data=data,
+            session=session,
+        )
 
     return TaskInstanceCollectionResponse(
         task_instances=[
