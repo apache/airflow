@@ -5918,7 +5918,7 @@ class TestCallbackSpans:
     def test_pre_post_execute_hook_spans(
         self, create_runtime_ti, mock_supervisor_comms, detail_level, expected_present
     ):
-        """pre_execute / post_execute hooks get callback.<kind> spans only at detail level > 1."""
+        """The instance hook and the method override each get a distinctly named span, only at detail level > 1."""
         exporter = InMemorySpanExporter()
         t = self._make_tracer(exporter)
         parent_ctx = TraceContextTextMapPropagator().extract(
@@ -5932,8 +5932,14 @@ class TestCallbackSpans:
             pass
 
         class MyOperator(BaseOperator):
+            def pre_execute(self, context):
+                pass
+
             def execute(self, context):
                 return "result"
+
+            def post_execute(self, context, result=None):
+                pass
 
         task = MyOperator(task_id="t", pre_execute=pre_hook, post_execute=post_hook)
         ti = create_runtime_ti(task=task)
@@ -5943,8 +5949,10 @@ class TestCallbackSpans:
                 _execute_task(ti.get_template_context(), ti, mock.MagicMock())
 
         names = {s.name for s in exporter.get_finished_spans()}
-        assert ("callback.pre_execute" in names) is expected_present
-        assert ("callback.post_execute" in names) is expected_present
+        assert ("callback.pre_execute_hook" in names) is expected_present
+        assert ("callback.pre_execute_override" in names) is expected_present
+        assert ("callback.post_execute_hook" in names) is expected_present
+        assert ("callback.post_execute_override" in names) is expected_present
 
 
 def test_dag_add_result(create_runtime_ti, mock_supervisor_comms):

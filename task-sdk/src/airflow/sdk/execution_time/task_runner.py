@@ -2148,9 +2148,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             create_executable_runner(hook, outlet_events, logger=log).run(*run_args)
 
     if (pre_execute_hook := task._pre_execute_hook) is not None:
-        _run_hook("pre_execute", pre_execute_hook, context)
+        _run_hook("pre_execute_hook", pre_execute_hook, context)
     if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-        _run_hook("pre_execute", pre_execute_hook, context)
+        _run_hook("pre_execute_override", pre_execute_hook, context)
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
@@ -2159,9 +2159,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     result = _run_execute_callable(context, execute, task)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
-        _run_hook("post_execute", post_execute_hook, context, result)
+        _run_hook("post_execute_hook", post_execute_hook, context, result)
     if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        _run_hook("post_execute", post_execute_hook, context)
+        _run_hook("post_execute_override", post_execute_hook, context)
 
     return result
 
