@@ -23,12 +23,19 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow.models.dag import DAG
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 
 from tests_common.test_utils.compat import timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
+else:
+    from airflow.models.dag import DAG  # type: ignore[no-redef]
 
 DEFAULT_TIMEZONE = pendulum.timezone("Asia/Singapore")  # UTC+08:00
 DEFAULT_DATE_WO_TZ = datetime(2015, 1, 1)
@@ -135,3 +142,37 @@ class TestTimeSensor:
             op.execute_complete(context={}, event={"status": "success"})
         except TypeError as e:
             pytest.fail(f"TypeError raised: {e}")
+
+    def test_start_from_trigger_is_ignored_with_warning(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="start_from_trigger is deprecated"):
+            op = TimeSensor(
+                task_id="test",
+                target_time=time(10, 0),
+                start_from_trigger=True,
+                trigger_kwargs={"moment": "2020-01-01T10:00:00Z"},
+            )
+
+        assert getattr(op, "start_from_trigger", False) is False
+        assert not hasattr(op, "_trigger_kwargs")
+
+    def test_ignored_start_from_trigger_keeps_serialized_dag_hash_stable(self):
+        def build_hash() -> str:
+            with pytest.warns(AirflowProviderDeprecationWarning, match="start_from_trigger is deprecated"):
+                with DAG(
+                    dag_id="test_ignored_start_from_trigger_hash",
+                    schedule=None,
+                    start_date=datetime(2020, 1, 1),
+                ) as dag:
+                    TimeSensor(
+                        task_id="test",
+                        target_time=time(10, 0),
+                        start_from_trigger=True,
+                    )
+            return LazyDeserializedDAG.from_dag(dag).hash
+
+        with time_machine.travel("2025-01-01 00:00:00", tick=False):
+            first_hash = build_hash()
+        with time_machine.travel("2025-01-02 00:00:00", tick=False):
+            second_hash = build_hash()
+
+        assert first_hash == second_hash
