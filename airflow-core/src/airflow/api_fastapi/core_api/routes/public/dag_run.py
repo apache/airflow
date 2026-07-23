@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import datetime
 import textwrap
 from typing import Annotated, Literal, cast
 
@@ -509,6 +510,7 @@ def get_dag_runs(
                     "dag_id",
                     "run_id",
                     "logical_date",
+                    "partition_date",
                     "run_after",
                     "start_date",
                     "end_date",
@@ -547,6 +549,21 @@ def get_dag_runs(
     partition_key_pattern: QueryDagRunPartitionKeySearch,
     partition_key_prefix_pattern: QueryDagRunPartitionKeyPrefixSearch,
     consuming_asset_pattern: QueryConsumingAssetPatternSearch,
+    partition_date_gte: datetime.date | None = Query(
+        None,
+        description=(
+            "Inclusive lower bound of the partition_date window, interpreted as a local calendar "
+            "day in the Dag's timetable timezone. Runs from the start of this day onwards match."
+        ),
+    ),
+    partition_date_lte: datetime.date | None = Query(
+        None,
+        description=(
+            "Inclusive upper bound of the partition_date window, interpreted as a local calendar "
+            "day in the Dag's timetable timezone. The whole day is included: runs up to the end "
+            "of this day match."
+        ),
+    ),
     cursor: str | None = Query(
         None,
         description="Cursor for keyset-based pagination. "
@@ -571,9 +588,46 @@ def get_dag_runs(
     use_cursor = cursor is not None
     query = select(DagRun).options(*eager_load_dag_run_for_list())
 
-    if dag_id != "~":
-        get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
+    has_partition_date_filter = partition_date_gte is not None or partition_date_lte is not None
+
+    if dag_id == "~":
+        if has_partition_date_filter:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "partition_date_gte and partition_date_lte require a specific dag_id.",
+            )
+    else:
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
         query = query.filter(DagRun.dag_id == dag_id).options()
+        if has_partition_date_filter:
+            # Runs of a non-partitioned Dag never carry a partition_date (this includes
+            # partitioned-at-runtime Dags, whose runs keep it NULL), so the filter would
+            # silently match nothing; reject it instead.
+            if not dag.timetable.partitioned:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Dag with dag_id: '{dag_id}' is not partitioned; "
+                    "partition_date_gte and partition_date_lte are not supported.",
+                )
+            # The bounds are calendar days, so the whole of partition_date_lte belongs to the
+            # window: widen it to the following local midnight and exclude that edge.
+            query = DagRun.apply_partition_date_window(
+                query,
+                timetable=dag.timetable,
+                start=(
+                    datetime.datetime.combine(partition_date_gte, datetime.time.min)
+                    if partition_date_gte is not None
+                    else None
+                ),
+                end=(
+                    datetime.datetime.combine(
+                        partition_date_lte + datetime.timedelta(days=1), datetime.time.min
+                    )
+                    if partition_date_lte is not None
+                    else None
+                ),
+                end_exclusive=True,
+            )
 
     # Add join with DagVersion if dag_version filter is active
     if dag_version.value:

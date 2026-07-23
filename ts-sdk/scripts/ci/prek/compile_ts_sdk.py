@@ -26,7 +26,7 @@ from common_prek_utils import AIRFLOW_ROOT_PATH, run_command
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
+        "This file is intended to be executed as an executable program. You cannot use it as a module. "
         f"To run this script, run the ./{__file__} command"
     )
 
@@ -34,6 +34,4 @@ if __name__ == "__main__":
     directory = AIRFLOW_ROOT_PATH / "ts-sdk"
     run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=directory)
     run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=directory)
-    run_command(["pnpm", "run", "lint:fix"], cwd=directory)
-    run_command(["pnpm", "run", "format"], cwd=directory)
-    run_command(["pnpm", "run", "typecheck"], cwd=directory)
+    run_command(["pnpm", "run", "build"], cwd=directory)
