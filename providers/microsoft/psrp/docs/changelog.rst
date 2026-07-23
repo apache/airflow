@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+Main
+....
+
+Breaking changes
+~~~~~~~~~~~~~~~~~
+
+* ``PsrpOperator`` no longer derives ``task_id`` from ``cmdlet``. ``cmdlet`` is a template field,
+  so validating and reading it in ``__init__`` operated on the un-rendered Jinja expression;
+  the parameter validation now runs in ``execute()``. Pass ``task_id`` explicitly when using
+  ``cmdlet``.
+
 3.2.6
 .....
 
