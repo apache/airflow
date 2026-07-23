@@ -52,6 +52,7 @@ from airflow.providers.openlineage.utils.utils import (
     _get_tasks_details,
     _truncate_string_to_byte_size,
     build_dag_run_ol_run_id,
+    build_task_event_job_facet_kwargs,
     build_task_event_job_facets,
     build_task_event_run_facets,
     build_task_instance_ol_run_id,
@@ -70,6 +71,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_parent_information_from_dagrun_conf,
     get_root_information_from_dagrun_conf,
     get_runtime_outlet_assets,
+    get_source_code_location_job_facet,
     get_task_documentation,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
@@ -78,6 +80,7 @@ from airflow.providers.openlineage.utils.utils import (
     translate_airflow_asset,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.definitions.dag import SourceCodeLocation
 from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils.edgemodifier import Label
@@ -4399,9 +4402,43 @@ def _job_task(**kw):
 
 
 def _job_dag(**kw):
-    defaults = dict(owner="dag_owner", tags=[], doc_md=None, description=None)
+    defaults = dict(owner="dag_owner", tags=[], doc_md=None, description=None, source_code_location=None)
     defaults.update(kw)
     return MagicMock(**defaults)
+
+
+def test_get_source_code_location_job_facet():
+    dag = DAG(
+        "dag",
+        schedule=None,
+        source_code_location=SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/example.py",
+            version="abc123",
+            branch="main",
+        ),
+    )
+
+    facets = get_source_code_location_job_facet(dag)
+
+    assert facets["sourceCodeLocation"].type == "git"
+    assert facets["sourceCodeLocation"].url == "https://github.com/apache/airflow.git"
+    assert facets["sourceCodeLocation"].repoUrl == "https://github.com/apache/airflow.git"
+    assert facets["sourceCodeLocation"].path == "dags/example.py"
+    assert facets["sourceCodeLocation"].version == "abc123"
+    assert facets["sourceCodeLocation"].branch == "main"
+
+
+def test_get_source_code_location_job_facet_returns_empty_for_missing_location():
+    dag = DAG("dag", schedule=None)
+
+    assert get_source_code_location_job_facet(dag) == {}
+
+
+def test_get_source_code_location_job_facet_returns_empty_for_mock_location():
+    dag = MagicMock()
+
+    assert get_source_code_location_job_facet(dag) == {}
 
 
 def test_build_task_event_job_facets_prefers_task_doc_over_dag_doc():
@@ -4427,6 +4464,43 @@ def test_build_task_event_job_facets_tags_sorted_from_dag():
         dag=_job_dag(owner="", tags=["b", "a"]),
     )
     assert [t.key for t in facets["tags"].tags] == ["a", "b"]
+
+
+def test_build_task_event_job_facets_includes_source_code_location_from_dag():
+    facets = build_task_event_job_facets(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(
+            owner="",
+            source_code_location=SourceCodeLocation(
+                repo_url="https://github.com/apache/airflow.git",
+                path="dags/example.py",
+                version="abc123",
+            ),
+        ),
+    )
+
+    assert facets["sourceCodeLocation"].url == "https://github.com/apache/airflow.git"
+    assert facets["sourceCodeLocation"].path == "dags/example.py"
+    assert facets["sourceCodeLocation"].version == "abc123"
+
+
+def test_build_task_event_job_facet_kwargs_includes_facets_when_source_location_is_set():
+    kwargs = build_task_event_job_facet_kwargs(
+        task=_job_task(owner="airflow"),
+        dag=_job_dag(
+            owner="",
+            source_code_location=SourceCodeLocation(
+                repo_url="https://github.com/apache/airflow.git",
+                path="dags/example.py",
+                version="abc123",
+            ),
+        ),
+    )
+
+    source_code_location_facet = kwargs["job_facets"]["sourceCodeLocation"]
+    assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+    assert source_code_location_facet.path == "dags/example.py"
+    assert source_code_location_facet.version == "abc123"
 
 
 def test_build_task_event_job_facets_minimal_when_nothing_set():

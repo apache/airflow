@@ -81,6 +81,7 @@ __all__ = [
     "RollupMapper",
     "SegmentWindow",
     "SkipMixin",
+    "SourceCodeLocation",
     "SyncCallback",
     "StartOfDayMapper",
     "StartOfHourMapper",
@@ -150,7 +151,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
-    from airflow.sdk.definitions.dag import DAG, dag
+    from airflow.sdk.definitions.dag import DAG, SourceCodeLocation, dag
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
     from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
@@ -284,6 +285,7 @@ __lazy_imports: dict[str, str] = {
     "SecretCache": ".execution_time.cache",
     "SegmentWindow": ".definitions.partition_mappers.window",
     "SkipMixin": ".bases.skipmixin",
+    "SourceCodeLocation": ".definitions.dag",
     "SyncCallback": ".definitions.callback",
     "StartOfDayMapper": ".definitions.partition_mappers.temporal",
     "StartOfHourMapper": ".definitions.partition_mappers.temporal",

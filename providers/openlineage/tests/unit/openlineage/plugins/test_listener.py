@@ -42,6 +42,7 @@ from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+from airflow.sdk.definitions.dag import SourceCodeLocation
 from airflow.utils import types
 from airflow.utils.state import DagRunState, State
 
@@ -463,6 +464,54 @@ class TestOpenLineageListenerAirflow2:
         task_instance.get_template_context()["task_reschedule_count"] = 0
 
         return listener, task_instance
+
+    @pytest.mark.parametrize("event_name", ["running", "success", "failed"])
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet", return_value={})
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet", return_value={})
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet", return_value={})
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet", return_value={}
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets", return_value={}
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_events_emit_source_code_location_job_facet(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_disabled,
+        mock_debug_facet,
+        event_name,
+    ):
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_disabled.return_value = EmissionPolicy.defaults()
+        task_instance.task.dag.source_code_location = SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/example.py",
+            version="abc123",
+        )
+        listener.extractor_manager.extract_metadata.return_value = OperatorLineage()
+        listener.adapter = OpenLineageAdapter()
+        listener.adapter.emit = mock.Mock(side_effect=lambda event: event)
+
+        if event_name == "running":
+            listener.on_task_instance_running(None, task_instance, None)
+        elif event_name == "success":
+            listener.on_task_instance_success(None, task_instance, None)
+        else:
+            listener.on_task_instance_failed(None, task_instance, ValueError("test"), None)
+
+        emitted_event = listener.adapter.emit.call_args.args[0]
+        source_code_location_facet = emitted_event.job.facets["sourceCodeLocation"]
+        assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+        assert source_code_location_facet.path == "dags/example.py"
+        assert source_code_location_facet.version == "abc123"
 
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
@@ -1118,6 +1167,49 @@ class TestOpenLineageListenerAirflow2:
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 tests")
 class TestOpenLineageListenerAirflow3:
+    @pytest.mark.parametrize(
+        "method",
+        ["on_dag_run_running", "on_dag_run_success", "on_dag_run_failed"],
+    )
+    @mock.patch.object(DagRun, "_get_partial_task_ids", return_value=[])
+    def test_dag_run_events_include_source_code_location_job_facet(self, mock_get_task_ids, method):
+        date = timezone.datetime(2022, 1, 1)
+        dag = DAG(
+            "dag",
+            schedule=None,
+            start_date=date,
+            source_code_location=SourceCodeLocation(
+                repo_url="https://github.com/apache/airflow.git",
+                path="dags/example.py",
+                version="abc123",
+            ),
+        )
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            run_id="run",
+            logical_date=date,
+            run_after=date,
+            start_date=date,
+        )
+        dag_run.end_date = date
+        dag_run.dag = dag
+
+        listener = OpenLineageListener()
+        listener._executor = mock.Mock(spec=["submit"])
+
+        getattr(listener, method)(dag_run, msg="test")
+
+        submitted_kwargs = listener._executor.submit.call_args.kwargs
+        source_code_location_facet = submitted_kwargs["job_facets"]["sourceCodeLocation"]
+        assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+        assert source_code_location_facet.path == "dags/example.py"
+        assert source_code_location_facet.version == "abc123"
+        if method == "on_dag_run_running":
+            assert "airflow" in submitted_kwargs["job_facets"]
+            mock_get_task_ids.assert_not_called()
+        else:
+            mock_get_task_ids.assert_called()
+
     @pytest.mark.skip("Rendering fields is not migrated yet in Airflow 3")
     @patch("airflow.models.BaseOperator.render_template")
     def test_listener_does_not_change_task_instance(self, render_mock, mock_supervisor_comms, spy_agency):
@@ -1385,6 +1477,56 @@ class TestOpenLineageListenerAirflow3:
         listener.adapter = adapter
 
         return listener, task_instance
+
+    @pytest.mark.parametrize("event_name", ["running", "success", "failed", "skipped"])
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet", return_value={})
+    @mock.patch("airflow.providers.openlineage.plugins.listener.resolve_task_emission_policy")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet", return_value={})
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet", return_value={})
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet", return_value={}
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets", return_value={}
+    )
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_task_events_emit_source_code_location_job_facet(
+        self,
+        mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
+        mock_get_airflow_run_facet,
+        mock_get_task_parent_run_facet,
+        mock_disabled,
+        mock_debug_facet,
+        event_name,
+    ):
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_disabled.return_value = EmissionPolicy.defaults()
+        task_instance.task.dag.source_code_location = SourceCodeLocation(
+            repo_url="https://github.com/apache/airflow.git",
+            path="dags/example.py",
+            version="abc123",
+        )
+        listener.extractor_manager.extract_metadata.return_value = OperatorLineage()
+        listener.adapter = OpenLineageAdapter()
+        listener.adapter.emit = mock.Mock(side_effect=lambda event: event)
+
+        if event_name == "running":
+            listener.on_task_instance_running(None, task_instance)
+        elif event_name == "success":
+            listener.on_task_instance_success(None, task_instance)
+        elif event_name == "failed":
+            listener.on_task_instance_failed(None, task_instance, ValueError("test"))
+        else:
+            listener.on_task_instance_skipped(None, task_instance)
+
+        emitted_event = listener.adapter.emit.call_args.args[0]
+        source_code_location_facet = emitted_event.job.facets["sourceCodeLocation"]
+        assert source_code_location_facet.url == "https://github.com/apache/airflow.git"
+        assert source_code_location_facet.path == "dags/example.py"
+        assert source_code_location_facet.version == "abc123"
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tags"),
