@@ -27,6 +27,10 @@ KubernetesPodOperator
 The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` allows
 you to create and run Pods on a Kubernetes cluster.
 
+The Kubernetes credentials used by this operator need permission to create and
+monitor Pods. Deferrable mode also requires the triggerer to have the relevant
+Kubernetes API permissions. See :ref:`kubernetes:rbac` for example RBAC rules.
+
 .. note::
   If you use a managed Kubernetes consider using a specialize KPO operator as it simplifies the Kubernetes authorization process :
 
@@ -713,6 +717,11 @@ KubernetesJobOperator
 
 The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator` allows
 you to create and run Jobs on a Kubernetes cluster.
+
+The Kubernetes credentials used by this operator need permission to create and
+monitor Jobs. If the operator waits for completion, streams logs, or cleans up
+discovered Pods, it also needs pod permissions. See :ref:`kubernetes:rbac` for
+example RBAC rules.
 
 .. note::
   If you use a managed Kubernetes consider using a specialize KJO operator as it simplifies the Kubernetes authorization process :
