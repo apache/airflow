@@ -1067,6 +1067,8 @@ export class DagRunService {
      * on the first page.
      * @param data The data for the request.
      * @param data.dagId
+     * @param data.partitionDateGte Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. Runs from the start of this day onwards match.
+     * @param data.partitionDateLte Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. The whole day is included: runs up to the end of this day match.
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.limit
      * @param data.offset
@@ -1099,7 +1101,7 @@ export class DagRunService {
      * @param data.state
      * @param data.dagVersion
      * @param data.bundleVersion
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
      * **Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database from using B-tree indexes, which can be very slow on large tables. Prefer the equivalent ``run_id_prefix_pattern`` parameter when possible.
@@ -1128,6 +1130,8 @@ export class DagRunService {
                 dag_id: data.dagId
             },
             query: {
+                partition_date_gte: data.partitionDateGte,
+                partition_date_lte: data.partitionDateLte,
                 cursor: data.cursor,
                 limit: data.limit,
                 offset: data.offset,

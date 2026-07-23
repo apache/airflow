@@ -3207,9 +3207,17 @@ export type GetDagRunsData = {
     logicalDateLte?: string | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      */
     orderBy?: Array<(string)>;
+    /**
+     * Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. Runs from the start of this day onwards match.
+     */
+    partitionDateGte?: string | null;
+    /**
+     * Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. The whole day is included: runs up to the end of this day match.
+     */
+    partitionDateLte?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). The pipe `|` is matched literally, not as an OR separator. Regular expressions are **not** supported.
      *
