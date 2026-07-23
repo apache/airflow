@@ -24,12 +24,14 @@ import { useDagServiceGetDagDetails } from "openapi/queries";
 import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton, RouterLink } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 import { renderDuration } from "src/utils";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const { dagId = "" } = useParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const { data: dag } = useDagServiceGetDagDetails({
     dagId,
@@ -53,6 +55,16 @@ export const Details = () => {
                 </HStack>
               </Table.Cell>
             </Table.Row>
+            {multiTeamEnabled && dag.team_name !== undefined && dag.team_name !== null ? (
+              <Table.Row data-testid="team-row">
+                <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
+                <Table.Cell>
+                  <RouterLink to={`/dags?teams=${encodeURIComponent(dag.team_name)}`}>
+                    {dag.team_name}
+                  </RouterLink>
+                </Table.Cell>
+              </Table.Row>
+            ) : undefined}
             <Table.Row data-testid="description-row">
               <Table.Cell>{translate("dagDetails.description")}</Table.Cell>
               <Table.Cell>{dag.description}</Table.Cell>

@@ -157,6 +157,7 @@ def get_task_instance(
             status.HTTP_404_NOT_FOUND, "Task instance is mapped, add the map_index value to the URL"
         )
 
+    attach_team_names([task_instance], session=session)
     return task_instance
 
 
@@ -443,6 +444,7 @@ def get_mapped_task_instance(
             f"The Mapped Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, and map_index: `{map_index}` was not found",
         )
 
+    attach_team_names([task_instance], session=session)
     return task_instance
 
 

@@ -29,12 +29,15 @@ import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import NotePreview from "src/components/NotePreview";
 import Time from "src/components/Time";
+import { RouterLink } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -53,6 +56,18 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
             value: Boolean(taskInstance.duration)
               ? renderDuration(taskInstance.duration)
               : getDuration(taskInstance.start_date, taskInstance.end_date),
+          },
+        ]
+      : []),
+    ...(multiTeamEnabled && taskInstance.team_name !== undefined && taskInstance.team_name !== null
+      ? [
+          {
+            label: translate("dagDetails.team"),
+            value: (
+              <RouterLink to={`/dags?teams=${encodeURIComponent(taskInstance.team_name)}`}>
+                {taskInstance.team_name}
+              </RouterLink>
+            ),
           },
         ]
       : []),

@@ -27,7 +27,7 @@ from sqlalchemy import delete, func, insert, select, update
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
-from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_query
+from airflow.api_fastapi.common.db.dags import attach_team_names, generate_dag_with_latest_run_query
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -258,6 +258,8 @@ def get_dag_details(
     # Add is_favorite and active_runs_count fields to the Dag model
     setattr(dag_model, "is_favorite", is_favorite)
     setattr(dag_model, "active_runs_count", active_runs_count)
+
+    attach_team_names([dag_model], session=session)
 
     return DAGDetailsResponse.model_validate(dag_model)
 
