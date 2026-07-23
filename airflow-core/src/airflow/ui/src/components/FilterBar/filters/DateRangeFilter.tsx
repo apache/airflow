@@ -39,6 +39,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
   const {
+    applyDateRange,
     editingState,
     endDateValue,
     formatDisplayValue,
@@ -64,6 +65,12 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
           defaultOpen={!hasValue}
           key={filter.id}
           lazyMount
+          onOpenChange={(details) => {
+            if (!details.open) {
+              // Submit the current editing state when the popover closes
+              applyDateRange();
+            }
+          }}
           positioning={{ placement: "bottom-start" }}
           unmountOnExit
         >
