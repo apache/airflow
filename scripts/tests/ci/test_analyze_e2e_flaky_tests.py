@@ -72,7 +72,7 @@ class TestIdentifyFlakyCandidates:
     def test_zero_runs(self, analyze_module):
         assert analyze_module.identify_flaky_candidates({"test": {}}, 0) == []
 
-    def test_identifies_flaky_test(self, analyze_module):
+    def test_failure_rate_counts_unique_failing_runs(self, analyze_module):
         failures = {
             "test_a": {
                 "count": 5,
@@ -84,15 +84,15 @@ class TestIdentifyFlakyCandidates:
         candidates = analyze_module.identify_flaky_candidates(failures, 5)
         assert len(candidates) == 1
         assert candidates[0]["test"] == "test_a"
-        assert candidates[0]["failure_rate"] > 0
+        assert candidates[0]["failure_rate"] == 60.0
 
-    def test_excludes_low_failure_rate(self, analyze_module):
+    def test_excludes_failure_seen_in_one_of_ten_runs(self, analyze_module):
         failures = {
             "test_a": {
                 "count": 1,
-                "browsers": ["chromium", "firefox", "webkit"],
+                "browsers": ["chromium"],
                 "errors": [],
-                "run_ids": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                "run_ids": [1],
             },
         }
         candidates = analyze_module.identify_flaky_candidates(failures, 10)
@@ -107,15 +107,15 @@ class TestIdentifyFlakyCandidates:
                 "run_ids": [1, 2, 3],
             },
             "test_high": {
-                "count": 10,
+                "count": 8,
                 "browsers": ["chromium"],
                 "errors": [],
-                "run_ids": [1, 2, 3],
+                "run_ids": [1, 2, 3, 4, 5, 6, 7, 8],
             },
         }
         candidates = analyze_module.identify_flaky_candidates(failures, 10)
-        if len(candidates) >= 2:
-            assert candidates[0]["failure_rate"] >= candidates[1]["failure_rate"]
+        assert [candidate["test"] for candidate in candidates] == ["test_high", "test_low"]
+        assert [candidate["failure_rate"] for candidate in candidates] == [80.0, 30.0]
 
 
 class TestFormatSlackMessage:

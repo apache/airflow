@@ -221,10 +221,8 @@ def identify_flaky_candidates(failures_by_test: dict[str, dict], runs_with_data:
 
     candidates = []
     for test_name, data in failures_by_test.items():
-        # Use runs where this test appeared rather than total runs * browsers,
-        # since not every test runs in every browser or every run.
-        runs_seen = len(data["run_ids"]) if data["run_ids"] else 1
-        failure_rate = data["count"] / (runs_seen * len(data["browsers"])) if data["browsers"] else 0
+        # A workflow run counts once even if the test failed in multiple browsers.
+        failure_rate = len(data["run_ids"]) / runs_with_data
         if failure_rate >= FLAKY_THRESHOLD:
             candidates.append(
                 {
