@@ -513,8 +513,10 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         for body in node.body:
             self.visit(body)
 
-        # Exit Dag with block
-        self.dag_detector.exit_dag_context()
+        # Only exit Dag with block if we entered it; unconditional exit would prematurely
+        # reset the context when a non-DAG with-statement is nested inside a DAG with block.
+        if is_with_dag_context:
+            self.dag_detector.exit_dag_context()
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         for decorator in node.decorator_list:
