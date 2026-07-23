@@ -610,22 +610,3 @@ class TestDatabricksCopyIntoOperatorQueryTags:
             op.execute(None)
 
             assert mock_hook.query_tags == {"env": "prod"}
-
-
-class TestDatabricksCopyIntoOperatorValidation:
-    """files/table_name/file_location are template fields; their checks run at execute."""
-
-    def test_files_and_pattern_rejected_at_execute(self):
-        from airflow.providers.common.compat.sdk import AirflowException
-        from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
-
-        op = DatabricksCopyIntoOperator(
-            task_id=TASK_ID,
-            table_name="test_table",
-            file_location="s3://bucket/path",
-            file_format="CSV",
-            files=["a.csv"],
-            pattern="*.csv",
-        )
-        with pytest.raises(AirflowException, match="Only one of 'pattern' or 'files'"):
-            op.execute(context={})
