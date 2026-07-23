@@ -42,6 +42,17 @@ Changelog
    ``pod_launch_failure_excluded_container_reasons`` option (default ``Error``) lists container
    reasons that are excluded from the requeue path.
 
+.. note::
+   ``KubernetesPodOperator.reattach_on_restart`` is deprecated in favour of the new ``durable``
+   parameter, which keeps the same meaning and the same ``True`` default. Passing
+   ``reattach_on_restart`` still works and still wins, but emits an
+   ``AirflowProviderDeprecationWarning`` on Airflow 3.3+ and will be removed in a future release —
+   rename the argument to ``durable`` in your Dags (including in ``default_args``). On Airflow
+   3.3+ the reattach itself also changes: the operator now reconnects using the pod identity it
+   persisted in the task state store rather than searching by label, which removes the ambiguity
+   failure that a label search hits when more than one matching pod exists. On older Airflow
+   versions the previous label-search behavior is unchanged.
+
 Features
 ~~~~~~~~
 

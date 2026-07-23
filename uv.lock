@@ -8281,7 +8281,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-weaviate"
-version = "3.3.6"
+version = "3.4.0"
 source = { editable = "providers/weaviate" }
 dependencies = [
     { name = "apache-airflow" },

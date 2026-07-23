@@ -28,6 +28,14 @@ Changelog
 0.7.0
 .....
 
+.. note::
+    The ``skills`` extra now requires ``pydantic-ai-skills>=1.2.0`` (previously ``>=0.11.0``);
+    the file-exclusion support added in #69924 relies on the 1.x API. Every 0.x release is
+    excluded, so environments that pin ``pydantic-ai-skills`` below 1.2.0 will fail to resolve
+    ``apache-airflow-providers-common-ai[skills]``. To migrate, upgrade ``pydantic-ai-skills``
+    to 1.2.0 or newer; if you cannot, stay on ``common.ai`` 0.6.0. Installations that do not use
+    the ``skills`` extra are unaffected.
+
 Features
 ~~~~~~~~
 

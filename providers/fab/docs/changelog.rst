@@ -39,21 +39,21 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Bump eslint (#69932)``
-* ``Bump prettier (#69835)``
 * ``Bump flask-appbuilder to 5.2.2 in FAB provider (#69730)``
-* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69664)``
 
 Doc-only
 ~~~~~~~~
 
 * ``Clarify FAB and Auth documentation regarding external_db_managers (#69929)``
-* ``Add upgrade-fab-provider skill and FAB contributing doc (#69729)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix flaky static checks caused by migration-reference hook race (#70170)``
    * ``[main] Upgrade important CI environment (#69694)``
+   * ``Bump eslint (#69932)``
+   * ``Bump prettier (#69835)``
+   * ``Add upgrade-fab-provider skill and FAB contributing doc (#69729)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69664)``
 
 
 3.7.2
