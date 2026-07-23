@@ -19,10 +19,9 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import structlog
 from google.api_core.exceptions import NotFound
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.providers.common.compat.bundles import BaseDagBundle
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
@@ -56,16 +55,14 @@ class GCSDagBundle(BaseDagBundle):
         self.prefix = prefix
         # Local path where GCS Dags are downloaded
         self.gcs_dags_dir: Path = self.base_dir
-
-        log = structlog.get_logger(__name__)
-        self._log = log.bind(
-            bundle_name=self.name,
-            version=self.version,
-            bucket_name=self.bucket_name,
-            prefix=self.prefix,
-            gcp_conn_id=self.gcp_conn_id,
-        )
         self._gcs_hook: GCSHook | None = None
+
+    def _log_context(self) -> dict:
+        return {
+            "bucket_name": self.bucket_name,
+            "prefix": self.prefix,
+            "gcp_conn_id": self.gcp_conn_id,
+        }
 
     def _initialize(self):
         with self.lock():
