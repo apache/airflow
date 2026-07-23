@@ -1583,6 +1583,7 @@ Splunk
 Sql
 sql
 sqla
+sqladmin
 Sqlalchemy
 sqlalchemy
 sqlglot
