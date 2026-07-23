@@ -57,6 +57,7 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.atlassian.jira.hooks.jira.JiraHook",
                 "hook-name": "JIRA",
                 "connection-type": "jira",
+                "conn-fields": {"verify": {"label": "Verify SSL", "schema": {"type": ["boolean", "null"]}}},
             }
         ],
         "notifications": ["airflow.providers.atlassian.jira.notifications.jira.JiraNotifier"],
