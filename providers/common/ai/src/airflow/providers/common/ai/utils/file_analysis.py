@@ -18,11 +18,13 @@
 
 from __future__ import annotations
 
+import bz2
 import csv
 import gzip
 import io
 import json
 import logging
+import lzma
 from bisect import insort
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -38,7 +40,7 @@ from airflow.providers.common.ai.exceptions import (
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, ObjectStoragePath
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pydantic_ai.messages import UserContent
 
@@ -63,7 +65,12 @@ _COMPRESSION_SUFFIXES = {
     "xz": "xz",
     "zst": "zstd",
 }
-_GZIP_SUPPORTED_FORMATS = frozenset({"csv", "json", "log"})
+_DECOMPRESSORS: dict[str, Callable[..., io.BufferedIOBase]] = {
+    "bzip2": bz2.open,
+    "gzip": gzip.open,
+    "xz": lzma.open,
+}
+_COMPRESSION_SUPPORTED_FORMATS = frozenset({"csv", "json", "log"})
 _TEXT_SAMPLE_HEAD_CHARS = 8_000
 _TEXT_SAMPLE_TAIL_CHARS = 2_000
 _MEDIA_TYPES = {
@@ -369,12 +376,12 @@ def detect_file_format(path: ObjectStoragePath) -> tuple[str, str | None]:
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Unsupported file format {detected!r} for {path}. Supported formats: {', '.join(SUPPORTED_FILE_FORMATS)}."
         )
-    if compression and compression != "gzip":
+    if compression and compression not in _DECOMPRESSORS:
         log.info("Rejecting file %s because compression=%s is not supported.", path, compression)
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Compression {compression!r} is not supported for file analysis."
         )
-    if compression == "gzip" and detected not in _GZIP_SUPPORTED_FORMATS:
+    if compression and detected not in _COMPRESSION_SUPPORTED_FORMATS:
         raise LLMFileAnalysisUnsupportedFormatError(
             f"Compression {compression!r} is not supported for {detected!r} file analysis."
         )
@@ -535,10 +542,10 @@ def _render_avro(path: ObjectStoragePath, *, sample_rows: int, max_content_bytes
 
 def _read_raw_bytes(path: ObjectStoragePath, *, compression: str | None, max_bytes: int) -> bytes:
     with path.open("rb") as handle:
-        if compression == "gzip":
-            with gzip.GzipFile(fileobj=handle) as gzip_handle:
-                return _read_limited_bytes(gzip_handle, path=path, max_bytes=max_bytes)
-        return _read_limited_bytes(handle, path=path, max_bytes=max_bytes)
+        if compression is None:
+            return _read_limited_bytes(handle, path=path, max_bytes=max_bytes)
+        with _DECOMPRESSORS[compression](handle) as decompressed:
+            return _read_limited_bytes(decompressed, path=path, max_bytes=max_bytes)
 
 
 def _read_limited_bytes(handle: io.BufferedIOBase, *, path: ObjectStoragePath, max_bytes: int) -> bytes:

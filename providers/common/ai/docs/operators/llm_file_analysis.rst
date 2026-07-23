@@ -155,9 +155,10 @@ Supported Formats
 
 - Text-like: ``.log``, ``.json``, ``.csv``, ``.parquet``, ``.avro``
 - Multimodal: ``.png``, ``.jpg``, ``.jpeg``, ``.pdf`` when ``multi_modal=True``
-- Gzip-compressed text inputs are supported for ``.log.gz``, ``.json.gz``, and
-  ``.csv.gz``.
-- Gzip is not supported for ``.parquet``, ``.avro``, image, or PDF inputs.
+- ``gzip``, ``bzip2``, and ``xz`` compressed text inputs are supported for
+  ``.log``, ``.json``, and ``.csv`` (``.log.gz``, ``.csv.bz2``, ``.json.xz``, ...).
+- Compression is not supported for ``.parquet``, ``.avro``, image, or PDF
+  inputs.
 
 Parquet and Avro readers require their corresponding optional extras:
 
