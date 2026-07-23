@@ -573,7 +573,7 @@ class SmtpHook(BaseHook):
             basename = os.path.basename(fname)
             with open(fname, "rb") as file:
                 part = MIMEApplication(file.read(), Name=basename)
-                part["Content-Disposition"] = f'attachment; filename="{basename}"'
+                part.add_header("Content-Disposition", "attachment", filename=basename)
                 part["Content-ID"] = f"<{basename}>"
                 msg.attach(part)
 
