@@ -136,13 +136,6 @@ class DocumentLoaderOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        if source_path is not None and source_bytes is not None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
-        if source_path is None and source_bytes is None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
-        if source_bytes is not None and file_type is None:
-            raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
-
         self.source_path = source_path
         self.source_conn_id = source_conn_id
         self.source_bytes = source_bytes
@@ -155,12 +148,20 @@ class DocumentLoaderOperator(BaseOperator):
         self.json_text_field = json_text_field
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
+        # source_path/file_type are template fields; validate after rendering, not in __init__
+        # where they are still the un-rendered Jinja expressions.
+        if self.source_path is not None and self.source_bytes is not None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
+        if self.source_path is None and self.source_bytes is None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
+        if self.source_bytes is not None and self.file_type is None:
+            raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
         if self.source_bytes is not None:
-            assert self.file_type is not None  # noqa: S101 -- enforced in __init__
+            assert self.file_type is not None  # noqa: S101 -- enforced above
             documents = self._parse_bytes(self.source_bytes, self.file_type)
             file_count = 1
         else:
-            assert self.source_path is not None  # noqa: S101 -- enforced in __init__
+            assert self.source_path is not None  # noqa: S101 -- enforced above
             files = self._resolve_files(self.source_path)
             if not files:
                 raise FileNotFoundError(f"No files found matching '{self.source_path}'.")
