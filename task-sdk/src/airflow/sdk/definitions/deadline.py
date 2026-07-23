@@ -389,9 +389,19 @@ class VariableInterval:
             value = Variable.get(self.key)
         except AirflowRuntimeError as e:
             raise ValueError(f"VariableInterval '{self.key}' not found") from e
+        return self.coerce_to_timedelta(value)
 
+    def coerce_to_timedelta(self, value: str | int | float | None) -> timedelta:
+        """
+        Validate a raw Variable value and convert it into a ``timedelta``.
+
+        Split out from :meth:`resolve` so callers that already hold the Variable value (e.g. a
+        scheduler-side reader that must fetch it on its own session — see
+        ``DAG._process_dagrun_deadline_alerts`` — to avoid committing inside ``prohibit_commit``)
+        can reuse the exact same validation without going through ``Variable.get``.
+        """
         try:
-            seconds = int(value)
+            seconds = int(value)  # type: ignore[arg-type]  # None/non-numeric handled by the except below
         except (TypeError, ValueError) as e:
             raise ValueError(
                 f"VariableInterval '{self.key}' must be an integer (seconds), got: {value!r}"
@@ -400,4 +410,11 @@ class VariableInterval:
         if seconds <= 0:
             raise ValueError(f"VariableInterval '{self.key}' must be > 0, got: {seconds}")
 
-        return timedelta(seconds=seconds)
+        try:
+            return timedelta(seconds=seconds)
+        except OverflowError as e:
+            # A huge value overflows ``timedelta`` (OverflowError, not a ValueError subclass).
+            # Translate it to a clean ValueError so callers get a consistent error.
+            raise ValueError(
+                f"VariableInterval '{self.key}' is too large to be a valid interval: {seconds} seconds"
+            ) from e
