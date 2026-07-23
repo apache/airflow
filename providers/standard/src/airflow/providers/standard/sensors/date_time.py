@@ -63,30 +63,24 @@ class DateTimeSensor(BaseSensorOperator):
 
     def __init__(self, *, target_time: str | datetime.datetime, **kwargs) -> None:
         super().__init__(**kwargs)
-
-        # self.target_time can't be a datetime object as it is a template_field
-        if isinstance(target_time, datetime.datetime):
-            self.target_time = target_time.isoformat()
-        elif isinstance(target_time, str):
-            self.target_time = target_time
-        else:
-            raise TypeError(
-                f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}"
-            )
+        # target_time is a template field, so it is rendered after __init__ runs. Store it
+        # verbatim and defer validation/normalization to _moment, which sees the rendered value.
+        self.target_time = target_time
 
     def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_time)
-        return timezone.utcnow() > timezone.parse(self.target_time)
+        return timezone.utcnow() > self._moment
 
     @property
     def _moment(self) -> datetime.datetime:
-        # Note following is reachable code if Jinja is used for redering template fields and
-        # render_template_as_native_obj=True is used.
-        # In this case, the target_time is already a datetime object.
-        if isinstance(self.target_time, datetime.datetime):  # type:ignore[unreachable]
-            return self.target_time  # type:ignore[unreachable]
-
-        return timezone.parse(self.target_time)
+        # target_time is a template field: after rendering it is usually a string, but with
+        # render_template_as_native_obj=True it can already be a datetime.
+        target_time: Any = self.target_time
+        if isinstance(target_time, datetime.datetime):
+            return target_time
+        if isinstance(target_time, str):
+            return timezone.parse(target_time)
+        raise TypeError(f"Expected str or datetime.datetime type for target_time. Got {type(target_time)}")
 
 
 class DateTimeSensorAsync(DateTimeSensor):
@@ -126,7 +120,7 @@ class DateTimeSensorAsync(DateTimeSensor):
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
             self.start_trigger_args.trigger_kwargs = dict(
-                moment=timezone.parse(self.target_time),
+                moment=self._moment,
                 end_from_trigger=self.end_from_trigger,
             )
 
