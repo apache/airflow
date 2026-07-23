@@ -23,7 +23,6 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker.py::SageMa
 providers/amazon/src/airflow/providers/amazon/aws/operators/step_function.py::StepFunctionStartExecutionOperator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/base.py::AwsToAwsBaseOperator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::GCSToS3Operator
-providers/amazon/src/airflow/providers/amazon/aws/transfers/mongo_to_s3.py::MongoToS3Operator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::S3ToRedshiftOperator
 providers/anthropic/src/airflow/providers/anthropic/operators/agent.py::AnthropicAgentSessionOperator
 providers/apache/hive/src/airflow/providers/apache/hive/sensors/hive_partition.py::HivePartitionSensor
