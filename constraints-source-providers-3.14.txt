@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-22T17:33:55.299495
+# This constraints file was automatically generated on 2026-07-23T05:55:54.238398
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -45,7 +45,7 @@ a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2026.5.0
 aenum==3.1.17
-aiobotocore==3.7.0
+aiobotocore==3.8.0
 aiofile==3.11.1
 aiofiles==24.1.0
 aiohappyeyeballs==2.7.1
@@ -60,18 +60,21 @@ airbyte-api==1.0.1
 akeyless==5.0.28
 alabaster==1.0.0
 alembic==1.18.5
-alibabacloud-adb20211201==3.7.1
+alibabacloud-adb20211201==3.7.0
 alibabacloud-credentials-api==1.0.1
 alibabacloud-credentials==1.0.10
 alibabacloud-gateway-spi==0.0.4
+alibabacloud-openapi-util==0.2.4
 alibabacloud-oss-v2==1.3.2
-alibabacloud-tea-openapi==0.4.5
-alibabacloud-tea-util==0.3.14
+alibabacloud-tea-util==0.3.15
 alibabacloud-tea==0.4.3
+alibabacloud_endpoint_util==0.0.4
+alibabacloud_tea_openapi==0.3.16
+alibabacloud_tea_xml==0.0.3
 amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
-anthropic==0.116.0
+anthropic==0.117.0
 anyio==4.14.2
 apispec==6.10.0
 apprise==1.12.0
@@ -97,7 +100,7 @@ azure-ai-projects==2.3.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.41.0
-azure-cosmos==4.16.1
+azure-cosmos==4.16.2
 azure-datalake-store==0.0.53
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.0
@@ -131,8 +134,8 @@ bitarray==3.9.0
 black==26.5.1
 bleach==6.4.0
 blinker==1.9.0
-boto3==1.43.0
-botocore==1.43.0
+boto3==1.43.46
+botocore==1.43.46
 cachelib==0.14.0
 cachetools==6.2.6
 cadwyn==7.0.0
@@ -144,7 +147,7 @@ certifi==2026.6.17
 cffi==2.1.0
 cfgv==3.5.0
 cfn-lint==1.53.0
-chardet==6.0.0.post1
+chardet==7.4.3
 charset-normalizer==3.4.9
 ciso8601==2.3.3
 click-didyoumean==0.3.1
@@ -156,16 +159,15 @@ cloudpickle==3.1.1
 cohere==7.0.5
 colorama==0.4.6
 colorful==0.5.8
-colorlog==6.10.1
+colorlog==6.11.0
 comm==0.2.3
 confluent-kafka==2.15.0
 coverage==7.15.2
 crcmod-plus==2.3.1
 cron_descriptor==2.1.0
 croniter==6.2.4
-cryptography==48.0.1
+cryptography==49.0.0
 curlify==3.0.0
-darabonba-core==1.0.8
 databricks-sql-connector==4.2.5
 databricks-sqlalchemy==2.0.10
 dataclasses-json==0.6.7
@@ -199,15 +201,15 @@ eventlet==0.41.0
 exceptiongroup==1.3.1
 execnet==2.1.2
 executing==2.2.1
-facebook_business==25.0.2
-fastapi-cli==0.0.30
+facebook_business==25.0.3
+fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
 fastcore==2.1.1
 fastjsonschema==2.21.2
 fastmcp-slim==3.4.4
 fastuuid==0.14.0
-filelock==3.30.0
+filelock==3.31.0
 filetype==1.2.0
 flask-appbuilder==5.2.2
 flask-babel==4.0.0
@@ -217,7 +219,7 @@ flower==2.0.1
 frozenlist==1.8.0
 fsspec==2026.6.0
 future==1.0.0
-gcloud-aio-auth==5.4.4
+gcloud-aio-auth==5.5.0
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.4
 gcsfs==2026.7.0
@@ -226,7 +228,7 @@ gevent==26.5.0
 gitdb==4.0.12
 google-ads==31.1.0
 google-analytics-admin==0.30.1
-google-api-core==2.31.0
+google-api-core==2.32.0
 google-api-python-client==2.198.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.4.0
@@ -236,13 +238,13 @@ google-cloud-alloydb==0.11.0
 google-cloud-appengine-logging==1.10.0
 google-cloud-audit-log==0.6.0
 google-cloud-automl==2.20.0
-google-cloud-batch==0.22.0
+google-cloud-batch==0.22.1
 google-cloud-bigquery-datatransfer==3.23.0
 google-cloud-bigquery-storage==2.39.0
 google-cloud-bigquery==3.42.2
-google-cloud-bigtable==2.40.0
+google-cloud-bigtable==2.41.0
 google-cloud-build==3.38.0
-google-cloud-compute==1.49.0
+google-cloud-compute==1.50.0
 google-cloud-container==2.65.0
 google-cloud-core==2.6.0
 google-cloud-datacatalog==3.31.0
@@ -252,7 +254,7 @@ google-cloud-dataplex==2.20.0
 google-cloud-dataproc-metastore==1.23.0
 google-cloud-dataproc==5.30.0
 google-cloud-dlp==3.38.0
-google-cloud-kms==3.15.0
+google-cloud-kms==3.16.0
 google-cloud-language==2.21.0
 google-cloud-logging==3.16.1
 google-cloud-managedkafka==0.4.1
@@ -264,7 +266,7 @@ google-cloud-pubsub==2.39.0
 google-cloud-redis==2.22.0
 google-cloud-resource-manager==1.18.0
 google-cloud-run==0.16.1
-google-cloud-secret-manager==2.29.0
+google-cloud-secret-manager==2.30.0
 google-cloud-spanner==3.69.0
 google-cloud-speech==2.40.0
 google-cloud-storage-control==1.12.0
@@ -302,7 +304,7 @@ h2==4.3.0
 hatch==1.17.1
 hatchling==1.31.0
 hdfs==2.7.3
-hf-xet==1.5.1
+hf-xet==1.5.2
 hmsclient==0.1.1
 hpack==4.2.0
 httpcore2==2.7.0
@@ -313,7 +315,7 @@ httptools==0.8.0
 httpx-sse==0.4.3
 httpx2==2.7.0
 httpx==0.28.1
-huggingface_hub==1.23.0
+huggingface_hub==1.24.0
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -374,12 +376,12 @@ kubernetes_asyncio==36.1.0
 kylinpy==2.8.4
 langchain-core==1.4.9
 langchain-protocol==0.0.18
-langchain==1.3.13
+langchain==1.3.14
 langgraph-checkpoint==4.1.1
 langgraph-prebuilt==1.1.0
 langgraph-sdk==0.4.2
 langgraph==1.2.9
-langsmith==0.10.5
+langsmith==0.10.6
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 librt==0.13.0
@@ -427,9 +429,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.1
 mypy-boto3-appflow==1.43.23
-mypy-boto3-rds==1.43.49
+mypy-boto3-rds==1.43.51
 mypy-boto3-redshift-data==1.43.0
-mypy-boto3-s3==1.43.31
+mypy-boto3-s3==1.43.50
 mypy==2.3.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.6.0
@@ -448,7 +450,7 @@ nltk==3.10.0
 nodeenv==1.10.0
 numpy==2.5.1
 oauthlib==3.3.1
-openai==2.45.0
+openai==2.46.0
 openapi-schema-validator==0.9.0
 openapi-spec-validator==0.9.0
 opencensus-context==0.1.3
@@ -459,16 +461,16 @@ openlineage_sql==1.51.0
 openpyxl==3.1.5
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
-opentelemetry-api==1.43.0
-opentelemetry-exporter-otlp-proto-common==1.43.0
-opentelemetry-exporter-otlp-proto-grpc==1.43.0
-opentelemetry-exporter-otlp-proto-http==1.43.0
-opentelemetry-exporter-otlp==1.43.0
-opentelemetry-exporter-prometheus==0.64b0
-opentelemetry-proto==1.43.0
+opentelemetry-api==1.44.0
+opentelemetry-exporter-otlp-proto-common==1.44.0
+opentelemetry-exporter-otlp-proto-grpc==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-exporter-otlp==1.44.0
+opentelemetry-exporter-prometheus==0.65b0
+opentelemetry-proto==1.44.0
 opentelemetry-resourcedetector-gcp==1.12.0a0
-opentelemetry-sdk==1.43.0
-opentelemetry-semantic-conventions==0.64b0
+opentelemetry-sdk==1.44.0
+opentelemetry-semantic-conventions==0.65b0
 opsgenie-sdk==2.1.5
 oracledb==4.0.2
 ordered-set==4.1.0
@@ -497,7 +499,7 @@ pillow==12.3.0
 pinecone==9.1.0
 pinotdb==9.1.2
 pipdeptree==3.1.1
-platformdirs==4.10.0
+platformdirs==4.10.1
 pluggy==1.6.0
 plyvel==1.5.1
 polars-runtime-32==1.42.1
@@ -505,7 +507,7 @@ polars==1.42.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.6.0
-prek==0.4.9
+prek==0.4.10
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.25.0
@@ -524,7 +526,7 @@ py-key-value-aio==0.4.5
 py-partiql-parser==0.6.3
 py-spy==0.4.2
 py4j==0.10.9.9
-pyOpenSSL==26.2.0
+pyOpenSSL==26.3.0
 pyarrow==25.0.0
 pyasn1==0.6.4
 pyasn1_modules==0.4.2
@@ -533,9 +535,9 @@ pycountry==26.2.16
 pycparser==3.0
 pycryptodome==3.23.0
 pydantic-ai-skills==1.2.0
-pydantic-ai-slim==2.11.0
+pydantic-ai-slim==2.13.0
 pydantic-extra-types==2.11.1
-pydantic-graph==2.11.0
+pydantic-graph==2.13.0
 pydantic-settings==2.14.2
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -588,7 +590,7 @@ pyvespa==1.2.4
 pywinrm==0.5.0
 pyzmq==27.1.0
 qdrant-client==1.18.0
-ray==2.56.0
+ray==2.56.1
 reactivex==4.1.0
 readme_renderer==45.0
 redis==6.4.0
@@ -615,9 +617,9 @@ roman-numerals==4.1.0
 rpds-py==2026.6.3
 rsa==4.9.1
 ruamel.yaml==0.19.1
-ruff==0.15.21
+ruff==0.15.22
 s3fs==2026.6.0
-s3transfer==0.17.1
+s3transfer==0.19.1
 sagemaker_studio==1.0.26
 scikit-learn==1.9.0
 scipy==1.18.0
@@ -626,7 +628,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.6
 semver==3.0.4
 sendgrid==6.12.5
-sentry-sdk==2.65.0
+sentry-sdk==2.66.0
 setproctitle==1.3.7
 setuptools==83.0.0
 shellingham==1.5.4
@@ -669,7 +671,7 @@ sse-starlette==3.4.5
 stack-data==0.6.3
 starlette==1.3.1
 statsd==4.0.1
-std-uritemplate==2.0.11
+std-uritemplate==2.0.12
 strictyaml==1.7.3
 structlog==26.1.0
 svcs==26.1.0
@@ -693,10 +695,10 @@ tinycss2==1.5.1
 tinytag==2.2.1
 tokenizers==0.23.1
 tomli_w==1.2.0
-tomlkit==0.15.0
+tomlkit==0.15.1
 tornado==6.5.7
 towncrier==25.8.0
-tqdm==4.68.4
+tqdm==4.69.0
 traitlets==5.15.1
 trino==0.338.0
 trove-classifiers==2026.6.1.19
