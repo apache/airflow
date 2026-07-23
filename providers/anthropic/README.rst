@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-anthropic``
 
-Release: ``0.1.0``
+Release: ``0.2.0``
 
 
 `Anthropic <https://docs.claude.com/>`__ provider for Apache Airflow.
@@ -38,7 +38,7 @@ This is a provider package for ``anthropic`` provider. All classes for this prov
 are in ``airflow.providers.anthropic`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.2.0/>`_.
 
 Installation
 ------------
@@ -72,4 +72,4 @@ Extra        Dependencies
 ===========  ===============================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-anthropic/0.2.0/changelog.html>`_.

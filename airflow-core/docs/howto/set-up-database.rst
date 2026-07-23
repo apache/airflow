@@ -197,11 +197,33 @@ in the Postgres documentation to learn more.
 
    Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/20/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
 
-We recommend specifying a driver, such as ``psycopg2``, explicitly in your SQLAlchemy connection string:
+We recommend specifying a driver, such as ``psycopg``, explicitly in your SQLAlchemy connection string:
 
 .. code-block:: text
 
    postgresql+<driver>://<user>:<password>@<host>/<db>
+
+Sync SQLAlchemy engine and the sync driver
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``psycopg`` (psycopg3) is the default synchronous driver for the metadata database. When ``sql_alchemy_conn`` omits a driver
+(a bare ``postgresql://`` scheme) or still uses the legacy ``postgres://`` / ``postgres+psycopg2://`` schemes, Airflow
+rewrites it to:
+
+.. code-block:: text
+
+   postgresql+psycopg://<user>:<password>@<host>/<db>
+
+If you need the old ``psycopg2`` driver, install the ``apache-airflow-providers-postgres[psycopg2]`` extra and set the
+connection string explicitly:
+
+.. code-block:: ini
+
+   [database]
+   sql_alchemy_conn = postgresql+psycopg2://<user>:<password>@<host>/<db>
+
+An explicit ``postgresql+psycopg2://`` URL is never rewritten. If ``psycopg2`` is not installed while such a URL is
+configured, Airflow fails loudly at connection time rather than silently falling back to a different driver.
 
 Async SQLAlchemy engine and the async driver
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -387,7 +409,7 @@ For instance, you can specify a database schema where Airflow will create its re
 
 .. code-block:: bash
 
-    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg2://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
     export AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA="airflow"
 
 Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.

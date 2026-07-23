@@ -2327,14 +2327,24 @@ class DagRun(Base, LoggingMixin):
         timetable: Timetable,
         start: datetime | None,
         end: datetime | None,
+        end_exclusive: bool = False,
     ) -> Select:
-        """Filter stmt to the inclusive interval [lower, upper] on partition_date."""
+        """
+        Filter stmt to a partition_date window bounded by *start* and *end*.
+
+        The lower bound is always inclusive. The upper bound is inclusive by default;
+        pass ``end_exclusive=True`` when *end* is the open edge of the window, as with
+        a date-only filter widened to the following local midnight.
+        """
         if start is not None:
             lower = timetable.localize_partition_datetime(start)
             stmt = stmt.where(DagRun.partition_date >= lower)
         if end is not None:
             upper = timetable.localize_partition_datetime(end)
-            stmt = stmt.where(DagRun.partition_date <= upper)
+            if end_exclusive:
+                stmt = stmt.where(DagRun.partition_date < upper)
+            else:
+                stmt = stmt.where(DagRun.partition_date <= upper)
         return stmt
 
 
