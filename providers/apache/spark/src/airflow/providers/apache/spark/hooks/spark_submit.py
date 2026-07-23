@@ -1170,7 +1170,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _poll_k8s_driver_via_api(self) -> str | None:
         """
-        Poll the K8s driver pod phase until it reaches a terminal state.
+        Poll the K8s driver container status or pod phase until it reaches a terminal state.
 
         Returns the terminal phase string (e.g. ``"Succeeded"``) on normal completion,
         or ``None`` if the pod vanished mid-poll (404 — likely deleted by ``on_kill``).
@@ -1194,7 +1194,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         consecutive_api_errors = 0
         max_consecutive_api_errors = 3
         consecutive_pending = 0
-        pending_warn_threshold = 10
+        consecutive_waiting = 0
+        waiting_or_pending_warn_threshold = 10
+        terminal_phase: str | None = None
 
         try:
             if not pod_name:
@@ -1225,7 +1227,38 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         ) from e
                     time.sleep(poll_interval)
                     continue
+                driver_container = None
 
+                for container in pod.spec.containers:
+                    if "spark" in container.name.lower() or "driver" in container.name.lower():
+                        driver_container = container
+                        break
+                    if len(pod.spec.containers) == 1:
+                        driver_container = container
+                container_completed = False
+                if driver_container:
+                    for status in pod.status.container_statuses or []:
+                        if status.name == driver_container.name:
+                            if status.state and status.state.terminated:
+                                driver_exit_code = status.state.terminated.exit_code
+                                if driver_exit_code == 0:
+                                    container_completed = True
+                                    break
+                                raise RuntimeError(
+                                    f"Spark application {app_id} failed.\nThe driver container exited with a non-zero status code.\nExit code: {driver_exit_code}\nReason: {status.state.terminated.reason}"
+                                )
+                            if status.state and status.state.waiting:
+                                consecutive_waiting += 1
+                                if consecutive_waiting == waiting_or_pending_warn_threshold:
+                                    self.log.warning(
+                                        "Driver container %s has been waiting for %d polls (~%ds); "
+                                        "it may be unschedulable. Continuing to wait — set execution_timeout to bound wait time.",
+                                        driver_container.name,
+                                        consecutive_waiting,
+                                        consecutive_waiting * poll_interval,
+                                    )
+                            else:
+                                consecutive_waiting = 0
                 phase = pod.status.phase or "Initializing"
                 self.log.info("Application status for %s (phase: %s)", app_id, phase)
                 if phase == "Succeeded":
@@ -1242,7 +1275,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                             )
                     terminal_phase = phase
                     break
-                if phase == "Failed":
+                if phase == "Failed" and not container_completed:
                     container_state = ""
                     if pod.status.container_statuses:
                         cs = pod.status.container_statuses[0]
@@ -1251,7 +1284,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
                 if phase == "Pending":
                     consecutive_pending += 1
-                    if consecutive_pending == pending_warn_threshold:
+                    if consecutive_pending == waiting_or_pending_warn_threshold:
                         self.log.warning(
                             "Driver pod %s has been Pending for %d polls (~%ds); "
                             "it may be unschedulable. Continuing to wait — set execution_timeout to bound wait time.",
@@ -1273,6 +1306,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                         )
                 else:
                     consecutive_unknown = 0
+                if container_completed:
+                    # Driver container exited 0 — the application succeeded even if the
+                    # pod phase still reads "Running" at this poll.
+                    terminal_phase = "Succeeded"
+                    break
                 time.sleep(poll_interval)
             # Pod deletion is best-effort cleanup. If it fails (e.g. already garbage collected or RBAC
             # denied), suppress the error so terminal_phase is still returned and the task
