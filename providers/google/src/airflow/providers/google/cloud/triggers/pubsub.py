@@ -87,9 +87,7 @@ class PubsubPullTrigger(BaseEventTrigger):
         self.impersonation_chain = impersonation_chain
         if return_immediately is not None:
             warnings.warn(
-                "The `return_immediately` parameter is deprecated and will be removed in a future release. "
-                "Its default value will be changed to `False` in the next major release. "
-                "Planned removal date: August 01, 2026.",
+                "The default value of `return_immediately` will be changed to `False` in a future release.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
