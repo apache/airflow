@@ -135,3 +135,28 @@ class TestTimeSensor:
             op.execute_complete(context={}, event={"status": "success"})
         except TypeError as e:
             pytest.fail(f"TypeError raised: {e}")
+
+    def test_start_from_trigger_raises_value_error(self):
+        with DAG(
+            dag_id="test_start_from_trigger_raises",
+            schedule=None,
+            start_date=datetime(2020, 1, 1, 13, 0),
+        ):
+            with pytest.raises(ValueError, match="TimeSensor does not support start_from_trigger=True"):
+                TimeSensor(task_id="test", target_time=time(10, 0), start_from_trigger=True)
+
+    def test_target_datetime_recomputed_on_each_access(self):
+        with DAG(
+            dag_id="test_target_datetime_recomputed",
+            schedule=None,
+            start_date=datetime(2020, 1, 1),
+        ):
+            op = TimeSensor(task_id="test", target_time=time(10, 0))
+
+        with time_machine.travel("2025-06-01 00:00:00", tick=False):
+            first = op.target_datetime
+        with time_machine.travel("2025-06-02 00:00:00", tick=False):
+            second = op.target_datetime
+
+        assert first.date() == pendulum.datetime(2025, 6, 1).date()
+        assert second.date() == pendulum.datetime(2025, 6, 2).date()
