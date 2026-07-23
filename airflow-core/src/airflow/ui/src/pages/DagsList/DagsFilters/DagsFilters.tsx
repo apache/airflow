@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { HStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -30,10 +31,11 @@ import { useTagFilter } from "../useTagFilter";
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
 import { RequiredActionFilter } from "./RequiredActionFilter";
-import { StateFilters } from "./StateFilters";
+import { RunStateSelect } from "./RunStateSelect";
 import { TagFilter } from "./TagFilter";
 
 const {
+  DAG_RUN_STATE: DAG_RUN_STATE_PARAM,
   FAVORITE: FAVORITE_PARAM,
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
   NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
@@ -41,14 +43,12 @@ const {
   PAUSED: PAUSED_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-type StateValue = "all" | "failed" | "queued" | "running" | "success";
 type BooleanFilterValue = "all" | "false" | "true";
 
-const stateValues: ReadonlyArray<StateValue> = ["failed", "queued", "running", "success"];
+const lastRunStates = ["failed", "queued", "running", "success"] as const;
+// Mirrors the backend limit (see _AnyDagRunStateFilter): only running/queued are indexed on dag_run.
+const anyRunStates = ["queued", "running"] as const;
 const booleanFilterValues: ReadonlyArray<BooleanFilterValue> = ["all", "true", "false"];
-
-const toStateValue = (value: string | null): StateValue =>
-  stateValues.includes(value as StateValue) ? (value as StateValue) : "all";
 
 const toBooleanFilterValue = (
   value: string | null,
@@ -58,12 +58,14 @@ const toBooleanFilterValue = (
 
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t: translate } = useTranslation("dags");
   const { selectedTags, setSelectedTags, setTagFilterMode, tagFilterMode } = useTagFilter();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const showFavorites = searchParams.get(FAVORITE_PARAM);
   const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
+  const activeRunState = searchParams.get(DAG_RUN_STATE_PARAM);
 
   const [pattern, setPattern] = useState("");
 
@@ -107,11 +109,21 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
-  const handleStateChange = (value: StateValue) => {
-    if (value === "all") {
+  const handleStateChange = (value: string | undefined) => {
+    if (value === undefined) {
       searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     } else {
       searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
+    }
+    resetPagination();
+    setSearchParams(searchParams);
+  };
+
+  const handleActiveRunChange = (value: string | undefined) => {
+    if (value === undefined) {
+      searchParams.delete(DAG_RUN_STATE_PARAM);
+    } else {
+      searchParams.set(DAG_RUN_STATE_PARAM, value);
     }
     resetPagination();
     setSearchParams(searchParams);
@@ -140,15 +152,25 @@ export const DagsFilters = () => {
     setTagFilterMode(checked ? "all" : "any");
   };
 
-  const stateValue = toStateValue(state);
   const pausedValue = toBooleanFilterValue(showPaused, defaultShowPaused);
   const favoriteValue = toBooleanFilterValue(showFavorites);
 
   return (
     <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
-      <Box overflowX="auto">
-        <StateFilters onChange={handleStateChange} value={stateValue} />
-      </Box>
+      <RunStateSelect
+        dataTestId="dags-last-run-state-filter"
+        label={translate("filters.lastRunState")}
+        onChange={handleStateChange}
+        states={lastRunStates}
+        value={state ?? undefined}
+      />
+      <RunStateSelect
+        dataTestId="dags-any-run-state-filter"
+        label={translate("filters.anyRunState")}
+        onChange={handleActiveRunChange}
+        states={anyRunStates}
+        value={activeRunState ?? undefined}
+      />
       <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
       <PausedFilter onChange={handlePausedChange} value={pausedValue} />
       <TagFilter

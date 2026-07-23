@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "All Run Types",
     "allStates": "All States",
+    "anyRunState": "Any run",
     "favorite": {
       "all": "All",
       "favorite": "Favorite",
       "unfavorite": "Unfavorite"
     },
+    "lastRunState": "Last run",
     "paused": {
       "active": "Active",
       "all": "All",

@@ -3437,6 +3437,10 @@ export type GetDagsUiData = {
     dagIdPrefixPattern?: string | null;
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
+    /**
+     * Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
+     */
+    dagRunState?: DagRunState | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling
