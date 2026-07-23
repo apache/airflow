@@ -74,7 +74,8 @@ class TestGitHook:
 
     # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
     @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db):
+    def setup_connections(self, create_connection_without_db, monkeypatch):
+        monkeypatch.setattr(GitHook, "_get_git_version_info", staticmethod(lambda: (2, 46, 0)))
         create_connection_without_db(
             Connection(
                 conn_id=CONN_DEFAULT,
@@ -414,3 +415,60 @@ class TestGitHook:
             assert os.path.exists(askpass_path)
         # Both the askpass script and the temp key file should be cleaned up
         assert not os.path.exists(askpass_path)
+
+    def test_https_auth_configures_proactive_auth(self):
+        hook = GitHook(git_conn_id=CONN_HTTPS)
+
+        assert hook.env == {
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": f"http.{AIRFLOW_HTTPS_URL}.proactiveAuth",
+            "GIT_CONFIG_VALUE_0": "basic",
+        }
+
+    def test_https_auth_appends_to_existing_git_config(self, monkeypatch):
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "protocol.file.allow")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "always")
+
+        hook = GitHook(git_conn_id=CONN_HTTPS)
+
+        assert hook.env == {
+            "GIT_CONFIG_COUNT": "2",
+            "GIT_CONFIG_KEY_1": f"http.{AIRFLOW_HTTPS_URL}.proactiveAuth",
+            "GIT_CONFIG_VALUE_1": "basic",
+        }
+        assert os.environ["GIT_CONFIG_KEY_0"] == "protocol.file.allow"
+        assert os.environ["GIT_CONFIG_VALUE_0"] == "always"
+
+    def test_http_auth_does_not_configure_proactive_auth(self):
+        hook = GitHook(git_conn_id=CONN_HTTP)
+
+        assert not any(key.startswith("GIT_CONFIG_") for key in hook.env)
+
+    @pytest.mark.parametrize(
+        ("git_version", "warning_match"),
+        [
+            ((2, 45, 0), "Installed Git 2.45.0"),
+            (None, "Could not determine the installed Git version"),
+        ],
+    )
+    def test_unsupported_git_warns_and_uses_challenge_auth(self, monkeypatch, git_version, warning_match):
+        monkeypatch.setattr(GitHook, "_get_git_version_info", staticmethod(lambda: git_version))
+
+        with pytest.warns(RuntimeWarning, match=warning_match):
+            hook = GitHook(git_conn_id=CONN_HTTPS)
+
+        assert hook.repo_url == f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"
+        assert not any(key.startswith("GIT_CONFIG_") for key in hook.env)
+
+    @pytest.mark.parametrize("conn_id", [CONN_HTTP_NO_AUTH, CONN_DEFAULT])
+    def test_non_https_token_connections_do_not_configure_proactive_auth(self, conn_id):
+        warning_context = (
+            pytest.warns(AirflowProviderDeprecationWarning, match="accept-new")
+            if conn_id == CONN_DEFAULT
+            else contextlib.nullcontext()
+        )
+        with warning_context:
+            hook = GitHook(git_conn_id=conn_id)
+
+        assert not any(key.startswith("GIT_CONFIG_") for key in hook.env)
