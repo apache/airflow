@@ -73,15 +73,15 @@ export class LogChannel {
     return new LogChannel({ sock: null, connected: false, closed: false, buffer: [] }, name, true);
   }
 
-  static async connect(addr: string, name: string = DEFAULT_LOGGER_NAME): Promise<LogChannel> {
-    const channel = LogChannel.createBuffered(name);
-    await channel.connect(addr);
-    return channel;
-  }
-
-  /** Connect the socket and flush buffered records, in order. Root only. */
+  /** Connect the socket and flush buffered records, in order. Root only,
+   *  and callable once: a second call would orphan the first socket. */
   async connect(addr: string): Promise<void> {
-    if (!this.isRoot) return;
+    if (!this.isRoot) {
+      throw new Error(`[${this.name}] connect() is root-only`);
+    }
+    if (this.shared.sock) {
+      throw new Error(`[${this.name}] connect() called more than once`);
+    }
     const shared = this.shared;
     const name = this.name;
     const sock = await connectTcp(addr);
