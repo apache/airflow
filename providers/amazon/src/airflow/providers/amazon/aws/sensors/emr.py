@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, 
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrContainerTrigger,
+    EmrServerlessSessionTrigger,
     EmrStepSensorTrigger,
     EmrTerminateJobFlowTrigger,
 )
@@ -664,3 +665,81 @@ class EmrStepSensor(EmrBaseSensor):
             raise AirflowException(f"Error while running job: {validated_event}")
 
         self.log.info("Job %s completed.", self.job_flow_id)
+
+
+class EmrServerlessSessionSensor(AwsBaseSensor[EmrServerlessHook]):
+    """
+    Poll the state of an interactive session until it reaches a target state; fails if it fails.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrServerlessSessionSensor`
+
+    :param application_id: application_id of the session to check the state of
+    :param session_id: session_id to check the state of
+    :param target_states: a set of states to wait for, defaults to {'STARTED', 'IDLE'}
+    :param max_attempts: Maximum number of poll attempts when running in deferrable mode.
+    :param deferrable: Run sensor in the deferrable mode.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.h
+    """
+
+    aws_hook_class = EmrServerlessHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "application_id",
+        "session_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        application_id: str,
+        session_id: str,
+        target_states: set | frozenset = frozenset(EmrServerlessHook.SESSION_SUCCESS_STATES),
+        max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs: Any,
+    ) -> None:
+        self.target_states = target_states
+        self.application_id = application_id
+        self.session_id = session_id
+        self.max_attempts = max_attempts
+        self.deferrable = deferrable
+        super().__init__(**kwargs)
+
+    def poke(self, context: Context) -> bool:
+        state = self.hook.get_session_state(self.application_id, self.session_id)
+
+        if state in EmrServerlessHook.SESSION_FAILURE_STATES:
+            raise RuntimeError(f"EMR Serverless session entered failure state: {state}")
+
+        return state in self.target_states
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable:
+            super().execute(context=context)
+        elif not self.poke(context):
+            self.defer(
+                timeout=timedelta(seconds=self.max_attempts * self.poke_interval),
+                trigger=EmrServerlessSessionTrigger(
+                    application_id=self.application_id,
+                    session_id=self.session_id,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        validated_event = validate_execute_complete_event(event)
+
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error while waiting for EMR Serverless session: {validated_event}")
+        self.log.info("EMR Serverless session %s reached a ready state", self.session_id)
