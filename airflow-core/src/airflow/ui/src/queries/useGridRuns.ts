@@ -20,6 +20,8 @@ import { useParams } from "react-router-dom";
 
 import { useGridServiceGetGridRuns } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useGridRuns = ({
@@ -45,6 +47,15 @@ export const useGridRuns = ({
 
   const refetchInterval = useAutoRefresh({ dagId });
 
+  // Advanced-search toggle picks between the substring ``runIdPattern`` and the
+  // index-friendly ``runIdPrefixPattern`` variants of the Run ID filter.
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: SearchParamsKeys.RUN_ID_PATTERN,
+    value: runIdPattern,
+  });
+
   const { data: GridRuns, ...rest } = useGridServiceGetGridRuns(
     {
       dagId,
@@ -53,7 +64,7 @@ export const useGridRuns = ({
       orderBy: ["-run_after"],
       runAfterGte: runAfterGte ?? undefined,
       runAfterLte: runAfterLte ?? undefined,
-      runIdPattern: runIdPattern ?? undefined,
+      ...runIdPatternArg,
       runType: runType ? [runType] : undefined,
       state: dagRunState ? [dagRunState] : undefined,
       triggeringUser: triggeringUser ?? undefined,

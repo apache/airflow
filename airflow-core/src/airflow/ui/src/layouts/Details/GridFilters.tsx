@@ -31,18 +31,9 @@ const searchParamKeys: Array<FilterableSearchParamsKeys> = [
 export const GridFilters = () => {
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
-  // The Grid backend only accepts the substring `run_id_pattern` variant, so
-  // hide the substring/prefix advanced-search toggle that the shared filter
-  // config enables for the Dag Runs page.
-  const gridFilterConfigs = filterConfigs.map((config) =>
-    config.key === String(SearchParamsKeys.RUN_ID_PATTERN)
-      ? { ...config, supportsAdvancedSearch: false }
-      : config,
-  );
-
   return (
     <FilterBar
-      configs={gridFilterConfigs}
+      configs={filterConfigs}
       initialValues={initialValues}
       onFiltersChange={handleFiltersChange}
       showPresetFilters={false}
