@@ -356,7 +356,7 @@ function check_upgrade_sqlalchemy() {
     echo
     uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest \
         --no-python-downloads --no-managed-python
-    uv pip install "sqlalchemy>=2.1.0b1" "snowflake-sqlalchemy @ git+https://github.com/snowflakedb/snowflake-sqlalchemy.git@main" --prerelease=allow
+    uv pip install "sqlalchemy>=2.1.0rc2,<2.2" "snowflake-sqlalchemy>=2.0.0rc1,<2.1" --prerelease=allow
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it
