@@ -759,6 +759,9 @@ class TestAgentOperatorDurable:
 
         storage.cleanup.assert_not_called()
 
+    def test_supports_durable_execution_marker(self):
+        assert AgentOperator._supports_durable_execution is True
+
 
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
