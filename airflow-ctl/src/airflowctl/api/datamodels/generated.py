@@ -935,6 +935,8 @@ class Destination1(str, Enum):
     ASSET = "asset"
     BASE = "base"
     DASHBOARD = "dashboard"
+    DAG_OVERVIEW = "dag_overview"
+    TASK_OVERVIEW = "task_overview"
 
 
 class ReactAppResponse(BaseModel):
