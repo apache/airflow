@@ -50,16 +50,25 @@ def sample_response():
 
 
 class TestDurableStorageInit:
-    def test_cache_id_format(self, storage):
-        assert storage._cache_id == "test_dag_my_task_run_1"
+    def test_cache_id_is_deterministic(self):
+        """The same task identity always maps to the same cache file (so retries resume)."""
+        a = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        b = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        assert a._cache_id == b._cache_id
 
-    def test_cache_id_with_map_index(self):
-        s = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=3)
-        assert s._cache_id == "d_t_r_3"
+    def test_cache_id_differs_by_map_index(self):
+        base = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        mapped = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=3)
+        assert base._cache_id != mapped._cache_id
 
-    def test_cache_id_without_map_index(self):
-        s = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)
-        assert "_-1" not in s._cache_id
+    def test_cache_id_no_collision_across_tasks(self):
+        """Distinct (dag, task) pairs that concatenate to the same string must not
+        share a cache file -- e.g. dag ``etl`` + task ``load_data`` vs dag
+        ``etl_load`` + task ``data``. A plain ``_``-join aliased them, letting one
+        task read, overwrite, or delete another task's durable cache."""
+        a = DurableStorage(dag_id="etl", task_id="load_data", run_id="r")
+        b = DurableStorage(dag_id="etl_load", task_id="data", run_id="r")
+        assert a._cache_id != b._cache_id
 
 
 class TestSaveLoadModelResponse:

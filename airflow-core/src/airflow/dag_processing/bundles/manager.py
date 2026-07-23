@@ -271,7 +271,7 @@ class DagBundlesManager(LoggingMixin):
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
     @provide_session
-    def sync_bundles_to_db(self, *, session: Session = NEW_SESSION) -> None:
+    def sync_bundles_to_db(self, *, deactivate_missing: bool = True, session: Session = NEW_SESSION) -> None:
         """
         Persist the configured DAG bundles into ``DagBundleModel`` rows.
 
@@ -280,6 +280,14 @@ class DagBundlesManager(LoggingMixin):
         ``DagModel`` / ``SerializedDagModel`` rows is the responsibility of
         ``DagBag`` plus ``sync_bag_to_db`` (or, in production, the DAG
         processor); calling this method does not trigger that work.
+
+        :param deactivate_missing: When ``True`` (the default), any bundle stored in
+            the database that is not present in this manager's config is marked
+            inactive. This is only correct when the calling process sees the
+            *complete* bundle configuration. When multiple dag-processors each run
+            with a partial config (e.g. one bundle per processor), pass ``False`` so a
+            processor does not disable bundles owned by other processors -- otherwise
+            the processors repeatedly deactivate each other and never converge.
         """
         self.log.debug("Syncing DAG bundles to the database")
 
@@ -355,6 +363,11 @@ class DagBundlesManager(LoggingMixin):
                     "Removing ownership of team '%s' from Dag bundle '%s'", bundle_to_team[name], name
                 )
                 bundle.teams = []
+
+        if not deactivate_missing:
+            # This process only owns a subset of the bundles, so the remaining stored
+            # bundles may well be owned by another dag-processor. Leave them alone.
+            return
 
         # Import here to avoid circular import
         from airflow.models.errors import ParseImportError

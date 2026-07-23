@@ -141,7 +141,7 @@ class TaskMap(TaskInstanceDependencies):
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.taskinstance import TaskInstance
+        from airflow.models.taskinstance import TaskInstance, _add_and_prime_mapped_ti
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
         from airflow.serialization.definitions.mappedoperator import (
             SerializedMappedOperator,
@@ -256,8 +256,8 @@ class TaskMap(TaskInstanceDependencies):
                 )
             )
 
+        new_tis: list[TaskInstance] = []
         for index in indexes_to_map:
-            # TODO: Make more efficient with bulk_insert_mappings/bulk_save_mappings.
             ti = TaskInstance(
                 task,
                 run_id=run_id,
@@ -266,11 +266,13 @@ class TaskMap(TaskInstanceDependencies):
                 dag_version_id=dag_version_id,
             )
             task.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti, dag_run=dr)
-            ti = session.merge(ti)
-            ti.context_carrier = new_task_run_carrier(dr.context_carrier)
-            ti.refresh_from_task(task, dag_run=dr)  # session.merge() loses task information.
-            all_expanded_tis.append(ti)
+            _add_and_prime_mapped_ti(
+                ti, task, dr, session=session, context_carrier=new_task_run_carrier(dr.context_carrier)
+            )
+            new_tis.append(ti)
+        if new_tis:
+            session.flush()
+        all_expanded_tis.extend(new_tis)
 
         # Coerce the None case to 0 -- these two are almost treated identically,
         # except the unmapped ti (if exists) is marked to different states.

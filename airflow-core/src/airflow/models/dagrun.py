@@ -53,16 +53,25 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import Mapped, declared_attr, joinedload, mapped_column, relationship, synonym, validates
+from sqlalchemy.orm import (
+    Mapped,
+    declared_attr,
+    joinedload,
+    mapped_column,
+    relationship,
+    synonym,
+    validates,
+)
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.observability.metrics import stats
+from airflow._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow._shared.observability.traces import (
     DAGRUN_PARENT_TRACE_CONTEXT_KEY,
     TASK_SPAN_DETAIL_LEVEL_KEY,
@@ -79,7 +88,7 @@ from airflow.models import Deadline, Log
 from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
@@ -576,11 +585,36 @@ class DagRun(Base, LoggingMixin):
         )
         return session.scalar(select_stmt)
 
+    def dag_tags_for_stats(self) -> dict[str, str]:
+        """Convert dag tags to metric tags. Tags with ':' become key:value; others are standalone (empty value)."""
+        if not airflow_conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
+            return {}
+        try:
+            # Lazy-loads dag_model.tags if not already loaded. The scheduler hot loop
+            # (get_running_dag_runs_to_examine) eager-loads these to avoid a per-DagRun query; other,
+            # low-frequency emission paths fall back to this lazy load. On a detached/expired DagRun
+            # the load raises — swallow it so metric tagging never breaks the caller.
+            if not self.dag_model or not self.dag_model.tags:
+                return {}
+            return build_dag_metric_tags(tag.name for tag in self.dag_model.tags)
+        except SQLAlchemyError:
+            return {}
+
     @property
     def stats_tags(self) -> dict[str, str]:
-        return prune_dict(
-            {"dag_id": self.dag_id, "run_type": self.run_type, "team_name": getattr(self, "_team_name", None)}
+        # prune_dict strips falsy values, so merge dag tags after it runs so standalone
+        # tags (empty value) are preserved for DogStatsD emission.
+        base = prune_dict(
+            {
+                "dag_id": self.dag_id,
+                # bare value so it serializes as e.g. "scheduled", not "dagruntype.scheduled"
+                "run_type": getattr(self.run_type, "value", self.run_type),
+                "team_name": getattr(self, "_team_name", None),
+            }
         )
+        dag_tags = self.dag_tags_for_stats()
+        # Built-in keys win on collision; dag tags fill in everything else.
+        return {**dag_tags, **base}
 
     def get_state(self):
         return self._state
@@ -702,7 +736,9 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @retry_db_transaction
-    def get_running_dag_runs_to_examine(cls, session: Session) -> ScalarResult[DagRun]:
+    def get_running_dag_runs_to_examine(
+        cls, *, session: Session, eagerly_load_dag_tags: bool
+    ) -> ScalarResult[DagRun]:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -732,6 +768,12 @@ class DagRun(Base, LoggingMixin):
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
+
+        # When dag tags are emitted as metric tags, eagerly load dag_model.tags so stats_tags does not
+        # fire a per-DagRun N+1 lazy load in the scheduler loop. The caller owns the feature decision;
+        # the scheduler passes its cached flag so the loop never reads conf.
+        if eagerly_load_dag_tags:
+            query = query.options(joinedload(cls.dag_model).selectinload(DagModel.tags))
 
         query = query.where(DagRun.run_after <= func.now())
 
@@ -2045,7 +2087,7 @@ class DagRun(Base, LoggingMixin):
 
     def _revise_map_indexes_if_mapped(
         self, task: Operator, *, dag_version_id: UUID | None, session: Session
-    ) -> Iterator[TI]:
+    ) -> list[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
 
@@ -2056,14 +2098,13 @@ class DagRun(Base, LoggingMixin):
         """
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
-        from airflow.settings import task_instance_mutation_hook
 
         try:
             total_length = get_mapped_ti_count(task, self.run_id, session=session)
         except NotMapped:
-            return  # Not a mapped task, don't need to do anything.
+            return []  # Not a mapped task, don't need to do anything.
         except NotFullyPopulated:
-            return  # Upstreams not ready, don't need to revise this yet.
+            return []  # Upstreams not ready, don't need to revise this yet.
 
         query = session.scalars(
             select(TI.map_index).where(
@@ -2088,16 +2129,17 @@ class DagRun(Base, LoggingMixin):
             )
             session.flush()
 
+        new_tis: list[TI] = []
         for index in range(total_length):
             if index in existing_indexes:
                 continue
             ti = TI(task, run_id=self.run_id, map_index=index, state=None, dag_version_id=dag_version_id)
             self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti, dag_run=self)
-            ti = session.merge(ti)
-            ti.refresh_from_task(task, dag_run=self)
+            _add_and_prime_mapped_ti(ti, task, self, session=session)
+            new_tis.append(ti)
+        if new_tis:
             session.flush()
-            yield ti
+        return new_tis
 
     @classmethod
     @provide_session

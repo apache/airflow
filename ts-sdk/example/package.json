@@ -5,7 +5,7 @@
   "type": "module",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/bundle.mjs",
+    "build": "airflow-ts-pack src/main.ts --outdir dist",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

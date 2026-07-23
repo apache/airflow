@@ -19,14 +19,23 @@ from __future__ import annotations
 import ast
 import textwrap
 from pathlib import Path
+from unittest import mock
 
 import pytest
+from ci.prek import check_metrics_synced_with_the_registry
 from ci.prek.check_metrics_synced_with_the_registry import (
     _PREFIX_MATCHED,
+    _except_handler_catches_expected_error,
+    _is_stats_module_path,
+    compute_unused_registry_entries,
     extract_metric_name_from_ast_node,
+    extract_metric_names_from_ast_node,
+    find_prefix_matched_registry_entries,
     find_registry_match,
+    find_stale_indirectly_emitted_metrics,
     get_stats_obj_name,
     normalize_metric_name,
+    scan_file_for_direct_stats_imports,
     scan_file_for_metrics,
 )
 
@@ -180,6 +189,121 @@ def test_extract_metric_name_from_ast_node(code: str, expected_result):
     assert extract_metric_name_from_ast_node(node) == expected_result
 
 
+@pytest.mark.parametrize(
+    "code, expected_result",
+    [
+        pytest.param('"scheduler_heartbeat"', ["scheduler_heartbeat"], id="static_string_single_name"),
+        pytest.param(
+            '"connection_test.success" if success else "connection_test.failed"',
+            ["connection_test.success", "connection_test.failed"],
+            id="conditional_expression_both_branches",
+        ),
+        pytest.param(
+            '"connection_test.success" if success else get_name()',
+            ["connection_test.success"],
+            id="conditional_expression_unresolvable_branch_dropped",
+        ),
+        pytest.param(
+            '"a" if x else ("b" if y else "c")',
+            ["a", "b", "c"],
+            id="nested_conditional_expression",
+        ),
+        pytest.param("some_variable", [], id="unresolvable_name_returns_empty_list"),
+    ],
+)
+def test_extract_metric_names_from_ast_node(code: str, expected_result):
+    node = ast.parse(code, mode="eval").body
+    assert extract_metric_names_from_ast_node(node) == expected_result
+
+
+@pytest.mark.parametrize(
+    "metric_name, expected_result",
+    [
+        pytest.param(
+            "ti.{state}",
+            ["ti.scheduled", "ti.queued", "ti.start.{dag_id}.{task_id}"],
+            id="base_prefix_matches_multiple_entries",
+        ),
+        pytest.param("dagrun.duration.{state}", ["dagrun.duration.success"], id="dotted_base_prefix"),
+        pytest.param("non.existent.{var}", [], id="no_prefix_match_returns_empty_list"),
+    ],
+)
+def test_find_prefix_matched_registry_entries(metric_name, expected_result):
+    assert find_prefix_matched_registry_entries(metric_name, METRICS_REGISTRY) == expected_result
+
+
+# 'executor.open_slots' is in INDIRECTLY_EMITTED_METRICS, so it is never reported as unused.
+@pytest.mark.parametrize(
+    "code_metric_names, expected_unused",
+    [
+        pytest.param(
+            set(),
+            [
+                "dagrun.duration.success",
+                "pool.open_slots",
+                "scheduler.heartbeat",
+                "task.duration",
+                "ti.queued",
+                "ti.scheduled",
+                "ti.start.{dag_id}.{task_id}",
+            ],
+            id="no_code_metrics_reports_all_but_indirectly_emitted",
+        ),
+        pytest.param(
+            {"scheduler.heartbeat", "dag.{x}.{y}.duration", "unknown.metric"},
+            [
+                "dagrun.duration.success",
+                "pool.open_slots",
+                "ti.queued",
+                "ti.scheduled",
+                "ti.start.{dag_id}.{task_id}",
+            ],
+            id="exact_and_legacy_matches_mark_entries_used",
+        ),
+        pytest.param(
+            {"ti.{state}"},
+            ["dagrun.duration.success", "pool.open_slots", "scheduler.heartbeat", "task.duration"],
+            id="prefix_match_marks_all_prefix_entries_used",
+        ),
+        pytest.param(
+            {"pool.open_slots.{my_pool}"},
+            [
+                "dagrun.duration.success",
+                "scheduler.heartbeat",
+                "task.duration",
+                "ti.queued",
+                "ti.scheduled",
+                "ti.start.{dag_id}.{task_id}",
+            ],
+            id="legacy_name_structure_match_marks_entry_used",
+        ),
+    ],
+)
+def test_compute_unused_registry_entries(code_metric_names, expected_unused):
+    assert compute_unused_registry_entries(code_metric_names, METRICS_REGISTRY) == expected_unused
+
+
+@pytest.mark.parametrize(
+    "indirectly_emitted_metrics, expected_stale",
+    [
+        pytest.param({"executor.open_slots"}, [], id="entry_present_in_registry"),
+        pytest.param(set(), [], id="empty_allowlist"),
+        pytest.param(
+            {"executor.open_slots", "executor.renamed_away", "executor.deleted"},
+            ["executor.deleted", "executor.renamed_away"],
+            id="renamed_and_deleted_entries_reported",
+        ),
+    ],
+)
+def test_find_stale_indirectly_emitted_metrics(indirectly_emitted_metrics, expected_stale):
+    with mock.patch.object(
+        check_metrics_synced_with_the_registry,
+        "INDIRECTLY_EMITTED_METRICS",
+        indirectly_emitted_metrics,
+    ):
+        assert find_stale_indirectly_emitted_metrics(METRICS_REGISTRY) == expected_stale
+
+
 @pytest.fixture
 def code_to_py_file(tmp_path):
     """Write python source code to a tmp file and return its path."""
@@ -237,6 +361,14 @@ def code_to_py_file(tmp_path):
             [{"stats_obj": "stats"}],
             id="self_stats_attribute",
         ),
+        pytest.param(
+            'stats.incr("connection_test.success" if success else "connection_test.failed")',
+            [
+                {"metric_name": "connection_test.success", "method": "incr"},
+                {"metric_name": "connection_test.failed", "method": "incr"},
+            ],
+            id="conditional_expression_yields_call_per_branch",
+        ),
         pytest.param('metrics.incr("triggerer_heartbeat")', [], id="unknown_stats_object_ignored"),
         pytest.param("Stats.incr(get_metric_name())", [], id="unresolvable_metric_name_skipped"),
         pytest.param("def foo(:\n    pass\n", [], id="syntax_error_returns_empty"),
@@ -275,3 +407,190 @@ def test_scan_file_with_multiple_calls(code_to_py_file):
 
 def test_scan_file_nonexistent_file_returns_empty(tmp_path):
     assert scan_file_for_metrics(tmp_path / "non_existent.py") == []
+
+
+@pytest.mark.parametrize(
+    "code, expected_imports",
+    [
+        pytest.param(
+            "from airflow._shared.observability.metrics.stats import incr\nincr('foo')",
+            [{"imported_names": ["incr"], "line_num": 1}],
+            id="direct_import_of_metric_function",
+        ),
+        pytest.param(
+            "from airflow.sdk._shared.observability.metrics.stats import gauge\n",
+            [{"imported_names": ["gauge"]}],
+            id="direct_import_via_sdk_path",
+        ),
+        pytest.param(
+            "from airflow_shared.observability.metrics.stats import timer\n",
+            [{"imported_names": ["timer"]}],
+            id="direct_import_via_shared_path",
+        ),
+        pytest.param(
+            "from airflow._shared.observability.metrics.stats import incr as foo\n",
+            [{"imported_names": ["incr as foo"]}],
+            id="aliased_direct_import",
+        ),
+        pytest.param(
+            "from airflow._shared.observability.metrics.stats import incr, gauge, timing\n",
+            [{"imported_names": ["incr", "gauge", "timing"]}],
+            id="multiple_methods_one_statement",
+        ),
+        pytest.param(
+            "from airflow._shared.observability.metrics import stats\n",
+            [],
+            id="namespace_import_allowed",
+        ),
+        pytest.param(
+            "from airflow._shared.observability.metrics.stats import normalize_name_for_stats\n",
+            [],
+            id="non_metric_function_allowed",
+        ),
+        pytest.param(
+            "from airflow._shared.observability.metrics.stats import Stats\n",
+            [],
+            id="class_shim_allowed",
+        ),
+        pytest.param(
+            "from airflow._shared.observability.metrics.stats import incr, normalize_name_for_stats\n",
+            [{"imported_names": ["incr"]}],
+            id="only_metric_function_reported_from_mixed_import",
+        ),
+        pytest.param(
+            "try:\n"
+            "    from airflow._shared.observability.metrics.stats import gauge  # noqa: F401\n"
+            "except ImportError:\n"
+            "    gauge = None\n",
+            [],
+            id="exempt_inside_try_except_import_error",
+        ),
+        pytest.param(
+            "try:\n"
+            "    from airflow._shared.observability.metrics.stats import gauge\n"
+            "except ModuleNotFoundError:\n"
+            "    gauge = None\n",
+            [],
+            id="exempt_inside_try_except_module_not_found_error",
+        ),
+        pytest.param(
+            "try:\n"
+            "    from airflow._shared.observability.metrics.stats import gauge\n"
+            "except (ImportError, ModuleNotFoundError):\n"
+            "    gauge = None\n",
+            [],
+            id="exempt_inside_try_except_tuple_of_only_expected",
+        ),
+        pytest.param(
+            "try:\n"
+            "    from airflow._shared.observability.metrics.stats import gauge\n"
+            "except (ImportError, OSError):\n"
+            "    gauge = None\n",
+            [{"imported_names": ["gauge"]}],
+            id="not_exempt_for_tuple_mixing_expected_and_unrelated",
+        ),
+        pytest.param(
+            "try:\n"
+            "    from airflow._shared.observability.metrics.stats import gauge\n"
+            "except ValueError:\n"
+            "    gauge = None\n",
+            [{"imported_names": ["gauge"]}],
+            id="not_exempt_for_unrelated_exception",
+        ),
+        pytest.param(
+            "try:\n"
+            "    from airflow._shared.observability.metrics.stats import gauge\n"
+            "except:\n"
+            "    gauge = None\n",
+            [{"imported_names": ["gauge"]}],
+            id="not_exempt_for_bare_except",
+        ),
+        pytest.param(
+            "from some.unrelated.module import incr\n",
+            [],
+            id="unrelated_module_import_ignored",
+        ),
+    ],
+)
+def test_scan_file_for_direct_stats_imports(code_to_py_file, code, expected_imports):
+    violations = scan_file_for_direct_stats_imports(code_to_py_file(code))
+    assert len(violations) == len(expected_imports)
+    for violation, expected in zip(violations, expected_imports):
+        for field, value in expected.items():
+            assert getattr(violation, field) == value
+
+
+def test_scan_file_for_direct_stats_imports_records_module(code_to_py_file):
+    path = code_to_py_file("from airflow._shared.observability.metrics.stats import incr\n")
+    violations = scan_file_for_direct_stats_imports(path)
+    assert len(violations) == 1
+    assert violations[0].module == "airflow._shared.observability.metrics.stats"
+    assert violations[0].file_path == str(path)
+
+
+def test_scan_file_for_direct_stats_imports_nonexistent_file_returns_empty(tmp_path):
+    assert scan_file_for_direct_stats_imports(tmp_path / "non_existent.py") == []
+
+
+@pytest.mark.parametrize(
+    "module, expected_bool_result",
+    [
+        pytest.param(None, False, id="none_returns_false"),
+        pytest.param("", False, id="empty_string_returns_false"),
+        pytest.param("observability.metrics.stats", True, id="bare_suffix_matches"),
+        pytest.param(
+            "airflow._shared.observability.metrics.stats", True, id="airflow_core_shared_path_matches"
+        ),
+        pytest.param(
+            "airflow.sdk._shared.observability.metrics.stats", True, id="task_sdk_shared_path_matches"
+        ),
+        pytest.param("airflow_shared.observability.metrics.stats", True, id="shared_path_matches"),
+        pytest.param(
+            "airflow._shared.observability.metrics.statsd_logger",
+            False,
+            id="module_with_stats_prefix_rejected",
+        ),
+        pytest.param(
+            "airflow._shared.observability.metrics.base_stats_logger",
+            False,
+            id="module_without_stats_at_tail_rejected",
+        ),
+        pytest.param(
+            "airflow._shared.observability.metrics", False, id="parent_module_without_stats_rejected"
+        ),
+        pytest.param("some.random.module", False, id="random_module_rejected"),
+    ],
+)
+def test_is_stats_module_path(module, expected_bool_result):
+    assert _is_stats_module_path(module) is expected_bool_result
+
+
+def _create_ast_except_handler(exception_clause: str) -> ast.ExceptHandler:
+    """Parse a ``try`` block with the given except clause and return its handler."""
+    suffix = f" {exception_clause}" if exception_clause else ""
+    tree = ast.parse(f"try:\n    pass\nexcept{suffix}:\n    pass\n")
+    return tree.body[0].handlers[0]  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    "exception_clause, expected_bool_result",
+    [
+        pytest.param("ImportError", True, id="import_error_matches"),
+        pytest.param("ModuleNotFoundError", True, id="module_not_found_error_matches"),
+        pytest.param("(ImportError, ModuleNotFoundError)", True, id="tuple_of_only_expected_matches"),
+        pytest.param("(ImportError, OSError)", False, id="tuple_with_unrelated_error_rejected1"),
+        pytest.param(
+            "(OSError, ModuleNotFoundError)",
+            False,
+            id="tuple_with_unrelated_error_rejected2",
+        ),
+        pytest.param("OSError", False, id="unrelated_single_exception_rejected"),
+        pytest.param("(OSError, ValueError)", False, id="tuple_of_unrelated_rejected"),
+        pytest.param("Exception", False, id="broad_exception_rejected"),
+        pytest.param("BaseException", False, id="base_exception_rejected"),
+        pytest.param("", False, id="empty_except_rejected"),
+    ],
+)
+def test_except_handler_catches_expected_error(exception_clause: str, expected_bool_result):
+    handler = _create_ast_except_handler(exception_clause)
+    assert _except_handler_catches_expected_error(handler) is expected_bool_result

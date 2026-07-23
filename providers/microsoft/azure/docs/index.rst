@@ -128,7 +128,7 @@ PIP package                                 Version required
 ``azure-synapse-artifacts``                 ``>=0.17.0``
 ``azure-storage-file-datalake``             ``>=12.9.1``
 ``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
-``azure-mgmt-datafactory``                  ``>=2.0.0``
+``azure-mgmt-datafactory``                  ``>=10.0.0``
 ``azure-mgmt-containerregistry``            ``>=8.0.0``
 ``azure-mgmt-compute``                      ``>=33.0.0``
 ``azure-mgmt-containerinstance``            ``>=10.1.0``

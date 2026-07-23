@@ -42,7 +42,7 @@ AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_TASK_SDK_SOURCES_PATH = AIRFLOW_TASK_SDK_ROOT_PATH / "src"
 
 # Here we should add the second level paths that we want to have sub-packages in
-KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "microsoft"]
+KNOWN_SECOND_LEVEL_PATHS = ["apache", "atlassian", "common", "cncf", "dbt", "ibm", "microsoft"]
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 
@@ -133,13 +133,21 @@ GLOBAL_CONSTANTS_PATH = (
 
 
 def _read_global_constants_assignment(name: str) -> Any:
-    """Read a top-level assignment from global_constants.py."""
+    """Read a top-level assignment from global_constants.py.
+
+    Handles both plain assignments (``NAME = ...``) and annotated assignments
+    (``NAME: type = ...``). The value must be a literal so it can be safely
+    evaluated with ``ast.literal_eval``.
+    """
     tree = ast.parse(GLOBAL_CONSTANTS_PATH.read_text())
     for node in tree.body:
         if isinstance(node, ast.Assign):
             for target in node.targets:
                 if isinstance(target, ast.Name) and target.id == name:
                     return ast.literal_eval(node.value)
+        elif isinstance(node, ast.AnnAssign):
+            if isinstance(node.target, ast.Name) and node.target.id == name and node.value is not None:
+                return ast.literal_eval(node.value)
     raise RuntimeError(f"{name} not found in global_constants.py")
 
 
@@ -150,6 +158,32 @@ def read_allowed_kubernetes_versions() -> list[str]:
     """
     versions: list[str] = _read_global_constants_assignment("ALLOWED_KUBERNETES_VERSIONS")
     return [v.lstrip("v") for v in versions]
+
+
+def read_allowed_python_major_minor_versions() -> list[str]:
+    """Parse ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS from global_constants.py (single source of truth)."""
+    return list(_read_global_constants_assignment("ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS"))
+
+
+def read_current_postgres_versions() -> list[str]:
+    """Parse CURRENT_POSTGRES_VERSIONS from global_constants.py (single source of truth)."""
+    return list(_read_global_constants_assignment("CURRENT_POSTGRES_VERSIONS"))
+
+
+def read_current_mysql_versions() -> list[str]:
+    """The MySQL release versions Airflow currently tests with.
+
+    Mirrors how ``CURRENT_MYSQL_VERSIONS`` is built in global_constants.py: the
+    "old" releases plus the LTS releases, plus an innovation release when one is
+    configured. Returns the numeric versions only (e.g. ``["8.0", "8.4"]``); the
+    docs add the textual "Innovation" annotation on top of these.
+    """
+    versions: list[str] = list(_read_global_constants_assignment("MYSQL_OLD_RELEASES"))
+    versions += list(_read_global_constants_assignment("MYSQL_LTS_RELEASES"))
+    innovation = _read_global_constants_assignment("MYSQL_INNOVATION_RELEASE")
+    if innovation:
+        versions.append(innovation)
+    return versions
 
 
 def read_default_python_major_minor_version_for_images() -> str:
@@ -176,6 +210,11 @@ def pre_process_mypy_files(files: list[str]) -> list[str]:
     if not default_branch or default_branch == "main":
         return files
     return [file for file in files if not file.startswith("providers")]
+
+
+def is_hidden_within_root(path: Path, root: Path) -> bool:
+    """Whether any path component below ``root`` is dot-prefixed."""
+    return any(part.startswith(".") for part in path.relative_to(root).parts)
 
 
 def insert_documentation(

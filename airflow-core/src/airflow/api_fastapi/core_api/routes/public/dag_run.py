@@ -222,13 +222,13 @@ def patch_dag_run(
 
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
-    for attr_name, attr_value_raw in data.items():
-        if attr_name == "state" and patch_body.state is not None:
-            patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
-        elif attr_name == "note":
-            updated_dag_run = session.get(DagRun, dag_run.id)
-            if updated_dag_run is not None:
-                patch_dag_run_note(dag_run=updated_dag_run, note=attr_value_raw, user=user)
+    # Apply "note" before "state" so listeners fired inside patch_dag_run_state() see the updated note.
+    if "note" in data:
+        updated_dag_run = session.get(DagRun, dag_run.id)
+        if updated_dag_run is not None:
+            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user=user)
+    if "state" in data and patch_body.state is not None:
+        patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
 
     final_dag_run = session.get(DagRun, dag_run.id)
     if not final_dag_run:
@@ -621,7 +621,7 @@ def get_dag_runs(
                 dag_run_select, token, order_by, session.get_bind().dialect.name, is_backward=is_backward
             )
 
-        fetched = list(session.scalars(dag_run_select).unique())
+        fetched = list(session.scalars(dag_run_select))
         has_more = len(fetched) > page_limit
         dag_runs = fetched[:page_limit]
 
@@ -651,7 +651,7 @@ def get_dag_runs(
         limit=limit,
         session=session,
     )
-    dag_runs = list(session.scalars(dag_run_select).unique())
+    dag_runs = list(session.scalars(dag_run_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
@@ -933,7 +933,7 @@ def get_list_dag_runs_batch(
         session=session,
     )
 
-    dag_runs = list(session.scalars(dag_runs_select).unique())
+    dag_runs = list(session.scalars(dag_runs_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
 
     return DAGRunCollectionResponse(

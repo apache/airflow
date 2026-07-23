@@ -23,9 +23,11 @@
 # ///
 from __future__ import annotations
 
+import pathlib
 import sys
 
 from common_prek_utils import (
+    KNOWN_SECOND_LEVEL_PATHS,
     initialize_breeze_prek,
     run_command_via_breeze_run,
     validate_cmd_result,
@@ -33,7 +35,42 @@ from common_prek_utils import (
 
 initialize_breeze_prek(__name__, __file__)
 
-files_to_test = sys.argv[1:]
+
+def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
+    """
+    Accept a mix of provider.yaml paths and Python source files.
+
+    When a Python source file is passed (e.g. a hook whose
+    ``get_connection_form_widgets()`` was edited), map it to the
+    ``provider.yaml`` at the root of the same provider package so the
+    conn-fields check runs even when only the hook changes.
+
+    All paths are relative to the ``providers/`` directory, as supplied by
+    prek.  The first path segment is the provider package name
+    (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``), except for
+    namespace packages in ``KNOWN_SECOND_LEVEL_PATHS`` (e.g. ``apache``,
+    ``common``), which nest an extra level (e.g.
+    ``apache/beam/src/airflow/...`` → ``apache/beam/provider.yaml``).
+    """
+    result: set[str] = set()
+    for f in raw_files:
+        p = pathlib.PurePosixPath(f)
+        if p.name == "provider.yaml":
+            result.add(f)
+        else:
+            # Map any Python file to the provider.yaml of its package root.
+            # Path structure: <provider-pkg>/<rest...>
+            # e.g. samba/src/airflow/providers/samba/hooks/samba.py
+            parts = p.parts
+            if parts:
+                if parts[0] in KNOWN_SECOND_LEVEL_PATHS and len(parts) > 1:
+                    result.add(f"{parts[0]}/{parts[1]}/provider.yaml")
+                else:
+                    result.add(f"{parts[0]}/provider.yaml")
+    return sorted(result)
+
+
+files_to_test = _resolve_provider_yaml_files(sys.argv[1:])
 cmd_result = run_command_via_breeze_run(
     ["python3", "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py", *files_to_test],
     backend="sqlite",
