@@ -10126,6 +10126,14 @@
                                 "- configMapRef:\n    name: 'proxy-config"
                             ]
                         },
+                        "envVarsSecret": {
+                            "description": "Name of a Secret whose keys are mapped to git-sync environment variables (GIT_SYNC_REPO, GIT_SYNC_REV, GIT_SYNC_BRANCH, etc.) via secretKeyRef with optional: true.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "resources": {
                             "description": "Resources on workers git-sync sidecar",
                             "type": "object",
