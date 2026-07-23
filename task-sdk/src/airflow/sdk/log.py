@@ -119,8 +119,14 @@ def configure_logging(
     if mask_secrets:
         extra_processors += (mask_logs,)
 
-    if (remote := load_remote_log_handler()) and (remote_processors := getattr(remote, "processors")):
-        extra_processors += remote_processors
+    # NOTE: Do NOT call getattr(remote, "processors") here.
+    # Accessing remote.processors triggers creation of, for example, the watchtower CloudWatchLogHandler
+    # via a cached_property. The configure_logging() call below runs dictConfig() internally,
+    # which calls _clearExistingHandlers() -> logging.shutdown() on ALL existing handlers —
+    # including the watchtower handler we would have just built. The handler ends up dead
+    # (shutting_down=True) before a single task log is emitted.
+    # See: https://github.com/apache/airflow/issues/66475
+    # Remote processors are injected AFTER dictConfig via a second structlog.configure() call below.
 
     configure_logging(
         json_output=json_output,
@@ -133,6 +139,22 @@ def configure_logging(
         extra_processors=extra_processors,
         callsite_parameters=callsite_params,
     )
+
+    # dictConfig has now run, so it is safe to build the remote handler. Re-inject the remote
+    # processors into the global structlog chain (before the final renderer) for parity with the old
+    # extra_process layout. Task-log streaming itself does not rely on this: it uses the
+    # file-backed logger built from logging_processors(), which loads remote.processors lazily.
+    if (
+        not sending_to_supervisor
+        and (remote := load_remote_log_handler())
+        and (remote_processors := getattr(remote, "processors", None))
+    ):
+        current_processors = list(structlog.get_config()["processors"])
+        # Insert before the final renderer
+        # NOTE: unlike the old extra_processors path, stdlib-routed records (ProcessorFormatter's
+        # foreign_pre_chain) intentionally do NOT pass through the remote processors.
+        updated_processors = current_processors[:-1] + list(remote_processors) + [current_processors[-1]]
+        structlog.configure(processors=updated_processors)
 
 
 def logger_at_level(name: str, level: int) -> Logger:
