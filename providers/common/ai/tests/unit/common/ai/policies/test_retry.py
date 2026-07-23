@@ -30,6 +30,7 @@ from airflow.providers.common.ai.policies.retry import (
     LLMRetryPolicy,
 )
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryRule
+from airflow.sdk.log import mask_secret
 
 
 def _make_mock_agent(category, should_retry, delay=0, reasoning="test"):
@@ -107,6 +108,49 @@ class TestLLMClassifyDecisions:
         prompt = mock_agent.run_sync.call_args[0][0]
         assert "ValueError: bad column type" in prompt
         assert "attempt 2 of 5" in prompt
+
+    @pytest.mark.enable_redact
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_prompt_redacts_known_secrets(self, mock_hook_cls):
+        secret_value = "super-secret-conn-password"
+        mask_secret(secret_value)
+
+        mock_agent = _make_mock_agent("auth", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(llm_conn_id="test")
+        policy.evaluate(
+            ConnectionError(f"could not authenticate with password {secret_value}"),
+            try_number=1,
+            max_tries=3,
+        )
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        assert secret_value not in prompt
+        assert prompt == (
+            "Classify this error from a data pipeline task (attempt 1 of 3):\n\n"
+            "ConnectionError: could not authenticate with password ***"
+        )
+
+    @pytest.mark.enable_redact
+    @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
+    def test_prompt_keeps_raw_message_when_redaction_disabled(self, mock_hook_cls):
+
+        secret_value = "super-secret-conn-password"
+        mask_secret(secret_value)
+
+        mock_agent = _make_mock_agent("auth", should_retry=False)
+        mock_hook_cls.return_value.create_agent.return_value = mock_agent
+
+        policy = LLMRetryPolicy(llm_conn_id="test", redact_exception=False)
+        policy.evaluate(
+            ConnectionError(f"could not authenticate with password {secret_value}"),
+            try_number=1,
+            max_tries=3,
+        )
+
+        prompt = mock_agent.run_sync.call_args[0][0]
+        assert secret_value in prompt
 
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_custom_instructions_forwarded_to_agent(self, mock_hook_cls):
