@@ -122,6 +122,14 @@ class TestConnections:
             extra=None,
         )
 
+    def test_conn_get_allows_legacy_invalid_port(self, mock_supervisor_comms):
+        conn_result = ConnectionResult(conn_id="legacy_conn", conn_type="mysql", host="mysql", port=0)
+        mock_supervisor_comms.send.return_value = conn_result
+
+        conn = Connection.get(conn_id="legacy_conn")
+
+        assert conn.port == 0
+
     def test_conn_get_not_found(self, mock_supervisor_comms):
         error_response = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
         mock_supervisor_comms.send.return_value = error_response
@@ -174,6 +182,26 @@ class TestConnections:
         assert result["host"] == "localhost"
         assert result["port"] == 5432
 
+    @pytest.mark.parametrize(
+        ("port", "expected_port"),
+        [
+            (None, None),
+            (1, 1),
+            ("1", 1),
+            (65535, 65535),
+            ("65535", 65535),
+        ],
+    )
+    def test_connection_accepts_valid_ports(self, port, expected_port):
+        connection = Connection(conn_id="test_conn", conn_type="test", port=port)
+
+        assert connection.port == expected_port
+
+    @pytest.mark.parametrize("port", [-1, 0, 65536, "0", "65536", "not-a-port", True])
+    def test_connection_rejects_invalid_ports(self, port):
+        with pytest.raises(ValueError, match="port"):
+            Connection(conn_id="test_conn", conn_type="test", port=port)
+
     def test_from_json(self):
         """Test that from_json creates Connection with type normalization."""
         json_data = {
@@ -188,6 +216,26 @@ class TestConnections:
         assert connection.conn_type == expected_id
         assert connection.host == "localhost"
         assert connection.port == 5432
+
+    @pytest.mark.parametrize("port", [0, "0", 65536, "65536"])
+    def test_from_json_rejects_invalid_ports(self, port):
+        json_data = {
+            "conn_type": "postgresql",
+            "host": "localhost",
+            "port": port,
+        }
+
+        with pytest.raises(ValueError, match="port"):
+            Connection.from_json(json.dumps(json_data), conn_id="test_conn")
+
+    def test_from_json_validate_port_false_allows_legacy_port(self):
+        connection = Connection.from_json(
+            json.dumps({"conn_type": "postgresql", "host": "localhost", "port": 0}),
+            conn_id="test_conn",
+            validate_port=False,
+        )
+
+        assert connection.port == 0
 
     def test_from_json_without_conn_type(self):
         """Test that from_json works without conn_type (backward compatibility with AF 2)."""
@@ -376,6 +424,20 @@ class TestConnectionFromUri:
         uri = "http://user@host://example.com"
         with pytest.raises(AirflowException, match="Invalid connection string"):
             Connection.from_uri(uri, conn_id="test_conn")
+
+    def test_from_uri_rejects_port_zero(self):
+        with pytest.raises(ValueError, match="between 1 and 65535"):
+            Connection.from_uri("type://host:0/schema", conn_id="test_conn")
+
+    def test_from_uri_validate_port_false_allows_legacy_port(self):
+        conn = Connection.from_uri("type://host:0/schema", conn_id="test_conn", validate_port=False)
+
+        assert conn.port == 0
+
+    def test_constructor_uri_validate_port_false_allows_legacy_port(self):
+        conn = Connection(conn_id="test_conn", uri="type://host:0/schema", _validate_port=False)
+
+        assert conn.port == 0
 
     def test_connection_constructor_with_uri(self):
         """Test Connection(uri=..., conn_id=...) constructor form."""

@@ -854,19 +854,23 @@ class TestHiveServer2Hook:
         ],
     )
     def test_get_conn_with_wrong_connection_parameters(self, host, port, schema, message):
-        connection = Connection(
-            conn_id="test",
-            conn_type="hive",
-            host=host,
-            port=port,
-            schema=schema,
-        )
-        hook = HiveCliHook()
-        if message:
-            with pytest.raises(Exception, match=message):
-                hook._validate_beeline_parameters(connection)
-        else:
+        def validate_connection():
+            connection = Connection(
+                conn_id="test",
+                conn_type="hive",
+                host=host,
+                port=10000,
+                schema=schema,
+            )
+            connection.port = port
+            hook = HiveCliHook()
             hook._validate_beeline_parameters(connection)
+
+        if message:
+            with pytest.raises(ValueError, match=message):
+                validate_connection()
+        else:
+            validate_connection()
 
     def test_get_records(self):
         hook = MockHiveServer2Hook()

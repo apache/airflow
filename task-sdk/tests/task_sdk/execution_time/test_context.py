@@ -1253,7 +1253,29 @@ class TestSecretsBackend:
             assert conn is not None
             assert conn.conn_id == "test_conn"
             assert conn.host == "example.com"
+            assert conn.port == 443
             mock_supervisor_comms.send.assert_called_once()
+
+    def test_get_connection_allows_legacy_invalid_port(self, mock_supervisor_comms):
+        from airflow.sdk.api.datamodels._generated import ConnectionResponse
+        from airflow.sdk.execution_time.comms import ConnectionResult
+
+        conn_response = ConnectionResponse(
+            conn_id="test_conn",
+            conn_type="http",
+            host="example.com",
+            port=0,
+        )
+        mock_supervisor_comms.send.return_value = ConnectionResult.from_conn_response(conn_response)
+
+        supervisor_backend = ExecutionAPISecretsBackend()
+
+        with patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded") as mock_load:
+            mock_load.return_value = [supervisor_backend]
+
+            conn = _get_connection("test_conn")
+
+            assert conn.port == 0
 
     def test_get_connection_backend_fallback(self, mock_supervisor_comms):
         """Test that _get_connection falls through backends correctly."""

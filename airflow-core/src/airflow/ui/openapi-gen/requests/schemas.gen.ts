@@ -2399,7 +2399,9 @@ export const $ConnectionBody = {
         port: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'integer',
+                    maximum: 65535,
+                    minimum: 1
                 },
                 {
                     type: 'null'
@@ -2654,7 +2656,9 @@ export const $ConnectionTestRequestBody = {
         port: {
             anyOf: [
                 {
-                    type: 'integer'
+                    type: 'integer',
+                    maximum: 65535,
+                    minimum: 1
                 },
                 {
                     type: 'null'
