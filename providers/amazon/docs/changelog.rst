@@ -39,6 +39,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Add OpenLineage parent info to EMR Spark steps (#70182)``
 * ``Add S3RemoteLogIO.from_config and register s3 remote logging scheme (#69817)``
 * ``Add CloudWatchRemoteLogIO.from_config and register cloudwatch scheme (#69816)``
 * ``Add Amazon ECR repository operators (#69886)``
@@ -68,6 +69,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#69890)" (#70259)``
    * ``Pin task bundle manifest to the dagrun's version (#69941)``
    * ``Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#69890)``
    * ``Consume external role ARN in Neptune Analytics system test (#69682)``

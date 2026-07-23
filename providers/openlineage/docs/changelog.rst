@@ -43,6 +43,7 @@ Bug Fixes
 Doc-only
 ~~~~~~~~
 
+* ``Add OpenLineage parent info to EMR Spark steps (#70182)``
 * ``Document GlueJobOperator support for OpenLineage Spark injection (#69652)``
 
 .. Below changes are excluded from the changelog. Move them to
