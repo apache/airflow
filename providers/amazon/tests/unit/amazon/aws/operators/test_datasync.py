@@ -206,18 +206,25 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
-        # ### Set up mocks:
+    def test_execute_fails_with_missing_location_inputs(self, mock_get_conn):
         mock_get_conn.return_value = self.client
-        # ### Begin tests:
 
+        self.set_up_operator(task_id="missing_source_location_uri", source_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(source_location_uri=None)
+            self.datasync.execute(None)
+
+        self.set_up_operator(task_id="missing_destination_location_uri", destination_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(destination_location_uri=None)
+            self.datasync.execute(None)
+
+        self.set_up_operator(
+            task_id="missing_source_and_destination_location_uri",
+            source_location_uri=None,
+            destination_location_uri=None,
+        )
         with pytest.raises(AirflowException):
-            self.set_up_operator(source_location_uri=None, destination_location_uri=None)
-        # ### Check mocks:
+            self.datasync.execute(None)
+
         mock_get_conn.assert_not_called()
 
     def test_create_task(self, mock_get_conn):
@@ -430,18 +437,25 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
-        # ### Set up mocks:
+    def test_execute_fails_with_missing_location_inputs(self, mock_get_conn):
         mock_get_conn.return_value = self.client
-        # ### Begin tests:
 
+        self.set_up_operator(task_id="missing_source_location_uri", source_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(source_location_uri=None)
+            self.datasync.execute(None)
+
+        self.set_up_operator(task_id="missing_destination_location_uri", destination_location_uri=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(destination_location_uri=None)
+            self.datasync.execute(None)
+
+        self.set_up_operator(
+            task_id="missing_source_and_destination_location_uri",
+            source_location_uri=None,
+            destination_location_uri=None,
+        )
         with pytest.raises(AirflowException):
-            self.set_up_operator(source_location_uri=None, destination_location_uri=None)
-        # ### Check mocks:
+            self.datasync.execute(None)
+
         mock_get_conn.assert_not_called()
 
     def test_get_no_location(self, mock_get_conn):
@@ -640,14 +654,13 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
-        # ### Set up mocks:
+    def test_execute_fails_with_missing_task_arn(self, mock_get_conn):
         mock_get_conn.return_value = self.client
-        # ### Begin tests:
 
+        self.set_up_operator(task_arn=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(task_arn=None)
-        # ### Check mocks:
+            self.datasync.execute(None)
+
         mock_get_conn.assert_not_called()
 
     def test_update_task(self, mock_get_conn):
@@ -761,14 +774,13 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
-        # ### Set up mocks:
+    def test_execute_fails_with_missing_task_arn(self, mock_get_conn):
         mock_get_conn.return_value = self.client
-        # ### Begin tests:
 
+        self.set_up_operator(task_arn=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(task_arn=None)
-        # ### Check mocks:
+            self.datasync.execute(None)
+
         mock_get_conn.assert_not_called()
 
     def test_task_extra_links(self, mock_get_conn):
@@ -973,14 +985,13 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_not_called()
 
-    def test_init_fails(self, mock_get_conn):
-        # ### Set up mocks:
+    def test_execute_fails_with_missing_task_arn(self, mock_get_conn):
         mock_get_conn.return_value = self.client
-        # ### Begin tests:
 
+        self.set_up_operator(task_arn=None)
         with pytest.raises(AirflowException):
-            self.set_up_operator(task_arn=None)
-        # ### Check mocks:
+            self.datasync.execute(None)
+
         mock_get_conn.assert_not_called()
 
     def test_delete_task(self, mock_get_conn):
