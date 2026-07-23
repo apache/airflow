@@ -35,8 +35,10 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudJobRunException,
     DbtCloudJobRunStatus,
     DbtCloudResourceLookupError,
+    DbtCloudTriggerEventException,
     TokenAuth,
     fallback_to_default_account,
+    validate_execute_complete_event,
 )
 
 from tests_common.test_utils.compat import timezone
@@ -156,6 +158,34 @@ class TestDbtCloudJobRunStatus:
     def test_invalid_terminal_job_run_status(self, statuses):
         with pytest.raises(ValueError, match=NOT_VAILD_DBT_STATUS):
             DbtCloudJobRunStatus.check_is_valid(statuses)
+
+
+class TestValidateExecuteCompleteEvent:
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param(None, "event is None", id="none"),
+            pytest.param({}, "Unexpected trigger event status None", id="missing-status"),
+            pytest.param(
+                {"status": "ended", "run_id": 1234}, "Unexpected trigger event status", id="unknown-status"
+            ),
+        ],
+    )
+    def test_invalid_event_raises(self, event, match):
+        with pytest.raises(DbtCloudTriggerEventException, match=match):
+            validate_execute_complete_event(event)
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param({"status": "success", "run_id": 1234, "message": "ok"}, id="success"),
+            pytest.param({"status": "cancelled", "run_id": 1234, "message": "cancelled"}, id="cancelled"),
+            pytest.param({"status": "error", "run_id": 1234, "message": "failed"}, id="error"),
+            pytest.param({"status": "timeout", "run_id": 1234, "message": "timed out"}, id="timeout"),
+        ],
+    )
+    def test_valid_event_is_returned(self, event):
+        assert validate_execute_complete_event(event) is event
 
 
 class TestDbtCloudHook:
