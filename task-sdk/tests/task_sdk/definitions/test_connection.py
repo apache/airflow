@@ -421,3 +421,41 @@ class TestConnectionFromUri:
             original_extra = json.loads(conn_from_original.extra)
             roundtrip_extra = json.loads(conn_from_roundtrip.extra)
             assert original_extra == roundtrip_extra
+
+
+class TestConnectionPortValidation:
+    """Test connection port validation in the task-sdk."""
+
+    def test_port_validation(self):
+        """Test that Connection model validates the port field correctly."""
+        # Valid ports
+        assert Connection(conn_id="test_port_1", port=80).port == 80
+        assert Connection(conn_id="test_port_2", port="8080").port == 8080
+        assert Connection(conn_id="test_port_3", port=None).port is None
+
+        # Invalid ports - out of range
+        with pytest.raises(ValueError, match="The `port` field must be a value between 1 and 65535"):
+            Connection(conn_id="test_port_fail_1", port=70000)
+
+        with pytest.raises(ValueError, match="The `port` field must be a value between 1 and 65535"):
+            Connection(conn_id="test_port_fail_2", port=0)
+
+        with pytest.raises(ValueError, match="The `port` field must be a value between 1 and 65535"):
+            Connection(conn_id="test_port_fail_3", port=-80)
+
+        # Invalid ports - type errors
+        with pytest.raises(ValueError, match="Expected integer value for `port`"):
+            Connection(conn_id="test_port_fail_4", port="invalid_port")
+
+    def test_from_uri_port_validation(self):
+        """Test that Connection.from_uri validates the port field correctly."""
+        # Valid port from URI
+        assert Connection.from_uri("postgres://host:5432/db", conn_id="test").port == 5432
+
+        # Invalid port from URI - out of range
+        with pytest.raises(ValueError, match="Port out of range 0-65535"):
+            Connection.from_uri("postgres://host:70000/db", conn_id="test")
+
+        # Invalid port from URI - type/invalid format
+        with pytest.raises(ValueError, match="Port could not be cast to integer value"):
+            Connection.from_uri("postgres://host:abc/db", conn_id="test")

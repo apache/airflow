@@ -25,6 +25,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
 
+from airflow.sdk._shared.configuration import parse_and_validate_port
 from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.providers_manager_runtime import ProvidersManagerTaskRuntime
 
@@ -152,6 +153,9 @@ class Connection:
             self.__attrs_init__(conn_id=conn_id, **kwargs)  # type: ignore[attr-defined]
         else:
             self.__dict__.update(attrs.asdict(self.from_uri(uri, conn_id=conn_id), recurse=False))
+
+    def __attrs_post_init__(self) -> None:
+        self.port = parse_and_validate_port(self.port)
 
     def get_uri(self) -> str:
         """Generate and return connection in URI format."""

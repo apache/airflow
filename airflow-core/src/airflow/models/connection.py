@@ -28,8 +28,9 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, mapped_column, reconstructor
+from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
 
+from airflow._shared.configuration import parse_and_validate_port
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_backend.base import call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
@@ -218,6 +219,10 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         except json.JSONDecodeError:
             raise ValueError(f"Encountered non-JSON in `extra` field for connection {conn_id!r}.")
         return None
+
+    @validates("port")
+    def validate_port(self, key, value):
+        return parse_and_validate_port(value)
 
     @reconstructor
     def on_db_load(self):
