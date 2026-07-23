@@ -749,6 +749,20 @@ class TestDatabricksHook:
         assert len(tasks) == 2
         assert tasks == GET_RUN_RESPONSE["tasks"] * 2
 
+    def test_get_run_failed_task_keys(self):
+        run_tasks = [
+            {"task_key": "ok", "state": {"result_state": "SUCCESS", "life_cycle_state": "TERMINATED"}},
+            {"task_key": "boom", "state": {"result_state": "FAILED", "life_cycle_state": "TERMINATED"}},
+            {"task_key": "slow", "state": {"result_state": "TIMEDOUT", "life_cycle_state": "TERMINATED"}},
+            {"task_key": "killed", "state": {"result_state": "CANCELED", "life_cycle_state": "SKIPPED"}},
+            {"task_key": "crashed", "state": {"life_cycle_state": "INTERNAL_ERROR"}},
+            {"task_key": "running", "state": {"life_cycle_state": "RUNNING"}},
+        ]
+        with mock.patch.object(self.hook, "get_run_tasks", return_value=run_tasks):
+            failed = self.hook.get_run_failed_task_keys(RUN_ID)
+
+        assert failed == ["boom", "slow", "killed", "crashed"]
+
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_cancel_run(self, mock_requests):
         mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
