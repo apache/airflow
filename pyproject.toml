@@ -901,8 +901,8 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 
 # Deprecated imports
-"airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
-"airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
+"airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError instead."
+"airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError instead."
 
 # Note: we have to specify these all here (not in sub pyproject.toml files), else we'd have to duplicate these
 # all rules in each project https://github.com/astral-sh/ruff/issues/18723
