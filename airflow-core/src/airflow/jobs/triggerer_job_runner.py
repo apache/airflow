@@ -1018,7 +1018,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         from airflow.sdk.log import configure_logging
 
-        configure_logging()
+        configure_logging(json_output=conf.getboolean("logging", "json_logs", fallback=False))
 
         fallback_log = structlog.get_logger(logger_name=__name__)
 
