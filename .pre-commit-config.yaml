@@ -1241,7 +1241,7 @@ repos:
         files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
         require_serial: true
       - id: check-migration-patterns
-        name: Check migration files for anti-patterns (MIG001/MIG002/MIG003)
+        name: Check migration files for anti-patterns and style (MIG001-MIG004)
         entry: ./scripts/ci/prek/check_migration_patterns.py
         language: python
         pass_filenames: true
