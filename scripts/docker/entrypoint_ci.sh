@@ -339,6 +339,7 @@ function check_upgrade_sqlalchemy() {
     echo
     uv sync --all-packages --no-install-package apache-airflow-providers-fab --resolution highest \
         --no-python-downloads --no-managed-python
+    uv pip install "sqlalchemy>=2.1.0b3,<2.2" "snowflake-sqlalchemy>=2.0.0a0,<2.1" --prerelease=allow
 }
 
 # Download minimum supported version of sqlalchemy to run tests with it
