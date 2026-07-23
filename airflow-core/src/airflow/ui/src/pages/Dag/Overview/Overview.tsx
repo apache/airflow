@@ -32,6 +32,7 @@ import {
 import type { ReactAppResponse } from "openapi/requests/types.gen";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
+import { SlowestTasksChart } from "src/components/SlowestTasksChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { dagRunsLimitKey } from "src/constants/localStorage";
@@ -39,6 +40,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { aggregateSlowestTasks } from "src/utils/slowestTasks";
 
 import { DagDeadlines } from "./DagDeadlines";
 
@@ -65,6 +67,22 @@ export const Overview = () => {
   });
 
   const failedTaskCount = failedTasks?.total_entries ?? 0;
+
+  // Recent completed instances feed the per-task median; the endpoint caps the
+  // page at the configured n_page_limit, so this is the recent window, not all runs.
+  const { data: slowestTasksData, isLoading: isLoadingSlowestTasks } = useTaskInstanceServiceGetTaskInstances(
+    {
+      dagId: dagId ?? "",
+      dagRunId: "~",
+      limit: 100,
+      orderBy: ["-run_after"],
+      runAfterGte: startDate,
+      runAfterLte: endDate,
+      state: ["success", "failed"],
+    },
+  );
+
+  const slowestTasks = aggregateSlowestTasks(slowestTasksData?.task_instances ?? [], 10);
 
   const [limit] = useLocalStorage<number>(dagRunsLimitKey(dagId ?? ""), 10);
 
@@ -153,6 +171,21 @@ export const Overview = () => {
               isAutoRefreshing={isAutoRefreshing}
               kind="Dag Run"
             />
+          )}
+        </Box>
+        <Box
+          borderRadius={4}
+          borderStyle="solid"
+          borderWidth={1}
+          flex="1 1 520px"
+          maxWidth="900px"
+          minWidth="320px"
+          p={2}
+        >
+          {isLoadingSlowestTasks ? (
+            <Skeleton height="380px" w="full" />
+          ) : (
+            <SlowestTasksChart tasks={slowestTasks} />
           )}
         </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (

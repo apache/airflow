@@ -113,6 +113,13 @@
     "location": "line {{line}} in {{name}}"
   },
   "reparseDag": "Reparse Dag",
+  "slowestTasks": {
+    "empty": "No completed task instances in this range",
+    "subtitle": "Median duration across recent runs",
+    "title": "Slowest tasks",
+    "tooltip_one": "{{duration}} median · {{count}} run",
+    "tooltip_other": "{{duration}} median · {{count}} runs"
+  },
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
