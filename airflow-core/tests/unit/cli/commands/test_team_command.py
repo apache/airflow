@@ -84,7 +84,7 @@ class TestCliTeams:
         with conf_vars(
             {
                 ("core", "multi_team"): "True",
-                ("multi_team", "default_pool_task_slot_count"): "128",
+                ("core", "default_pool_task_slot_count"): "111",
             }
         ):
             with stdout_capture:
@@ -94,7 +94,7 @@ class TestCliTeams:
 
         assert pool is not None
         assert pool.team_name == "team-a"
-        assert pool.slots == 128
+        assert pool.slots == 111
         assert pool.include_deferred is False
         assert pool.description == "Default pool for team 'team-a'"
 

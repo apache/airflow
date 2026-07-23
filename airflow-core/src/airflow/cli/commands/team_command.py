@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -34,6 +35,9 @@ from airflow.models.variable import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 NO_TEAMS_LIST_MSG = "No teams found."
 
@@ -59,6 +63,17 @@ def _extract_team_name(args):
     return team_name
 
 
+def _create_default_team_pool(team_name: str, *, session: Session) -> None:
+    Pool.create_or_update_pool(
+        name=Pool.get_default_team_pool_name(team_name),
+        slots=conf.getint("core", "default_pool_task_slot_count"),
+        description=f"Default pool for team '{team_name}'",
+        include_deferred=False,
+        team_name=team_name,
+        session=session,
+    )
+
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -78,17 +93,7 @@ def team_create(args, *, session=NEW_SESSION):
         session.flush()
 
         if conf.getboolean("core", "multi_team"):
-            Pool.create_or_update_pool(
-                name=Pool.get_default_team_pool_name(team_name),
-                slots=conf.getint(
-                    "core",
-                    "default_pool_task_slot_count",
-                ),
-                description=f"Default pool for team '{team_name}'",
-                include_deferred=False,
-                team_name=team_name,
-                session=session,
-            )
+            _create_default_team_pool(team_name=team_name, session=session)
 
         session.commit()
         print(f"Team '{team_name}' created successfully.")
@@ -143,11 +148,6 @@ def team_delete(args, *, session=NEW_SESSION):
     ):
         associations.append(f"{pool_count} pool(s)")
 
-    default_pool = session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name(team.name)))
-
-    if default_pool:
-        session.delete(default_pool)
-
     # If there are associations, prevent deletion
     if associations:
         association_list = ", ".join(associations)
@@ -166,6 +166,17 @@ def team_delete(args, *, session=NEW_SESSION):
     # Delete the team
     try:
         session.delete(team)
+
+        default_pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == Pool.get_default_team_pool_name(team.name),
+                Pool.team_name == team.name,
+            )
+        )
+
+        if default_pool:
+            session.delete(default_pool)
+
         session.commit()
         print(f"Team '{team_name}' deleted successfully")
     except Exception as e:
@@ -190,6 +201,9 @@ def team_list(args, *, session=NEW_SESSION):
 @provide_session
 def team_sync(args, *, session=NEW_SESSION):
     """Sync missing teams from the dag bundle config."""
+    if not conf.getboolean("core", "multi_team"):
+        return
+
     dag_bundle_teams = {
         bundle.team_name
         for bundle in DagBundlesManager()._bundle_config.values()
@@ -203,22 +217,18 @@ def team_sync(args, *, session=NEW_SESSION):
         for team_name in dag_bundle_teams:
             if team_name not in existing_teams:
                 session.add(Team(name=team_name))
+                session.flush()
                 teams_added += 1
 
-            session.flush()
-
-            if conf.getboolean("core", "multi_team"):
-                Pool.create_or_update_pool(
-                    name=Pool.get_default_team_pool_name(team_name),
-                    slots=conf.getint(
-                        "core",
-                        "default_pool_task_slot_count",
-                    ),
-                    description=f"Default pool for team '{team_name}'",
-                    include_deferred=False,
-                    team_name=team_name,
-                    session=session,
+            pool = session.scalar(
+                select(Pool).where(
+                    Pool.pool == Pool.get_default_team_pool_name(team_name),
+                    Pool.team_name == team_name,
                 )
+            )
+
+            if pool is None:
+                _create_default_team_pool(team_name=team_name, session=session)
 
         session.commit()
     except Exception as e:
