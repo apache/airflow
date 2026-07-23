@@ -186,6 +186,22 @@ class TestSSHOperator:
                 command=None,
             ).execute(None)
 
+    def test_templated_remote_host_updates_hook_after_rendering(self):
+        self.hook.remote_host = "connection_host"
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command=COMMAND,
+            remote_host="{{ params.remote_host }}",
+        )
+
+        assert self.hook.remote_host == "connection_host"
+
+        task.render_template_fields(context={"params": {"remote_host": "operator_remote_host"}})
+        task.execute(None)
+
+        assert self.hook.remote_host == "operator_remote_host"
+
     @pytest.mark.parametrize(
         ("command", "get_pty_in", "get_pty_out"),
         [
