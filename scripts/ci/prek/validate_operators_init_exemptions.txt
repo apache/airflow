@@ -36,9 +36,6 @@ providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/resour
 providers/cohere/src/airflow/providers/cohere/operators/embedding.py::CohereEmbeddingOperator
 providers/common/ai/src/airflow/providers/common/ai/operators/agent.py::AgentOperator
 providers/common/ai/src/airflow/providers/common/ai/operators/document_loader.py::DocumentLoaderOperator
-providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposCreateOperator
-providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposDeleteOperator
-providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposUpdateOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_sql.py::DatabricksCopyIntoOperator
 providers/databricks/src/airflow/providers/databricks/sensors/databricks.py::DatabricksSQLStatementsSensor
 providers/dbt/cloud/src/airflow/providers/dbt/cloud/operators/dbt.py::DbtCloudGetJobRunArtifactOperator
