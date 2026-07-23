@@ -1,0 +1,1 @@
+Fix tasks failing with a 404 when fetching a connection whose ID contains a slash (for example ``dev-env/project-name``).
