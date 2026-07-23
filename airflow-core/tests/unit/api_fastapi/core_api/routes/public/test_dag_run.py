@@ -48,7 +48,7 @@ from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
@@ -1594,20 +1594,153 @@ class TestPatchDagRun:
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
 
     @pytest.mark.parametrize(
-        ("state", "listener_state"),
+        ("state", "expected_dagrun_state", "expected_msg"),
         [
-            ("queued", []),
-            ("success", [DagRunState.SUCCESS]),
-            ("failed", [DagRunState.FAILED]),
+            ("queued", [], None),
+            ("success", [DagRunState.SUCCESS], "Dag Run's state was manually set to `success`."),
+            ("failed", [DagRunState.FAILED], "Dag Run's state was manually set to `failed`."),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
+    def test_patch_dag_run_notifies_listeners(
+        self, test_client, state, expected_dagrun_state, expected_msg, listener_manager
+    ):
         listener = ClassBasedListener()
         listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
-        assert listener.state == listener_state
+        assert listener.state == expected_dagrun_state
+        if expected_msg is not None:
+            assert listener.dag_run_msg == expected_msg
+            assert listener.dag_run_has_dag_attr is True
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, listener_manager
+    ):
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN2_ID}",
+            json={"state": "success", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.dag_run_note_at_listener == "listener_note"
+
+    @pytest.mark.parametrize(
+        ("dag_run_state", "expected_ti_state"),
+        [
+            ("success", TaskInstanceState.SUCCESS),
+            ("failed", TaskInstanceState.FAILED),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_notifies_ti_listeners_for_running_tasks(
+        self,
+        test_client,
+        dag_maker,
+        session,
+        listener_manager,
+        dag_run_state,
+        expected_ti_state,
+    ):
+        with dag_maker(dag_id="test_ti_listeners", schedule=None, serialized=True):
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "t1",
+            )
+        )
+        ti.state = TaskInstanceState.RUNNING
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/test_ti_listeners/dagRuns/{dr.run_id}", json={"state": dag_run_state}
+        )
+        assert response.status_code == 200
+        assert listener.state[0] is expected_ti_state
+        assert listener.state[1] is DagRunState(dag_run_state)
+        assert len(listener.state) == 2
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_does_not_notify_ti_listeners_for_non_running_tasks(
+        self,
+        test_client,
+        dag_maker,
+        session,
+        listener_manager,
+    ):
+        with dag_maker(dag_id="test_ti_listeners_queued", schedule=None, serialized=True):
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "t1",
+            )
+        )
+        ti.state = TaskInstanceState.QUEUED
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/test_ti_listeners_queued/dagRuns/{dr.run_id}", json={"state": "success"}
+        )
+        assert response.status_code == 200
+        # Only the dagrun-level hook should have fired; no TI hooks for a non-running task.
+        # The list length check distinguishes "only dagrun fired" from "both fired".
+        assert listener.state == [DagRunState.SUCCESS]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_does_not_notify_ti_listeners_for_running_teardown_tasks(
+        self,
+        test_client,
+        dag_maker,
+        session,
+        listener_manager,
+    ):
+        with dag_maker(dag_id="test_ti_listeners_teardown", schedule=None, serialized=True):
+            normal = EmptyOperator(task_id="normal")
+            teardown = EmptyOperator(task_id="teardown").as_teardown(setups=normal)
+            normal >> teardown
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        for task_id in ("normal", "teardown"):
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == dr.dag_id,
+                    TaskInstance.run_id == dr.run_id,
+                    TaskInstance.task_id == task_id,
+                )
+            )
+            ti.state = TaskInstanceState.RUNNING
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/test_ti_listeners_teardown/dagRuns/{dr.run_id}", json={"state": "success"}
+        )
+        assert response.status_code == 200
+        # Normal task was killed — its TI listener fires. Teardown task is intentionally skipped.
+        assert len(listener.state) == 2
+        assert listener.state[0] is TaskInstanceState.SUCCESS
+        assert listener.state[1] is DagRunState.SUCCESS
 
 
 class TestDeleteDagRun:
