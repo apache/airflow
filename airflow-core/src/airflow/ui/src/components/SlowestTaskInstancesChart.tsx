@@ -16,37 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Center, Heading, Text, useToken } from "@chakra-ui/react";
+import { Box, Center, Heading, useToken } from "@chakra-ui/react";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, type Plugin } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { getComputedCSSVariableValue } from "src/theme";
-import { getDurationTickStep, renderCompactDuration } from "src/utils/datetimeUtils";
-import type { TaskDurationSummary } from "src/utils/slowestTasks";
+import { getDurationTickStep, renderCompactDuration, renderDuration } from "src/utils/datetimeUtils";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
 const CHART_HEIGHT = "340px";
 
-export const SlowestTasksChart = ({ tasks }: { readonly tasks: Array<TaskDurationSummary> }) => {
+export const SlowestTaskInstancesChart = ({
+  taskInstances,
+}: {
+  readonly taskInstances: Array<TaskInstanceResponse>;
+}) => {
   const { t: translate } = useTranslation(["components", "common"]);
-  const [labelColorToken] = useToken("colors", ["fg.muted"]);
+  const [labelColorToken, fallbackColorToken] = useToken("colors", ["fg.muted", "gray.solid"]);
 
-  const states = tasks.map((task) => task.latestState).filter(Boolean);
+  const states = taskInstances.map((taskInstance) => taskInstance.state).filter(Boolean);
   const stateColorTokens = useToken(
     "colors",
     states.map((state) => `${state}.solid`),
   );
 
-  if (tasks.length === 0) {
+  if (taskInstances.length === 0) {
     return (
-      <Box data-testid="slowest-tasks-chart" height={CHART_HEIGHT}>
-        <Heading pb={1} size="sm" textAlign="center">
-          {translate("slowestTasks.title")}
+      <Box data-testid="slowest-task-instances-chart" height={CHART_HEIGHT}>
+        <Heading pb={2} size="sm" textAlign="center">
+          {translate("slowestTaskInstances.title")}
         </Heading>
         <Center color="fg.muted" fontSize="sm" height="100%">
-          {translate("slowestTasks.empty")}
+          {translate("slowestTaskInstances.empty")}
         </Center>
       </Box>
     );
@@ -60,6 +64,10 @@ export const SlowestTasksChart = ({ tasks }: { readonly tasks: Array<TaskDuratio
     }
   });
 
+  const fallbackColor = getComputedCSSVariableValue(fallbackColorToken ?? "oklch(0.5 0 0)");
+  const durations = taskInstances.map((taskInstance) => taskInstance.duration ?? 0);
+  const maxDuration = Math.max(...durations, 0);
+
   const barEndLabels: Plugin<"bar"> = {
     afterDatasetsDraw: (chart) => {
       const { ctx } = chart;
@@ -70,41 +78,36 @@ export const SlowestTasksChart = ({ tasks }: { readonly tasks: Array<TaskDuratio
       ctx.fillStyle = getComputedCSSVariableValue(labelColorToken ?? "oklch(0.5 0 0)");
       ctx.textBaseline = "middle";
       meta.data.forEach((bar, index) => {
-        const task = tasks[index];
+        const duration = durations[index];
 
-        if (task !== undefined) {
-          ctx.fillText(renderCompactDuration(task.medianDuration), bar.x + 6, bar.y);
+        if (duration !== undefined) {
+          ctx.fillText(renderCompactDuration(duration), bar.x + 6, bar.y);
         }
       });
       ctx.restore();
     },
-    id: "slowestTasksBarEndLabels",
+    id: "slowestTaskInstancesBarEndLabels",
   };
 
-  const maxMedian = Math.max(...tasks.map((task) => task.medianDuration), 0);
-
   return (
-    <Box data-testid="slowest-tasks-chart">
-      <Heading pb={1} size="sm" textAlign="center">
-        {translate("slowestTasks.title")}
+    <Box data-testid="slowest-task-instances-chart">
+      <Heading pb={2} size="sm" textAlign="center">
+        {translate("slowestTaskInstances.title")}
       </Heading>
-      <Text color="fg.muted" fontSize="xs" pb={2} textAlign="center">
-        {translate("slowestTasks.subtitle")}
-      </Text>
       <Box height={CHART_HEIGHT}>
         <Bar
           data={{
             datasets: [
               {
-                backgroundColor: tasks.map(
-                  (task) =>
-                    (task.latestState ? stateColorMap[task.latestState] : undefined) ?? "oklch(0.5 0 0)",
+                backgroundColor: taskInstances.map(
+                  (taskInstance) =>
+                    (taskInstance.state ? stateColorMap[taskInstance.state] : undefined) ?? fallbackColor,
                 ),
                 borderRadius: 3,
-                data: tasks.map((task) => task.medianDuration),
+                data: durations,
               },
             ],
-            labels: tasks.map((task) => task.taskDisplayName),
+            labels: taskInstances.map((taskInstance) => taskInstance.task_display_name),
           }}
           options={{
             indexAxis: "y",
@@ -114,18 +117,7 @@ export const SlowestTasksChart = ({ tasks }: { readonly tasks: Array<TaskDuratio
               legend: { display: false },
               tooltip: {
                 callbacks: {
-                  label: (context) => {
-                    const task = tasks[context.dataIndex];
-
-                    if (task === undefined) {
-                      return "";
-                    }
-
-                    return translate("slowestTasks.tooltip", {
-                      count: task.runCount,
-                      duration: renderCompactDuration(task.medianDuration),
-                    });
-                  },
+                  label: (context) => renderDuration(context.parsed.x, false) ?? "0",
                 },
               },
             },
@@ -136,7 +128,7 @@ export const SlowestTasksChart = ({ tasks }: { readonly tasks: Array<TaskDuratio
                 ticks: {
                   callback: (value) =>
                     renderCompactDuration(typeof value === "number" ? value : Number(value)),
-                  stepSize: getDurationTickStep(maxMedian),
+                  stepSize: getDurationTickStep(maxDuration),
                 },
                 title: { align: "end", display: true, text: translate("common:duration") },
               },
