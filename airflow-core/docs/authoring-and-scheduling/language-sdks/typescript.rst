@@ -30,8 +30,9 @@ The SDK is the ``@apache-airflow/ts-sdk`` package (ESM-only). It is currently in
 
 .. warning::
 
-The SDK is not yet published to npm. To try it today, build it from source in the
-`ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository and depend on it locally (see ``ts-sdk/example/`` for a working setup).
+  The SDK is not yet published to npm. To try it today, build it from source in the
+  `ts-sdk/ <https://github.com/apache/airflow/tree/main/ts-sdk>`__ directory of the Airflow repository and
+  depend on it locally (see ``ts-sdk/example/`` for a working setup).
 
 .. contents:: Contents
    :local:
