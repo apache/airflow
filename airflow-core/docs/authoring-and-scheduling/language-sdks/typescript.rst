@@ -135,6 +135,14 @@ routes stub tasks with ``queue="typescript"`` to this coordinator. See
 There is no separate Node.js worker to run: the Airflow worker launches the bundle with ``node`` once per
 task instance.
 
+.. note::
+
+  The coordinator runs inside the Airflow worker, so the ``[sdk]`` config (and the packed ``bundle.mjs``
+  files in ``bundles_root``) only need to be present wherever tasks actually execute. With
+  ``CeleryExecutor``, setting them on the Celery workers is sufficient. With ``LocalExecutor``, tasks run
+  inside the scheduler process, so they must be present where the scheduler can read them. The API server
+  and Dag processor do not need them.
+
 Writing tasks
 -------------
 
