@@ -215,6 +215,13 @@ class TestTemporalMappers:
         with pytest.raises(ValueError, match="could not parse"):
             mapper.decode_downstream("2024-Q1 trailing-garbage")
 
+    def test_validate_source_key(self):
+        StartOfHourMapper().validate_source_key("2026-02-10T14:30:45")
+
+    def test_validate_source_key_rejects_non_canonical_input(self):
+        with pytest.raises(ValueError, match="does not round-trip"):
+            StartOfHourMapper().validate_source_key("2026-2-10T4:30:45")
+
 
 class TestSdkTemporalMappersTimezoneSerialization:
     """
