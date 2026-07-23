@@ -722,6 +722,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.sensors.bigtable"],
             },
             {
+                "integration-name": "Google Cloud SQL",
+                "python-modules": ["airflow.providers.google.cloud.sensors.cloud_sql"],
+            },
+            {
                 "integration-name": "Managed Service for Apache Airflow",
                 "python-modules": ["airflow.providers.google.cloud.sensors.cloud_composer"],
             },
