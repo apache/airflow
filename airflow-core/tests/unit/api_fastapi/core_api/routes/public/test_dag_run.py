@@ -422,18 +422,18 @@ class TestGetDagRuns:
         assert body["detail"] == "The Dag with ID: `invalid` was not found"
 
     def test_partition_date_day_filters_reject_all_dags_selector(self, test_client):
-        response = test_client.get("/dags/~/dagRuns", params={"partition_date_start": "2025-01-01"})
+        response = test_client.get("/dags/~/dagRuns", params={"partition_date_gte": "2025-01-01"})
         assert response.status_code == 400
         assert response.json()["detail"] == (
-            "partition_date_start and partition_date_end require a specific dag_id."
+            "partition_date_gte and partition_date_lte require a specific dag_id."
         )
 
     def test_partition_date_day_filters_reject_non_partitioned_dag(self, test_client):
-        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"partition_date_start": "2025-01-01"})
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"partition_date_gte": "2025-01-01"})
         assert response.status_code == 400
         assert response.json()["detail"] == (
             f"Dag with dag_id: '{DAG1_ID}' is not partitioned; "
-            "partition_date_start and partition_date_end are not supported."
+            "partition_date_gte and partition_date_lte are not supported."
         )
 
     def test_invalid_order_by_raises_400(self, test_client):
@@ -1059,8 +1059,8 @@ class TestGetDagRuns:
         response = test_client.get(
             f"/dags/{dag_id}/dagRuns",
             params={
-                "partition_date_start": "2025-01-02",
-                "partition_date_end": "2025-01-02",
+                "partition_date_gte": "2025-01-02",
+                "partition_date_lte": "2025-01-02",
                 "order_by": "partition_date",
             },
         )

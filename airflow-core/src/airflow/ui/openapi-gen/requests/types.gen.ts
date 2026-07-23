@@ -3211,13 +3211,13 @@ export type GetDagRunsData = {
      */
     orderBy?: Array<(string)>;
     /**
-     * Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone.
+     * Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. Runs from the start of this day onwards match.
      */
-    partitionDateEnd?: string | null;
+    partitionDateGte?: string | null;
     /**
-     * Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone.
+     * Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. The whole day is included: runs up to the end of this day match.
      */
-    partitionDateStart?: string | null;
+    partitionDateLte?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). The pipe `|` is matched literally, not as an OR separator. Regular expressions are **not** supported.
      *

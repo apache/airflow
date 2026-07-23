@@ -2371,7 +2371,7 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: partition_date_start
+      - name: partition_date_gte
         in: query
         required: false
         schema:
@@ -2380,11 +2380,13 @@ paths:
             format: date
           - type: 'null'
           description: Inclusive lower bound of the partition_date window, interpreted
-            as a local calendar day in the Dag's timetable timezone.
-          title: Partition Date Start
+            as a local calendar day in the Dag's timetable timezone. Runs from the
+            start of this day onwards match.
+          title: Partition Date Gte
         description: Inclusive lower bound of the partition_date window, interpreted
-          as a local calendar day in the Dag's timetable timezone.
-      - name: partition_date_end
+          as a local calendar day in the Dag's timetable timezone. Runs from the start
+          of this day onwards match.
+      - name: partition_date_lte
         in: query
         required: false
         schema:
@@ -2392,11 +2394,13 @@ paths:
           - type: string
             format: date
           - type: 'null'
-          description: Inclusive upper bound of the partition_date window, interpreted
-            as a local calendar day in the Dag's timetable timezone.
-          title: Partition Date End
-        description: Inclusive upper bound of the partition_date window, interpreted
-          as a local calendar day in the Dag's timetable timezone.
+          description: 'Inclusive upper bound of the partition_date window, interpreted
+            as a local calendar day in the Dag''s timetable timezone. The whole day
+            is included: runs up to the end of this day match.'
+          title: Partition Date Lte
+        description: 'Inclusive upper bound of the partition_date window, interpreted
+          as a local calendar day in the Dag''s timetable timezone. The whole day
+          is included: runs up to the end of this day match.'
       - name: cursor
         in: query
         required: false

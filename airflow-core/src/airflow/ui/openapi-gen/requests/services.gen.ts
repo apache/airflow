@@ -1067,8 +1067,8 @@ export class DagRunService {
      * on the first page.
      * @param data The data for the request.
      * @param data.dagId
-     * @param data.partitionDateStart Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone.
-     * @param data.partitionDateEnd Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone.
+     * @param data.partitionDateGte Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. Runs from the start of this day onwards match.
+     * @param data.partitionDateLte Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. The whole day is included: runs up to the end of this day match.
      * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
      * @param data.limit
      * @param data.offset
@@ -1130,8 +1130,8 @@ export class DagRunService {
                 dag_id: data.dagId
             },
             query: {
-                partition_date_start: data.partitionDateStart,
-                partition_date_end: data.partitionDateEnd,
+                partition_date_gte: data.partitionDateGte,
+                partition_date_lte: data.partitionDateLte,
                 cursor: data.cursor,
                 limit: data.limit,
                 offset: data.offset,
