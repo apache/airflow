@@ -165,7 +165,6 @@ with DAG(
     run_crawler = GlueCrawlerRunOperator(
         task_id="run_crawler",
         crawler_name=glue_crawler_name,
-        deferrable=False,
     )
     # [END howto_operator_glue_crawler_run]
 
