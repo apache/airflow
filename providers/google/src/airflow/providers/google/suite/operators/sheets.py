@@ -19,6 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 from airflow.providers.google.version_compat import BaseOperator
 
@@ -33,7 +34,9 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
 
     :param spreadsheet: an instance of Spreadsheet
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet
-    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param drive_id: Shared Drive ID where the spreadsheet should be created.
+        This is useful when using a service account, since service accounts
+        do not have personal Drive storage. (templated)
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -49,6 +52,7 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "spreadsheet",
         "impersonation_chain",
+        "drive_id",
     )
 
     def __init__(
@@ -57,6 +61,7 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         spreadsheet: dict[str, Any],
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        drive_id: str | None = None,
         api_endpoint: str | None = None,
         **kwargs,
     ) -> None:
@@ -65,14 +70,42 @@ class GoogleSheetsCreateSpreadsheetOperator(BaseOperator):
         self.spreadsheet = spreadsheet
         self.impersonation_chain = impersonation_chain
         self.api_endpoint = api_endpoint
+        self.drive_id = drive_id
 
     def execute(self, context: Any) -> dict[str, Any]:
+        if self.drive_id:
+            spreadsheet = self._create_spreadsheet_via_drive_api()
+        else:
+            spreadsheet = self._create_spreadsheet_via_sheets_api()
+        context["task_instance"].xcom_push(key="spreadsheet_id", value=spreadsheet["spreadsheetId"])
+        context["task_instance"].xcom_push(key="spreadsheet_url", value=spreadsheet["spreadsheetUrl"])
+        return spreadsheet
+
+    def _construct_spreadsheet_metadata(self, spreadsheet) -> dict:
+        return {
+            "name": spreadsheet["properties"]["title"],
+            "mimeType": "application/vnd.google-apps.spreadsheet",
+            "parents": [self.drive_id],
+        }
+
+    def _create_spreadsheet_via_drive_api(self) -> dict:
+        spreadsheet_metadata = self._construct_spreadsheet_metadata(self.spreadsheet)
+        hook = GoogleDriveHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        spreadsheet = hook.create_file(file_metadata=spreadsheet_metadata)
+
+        response = {
+            "spreadsheetId": spreadsheet.get("id"),
+            "spreadsheetUrl": spreadsheet.get("webViewLink"),
+        }
+        return response
+
+    def _create_spreadsheet_via_sheets_api(self) -> dict:
         hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             api_endpoint=self.api_endpoint,
         )
-        spreadsheet = hook.create_spreadsheet(spreadsheet=self.spreadsheet)
-        context["task_instance"].xcom_push(key="spreadsheet_id", value=spreadsheet["spreadsheetId"])
-        context["task_instance"].xcom_push(key="spreadsheet_url", value=spreadsheet["spreadsheetUrl"])
-        return spreadsheet
+        return hook.create_spreadsheet(spreadsheet=self.spreadsheet)
