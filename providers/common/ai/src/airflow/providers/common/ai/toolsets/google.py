@@ -27,14 +27,7 @@ from functools import cache
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
-try:
-    import googleapiclient.discovery_cache
-    from googleapiclient.discovery import ResourceMethodParameters, build
-except ImportError as e:
-    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-    raise AirflowOptionalProviderFeatureException(e)
-
+import requests
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
@@ -42,6 +35,12 @@ from pydantic_core import SchemaValidator, core_schema
 
 from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+try:
+    import googleapiclient.discovery_cache
+    from googleapiclient.discovery import ResourceMethodParameters, build
+except ImportError as e:
+    raise AirflowOptionalProviderFeatureException() from e
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -86,7 +85,7 @@ def _get_google_base_hook_class() -> type[Any]:
     try:
         return import_module("airflow.providers.google.common.hooks.base_google").GoogleBaseHook
     except ImportError as e:
-        raise AirflowOptionalProviderFeatureException(e)
+        raise AirflowOptionalProviderFeatureException() from e
 
 
 # Methods that put credentials or decrypted secrets into the agent's context.
@@ -290,8 +289,7 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                 )
             has_wildcard = any(ch in method_path for ch in "*?[")
             if bundled and not has_wildcard:
-                doc = _load_bundled_doc(api, version)
-                canonical = _collect_method_paths(doc).get(_normalize_method(method_path))
+                canonical = _get_bundled_method_paths(api, version).get(_normalize_method(method_path))
                 if canonical is None:
                     raise ValueError(
                         f"Unknown method {method_path!r} for {api}/{version} in {entry!r}. "
@@ -302,12 +300,11 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                 # and path-style entries ("objects.list") authorize identically.
                 method_path = canonical
             elif bundled:
-                doc = _load_bundled_doc(api, version)
                 pattern = _normalize_method(f"{api}/{version}:{method_path}")
                 if not any(
                     fnmatchcase(_normalize_method(f"{api}/{version}:{path}"), pattern)
                     and _normalize_method(f"{api}:{path}") not in _CREDENTIAL_RETURNING_METHODS
-                    for path in set(_collect_method_paths(doc).values())
+                    for path in set(_get_bundled_method_paths(api, version).values())
                 ):
                     raise ValueError(
                         f"Pattern {method_path!r} matches no methods of {api}/{version} in {entry!r}. "
@@ -326,8 +323,7 @@ class GoogleCloudToolset(AbstractToolset[Any]):
         self._max_output_bytes = max_output_bytes
         self._patterns = patterns
         self._literal_methods = frozenset(literal_methods)
-        # Populated lazily at call time, so Dag parsing never touches network
-        # or credentials.
+        # Populated lazily at call time, so Dag parsing never touches network or credentials.
         self._hook: Any | None = None
         self._services: dict[tuple[str, str], Any] = {}
         self._remote_docs: dict[tuple[str, str], dict[str, Any]] = {}
@@ -355,8 +351,9 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                 f"API {api_version!r} is not in the bundled discovery documents. "
                 "Expected '<api>/<version>', e.g. 'storage/v1'."
             )
-        doc = _load_bundled_doc(api, version)
-        return sorted(f"{api}/{version}:{path}" for path in set(_collect_method_paths(doc).values()))
+        return sorted(
+            f"{api}/{version}:{path}" for path in set(_get_bundled_method_paths(api, version).values())
+        )
 
     # ------------------------------------------------------------------
     # AbstractToolset interface
@@ -468,10 +465,10 @@ class GoogleCloudToolset(AbstractToolset[Any]):
         keys = [self._get_allowed_api(api_version=api_filter)] if api_filter else sorted(self._patterns)
         listing = {}
         for api, version in keys:
-            doc = self._get_doc(api=api, version=version)
+            method_paths = self._get_method_paths(api=api, version=version)
             listing[f"{api}/{version}"] = sorted(
                 canonical
-                for canonical in set(_collect_method_paths(doc).values())
+                for canonical in set(method_paths.values())
                 if self._is_method_allowed(api=api, version=version, method_path=canonical)
             )
         return json.dumps(listing)
@@ -479,7 +476,7 @@ class GoogleCloudToolset(AbstractToolset[Any]):
     def _describe_method(self, *, api_version: str, method: str) -> str:
         api, version = self._get_allowed_api(api_version=api_version)
         doc = self._get_doc(api=api, version=version)
-        canonical = _collect_method_paths(doc).get(_normalize_method(method))
+        canonical = self._get_method_paths(api=api, version=version).get(_normalize_method(method))
         if canonical is None:
             raise ValueError(f"Unknown method {method!r} for {api}/{version}.")
         if not self._is_method_allowed(api=api, version=version, method_path=canonical):
@@ -511,7 +508,7 @@ class GoogleCloudToolset(AbstractToolset[Any]):
     ) -> str:
         api, version = self._get_allowed_api(api_version=api_version)
         doc = self._get_doc(api=api, version=version)
-        canonical = _collect_method_paths(doc).get(_normalize_method(method))
+        canonical = self._get_method_paths(api=api, version=version).get(_normalize_method(method))
         if canonical is None:
             raise ValueError(f"Unknown method {method!r} for {api}/{version}.")
         if not self._is_method_allowed(api=api, version=version, method_path=canonical):
@@ -569,8 +566,7 @@ class GoogleCloudToolset(AbstractToolset[Any]):
     # ------------------------------------------------------------------
 
     def _apply_project_guard(self, *, method_doc: dict[str, Any], params: dict[str, Any]) -> None:
-        project = self._get_hook().project_id
-        if not project:
+        if not (project := self._get_hook().project_id):
             return
         param_defs = method_doc.get("parameters", {})
         for param_name in ("project", "projectId"):
@@ -637,12 +633,16 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                 "allow_remote_discovery is disabled."
             )
         if key not in self._remote_docs:
-            import requests
-
             response = requests.get(_DISCOVERY_DOC_URL.format(api=api, version=version), timeout=30)
             response.raise_for_status()
             self._remote_docs[key] = response.json()
         return self._remote_docs[key]
+
+    def _get_method_paths(self, *, api: str, version: str) -> dict[str, str]:
+        key = (api, version)
+        if key in _bundled_apis():
+            return _get_bundled_method_paths(api, version)
+        return _collect_method_paths(self._get_doc(api=api, version=version))
 
     def _serialize_response(self, response: Any) -> str:
         payload = json.dumps(response, default=str)
@@ -655,11 +655,6 @@ class GoogleCloudToolset(AbstractToolset[Any]):
                 }
             )
         return payload
-
-
-# ---------------------------------------------------------------------------
-# Private discovery-document helpers
-# ---------------------------------------------------------------------------
 
 
 @cache
@@ -678,11 +673,15 @@ def _bundled_apis() -> frozenset[tuple[str, str]]:
     return frozenset(pairs)
 
 
-@cache
 def _load_bundled_doc(api: str, version: str) -> dict[str, Any]:
     path = os.path.join(_bundled_docs_dir(), f"{api}.{version}.json")
     with open(path) as f:
         return json.load(f)
+
+
+@cache
+def _get_bundled_method_paths(api: str, version: str) -> dict[str, str]:
+    return _collect_method_paths(_load_bundled_doc(api, version))
 
 
 def _collect_method_paths(doc: dict[str, Any]) -> dict[str, str]:
@@ -707,8 +706,7 @@ def _collect_method_paths(doc: dict[str, Any]) -> dict[str, str]:
 
     walk(doc.get("resources", {}), "")
 
-    api_name = doc.get("name")
-    if api_name:
+    if api_name := doc.get("name"):
         for canonical in list(paths.values()):
             paths.setdefault(_normalize_method(f"{api_name}.{canonical}"), canonical)
     return paths
@@ -808,7 +806,6 @@ def _describe_schema(
         if depth > 0:
             return [_describe_schema(doc, node.get("items", {}), depth - 1, seen)]
         return type_name
-    enum = node.get("enum")
-    if enum:
+    if enum := node.get("enum"):
         return f"{type_name} (one of: {', '.join(enum[:20])})"
     return type_name

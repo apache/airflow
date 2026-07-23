@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic_ai.exceptions import ModelRetry
 
+from airflow.providers.common.ai.toolsets import google as google_toolset
 from airflow.providers.common.ai.toolsets.google import GoogleCloudToolset
 from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 
@@ -103,6 +104,20 @@ class TestGoogleCloudToolsetInit:
 
     def test_unbundled_api_allowed_with_remote_discovery(self):
         GoogleCloudToolset("gcp_test", allowed_methods=["nosuchapi/v1:foo.bar"], allow_remote_discovery=True)
+
+    def test_reuses_cached_method_path_map_during_init_validation(self):
+        google_toolset._get_bundled_method_paths.cache_clear()
+
+        with patch.object(
+            google_toolset, "_load_bundled_doc", wraps=google_toolset._load_bundled_doc
+        ) as load_bundled_doc:
+            GoogleCloudToolset(
+                "gcp_test",
+                allowed_methods=["storage/v1:objects.list", "storage/v1:buckets.*"],
+            )
+            GoogleCloudToolset("gcp_test", allowed_methods=["storage/v1:buckets.list"])
+
+        load_bundled_doc.assert_called_once_with("storage", "v1")
 
 
 class TestGoogleCloudToolsetGetTools:
