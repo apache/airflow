@@ -45,6 +45,24 @@ class BaseOperatorLink(metaclass=ABCMeta):
         """Name of the link. This will be the button name on the task UI."""
 
     @property
+    def static_url(self) -> str | None:
+        """
+        An optional static URL for this operator link.
+
+        If this returns a non-None value, it is used as the link URL directly,
+        without reading from XCom. This avoids unnecessary metadata database writes
+        and reads for links whose URL is constant across all task instances
+        (e.g. a link to the operator's documentation page).
+
+        Override this in subclasses where the link URL does not vary per task instance.
+        When ``static_url`` is set, there is no need to implement :meth:`get_link`
+        or push anything to XCom during task execution.
+
+        :return: A static URL string, or ``None`` to use the XCom-based :meth:`get_link`.
+        """
+        return None
+
+    @property
     def xcom_key(self) -> str:
         """
         XCom key with while the whole "link" for this operator link is stored.
@@ -55,12 +73,23 @@ class BaseOperatorLink(metaclass=ABCMeta):
         """
         return f"_link_{self.__class__.__name__}"
 
-    @abstractmethod
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
         """
         Link to external system.
+
+        For dynamic links that depend on task-instance-specific data, override
+        this method and push the URL to XCom during ``execute()``.
+
+        For static links that never change between task runs, override
+        :attr:`static_url` instead — no XCom involvement required.
 
         :param operator: The Airflow operator object this link is associated to.
         :param ti_key: TaskInstance ID to return link for.
         :return: link to external system
         """
+        if (url := self.static_url) is not None:
+            return url
+        raise NotImplementedError(
+            f"Override either 'static_url' (for a constant link) or 'get_link' "
+            f"(for a dynamic XCom-based link) in {self.__class__.__name__!r}."
+        )
