@@ -179,6 +179,16 @@ See Google Cloud API documentation `to create a function
 <https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions/create>`_.
 
 
+.. _howto/operator:CloudFunctionInvokeOperator:
+
+CloudFunctionInvokeOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the operator to invoke a deployed Cloud Function via its HTTP Trigger URL.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.functions.CloudFunctionInvokeOperator`.
+
 Reference
 ---------
 
