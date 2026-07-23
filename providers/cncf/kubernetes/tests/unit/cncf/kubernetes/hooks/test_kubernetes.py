@@ -36,6 +36,7 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client
 
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     AsyncKubernetesHook,
     KubernetesHook,
@@ -46,6 +47,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_TIMEOUT,
     API_TIMEOUT_OFFSET_SERVER_SIDE,
 )
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodNotFoundException
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 from tests_common.test_utils.db import clear_test_connections
@@ -1774,6 +1776,36 @@ class TestAsyncKubernetesHook:
             name=POD_NAME,
             namespace=NAMESPACE,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod"))
+    async def test_get_pod_raises_pod_not_found_on_404(self, lib_method, kube_config_loader):
+        lib_method.side_effect = async_client.exceptions.ApiException(status=404)
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_file=None, cluster_context=None)
+
+        with pytest.raises(PodNotFoundException):
+            await hook.get_pod(name=POD_NAME, namespace=NAMESPACE)
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod"))
+    async def test_get_pod_raises_permission_error_on_403(self, lib_method, kube_config_loader):
+        lib_method.side_effect = async_client.exceptions.ApiException(status=403)
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_file=None, cluster_context=None)
+
+        with pytest.raises(KubernetesApiPermissionError):
+            await hook.get_pod(name=POD_NAME, namespace=NAMESPACE)
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("read_namespaced_pod"))
+    async def test_get_pod_raises_generic_api_error_on_other_status(self, lib_method, kube_config_loader):
+        lib_method.side_effect = async_client.exceptions.ApiException(status=500)
+
+        hook = AsyncKubernetesHook(conn_id=None, in_cluster=False, config_file=None, cluster_context=None)
+
+        with pytest.raises(KubernetesApiError):
+            await hook.get_pod(name=POD_NAME, namespace=NAMESPACE)
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("delete_namespaced_pod"))
