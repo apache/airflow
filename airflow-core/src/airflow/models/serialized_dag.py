@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import JSON, ForeignKey, LargeBinary, String, Uuid, exists, select, tuple_, update
+from sqlalchemy import JSON, ForeignKey, Index, LargeBinary, String, Uuid, exists, select, tuple_, update
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
@@ -343,6 +343,7 @@ class SerializedDagModel(Base):
     )
 
     load_op_links = True
+    __table_args__ = (Index("idx_serialized_dag_dag_id", dag_id),)
 
     def __init__(self, dag: LazyDeserializedDAG) -> None:
         self.dag_id = dag.dag_id
