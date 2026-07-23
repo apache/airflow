@@ -1916,3 +1916,75 @@ def _initialize_partition_clause(clause: str | None) -> str | None:
         raise ValueError("Invalid partition_clause: semicolons (;) not allowed.")
 
     return clause
+
+
+class SQLBulkLoadOperator(BaseSQLOperator):
+    """
+    Bulk load a tab-delimited file into a database table.
+
+    This operator delegates to the underlying hook's ``bulk_load`` implementation,
+    allowing each provider to use its native bulk loading mechanism.
+
+    :param table: Name of the target table.
+    :param tmp_file: Path to the tab-delimited file to load (templated).
+    :param conn_id: The connection ID used to connect to the database. Defaults to ``None``.
+    :param database: Name of the database which overrides the one defined in the connection.
+        Defaults to ``None``.
+    :param preoperator: SQL statement or list of statements to execute before bulk loading
+        (templated). Defaults to ``None``.
+    :param postoperator: SQL statement or list of statements to execute after bulk loading
+        (templated). Defaults to ``None``.
+    """
+
+    template_fields: Sequence[str] = (
+        "table",
+        "tmp_file",
+        "preoperator",
+        "postoperator",
+        *BaseSQLOperator.template_fields,
+    )
+
+    def __init__(
+        self,
+        *,
+        table: str,
+        tmp_file: str,
+        conn_id: str | None = None,
+        database: str | None = None,
+        preoperator: str | list[str] | None = None,
+        postoperator: str | list[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            conn_id=conn_id,
+            database=database,
+            **kwargs,
+        )
+        self.table = table
+        self.tmp_file = tmp_file
+        self.preoperator = preoperator
+        self.postoperator = postoperator
+
+    def execute(self, context: Context) -> None:
+        hook = self.get_db_hook()
+
+        if self.preoperator:
+            self.log.info("Executing preoperator.")
+            hook.run(self.preoperator)
+
+        self.log.info(
+            "Bulk loading '%s' into table '%s'.",
+            self.tmp_file,
+            self.table,
+        )
+
+        hook.bulk_load(
+            table=self.table,
+            tmp_file=self.tmp_file,
+        )
+
+        if self.postoperator:
+            self.log.info("Executing postoperator.")
+            hook.run(self.postoperator)
+
+        self.log.info("Bulk load completed.")
