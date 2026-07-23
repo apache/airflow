@@ -39,7 +39,6 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
     "/structure_data",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
         ]
     ),

@@ -634,6 +634,55 @@ class TestGetDependencies:
         assert ("dag:gate_upstream", f"asset:{asset_a_id}") in edge_tuples
         assert ("dag:gate_upstream", f"asset:{asset_b_id}") in edge_tuples
 
+    def test_scheduling_dependencies_expands_nested_boolean_groups(self, dag_maker, test_client, session):
+        """`(a & b) | (c & d)` renders both and-gates under the or-gate -- no sibling branch dropped."""
+        asset_a = Asset(uri="s3://nested-bucket/a", name="nested_asset_a")
+        asset_b = Asset(uri="s3://nested-bucket/b", name="nested_asset_b")
+        asset_c = Asset(uri="s3://nested-bucket/c", name="nested_asset_c")
+        asset_d = Asset(uri="s3://nested-bucket/d", name="nested_asset_d")
+
+        with dag_maker(
+            dag_id="nested_downstream",
+            schedule=((asset_a & asset_b) | (asset_c & asset_d)),
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="consume")
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_ids = {
+            name: session.scalar(select(AssetModel.id).where(AssetModel.name == name))
+            for name in ("nested_asset_a", "nested_asset_b", "nested_asset_c", "nested_asset_d")
+        }
+
+        response = test_client.get("/dependencies", params={"node_id": "dag:nested_downstream"})
+        assert response.status_code == 200
+
+        result = response.json()
+        gates = [node for node in result["nodes"] if node["type"] == "asset-condition"]
+        or_gates = [g for g in gates if g["asset_condition_type"] == "or-gate"]
+        and_gates = [g for g in gates if g["asset_condition_type"] == "and-gate"]
+        # Both nested and-groups survive: one or-gate, two distinct and-gates.
+        assert len(or_gates) == 1
+        assert len(and_gates) == 2
+        assert and_gates[0]["id"] != and_gates[1]["id"]
+
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        or_gate_id = or_gates[0]["id"]
+        assert (or_gate_id, "dag:nested_downstream") in edge_tuples
+        # Each and-gate feeds the or-gate, and each is fed by exactly its two assets.
+        for and_gate in and_gates:
+            assert (and_gate["id"], or_gate_id) in edge_tuples
+            feeders = {src for src, tgt in edge_tuples if tgt == and_gate["id"]}
+            assert feeders in (
+                {f"asset:{asset_ids['nested_asset_a']}", f"asset:{asset_ids['nested_asset_b']}"},
+                {f"asset:{asset_ids['nested_asset_c']}", f"asset:{asset_ids['nested_asset_d']}"},
+            )
+        # All four assets are represented, none dropped.
+        all_feeders = {src for src, tgt in edge_tuples if tgt in {g["id"] for g in and_gates}}
+        assert all_feeders == {f"asset:{aid}" for aid in asset_ids.values()}
+
     def test_scheduling_dependencies_expands_gate_with_unresolved_asset_ref(
         self, dag_maker, test_client, session
     ):
@@ -807,7 +856,7 @@ class TestGetDependencies:
 
         asset_a_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "data_dep_batch_asset_a"))
 
-        with assert_queries_count(11):
+        with assert_queries_count(12):
             response = test_client.get(
                 "/dependencies", params={"node_id": f"asset:{asset_a_id}", "dependency_type": "data"}
             )
@@ -818,3 +867,55 @@ class TestGetDependencies:
         for dag_id in dag_ids:
             entry_task_node_id = f"task:{dag_id}__SEPARATOR__entry_task"
             assert nodes_by_id[entry_task_node_id]["type"] == "task"
+
+    def test_data_dependencies_attributes_alias_produced_asset_to_source_task(
+        self, dag_maker, test_client, session
+    ):
+        """An asset produced via an AssetAlias has no static outlet reference, so its producing
+        task must be recovered from AssetEvent -- otherwise the consumer sees the asset with no
+        producer. The asset is made visible through a consuming task (the realistic case; an asset
+        with no reference at all is hidden by the readable-dags gate)."""
+        from airflow.models.asset import AssetAliasModel, AssetEvent
+        from airflow.sdk.definitions.asset import AssetAlias
+
+        alias_asset = Asset(uri="s3://alias/resolved", name="alias_resolved_asset")
+
+        with dag_maker(dag_id="alias_producer", serialized=True, session=session):
+            EmptyOperator(task_id="produce_via_alias", outlets=[AssetAlias("resolving_alias")])
+        dr = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="alias_consumer", serialized=True, session=session):
+            EmptyOperator(task_id="consume", inlets=[alias_asset])
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "alias_resolved_asset"))
+        asset_alias = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == "resolving_alias"))
+        asset_alias.assets.append(session.get(AssetModel, asset_id))
+        asset_alias.asset_events.append(
+            AssetEvent(
+                timestamp=pendulum.datetime(2024, 1, 1, tz="UTC"),
+                asset_id=asset_id,
+                source_dag_id="alias_producer",
+                source_task_id="produce_via_alias",
+                source_run_id=dr.run_id,
+                source_map_index=-1,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dependencies", params={"node_id": f"asset:{asset_id}", "dependency_type": "data"}
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+        producer_task_node_id = "task:alias_producer__SEPARATOR__produce_via_alias"
+        consumer_task_node_id = "task:alias_consumer__SEPARATOR__consume"
+        nodes_by_id = {node["id"]: node for node in result["nodes"]}
+        assert nodes_by_id[producer_task_node_id]["type"] == "task"
+
+        edge_tuples = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        # Producer edge recovered from the alias event, plus the consumer edge that made it visible.
+        assert (producer_task_node_id, f"asset:{asset_id}") in edge_tuples
+        assert (f"asset:{asset_id}", consumer_task_node_id) in edge_tuples

@@ -53,13 +53,8 @@ def get_upstream_assets(
     """Expand a Dag's asset trigger condition into asset-condition (AND/OR gate) nodes and edges."""
     edges: list[dict] = []
     nodes: list[dict] = []
+
     asset_expression_type: str | None = None
-
-    # include assets, asset-alias, asset-name-refs, asset-uri-refs
-    assets_info: list[dict] = []
-
-    nested_expression: dict = {}
-
     expr_key = ""
     if asset_expression.keys() == {"any"}:
         asset_expression_type = "or-gate"
@@ -68,54 +63,50 @@ def get_upstream_assets(
         asset_expression_type = "and-gate"
         expr_key = "all"
 
-    if expr_key in asset_expression:
-        asset_exprs: list[dict] = asset_expression[expr_key]
-        for expr in asset_exprs:
-            nested_expr_key = next(iter(expr.keys()))
-            if nested_expr_key in ("any", "all"):
-                nested_expression = expr
-            elif nested_expr_key in ("asset", "alias", "asset-name-ref", "asset-uri-ref"):
-                asset_info = expr[nested_expr_key]
-                asset_info["type"] = nested_expr_key if nested_expr_key != "alias" else "asset-alias"
-
-                assets_info.append(asset_info)
-            elif nested_expr_key == "asset_ref":
-                # Asset.ref(...) that hasn't been resolved to a concrete asset yet serializes as
-                # {"asset_ref": {"name": ...}} or {"asset_ref": {"uri": ...}} -- disambiguate on
-                # the inner field since, unlike the other branches, the key itself doesn't say which.
-                ref_info = expr[nested_expr_key]
-                ref_info["type"] = "asset-name-ref" if "name" in ref_info else "asset-uri-ref"
-
-                assets_info.append(ref_info)
-            else:
-                raise TypeError(f"Unsupported type: {expr.keys()}")
-
     if not asset_expression_type:
         return nodes, edges
 
+    # include assets, asset-alias, asset-name-refs, asset-uri-refs
+    assets_info: list[dict] = []
+    # nested boolean sub-conditions, each of which becomes its own gate feeding this one
+    nested_expressions: list[dict] = []
+
+    for expr in asset_expression[expr_key]:
+        nested_expr_key = next(iter(expr), None)
+        if nested_expr_key in ("any", "all"):
+            nested_expressions.append(expr)
+        elif nested_expr_key in ("asset", "alias", "asset-name-ref", "asset-uri-ref"):
+            asset_info = expr[nested_expr_key]
+            asset_info["type"] = nested_expr_key if nested_expr_key != "alias" else "asset-alias"
+            assets_info.append(asset_info)
+        elif nested_expr_key == "asset_ref":
+            # Asset.ref(...) that hasn't been resolved to a concrete asset yet serializes as
+            # {"asset_ref": {"name": ...}} or {"asset_ref": {"uri": ...}} -- disambiguate on
+            # the inner field since, unlike the other branches, the key itself doesn't say which.
+            ref_info = expr[nested_expr_key]
+            ref_info["type"] = "asset-name-ref" if "name" in ref_info else "asset-uri-ref"
+            assets_info.append(ref_info)
+        else:
+            raise TypeError(f"Unsupported type: {expr.keys()}")
+
+    branch_count = len(assets_info) + len(nested_expressions)
+    if branch_count == 0:
+        return nodes, edges
+
     # A condition combining exactly one branch isn't a real AND/OR -- connect it directly (or
-    # recurse straight through a nested single-branch wrapper) instead of rendering a gate with
-    # only one input.
-    if len(assets_info) + (1 if nested_expression else 0) <= 1:
+    # recurse straight through the lone nested wrapper) instead of rendering a single-input gate.
+    if branch_count == 1:
         if assets_info:
             source_id, label = _asset_node_id_and_label(assets_info[0])
             edges.append({"source_id": source_id, "target_id": entry_node_ref})
             nodes.append({"id": source_id, "label": label, "type": assets_info[0]["type"]})
-        elif nested_expression:
-            return get_upstream_assets(nested_expression, entry_node_ref, level=level)
-
-        return nodes, edges
+            return nodes, edges
+        return get_upstream_assets(nested_expressions[0], entry_node_ref, level=level)
 
     # Scoped by entry_node_ref (unique per Dag) so gates from different Dags don't collide
     # when merged into a single multi-dag graph.
     asset_condition_id = f"{entry_node_ref}-{asset_expression_type}-{level}"
-    edges.append(
-        {
-            "source_id": asset_condition_id,
-            "target_id": entry_node_ref,
-            "is_source_asset": level == 0,
-        }
-    )
+    edges.append({"source_id": asset_condition_id, "target_id": entry_node_ref})
     nodes.append(
         {
             "id": asset_condition_id,
@@ -127,26 +118,15 @@ def get_upstream_assets(
 
     for asset in assets_info:
         source_id, label = _asset_node_id_and_label(asset)
+        edges.append({"source_id": source_id, "target_id": asset_condition_id})
+        nodes.append({"id": source_id, "label": label, "type": asset["type"]})
 
-        edges.append(
-            {
-                "source_id": source_id,
-                "target_id": asset_condition_id,
-            }
-        )
-        nodes.append(
-            {
-                "id": source_id,
-                "label": label,
-                "type": asset["type"],
-            }
-        )
-
-    if nested_expression:
-        n, e = get_upstream_assets(nested_expression, asset_condition_id, level=level + 1)
-
-        nodes = nodes + n
-        edges = edges + e
+    # Each nested sub-condition feeds this gate through its own gate. The branch index keeps
+    # sibling gates of the same type from colliding on their scoped id.
+    for index, nested in enumerate(nested_expressions):
+        nested_nodes, nested_edges = get_upstream_assets(nested, asset_condition_id, level=index)
+        nodes += nested_nodes
+        edges += nested_edges
 
     return nodes, edges
 
@@ -333,20 +313,45 @@ def get_scheduling_dependencies(readable_dag_ids: set[str] | None, session: Sess
     }
 
 
+def _entry_task_id_from_serialized_data(data: dict | None) -> str | None:
+    """
+    Pick a Dag's entry-point task id from its serialized JSON, without deserializing the Dag.
+
+    A root task (one nothing else lists as downstream) is where an asset schedule enters the
+    graph. Task ids and their downstream links are read straight from the serialized payload --
+    ``downstream_task_ids`` is stored as a plain list of strings -- so this avoids instantiating
+    every operator just to read one id. Ties are broken by sorted order for determinism.
+    """
+    tasks = (data or {}).get("dag", {}).get("tasks", [])
+    task_ids: set[str] = set()
+    downstream_ids: set[str] = set()
+    for task in tasks:
+        var = task.get("__var", {})
+        task_id = var.get("task_id")
+        if task_id is None:
+            continue
+        task_ids.add(task_id)
+        downstream_ids.update(var.get("downstream_task_ids") or [])
+
+    if not task_ids:
+        return None
+    roots = task_ids - downstream_ids
+    return min(roots) if roots else min(task_ids)
+
+
 def _get_dag_entry_points(dag_ids: set[str], session: Session) -> dict[str, tuple[str, dict | None]]:
     """
-    Batch-resolve each Dag's topologically-first task/group id and its asset_expression.
+    Batch-resolve each Dag's entry-point task id and its asset_expression.
 
     Fetches the latest SerializedDagModel row for every dag_id in one query (mirroring the
     latest-per-group window-function pattern in
-    ``SerializedDagModel._prefetch_dag_write_metadata``) instead of one query per Dag --
-    deserializing a Dag is expensive, and this can otherwise run once per scheduled Dag
-    discovered while tracing an asset's dependencies.
+    ``SerializedDagModel._prefetch_dag_write_metadata``) instead of one query per Dag, and reads
+    the entry task from the serialized JSON rather than deserializing the whole Dag -- both matter
+    when a single asset schedules many Dags across a connected component.
     """
     from sqlalchemy import func, select
     from sqlalchemy.orm import joinedload
 
-    from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict
     from airflow.models.dag_version import DagVersion
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -374,11 +379,11 @@ def _get_dag_entry_points(dag_ids: set[str], session: Session) -> dict[str, tupl
 
     entry_points: dict[str, tuple[str, dict | None]] = {}
     for serialized_dag in serialized_dags:
-        entry_nodes = serialized_dag.dag.task_group.topological_sort()
-        if not entry_nodes:
+        entry_task_id = _entry_task_id_from_serialized_data(serialized_dag.data)
+        if entry_task_id is None:
             continue
         entry_points[serialized_dag.dag_id] = (
-            task_group_to_dict(entry_nodes[0])["id"],
+            entry_task_id,
             serialized_dag.dag_model.asset_expression,
         )
 
@@ -422,6 +427,9 @@ def get_data_dependencies(
     processed_assets: set[int] = set()
     processed_tasks: set[tuple[str, str]] = set()  # (dag_id, task_id)
     processed_scheduled_dags: set[str] = set()
+    # Assets linked to an AssetAlias -- these may be produced via the alias with no static
+    # TaskOutletAssetReference, so their producing task is recovered from AssetEvent afterwards.
+    alias_linked_asset_ids: set[int] = set()
 
     # BFS by rounds (a whole frontier of assets at once) rather than one asset at a time, so
     # every Dag scheduled by assets in the same round has its entry point resolved through one
@@ -443,12 +451,13 @@ def get_data_dependencies(
                 selectinload(AssetModel.producing_tasks),
                 selectinload(AssetModel.consuming_tasks),
                 selectinload(AssetModel.scheduled_dags),
+                selectinload(AssetModel.aliases),
             )
         ).all()
 
         next_frontier: set[int] = set()
         pending_dag_ids: set[str] = set()
-        triggering_asset_node_id_by_dag: dict[str, str] = {}
+        triggering_asset_node_ids_by_dag: dict[str, set[str]] = defaultdict(set)
 
         for asset in assets:
             asset_node_id = f"asset:{asset.id}"
@@ -456,6 +465,9 @@ def get_data_dependencies(
             # Add asset node
             if asset_node_id not in nodes_dict:
                 nodes_dict[asset_node_id] = {"id": asset_node_id, "label": asset.name, "type": "asset"}
+
+            if asset.aliases:
+                alias_linked_asset_ids.add(asset.id)
 
             # Process producing tasks (tasks that output this asset)
             for ref in asset.producing_tasks:
@@ -529,9 +541,12 @@ def get_data_dependencies(
                     continue
                 if ref.dag_id in processed_scheduled_dags:
                     continue
-                processed_scheduled_dags.add(ref.dag_id)
                 pending_dag_ids.add(ref.dag_id)
-                triggering_asset_node_id_by_dag[ref.dag_id] = asset_node_id
+                # Record every asset in this round that schedules the Dag -- marking it processed
+                # is deferred until after the round so a second triggering asset isn't skipped.
+                triggering_asset_node_ids_by_dag[ref.dag_id].add(asset_node_id)
+
+        processed_scheduled_dags |= pending_dag_ids
 
         # Route through each Dag's asset_expression (skipping straight to a flat edge for a
         # single-asset schedule) into the Dag's topologically-first task, same as the scheduling
@@ -576,8 +591,10 @@ def get_data_dependencies(
                 for edge in upstream_edges:
                     edge_set.add((edge["source_id"], edge["target_id"]))
             else:
-                # No gate (bare single-asset schedule) -- link directly.
-                edge_set.add((triggering_asset_node_id_by_dag[dag_id], task_node_id))
+                # No gate (bare single-asset schedule, or an expression that couldn't be
+                # expanded) -- link every triggering asset directly to the entry task.
+                for triggering_asset_node_id in triggering_asset_node_ids_by_dag[dag_id]:
+                    edge_set.add((triggering_asset_node_id, task_node_id))
 
             # Find other assets this entry task produces (outlets) to trace downstream.
             if task_key not in processed_tasks:
@@ -593,6 +610,39 @@ def get_data_dependencies(
                         next_frontier.add(outlet_ref.asset_id)
 
         frontier = next_frontier
+
+    # Assets produced only through an AssetAlias have no static TaskOutletAssetReference, so the
+    # producer loop above can't attribute them. Only when the graph actually contains alias-linked
+    # assets do we consult AssetEvent -- one batched query -- to recover the task that produced each
+    # via its alias, so alias-produced assets still show their source task.
+    if alias_linked_asset_ids:
+        from airflow.models.asset import AssetEvent
+
+        alias_events = session.execute(
+            select(AssetEvent.asset_id, AssetEvent.source_dag_id, AssetEvent.source_task_id)
+            .join(AssetEvent.source_aliases)
+            .where(
+                AssetEvent.asset_id.in_(alias_linked_asset_ids),
+                AssetEvent.source_dag_id.is_not(None),
+                AssetEvent.source_task_id.is_not(None),
+            )
+            .distinct()
+        )
+        for event_asset_id, source_dag_id, source_task_id in alias_events:
+            if readable_dag_ids is not None and source_dag_id not in readable_dag_ids:
+                continue
+            asset_node_id = f"asset:{event_asset_id}"
+            if asset_node_id not in nodes_dict:
+                continue
+            task_node_id = f"task:{source_dag_id}{SEPARATOR}{source_task_id}"
+            if task_node_id not in nodes_dict:
+                nodes_dict[task_node_id] = {
+                    "id": task_node_id,
+                    "label": f"{source_dag_id}.{source_task_id}",
+                    "type": "task",
+                }
+            edge_set.add((task_node_id, asset_node_id))
+            processed_tasks.add((source_dag_id, source_task_id))
 
     all_dag_ids = list({dag_id for dag_id, _ in processed_tasks})
     if all_dag_ids:

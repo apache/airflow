@@ -8487,10 +8487,6 @@ export type $OpenApiTs = {
                  */
                 200: StructureDataResponse;
                 /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
