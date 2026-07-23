@@ -484,6 +484,7 @@ devtools
 df
 dictConfig
 dicts
+dimberman
 Dingding
 dingding
 dir
@@ -1066,6 +1067,7 @@ metastore
 metavar
 mget
 mgmt
+michalmisiewicz
 microservice
 microservices
 microsoft
@@ -1087,6 +1089,7 @@ modularity
 Mongo
 mongo
 mongodb
+monkey-patching
 monospace
 moto
 MQ
@@ -1743,6 +1746,7 @@ Tez
 tez
 theService
 thirdparty
+threaded
 TicketAudit
 timedelta
 timeframe
@@ -1845,6 +1849,7 @@ uris
 Url
 url
 urlencoded
+urllib3
 urlparse
 urls
 useHCatalog
