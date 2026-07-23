@@ -60,10 +60,6 @@ class AzureVirtualMachineStateSensor(BaseSensorOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-        if target_state not in self.VALID_STATES:
-            raise ValueError(
-                f"Invalid target_state: {target_state}. Must be one of {sorted(self.VALID_STATES)}"
-            )
         super().__init__(**kwargs)
         self.resource_group_name = resource_group_name
         self.vm_name = vm_name
@@ -72,6 +68,12 @@ class AzureVirtualMachineStateSensor(BaseSensorOperator):
         self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
+        # target_state is a template field; validate the rendered value here rather than in
+        # __init__, which only sees the un-rendered Jinja expression.
+        if self.target_state not in self.VALID_STATES:
+            raise ValueError(
+                f"Invalid target_state: {self.target_state}. Must be one of {sorted(self.VALID_STATES)}"
+            )
         hook = AzureComputeHook(azure_conn_id=self.azure_conn_id)
         current_state = hook.get_power_state(self.resource_group_name, self.vm_name)
         self.log.info("VM %s power state: %s", self.vm_name, current_state)
