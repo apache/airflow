@@ -447,6 +447,46 @@ class TestDag:
         with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
+    def test_timedelta_schedule_respects_create_delta_data_intervals_config(self):
+        """Regression guard: create_delta_data_intervals must control DeltaTriggerTimetable vs
+        DeltaDataIntervalTimetable for timedelta/relativedelta schedules, independently of
+        create_cron_data_intervals (which governs only cron-string schedules).
+        """
+        from airflow.sdk.definitions.timetables.interval import DeltaDataIntervalTimetable
+        from airflow.sdk.definitions.timetables.trigger import DeltaTriggerTimetable
+
+        from tests_common.test_utils.config import conf_vars
+
+        # Both False (the shipped airflow.cfg default): timedelta schedules use the trigger-based timetable.
+        with conf_vars(
+            {
+                ("scheduler", "create_delta_data_intervals"): "False",
+                ("scheduler", "create_cron_data_intervals"): "False",
+            }
+        ):
+            dag = DAG("delta_default", start_date=DEFAULT_DATE, schedule=timedelta(days=1))
+            assert isinstance(dag.timetable, DeltaTriggerTimetable)
+
+        # create_delta_data_intervals=True switches timedelta schedules to the data-interval timetable.
+        with conf_vars(
+            {
+                ("scheduler", "create_delta_data_intervals"): "True",
+                ("scheduler", "create_cron_data_intervals"): "False",
+            }
+        ):
+            dag = DAG("delta_data_interval", start_date=DEFAULT_DATE, schedule=timedelta(days=1))
+            assert isinstance(dag.timetable, DeltaDataIntervalTimetable)
+
+        # create_cron_data_intervals only affects cron/str schedules, not timedelta ones.
+        with conf_vars(
+            {
+                ("scheduler", "create_delta_data_intervals"): "False",
+                ("scheduler", "create_cron_data_intervals"): "True",
+            }
+        ):
+            dag = DAG("delta_unaffected_by_cron_config", start_date=DEFAULT_DATE, schedule=timedelta(days=1))
+            assert isinstance(dag.timetable, DeltaTriggerTimetable)
+
     def test_only_partitioned_at_runtime_has_partitioned_at_runtime_flag(self):
         """Regression guard: across every BaseTimetable subclass, only PartitionedAtRuntime sets partitioned_at_runtime=True."""
 
