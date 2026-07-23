@@ -49,6 +49,7 @@ Misc
 ~~~~
 
 * ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
 
 Doc-only
 ~~~~~~~~
@@ -59,7 +60,6 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix the google provider dataform system test (#70136)``
    * ``Format Dataflow wordcount system-test resource with gofmt (#70174)``
-   * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
 
 
 22.2.2

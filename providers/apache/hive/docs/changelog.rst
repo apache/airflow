@@ -40,6 +40,11 @@ Bug Fixes
 
 * ``Fix Hive metastore partition sensor initialization (#69612)``
 
+Misc
+~~~~
+
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+
 Doc-only
 ~~~~~~~~
 
@@ -47,7 +52,6 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
 
 

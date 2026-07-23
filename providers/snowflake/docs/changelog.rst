@@ -47,6 +47,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
 * ``Extract configuration-specific logic from _get_static_conn_params() (#68597)``
 * ``SnowflakeHook: extract OAuth token lifecycle management into dedicated helper (#68549)``
 
@@ -57,7 +58,6 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
    * ``Prepare providers release 2026-07-06 (#69486)``
    * ``Document each provider's optional extras in its docs index (#69478)``
    * ``SnowflakeSqlApiOperator: add XCom query ID test coverage (#68731)``

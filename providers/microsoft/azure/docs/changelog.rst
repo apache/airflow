@@ -51,9 +51,13 @@ Bug Fixes
 * ``Restrict MSGraph pagination nextLink to the configured host (#69742)``
 * ``Introduced CachedAsyncTokenCredential which keeps the session open during lifecycle of cached RequestAdapter (#69365)``
 
+Misc
+~~~~
+
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
    * ``Fix Azure Data Factory async test on azure-mgmt-datafactory 10 (#69798)``
    * ``Fix Azure Data Factory test broken by azure-mgmt-datafactory update (#69785)``
 
