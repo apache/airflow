@@ -4134,7 +4134,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-atlassian-jira"
-version = "3.3.4"
+version = "3.3.5"
 source = { editable = "providers/atlassian/jira" }
 dependencies = [
     { name = "apache-airflow" },
