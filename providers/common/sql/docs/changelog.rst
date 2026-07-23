@@ -28,8 +28,8 @@ Changelog
 2.0.3
 .....
 
-Bug Fixes
-~~~~~~~~~
+Misc
+~~~~
 
 * ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
 
