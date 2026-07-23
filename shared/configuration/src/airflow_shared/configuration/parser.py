@@ -1879,7 +1879,7 @@ class AirflowConfigParser(ConfigParser):
         # Handle team-specific section lookup for config file
         config_section = f"{team_name}={section}" if team_name else section
 
-        if not self.has_section(config_section) and not self._default_values.has_section(config_section):
+        if not self.has_section(config_section) and not self._has_section_in_any_defaults(config_section):
             return None
         if self._default_values.has_section(config_section):
             _section: ConfigOptionsDictType = dict(self._default_values.items(config_section))
