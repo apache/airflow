@@ -603,7 +603,7 @@ class DagsOperations(BaseOperations):
             trigger_dag_run.conf = {}
         try:
             self.response = self.client.post(
-                f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json")
+                f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json", exclude_none=True)
             )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
