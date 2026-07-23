@@ -466,22 +466,22 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             update_mask=update_mask,
         )
 
-        for key, _ in data.items():
-            if key == "new_state":
-                _patch_task_instance_state(
-                    task_id=task_id,
-                    dag_run_id=dag_run_id,
-                    dag=dag,
-                    task_instance_body=entity,
-                    session=self.session,
-                    data=data,
-                )
-            elif key == "note":
-                _patch_task_instance_note(
-                    task_instance_body=entity,
-                    tis=tis,
-                    user=self.user,
-                )
+        # Apply "note" before "state" so listeners fired inside _patch_task_instance_state() see the updated note.
+        if "note" in data:
+            _patch_task_instance_note(
+                task_instance_body=entity,
+                tis=tis,
+                user=self.user,
+            )
+        if "new_state" in data:
+            _patch_task_instance_state(
+                task_id=task_id,
+                dag_run_id=dag_run_id,
+                dag=dag,
+                task_instance_body=entity,
+                session=self.session,
+                data=data,
+            )
 
         results.success.append(f"{dag_id}.{dag_run_id}.{task_id}[{map_index}]")
 
