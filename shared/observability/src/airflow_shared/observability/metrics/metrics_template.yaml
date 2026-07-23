@@ -227,6 +227,13 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "dag.serialization"
+    description: "Number of times a Dag was serialized and written to the metadata DB.
+    Metric with dag_id and bundle_name tagging."
+    type: "counter"
+    legacy_name: "dag.serialization.{dag_id}.{bundle_name}"
+    name_variables: ["dag_id", "bundle_name"]
+
   - name: "celery.task_timeout_error"
     description: "Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker."
     type: "counter"

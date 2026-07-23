@@ -32,6 +32,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.asset import (
@@ -762,6 +763,7 @@ class SerializedDagModel(Base):
             session.merge(dag_version)
             # Update the latest DagCode
             DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            stats.incr("dag.serialization", tags={"dag_id": dag.dag_id, "bundle_name": bundle_name})
             return True
 
         dagv = DagVersion.write_dag(
@@ -784,6 +786,7 @@ class SerializedDagModel(Base):
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
+        stats.incr("dag.serialization", tags={"dag_id": dag.dag_id, "bundle_name": bundle_name})
         return True
 
     @classmethod
