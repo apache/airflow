@@ -57,6 +57,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowSkipException,
     TaskDeferred,
 )
+from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -1252,6 +1253,140 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
 
         await_init_mock.assert_not_called()
+
+    @staticmethod
+    def _succeeded_remote_pod_mock(base_container_name: str) -> MagicMock:
+        remote_pod_mock = MagicMock()
+        remote_pod_mock.status.phase = "Succeeded"
+        base_container_status = MagicMock()
+        base_container_status.name = base_container_name
+        base_container_status.state.terminated.exit_code = 0
+        remote_pod_mock.status.container_statuses = [base_container_status]
+        remote_pod_mock.status.init_container_statuses = None
+        return remote_pod_mock
+
+    @pytest.mark.parametrize(
+        ("value", "exception"),
+        [(-1, ValueError), (1.5, TypeError), (True, TypeError), ("3", TypeError)],
+    )
+    def test_pod_not_found_max_retries_rejects_invalid_values(self, value, exception):
+        with pytest.raises(exception, match="pod_not_found_max_retries"):
+            KubernetesPodOperator(
+                task_id="task",
+                retry_on_pod_not_found=True,
+                pod_not_found_max_retries=value,
+            )
+
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_execute_sync_pod_not_found_fails_immediately_by_default(self, find_pod_mock, delete_pod_mock):
+        """retry_on_pod_not_found defaults to False: a pod that disappears before it ever starts should
+        fail the task immediately, with no internal retry, unless the user opts in. A 404 alone can
+        never prove the base container didn't run, so this remains opt-in rather than automatic."""
+        find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
+        self.await_start_mock.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", reattach_on_restart=False)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(ApiException):
+            k.execute(context=context)
+
+        assert self.create_mock.call_count == 1
+
+    @patch(f"{KPO_MODULE}.time.sleep")
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_execute_sync_relaunches_pod_on_pod_not_found_when_enabled(
+        self, find_pod_mock, delete_pod_mock, sleep_mock
+    ):
+        """With retry_on_pod_not_found=True, a pod that disappears before its base container ever starts
+        (e.g. preempted while still Pending) is discarded and a fresh pod (new unique name) is launched
+        automatically."""
+        find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
+        k = KubernetesPodOperator(task_id="task", reattach_on_restart=False, retry_on_pod_not_found=True)
+        self.await_start_mock.side_effect = [ApiException(status=404, reason="Not Found"), None]
+        self.await_pod_mock.return_value = self._succeeded_remote_pod_mock(k.base_container_name)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        k.execute(context=context)
+
+        assert self.create_mock.call_count == 2
+        first_pod_name = self.create_mock.call_args_list[0].kwargs["pod"].metadata.name
+        second_pod_name = self.create_mock.call_args_list[1].kwargs["pod"].metadata.name
+        assert first_pod_name != second_pod_name
+        sleep_mock.assert_called_once()
+
+    @patch(f"{KPO_MODULE}.time.sleep")
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_execute_sync_raises_after_exhausting_pod_not_found_retries(
+        self, find_pod_mock, delete_pod_mock, sleep_mock
+    ):
+        """With retry_on_pod_not_found=True, once pod_not_found_max_retries relaunches are exhausted the
+        exception propagates and fails the task."""
+        find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
+        self.await_start_mock.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(
+            task_id="task",
+            reattach_on_restart=False,
+            retry_on_pod_not_found=True,
+            pod_not_found_max_retries=2,
+        )
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(ApiException):
+            k.execute(context=context)
+
+        assert self.create_mock.call_count == 3
+
+    @patch(f"{KPO_MODULE}.time.sleep")
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_execute_sync_does_not_retry_after_base_container_may_have_started(
+        self, find_pod_mock, delete_pod_mock, sleep_mock
+    ):
+        """Safety case: once the base container may have already started (here, while awaiting pod
+        completion, after init containers finished), a 404 must NOT trigger a relaunch
+        even with retry_on_pod_not_found=True, since recreating the pod could rerun non-idempotent work
+        the task already performed."""
+        find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
+        self.await_pod_mock.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", reattach_on_restart=False, retry_on_pod_not_found=True)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(ApiException):
+            k.execute(context=context)
+
+        assert self.create_mock.call_count == 1
+        sleep_mock.assert_not_called()
+
+    @patch(f"{KPO_MODULE}.time.sleep")
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.await_init_containers_completion")
+    def test_execute_sync_does_not_retry_when_pod_not_found_right_after_startup(
+        self, await_init_mock, find_pod_mock, delete_pod_mock, sleep_mock
+    ):
+        """Regression test: Kubernetes does not guarantee the pod stays out of the Running phase while
+        init containers run, so the base container may already be executing the moment await_pod_start()
+        returns. A 404 raised immediately afterwards (here, from
+        await_init_containers_completion) must NOT trigger a relaunch, even with
+        retry_on_pod_not_found=True."""
+        find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
+        await_init_mock.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", reattach_on_restart=False, retry_on_pod_not_found=True)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(ApiException):
+            k.execute(context=context)
+
+        assert self.create_mock.call_count == 1
+        sleep_mock.assert_not_called()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("should_fail", [True, False])
@@ -3949,6 +4084,186 @@ class TestKubernetesPodOperatorAsync:
                 },
             )
         assert exc_info.value.status == 500
+
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_defers_backoff_when_disappeared_before_start(self, mocked_hook):
+        """A pod that disappeared before its base container could have started is safe to relaunch when
+        retry_on_pod_not_found is enabled, since no non-idempotent work could have run — but the
+        relaunch itself is deferred (not called inline) so the backoff doesn't block a worker slot and
+        DaemonSets get time to stabilize before the new pod is created."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True, retry_on_pod_not_found=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "error",
+                    "message": "boom",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                    "pod_disappeared_before_start": True,
+                    "_pod_freshly_created": True,
+                },
+            )
+
+        assert isinstance(exc_info.value.trigger, TimeDeltaTrigger)
+        assert exc_info.value.method_name == "_relaunch_pod_after_not_found_backoff"
+        assert exc_info.value.kwargs == {"pod_not_found_retry_count": 1}
+        assert k.pod is None
+        assert k.pod_request_obj is None
+
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.execute_async")
+    def test_relaunch_pod_after_not_found_backoff_calls_execute_async(self, mock_execute_async):
+        """The resume point after the backoff trigger fires actually launches the new pod, restoring
+        the retry count that ``defer(kwargs=...)`` carried across the reconstructed-operator boundary."""
+        k = KubernetesPodOperator(task_id="task", deferrable=True, retry_on_pod_not_found=True)
+        context = create_context(k)
+
+        k._relaunch_pod_after_not_found_backoff(
+            context=context, pod_not_found_retry_count=2, event=MagicMock()
+        )
+
+        mock_execute_async.assert_called_once_with(context)
+        assert k.trigger_kwargs["_pod_not_found_retry_count"] == 2
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_raises_after_exhausting_pod_not_found_retries(
+        self, mocked_hook, mock_manager
+    ):
+        """Once relaunch attempts are exhausted, the exception propagates instead of relaunching again."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(
+            task_id="task", deferrable=True, retry_on_pod_not_found=True, pod_not_found_max_retries=2
+        )
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(PodNotFoundException):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "error",
+                    "message": "boom",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                    "pod_disappeared_before_start": True,
+                    "_pod_freshly_created": True,
+                    "_pod_not_found_retry_count": 2,
+                },
+            )
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_does_not_relaunch_by_default(self, mocked_hook, mock_manager):
+        """retry_on_pod_not_found defaults to False: a pod-disappeared-before-start event still just
+        fails the task unless the user opts in. A 404 alone can never prove the base container didn't
+        run, so this remains opt-in rather than automatic."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(PodNotFoundException):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "error",
+                    "message": "boom",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                    "pod_disappeared_before_start": True,
+                    "_pod_freshly_created": True,
+                },
+            )
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_does_not_relaunch_when_pod_may_have_started(
+        self, mocked_hook, mock_manager
+    ):
+        """Even with retry_on_pod_not_found=True, an event without pod_disappeared_before_start=True
+        (i.e. the base container may have already started) must not trigger a relaunch."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True, retry_on_pod_not_found=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(PodNotFoundException):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "error",
+                    "message": "boom",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                },
+            )
+
+    @patch(POD_MANAGER_CLASS)
+    @patch(HOOK_CLASS)
+    def test_async_trigger_reentry_does_not_relaunch_reattached_pod(self, mocked_hook, mock_manager):
+        """Safety case: reattach_on_restart can reattach to a pod that was already running for a while
+        (e.g. after a worker restart). Even if the trigger flags pod_disappeared_before_start=True from
+        its own observation window, a missing _pod_freshly_created=True (the pod wasn't created by
+        pod_manager.create_pod for this launch) must block the relaunch, since the reattached pod's
+        base container may have already run — this is what execute_async computes and threads through
+        trigger_kwargs; here we simulate an event that lacks it, e.g. from a reattached launch."""
+        mocked_hook.return_value.get_pod.side_effect = ApiException(status=404, reason="Not Found")
+        k = KubernetesPodOperator(task_id="task", deferrable=True, retry_on_pod_not_found=True)
+        context = create_context(k)
+        context["ti"] = MagicMock()
+
+        with pytest.raises(PodNotFoundException):
+            k.trigger_reentry(
+                context=context,
+                event={
+                    "status": "error",
+                    "message": "boom",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
+                    "pod_disappeared_before_start": True,
+                    "_pod_freshly_created": False,
+                },
+            )
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_execute_async_flags_reattached_pod_as_not_freshly_created(
+        self, find_pod_mock, mocked_convert_config
+    ):
+        """get_or_create_pod reattaching to a live existing pod (reattach_on_restart) must be recorded
+        as _pod_freshly_created=False, so trigger_reentry knows a later 404 isn't safe to relaunch on."""
+        find_pod_mock.return_value.status.phase = PodPhase.RUNNING
+        find_pod_mock.return_value.status.reason = None
+        find_pod_mock.return_value.status.container_statuses = None
+        k = KubernetesPodOperator(task_id="task", namespace="default", deferrable=True)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(TaskDeferred):
+            k.execute_async(context=context)
+
+        assert k.trigger_kwargs["_pod_freshly_created"] is False
+
+    @patch(KUB_OP_PATH.format("convert_config_file_to_dict"))
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_execute_async_flags_fresh_pod_as_freshly_created(self, find_pod_mock, mocked_convert_config):
+        """A pod actually created by pod_manager.create_pod (no existing pod to reattach to) must be
+        recorded as _pod_freshly_created=True, so trigger_reentry can safely relaunch on a later 404
+        that occurs before the base container could have started."""
+        find_pod_mock.return_value = None
+        k = KubernetesPodOperator(task_id="task", namespace="default", deferrable=True)
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+
+        with pytest.raises(TaskDeferred):
+            k.execute_async(context=context)
+
+        assert k.trigger_kwargs["_pod_freshly_created"] is True
 
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])

@@ -88,6 +88,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, conf
+from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseHook, BaseOperator
@@ -186,6 +187,19 @@ class KubernetesPodOperator(BaseOperator):
         search can hit when more than one matching pod exists. Defaults to ``True``. On Airflow
         versions below 3.3, ``durable`` still works but falls back to the same label-search reattach
         behavior as ``reattach_on_restart``, since task state store is unavailable.
+    :param retry_on_pod_not_found: if True, recreate the pod when it disappears (Kubernetes API returns
+        404) before the operator has observed its base container may have started — for example because
+        it was preempted or evicted by a higher-priority pod such as a DaemonSet shortly after being
+        scheduled on a newly created node. It happens independently of the task's own ``retries``
+        (including ``retries=0``). Once the operator has observed that the base container may have
+        started, a disappearing pod always fails the task; it is never recreated. That said, a 404
+        alone can never *prove* the base container never ran — a pod can in principle be scheduled,
+        start, finish, and be garbage-collected within a single status-check interval, before this
+        operator (or, in deferrable mode, the trigger) ever observes it. Enable this only for
+        idempotent workloads, or ones where an occasional duplicate launch is an acceptable risk.
+        Defaults to False.
+    :param pod_not_found_max_retries: maximum number of times to relaunch the pod when
+        ``retry_on_pod_not_found`` is True. Must be a non-negative integer. Ignored otherwise.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod after pod was scheduled.
     :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
@@ -290,6 +304,7 @@ class KubernetesPodOperator(BaseOperator):
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
     MAX_REDEFER_ATTEMPTS = 3
+    POD_NOT_FOUND_RETRY_BACKOFF_CAP_SECONDS = 30
 
     template_fields: Sequence[str] = (
         "image",
@@ -337,6 +352,8 @@ class KubernetesPodOperator(BaseOperator):
         labels: dict | None = None,
         reattach_on_restart: bool | None = None,
         durable: bool = True,
+        retry_on_pod_not_found: bool = False,
+        pod_not_found_max_retries: int = 3,
         startup_timeout_seconds: int = 120,
         startup_check_interval_seconds: int = 5,
         schedule_timeout_seconds: int | None = None,
@@ -439,6 +456,12 @@ class KubernetesPodOperator(BaseOperator):
         # internal reads of it do not themselves emit a deprecation warning; it always mirrors
         # `self.durable`.
         self.reattach_on_restart = durable
+        self.retry_on_pod_not_found = retry_on_pod_not_found
+        if isinstance(pod_not_found_max_retries, bool) or not isinstance(pod_not_found_max_retries, int):
+            raise TypeError("`pod_not_found_max_retries` must be an integer.")
+        if pod_not_found_max_retries < 0:
+            raise ValueError("`pod_not_found_max_retries` must be a non-negative integer.")
+        self.pod_not_found_max_retries = pod_not_found_max_retries
         self.get_logs = get_logs
         # Fallback to the class variable BASE_CONTAINER_NAME here instead of via default argument value
         # in the init method signature, to be compatible with subclasses overloading the class variable value.
@@ -505,6 +528,9 @@ class KubernetesPodOperator(BaseOperator):
         self._progress_callback = progress_callback
         self.callbacks = [] if not callbacks else callbacks if isinstance(callbacks, list) else [callbacks]
         self._killed: bool = False
+        # Tracks whether the base container has (or may have) already started for the current pod
+        # attempt, so a pod-not-found retry never recreates a pod whose workload may have already run.
+        self._base_container_started: bool = False
         self.container_name_log_prefix_enabled = container_name_log_prefix_enabled
         self.log_formatter = log_formatter
 
@@ -782,79 +808,39 @@ class KubernetesPodOperator(BaseOperator):
 
     def execute_sync(self, context: Context):
         result = None
+        max_attempts = self.pod_not_found_max_retries + 1 if self.retry_on_pod_not_found else 1
         try:
-            if self.pod_request_obj is None:
-                self.pod_request_obj = self.build_pod_request_obj(context)
-            for callback in self.callbacks:
-                callback.on_pod_manifest_created(
-                    pod_request=self.pod_request_obj,
-                    client=self.client,
-                    mode=ExecutionMode.SYNC,
-                    context=context,
-                    operator=self,
-                )
-            if self.pod is None:
-                self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
-                    pod_request_obj=self.pod_request_obj,
-                    context=context,
-                )
-            # push to xcom now so that if there is an error we still have the values
-            ti = context["ti"]
-            ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
-            ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
-
-            # get remote pod for use in cleanup methods
-            self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
-            for callback in self.callbacks:
-                callback.on_pod_creation(
-                    pod=self.remote_pod,
-                    client=self.client,
-                    mode=ExecutionMode.SYNC,
-                    context=context,
-                    operator=self,
-                )
-
-            self.await_pod_start(pod=self.pod)
-
-            self.await_init_containers_completion(pod=self.pod)
-            if self.callbacks:
-                pod = self.find_pod(self.pod.metadata.namespace, context=context)
-                for callback in self.callbacks:
-                    callback.on_pod_starting(
-                        pod=pod,
-                        client=self.client,
-                        mode=ExecutionMode.SYNC,
-                        context=context,
-                        operator=self,
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    result = self._execute_pod_lifecycle(context)
+                    break
+                except (ApiException, PodNotFoundException) as exc:
+                    if isinstance(exc, ApiException) and exc.status != 404:
+                        raise
+                    if self._base_container_started:
+                        self.log.error(
+                            "Pod %s disappeared after its base container may have already started. "
+                            "Not retrying, since relaunching could duplicate work the task already "
+                            "performed.",
+                            self.pod.metadata.name if self.pod else "<unknown>",
+                        )
+                        raise
+                    if attempt >= max_attempts:
+                        raise
+                    delay = min(2**attempt, self.POD_NOT_FOUND_RETRY_BACKOFF_CAP_SECONDS)
+                    self.log.warning(
+                        "Pod %s disappeared before completing (commonly caused by preemption or "
+                        "eviction, e.g. a higher-priority DaemonSet pod scheduled on the same node "
+                        "during autoscaling). Retrying with a new pod in %ss (attempt %s/%s).",
+                        self.pod.metadata.name if self.pod else "<unknown>",
+                        delay,
+                        attempt + 1,
+                        max_attempts,
                     )
-
-            self.await_pod_completion(pod=self.pod)
-            if self.callbacks:
-                pod = self.find_pod(self.pod.metadata.namespace, context=context)
-                for callback in self.callbacks:
-                    callback.on_pod_completion(
-                        pod=pod,
-                        client=self.client,
-                        mode=ExecutionMode.SYNC,
-                        context=context,
-                        operator=self,
-                    )
-                for callback in self.callbacks:
-                    callback.on_pod_teardown(
-                        pod=pod,
-                        client=self.client,
-                        mode=ExecutionMode.SYNC,
-                        context=context,
-                        operator=self,
-                    )
-
-            if self.do_xcom_push:
-                self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
-                result = self.extract_xcom(pod=self.pod)
-            istio_enabled = self.is_istio_enabled(self.pod)
-            self.remote_pod = self.pod_manager.await_pod_completion(
-                self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
-            )
+                    time.sleep(delay)
+                    self.pod = None
+                    self.remote_pod = None
+                    self.pod_request_obj = None
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
             self.post_complete_action(
@@ -863,6 +849,94 @@ class KubernetesPodOperator(BaseOperator):
 
         if self.do_xcom_push:
             return result
+
+    def _execute_pod_lifecycle(self, context: Context):
+        result = None
+        self._base_container_started = False
+        if self.pod_request_obj is None:
+            self.pod_request_obj = self.build_pod_request_obj(context)
+        for callback in self.callbacks:
+            callback.on_pod_manifest_created(
+                pod_request=self.pod_request_obj,
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+                context=context,
+                operator=self,
+            )
+        if self.pod is None:
+            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                pod_request_obj=self.pod_request_obj,
+                context=context,
+            )
+            if self.pod is not self.pod_request_obj:
+                # get_or_create_pod returned an existing pod (reattach_on_restart found a live,
+                # terminated, or kept pod) rather than one freshly created by pod_manager.create_pod.
+                # We have no visibility into whether its base container already ran — e.g. a worker
+                # restart can reattach to a pod that has been running for a while — so a later
+                # PodNotFoundException must never be treated as safe to retry.
+                self._base_container_started = True
+        # push to xcom now so that if there is an error we still have the values
+        ti = context["ti"]
+        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+
+        # get remote pod for use in cleanup methods
+        self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
+        for callback in self.callbacks:
+            callback.on_pod_creation(
+                pod=self.remote_pod,
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+                context=context,
+                operator=self,
+            )
+
+        self.await_pod_start(pod=self.pod)
+        # From this point on the pod has left Pending, so its base container may already be running
+        # (Kubernetes does not guarantee init containers block the phase transition), so a later
+        # PodNotFoundException must not trigger a pod-recreation retry — see execute_sync.
+        self._base_container_started = True
+
+        self.await_init_containers_completion(pod=self.pod)
+        if self.callbacks:
+            pod = self.find_pod(self.pod.metadata.namespace, context=context)
+            for callback in self.callbacks:
+                callback.on_pod_starting(
+                    pod=pod,
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                    context=context,
+                    operator=self,
+                )
+
+        self.await_pod_completion(pod=self.pod)
+        if self.callbacks:
+            pod = self.find_pod(self.pod.metadata.namespace, context=context)
+            for callback in self.callbacks:
+                callback.on_pod_completion(
+                    pod=pod,
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                    context=context,
+                    operator=self,
+                )
+            for callback in self.callbacks:
+                callback.on_pod_teardown(
+                    pod=pod,
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                    context=context,
+                    operator=self,
+                )
+
+        if self.do_xcom_push:
+            self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
+            result = self.extract_xcom(pod=self.pod)
+        istio_enabled = self.is_istio_enabled(self.pod)
+        self.remote_pod = self.pod_manager.await_pod_completion(
+            self.pod, istio_enabled, self.base_container_name, self.do_xcom_push
+        )
+        return result
 
     @tenacity.retry(
         wait=tenacity.wait_exponential(max=15),
@@ -943,6 +1017,15 @@ class KubernetesPodOperator(BaseOperator):
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
+            # Tell the trigger whether this pod was freshly created (pod_manager.create_pod) or an
+            # existing one that get_or_create_pod reattached to / found already terminated. Only in
+            # the freshly-created case can the trigger's "pod disappeared before it left Pending"
+            # signal be trusted as safe to relaunch on — see trigger_reentry and
+            # KubernetesPodTrigger.run's pod_disappeared_before_start handling. Not carried through
+            # trigger_kwargs re-defers (only the fields those paths explicitly propagate persist), so
+            # a redeferred pod's later 404 conservatively will not be treated as safe to retry either.
+            self.trigger_kwargs = dict(self.trigger_kwargs or {})
+            self.trigger_kwargs["_pod_freshly_created"] = self.pod is self.pod_request_obj
 
         if self.callbacks:
             pod = self.find_pod(self.pod.metadata.namespace, context=context)
@@ -1091,6 +1174,47 @@ class KubernetesPodOperator(BaseOperator):
                 # Trigger already observed the pod completed successfully;
                 # logs/XCom are unrecoverable but the task itself succeeded.
                 return
+            if (
+                self.retry_on_pod_not_found
+                and event.get("pod_disappeared_before_start")
+                # Defaults to False (fail closed): only a pod this operator freshly created (not one
+                # get_or_create_pod reattached to) can safely be treated as "never started" on a 404.
+                and event.get("_pod_freshly_created", False)
+            ):
+                # The trigger itself flagged that this 404 occurred before the pod's base container
+                # could have started, so relaunching cannot duplicate any work the task already did.
+                pod_not_found_retry_count = event.get("_pod_not_found_retry_count", 0)
+                if pod_not_found_retry_count < self.pod_not_found_max_retries:
+                    delay = min(
+                        2 ** (pod_not_found_retry_count + 1), self.POD_NOT_FOUND_RETRY_BACKOFF_CAP_SECONDS
+                    )
+                    self.log.warning(
+                        "Pod %s/%s disappeared before its base container could have started "
+                        "(commonly caused by preemption or eviction, e.g. a higher-priority "
+                        "DaemonSet pod scheduled on the same node during autoscaling). "
+                        "Deferring %ss before relaunching with a new pod (attempt %d/%d).",
+                        pod_namespace,
+                        pod_name,
+                        delay,
+                        pod_not_found_retry_count + 1,
+                        self.pod_not_found_max_retries,
+                    )
+                    self.pod = None
+                    self.pod_request_obj = None
+                    # Defer the relaunch itself (instead of recreating the pod inline) so the backoff
+                    # doesn't occupy a worker slot, and so all configured attempts aren't exhausted
+                    # back-to-back before DaemonSets on a new node have had time to stabilize.
+                    #
+                    # The operator is reconstructed fresh when a deferral resumes, so any mutation of
+                    # ``self.trigger_kwargs`` here would be lost — the incremented count must be passed
+                    # explicitly via ``defer(kwargs=...)`` so ``_relaunch_pod_after_not_found_backoff``
+                    # receives it and can thread it into the next launch's trigger_kwargs itself.
+                    self.defer(
+                        trigger=TimeDeltaTrigger(datetime.timedelta(seconds=delay)),
+                        method_name="_relaunch_pod_after_not_found_backoff",
+                        kwargs={"pod_not_found_retry_count": pod_not_found_retry_count + 1},
+                    )
+                    # self.defer raises TaskDeferred; execution does not continue here
             raise PodNotFoundException(
                 f"Pod {pod_namespace}/{pod_name} not found after resuming from deferral"
             ) from e
@@ -1195,6 +1319,19 @@ class KubernetesPodOperator(BaseOperator):
 
         if self.do_xcom_push:
             return xcom_sidecar_output
+
+    def _relaunch_pod_after_not_found_backoff(
+        self, context: Context, pod_not_found_retry_count: int = 0, event: Any = None
+    ) -> Any:
+        """Resume point after backing off from a pod-not-found relaunch; actually launches the new pod."""
+        # The operator was reconstructed fresh for this resume, so ``self.trigger_kwargs`` no longer
+        # reflects the count from before deferring — it was passed explicitly via ``defer(kwargs=...)``
+        # instead (see the ``self.defer(...)`` call in ``trigger_reentry``) and must be restored here
+        # before launching, so the next pod's trigger (and thus the next ``trigger_reentry``) sees the
+        # correct count and ``pod_not_found_max_retries`` is enforced across the whole backoff chain.
+        self.trigger_kwargs = dict(self.trigger_kwargs or {})
+        self.trigger_kwargs["_pod_not_found_retry_count"] = pod_not_found_retry_count
+        return self.execute_async(context)
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if self.pod is None:

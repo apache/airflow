@@ -45,6 +45,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodNotFoundException
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.utils import yaml
@@ -1093,9 +1094,13 @@ class AsyncKubernetesHook(KubernetesHook):
                     namespace=namespace,
                 )
                 return pod
-            except HTTPError as e:
-                if hasattr(e, "status") and e.status == 403:
+            except async_client.ApiException as e:
+                if e.status == 403:
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                if e.status == 404:
+                    raise PodNotFoundException(f"Pod {namespace}/{name} not found.") from e
+                raise KubernetesApiError from e
+            except HTTPError as e:
                 raise KubernetesApiError from e
 
     @generic_api_retry
