@@ -251,6 +251,17 @@ config:
         sensitive: true
         example: "db+postgresql+psycopg://postgres:airflow@postgres/airflow"
         default: ~
+      result_backend_schema:
+        description: |
+          The database schema the Celery result backend tables (``celery_taskmeta``,
+          ``celery_tasksetmeta``) live in, when provisioned into a schema other than the
+          one used by ``sql_alchemy_conn``. When set, ``airflow db clean`` and the
+          archived-table export/drop commands will look for these tables in this schema
+          instead of silently skipping them.
+        version_added: ~
+        type: string
+        example: "celery"
+        default: ~
       result_backend_sqlalchemy_engine_options:
         description: |
           Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.
