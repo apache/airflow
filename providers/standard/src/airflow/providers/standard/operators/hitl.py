@@ -132,8 +132,20 @@ class HITLOperator(BaseOperator):
         self.validate_params()
         self.validate_defaults()
 
-        # HITL summary for the use of listeners; subclasses can extend it.
-        self.hitl_summary: dict[str, Any] = {
+        # Runtime/subclass additions to the summary (e.g. timeout_datetime, approved,
+        # branches_to_execute); the config-derived entries come from the hitl_summary property.
+        self._hitl_summary_extra: dict[str, Any] = {}
+
+    @property
+    def hitl_summary(self) -> dict[str, Any]:
+        """
+        Summary of the Human-in-the-loop request, for the use of listeners/observability.
+
+        Exposed as a property so the ``subject``/``body`` template fields are read at access time --
+        after rendering, e.g. when OpenLineage builds the task START event -- rather than in
+        ``__init__`` where they would still hold un-rendered Jinja.
+        """
+        return {
             "subject": self.subject,
             "body": self.body,
             "options": self.options,
@@ -141,6 +153,7 @@ class HITLOperator(BaseOperator):
             "multiple": self.multiple,
             "assigned_users": self.assigned_users,
             "serialized_params": self.serialized_params or None,
+            **self._hitl_summary_extra,
         }
 
     def validate_options(self) -> None:
@@ -210,7 +223,9 @@ class HITLOperator(BaseOperator):
             timeout_datetime = None
 
         # Enrich summary with runtime info
-        self.hitl_summary["timeout_datetime"] = timeout_datetime.isoformat() if timeout_datetime else None
+        self._hitl_summary_extra["timeout_datetime"] = (
+            timeout_datetime.isoformat() if timeout_datetime else None
+        )
 
         self.log.info("Waiting for response")
         for notifier in self.notifiers:
@@ -246,7 +261,7 @@ class HITLOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
-            self.hitl_summary["error_type"] = event["error_type"]
+            self._hitl_summary_extra["error_type"] = event["error_type"]
             self.process_trigger_event_error(event)
 
         chosen_options = event["chosen_options"]
@@ -254,7 +269,7 @@ class HITLOperator(BaseOperator):
         self.validate_chosen_options(chosen_options)
         self.validate_params_input(params_input)
 
-        self.hitl_summary.update(
+        self._hitl_summary_extra.update(
             {
                 "chosen_options": chosen_options,
                 "params_input": params_input,
@@ -432,14 +447,14 @@ class ApprovalOperator(HITLOperator, SkipMixin):
             **kwargs,
         )
 
-        self.hitl_summary["ignore_downstream_trigger_rules"] = self.ignore_downstream_trigger_rules
-        self.hitl_summary["fail_on_reject"] = self.fail_on_reject
+        self._hitl_summary_extra["ignore_downstream_trigger_rules"] = self.ignore_downstream_trigger_rules
+        self._hitl_summary_extra["fail_on_reject"] = self.fail_on_reject
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         ret = super().execute_complete(context=context, event=event)
 
         chosen_option = ret["chosen_options"][0]
-        self.hitl_summary["approved"] = chosen_option == self.APPROVE
+        self._hitl_summary_extra["approved"] = chosen_option == self.APPROVE
         if chosen_option == self.APPROVE:
             self.log.info("Approved. Proceeding with downstream tasks...")
             return ret
@@ -493,7 +508,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
         super().__init__(**kwargs)
         self.options_mapping = options_mapping or {}
         self.validate_options_mapping()
-        self.hitl_summary["options_mapping"] = self.options_mapping
+        self._hitl_summary_extra["options_mapping"] = self.options_mapping
 
     def validate_options_mapping(self) -> None:
         """
@@ -528,7 +543,7 @@ class HITLBranchOperator(HITLOperator, BranchMixIn):
 
         # Map options to task IDs using the mapping, fallback to original option
         chosen_options = [self.options_mapping.get(option, option) for option in chosen_options]
-        self.hitl_summary["branches_to_execute"] = chosen_options
+        self._hitl_summary_extra["branches_to_execute"] = chosen_options
         return self.do_branch(context=context, branches_to_execute=chosen_options)
 
 

@@ -84,7 +84,6 @@ providers/snowflake/src/airflow/providers/snowflake/operators/snowpark_container
 providers/ssh/src/airflow/providers/ssh/operators/ssh.py::SSHOperator
 providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::SSHRemoteJobOperator
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
-providers/standard/src/airflow/providers/standard/operators/hitl.py::HITLOperator
 providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::TriggerDagRunOperator
 providers/standard/src/airflow/providers/standard/sensors/date_time.py::DateTimeSensor
 providers/teradata/src/airflow/providers/teradata/transfers/teradata_to_teradata.py::TeradataToTeradataOperator

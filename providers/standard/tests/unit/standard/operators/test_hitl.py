@@ -974,6 +974,27 @@ class TestHITLSummaryForListeners:
             "serialized_params": None,
         }
 
+    def test_summary_reflects_rendered_subject_body(self) -> None:
+        """subject/body in the summary are read live, so post-render values reach listeners.
+
+        Guards #70296: subject/body are template fields; snapshotting them into the summary in
+        ``__init__`` captured un-rendered Jinja. The summary is a property now, so once Airflow
+        renders the template fields in place -- before the OpenLineage task START event is built --
+        the summary reflects the rendered values.
+        """
+        op = HITLOperator(
+            task_id="test",
+            subject="Review for {{ ds }}",
+            body="Deploy {{ ds }}?",
+            options=["Yes", "No"],
+        )
+        # Airflow renders template fields by setting them back on the operator before execute.
+        op.subject = "Review for 2020-01-01"
+        op.body = "Deploy 2020-01-01?"
+
+        assert op.hitl_summary["subject"] == "Review for 2020-01-01"
+        assert op.hitl_summary["body"] == "Deploy 2020-01-01?"
+
     def test_approval_operator_init_summary(self) -> None:
         """ApprovalOperator hitl_summary includes base + approval-specific fields."""
         op = ApprovalOperator(
@@ -1382,7 +1403,8 @@ class TestHITLSummaryForListeners:
             },
         )
 
-        assert s == {
+        # hitl_summary is a property, so re-read it to see the execute_complete additions.
+        assert op.hitl_summary == {
             "subject": "Release v2.0?",
             "body": "Please approve the production deployment.",
             "options": ["Approve", "Reject"],
