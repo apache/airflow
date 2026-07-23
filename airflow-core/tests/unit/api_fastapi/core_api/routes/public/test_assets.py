@@ -1324,6 +1324,71 @@ class TestGetAssetEventsExtraFilter(TestAssets):
         assert response.json()["total_entries"] == expected_count
 
 
+class TestGetAssetEventsExtraFilterSpecialKeys(TestAssets):
+    """
+    Keys containing JSON-path metacharacters must be matched literally on every backend.
+
+    PostgreSQL (``@>``) and MySQL (``JSON_CONTAINS``) compare keys literally by containment.
+    The SQLite fallback builds a ``json_extract`` path from the key, where an unquoted ``.``
+    or ``[`` is interpreted as path navigation instead — silently missing literal dotted keys
+    and wrongly matching nested objects.
+    """
+
+    @pytest.fixture
+    def _setup(self, session):
+        self.create_assets(num=1, session=session)
+        events = [
+            AssetEvent(
+                asset_id=1,
+                extra={"spark.executor.memory": "4g"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r1",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={"spark": {"executor": {"memory": "4g"}}},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r2",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={"partitions[0]": "2024-01-01"},
+                source_task_id="t1",
+                source_dag_id="d1",
+                source_run_id="r3",
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+
+    @pytest.mark.usefixtures("_setup")
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            # Matches only the event whose extra has the literal dotted key,
+            # not the one nesting the same path as objects.
+            ({"extra": "spark.executor.memory=4g"}, 1),
+            ({"extra": "partitions[0]=2024-01-01"}, 1),
+            ({"extra": "spark.executor.memory=8g"}, 0),
+        ],
+    )
+    def test_extra_filter_metacharacter_keys_match_literally(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @pytest.mark.usefixtures("_setup")
+    def test_extra_filter_dotted_key_matches_the_literal_key_event(self, test_client):
+        response = test_client.get("/assets/events", params={"extra": "spark.executor.memory=4g"})
+        assert response.status_code == 200
+        assert [e["source_run_id"] for e in response.json()["asset_events"]] == ["r1"]
+
+
 class TestGetAssetEndpoint(TestAssets):
     @provide_session
     def test_should_respond_200(self, test_client, *, session):
