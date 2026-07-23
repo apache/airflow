@@ -452,6 +452,7 @@ deferrable
 deidentify
 DeidentifyTemplate
 del
+deletable
 DeleteAgentResponse
 DeleteAgentVersionResponse
 delim
@@ -524,6 +525,7 @@ downstreams
 dp
 dq
 Drillbit
+driverless
 dropdown
 druidHook
 ds

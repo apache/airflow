@@ -28,7 +28,7 @@ from uuid import UUID
 
 import uuid6
 from sqlalchemy import JSON, ForeignKey, LargeBinary, String, Uuid, exists, select, tuple_, update
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
 
@@ -955,7 +955,9 @@ class SerializedDagModel(Base):
             elif dialect == "postgresql":
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
-                data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
+                data_col_to_select = cls._data.op("#>")(
+                    literal(["dag", "dag_dependencies"], type_=ARRAY(String))
+                )
                 load_json = lambda x: x
             else:
                 data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
