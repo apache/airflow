@@ -3063,6 +3063,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for executor, stuck_tis in self._executor_to_workloads(tasks_stuck_in_queued, session).items():
             try:
                 for ti in stuck_tis:
+                    session.refresh(ti)
+                    if ti.state != TaskInstanceState.QUEUED:
+                        self.log.debug(
+                            "Skipping stuck-in-queued handling; task instance is no longer queued. "
+                            "task_instance=%s state=%s",
+                            ti,
+                            ti.state,
+                        )
+                        continue
+                    if self._ti_queue_attempt_has_started(ti, session=session):
+                        self.log.debug(
+                            "Skipping stuck-in-queued handling; task instance already started for this "
+                            "queue attempt. task_instance=%s",
+                            ti,
+                        )
+                        continue
                     executor.revoke_task(ti=ti)
                     self._maybe_requeue_stuck_ti(
                         ti=ti,
@@ -3072,6 +3088,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session.commit()
             except NotImplementedError:
                 continue
+
+    def _ti_queue_attempt_has_started(self, ti: TaskInstance, *, session: Session) -> bool:
+        """Return True if this try has a running log entry at or after the current queued_dttm."""
+        if ti.queued_dttm is None:
+            return False
+        return (
+            session.scalar(
+                select(Log.dttm)
+                .where(
+                    Log.dag_id == ti.dag_id,
+                    Log.task_id == ti.task_id,
+                    Log.run_id == ti.run_id,
+                    Log.map_index == ti.map_index,
+                    Log.try_number == ti.try_number,
+                    Log.event == "running",
+                    Log.dttm >= ti.queued_dttm,
+                )
+                .limit(1)
+            )
+            is not None
+        )
 
     def _get_tis_stuck_in_queued(self, session) -> Iterable[TaskInstance]:
         """Query db for TIs that are stuck in queued."""

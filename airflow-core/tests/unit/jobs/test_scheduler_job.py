@@ -3901,6 +3901,51 @@ class TestSchedulerJob:
         mock_executors[0].fail.assert_called()
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
+    def test_handle_stuck_queued_skips_when_queue_attempt_started(self, dag_maker, session, mock_executors):
+        """Do not reschedule a queued TI that already started running on the same try (#65248)."""
+        with dag_maker("test_stuck_queued_skips_after_running"):
+            EmptyOperator(task_id="op1")
+
+        run_id = str(uuid4())
+        dr = dag_maker.create_dagrun(run_id=run_id)
+        ti = dr.get_task_instances(session=session)[0]
+
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+
+        ti.state = "queued"
+        ti.queued_dttm = timezone.utcnow() - timedelta(hours=1)
+        ti.queued_by_job_id = scheduler_job.id
+        session.merge(ti)
+        session.add(
+            Log(
+                dttm=timezone.utcnow(),
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                map_index=ti.map_index,
+                event="running",
+                run_id=ti.run_id,
+                try_number=ti.try_number,
+            )
+        )
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        scheduler._task_queued_timeout = -300
+
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        ti.refresh_from_db(session=session)
+        assert ti.state == "queued"
+        stuck_logs = session.scalars(
+            select(Log).where(Log.run_id == run_id, Log.event == "stuck in queued reschedule")
+        ).all()
+        assert stuck_logs == []
+        mock_executors[0].revoke_task.assert_not_called()
+
+    @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_reschedule_sensors(self, dag_maker, session, mock_executors):
         """Reschedule sensors go in and out of running repeatedly using the same try_number
         Make sure that they get three attempts per reschedule, not 3 attempts per try_number"""
