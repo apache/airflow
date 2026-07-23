@@ -206,11 +206,13 @@ class BaseOperations:
             if callable(value):
                 setattr(cls, attr, _check_flag_and_exit_if_server_response_error(value))
 
-    def execute_list(self, *, path, data_model, offset=0, limit=50, params=None):
-        if limit <= 0:
+    def execute_list(self, *, path, data_model, offset=0, limit=None, params=None):
+        page_size = 50
+        if params:
+            limit = params.pop("limit", limit)
+            offset = params.pop("offset", offset)
+        if limit is not None and limit <= 0:
             raise ValueError(f"limit must be a positive integer, got {limit}")
-
-        shared_params = {"limit": limit, **(params or {})}
 
         def safe_validate(content: bytes) -> BaseModel:
             try:
@@ -219,10 +221,12 @@ class BaseOperations:
                 raw = fill_missing_fields(json.loads(content), data_model)
                 return data_model.model_validate(raw)  # type: ignore[union-attr]
 
+        first_size = page_size if limit is None else min(limit, page_size)
+        shared_params = {"limit": first_size, "offset": offset, **(params or {})}
         self.response = self.client.get(path, params=shared_params)
         first_pass = safe_validate(self.response.content)
         total_entries = first_pass.total_entries  # type: ignore[attr-defined]
-        if total_entries < limit:
+        if first_size < page_size:
             return first_pass
         found_key = None
         for key, value in first_pass.model_dump().items():
@@ -230,11 +234,16 @@ class BaseOperations:
                 found_key = key
                 break
         entry_list = getattr(first_pass, found_key)
-        offset = offset + limit
+        if limit:
+            total_entries = min(limit, total_entries) + offset
+        offset = offset + first_size
         while offset < total_entries:
-            self.response = self.client.get(path, params={**shared_params, "offset": offset})
+            self.response = self.client.get(
+                path,
+                params={**shared_params, "limit": min(page_size, (total_entries - offset)), "offset": offset},
+            )
             entry = safe_validate(self.response.content)
-            offset = offset + limit
+            offset = offset + page_size
             entry_list.extend(getattr(entry, found_key))
         obj = data_model(**{found_key: entry_list, "total_entries": total_entries})
         return data_model.model_validate(obj.model_dump())  # type: ignore[union-attr]
