@@ -30,6 +30,9 @@ PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 TEMURIN_VERSION=${TEMURIN_VERSION:-11}
 NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
+# Keep in sync with the "packageManager" pin in ts-sdk/package.json so the version corepack
+# resolves for ts-sdk is the one baked into the image.
+PNPM_VERSION=${PNPM_VERSION:-10.28.1}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
@@ -446,6 +449,9 @@ function install_nodejs() {
     tar -xJf /tmp/nodejs.tar.xz --strip-components=1 -C /usr/local --no-same-owner
     rm -f /tmp/nodejs.tar.xz
     corepack enable --install-directory /usr/local/bin
+    # corepack enable only writes shims; prepare downloads and caches the pnpm binary into the
+    # image so it is available offline and matches the version ts-sdk pins.
+    corepack prepare "pnpm@${PNPM_VERSION}" --activate
 }
 
 function install_rustup() {
