@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.standard.sensors.asset import AssetPartitionSensor
 from airflow.sdk import (
     DAG,
     AllowedKeyMapper,
@@ -110,6 +111,39 @@ with DAG(
         print(dag_run.partition_key, dag_run.partition_date)
 
     combine_player_stats()
+
+
+with DAG(
+    dag_id="wait_for_combined_player_stats_partition",
+    schedule="@hourly",
+    catchup=False,
+    tags=["example", "player-stats", "sensor"],
+):
+    """
+    Wait for a specific ``combined_player_stats`` partition from a time-scheduled Dag.
+
+    ``AssetPartitionSensor`` bridges time-based scheduling and asset partitioning: this hourly
+    Dag blocks until the combined-stats partition for its own data interval has an asset event.
+    ``after`` bounds the lookup to the current interval so a stale event with the same partition
+    key from an earlier run does not satisfy the wait.
+    """
+
+    wait_for_combined_partition = AssetPartitionSensor(
+        task_id="wait_for_combined_partition",
+        asset=combined_player_stats,
+        partition_key="{{ data_interval_start.strftime('%Y-%m-%dT%H') }}",
+        after="{{ data_interval_start }}",
+        deferrable=True,
+    )
+
+    @task
+    def report_partition_ready(dag_run=None):
+        """Run once the awaited combined-stats partition is available."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"combined_player_stats partition ready for {dag_run.logical_date}")
+
+    wait_for_combined_partition >> report_partition_ready()
 
 
 @asset(
