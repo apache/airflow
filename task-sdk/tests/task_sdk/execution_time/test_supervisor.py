@@ -3623,6 +3623,18 @@ class TestInProcessTestSupervisor:
         assert isinstance(result.error, _Failure)
         assert isinstance(collected[0], _Failure)
 
+    def test_api_client_uses_request_scoped_server_context(self):
+        api = mock.Mock()
+        api.transport = httpx.MockTransport(lambda request: httpx.Response(status_code=200, json={}))
+
+        with patch(
+            "airflow.sdk.execution_time.supervisor.in_process_api_server", return_value=api
+        ) as factory:
+            client = InProcessTestSupervisor._api_client()
+
+        factory.assert_called_once_with(request_scoped_server_context=True)
+        client.close()
+
 
 class TestInProcessClient:
     def test_no_retries(self):
@@ -4231,7 +4243,7 @@ def test_api_client_clears_dag_bag_override_when_dag_is_none():
         # First call with a dag sets the override
         mock_dag = MagicMock()
         InProcessTestSupervisor._api_client(dag=mock_dag)
-        api = in_process_api_server()
+        api = in_process_api_server(request_scoped_server_context=True)
         assert dag_bag_from_app in api.app.dependency_overrides
 
         # Second call with dag=None should remove it

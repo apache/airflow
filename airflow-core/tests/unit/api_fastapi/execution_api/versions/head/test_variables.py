@@ -96,6 +96,28 @@ class TestGetVariable:
         assert response.status_code == 200
         assert response.json() == {"key": "key1", "value": "VALUE"}
 
+    @mock.patch.dict(
+        "os.environ",
+        {"AIRFLOW_VAR_KEY1": "VALUE", "_AIRFLOW_PROCESS_CONTEXT": "server"},
+    )
+    def test_variable_get_uses_server_path_when_supervisor_comms_exists(self, client):
+        fake_task_runner = mock.Mock()
+        fake_task_runner.SUPERVISOR_COMMS = object()
+
+        with (
+            mock.patch.dict("sys.modules", {"airflow.sdk.execution_time.task_runner": fake_task_runner}),
+            mock.patch(
+                "airflow.sdk.Variable.get",
+                side_effect=AssertionError(
+                    "Execution API should not route through Task SDK Variable.get in server context"
+                ),
+            ),
+        ):
+            response = client.get("/execution/variables/key1")
+
+        assert response.status_code == 200
+        assert response.json() == {"key": "key1", "value": "VALUE"}
+
     @pytest.mark.parametrize(
         "key",
         [
@@ -157,6 +179,31 @@ class TestPutVariable:
         assert var_from_db.val == payload["value"]
         if "description" in payload:
             assert var_from_db.description == payload["description"]
+
+    @mock.patch.dict(
+        "os.environ",
+        {"_AIRFLOW_PROCESS_CONTEXT": "server"},
+    )
+    def test_variable_put_uses_server_path_when_supervisor_comms_exists(self, client, session):
+        fake_task_runner = mock.Mock()
+        fake_task_runner.SUPERVISOR_COMMS = object()
+
+        with (
+            mock.patch.dict("sys.modules", {"airflow.sdk.execution_time.task_runner": fake_task_runner}),
+            mock.patch(
+                "airflow.sdk.Variable.set",
+                side_effect=AssertionError(
+                    "Execution API should not route through Task SDK Variable.set in server context"
+                ),
+            ),
+        ):
+            response = client.put("/execution/variables/var_server_only", json={"value": "server_value"})
+
+        assert response.status_code == 201
+        assert response.json()["message"] == "Variable successfully set"
+        var_from_db = session.scalars(select(Variable).where(Variable.key == "var_server_only")).first()
+        assert var_from_db is not None
+        assert var_from_db.val == "server_value"
 
     @pytest.mark.parametrize(
         ("key", "payload", "error_type"),
@@ -342,3 +389,29 @@ class TestDeleteVariable:
 
         vars = session.scalars(select(Variable)).all()
         assert len(vars) == 1
+
+    @mock.patch.dict(
+        "os.environ",
+        {"_AIRFLOW_PROCESS_CONTEXT": "server"},
+    )
+    def test_variable_delete_uses_server_path_when_supervisor_comms_exists(self, client, session):
+        Variable.set(key="var_server_delete", value="to_delete", session=session)
+        session.commit()
+
+        fake_task_runner = mock.Mock()
+        fake_task_runner.SUPERVISOR_COMMS = object()
+
+        with (
+            mock.patch.dict("sys.modules", {"airflow.sdk.execution_time.task_runner": fake_task_runner}),
+            mock.patch(
+                "airflow.sdk.Variable.delete",
+                side_effect=AssertionError(
+                    "Execution API should not route through Task SDK Variable.delete in server context"
+                ),
+            ),
+        ):
+            response = client.delete("/execution/variables/var_server_delete")
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.scalar(select(Variable).where(Variable.key == "var_server_delete")) is None

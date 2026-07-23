@@ -44,9 +44,11 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.process_context import override_process_context
 
 if TYPE_CHECKING:
     import httpx
+    from starlette.types import Receive, Scope, Send
 
 import structlog
 from structlog.contextvars import bind_contextvars
@@ -372,6 +374,17 @@ def _shutdown_loop(
     thread.join(timeout=5)
 
 
+class _RequestScopedServerContextApp:
+    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+
+    def __init__(self, app: FastAPI) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        with override_process_context("server"):
+            await self.app(scope, receive, send)
+
+
 @attrs.define()
 class InProcessExecutionAPI:
     """
@@ -381,6 +394,7 @@ class InProcessExecutionAPI:
     needed so that we can use the sync httpx client
     """
 
+    request_scoped_server_context: bool = attrs.field(default=False, kw_only=True)
     _app: FastAPI | None = None
 
     @cached_property
@@ -433,7 +447,9 @@ class InProcessExecutionAPI:
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
         thread.start()
 
-        middleware = ASGIMiddleware(self.app, loop=loop)
+        app = self.app
+        asgi_app = _RequestScopedServerContextApp(app) if self.request_scoped_server_context else app
+        middleware = ASGIMiddleware(cast("Any", asgi_app), loop=loop)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):
@@ -443,7 +459,7 @@ class InProcessExecutionAPI:
 
         # Wait for lifespan startup to complete so callers see a ready app and so the finalizer can
         # safely aclose() a context whose __aenter__ has actually run.
-        asyncio.run_coroutine_threadsafe(start_lifespan(cm, self.app), loop).result()
+        asyncio.run_coroutine_threadsafe(start_lifespan(cm, app), loop).result()
 
         transport = httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
@@ -460,4 +476,6 @@ class InProcessExecutionAPI:
     def atransport(self) -> httpx.ASGITransport:
         import httpx
 
-        return httpx.ASGITransport(app=self.app)
+        app = self.app
+        asgi_app = _RequestScopedServerContextApp(app) if self.request_scoped_server_context else app
+        return httpx.ASGITransport(app=asgi_app)
