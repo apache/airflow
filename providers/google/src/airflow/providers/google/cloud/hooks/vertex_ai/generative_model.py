@@ -26,8 +26,15 @@ from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.preview import generative_models as preview_generative_model
 from vertexai.preview.caching import CachedContent
-from vertexai.preview.evaluation import EvalResult, EvalTask
 
+try:
+    from vertexai.preview.evaluation import EvalResult, EvalTask
+
+    _VERTEXAI_EVALUATION_AVAILABLE = True
+except ImportError:
+    _VERTEXAI_EVALUATION_AVAILABLE = False
+
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -64,6 +71,11 @@ class GenerativeModelHook(GoogleBaseHook):
         experiment: str,
     ) -> EvalTask:
         """Return an EvalTask object."""
+        if not _VERTEXAI_EVALUATION_AVAILABLE:
+            raise AirflowOptionalProviderFeatureException(
+                "The Vertex AI evaluation feature requires the 'google-cloud-aiplatform[evaluation]' "
+                "package. Install it with: pip install 'apache-airflow-providers-google[vertex-ai-evaluation]'"
+            )
         eval_task = EvalTask(
             dataset=dataset,
             metrics=metrics,
@@ -115,6 +127,11 @@ class GenerativeModelHook(GoogleBaseHook):
         :param system_instruction: Optional. An instruction given to the model to guide its behavior.
         :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
         """
+        if not _VERTEXAI_EVALUATION_AVAILABLE:
+            raise AirflowOptionalProviderFeatureException(
+                "The Vertex AI evaluation feature requires the 'google-cloud-aiplatform[evaluation]' "
+                "package. Install it with: pip install 'apache-airflow-providers-google[vertex-ai-evaluation]'"
+            )
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
         model = self.get_generative_model(
