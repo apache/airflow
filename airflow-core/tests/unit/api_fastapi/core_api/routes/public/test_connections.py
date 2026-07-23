@@ -367,6 +367,28 @@ class TestPostConnection(TestConnectionEndpoint):
                 }
             ]
         }
+    @pytest.mark.parametrize(
+        "port",
+        [-1, 0, 65536, 99999, 123456789],
+    )
+    def test_post_should_respond_422_for_invalid_port(self, test_client, port):
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": port}
+        response = test_client.post("/connections", json=body)       
+        assert response.status_code == 422
+        detail = response.json()["detail"][0]
+        assert detail["loc"] == ["body", "port"]
+        assert detail["input"] == port
+
+    @pytest.mark.parametrize(
+        "port",
+        [1, 22, 8080, 65535],
+    )
+    def test_post_should_respond_201_for_valid_port(self, test_client, session, port):
+        body = {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": port}
+        response = test_client.post("/connections", json=body)
+        assert response.status_code == 201
+        assert response.json()["port"] == port
+
 
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
@@ -1010,6 +1032,19 @@ class TestPatchConnection(TestConnectionEndpoint):
                 "unknown_field": "value",
             },
             params={"update_mask": ["host"]},
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        "port",
+        [-1, 0, 65536, 99999],
+    )
+    def test_patch_should_respond_422_for_invalid_port(self, test_client, port):
+        self.create_connection()
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "port": port},
+            params={"update_mask": ["port"]},
         )
         assert response.status_code == 422
 

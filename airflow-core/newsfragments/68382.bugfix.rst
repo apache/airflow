@@ -1,0 +1,1 @@
++The ``port`` field on the Connection API (``POST``/``PATCH /connections``) now validates that the value is a valid TCP/UDP port number (between 1 and 65535). Previously, negative numbers, ``0``, and values above 65535 were silently accepted.
