@@ -47,6 +47,23 @@ Use the :class:`~airflow.providers.standard.operators.python.PythonOperator` to 
             :start-after: [START howto_operator_python]
             :end-before: [END howto_operator_python]
 
+Running selected tasks in a new interpreter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, task process creation follows the global
+:ref:`execute_tasks_new_python_interpreter <config:core__execute_tasks_new_python_interpreter>`
+configuration. Set ``execute_tasks_new_python_interpreter`` on a ``PythonOperator`` task to override
+that global setting for a single task. This is useful when one task needs a fresh Python interpreter,
+for example to pick up plugin changes immediately, without changing the execution mode for every task.
+
+.. code-block:: python
+
+    PythonOperator(
+        task_id="refresh_plugin_state",
+        python_callable=refresh_plugin_state,
+        execute_tasks_new_python_interpreter=True,
+    )
+
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 

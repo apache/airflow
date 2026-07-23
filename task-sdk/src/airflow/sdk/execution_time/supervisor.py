@@ -519,6 +519,17 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
+def _should_use_exec_for_task(execute_tasks_new_python_interpreter: bool | None = None) -> bool:
+    """Whether task execution should ``exec`` a fresh Python interpreter."""
+    if sys.platform in _FORK_EXEC_PLATFORMS:
+        return True
+    if execute_tasks_new_python_interpreter is None:
+        execute_tasks_new_python_interpreter = conf.getboolean(
+            "core", "execute_tasks_new_python_interpreter", fallback=False
+        )
+    return execute_tasks_new_python_interpreter
+
+
 def _resolve_child_target(dotted: str) -> Callable[[], None]:
     """
     Resolve a ``module:qualname`` string to the callable the exec'd child runs.
@@ -688,8 +699,7 @@ class WatchedSubprocess:
         """
         Fork and start a new subprocess with the specified target function.
 
-        :param use_exec: If True, on platforms that need it (currently macOS),
-            immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
+        :param use_exec: If True, immediately ``os.execv`` a fresh Python interpreter after ``os.fork``.
             This avoids macOS fork-safety issues with Objective-C frameworks.
             ``target`` is rehydrated in the exec'd child from its ``module:qualname``,
             so any importable entry point (task execution, DAG processor, triggerer)
@@ -1352,13 +1362,16 @@ class ActivitySubprocess(WatchedSubprocess):
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
         sentry_integration: str = "",
+        execute_tasks_new_python_interpreter: bool | None = None,
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
-        # Opt in to fork+exec on platforms that need it (currently macOS).
         # Tests override `target` with a local stub to exercise the base
-        # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _should_use_exec()
+        # infrastructure; keep bare fork for those. Otherwise task execution
+        # can opt in to fork+exec through platform safety or configuration.
+        use_exec = target is _subprocess_main and _should_use_exec_for_task(
+            execute_tasks_new_python_interpreter
+        )
         proc: Self = super().start(
             id=what.id, client=client, target=target, logger=logger, use_exec=use_exec, **kwargs
         )
@@ -2454,6 +2467,7 @@ def supervise_task(
     subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
     sentry_integration: str = "",
+    execute_tasks_new_python_interpreter: bool | None = None,
 ) -> int:
     """
     Run a single task execution to completion.
@@ -2469,6 +2483,8 @@ def supervise_task(
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
     :param sentry_integration: If the executor has a Sentry integration, import
         path to a callable to initialize it (empty means no integration).
+    :param execute_tasks_new_python_interpreter: Override ``[core] execute_tasks_new_python_interpreter``
+        for this task. ``None`` keeps the global configuration.
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
     :raises InvalidCoordinatorError: If the coordinator for the task is not
@@ -2551,6 +2567,7 @@ def supervise_task(
                 logger=logger,
                 sentry_integration=sentry_integration,
                 subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                execute_tasks_new_python_interpreter=execute_tasks_new_python_interpreter,
             )
             end = time.monotonic()
             log.info(

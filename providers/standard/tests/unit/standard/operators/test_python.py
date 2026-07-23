@@ -291,6 +291,26 @@ class TestPythonOperator(BasePythonTest):
         rendered_op_kwargs = task.op_kwargs
         assert rendered_op_kwargs["a_callable"] == a_fn
 
+    @pytest.mark.parametrize("execute_tasks_new_python_interpreter", [True, False, None])
+    def test_execute_tasks_new_python_interpreter_is_serialized(self, execute_tasks_new_python_interpreter):
+        from airflow.serialization.serialized_objects import OperatorSerialization
+
+        task = PythonOperator(
+            python_callable=lambda: None,
+            task_id=self.task_id,
+            execute_tasks_new_python_interpreter=execute_tasks_new_python_interpreter,
+        )
+
+        serialized = OperatorSerialization.serialize_operator(task)
+        deserialized = OperatorSerialization.deserialize_operator(serialized)
+
+        assert "execute_tasks_new_python_interpreter" in PythonOperator.get_serialized_fields()
+        assert serialized.get("execute_tasks_new_python_interpreter") is execute_tasks_new_python_interpreter
+        assert (
+            getattr(deserialized, "execute_tasks_new_python_interpreter", None)
+            is execute_tasks_new_python_interpreter
+        )
+
     def test_python_operator_shallow_copy_attr(self):
         def not_callable(x):
             raise RuntimeError("Should not be triggered")
