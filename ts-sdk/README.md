@@ -92,8 +92,7 @@ queue_to_coordinator = {"typescript": "ts"}
 
 Each configured bundle directory must contain a `bundle.mjs` built with
 `airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
-Airflow metadata in the bundle itself. A `bundle.mjs` without embedded
-metadata is also accepted alongside an `airflow-metadata.yaml` sidecar.
+Airflow metadata in the bundle itself.
 
 TypeScript entrypoint:
 
