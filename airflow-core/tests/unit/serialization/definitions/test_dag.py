@@ -75,7 +75,7 @@ def test_clear_does_not_follow_external_marker_by_default(dag_maker, session):
 
 
 def test_clear_follows_external_marker_when_include_dependent_dags_enabled(dag_maker, session):
-    """With include_dependent_dags=True, clear() follows ExternalTaskMarker links into child DAGs."""
+    """With include_dependent_dags=True, clear() follows ExternalTaskMarker links into child Dags."""
     with dag_maker("parent_dag", session=session, schedule=None):
         ExternalTaskMarker(
             task_id="trigger_child",

@@ -3790,9 +3790,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
     def test_missing_child_dag_returns_404(self, mock_clear, test_client, session):
-        """A missing child DAG referenced by ExternalTaskMarker must return 404, not 500."""
+        """A missing child Dag referenced by ExternalTaskMarker must return 404, not 500."""
         self.create_task_instances(session)
-        mock_clear.side_effect = DagNotFound("Could not find dag child_dag")
+        mock_clear.side_effect = DagNotFound("Could not find Dag child_dag")
         response = test_client.post(
             "/dags/example_python_operator/clearTaskInstances",
             json={"dry_run": True, "include_downstream_dags": True},
