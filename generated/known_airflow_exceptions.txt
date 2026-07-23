@@ -68,7 +68,6 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/athena.py::3
 providers/amazon/src/airflow/providers/amazon/aws/operators/batch.py::5
 providers/amazon/src/airflow/providers/amazon/aws/operators/bedrock.py::6
 providers/amazon/src/airflow/providers/amazon/aws/operators/comprehend.py::2
-providers/amazon/src/airflow/providers/amazon/aws/operators/datasync.py::10
 providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::6
 providers/amazon/src/airflow/providers/amazon/aws/operators/ec2.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::7
