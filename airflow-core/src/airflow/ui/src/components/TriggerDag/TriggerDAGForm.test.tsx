@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
@@ -52,6 +52,21 @@ const useDagParamsMock = vi.hoisted(() => vi.fn());
 
 vi.mock("src/queries/useDagParams", () => ({
   useDagParams: useDagParamsMock,
+}));
+
+vi.mock("openapi/queries", () => ({
+  useDagRunServiceGetDagRuns: vi.fn(() => ({
+    data: {
+      dag_runs: [
+        {
+          conf: { message: "From recent" },
+          dag_run_id: "run_recent",
+          run_after: "2025-01-01T00:00:00Z",
+        },
+      ],
+    },
+    isLoading: false,
+  })),
 }));
 
 vi.mock("src/queries/useTogglePause", () => ({
@@ -214,5 +229,47 @@ describe("TriggerDAGForm", () => {
 
     await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
     expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();
+  });
+
+  it("prefills the form when a recent configuration is selected from the dropdown", async () => {
+    const { container } = render(
+      <TriggerDAGForm
+        dagDisplayName="Params Trigger UI"
+        dagId="example_params_trigger_ui"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={undefined}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const recentConfigSelect = screen.getByTestId("recent-config-select");
+
+    fireEvent.click(within(recentConfigSelect).getByRole("combobox"));
+    await waitFor(() => expect(screen.getByRole("listbox")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("run_recent"));
+
+    await waitFor(() =>
+      expect(container.querySelector<HTMLInputElement>('input[name="element_message"]')?.value).toBe(
+        "From recent",
+      ),
+    );
+
+    fireEvent.click(screen.getByText("Advanced Options"));
+
+    await waitFor(() => {
+      const configJson = screen.getByLabelText("Configuration JSON");
+
+      if (!(configJson instanceof HTMLTextAreaElement)) {
+        throw new TypeError("Expected Configuration JSON to render as a textarea");
+      }
+
+      expect(configJson.value).toContain('"From recent"');
+    });
   });
 });
