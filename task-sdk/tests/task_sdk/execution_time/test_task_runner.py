@@ -6784,6 +6784,26 @@ class TestTaskInstanceMetrics:
             backend.incr.assert_any_call(ti_metric, tags=stats_tags)
 
 
+@pytest.fixture
+def _sampled_carrier_provider():
+    """Make new_dagrun_trace_carrier produce a SAMPLED carrier.
+
+    new_dagrun_trace_carrier consults the global tracer provider's sampler to
+    decide the carrier's SAMPLED flag. In the test process the global provider
+    is a no-op ProxyTracerProvider (no sampler) -> unsampled carrier, which
+    would make the parent span (and its detail children) non-recording. Patch
+    the lookup to a real SDK provider whose default sampler
+    (parentbased_always_on) samples the root, mirroring "otel on" in production.
+    """
+    provider = TracerProvider()
+    with mock.patch(
+        "airflow._shared.observability.traces.trace.get_tracer_provider",
+        return_value=provider,
+    ):
+        yield
+
+
+@pytest.mark.usefixtures("_sampled_carrier_provider")
 class TestRunExecuteCallable:
     """Tests for ``_run_execute_callable``.
 
@@ -6791,16 +6811,6 @@ class TestRunExecuteCallable:
     the ExecutorSafeguard tracker set), applies the execution timeout when one is
     configured, and wraps the call in a ``task.execute`` detail span.
     """
-
-    @pytest.fixture(autouse=True)
-    def _sampled_carrier_provider(self):
-        """Make new_dagrun_trace_carrier produce a SAMPLED carrier (see TestDetailSpan)."""
-        provider = TracerProvider()
-        with mock.patch(
-            "airflow._shared.observability.traces.trace.get_tracer_provider",
-            return_value=provider,
-        ):
-            yield
 
     @staticmethod
     def _make_task(execution_timeout=None):
@@ -6924,18 +6934,9 @@ class TestRunExecuteCallable:
         assert "task.execute" not in names
 
 
+@pytest.mark.usefixtures("_sampled_carrier_provider")
 class TestCallbackSpans:
     """Tests for spans emitted around task callback / pre-post-execute invocations."""
-
-    @pytest.fixture(autouse=True)
-    def _sampled_carrier_provider(self):
-        """Make new_dagrun_trace_carrier produce a SAMPLED carrier (see TestDetailSpan)."""
-        provider = TracerProvider()
-        with mock.patch(
-            "airflow._shared.observability.traces.trace.get_tracer_provider",
-            return_value=provider,
-        ):
-            yield
 
     @staticmethod
     def _make_tracer(exporter):
