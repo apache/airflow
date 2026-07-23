@@ -43,7 +43,7 @@ Changelog
    reasons that are excluded from the requeue path.
 
 .. note::
-   ``KubernetesPodOperator.reattach_on_restart`` is deprecated in favour of the new ``durable``
+   ``KubernetesPodOperator.reattach_on_restart`` is deprecated in favor of the new ``durable``
    parameter, which keeps the same meaning and the same ``True`` default. Passing
    ``reattach_on_restart`` still works and still wins, but emits an
    ``AirflowProviderDeprecationWarning`` on Airflow 3.3+ and will be removed in a future release —
