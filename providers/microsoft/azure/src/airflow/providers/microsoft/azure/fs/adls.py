@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from azure.identity import ClientSecretCredential
 
@@ -27,6 +28,25 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
 schemes = ["abfs", "abfss", "adl"]
+
+
+def _account_name_from_host(host: str | None) -> str | None:
+    if not host:
+        return None
+
+    parsed_url = urlparse(host if "://" in host else f"//{host}")
+    hostname = parsed_url.hostname
+    if not hostname:
+        return None
+
+    return hostname.split(".", 1)[0]
+
+
+def _storage_account_name_from_host(host: str | None) -> str | None:
+    account_name = _account_name_from_host(host)
+    if account_name and account_name == host:
+        return account_name
+    return None
 
 
 def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -> AbstractFileSystem:
@@ -47,12 +67,17 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
     if connection_string:
         return AzureBlobFileSystem(connection_string=connection_string)
 
-    options: dict[str, Any] = {
-        "account_url": parse_blob_account_url(conn.host, conn.login),
-    }
-
     # mirror handling of custom field "client_secret_auth_config" from extras. Ignore if missing as AzureBlobFileSystem can handle.
     tenant_id = get_field(conn_id=conn_id, conn_type=conn_type, extras=extras, field_name="tenant_id")
+    options: dict[str, Any] = {}
+    account_name = _storage_account_name_from_host(conn.host)
+    # Preserve account_url for existing WASB, full URL, and custom endpoint connections.
+    # ADLS Active Directory connections use login as client_id, so bare hosts are account names.
+    if conn_type == "adls" and account_name:
+        options["account_name"] = account_name
+    elif conn_type != "adls" or conn.host or not tenant_id:
+        options["account_url"] = parse_blob_account_url(conn.host, conn.login)
+
     login = conn.login or ""
     password = conn.password or ""
     # assumption (from WasbHook) that if tenant_id is set, we want service principal connection
