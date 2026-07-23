@@ -23,13 +23,13 @@ AssetEventSensor
 ================
 
 Use the :class:`~airflow.providers.standard.sensors.asset.AssetEventSensor` to wait for
-:ref:`asset events <concepts:assets>` matching a set of filters to reach an expected count.
+asset events matching a set of filters to reach an expected count.
 
 .. note::
 
     This sensor requires **Apache Airflow 3.4+**, because the ``partition_key``,
     ``partition_key_regexp_pattern`` and ``extra`` asset-event filters it relies on are only
-    available from 3.4 onwards.
+    available in Airflow 3.4 and later.
 
 Basic usage
 -----------
