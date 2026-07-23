@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from contextlib import suppress
 from functools import cache
 from pathlib import Path
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
     from structlog.typing import EventDict, FilteringBoundLogger, Processor
 
     from airflow.sdk._shared.logging.remote import RemoteLogIO
+    from airflow.sdk.api.datamodels._generated import TIRunContext
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
@@ -224,7 +226,9 @@ def relative_path_from_logger(logger) -> Path | None:
     return Path(fname).relative_to(base_log_folder)
 
 
-def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
+def upload_to_remote(
+    logger: FilteringBoundLogger, ti: RuntimeTI | None = None, *, ti_context: TIRunContext | None = None
+):
     raw_logger = getattr(logger, "_logger")
 
     handler = load_remote_log_handler()
@@ -239,7 +243,12 @@ def upload_to_remote(logger: FilteringBoundLogger, ti: RuntimeTI | None = None):
         return
 
     log_relative_path = relative_path.as_posix()
-    handler.upload(log_relative_path, ti)
+    kwargs = {}
+    # Only handlers that opt in receive the run context (e.g. ES/OpenSearch use the Dag-run-pinned
+    # log id template from it); older or third-party RemoteLogIO implementations keep working.
+    if ti_context is not None and "ti_context" in inspect.signature(handler.upload).parameters:
+        kwargs["ti_context"] = ti_context
+    handler.upload(log_relative_path, ti, **kwargs)
 
 
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:

@@ -279,6 +279,7 @@ class TestTIRunState:
             "variables": [],
             "connections": [],
             "xcom_keys_to_clear": [],
+            "log_id_template": "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
         }
         # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
         assert "upstream_map_indexes" not in result
@@ -693,6 +694,7 @@ class TestTIRunState:
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
             "start_date": None,
+            "log_id_template": "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
         }
 
     @pytest.mark.parametrize("resume", [True, False])
@@ -767,6 +769,7 @@ class TestTIRunState:
             "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
+            "log_id_template": "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
         }
         session.expunge_all()
         ti = session.get(TaskInstance, ti.id)
@@ -1030,6 +1033,76 @@ class TestTIRunState:
 
         assert response.status_code == 200
         assert response.json()["dag_run"]["team_name"] == (team_name if expect_team else None)
+
+    def test_ti_run_populates_log_id_template(
+        self, client, session, create_task_instance, create_log_template, time_machine
+    ):
+        """``log_id_template`` echoes the LogTemplate row pinned to the Dag run."""
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        custom_elasticsearch_id = "{dag_id}-{task_id}-{logical_date}-{try_number}"
+        create_log_template("{{ ti.dag_id }}.log", custom_elasticsearch_id)
+
+        # The Dag run pins the newest LogTemplate row at creation time.
+        ti = create_task_instance(
+            task_id="test_ti_run_populates_log_id_template",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": instant.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["log_id_template"] == custom_elasticsearch_id
+
+    def test_ti_run_populates_latest_log_id_template(
+        self, client, session, create_task_instance, create_log_template, time_machine
+    ):
+        """Each Dag run pins whichever LogTemplate row is newest when it is created."""
+        instant = timezone.parse("2024-09-30T12:00:00Z")
+        time_machine.move_to(instant, tick=False)
+
+        for i in range(3):
+            elasticsearch_id = f"{{dag_id}}-{{task_id}}-{{logical_date}}-{{try_number}}-v{i}"
+            create_log_template(f"{{{{ ti.dag_id }}}}-v{i}.log", elasticsearch_id)
+
+            ti = create_task_instance(
+                task_id="test_ti_run_populates_latest_log_id_template",
+                state=State.QUEUED,
+                dagrun_state=DagRunState.RUNNING,
+                session=session,
+                start_date=instant,
+                dag_id=str(uuid4()),
+            )
+            session.commit()
+
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": instant.isoformat(),
+                },
+            )
+
+            assert response.status_code == 200
+            assert response.json()["log_id_template"] == elasticsearch_id
 
     def test_ti_run_creates_audit_log(self, client, session, create_task_instance, time_machine):
         """Test that transitioning to RUNNING creates an audit log record."""
