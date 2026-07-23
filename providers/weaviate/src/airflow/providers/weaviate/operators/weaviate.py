@@ -75,15 +75,16 @@ class WeaviateIngestOperator(BaseOperator):
         self.input_data = input_data
         self.hook_params = hook_params or {}
 
-        if self.input_data is None:
-            raise TypeError("input_data is required")
-
     @cached_property
     def hook(self) -> WeaviateHook:
         """Return an instance of the WeaviateHook."""
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> None:
+        # input_data is a template field; validate it after rendering rather than in __init__,
+        # where the check would run against the un-rendered value.
+        if self.input_data is None:
+            raise TypeError("input_data is required")
         self.log.debug("Input data: %s", self.input_data)
         self.hook.batch_data(
             collection_name=self.collection_name,
