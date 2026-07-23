@@ -805,12 +805,15 @@ error is a type mismatch: an identity-decoding mapper's ``expected_decoded_type`
 ``datetime``; ``RollupMapper`` detects the mismatch at construction time and
 raises before the Dag is scheduled.
 
-``DayWindow`` always enumerates twenty-four hourly steps. With an upstream mapper
-configured for a local timezone that observes daylight-saving time, the spring-forward
-day has only twenty-three real hours (one window member never has a matching event,
-so the run is held indefinitely) and the fall-back day has twenty-five (the repeated
-hour is dropped). Use a UTC-based upstream mapper for any rollup that crosses a DST
-boundary; see the ``DayWindow`` class docstring for the full discussion.
+``DayWindow`` is DST-aware. With a UTC (or naive) upstream mapper a day is always
+twenty-four hours. With an upstream mapper configured for a local timezone that observes
+daylight-saving time, ``DayWindow`` enumerates the *real* local hours of the calendar
+day — twenty-three on the spring-forward day and twenty-five on the fall-back day — so
+the expected key set matches the hours that actually occur and a spring-forward rollup is
+no longer held forever waiting for a key (e.g. ``2024-03-10T02``) that never arrives. On
+a fall-back day the local clock 01:00 occurs twice; unless the upstream mapper's
+``input_format`` carries the UTC offset (``%z``), the two hours share a single key (the
+rollup still does not hang). See the ``DayWindow`` class docstring for details.
 
 Wait policies
 ~~~~~~~~~~~~~
