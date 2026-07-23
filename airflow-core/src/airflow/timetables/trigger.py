@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import functools
+import hashlib
 import math
 import operator
 import time
@@ -598,3 +599,83 @@ class CronPartitionTimetable(CronTriggerTimetable):
             suffix = f"{suffix}__{partition_key}"
         suffix = f"{suffix}__{get_random_string()}"
         return run_type.generate_run_id(suffix=suffix)
+
+
+class JitteredCronTimetable(CronTriggerTimetable):
+    """
+    A :class:`CronTriggerTimetable` that offsets each run by a deterministic, per-DAG jitter.
+
+    Behaves exactly like ``CronTriggerTimetable`` but shifts every fire time by a fixed offset
+    derived from ``seed`` and spread across ``[0, max_jitter)``. This avoids the "thundering
+    herd" where many DAGs sharing a cron expression (e.g. ``@daily`` -> ``0 0 * * *``) all fire
+    at the same instant and overload the scheduler and workers at that boundary.
+
+    The offset is deterministic: the same ``seed`` always maps to the same offset, so runs are
+    stable and predictable across scheduler restarts and timetable serialization. DAGs with
+    different seeds land in different slots; collisions are possible but harmless (two DAGs
+    sharing one minute still beats every DAG firing at once).
+
+    All ``data_interval`` and ``logical_date`` semantics are inherited from
+    ``CronTriggerTimetable`` -- only the wall-clock fire time is shifted.
+
+    :param cron: cron string that defines the base schedule.
+    :param timezone: timezone used to interpret the cron string.
+    :param interval: timedelta that defines the data interval start (see ``CronTriggerTimetable``).
+    :param run_immediately: see ``CronTriggerTimetable``.
+    :param seed: stable, unique-per-DAG string that determines the offset. The DAG id is a
+        natural choice.
+    :param max_jitter: upper bound of the jitter window; the offset falls in ``[0, max_jitter)``.
+        Keep it smaller than the gap to the next cron boundary so the shift cannot push a run's
+        ``logical_date`` across a day or period boundary.
+    """
+
+    def __init__(
+        self,
+        cron: str,
+        *,
+        timezone: str | Timezone | FixedTimezone,
+        interval: datetime.timedelta | relativedelta = datetime.timedelta(),
+        run_immediately: bool | datetime.timedelta = False,
+        seed: str,
+        max_jitter: datetime.timedelta,
+    ) -> None:
+        super().__init__(cron, timezone=timezone, interval=interval, run_immediately=run_immediately)
+        h = int(hashlib.md5(seed.encode()).hexdigest(), 16)
+        self._offset = (
+            datetime.timedelta(seconds=h % int(max_jitter.total_seconds()))
+            if max_jitter > datetime.timedelta(0)
+            else datetime.timedelta(0)
+        )
+        self._seed = seed
+        self._max_jitter = max_jitter
+
+    def _apply(self, t: DateTime) -> DateTime:
+        return t + self._offset
+
+    def _strip(self, t: DateTime) -> DateTime:
+        return t - self._offset
+
+    def _get_next(self, current: DateTime) -> DateTime:
+        return self._apply(super()._get_next(self._strip(current)))
+
+    def _get_prev(self, current: DateTime) -> DateTime:
+        return self._apply(super()._get_prev(self._strip(current)))
+
+    def serialize(self) -> dict[str, Any]:
+        data = super().serialize()
+        data["seed"] = self._seed
+        data["max_jitter"] = self._max_jitter.total_seconds()
+        return data
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        from airflow.serialization.decoders import decode_interval, decode_run_immediately
+
+        return cls(
+            data["expression"],
+            timezone=parse_timezone(data["timezone"]),
+            interval=decode_interval(data["interval"]),
+            run_immediately=decode_run_immediately(data.get("run_immediately", False)),
+            seed=data["seed"],
+            max_jitter=datetime.timedelta(seconds=data["max_jitter"]),
+        )
