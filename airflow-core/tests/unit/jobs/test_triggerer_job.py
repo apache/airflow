@@ -1136,6 +1136,26 @@ class TestTriggerRunner:
         trigger_runner = TriggerRunner()
         assert trigger_runner._shared_streams._cohort_grace_period == 3.0
 
+    def test_get_trigger_by_classpath_requires_basetrigger_subclass(self) -> None:
+        """
+        ``classpath`` comes from the (attacker-influenceable) deferred-task payload, so
+        ``get_trigger_by_classpath`` must refuse anything that is not a ``BaseTrigger``
+        subclass before it is cached and instantiated -- otherwise an arbitrary importable
+        callable (e.g. ``subprocess.check_output``) could be invoked in the triggerer.
+        """
+        trigger_runner = TriggerRunner()
+
+        # A real BaseTrigger subclass resolves and is cached.
+        assert (
+            trigger_runner.get_trigger_by_classpath("airflow.triggers.testing.SuccessTrigger")
+            is SuccessTrigger
+        )
+
+        # An arbitrary importable callable is rejected and never cached.
+        with pytest.raises(TypeError, match="does not resolve to a"):
+            trigger_runner.get_trigger_by_classpath("subprocess.check_output")
+        assert "subprocess.check_output" not in trigger_runner.trigger_cache
+
     @pytest.mark.asyncio
     async def test_block_watchdog_does_not_log_when_threshold_is_not_exceeded(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):

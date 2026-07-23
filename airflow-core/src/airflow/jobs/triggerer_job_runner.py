@@ -1732,8 +1732,22 @@ class TriggerRunner:
         """
         Get a trigger class by its classpath ("path.to.module.classname").
 
+        The resolved object must be a :class:`~airflow.triggers.base.BaseTrigger`
+        subclass. This is validated before the class is cached and, crucially,
+        before it is ever instantiated in ``create_triggers`` -- ``classpath``
+        originates from the (attacker-influenceable) deferred-task payload, so
+        without this check an arbitrary importable callable could be invoked in
+        the triggerer process.
+
         Uses a cache dictionary to speed up lookups after the first time.
         """
         if classpath not in self.trigger_cache:
-            self.trigger_cache[classpath] = import_string(classpath)
+            trigger_class = import_string(classpath)
+            if not (isinstance(trigger_class, type) and issubclass(trigger_class, BaseTrigger)):
+                raise TypeError(
+                    f"The trigger classpath {classpath!r} does not resolve to a "
+                    f"{BaseTrigger.__module__}.{BaseTrigger.__qualname__} subclass; "
+                    f"refusing to load it."
+                )
+            self.trigger_cache[classpath] = trigger_class
         return self.trigger_cache[classpath]
