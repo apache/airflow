@@ -137,7 +137,7 @@ class PubSubPullSensor(BaseSensorOperator):
         self._return_value = None
         if return_immediately is not None:
             warnings.warn(
-                "The default value of `return_immediately` will be changed to `False` in a future release.",
+                "The default value of `return_immediately` will be changed to `False` in a future major release.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

@@ -843,7 +843,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         self.poll_interval = poll_interval
         if return_immediately is not None:
             warnings.warn(
-                "The default value of `return_immediately` will be changed to `False` in a future release.",
+                "The default value of `return_immediately` will be changed to `False` in a future major release.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
