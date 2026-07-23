@@ -19,12 +19,14 @@ from __future__ import annotations
 import ast
 import functools
 import importlib.util
+import inspect
 import textwrap
 from pathlib import Path
 
+import pendulum
 import pytest
 
-from airflow.sdk import task
+from airflow.sdk import dag, task
 from airflow.sdk.bases.decorator import KNOWN_CONTEXT_KEYS, DecoratedOperator, is_async_callable
 
 RAW_CODE = """
@@ -67,6 +69,179 @@ class TestBaseDecorator:
         # Returned source must be valid Python
         ast.parse(cleaned)
         assert cleaned.lstrip().splitlines()[0].startswith("def a_task")
+
+    def test_task_docstring_dedent_applied(self):
+        """Test that task docstring is dedented when passed via function docstring."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """
+                This task does something important.
+
+                In case of error you should do the following:
+                1. Check the logs
+                2. Verify the configuration
+                3. Contact support
+                """
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify that the docstring is dedented (no leading whitespace on each line)
+        expected_doc = """This task does something important.
+
+In case of error you should do the following:
+1. Check the logs
+2. Verify the configuration
+3. Contact support"""
+        assert task_obj.doc_md == expected_doc
+
+    def test_task_docstring_dedent_with_explicit_doc_md(self):
+        """Test that explicit doc_md is not overridden by function docstring."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task(doc_md="Explicit documentation")
+            def my_task():
+                """
+                This is the function docstring.
+                """
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify that explicit doc_md is used
+        assert task_obj.doc_md == "Explicit documentation"
+
+    def test_task_docstring_dedent_with_multiline_indentation(self):
+        """Test that task docstring with complex indentation is properly dedented."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """
+                Task description.
+
+                This is a more complex example with nested indentation:
+
+                - First level
+                    - Second level
+                        - Third level
+
+                And some code:
+
+                ```python
+                def example():
+                    return "value"
+                ```
+                """
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify that the docstring is dedented properly
+        expected_doc = """Task description.
+
+This is a more complex example with nested indentation:
+
+- First level
+    - Second level
+        - Third level
+
+And some code:
+
+```python
+def example():
+    return "value"
+```"""
+        assert task_obj.doc_md == expected_doc
+
+    def test_task_no_docstring(self):
+        """Test that task without docstring has no doc_md."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                pass
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify that doc_md is None when there's no docstring
+        assert task_obj.doc_md is None
+
+    def test_task_docstring_dedent_simple(self):
+        """Test that a simple indented docstring is dedented and stripped correctly."""
+
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """My task description."""
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # Verify leading/trailing whitespace is stripped
+        assert task_obj.doc_md == "My task description."
+
+    def test_task_docstring_already_dedented(self):
+        """Test that already-dedented docstrings are handled as a no-op by inspect.cleandoc.
+
+        When a docstring has no common leading whitespace, inspect.cleandoc should
+        return it unchanged and only remove surrounding whitespace.
+        """
+        # Verify inspect.cleandoc behavior on non-indented strings
+        raw_doc = "This docstring has no leading indentation."
+        assert inspect.cleandoc(raw_doc) == "This docstring has no leading indentation."
+
+        # With a simple one-liner docstring (no common indent to strip)
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """This docstring has no leading indentation."""
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        # The docstring should be unchanged after cleandoc
+        assert task_obj.doc_md == "This docstring has no leading indentation."
+
+    def test_task_docstring_same_line_start(self):
+        """Test that docstring starting on same line as quotes is handled correctly.
+
+        When docstring content starts on the same line as opening quotes,
+        inspect.cleandoc should handle it properly.
+        """
+        @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+        def pipeline():
+            @task
+            def my_task():
+                """This docstring starts immediately."""
+
+            return my_task()
+
+        dag_obj = pipeline()
+        task_obj = dag_obj.task_dict["my_task"]
+
+        assert task_obj.doc_md == "This docstring starts immediately."
 
 
 class DummyDecoratedOperator(DecoratedOperator):
@@ -383,3 +558,7 @@ class TestAsyncCallable:
             return 42
 
         assert not is_async_callable(sync_task_fn)
+
+
+
+
