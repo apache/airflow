@@ -293,7 +293,7 @@ class TestPythonOperator(BasePythonTest):
 
     @pytest.mark.parametrize("execute_tasks_new_python_interpreter", [True, False, None])
     def test_execute_tasks_new_python_interpreter_is_serialized(self, execute_tasks_new_python_interpreter):
-        from airflow.serialization.serialized_objects import OperatorSerialization
+        from tests_common.test_utils.compat import OperatorSerialization
 
         task = PythonOperator(
             python_callable=lambda: None,
