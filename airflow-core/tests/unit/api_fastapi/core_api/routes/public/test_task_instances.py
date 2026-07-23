@@ -3731,7 +3731,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     def test_include_dependent_dags_filters_unauthorized_child_tis(
         self, mock_get_auth_manager, mock_dag_clear, mock_clear_tis, test_client, session
     ):
-        """TIs from child DAGs the caller cannot edit must be excluded when include_dependent_dags=True."""
+        """TIs from child Dags the caller cannot edit must be excluded when include_dependent_dags=True."""
         import uuid
 
         self.create_task_instances(session)

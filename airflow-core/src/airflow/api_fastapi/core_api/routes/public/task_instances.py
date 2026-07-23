@@ -966,34 +966,32 @@ def post_clear_task_instances(
 
     except MaxRecursionDepthError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
-
-    except DagNotFound as e:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
-
     except ParserError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid logical_date: {e}") from e
+    except DagNotFound as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
     if include_dependent_dags:
         # Ensure proper access to downstream dags/tasks with dag.clear and include_dependent_dags
         auth_manager = get_auth_manager()
-        all_dag_ids = {ti.dag_id for ti in task_instances}  # Retrieve all DAG ID's from task instances
+        all_dag_ids = {ti.dag_id for ti in task_instances}  # Retrieve all Dag ID's from task instances
 
-        # Used to find a team name from a DAG iD
+        # Used to find a team name from a Dag ID
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(list(all_dag_ids), session=session)
 
-        # set of DAG ID's that can be cleared
+        # set of Dag ID's that can be cleared
         editable_dag_ids = {
-            other_dag_id
-            for other_dag_id in all_dag_ids
+            dependent_dag_id
+            for dependent_dag_id in all_dag_ids
             if auth_manager.is_authorized_dag(
                 method="PUT",
                 access_entity=DagAccessEntity.TASK_INSTANCE,
-                details=DagDetails(id=other_dag_id, team_name=dag_id_to_team.get(other_dag_id)),
+                details=DagDetails(id=other_dag_id, team_name=dag_id_to_team.get(dependent_dag_id)),
                 user=user,
             )
         }
 
-        # list of all TI's that can be cleared (TI's within the DAGs from above)
+        # list of all TI's that can be cleared (TI's within the Dags from above)
         task_instances = [ti for ti in task_instances if ti.dag_id in editable_dag_ids]
 
     if not dry_run:

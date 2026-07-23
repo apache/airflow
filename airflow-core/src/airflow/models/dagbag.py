@@ -244,7 +244,7 @@ class DBDagBag:
         with self._lock:
             cached = self._dags.get(serdag.dag_version_id)
 
-        # DAG exists in cache and the cached/serialized DAG hashes match, return cached DAG
+        # Dag exists in cache and the cached/serialized Dag hashes match, return cached Dag
         if cached is not None and cached.dag_hash == serdag.dag_hash:
             if self._use_cache:
                 stats.incr("api_server.dag_bag.cache_hit")
