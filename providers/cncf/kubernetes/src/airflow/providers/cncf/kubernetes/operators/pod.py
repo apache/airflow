@@ -285,7 +285,7 @@ class KubernetesPodOperator(BaseOperator):
 
     # This operator supports durable execution directly, without ResumableJobMixin --
     # it reconnects via task_state_store on retry instead of resubmitting.
-    _supports_durable_execution: ClassVar[bool] = True
+    __supports_durable_execution: ClassVar[bool] = True
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"

@@ -760,7 +760,7 @@ class TestAgentOperatorDurable:
         storage.cleanup.assert_not_called()
 
     def test_supports_durable_execution_marker(self):
-        assert AgentOperator._supports_durable_execution is True
+        assert AgentOperator.__supports_durable_execution is True
 
 
 @pytest.mark.skipif(

@@ -223,7 +223,7 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
     # This operator supports durable execution directly, without ResumableJobMixin --
     # it caches step results via task_state_store for replay on retry.
-    _supports_durable_execution: ClassVar[bool] = True
+    __supports_durable_execution: ClassVar[bool] = True
 
     template_fields: Sequence[str] = (
         "prompt",
