@@ -24,6 +24,7 @@ import pytest
 
 pytest.importorskip("langchain_core")
 
+from pydantic import ValidationError
 from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
@@ -191,6 +192,31 @@ class TestAirflowToolsetToLangChainTools:
         boom = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["boom"]
 
         assert asyncio.run(boom.ainvoke({})) == "fix your input and try again"
+
+    def test_validation_error_returned_as_tool_output_sync(self):
+        toolset = FakeToolset()
+        add_one = {t.name: t for t in airflow_toolset_to_langchain_tools(toolset)}["add_one"]
+
+        result = add_one.invoke({"n": "not a number"})
+
+        assert "validation error" in result
+        assert toolset.calls == []
+
+    def test_validation_error_returned_as_tool_output_async(self):
+        toolset = FakeToolset()
+        add_one = {t.name: t for t in airflow_toolset_to_langchain_tools(toolset)}["add_one"]
+
+        result = asyncio.run(add_one.ainvoke({"n": "not a number"}))
+
+        assert "validation error" in result
+        assert toolset.calls == []
+
+    def test_repeated_validation_error_propagates_when_budget_exhausted(self):
+        add_one = {t.name: t for t in airflow_toolset_to_langchain_tools(FakeToolset())}["add_one"]
+
+        assert "validation error" in add_one.invoke({"n": "bad"})
+        with pytest.raises(ValidationError):
+            add_one.invoke({"n": "bad"})
 
     def test_deps_are_exposed_on_the_run_context(self):
         sentinel = object()
