@@ -92,9 +92,9 @@
     "triggeringUser": "Инициатор запуска"
   },
   "dagRun_few": "Запуска Dag-а",
-  "dagRun_many": "Запуски Dag-ов",
+  "dagRun_many": "Запусков Dag-а",
   "dagRun_one": "Запуск Dag-а",
-  "dagRun_other": "Запуски Dag-ов",
+  "dagRun_other": "Запусков Dag-а",
   "dagRunId": "ID запуска Dag-а",
   "dagWarnings": "Предупреждения/ошибки Dag-а",
   "defaultToGraphView": "По умолчанию открывать граф",
