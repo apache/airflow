@@ -474,7 +474,7 @@ class TestFileTaskLogHandler:
         log_handler_output_stream, metadata = fth._read(ti=local_log_file_read, try_number=1)
         mock_read_local.assert_called_with(path)
         assert extract_events(log_handler_output_stream) == ["the log"]
-        assert metadata == {"end_of_log": True, "log_pos": 1}
+        assert metadata == {"end_of_log": True}
 
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
     def test__read_when_local_respects_log_pos_metadata(self, mock_read_local, create_task_instance):
@@ -503,7 +503,34 @@ class TestFileTaskLogHandler:
 
         # Should resume from the third line only.
         assert extract_events(log_handler_output_stream) == ["line 3"]
-        assert metadata == {"end_of_log": True, "log_pos": 3}
+        assert metadata == {"end_of_log": True}
+
+    @pytest.mark.parametrize("ti_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED])
+    @patch("airflow.utils.log.file_task_handler.LogStreamAccumulator")
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
+    def test__read_end_of_log_skips_accumulator(
+        self, mock_read_local, mock_accumulator, ti_state, create_task_instance
+    ):
+        """A terminal-state read issues no continuation token, so the stream must pass
+        through without the accumulator's eager full drain to memory/disk."""
+        mock_read_local.return_value = (
+            ["the messages"],
+            [convert_list_to_stream(["line 1", "line 2", "line 3"])],
+        )
+        ti = create_task_instance(
+            dag_id="dag_for_testing_local_log_read",
+            task_id="task_for_testing_local_log_read",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+            state=ti_state,
+        )
+        fth = FileTaskHandler("")
+
+        log_handler_output_stream, metadata = fth._read(ti=ti, try_number=1)
+
+        assert extract_events(log_handler_output_stream) == ["line 1", "line 2", "line 3"]
+        assert metadata == {"end_of_log": True}
+        mock_accumulator.assert_not_called()
 
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._read_from_local")
     def test_read_respects_log_pos_metadata(self, mock_read_local, create_task_instance):
@@ -528,7 +555,7 @@ class TestFileTaskLogHandler:
 
         # Should resume from the third line only.
         assert extract_events(log_handler_output_stream) == ["line 3"]
-        assert metadata == {"end_of_log": True, "log_pos": 3}
+        assert metadata == {"end_of_log": True}
 
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
@@ -623,7 +650,7 @@ class TestFileTaskLogHandler:
         else:
             fth._read_from_logs_server.assert_not_called()
         assert extract_events(logs, False) == expected_logs
-        assert metadata == {"end_of_log": True, "log_pos": 3}
+        assert metadata == {"end_of_log": True}
 
     @pytest.mark.parametrize("is_tih", [False, True])
     def test_read_served_logs(self, is_tih, create_task_instance):
