@@ -77,7 +77,6 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/compute.
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/gcs_to_wasb.py::GCSToAzureBlobStorageOperator
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/oracle_to_azure_data_lake.py::OracleToAzureDataLakeOperator
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator
-providers/neo4j/src/airflow/providers/neo4j/operators/neo4j.py::Neo4jOperator
 providers/oracle/src/airflow/providers/oracle/transfers/oracle_to_oracle.py::OracleToOracleOperator
 providers/papermill/src/airflow/providers/papermill/operators/papermill.py::PapermillOperator
 providers/snowflake/src/airflow/providers/snowflake/operators/snowpark_containers.py::SnowparkContainerJobOperator
