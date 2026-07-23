@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.openai.exceptions import OpenAIBatchJobException
-from airflow.providers.openai.hooks.openai import OpenAIHook
+from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_complete_event
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 if TYPE_CHECKING:
@@ -210,7 +210,8 @@ class OpenAITriggerBatchOperator(BaseOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
         """
-        if event["status"] == "error":
+        event = validate_execute_complete_event(event)
+        if event["status"] != "success":
             raise OpenAIBatchJobException(event["message"])
 
         self.log.info("%s completed successfully.", self.task_id)

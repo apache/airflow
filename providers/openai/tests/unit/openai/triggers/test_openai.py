@@ -148,6 +148,28 @@ class TestOpenAIBatchTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.openai.hooks.openai.OpenAIHook.get_batch")
+    async def test_openai_batch_yields_single_terminal_event(self, mock_batch):
+        """A terminal batch must produce exactly one event, not a success followed by an error."""
+        mock_batch.return_value = self.mock_get_batch(str(BatchStatus.COMPLETED))
+        trigger = OpenAIBatchTrigger(
+            conn_id=self.CONN_ID,
+            batch_id=self.BATCH_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+        )
+        events = [event async for event in trigger.run()]
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "success",
+                    "message": f"Batch {self.BATCH_ID} has completed successfully.",
+                    "batch_id": self.BATCH_ID,
+                }
+            )
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.openai.hooks.openai.OpenAIHook.get_batch")
     async def test_openai_batch_for_unexpected_error(self, mock_batch):
         """Assert that run trigger messages in case of unexpected error"""
         mock_batch.return_value = 1.0  # FORCE FAILURE TO TEST EXCEPTION
