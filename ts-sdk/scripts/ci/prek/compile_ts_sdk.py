@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "ruff==0.15.22",
-# ]
-# ///
-
 from __future__ import annotations
 
-import os
-import subprocess
+import sys
+from pathlib import Path
 
-ruff_format_cmd = "ruff format --force-exclude 2>&1 | grep -v '`ISC001`. To avoid unexpected behavior'"
-envcopy = os.environ.copy()
-envcopy["CLICOLOR_FORCE"] = "1"
-subprocess.run(ruff_format_cmd, shell=True, check=True, env=envcopy)
+sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts" / "ci" / "prek"))
+
+from common_prek_utils import AIRFLOW_ROOT_PATH, run_command
+
+if __name__ not in ("__main__", "__mp_main__"):
+    raise SystemExit(
+        "This file is intended to be executed as an executable program. You cannot use it as a module. "
+        f"To run this script, run the ./{__file__} command"
+    )
+
+if __name__ == "__main__":
+    directory = AIRFLOW_ROOT_PATH / "ts-sdk"
+    run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=directory)
+    run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=directory)
+    run_command(["pnpm", "run", "build"], cwd=directory)
