@@ -60,6 +60,11 @@
         "title": "{{type}} Deleted Successfully"
       }
     },
+    "manualSection": {
+      "button": "Run manual section",
+      "resourceName": "manual section",
+      "title": "Run manual section"
+    },
     "markAs": {
       "button": "Mark {{type}} as...",
       "buttonTooltip": {

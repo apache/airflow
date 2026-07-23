@@ -34,6 +34,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-standard/operators/bash.rst",
                     "/docs/apache-airflow-providers-standard/operators/python.rst",
+                    "/docs/apache-airflow-providers-standard/operators/manual.rst",
                     "/docs/apache-airflow-providers-standard/operators/hitl.rst",
                     "/docs/apache-airflow-providers-standard/operators/datetime.rst",
                     "/docs/apache-airflow-providers-standard/operators/trigger_dag_run.rst",
@@ -54,6 +55,7 @@ def get_provider_info():
                     "airflow.providers.standard.operators.weekday",
                     "airflow.providers.standard.operators.bash",
                     "airflow.providers.standard.operators.python",
+                    "airflow.providers.standard.operators.manual",
                     "airflow.providers.standard.operators.empty",
                     "airflow.providers.standard.operators.trigger_dagrun",
                     "airflow.providers.standard.operators.latest_only",

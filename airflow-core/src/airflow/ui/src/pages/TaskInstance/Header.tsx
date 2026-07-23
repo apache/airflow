@@ -28,6 +28,7 @@ import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import NotePreview from "src/components/NotePreview";
+import { RunManualSectionButton } from "src/components/RunManualSection";
 import Time from "src/components/Time";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
@@ -75,6 +76,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               onOpen={() => setClearOpen(true)}
               taskInstance={taskInstance}
             />
+            <RunManualSectionButton taskInstance={taskInstance} />
             <MarkTaskInstanceAsButton isHotkeyEnabled taskInstance={taskInstance} />
           </>
         }

@@ -37,6 +37,7 @@ import {
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
+import { RunManualSectionButton } from "src/components/RunManualSection";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
@@ -256,6 +257,7 @@ const taskInstanceColumns = ({
       <Flex justifyContent="end">
         <TaskInstanceNoteButton taskInstance={row.original} />
         <ClearTaskInstanceButton taskInstance={row.original} />
+        <RunManualSectionButton taskInstance={row.original} />
         <MarkTaskInstanceAsButton taskInstance={row.original} />
         <DeleteTaskInstanceButton taskInstance={row.original} />
       </Flex>

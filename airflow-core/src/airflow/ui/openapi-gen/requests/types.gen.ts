@@ -1695,6 +1695,15 @@ export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' 
 export type ReprocessBehavior = 'failed' | 'completed' | 'none';
 
 /**
+ * Request body for running a manual-gated section.
+ */
+export type RunManualSectionBody = {
+    dry_run?: boolean;
+    prevent_running_task?: boolean;
+    note?: string | null;
+};
+
+/**
  * Scheduler info serializer for responses.
  */
 export type SchedulerInfoResponse = {
@@ -4033,6 +4042,15 @@ export type PostClearTaskInstancesData = {
 };
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type RunManualSectionData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: RunManualSectionBody;
+    taskId: string;
+};
+
+export type RunManualSectionResponse = TaskInstanceCollectionResponse;
 
 export type PatchTaskGroupInstancesData = {
     dagId: string;
@@ -7047,6 +7065,41 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstanceCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/runManualSection': {
+        post: {
+            req: RunManualSectionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

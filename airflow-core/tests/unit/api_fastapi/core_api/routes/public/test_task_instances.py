@@ -48,7 +48,11 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
+from airflow.models.xcom import XComModel
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.manual import ManualGateOperator
 from airflow.sdk import BaseOperator
+from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY, XCOM_SKIPMIXIN_SKIPPED
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -4317,6 +4321,158 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response_data["total_entries"] == 1
         ti_id = response_data["task_instances"][0]["id"]
         _check_task_instance_note(session, ti_id, {"content": "placeholder-note", "user_id": None})
+
+
+class TestPostRunManualSection(TestTaskInstanceEndpoint):
+    DAG_ID = "manual_gate_api_test"
+    RUN_ID = "manual_gate_api_run"
+
+    @staticmethod
+    def _get_ti(session, task_id: str) -> TaskInstance:
+        return session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == TestPostRunManualSection.DAG_ID,
+                TaskInstance.run_id == TestPostRunManualSection.RUN_ID,
+                TaskInstance.task_id == task_id,
+            )
+        )
+
+    @staticmethod
+    def _get_manual_gate_skip_xcom(session) -> XComModel | None:
+        return session.scalar(
+            select(XComModel).where(
+                XComModel.dag_id == TestPostRunManualSection.DAG_ID,
+                XComModel.run_id == TestPostRunManualSection.RUN_ID,
+                XComModel.task_id == "manual_gate",
+                XComModel.map_index == -1,
+                XComModel.key == XCOM_SKIPMIXIN_KEY,
+            )
+        )
+
+    def _create_manual_gate_dag(
+        self,
+        dag_maker,
+        session,
+        *,
+        gate_state: TaskInstanceState = TaskInstanceState.SUCCESS,
+        ignore_downstream_trigger_rules: bool = True,
+    ) -> DagRun:
+        with dag_maker(
+            self.DAG_ID,
+            start_date=DEFAULT,
+            serialized=True,
+        ):
+            manual_gate = ManualGateOperator(
+                task_id="manual_gate",
+                ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
+            )
+            optional_step = EmptyOperator(task_id="optional_step")
+            join = EmptyOperator(task_id="join")
+
+            manual_gate >> optional_step >> join
+
+        dag_run = dag_maker.create_dagrun(run_id=self.RUN_ID, state=DagRunState.SUCCESS)
+        for task_id, state in {
+            "manual_gate": gate_state,
+            "optional_step": TaskInstanceState.SKIPPED,
+            "join": TaskInstanceState.SKIPPED,
+        }.items():
+            self._get_ti(session, task_id).state = state
+        XComModel.set(
+            key=XCOM_SKIPMIXIN_KEY,
+            value={XCOM_SKIPMIXIN_SKIPPED: ["optional_step", "join"]},
+            dag_id=self.DAG_ID,
+            task_id="manual_gate",
+            run_id=self.RUN_ID,
+            session=session,
+        )
+        session.commit()
+        return dag_run
+
+    def test_run_manual_section_dry_run_returns_downstream_tasks(self, test_client, session, dag_maker):
+        self._create_manual_gate_dag(dag_maker, session)
+
+        response = test_client.post(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/manual_gate/runManualSection",
+            json={"dry_run": True},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert {ti["task_id"] for ti in body["task_instances"]} == {"optional_step", "join"}
+        assert self._get_ti(session, "manual_gate").state == TaskInstanceState.SUCCESS
+        assert self._get_ti(session, "optional_step").state == TaskInstanceState.SKIPPED
+        assert self._get_ti(session, "join").state == TaskInstanceState.SKIPPED
+        assert self._get_manual_gate_skip_xcom(session) is not None
+
+    def test_run_manual_section_clears_downstream_tasks_and_queues_dag_run(
+        self, test_client, session, dag_maker
+    ):
+        self._create_manual_gate_dag(dag_maker, session)
+
+        response = test_client.post(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/manual_gate/runManualSection",
+            json={"dry_run": False},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert {ti["task_id"] for ti in body["task_instances"]} == {"optional_step", "join"}
+        assert {ti["state"] for ti in body["task_instances"]} == {None}
+        session.expire_all()
+        assert self._get_ti(session, "manual_gate").state == TaskInstanceState.SUCCESS
+        assert self._get_ti(session, "optional_step").state is None
+        assert self._get_ti(session, "join").state is None
+        assert self._get_manual_gate_skip_xcom(session) is None
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == self.DAG_ID, DagRun.run_id == self.RUN_ID)
+        )
+        assert dag_run.state == DagRunState.QUEUED
+
+    def test_run_manual_section_respects_direct_downstream_gate_setting(
+        self, test_client, session, dag_maker
+    ):
+        self._create_manual_gate_dag(
+            dag_maker,
+            session,
+            ignore_downstream_trigger_rules=False,
+        )
+
+        response = test_client.post(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/manual_gate/runManualSection",
+            json={"dry_run": True},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert [ti["task_id"] for ti in body["task_instances"]] == ["optional_step"]
+
+    def test_run_manual_section_rejects_non_manual_gate_task(self, test_client, session, dag_maker):
+        self._create_manual_gate_dag(dag_maker, session)
+
+        response = test_client.post(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/optional_step/runManualSection",
+            json={"dry_run": True},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Task id optional_step is not a manual gate task"
+
+    def test_run_manual_section_requires_successful_gate(self, test_client, session, dag_maker):
+        self._create_manual_gate_dag(dag_maker, session, gate_state=TaskInstanceState.SKIPPED)
+
+        response = test_client.post(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/manual_gate/runManualSection",
+            json={"dry_run": True},
+        )
+
+        assert response.status_code == 409
+        assert (
+            response.json()["detail"]
+            == "Manual gate task instance must be successful before its manual section can be run"
+        )
 
 
 class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):

@@ -354,6 +354,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}``
      - ``DAG.TASK_LOGS``
      - ``GET``
+   * - ``POST``
+     - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/runManualSection``
+     - ``DAG.TASK_INSTANCE``
+     - ``PUT``
    * - ``DELETE``
      - ``/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store``
      - ``DAG.TASK_INSTANCE``
