@@ -34,6 +34,4 @@ if __name__ == "__main__":
     directory = AIRFLOW_ROOT_PATH / "ts-sdk"
     run_command(["pnpm", "config", "set", "store-dir", ".pnpm-store"], cwd=directory)
     run_command(["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"], cwd=directory)
-    run_command(["pnpm", "run", "lint:fix"], cwd=directory)
-    run_command(["pnpm", "run", "format"], cwd=directory)
-    run_command(["pnpm", "run", "typecheck"], cwd=directory)
+    run_command(["pnpm", "run", "build"], cwd=directory)
