@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -33,3 +33,15 @@ class ConnectionResponse(BaseModel):
     password: str | None
     port: int | None
     extra: str | None
+
+    @field_validator("port")
+    @classmethod
+    def validate_port(cls, v: int | None) -> int | None:
+        """Validate that the port number is a valid TCP/UDP port (0-65535)."""
+        if v is None:
+            return v
+        if not isinstance(v, int):
+            raise ValueError(f"Port must be an integer, got {type(v).__name__}")
+        if v < 0 or v > 65535:
+            raise ValueError(f"Port must be between 0 and 65535, got {v}")
+        return v
