@@ -371,7 +371,50 @@ class TestBaseChartTest:
             ["default", "CeleryExecutor,KubernetesExecutor"],
         ],
     )
-    def test_labels_are_valid(self, airflow_version, executor):
+    @pytest.mark.parametrize(
+        ("flower_routing_values", "flower_routing_resource", "api_versions"),
+        [
+            pytest.param(
+                {
+                    "ingress": {
+                        "enabled": True,
+                        "flower": {"enabled": True},
+                        "apiServer": {"enabled": True},
+                    },
+                    "flower": {"enabled": True},
+                },
+                ("flower-ingress", "Ingress", "flower-ingress"),
+                [],
+                id="flower-ingress",
+            ),
+            pytest.param(
+                {
+                    "ingress": {
+                        "web": {"enabled": True},
+                        "apiServer": {"enabled": True},
+                    },
+                    "flower": {
+                        "enabled": True,
+                        "httpRoute": {
+                            "enabled": True,
+                            "parentRefs": [{"name": "main-gateway"}],
+                        },
+                    },
+                },
+                ("flower-httproute", "HTTPRoute", "flower-httproute"),
+                ["gateway.networking.k8s.io/v1"],
+                id="flower-httproute",
+            ),
+        ],
+    )
+    def test_labels_are_valid(
+        self,
+        airflow_version,
+        executor,
+        flower_routing_values,
+        flower_routing_resource,
+        api_versions,
+    ):
         """Test labels are correctly applied on all objects created by this chart."""
         release_name = "test-basic"
 
@@ -391,11 +434,9 @@ class TestBaseChartTest:
             },
             "pgbouncer": {"enabled": True},
             "redis": {"enabled": True},
-            "ingress": {"enabled": True},
             "networkPolicies": {"enabled": True},
             "cleanup": {"enabled": True},
             "databaseCleanup": {"enabled": True},
-            "flower": {"enabled": True},
             "dagProcessor": {"enabled": True},
             "logs": {"persistence": {"enabled": True}},
             "dags": {"persistence": {"enabled": True}},
@@ -404,15 +445,18 @@ class TestBaseChartTest:
                 {"name": "class1", "value": 10000},
             ],
         }
+        values.update(flower_routing_values)
 
         if airflow_version != "default":
             values["airflowVersion"] = airflow_version
 
-        k8s_objects = render_chart(name=release_name, values=values)
+        k8s_objects = render_chart(name=release_name, values=values, api_versions=api_versions)
         kind_k8s_obj_labels_tuples = {
             (k8s_object["metadata"]["name"], k8s_object["kind"]): k8s_object["metadata"]["labels"]
             for k8s_object in k8s_objects
         }
+
+        flower_routing_name, flower_routing_kind, flower_routing_component = flower_routing_resource
 
         kind_names_tuples = [
             (f"{release_name}-airflow-cleanup", "ServiceAccount", "airflow-cleanup-pods"),
@@ -442,7 +486,11 @@ class TestBaseChartTest:
             (f"{release_name}-flower", "Deployment", "flower"),
             (f"{release_name}-flower", "Service", "flower"),
             (f"{release_name}-flower-policy", "NetworkPolicy", "airflow-flower-policy"),
-            (f"{release_name}-flower-ingress", "Ingress", "flower-ingress"),
+            (
+                f"{release_name}-{flower_routing_name}",
+                flower_routing_kind,
+                flower_routing_component,
+            ),
             (f"{release_name}-pgbouncer", "Deployment", "pgbouncer"),
             (f"{release_name}-pgbouncer", "Service", "pgbouncer"),
             (f"{release_name}-pgbouncer-config", "Secret", "pgbouncer"),

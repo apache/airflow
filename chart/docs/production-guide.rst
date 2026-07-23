@@ -398,13 +398,15 @@ For more information on ``Ingress``, see the
 Gateway API (HTTPRoute)
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-As an alternative to ``Ingress``, the chart can create a
-`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` for the API server.
+As an alternative to ``Ingress``, the chart can create
+`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` resources for the API server and Flower.
 This requires the Gateway API CRDs to be installed in the cluster and a ``Gateway`` to already exist —
-the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``parentRefs``.
+the chart only creates the ``HTTPRoute`` resources and attaches them to the Gateway via ``parentRefs``.
 
 .. code-block:: yaml
    :caption: values.yaml
+
+   executor: CeleryExecutor
 
    apiServer:
      httpRoute:
@@ -416,16 +418,31 @@ the chart only creates the ``HTTPRoute`` and attaches it to the Gateway via ``pa
        hostnames:
          - airflow.example.com
 
-For fine-grained routing, supply ``apiServer.httpRoute.rules`` directly — the entry mirrors the
-upstream ``HTTPRouteRule`` schema and overrides the default rule generated from ``path`` + ``pathType``.
+   flower:
+     enabled: true
+     httpRoute:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - flower.example.com
+
+Flower HTTPRoute resources are only created when Flower itself is created, so ``flower.enabled`` must be
+``true`` and the executor must include ``CeleryExecutor`` or ``CeleryKubernetesExecutor``.
+
+For fine-grained routing, supply ``apiServer.httpRoute.rules`` or ``flower.httpRoute.rules`` directly —
+the entry mirrors the upstream ``HTTPRouteRule`` schema and overrides the default rule generated from
+the corresponding ``apiServer.httpRoute.path`` and ``apiServer.httpRoute.pathType``, or
+``flower.httpRoute.path`` and ``flower.httpRoute.pathType`` values.
 
 .. note::
 
-   ``HTTPRoute`` is an alternative to the API server ``Ingress``, so enable only one of
-   ``ingress.apiServer`` or ``apiServer.httpRoute`` — enabling both at the same time fails template
-   rendering. When ``apiServer.httpRoute.enabled`` is ``true``, the chart also verifies (via Helm
-   ``Capabilities``) that the Gateway API CRDs are installed and fails with a clear message if they
-   are not.
+   ``HTTPRoute`` is an alternative to ``Ingress`` for the same component, so enable only one routing
+   mechanism for each component. Enabling both for the same component fails template rendering.
+   When an ``HTTPRoute`` is enabled, the chart also verifies (via Helm ``Capabilities``) that the Gateway
+   API CRDs are installed and fails with a clear message if they are not.
 
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^
