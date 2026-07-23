@@ -202,3 +202,10 @@ pnpm test
 pnpm run typecheck
 pnpm run build
 ```
+
+Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
+with its own managed node + pnpm toolchain:
+
+```bash
+prek run compile-ts-sdk
+```
