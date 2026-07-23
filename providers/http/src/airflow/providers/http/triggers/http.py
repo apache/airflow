@@ -230,6 +230,7 @@ class HttpSensorTrigger(BaseTrigger):
         data: dict[str, Any] | str | None = None,
         headers: dict[str, str] | None = None,
         extra_options: dict[str, Any] | None = None,
+        response_error_codes_allowlist: list[str] | tuple[str, ...] | None = None,
         poke_interval: float = 5.0,
     ):
         super().__init__()
@@ -238,6 +239,7 @@ class HttpSensorTrigger(BaseTrigger):
         self.data = data
         self.headers = headers
         self.extra_options = extra_options or {}
+        self.response_error_codes_allowlist = tuple(response_error_codes_allowlist or ("404",))
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
 
@@ -251,6 +253,7 @@ class HttpSensorTrigger(BaseTrigger):
                 "method": self.method,
                 "headers": self.headers,
                 "extra_options": self.extra_options,
+                "response_error_codes_allowlist": self.response_error_codes_allowlist,
                 "http_conn_id": self.http_conn_id,
                 "poke_interval": self.poke_interval,
             },
@@ -272,8 +275,10 @@ class HttpSensorTrigger(BaseTrigger):
                 yield TriggerEvent(True)
                 return
             except AirflowException as exc:
-                if str(exc).startswith("404"):
+                if str(exc).startswith(self.response_error_codes_allowlist):
                     await asyncio.sleep(self.poke_interval)
+                    continue
+                raise
 
     def _get_async_hook(self) -> HttpAsyncHook:
         return HttpAsyncHook(
