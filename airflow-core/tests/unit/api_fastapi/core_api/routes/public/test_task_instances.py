@@ -33,9 +33,11 @@ from sqlalchemy.orm import joinedload
 
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones.timezone import datetime
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+from airflow.exceptions import DagNotFound
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagModel, DagRun, Log, TaskInstance
@@ -3643,6 +3645,176 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         dagrun.refresh_from_db()
         assert dagrun.state == "running"
         assert all(ti.state == "running" for ti in tis)
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_include_downstream_dags_sets_include_dependent_dags(self, mock_clear, test_client, session):
+        """include_downstream_dags=True must be forwarded to dag.clear() as include_dependent_dags=True."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False, "include_downstream_dags": True},
+        )
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_include_downstream_sets_include_dependent_dags(self, mock_clear, test_client, session):
+        """include_downstream=True must also set include_dependent_dags=True (restoring Airflow 2 behavior)."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False, "include_downstream": True},
+        )
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_default_does_not_set_include_dependent_dags(self, mock_clear, test_client, session):
+        """Without downstream flags, include_dependent_dags must default to False."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False},
+        )
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is False
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_run_id_path_sets_include_dependent_dags(self, mock_clear, test_client, session):
+        """dag_run_id code path: include_downstream_dags=True → include_dependent_dags=True."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={
+                "dry_run": True,
+                "only_failed": False,
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "include_downstream_dags": True,
+            },
+        )
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_run_id_path_passes_request_dag_bag_to_clear(self, mock_clear, test_client, session):
+        """dag_run_id code path: the request-scoped dag_bag must reach dag.clear()."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False, "dag_run_id": "TEST_DAG_RUN_ID"},
+        )
+
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["dag_bag"] is test_client.app.state.dag_bag
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
+    def test_date_range_path_passes_request_dag_bag_to_clear(self, mock_clear, test_client, session):
+        """Date-range code path (no dag_run_id): the request-scoped dag_bag must reach dag.clear()."""
+        self.create_task_instances(session)
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "only_failed": False},
+        )
+
+        assert response.status_code == 200
+        assert mock_clear.call_count == 1
+        assert mock_clear.call_args.kwargs["dag_bag"] is test_client.app.state.dag_bag
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.get_auth_manager")
+    def test_include_dependent_dags_filters_unauthorized_child_tis(
+        self, mock_get_auth_manager, mock_dag_clear, mock_clear_tis, test_client, session
+    ):
+        """TIs from child Dags the caller cannot edit must be excluded when include_dependent_dags=True."""
+        import uuid
+
+        self.create_task_instances(session)
+
+        parent_dag_id = "example_python_operator"
+        parent_ti = mock.MagicMock(spec=TaskInstance)
+        parent_ti.dag_id = parent_dag_id
+        parent_ti.id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+
+        child_dag_id = "child_dag_caller_cannot_edit"
+        child_ti = mock.MagicMock(spec=TaskInstance)
+        child_ti.dag_id = child_dag_id
+        child_ti.id = uuid.UUID("00000000-0000-0000-0000-000000000002")
+
+        mock_dag_clear.return_value = [parent_ti, child_ti]
+        mock_get_auth_manager.return_value.is_authorized_dag.side_effect = lambda **kwargs: (
+            kwargs["details"].id == parent_dag_id
+        )
+
+        response = test_client.post(
+            f"/dags/{parent_dag_id}/clearTaskInstances",
+            json={"dry_run": False, "include_downstream_dags": True},
+        )
+
+        assert response.status_code == 200
+
+        auth_calls = mock_get_auth_manager.return_value.is_authorized_dag.call_args_list
+
+        # Auth calls should be made for both the parent and child DAGs
+        assert {call.kwargs["details"].id for call in auth_calls} == {parent_dag_id, child_dag_id}
+
+        # Auth calls should be for a TI
+        for call in auth_calls:
+            assert call.kwargs["method"] == "PUT"
+            assert call.kwargs["access_entity"] == DagAccessEntity.TASK_INSTANCE
+
+        cleared_tis = mock_clear_tis.call_args[0][0]
+        assert cleared_tis == [parent_ti]  # Child ID's are NOT cleared
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    def test_cyclic_external_task_marker_returns_400(self, mock_clear, test_client, session):
+        """A cyclic or too-deep ExternalTaskMarker chain must return 400, not 500."""
+        from airflow.serialization.definitions.dag import MaxRecursionDepthError
+
+        self.create_task_instances(session)
+        mock_clear.side_effect = MaxRecursionDepthError(
+            "Maximum recursion depth 1 reached for ExternalTaskMarker marker_task."
+        )
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "include_downstream_dags": True},
+        )
+
+        assert response.status_code == 400
+        assert "Maximum recursion depth" in response.json()["detail"]
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    def test_missing_child_dag_returns_404(self, mock_clear, test_client, session):
+        """A missing child Dag referenced by ExternalTaskMarker must return 404, not 500."""
+        self.create_task_instances(session)
+        mock_clear.side_effect = DagNotFound("Could not find Dag child_dag")
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "include_downstream_dags": True},
+        )
+
+        assert response.status_code == 404
+        assert "child_dag" in response.json()["detail"]
+
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
+    def test_invalid_external_task_marker_logical_date_returns_400(self, mock_clear, test_client, session):
+        """A non-ISO logical_date rendered from an ExternalTaskMarker template must return 400, not 500."""
+        from pendulum.parsing.exceptions import ParserError
+
+        self.create_task_instances(session)
+        mock_clear.side_effect = ParserError("Unable to parse string [not-a-date]")
+        response = test_client.post(
+            "/dags/example_python_operator/clearTaskInstances",
+            json={"dry_run": True, "include_downstream_dags": True},
+        )
+
+        assert response.status_code == 400
+        assert "Invalid logical_date" in response.json()["detail"]
 
     def test_should_respond_200_with_reset_dag_run(self, test_client, session):
         dag_id = "example_python_operator"

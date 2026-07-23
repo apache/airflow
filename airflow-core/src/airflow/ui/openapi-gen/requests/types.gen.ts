@@ -709,6 +709,10 @@ export type ClearTaskInstancesBody = {
     run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
     note?: string | null;
+    /**
+     * If True, also clear tasks in downstream DAGs that are linked via ExternalTaskMarker. Follows transitive dependencies up to the recursion_depth configured on each ExternalTaskMarker.
+     */
+    include_downstream_dags?: boolean;
 };
 
 /**
@@ -7002,6 +7006,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */

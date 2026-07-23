@@ -226,6 +226,12 @@ class ClearTaskInstancesBody(StrictBaseModel):
     )
     prevent_running_task: bool = False
     note: Annotated[str, StringConstraints(max_length=1000)] | None = None
+    include_downstream_dags: bool = Field(
+        default=False,
+        description="If True, also clear tasks in downstream Dags that are linked via "
+        "ExternalTaskMarker. Follows transitive dependencies up to the recursion_depth "
+        "configured on each ExternalTaskMarker.",
+    )
 
     @model_validator(mode="before")
     @classmethod

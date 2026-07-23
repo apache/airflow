@@ -22,11 +22,13 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
+from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.cursors import (
     apply_cursor_filter,
     encode_cursor,
@@ -108,10 +110,11 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _reload_tis_with_rendered_fields,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
-from airflow.models import Base, DagRun
+from airflow.exceptions import AirflowClearRunningTaskException, DagNotFound, TaskNotFound
+from airflow.models import Base, DagModel, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
+from airflow.serialization.definitions.dag import MaxRecursionDepthError
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
@@ -831,7 +834,9 @@ def get_mapped_task_instance_try_details(
 
 @task_instances_router.post(
     "/clearTaskInstances",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+    ),
     dependencies=[
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
@@ -925,30 +930,69 @@ def post_clear_task_instances(
             *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
         ]
 
+    # Follow ExternalTaskMarker connections when explicitly requested via include_downstream_dags, or
+    # automatically whenever downstream clearing is selected (restoring Airflow 2 behavior)
+    include_dependent_dags = body.include_downstream_dags or downstream
+
     task_instances: Sequence[TI]
-    if dag_run_id is not None and not (past or future):
-        # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
-        task_instances = dag.clear(
-            dry_run=True,
-            task_ids=task_markers_to_clear,
-            run_id=dag_run_id,
-            session=session,
-            run_on_latest_version=resolved_run_on_latest,
-            only_failed=body.only_failed,
-            only_running=body.only_running,
-        )
-    else:
-        # Use date-based clearing when no dag_run_id or when past/future is specified
-        task_instances = dag.clear(
-            dry_run=True,
-            task_ids=task_markers_to_clear,
-            start_date=body.start_date,
-            end_date=body.end_date,
-            session=session,
-            run_on_latest_version=resolved_run_on_latest,
-            only_failed=body.only_failed,
-            only_running=body.only_running,
-        )
+    try:
+        if dag_run_id is not None and not (past or future):
+            # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
+            task_instances = dag.clear(
+                dry_run=True,
+                task_ids=task_markers_to_clear,
+                run_id=dag_run_id,
+                session=session,
+                run_on_latest_version=resolved_run_on_latest,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+                include_dependent_dags=include_dependent_dags,
+                dag_bag=dag_bag,
+            )
+        else:
+            # Use date-based clearing when no dag_run_id or when past/future is specified
+            task_instances = dag.clear(
+                dry_run=True,
+                task_ids=task_markers_to_clear,
+                start_date=body.start_date,
+                end_date=body.end_date,
+                session=session,
+                run_on_latest_version=resolved_run_on_latest,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+                include_dependent_dags=include_dependent_dags,
+                dag_bag=dag_bag,
+            )
+
+    except MaxRecursionDepthError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+    except ParserError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid logical_date: {e}") from e
+    except DagNotFound as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+
+    if include_dependent_dags:
+        # Ensure proper access to downstream dags/tasks with dag.clear and include_dependent_dags
+        auth_manager = get_auth_manager()
+        all_dag_ids = {ti.dag_id for ti in task_instances}  # Retrieve all Dag ID's from task instances
+
+        # Used to find a team name from a Dag ID
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(list(all_dag_ids), session=session)
+
+        # set of Dag ID's that can be cleared
+        editable_dag_ids = {
+            dependent_dag_id
+            for dependent_dag_id in all_dag_ids
+            if auth_manager.is_authorized_dag(
+                method="PUT",
+                access_entity=DagAccessEntity.TASK_INSTANCE,
+                details=DagDetails(id=other_dag_id, team_name=dag_id_to_team.get(dependent_dag_id)),
+                user=user,
+            )
+        }
+
+        # list of all TI's that can be cleared (TI's within the Dags from above)
+        task_instances = [ti for ti in task_instances if ti.dag_id in editable_dag_ids]
 
     if not dry_run:
         try:

@@ -182,6 +182,65 @@ class TestDBDagBag:
 
         assert result is None
 
+    @patch("airflow.models.serialized_dag.SerializedDagModel.get")
+    def test_get_latest_version_of_dag_serves_from_cache_on_hash_match(self, mock_get):
+        """A cached entry whose hash matches the current row is served without re-deserializing."""
+        mock_dag = MagicMock(spec=SerializedDAG)
+        self.db_dag_bag._dags["v1"] = _CacheEntry(mock_dag, "hash1", time.monotonic())
+        mock_serdag = MagicMock(spec=SerializedDagModel)
+        mock_serdag.dag_version_id = "v1"
+        mock_serdag.dag_hash = "hash1"
+        mock_get.return_value = mock_serdag
+
+        with patch.object(self.db_dag_bag, "_read_dag") as mock_read_dag:
+            result = self.db_dag_bag.get_latest_version_of_dag("some_dag", session=self.session)
+
+        assert result == mock_dag
+        mock_read_dag.assert_not_called()
+
+    @patch("airflow.models.serialized_dag.SerializedDagModel.get")
+    def test_get_latest_version_of_dag_reloads_on_hash_mismatch(self, mock_get):
+        """A cached entry with a stale hash (dag updated in place) triggers a fresh deserialize."""
+        stale_dag = MagicMock(spec=SerializedDAG)
+        fresh_dag = MagicMock(spec=SerializedDAG)
+        self.db_dag_bag._dags["v1"] = _CacheEntry(stale_dag, "old_hash", time.monotonic())
+        mock_serdag = MagicMock(spec=SerializedDagModel)
+        mock_serdag.dag_version_id = "v1"
+        mock_serdag.dag_hash = "new_hash"
+        mock_serdag.dag = fresh_dag
+        mock_get.return_value = mock_serdag
+
+        result = self.db_dag_bag.get_latest_version_of_dag("some_dag", session=self.session)
+
+        assert result == fresh_dag
+        entry = self.db_dag_bag._dags["v1"]
+        assert (entry.dag, entry.dag_hash) == (fresh_dag, "new_hash")
+
+    @patch("airflow.models.serialized_dag.SerializedDagModel.get")
+    def test_get_latest_version_of_dag_deserializes_on_miss(self, mock_get):
+        """No cache entry for the version deserializes and caches it."""
+        fresh_dag = MagicMock(spec=SerializedDAG)
+        mock_serdag = MagicMock(spec=SerializedDagModel)
+        mock_serdag.dag_version_id = "v1"
+        mock_serdag.dag_hash = "hash1"
+        mock_serdag.dag = fresh_dag
+        mock_get.return_value = mock_serdag
+
+        result = self.db_dag_bag.get_latest_version_of_dag("some_dag", session=self.session)
+
+        assert result == fresh_dag
+        entry = self.db_dag_bag._dags["v1"]
+        assert (entry.dag, entry.dag_hash) == (fresh_dag, "hash1")
+
+    @patch("airflow.models.serialized_dag.SerializedDagModel.get")
+    def test_get_latest_version_of_dag_returns_none_when_not_found(self, mock_get):
+        """It should return None if no serialized dag row exists for the dag_id."""
+        mock_get.return_value = None
+
+        result = self.db_dag_bag.get_latest_version_of_dag("missing_dag", session=self.session)
+
+        assert result is None
+
     def test_get_dag_reflects_in_place_version_update_end_to_end(self):
         """End-to-end regression: an in-place version update must be re-read, not served stale.
 
@@ -406,6 +465,36 @@ class TestDBDagBagCache:
         dag_bag._get_dag("test_version", mock_session)
 
         mock_stats.incr.assert_called_with("api_server.dag_bag.cache_hit")
+
+    @patch("airflow.models.serialized_dag.SerializedDagModel.get")
+    @patch("airflow.models.dagbag.stats")
+    def test_get_latest_version_of_dag_cache_hit_metric_emitted(self, mock_stats, mock_get):
+        """A cached, still-current version served by get_latest_version_of_dag counts as a hit."""
+        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        dag_bag._dags["test_version"] = _CacheEntry(MagicMock(), "hash1", time.monotonic())
+        mock_serdag = MagicMock(spec=SerializedDagModel)
+        mock_serdag.dag_version_id = "test_version"
+        mock_serdag.dag_hash = "hash1"
+        mock_get.return_value = mock_serdag
+
+        dag_bag.get_latest_version_of_dag("some_dag", session=MagicMock())
+
+        mock_stats.incr.assert_called_with("api_server.dag_bag.cache_hit")
+
+    @patch("airflow.models.serialized_dag.SerializedDagModel.get")
+    @patch("airflow.models.dagbag.stats")
+    def test_get_latest_version_of_dag_cache_miss_metric_emitted(self, mock_stats, mock_get):
+        """An uncached version deserialized by get_latest_version_of_dag counts as a miss."""
+        dag_bag = DBDagBag(cache_size=10, cache_ttl=60)
+        mock_serdag = MagicMock(spec=SerializedDagModel)
+        mock_serdag.dag_version_id = "uncached_version"
+        mock_serdag.dag_hash = "hash1"
+        mock_serdag.dag = MagicMock(spec=SerializedDAG)
+        mock_get.return_value = mock_serdag
+
+        dag_bag.get_latest_version_of_dag("some_dag", session=MagicMock())
+
+        mock_stats.incr.assert_any_call("api_server.dag_bag.cache_miss")
 
     @patch("airflow.models.dagbag.stats")
     def test_cache_miss_metric_emitted(self, mock_stats):

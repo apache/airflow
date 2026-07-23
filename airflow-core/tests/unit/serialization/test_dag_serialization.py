@@ -524,6 +524,7 @@ class TestStringifiedDAGs:
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
+        DagSerialization._load_operator_extra_links = True
         with mock.patch.object(BaseHook, "get_connection") as m:
             m.return_value = Connection(
                 extra=(
