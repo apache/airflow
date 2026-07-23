@@ -41,7 +41,6 @@ providers/databricks/src/airflow/providers/databricks/operators/databricks_repos
 providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposUpdateOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_sql.py::DatabricksCopyIntoOperator
 providers/databricks/src/airflow/providers/databricks/sensors/databricks.py::DatabricksSQLStatementsSensor
-providers/dbt/cloud/src/airflow/providers/dbt/cloud/operators/dbt.py::DbtCloudGetJobRunArtifactOperator
 providers/docker/src/airflow/providers/docker/operators/docker.py::DockerOperator
 providers/google/src/airflow/providers/google/cloud/operators/bigquery.py::BigQueryInsertJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/cloud_batch.py::CloudBatchSubmitJobOperator

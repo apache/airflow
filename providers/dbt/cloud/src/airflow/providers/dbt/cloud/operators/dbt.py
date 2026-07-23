@@ -410,10 +410,14 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.path = path
         self.account_id = account_id
         self.step = step
-        self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
+        self.output_file_name = output_file_name
         self.hook_params = hook_params or {}
 
     def execute(self, context: Context) -> str:
+        # run_id/path/output_file_name are template fields; derive the default name here, after
+        # rendering, so it reflects the resolved run_id and path rather than the Jinja expressions.
+        if not self.output_file_name:
+            self.output_file_name = f"{self.run_id}_{self.path}".replace("/", "-")
         hook = DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
         response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step

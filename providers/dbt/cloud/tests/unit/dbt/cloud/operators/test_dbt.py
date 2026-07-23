@@ -1059,6 +1059,28 @@ class TestDbtCloudGetJobRunArtifactOperator:
         assert return_value == operator.output_file_name
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
+    def test_default_output_file_name_uses_rendered_path(self, mock_get_artifact, tmp_path, monkeypatch):
+        # run_id/path are template fields: the default file name (and its "/"->"-" flattening) must
+        # be derived after rendering, so a templated path resolves before its slashes are replaced.
+        operator = DbtCloudGetJobRunArtifactOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            run_id=RUN_ID,
+            path="{{ params.p }}",
+            params={"p": "path/to/my/manifest.json"},
+            dag=self.dag,
+        )
+        operator.render_template_fields({"params": {"p": "path/to/my/manifest.json"}})
+
+        mock_get_artifact.return_value.json.return_value = {"data": "file contents"}
+        with monkeypatch.context() as ctx:
+            ctx.chdir(tmp_path)
+            return_value = operator.execute(context={})
+
+        assert operator.output_file_name == f"{RUN_ID}_path-to-my-manifest.json"
+        assert return_value == operator.output_file_name
+
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
         ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
