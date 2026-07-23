@@ -45,3 +45,20 @@ export const presetFiltersDefaultKey = (pageName: string) =>
 
 // SearchBar advanced (substring) toggle, scoped per searchbar via a caller-provided id.
 export const advancedSearchKey = (id: string) => `advanced_search-${id}`;
+
+// One-time cleanup of the pre-consolidation per-Dag dependency toggle keys
+// (`dependencies-<dag_id>`), now superseded by the global SHOW_ALL_DEPENDENCIES_KEY. Without this
+// they linger in every user's localStorage forever. Safe because no current key shares the prefix.
+export const pruneLegacyDependencyKeys = (storage: Storage = globalThis.localStorage): void => {
+  const staleKeys: Array<string> = [];
+
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+
+    if (key?.startsWith("dependencies-")) {
+      staleKeys.push(key);
+    }
+  }
+
+  staleKeys.forEach((key) => storage.removeItem(key));
+};
