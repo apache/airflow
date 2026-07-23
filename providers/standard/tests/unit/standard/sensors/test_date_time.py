@@ -24,7 +24,7 @@ import pytest
 
 from airflow import macros
 from airflow.models.dag import DAG
-from airflow.providers.standard.sensors.date_time import DateTimeSensor
+from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTimeSensorAsync
 
 from tests_common.test_utils.version_compat import timezone
 
@@ -124,3 +124,38 @@ class TestDateTimeSensor:
         sensor.render_template_fields(ctx)
 
         assert isinstance(sensor._moment, expected_type)
+
+
+class TestDateTimeSensorAsync:
+    @pytest.mark.parametrize(
+        "target_time",
+        [
+            pendulum.datetime(2020, 7, 6, 13, tz="UTC"),
+            "2020-07-06T13:00:00+00:00",
+        ],
+    )
+    def test_start_from_trigger_with_static_target_time(self, target_time):
+        with DAG(
+            dag_id="test_static_target_time",
+            schedule=None,
+            start_date=pendulum.datetime(2020, 1, 1, tz="UTC"),
+        ):
+            op = DateTimeSensorAsync(task_id="test", target_time=target_time, start_from_trigger=True)
+
+        assert op.start_trigger_args.trigger_kwargs == {
+            "moment": pendulum.datetime(2020, 7, 6, 13, tz="UTC"),
+            "end_from_trigger": False,
+        }
+
+    def test_start_from_trigger_with_templated_target_time_raises(self):
+        with DAG(
+            dag_id="test_templated_target_time",
+            schedule=None,
+            start_date=pendulum.datetime(2020, 1, 1, tz="UTC"),
+        ):
+            with pytest.raises(ValueError, match="requires a static target_time"):
+                DateTimeSensorAsync(
+                    task_id="test",
+                    target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
+                    start_from_trigger=True,
+                )
