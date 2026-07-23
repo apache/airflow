@@ -104,7 +104,10 @@ class _TimeoutK8sApiClient(client.ApiClient):
 
     def call_api(self, *args, **kwargs):
         timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
-        kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
+        # Use setdefault's intent but handle explicit None: generated kubernetes client methods always
+        # pass _request_timeout=None explicitly, making setdefault a no-op and leaving an infinite timeout.
+        if kwargs.get("_request_timeout") is None:
+            kwargs["_request_timeout"] = _get_request_timeout(timeout_seconds)
         return super().call_api(*args, **kwargs)
 
 
@@ -119,7 +122,12 @@ class _TimeoutAsyncK8sApiClient(async_client.ApiClient):
 
     async def call_api(self, *args, **kwargs):
         timeout_seconds = kwargs.get("timeout_seconds")  # server-side timeout
-        kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
+        # Use setdefault's intent but handle explicit None: generated kubernetes_asyncio client methods
+        # always pass _request_timeout=None explicitly, making setdefault a no-op and leaving an infinite
+        # timeout. On a half-open TCP connection (e.g. after a 429 or LB-side 500), this causes the
+        # trigger's await to hang indefinitely with no exception, preventing any retry or recovery.
+        if kwargs.get("_request_timeout") is None:
+            kwargs["_request_timeout"] = _get_request_timeout(timeout_seconds)
         return await super().call_api(*args, **kwargs)
 
 
