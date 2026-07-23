@@ -49,14 +49,17 @@ class TestGCSToAzureBlobStorageOperator:
         assert op.create_container is False
 
     @mock.patch("airflow.providers.google.__version__", "10.2.0")
-    def test_match_glob_requires_recent_google_provider(self):
+    def test_templated_match_glob_requires_recent_google_provider_after_rendering(self):
+        op = GCSToAzureBlobStorageOperator(
+            task_id=TASK_ID,
+            gcs_bucket=GCS_BUCKET,
+            container_name=CONTAINER,
+            match_glob="{{ match_glob }}",
+        )
+        op.render_template_fields(context={"match_glob": "**/*.csv"})
+
         with pytest.raises(ValueError, match="match_glob"):
-            GCSToAzureBlobStorageOperator(
-                task_id=TASK_ID,
-                gcs_bucket=GCS_BUCKET,
-                container_name=CONTAINER,
-                match_glob="**/*.csv",
-            )
+            op.execute(context=None)
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")

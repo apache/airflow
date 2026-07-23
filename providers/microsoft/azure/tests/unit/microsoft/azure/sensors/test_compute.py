@@ -43,14 +43,17 @@ class TestAzureVirtualMachineStateSensor:
         assert sensor.target_state == "running"
         assert sensor.azure_conn_id == CONN_ID
 
-    def test_init_invalid_target_state(self):
+    def test_invalid_templated_target_state_is_validated_after_rendering(self):
+        sensor = AzureVirtualMachineStateSensor(
+            task_id="sense_vm",
+            resource_group_name=RESOURCE_GROUP,
+            vm_name=VM_NAME,
+            target_state="{{ state }}",
+        )
+        sensor.render_template_fields(context={"state": "invalid_state"})
+
         with pytest.raises(ValueError, match="Invalid target_state"):
-            AzureVirtualMachineStateSensor(
-                task_id="sense_vm",
-                resource_group_name=RESOURCE_GROUP,
-                vm_name=VM_NAME,
-                target_state="invalid_state",
-            )
+            sensor.execute(context=None)
 
     def test_template_fields(self):
         sensor = AzureVirtualMachineStateSensor(
