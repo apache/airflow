@@ -874,12 +874,18 @@ class TestDockerOperator:
                 Mount(target="/logs", source="logs", type="volume"),
             ],
         )
-        assert all(isinstance(m, Mount) for m in op.mounts)
-        assert op.mounts[0]["Target"] == "/data"
-        assert op.mounts[0]["Source"] == "workspace"
-        assert op.mounts[0]["Type"] == "volume"
-        assert op.mounts[0]["ReadOnly"] is False
-        assert op.mounts[1]["Target"] == "/logs"
+        # mounts is a template field, so __init__ keeps the raw input; normalization to Mount
+        # objects happens in execute(), after rendering.
+        assert not isinstance(op.mounts[0], Mount)
+
+        op.execute(None)
+
+        passed_mounts = self.client_mock.create_host_config.call_args.kwargs["mounts"]
+        assert all(isinstance(m, Mount) for m in passed_mounts)
+        assert passed_mounts[0]["Target"] == "/data"
+        assert passed_mounts[0]["Source"] == "workspace"
+        assert passed_mounts[0]["ReadOnly"] is False
+        assert passed_mounts[1]["Target"] == "/logs"
 
     @pytest.mark.db_test
     def test_dict_mounts_are_templated(self, create_task_instance_of_operator):
@@ -893,4 +899,6 @@ class TestDockerOperator:
             ],
         )
         rendered = ti.render_templates()
-        assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"
+        # mounts stays a raw dict through rendering (Mount is a dict subclass; Jinja renders its
+        # values natively), so the templated value resolves before execute() converts it.
+        assert rendered.mounts[0]["target"] == f"/{ti.run_id}"
