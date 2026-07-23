@@ -353,6 +353,7 @@ class PlainXComArg(XComArg):
                     upstream=self.operator,
                     ti_count=ti_count,
                     session=None,  # Not used in SDK implementation
+                    use_post_expansion_placeholder=True,
                 )
                 if computed is None:
                     # Resolve the mapped task group as a list, even for a single expansion (#69036)

@@ -94,6 +94,7 @@ def get_relevant_map_indexes(
     ti_count: int,
     relative: BaseOperator,
     dag_id: str,
+    use_post_expansion_placeholder: bool = False,
 ) -> int | range | None:
     """
     Determine map indexes for XCom aggregation.
