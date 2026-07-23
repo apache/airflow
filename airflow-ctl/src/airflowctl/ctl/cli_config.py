@@ -279,12 +279,25 @@ ARG_AUTH_PASSWORD = Arg(
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
-    help="The Dag ID of the Dag to pause or unpause",
+    help="The Dag ID",
 )
 ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
     flags=("logical_date_or_run_id",),
     type=str,
     help="The logical date with a timezone offset or run ID of the Dag run",
+)
+
+# Task Commands Args
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -1034,6 +1047,24 @@ POOL_COMMANDS = (
     ),
 )
 
+TASK_COMMANDS = (
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get the status of all task instances in a Dag run",
+        description=(
+            "Get the status of all task instances in a Dag run. "
+            "Select the run with either run_id or --logical-date (pass exactly one)."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
@@ -1069,6 +1100,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
     ),
     ActionCommand(
         name="version",
