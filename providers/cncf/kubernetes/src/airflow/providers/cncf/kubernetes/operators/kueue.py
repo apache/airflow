@@ -57,7 +57,12 @@ class KubernetesInstallKueueOperator(BaseOperator):
         super().__init__(*args, **kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.kueue_version = kueue_version
-        self._kueue_yaml_url = (
+
+    @property
+    def _kueue_yaml_url(self) -> str:
+        # kueue_version is a template field; build the URL on access so it uses the rendered
+        # value rather than the un-rendered Jinja expression seen in __init__.
+        return (
             f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
         )
 
