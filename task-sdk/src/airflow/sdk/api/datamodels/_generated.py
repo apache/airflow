@@ -360,17 +360,6 @@ class TISuccessStatePayload(BaseModel):
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
-class TITargetStatePayload(BaseModel):
-    """
-    Schema for updating TaskInstance to a target state, excluding terminal and running states.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    state: IntermediateTIState
-
-
 class TaskBreadcrumbsResponse(BaseModel):
     """
     Response for task breadcrumbs.
