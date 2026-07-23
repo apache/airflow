@@ -30,19 +30,23 @@ class _LazySafeSerializer:
     Returns bytes (suitable for database BLOB columns).
     """
 
-    def dumps(self, session_dict):
-        encoder = msgspec.msgpack.Encoder(
-            enc_hook=lambda obj: str(obj) if isinstance(obj, LazyString) else obj
-        )
-        return encoder.encode(dict(session_dict))
+	def dumps(self, session_dict):
+		encoder = msgspec.msgpack.Encoder(
+			enc_hook=lambda obj: str(obj) if isinstance(obj, LazyString) else obj
+		)
+		return encoder.encode(dict(session_dict))
 
-    def loads(self, data):
-        decoder = msgspec.msgpack.Decoder()
-        return decoder.decode(data)
+	def loads(self, data):
+		decoder = msgspec.msgpack.Decoder()
+		return decoder.decode(data)
 
-    # optional old API
-    encode = dumps
-    decode = loads
+	def encode(self, session_dict):
+		return self.dumps(session_dict).decode("utf-8")
+
+	def decode(self, data):
+		if isinstance(data, str):
+			data = data.encode("utf-8")
+		return self.loads(data)
 
 
 class SessionExemptMixin:
