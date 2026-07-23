@@ -942,6 +942,61 @@ class TestSchedulerJob:
             tags={"dag_id": dag_id, "task_id": ti1.task_id},
         )
 
+    @pytest.mark.parametrize("event_state", [State.FAILED, State.SUCCESS])
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
+    @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
+    def test_process_executor_events_does_not_fail_running_ti_with_fresh_heartbeat(
+        self, mock_get_backend, mock_task_callback, dag_maker, event_state
+    ):
+        """A running task with a fresh heartbeat must not be failed by a stale event from a dead duplicate."""
+        mock_stats = mock.MagicMock(spec=StatsLogger)
+        mock_get_backend.return_value = mock_stats
+        dag_id = "test_process_executor_events_running_fresh_heartbeat"
+        task_id_1 = "dummy_task"
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task1 = EmptyOperator(task_id=task_id_1)
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        scheduler_job = Job()
+        session.add(scheduler_job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti1.state = State.RUNNING
+        ti1.queued_by_job_id = scheduler_job.id
+        ti1.last_heartbeat_at = timezone.utcnow()
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = event_state, None
+        executor.has_task = mock.MagicMock(return_value=False)
+        mock_stats.incr.reset_mock()
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.RUNNING
+        self.job_runner.executor.callback_sink.send.assert_not_called()
+        mock_stats.incr.assert_not_called()
+
+        # But a stale heartbeat means it really is dead, so it still gets failed.
+        ti1.last_heartbeat_at = timezone.utcnow() - timedelta(hours=2)
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = event_state, None
+        mock_stats.incr.reset_mock()
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        mock_stats.incr.assert_any_call(
+            "scheduler.tasks.killed_externally",
+            tags={"dag_id": dag_id, "task_id": ti1.task_id},
+        )
+
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
     def test_process_executor_events_stale_success_when_queued_after_defer(

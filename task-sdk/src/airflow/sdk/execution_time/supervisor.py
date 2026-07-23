@@ -58,7 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -2562,6 +2562,15 @@ def supervise_task(
                 final_state=result.final_state,
             )
             return result.exit_code
+        except TaskAlreadyRunningError:
+            # Another worker is already running this task, so the server told us to back off. This is
+            # normal -- it just means we were a duplicate that lost the race. Our task never started any
+            # real work, so exit quietly instead of reporting a failure that would look like a crash.
+            log.info(
+                "Task instance already running on another worker; standing down without failing it",
+                workload_id=str(ti.id),
+            )
+            return 0
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
