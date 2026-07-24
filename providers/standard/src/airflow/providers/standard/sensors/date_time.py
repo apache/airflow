@@ -63,18 +63,20 @@ class DateTimeSensor(BaseSensorOperator):
 
     def __init__(self, *, target_time: str | datetime.datetime, **kwargs) -> None:
         super().__init__(**kwargs)
-        # target_time is a template field, so it is rendered after __init__ runs. Store it
-        # verbatim and defer validation/normalization to _moment, which sees the rendered value.
+        # target_time is a template field; store it verbatim and normalize once rendered.
         self.target_time = target_time
 
     def poke(self, context: Context) -> bool:
+        # Normalize a rendered datetime to an ISO string here (moved from __init__, which only
+        # saw the un-rendered Jinja) so the stored template field stays a string.
+        if isinstance(self.target_time, datetime.datetime):
+            self.target_time = self.target_time.isoformat()
         self.log.info("Checking if the time (%s) has come", self.target_time)
         return timezone.utcnow() > self._moment
 
     @property
     def _moment(self) -> datetime.datetime:
-        # target_time is a template field: after rendering it is usually a string, but with
-        # render_template_as_native_obj=True it can already be a datetime.
+        # After rendering target_time is usually a str; native rendering can yield a datetime.
         target_time: Any = self.target_time
         if isinstance(target_time, datetime.datetime):
             return target_time

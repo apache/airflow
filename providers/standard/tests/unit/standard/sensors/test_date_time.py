@@ -56,8 +56,6 @@ class TestDateTimeSensor:
         assert op.target_time == target_time
 
     def test_invalid_input_rejected_after_rendering(self):
-        # __init__ no longer validates the template field; the TypeError surfaces when the
-        # un-renderable value is used at poke time.
         op = DateTimeSensor(
             task_id="test",
             target_time=timezone.utcnow().time(),
@@ -122,7 +120,7 @@ class TestDateTimeSensor:
         return_value=pendulum.datetime(2020, 1, 2, tz="UTC"),
     )
     def test_poke_with_natively_rendered_datetime(self, mock_utcnow):
-        """poke must handle a target_time rendered to a datetime (render_template_as_native_obj=True)."""
+        """poke handles a target_time rendered to a datetime and normalizes it to an ISO string."""
         dag = DAG(
             dag_id="native_poke_dag",
             start_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
@@ -135,6 +133,18 @@ class TestDateTimeSensor:
         )
         assert isinstance(op.target_time, datetime.datetime)
         assert op.poke(None) is True
+        assert op.target_time == "2020-01-01T00:00:00+00:00"
+
+    @patch(
+        "airflow.providers.standard.sensors.date_time.timezone.utcnow",
+        return_value=timezone.datetime(2020, 1, 2, tzinfo=timezone.utc),
+    )
+    def test_poke_normalizes_datetime_target_time(self, mock_utcnow):
+        """A datetime target_time is normalized to its ISO string at poke, as __init__ used to do."""
+        target = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
+        op = DateTimeSensor(task_id="normalize", target_time=target, dag=self.dag)
+        assert op.poke(None) is True
+        assert op.target_time == target.isoformat()
 
     def test_async_start_from_trigger_moment(self):
         op = DateTimeSensorAsync(
