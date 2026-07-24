@@ -61,16 +61,20 @@ class TestNeo4jOperator:
             AirflowProviderDeprecationWarning,
             match="`sql` parameter is deprecated, please use `cypher` instead.",
         ):
-            op = Neo4jOperator(task_id="basic_neo4j", sql=cypher)
-        assert op.cypher == cypher
-        op.execute(mock.MagicMock())
+            op = Neo4jOperator(task_id="basic_neo4j", sql="{{ cypher }}")
+        assert op.sql == "{{ cypher }}"
+        op.execute({"cypher": cypher})
         mock_hook.return_value.run.assert_called_once_with(cypher, None)
 
-    def test_neo4j_operator_both_sql_and_cypher_raises(self):
+    def test_neo4j_operator_both_sql_and_cypher_raises_on_execute(self):
         with pytest.warns(AirflowProviderDeprecationWarning):
-            with pytest.raises(ValueError, match="Cannot provide both `sql` and `cypher`"):
-                Neo4jOperator(task_id="basic_neo4j", sql="a", cypher="b")
+            op = Neo4jOperator(task_id="basic_neo4j", sql="a", cypher="b")
 
-    def test_neo4j_operator_missing_cypher_raises(self):
+        with pytest.raises(ValueError, match="Cannot provide both `sql` and `cypher`"):
+            op.execute(mock.MagicMock())
+
+    def test_neo4j_operator_missing_cypher_raises_on_execute(self):
+        op = Neo4jOperator(task_id="basic_neo4j")
+
         with pytest.raises(ValueError, match="Parameter `cypher` is required."):
-            Neo4jOperator(task_id="basic_neo4j")
+            op.execute(mock.MagicMock())

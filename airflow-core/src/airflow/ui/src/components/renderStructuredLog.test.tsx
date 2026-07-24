@@ -35,6 +35,47 @@ describe("tiContextFields", () => {
   });
 });
 
+describe("renderStructuredLog — traceback frame highlighting", () => {
+  const sitepkgFile = "/usr/local/lib/python3.14/site-packages/airflow/sdk/bases/operator.py";
+  const dagBundleFile = "/tmp/airflow/dag_bundles/astro/main/dags/non_alert/enrich_ticket.py";
+
+  const renderWithError = () => {
+    const result = renderStructuredLog({
+      index: 0,
+      logLink: "",
+      logMessage: {
+        error_detail: [
+          {
+            exc_notes: [],
+            exc_type: "TypeError",
+            exc_value: "fromisoformat: argument must be str",
+            frames: [
+              { filename: sitepkgFile, lineno: 445, name: "wrapper" },
+              { filename: dagBundleFile, lineno: 226, name: "retrieve_cluster" },
+            ],
+            is_cause: false,
+            syntax_error: null,
+          },
+        ],
+        event: "Task failed with exception",
+        level: "error",
+        timestamp: "2026-07-22T09:15:20Z",
+      },
+      renderingMode: "jsx",
+      translate: translate as never,
+    });
+
+    return render(<Wrapper>{result}</Wrapper>);
+  };
+
+  it("marks a DAG-bundle frame as user code and a site-packages frame as library", () => {
+    renderWithError();
+
+    expect(screen.getByText(JSON.stringify(dagBundleFile))).toHaveAttribute("data-frame-source", "user");
+    expect(screen.getByText(JSON.stringify(sitepkgFile))).toHaveAttribute("data-frame-source", "library");
+  });
+});
+
 describe("renderStructuredLog — TI context field stripping", () => {
   it("does not render TI context fields as per-line structured attributes", () => {
     const result = renderStructuredLog({

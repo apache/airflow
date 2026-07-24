@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -25,6 +26,7 @@ import pytest
 from boto3 import client
 from moto import mock_aws
 
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -809,6 +811,28 @@ class TestGlueDataQualityOperator:
         self.operator.execute({})
         glue_data_quality_mock_conn.create_data_quality_ruleset.assert_called_once_with(
             Description="create ruleset",
+            Name=self.RULE_SET_NAME,
+            Ruleset=self.RULE_SET,
+        )
+
+    @mock.patch.object(GlueDataQualityHook, "conn")
+    def test_execute_strips_rendered_ruleset(self, glue_data_quality_mock_conn):
+        # ruleset is a template field; execute strips the rendered value (rendering can add whitespace).
+        with DAG("glue_dq_strip", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+            self.operator = GlueDataQualityOperator(
+                task_id="create_data_quality_ruleset",
+                name=self.RULE_SET_NAME,
+                ruleset="{{ params.rules }}",
+                dag=dag,
+            )
+        self.operator.defer = mock.MagicMock()
+        self.operator.render_template_fields({"params": {"rules": f"  {self.RULE_SET}  "}})
+        assert self.operator.ruleset == f"  {self.RULE_SET}  "
+
+        self.operator.execute({})
+
+        glue_data_quality_mock_conn.create_data_quality_ruleset.assert_called_once_with(
+            Description="AWS Glue Data Quality Rule Set With Airflow",
             Name=self.RULE_SET_NAME,
             Ruleset=self.RULE_SET,
         )
