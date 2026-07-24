@@ -132,18 +132,16 @@ class HITLOperator(BaseOperator):
         self.validate_params()
         self.validate_defaults()
 
-        # Runtime/subclass additions to the summary (e.g. timeout_datetime, approved,
-        # branches_to_execute); the config-derived entries come from the hitl_summary property.
+        # Runtime/subclass additions to the summary; config-derived entries live in the property.
         self._hitl_summary_extra: dict[str, Any] = {}
 
     @property
     def hitl_summary(self) -> dict[str, Any]:
         """
-        Summary of the Human-in-the-loop request, for the use of listeners/observability.
+        Summary of the Human-in-the-loop request, for listeners/observability.
 
-        Exposed as a property so the ``subject``/``body`` template fields are read at access time --
-        after rendering, e.g. when OpenLineage builds the task START event -- rather than in
-        ``__init__`` where they would still hold un-rendered Jinja.
+        A property so the ``subject``/``body`` template fields are read after rendering, not
+        captured as un-rendered Jinja in ``__init__``.
         """
         return {
             "subject": self.subject,

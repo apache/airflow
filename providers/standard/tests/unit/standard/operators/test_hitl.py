@@ -975,20 +975,14 @@ class TestHITLSummaryForListeners:
         }
 
     def test_summary_reflects_rendered_subject_body(self) -> None:
-        """subject/body in the summary are read live, so post-render values reach listeners.
-
-        Guards #70296: subject/body are template fields; snapshotting them into the summary in
-        ``__init__`` captured un-rendered Jinja. The summary is a property now, so once Airflow
-        renders the template fields in place -- before the OpenLineage task START event is built --
-        the summary reflects the rendered values.
-        """
+        """The summary reads subject/body live, so it reflects rendered values (guards #70296)."""
         op = HITLOperator(
             task_id="test",
             subject="Review for {{ ds }}",
             body="Deploy {{ ds }}?",
             options=["Yes", "No"],
         )
-        # Airflow renders template fields by setting them back on the operator before execute.
+        # Airflow renders template fields in place before execute.
         op.subject = "Review for 2020-01-01"
         op.body = "Deploy 2020-01-01?"
 
