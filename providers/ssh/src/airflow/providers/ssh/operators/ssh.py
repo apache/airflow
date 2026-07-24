@@ -166,7 +166,7 @@ class SSHOperator(BaseOperator):
         if self.command is None:
             raise AirflowException("SSH operator error: SSH command not specified. Aborting.")
 
-        if self.remote_host is not None:
+        if self.remote_host:
             self.ssh_hook.remote_host = self.remote_host
 
         # Forcing get_pty to True if the command begins with "sudo".
