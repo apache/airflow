@@ -27,7 +27,8 @@ from collections.abc import Callable, Generator, Iterator
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
@@ -119,8 +120,10 @@ from airflow.sdk import (
     DAG,
     Asset,
     AssetAlias,
+    AssetAndTimeSchedule,
     AssetWatcher,
     CronPartitionTimetable,
+    CronTriggerTimetable,
     FixedKeyMapper,
     HourWindow,
     IdentityMapper,
@@ -136,13 +139,13 @@ from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
-from airflow.timetables.base import DagRunInfo, DataInterval, compute_rollup_fingerprint
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable, compute_rollup_fingerprint
 from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import with_row_locks
+from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -5680,7 +5683,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
         with create_session() as session:
-            self.job_runner._create_dagruns_for_dags(session, session)
+            self.job_runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
 
         def dict_from_obj(obj):
             """Get dict of column attrs from SqlAlchemy object."""
@@ -5716,6 +5719,23 @@ class TestSchedulerJob:
         )
 
         assert created_run.creating_job_id == scheduler_job.id
+
+    @mock.patch.object(SchedulerJobRunner, "_get_current_dag", autospec=True)
+    def test_create_dag_runs_asset_triggered_uses_behavior_flag(self, mock_get_current_dag):
+        dag_model = SimpleNamespace(dag_id="custom-asset-triggered")
+        dag = SimpleNamespace(
+            dag_id=dag_model.dag_id,
+            timetable=SimpleNamespace(asset_triggered=True),
+        )
+        mock_get_current_dag.return_value = dag
+        session = MagicMock(spec=["get_bind", "scalars"])
+        session.get_bind.return_value.dialect.name = "postgresql"
+        session.scalars.return_value.all.return_value = []
+        runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+
+        runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+
+        session.scalars.assert_called_once()
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
@@ -5840,7 +5860,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
         with create_session() as session:
-            self.job_runner._create_dagruns_for_dags(session, session)
+            self.job_runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
 
         def dict_from_obj(obj):
             """Get dict of column attrs from SqlAlchemy object."""
@@ -10315,6 +10335,488 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
             .where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
         )
         assert running_count == 2
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_create_dagruns_asset_and_time_waits_until_assets_ready(session: Session, dag_maker):
+    asset = Asset(uri="test://asset-and-time-waits", name="asset-and-time-waits")
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    with dag_maker(
+        dag_id="asset-and-time-waits",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+    session.flush()
+
+    SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._create_dagruns_for_dags(
+        cast("CommitProhibitorGuard", session), session
+    )
+    session.flush()
+
+    assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)) is None
+    session.refresh(dag_model)
+    assert dag_model.next_dagrun == logical_date
+    assert dag_model.next_dagrun_create_after == logical_date
+
+
+@pytest.mark.parametrize(
+    ("asset_triggered", "asset_gated"),
+    [
+        pytest.param(True, False, id="asset-triggered"),
+        pytest.param(False, True, id="asset-gated"),
+    ],
+)
+@mock.patch.object(SerializedDagModel, "get_latest_serialized_dags", autospec=True)
+def test_dags_needing_dagruns_routes_custom_timetable_by_behavior(
+    mock_get_latest_serialized_dags, asset_triggered, asset_gated, session: Session, dag_maker
+):
+    asset = Asset(uri="test://custom-asset-scheduling", name="custom-asset-scheduling")
+    with dag_maker(
+        dag_id=f"custom-asset-scheduling-{asset_triggered}-{asset_gated}",
+        schedule=[asset],
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun_create_after = timezone.utcnow() - timedelta(minutes=1)
+    dag_model.timetable_asset_gated = asset_gated
+
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id))
+    session.flush()
+
+    timetable = MagicMock(spec=Timetable)
+    timetable.asset_triggered = asset_triggered
+    timetable.asset_gated = asset_gated
+    timetable.asset_condition = ensure_serialized_asset(asset)
+    serialized_dag = SimpleNamespace(
+        dag_id=dag_model.dag_id,
+        dag=SimpleNamespace(timetable=timetable),
+    )
+    mock_get_latest_serialized_dags.return_value = [serialized_dag]
+
+    query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+
+    # Both behaviors keep the Dag selected for run creation; only asset-triggered
+    # timetables land in the asset-triggered bucket (gated Dags take the normal
+    # scheduled path). The gated Dag is selected via its satisfied asset condition:
+    # with timetable_asset_gated=True, being time-due alone would not select it.
+    assert [model.dag_id for model in query.all()] == [dag_model.dag_id]
+    assert (dag_model.dag_id in triggered_date_by_dag) is asset_triggered
+
+
+@time_machine.travel("2026-03-29 18:30:00+00:00")
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_create_dagruns_asset_and_time_late_arrival_uses_oldest_pending_logical_date(
+    session: Session, dag_maker
+):
+    asset = Asset(uri="test://asset-and-time-ready", name="asset-and-time-ready")
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    asset_created_at = pendulum.datetime(2026, 3, 29, 18, 30, tz="UTC")
+    with dag_maker(
+        dag_id="asset-and-time-ready",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    session.add(
+        AssetDagRunQueue(
+            asset_id=asset_id,
+            target_dag_id=dag_model.dag_id,
+            created_at=asset_created_at,
+        )
+    )
+    session.flush()
+
+    SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._create_dagruns_for_dags(
+        cast("CommitProhibitorGuard", session), session
+    )
+    session.flush()
+
+    dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one()
+    assert dag_run.state == DagRunState.QUEUED
+    assert dag_run.run_type == DagRunType.SCHEDULED
+    assert dag_run.logical_date == logical_date
+    assert (
+        session.scalar(select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id))
+        is None
+    )
+
+
+@time_machine.travel("2026-03-29 19:00:00+00:00")
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_create_dagruns_asset_and_time_late_arrival_consumes_only_one_slot(session: Session, dag_maker):
+    asset = Asset(uri="test://asset-and-time-one-slot", name="asset-and-time-one-slot")
+    first_logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    second_logical_date = pendulum.datetime(2026, 3, 29, 18, tz="UTC")
+    asset_created_at = pendulum.datetime(2026, 3, 29, 19, tz="UTC")
+    with dag_maker(
+        dag_id="asset-and-time-one-slot",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("0 * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        catchup=True,
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun = first_logical_date
+    dag_model.next_dagrun_data_interval = (first_logical_date, first_logical_date)
+    dag_model.next_dagrun_create_after = first_logical_date
+
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    session.add(
+        AssetEvent(
+            asset_id=asset_id,
+            source_task_id="produce",
+            source_dag_id="producer",
+            source_run_id="producer_run",
+            source_map_index=-1,
+            timestamp=asset_created_at,
+        )
+    )
+    session.add(
+        AssetDagRunQueue(
+            asset_id=asset_id,
+            target_dag_id=dag_model.dag_id,
+            created_at=asset_created_at,
+        )
+    )
+    session.flush()
+
+    SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._create_dagruns_for_dags(
+        cast("CommitProhibitorGuard", session), session
+    )
+    session.flush()
+
+    dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+    assert len(dag_runs) == 1
+    assert dag_runs[0].run_type == DagRunType.SCHEDULED
+    assert dag_runs[0].logical_date == first_logical_date
+    session.refresh(dag_model)
+    assert dag_model.next_dagrun == second_logical_date
+    assert dag_model.next_dagrun_create_after == second_logical_date
+
+
+@time_machine.travel("2026-03-29 17:30:00+00:00")
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_create_dagruns_asset_and_time_respects_max_active_runs(session: Session, dag_maker):
+    """
+    Regression test: creating an asset-gated run must update exceeds_max_non_backfill
+    so that a follow-up asset event does not bypass max_active_runs. The SQL filter in
+    dags_needing_dagruns relies on DagModel.exceeds_max_non_backfill; if run creation
+    skipped _set_exceeds_max_active_runs, the next loop would create a second run
+    even though max_active_runs=1.
+    """
+    asset = Asset(uri="test://asset-and-time-max-active", name="asset-and-time-max-active")
+    first_logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    first_event_at = pendulum.datetime(2026, 3, 29, 17, 0, 30, tz="UTC")
+    second_event_at = pendulum.datetime(2026, 3, 29, 17, 1, 30, tz="UTC")
+    with dag_maker(
+        dag_id="asset-and-time-max-active",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        max_active_runs=1,
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun = first_logical_date
+    dag_model.next_dagrun_data_interval = (first_logical_date, first_logical_date)
+    dag_model.next_dagrun_create_after = first_logical_date
+
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    session.add(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=first_event_at)
+    )
+    session.flush()
+
+    job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    job_runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    first_runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+    assert len(first_runs) == 1
+    session.refresh(dag_model)
+    # After creating the first run with max_active_runs=1, the DagModel must be flagged
+    # as exceeding max active runs so dags_needing_dagruns excludes it in the next loop.
+    assert dag_model.exceeds_max_non_backfill is True
+
+    # Simulate next producer event: new ADRQ written while the first run is still queued.
+    session.add(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=second_event_at)
+    )
+    session.flush()
+
+    job_runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    runs_after_second_loop = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+    # Second loop must NOT create a new run because max_active_runs=1 is already saturated.
+    assert len(runs_after_second_loop) == 1
+
+
+@time_machine.travel("2026-03-29 17:30:00+00:00")
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_create_dagruns_asset_and_time_populates_consumed_asset_events(session: Session, dag_maker):
+    """
+    Regression test: asset-gated runs must carry the consumed AssetEvent rows on
+    DagRun.consumed_asset_events so that triggering_asset_events templates,
+    inlet_events callbacks, and the UI asset provenance section work the same way
+    as asset-triggered runs do. Like asset-triggered runs with catchup off, events
+    that predate the Dag scheduling on its assets are backlog and must be skipped.
+    """
+    asset = Asset(uri="test://asset-and-time-consumed", name="asset-and-time-consumed")
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    registered_at = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    backlog_event_at = pendulum.datetime(2026, 3, 29, 16, 30, tz="UTC")
+    event_at = pendulum.datetime(2026, 3, 29, 17, 0, 30, tz="UTC")
+    with dag_maker(
+        dag_id="asset-and-time-consumed",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+    session.scalars(
+        select(DagScheduleAssetReference).where(DagScheduleAssetReference.dag_id == dag_model.dag_id)
+    ).one().created_at = registered_at
+
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    backlog_asset_event = AssetEvent(
+        asset_id=asset_id,
+        source_task_id="produce",
+        source_dag_id="producer",
+        source_run_id="producer_backlog_run",
+        source_map_index=-1,
+        timestamp=backlog_event_at,
+    )
+    asset_event = AssetEvent(
+        asset_id=asset_id,
+        source_task_id="produce",
+        source_dag_id="producer",
+        source_run_id="producer_run",
+        source_map_index=-1,
+        timestamp=event_at,
+    )
+    session.add_all([backlog_asset_event, asset_event])
+    session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=event_at))
+    session.flush()
+
+    SchedulerJobRunner(job=Job(), executors=[MockExecutor()])._create_dagruns_for_dags(
+        cast("CommitProhibitorGuard", session), session
+    )
+    session.flush()
+
+    dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one()
+    # The asset event that satisfied the gate must be linked to the run for
+    # provenance (triggering_asset_events template, callback context, UI); the
+    # event from before the Dag scheduled on the asset must not.
+    assert list(dag_run.consumed_asset_events) == [asset_event]
+
+
+@time_machine.travel("2026-03-29 19:00:00+00:00")
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_create_dagruns_asset_and_time_does_not_reattribute_consumed_events(session: Session, dag_maker):
+    """
+    Regression test: a gated run consumes events newer than its own run_after (the
+    slot time), so the next run's event window — floored at the previous run's
+    run_after — would re-attribute those events without deduplication. Each event
+    must appear on exactly one run's consumed_asset_events.
+    """
+    asset = Asset(uri="test://asset-and-time-no-reattribute", name="asset-and-time-no-reattribute")
+    first_slot = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    first_event_at = pendulum.datetime(2026, 3, 29, 17, 2, tz="UTC")
+    second_event_at = pendulum.datetime(2026, 3, 29, 18, 2, tz="UTC")
+    with dag_maker(
+        dag_id="asset-and-time-no-reattribute",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("0 * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        catchup=True,
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun = first_slot
+    dag_model.next_dagrun_data_interval = (first_slot, first_slot)
+    dag_model.next_dagrun_create_after = first_slot
+
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    first_event = AssetEvent(
+        asset_id=asset_id,
+        source_task_id="produce",
+        source_dag_id="producer",
+        source_run_id="producer_run_1",
+        source_map_index=-1,
+        timestamp=first_event_at,
+    )
+    session.add(first_event)
+    session.add(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=first_event_at)
+    )
+    session.flush()
+
+    job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    job_runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    second_event = AssetEvent(
+        asset_id=asset_id,
+        source_task_id="produce",
+        source_dag_id="producer",
+        source_run_id="producer_run_2",
+        source_map_index=-1,
+        timestamp=second_event_at,
+    )
+    session.add(second_event)
+    session.add(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=second_event_at)
+    )
+    session.flush()
+
+    job_runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    runs = session.scalars(
+        select(DagRun).where(DagRun.dag_id == dag_model.dag_id).order_by(DagRun.logical_date)
+    ).all()
+    assert len(runs) == 2
+    assert list(runs[0].consumed_asset_events) == [first_event]
+    assert list(runs[1].consumed_asset_events) == [second_event]
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_create_dagruns_asset_and_time_rechecks_locked_adrq_rows(session: Session, dag_maker):
+    asset_1 = Asset(uri="test://asset-and-time-locked-1", name="asset-and-time-locked-1")
+    asset_2 = Asset(uri="test://asset-and-time-locked-2", name="asset-and-time-locked-2")
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    with dag_maker(
+        dag_id="asset-and-time-locked",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=asset_1 & asset_2,
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+    asset_1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_1.uri))
+    asset_2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_2.uri))
+    session.add_all(
+        [
+            AssetDagRunQueue(
+                asset_id=asset_1_id,
+                target_dag_id=dag_model.dag_id,
+                created_at=timezone.utcnow(),
+            ),
+            AssetDagRunQueue(
+                asset_id=asset_2_id,
+                target_dag_id=dag_model.dag_id,
+                created_at=timezone.utcnow(),
+            ),
+        ]
+    )
+    session.flush()
+
+    job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+    def _lock_only_selected_row(query, **_):
+        if query.column_descriptions and query.column_descriptions[0].get("entity") is AssetDagRunQueue:
+            return query.where(AssetDagRunQueue.asset_id == asset_1_id)
+        return query
+
+    with patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=_lock_only_selected_row):
+        job_runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+
+    assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)) is None
+
+    remaining_adrq_asset_ids = set(
+        session.scalars(
+            select(AssetDagRunQueue.asset_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+        )
+    )
+    assert remaining_adrq_asset_ids == {asset_1_id, asset_2_id}
+
+
+@time_machine.travel("2026-03-29 22:40:00+00:00")
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_dags_needing_dagruns_asset_and_time_missing_assets_do_not_starve_time_dags(
+    session: Session, dag_maker
+):
+    asset = Asset(uri="test://asset-and-time-starvation", name="asset-and-time-starvation")
+    gated_logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    time_logical_date = pendulum.datetime(2026, 3, 29, 18, tz="UTC")
+    with dag_maker(
+        dag_id="asset-and-time-starvation",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    gated_dag_model = dag_maker.dag_model
+    gated_dag_model.next_dagrun = gated_logical_date
+    gated_dag_model.next_dagrun_data_interval = (gated_logical_date, gated_logical_date)
+    gated_dag_model.next_dagrun_create_after = gated_logical_date
+
+    with dag_maker(
+        dag_id="pure-time-after-gated",
+        schedule=CronTriggerTimetable("* * * * *", timezone="UTC"),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    time_dag_model = dag_maker.dag_model
+    time_dag_model.next_dagrun = time_logical_date
+    time_dag_model.next_dagrun_data_interval = (time_logical_date, time_logical_date)
+    time_dag_model.next_dagrun_create_after = time_logical_date
+    session.flush()
+
+    with mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1):
+        query, _ = DagModel.dags_needing_dagruns(session)
+
+    # The gated Dag has no queued assets, so it must not occupy the (mocked to 1)
+    # query limit slot even though its slot sorts first; the time Dag gets it.
+    assert [dag_model.dag_id for dag_model in query.all()] == [time_dag_model.dag_id]
 
 
 class TestSchedulerJobQueriesCount:
