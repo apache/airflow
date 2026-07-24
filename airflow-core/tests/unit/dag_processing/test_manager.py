@@ -2592,18 +2592,6 @@ class TestDagFileProcessorManager:
         call_kwargs = mock_process_start.call_args.kwargs
         assert call_kwargs["bundle_name"] == "testing"
 
-    @mock.patch("airflow.dag_processing.manager.stats.initialize")
-    def test_stats_initialize_called_on_run(self, stats_init_mock, tmp_path, configure_testing_dag_bundle):
-        """Test that stats.initialize() is called when DagFileProcessorManager.run() is executed."""
-        with configure_testing_dag_bundle(tmp_path):
-            manager = DagFileProcessorManager(max_runs=1)
-            manager.run()
-
-        # Verify stats.initialize was called with the expected configuration parameters
-        stats_init_mock.assert_called_once()
-        call_kwargs = stats_init_mock.call_args.kwargs
-        assert "factory" in call_kwargs
-
     def test_run_invokes_before_and_after_hooks(self, tmp_path, configure_testing_dag_bundle):
         """`run()` should call `before_run` then `after_run`, even if the loop raises."""
         with configure_testing_dag_bundle(tmp_path):
@@ -2635,7 +2623,7 @@ class TestDagFileProcessorManager:
             after_run_mock.assert_called_once_with()
 
     def test_prepare_server_process_context_can_be_skipped(self, tmp_path, configure_testing_dag_bundle):
-        """API-backed subclasses can skip server-context setup without losing selector/stats init."""
+        """API-backed subclasses can skip server-context setup without losing selector init."""
         with configure_testing_dag_bundle(tmp_path):
             manager = DagFileProcessorManager(max_runs=1)
             with mock.patch.object(manager, "prepare_server_process_context") as server_ctx_mock:

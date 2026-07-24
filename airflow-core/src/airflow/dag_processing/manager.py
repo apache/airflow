@@ -64,7 +64,6 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
-from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
@@ -387,15 +386,10 @@ class DagFileProcessorManager(LoggingMixin):
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
 
     def prepare_process_context(self) -> None:
-        """Initialize transport-neutral process state (selector, stats) before the parsing loop starts."""
+        """Initialize transport-neutral process state (selector) before the parsing loop starts."""
         # Initialization is delayed until here to avoid fork issues in some
         # selector implementations. Also see _StubSelector documentation.
         self.selector = selectors.DefaultSelector()
-
-        stats.initialize(
-            factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-        )
 
     def prepare_bundles(self) -> None:
         """Sync bundle configuration to the DB and load bundles for parsing."""

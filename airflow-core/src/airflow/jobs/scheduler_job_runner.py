@@ -108,7 +108,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
-from airflow.observability.metrics import stats_utils
 from airflow.partition_mappers.base import is_rollup
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
@@ -1667,13 +1666,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 executor.job_id = self.job.id
                 executor.callback_sink = callback_sink
                 executor.start()
-
-            # local import due to type_checking.
-
-            stats.initialize(
-                factory=stats_utils.get_stats_factory(),
-                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-            )
 
             self._run_scheduler_loop()
 
