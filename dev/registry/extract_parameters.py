@@ -89,6 +89,7 @@ class Module:
     provider_id: str
     provider_name: str
     supports_durable_execution: bool
+    supports_deferrable: bool
 
 
 def get_category(integration_name: str) -> str:
@@ -426,6 +427,11 @@ def is_durable_capable(cls: type, resumable_mixin: type | None) -> bool:
     return "execute_resumable" in source
 
 
+def supports_deferrable(cls: type) -> bool:
+    """Return True if a class exposes a `deferrable` constructor parameter."""
+    return "deferrable" in get_params_from_class(cls)
+
+
 def discover_classes_from_provider(
     provider_yaml_path: Path,
     base_classes: dict[str, type],
@@ -436,7 +442,7 @@ def discover_classes_from_provider(
     """Discover classes from a single provider by importing its modules at runtime.
 
     Reads the provider.yaml to find which modules/classes to inspect, imports them,
-    and returns metadata for each discovered class with all 12 Module fields.
+    and returns metadata for each discovered class with all 13 Module fields.
     """
     with open(provider_yaml_path) as f:
         provider_yaml = yaml.safe_load(f)
@@ -485,7 +491,7 @@ def discover_classes_from_provider(
         category: str = "",
         transfer_desc: str | None = None,
     ) -> dict:
-        """Build a full module entry dict with all 12 fields."""
+        """Build a full module entry dict with all fields."""
         module_name = module_path.split(".")[-1]
         docstring = _get_first_docstring_line(cls_or_obj)
         short_desc = docstring or transfer_desc or f"{integration} {module_type}".strip()
@@ -503,6 +509,7 @@ def discover_classes_from_provider(
             "provider_id": provider_id,
             "provider_name": provider_name,
             "supports_durable_execution": is_durable_capable(cls_or_obj, resumable_mixin),
+            "supports_deferrable": supports_deferrable(cls_or_obj),
         }
 
     discovered: list[dict] = []

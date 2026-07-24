@@ -111,6 +111,7 @@ class ModuleContract(BaseModel):
     provider_id: str | None = None
     provider_name: str | None = None
     supports_durable_execution: bool = False
+    supports_deferrable: bool = False
 
 
 class ModulesCatalogContract(BaseModel):
