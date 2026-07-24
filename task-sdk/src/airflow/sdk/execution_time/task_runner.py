@@ -2034,6 +2034,7 @@ def _handle_trigger_dag_run(
 
     if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
         ti.end_date = datetime.now(tz=UTC)
+        state: Literal[TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
         if drte.skip_when_already_exists:
             log.info(
                 "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
