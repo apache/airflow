@@ -178,6 +178,28 @@ class GetXComSliceFilterParams(BaseModel):
     include_prior_dates: bool = False
 
 
+def _sliced_or_empty(query: Select, low: int, high: int) -> Select:
+    """
+    Apply ``.slice(low, high)`` but return no rows when the bounds are crossed.
+
+    SQLAlchemy's ``Query.slice(low, high)`` compiles to::
+
+        OFFSET low
+        LIMIT (high - low)
+
+    It does not clamp a negative ``LIMIT``. A crossed slice (``high <= low``),
+    which Python evaluates as an empty sequence, therefore becomes backend-
+    dependent:
+
+    * SQLite interprets a negative ``LIMIT`` as "no limit", returning incorrect rows.
+    * PostgreSQL/MySQL reject the query because ``LIMIT`` cannot be negative.
+    """
+    if high <= low:
+        return query.limit(0)
+
+    return query.slice(low, high)
+
+
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
     description="Get XCom values from a mapped task by sequence slice",
@@ -235,9 +257,9 @@ def get_mapped_xcom_by_slice(
             if stop < 0:
                 stop += get_query_count(query, session=session)
             if step >= 0:
-                query = query.slice(start, stop)
+                query = _sliced_or_empty(query, start, stop)
             else:
-                query = query.slice(stop + 1, start + 1)
+                query = _sliced_or_empty(query, stop + 1, start + 1)
     else:
         query = query.order_by(XComModel.map_index.desc())
         step = -step
@@ -250,9 +272,9 @@ def get_mapped_xcom_by_slice(
             if stop >= 0:
                 stop -= get_query_count(query, session=session)
             if step > 0:
-                query = query.slice(-1 - start, -1 - stop)
+                query = _sliced_or_empty(query, -1 - start, -1 - stop)
             else:
-                query = query.slice(-stop, -start)
+                query = _sliced_or_empty(query, -stop, -start)
 
     values = [row.value for row in session.execute(query.with_only_columns(XComModel.value)).all()]
     if step != 1:
