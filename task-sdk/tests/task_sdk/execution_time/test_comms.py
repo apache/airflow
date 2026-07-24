@@ -339,3 +339,42 @@ class TestCommsDecoder:
         server2.join(timeout=2)
 
         assert result is not None
+
+    def test_read_frame_recovers_from_short_read_on_header(self):
+        msg = VariableResult(key="k", value="v", type="VariableResult")
+        payload = msgspec.msgpack.encode(_ResponseFrame(0, msg.model_dump(), None))
+        wire = len(payload).to_bytes(4, byteorder="big") + payload
+
+        class ChunkedSocket:
+            def __init__(self, data: bytes, chunk_size: int):
+                self._data = data
+                self._chunk_size = chunk_size
+                self._pos = 0
+
+            def setblocking(self, flag):
+                pass
+
+            def recv(self, n):
+                remaining = self._data[self._pos :]
+                if not remaining:
+                    return b""
+                chunk = remaining[: min(n, self._chunk_size)]
+                self._pos += len(chunk)
+                return chunk
+
+            def recv_into(self, buf):
+                remaining = self._data[self._pos :]
+                if not remaining:
+                    return 0
+                take = min(len(buf), self._chunk_size, len(remaining))
+                buf[:take] = remaining[:take]
+                self._pos += take
+                return take
+
+        sock = ChunkedSocket(wire, chunk_size=2)
+        decoder = CommsDecoder(socket=sock, log=None)
+
+        result = decoder._get_response()
+        assert isinstance(result, VariableResult)
+        assert result.key == "k"
+        assert result.value == "v"
