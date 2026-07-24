@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import importlib
 import re
-from unittest import mock
 
 import pytest
 
@@ -105,27 +104,24 @@ class TestDogStats:
         importlib.reload(airflow.observability.stats)
 
 
-class TestInitializeSdkStatsBackend:
+class TestInitializePropagatesToSdkSingleton:
     """
     Plugins/listeners typically get ``Stats`` via ``airflow.sdk.observability.stats`` (or the
-    deprecated ``airflow.stats`` shim, which re-exports it), a singleton separate from the one
-    this module initializes for internal use. ``initialize_sdk_stats_backend`` keeps that
-    singleton configured too, so plugin code works outside the task runner as well.
+    deprecated ``airflow.stats`` shim, which re-exports it) — a separate singleton from the one
+    this process initializes for its own internal use, because the two are loaded from the same
+    symlinked source under different module names. The shared ``initialize()`` implementation
+    propagates the configuration to that sibling singleton, so plugin code gets a working
+    backend outside the task runner too.
     """
 
     def test_configures_sdk_stats_singleton_with_this_process_backend(self):
         with conf_vars({("metrics", "statsd_on"): "True"}):
             importlib.reload(airflow.sdk.observability.stats)
-            stats_utils.initialize_sdk_stats_backend()
+            airflow.observability.stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+            )
             backend = airflow.sdk._shared.observability.metrics.stats._get_backend()
             assert hasattr(backend, "statsd")
+        importlib.reload(airflow.observability.stats)
         importlib.reload(airflow.sdk.observability.stats)
-
-    def test_uses_same_factory_and_legacy_names_flag_as_this_process(self):
-        with mock.patch("airflow.sdk.observability.stats.initialize") as mock_sdk_initialize:
-            stats_utils.initialize_sdk_stats_backend()
-
-        mock_sdk_initialize.assert_called_once_with(
-            factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-        )

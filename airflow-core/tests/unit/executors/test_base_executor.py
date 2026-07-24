@@ -72,12 +72,12 @@ def test_invalid_slotspool():
         BaseExecutor(0)
 
 
-@mock.patch("airflow.executors.base_executor.stats_utils.initialize_sdk_stats_backend")
-def test_init_initializes_sdk_stats_backend(sdk_stats_init_mock):
-    """The task-sdk Stats singleton (what plugins/listeners use) must be initialized too."""
-    BaseExecutor()
+@mock.patch("airflow.executors.base_executor.stats")
+def test_init_stats_failure_does_not_block_construction(mock_stats):
+    """A metrics misconfiguration must not prevent the executor from being constructed."""
+    mock_stats.initialize.side_effect = RuntimeError("boom")
 
-    sdk_stats_init_mock.assert_called_once()
+    BaseExecutor()
 
 
 def test_get_task_log():

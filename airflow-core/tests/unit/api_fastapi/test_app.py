@@ -24,7 +24,6 @@ from fastapi import FastAPI
 
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
-import airflow.sdk.observability.stats
 
 pytestmark = pytest.mark.db_test
 
@@ -181,7 +180,6 @@ class TestInitializeApiServerStats:
         sentinel_factory = object()
         with (
             mock.patch("airflow._shared.observability.metrics.stats") as mock_stats,
-            mock.patch.object(airflow.sdk.observability.stats, "initialize") as mock_sdk_initialize,
             mock.patch(
                 "airflow.observability.metrics.stats_utils.get_stats_factory",
                 return_value=sentinel_factory,
@@ -189,18 +187,11 @@ class TestInitializeApiServerStats:
         ):
             app_module._initialize_api_server_stats()
 
-            assert mock_get_factory.call_count == 2
+            assert mock_get_factory.call_count == 1
             mock_stats.initialize.assert_called_once()
             _, kwargs = mock_stats.initialize.call_args
             assert kwargs["factory"] is sentinel_factory
             assert isinstance(kwargs["export_legacy_names"], bool)
-
-            # Plugins/listeners get Stats via the task-sdk-backed singleton, a separate one
-            # from the API server's own — it must be initialized too, see initialize_sdk_stats_backend.
-            mock_sdk_initialize.assert_called_once()
-            _, sdk_kwargs = mock_sdk_initialize.call_args
-            assert sdk_kwargs["factory"] is sentinel_factory
-            assert isinstance(sdk_kwargs["export_legacy_names"], bool)
 
     def test_stats_failure_does_not_block_startup(self):
         """A metrics misconfiguration must not prevent the API server from starting."""

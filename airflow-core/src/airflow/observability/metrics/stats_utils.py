@@ -37,21 +37,3 @@ def get_stats_factory() -> Callable:
 
         return otel_logger.get_otel_logger
     return NoStatsLogger
-
-
-def initialize_sdk_stats_backend() -> None:
-    """
-    Initialize the task-sdk ``Stats`` singleton with this process's configured backend.
-
-    Plugins and listener hooks commonly get ``Stats`` via ``airflow.sdk.observability.stats``
-    (or the deprecated ``airflow.stats`` shim, which re-exports the same module). That module
-    is a separate singleton from the one this process initializes for its own internal use, so
-    it must be initialized here too, or plugin code silently falls back to ``NoStatsLogger`` in
-    any long-running component other than the task runner.
-    """
-    from airflow.sdk.observability import stats as sdk_stats  # noqa: SDK001
-
-    sdk_stats.initialize(
-        factory=get_stats_factory(),
-        export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-    )

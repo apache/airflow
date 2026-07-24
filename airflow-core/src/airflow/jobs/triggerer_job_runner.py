@@ -262,11 +262,16 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
         self.log.info("Starting the triggerer")
         self.register_signals()
-        stats.initialize(
-            factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-        )
-        stats_utils.initialize_sdk_stats_backend()
+        try:
+            stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+            )
+        except Exception:
+            self.log.warning(
+                "Failed to initialize Stats in the triggerer; metrics will not be recorded.",
+                exc_info=True,
+            )
         self.trigger_runner = None
         try:
             # Kick off runner sub-process without DB access

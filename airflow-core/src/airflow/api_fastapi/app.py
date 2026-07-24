@@ -86,7 +86,6 @@ def _initialize_api_server_stats() -> None:
             factory=stats_utils.get_stats_factory(),
             export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
         )
-        stats_utils.initialize_sdk_stats_backend()
     except Exception:
         log.warning(
             "Failed to initialize API server Stats in the API server; metrics emitted through the "

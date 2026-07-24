@@ -2592,11 +2592,8 @@ class TestDagFileProcessorManager:
         call_kwargs = mock_process_start.call_args.kwargs
         assert call_kwargs["bundle_name"] == "testing"
 
-    @mock.patch("airflow.dag_processing.manager.stats_utils.initialize_sdk_stats_backend")
     @mock.patch("airflow.dag_processing.manager.stats.initialize")
-    def test_stats_initialize_called_on_run(
-        self, stats_init_mock, sdk_stats_init_mock, tmp_path, configure_testing_dag_bundle
-    ):
+    def test_stats_initialize_called_on_run(self, stats_init_mock, tmp_path, configure_testing_dag_bundle):
         """Test that stats.initialize() is called when DagFileProcessorManager.run() is executed."""
         with configure_testing_dag_bundle(tmp_path):
             manager = DagFileProcessorManager(max_runs=1)
@@ -2607,8 +2604,14 @@ class TestDagFileProcessorManager:
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs
 
-        # The task-sdk Stats singleton (what plugins/listeners use) must be initialized too.
-        sdk_stats_init_mock.assert_called_once()
+    @mock.patch("airflow.dag_processing.manager.stats")
+    def test_stats_init_failure_does_not_block_run(self, mock_stats, tmp_path, configure_testing_dag_bundle):
+        """A metrics misconfiguration must not prevent the Dag processor from running."""
+        mock_stats.initialize.side_effect = RuntimeError("boom")
+
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager.run()
 
     def test_run_invokes_before_and_after_hooks(self, tmp_path, configure_testing_dag_bundle):
         """`run()` should call `before_run` then `after_run`, even if the loop raises."""

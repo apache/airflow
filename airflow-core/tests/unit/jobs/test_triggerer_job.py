@@ -2482,12 +2482,9 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
 
 
 class TestTriggererJobRunner:
-    @patch("airflow.jobs.triggerer_job_runner.stats_utils.initialize_sdk_stats_backend")
     @patch("airflow.jobs.triggerer_job_runner.stats.initialize")
     @patch.object(TriggerRunnerSupervisor, "start")
-    def test_stats_initialize_called_on_execute(
-        self, mock_supervisor_start, stats_init_mock, sdk_stats_init_mock, session
-    ):
+    def test_stats_initialize_called_on_execute(self, mock_supervisor_start, stats_init_mock, session):
         """Test that stats.initialize() is called when TriggererJobRunner._execute() is executed."""
         # Setup mock supervisor to immediately stop
         mock_supervisor = MagicMock()
@@ -2517,8 +2514,32 @@ class TestTriggererJobRunner:
         call_kwargs = stats_init_mock.call_args.kwargs
         assert "factory" in call_kwargs
 
-        # The task-sdk Stats singleton (what plugins/listeners use) must be initialized too.
-        sdk_stats_init_mock.assert_called_once()
+    @patch("airflow.jobs.triggerer_job_runner.stats")
+    @patch.object(TriggerRunnerSupervisor, "start")
+    def test_stats_init_failure_does_not_block_execute(self, mock_supervisor_start, mock_stats, session):
+        """A metrics misconfiguration must not prevent the triggerer from running."""
+        mock_stats.initialize.side_effect = RuntimeError("boom")
+
+        mock_supervisor = MagicMock()
+        mock_supervisor.stop = False
+        mock_supervisor._exit_code = None
+        mock_supervisor.is_alive.return_value = True
+        mock_supervisor.run.side_effect = lambda: setattr(mock_supervisor, "stop", True)
+        mock_supervisor_start.return_value = mock_supervisor
+
+        job = Job()
+        session.add(job)
+        session.flush()
+
+        job_runner = TriggererJobRunner(job)
+        job_runner.trigger_runner = mock_supervisor
+        mock_supervisor.stop = True  # Stop immediately
+
+        with patch.object(job_runner, "register_signals"):
+            with contextlib.suppress(Exception):
+                job_runner._execute()
+
+        mock_stats.initialize.assert_called_once()
 
     @patch.object(TriggerRunnerSupervisor, "start")
     def test_execute_sets_server_process_context(self, mock_supervisor_start, session, monkeypatch):

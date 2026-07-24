@@ -392,11 +392,16 @@ class DagFileProcessorManager(LoggingMixin):
         # selector implementations. Also see _StubSelector documentation.
         self.selector = selectors.DefaultSelector()
 
-        stats.initialize(
-            factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-        )
-        stats_utils.initialize_sdk_stats_backend()
+        try:
+            stats.initialize(
+                factory=stats_utils.get_stats_factory(),
+                export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+            )
+        except Exception:
+            self.log.warning(
+                "Failed to initialize Stats in the Dag processor; metrics will not be recorded.",
+                exc_info=True,
+            )
 
     def prepare_bundles(self) -> None:
         """Sync bundle configuration to the DB and load bundles for parsing."""
