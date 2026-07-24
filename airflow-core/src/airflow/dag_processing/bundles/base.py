@@ -360,6 +360,18 @@ class BaseDagBundle(ABC):
         After `initialize` has been called, all dag files in the bundle should be accessible from this path.
         """
 
+    @property
+    def parse_pythonpath(self) -> list[str]:
+        """
+        Extra ``sys.path`` entries to make importable when *parsing* this bundle's DAG files.
+
+        Override to return absolute paths (for example this bundle's own virtualenv ``site-packages``)
+        so that a single DAG processor can parse bundles that require different dependencies, each
+        against its own. The entries are prepended to ``sys.path`` in the parsing subprocess for this
+        bundle only. Empty by default, so parsing uses the DAG processor's environment unchanged.
+        """
+        return []
+
     @abstractmethod
     def get_current_version(self) -> str | BundleVersion | None:
         """

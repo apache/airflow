@@ -157,6 +157,54 @@ class TestDagFileProcessor:
         assert resp.import_errors is not None
         assert "a.py" in resp.import_errors
 
+    def test_parse_file_uses_bundle_pythonpath(self, tmp_path):
+        """A dep only on the bundle's ``parse_pythonpath`` is importable at parse for that bundle."""
+        site = tmp_path / "bundle_site"
+        (site / "mpdep").mkdir(parents=True)
+        (site / "mpdep" / "__init__.py").write_text("VALUE = 1\n")
+        dags = tmp_path / "dags"
+        dags.mkdir()
+        dag_file = dags / "needs_mpdep.py"
+        dag_file.write_text(
+            textwrap.dedent(
+                """
+                import datetime
+                import mpdep
+                from airflow import DAG
+                with DAG(dag_id="needs_mpdep", schedule=None,
+                         start_date=datetime.datetime(2024, 1, 1)):
+                    pass
+                """
+            )
+        )
+
+        def parse(bundle_pythonpath):
+            return _parse_file(
+                DagFileParseRequest(
+                    file=str(dag_file),
+                    bundle_path=dags,
+                    bundle_name="testing",
+                    bundle_pythonpath=bundle_pythonpath,
+                    callback_requests=[],
+                ),
+                log=structlog.get_logger(),
+            )
+
+        try:
+            # Without the bundle path, the dep is absent from the parse env -> import error.
+            without = parse([])
+            assert without is not None and not without.serialized_dags
+            assert any("mpdep" in e for e in (without.import_errors or {}).values())
+
+            # With the bundle's parse_pythonpath, the same file parses cleanly.
+            with_pp = parse([str(site)])
+            assert with_pp is not None
+            assert with_pp.serialized_dags
+            assert not with_pp.import_errors
+        finally:
+            sys.path[:] = [p for p in sys.path if p != str(site)]
+            sys.modules.pop("mpdep", None)
+
     def test_top_level_variable_access(
         self,
         spy_agency: SpyAgency,
