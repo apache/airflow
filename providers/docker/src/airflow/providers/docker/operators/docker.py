@@ -308,10 +308,9 @@ class DockerOperator(BaseOperator):
         self.mount_tmp_dir = mount_tmp_dir
         self.tmp_dir = tmp_dir
         self.user = user
-        mounts = [mount if isinstance(mount, Mount) else Mount(**mount) for mount in (mounts or [])]
-        self.mounts: list[Mount] = mounts
-        for mount in self.mounts:
-            mount.template_fields = ("Source", "Target", "Type")
+        # mounts is a template field; keep the raw dicts/Mounts so Jinja renders them (Mount is a
+        # dict subclass), and convert to Mount objects in execute() after rendering.
+        self.mounts = mounts or []
         self.entrypoint = entrypoint
         self.working_dir = working_dir
         self.xcom_all = xcom_all
@@ -490,6 +489,8 @@ class DockerOperator(BaseOperator):
             return lib.load(file)
 
     def execute(self, context: Context) -> list[str] | str | None:
+        # Convert the rendered mounts (raw dicts or Mounts) to Mount objects, now that rendering ran.
+        self.mounts = [m if isinstance(m, Mount) else Mount(**m) for m in self.mounts]
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info("::group::Pulling docker image %s", self.image)
