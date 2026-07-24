@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -68,6 +69,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -634,6 +636,8 @@ class DagRunOperations(BaseOperations):
         logical_date_gte: datetime.datetime | None = None,
         logical_date_lte: datetime.datetime | None = None,
         order_by: str | None = None,
+        *,
+        suppress_error_log: bool = False,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
         List dag runs (at most `limit` results).
@@ -647,6 +651,7 @@ class DagRunOperations(BaseOperations):
             logical_date_gte: Filter dag runs with a logical date greater than or equal to this value.
             logical_date_lte: Filter dag runs with a logical date less than or equal to this value.
             order_by: Order the results by the specified field.
+            suppress_error_log: Skip client-side error logging, for callers handling the error themselves.
         """
         # Use "~" for all DAGs if dag_id is not specified
         if not dag_id:
@@ -663,7 +668,11 @@ class DagRunOperations(BaseOperations):
         )
 
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns",
+                params=params,
+                extensions={"airflowctl_suppress_error_log": suppress_error_log},
+            )
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -748,6 +757,34 @@ class ProvidersOperations(BaseOperations):
     def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
+
+
+class TaskInstancesOperations(BaseOperations):
+    """Task instance operations."""
+
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances for a Dag run."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+        )
+
+
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
+
+    def clear(
+        self, dag_id: str, clear_task_instances: ClearTaskInstancesBody
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances of a Dag; with dry_run (the default) only previews the affected task instances."""
+        try:
+            self.response = self.client.post(
+                f"dags/{dag_id}/clearTaskInstances",
+                json=clear_task_instances.model_dump(mode="json", exclude_none=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
 
 class VariablesOperations(BaseOperations):
