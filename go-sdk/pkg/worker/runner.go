@@ -149,7 +149,7 @@ func (h *heartbeater) Run(
 			var httpError *api.GeneralHTTPError
 			if errors.As(err, &httpError) {
 				resp := httpError.Response
-				if resp != nil && resp.StatusCode() == 404 || resp.StatusCode() == 409 {
+				if resp != nil && (resp.StatusCode() == 404 || resp.StatusCode() == 409) {
 					h.logger.ErrorContext(
 						ctx,
 						"Server indicated the task shouldn't be running anymore",
