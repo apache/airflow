@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import time
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
@@ -194,7 +193,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
                         conn_id=self.conn_id,
                         batch_id=self.batch_id,
                         poll_interval=60,
-                        end_time=time.time() + self.timeout,
+                        timeout=self.timeout,
                     ),
                     method_name="execute_complete",
                 )
