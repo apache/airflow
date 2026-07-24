@@ -152,8 +152,8 @@ func RunTask(
 // convertArgBindings maps the wire-model positional-argument spec (captured from
 // the Python stub Dag's TaskFlow call) onto the runtime binding sum type. The
 // wire union generates untyped items (msgpack delivers each XComArgBinding /
-// LiteralArgBinding as a plain map), so the kind dispatch and the schema
-// default (data_type "any") are applied here.
+// LiteralArgBinding as a plain map), so the kind dispatch and the optional
+// value_schema fragment are unpacked here.
 func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) {
 	if specsPtr == nil || len(*specsPtr) == 0 {
 		return nil, nil
@@ -169,10 +169,7 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		if !ok || name == "" {
 			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
 		}
-		dataType := binding.DataTypeAny
-		if s, ok := m["data_type"].(string); ok && s != "" {
-			dataType = binding.DataType(s)
-		}
+		valueSchema := argValueSchema(m["value_schema"])
 		switch kind, _ := m["kind"].(string); kind {
 		case "xcom":
 			taskID, ok := m["task_id"].(string)
@@ -183,14 +180,19 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 					name,
 				)
 			}
-			args[i] = binding.XComArg{Kind: kind, Name: name, TaskID: taskID, DataType: dataType}
+			args[i] = binding.XComArg{
+				Kind:        kind,
+				Name:        name,
+				TaskID:      taskID,
+				ValueSchema: valueSchema,
+			}
 		case "literal":
 			fromDefault, _ := m["from_default"].(bool)
 			args[i] = binding.LiteralArg{
 				Kind:        kind,
 				Name:        name,
 				Value:       m["value"],
-				DataType:    dataType,
+				ValueSchema: valueSchema,
 				FromDefault: fromDefault,
 			}
 		default:
@@ -198,6 +200,21 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		}
 	}
 	return args, nil
+}
+
+// argValueSchema unpacks the optional value_schema fragment msgpack delivers as
+// a plain map into the generated ArgValueSchema type. A missing or empty
+// fragment yields nil, which the binding type check treats as unconstrained.
+func argValueSchema(raw any) *genmodels.ArgValueSchema {
+	m, ok := raw.(map[string]any)
+	if !ok || len(m) == 0 {
+		return nil
+	}
+	schema := make(genmodels.ArgValueSchema, len(m))
+	for k, v := range m {
+		schema[k] = v
+	}
+	return &schema
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form
