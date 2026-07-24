@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -159,6 +160,8 @@ def ti_run(
             TI.try_number,
             TI.max_tries,
             TI.start_date,
+            TI.queue,
+            TI.queued_dttm,
             TI.next_method,
             TI.hostname,
             TI.unixname,
@@ -242,6 +245,22 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
+        # Emit task.queued_duration on a real QUEUED -> RUNNING transition. The scheduler
+        # refreshes queued_dttm every time it queues a task, so utcnow() - queued_dttm is a
+        # meaningful queue wait for first runs and retries alike (a retry is a new try that
+        # genuinely waited in the queue) — mirroring the legacy emit that fired on every
+        # transition to RUNNING. Only resumes from deferral are skipped, identified by
+        # next_method (the trigger sets it on resume), to avoid re-emitting within the same
+        # try — this matches how the endpoint already detects deferral resumes via
+        # next_kwargs / next_method.
+        # The registry-based legacy name dag.<dag_id>.<task_id>.queued_duration is
+        # emitted automatically by stats.timing via metrics_template.yaml.
+        if ti.queued_dttm is not None and ti.next_method is None:
+            stats.timing(
+                "task.queued_duration",
+                timezone.utcnow() - ti.queued_dttm,
+                tags={"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": ti.queue},
+            )
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
         end_date=None,
