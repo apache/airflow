@@ -874,7 +874,6 @@ class TestDockerOperator:
                 Mount(target="/logs", source="logs", type="volume"),
             ],
         )
-        # __init__ keeps the raw input; execute() normalizes to Mount objects.
         assert not isinstance(op.mounts[0], Mount)
 
         op.execute(None)
@@ -898,5 +897,4 @@ class TestDockerOperator:
             ],
         )
         rendered = ti.render_templates()
-        # Raw dict keeps its lowercase input keys through rendering; execute() converts to Mount.
         assert rendered.mounts[0]["target"] == f"/{ti.run_id}"
