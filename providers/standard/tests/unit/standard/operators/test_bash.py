@@ -28,6 +28,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.providers.standard.hooks.subprocess import SubprocessResult
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -281,6 +282,22 @@ class TestBashOperator:
         task = ti.render_templates(context=context)
         assert task.bash_command == 'echo "test_templated_fields_dag"'
         assert task.cwd == Path(__file__).absolute().parent.as_posix()
+
+    @mock.patch.object(BashOperator, "_run_inline_command")
+    @mock.patch.object(
+        BashOperator, "_run_rendered_script_file", return_value=SubprocessResult(exit_code=0, output="ok")
+    )
+    def test_execute_detects_script_after_bash_command_is_rendered(
+        self, mock_run_rendered_script_file, mock_run_inline_command, context
+    ):
+        op = BashOperator(task_id="abc", bash_command="{{ bash_script }}")
+        op.bash_command = "sample.sh"
+
+        result = op.execute(context)
+
+        assert result == "ok"
+        mock_run_rendered_script_file.assert_called_once()
+        mock_run_inline_command.assert_not_called()
 
     @pytest.mark.db_test
     def test_templated_bash_script(self, dag_maker, create_task_instance_of_operator, tmp_path, session):
