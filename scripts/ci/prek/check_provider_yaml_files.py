@@ -27,7 +27,8 @@ import pathlib
 import sys
 
 from common_prek_utils import (
-    KNOWN_SECOND_LEVEL_PATHS,
+    AIRFLOW_PROVIDERS_ROOT_PATH,
+    get_provider_base_dir_from_path,
     initialize_breeze_prek,
     run_command_via_breeze_run,
     validate_cmd_result,
@@ -47,10 +48,7 @@ def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
 
     All paths are relative to the ``providers/`` directory, as supplied by
     prek.  The first path segment is the provider package name
-    (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``), except for
-    namespace packages in ``KNOWN_SECOND_LEVEL_PATHS`` (e.g. ``apache``,
-    ``common``), which nest an extra level (e.g.
-    ``apache/beam/src/airflow/...`` → ``apache/beam/provider.yaml``).
+    (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``).
     """
     result: set[str] = set()
     for f in raw_files:
@@ -58,15 +56,10 @@ def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
         if p.name == "provider.yaml":
             result.add(f)
         else:
-            # Map any Python file to the provider.yaml of its package root.
-            # Path structure: <provider-pkg>/<rest...>
-            # e.g. samba/src/airflow/providers/samba/hooks/samba.py
-            parts = p.parts
-            if parts:
-                if parts[0] in KNOWN_SECOND_LEVEL_PATHS and len(parts) > 1:
-                    result.add(f"{parts[0]}/{parts[1]}/provider.yaml")
-                else:
-                    result.add(f"{parts[0]}/provider.yaml")
+            provider_base_dir = get_provider_base_dir_from_path(AIRFLOW_PROVIDERS_ROOT_PATH / p)
+            if provider_base_dir is not None:
+                provider_yaml = provider_base_dir / "provider.yaml"
+                result.add(provider_yaml.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH).as_posix())
     return sorted(result)
 
 
