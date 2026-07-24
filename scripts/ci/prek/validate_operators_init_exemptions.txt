@@ -13,7 +13,6 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::EcsRunTaskOp
 providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::EmrAddStepsOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStartDbClusterOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStopDbClusterOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/s3.py::S3DeleteObjectsOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker.py::SageMakerCreateNotebookOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker.py::SageMakerProcessingOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/step_function.py::StepFunctionStartExecutionOperator
@@ -38,7 +37,6 @@ providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py::Cl
 providers/google/src/airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py::CloudDataTransferServiceCreateJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/compute.py::ComputeEngineCopyInstanceTemplateOperator
 providers/google/src/airflow/providers/google/cloud/operators/compute.py::ComputeEngineDeleteInstanceGroupManagerOperator
-providers/google/src/airflow/providers/google/cloud/operators/compute.py::ComputeEngineDeleteInstanceOperator
 providers/google/src/airflow/providers/google/cloud/operators/compute.py::ComputeEngineDeleteInstanceTemplateOperator
 providers/google/src/airflow/providers/google/cloud/operators/compute.py::ComputeEngineInsertInstanceFromTemplateOperator
 providers/google/src/airflow/providers/google/cloud/operators/compute.py::ComputeEngineInsertInstanceGroupManagerOperator

@@ -565,11 +565,7 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
-
-        if validate_body:
-            self._field_validator = GcpBodyFieldValidator(
-                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
-            )
+        self._validate_body = validate_body
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
@@ -587,6 +583,10 @@ class ComputeEngineDeleteInstanceOperator(ComputeEngineBaseOperator):
             raise AirflowException("The required parameter 'resource_id' is missing. ")
 
     def execute(self, context: Context) -> None:
+        if self._validate_body:
+            self._field_validator = GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=self.api_version
+            )
         hook = ComputeEngineHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

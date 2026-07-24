@@ -1118,19 +1118,22 @@ class TestS3DeleteObjectsOperator:
             pytest.param(None, None, None, None, id="all-none"),
         ],
     )
-    def test_validate_keys_and_filters_in_constructor(self, keys, prefix, from_datetime, to_datetime):
-        with pytest.raises(
-            AirflowException,
-            match=r"Either keys or at least one of prefix, from_datetime, to_datetime should be set.",
-        ):
-            S3DeleteObjectsOperator(
-                task_id="test_validate_keys_and_prefix_in_constructor",
-                bucket="foo-bar-bucket",
-                keys=keys,
-                prefix=prefix,
-                from_datetime=from_datetime,
-                to_datetime=to_datetime,
-            )
+    def test_no_validation_in_constructor(self, keys, prefix, from_datetime, to_datetime):
+        # Template fields are rendered after __init__, so keys/prefix/from_datetime/to_datetime
+        # must not be validated in the constructor — construction must succeed even for combinations
+        # that are invalid once rendered (validation happens in execute()).
+        op = S3DeleteObjectsOperator(
+            task_id="test_no_validation_in_constructor",
+            bucket="foo-bar-bucket",
+            keys=keys,
+            prefix=prefix,
+            from_datetime=from_datetime,
+            to_datetime=to_datetime,
+        )
+        assert op.keys == keys
+        assert op.prefix == prefix
+        assert op.from_datetime == from_datetime
+        assert op.to_datetime == to_datetime
 
     @pytest.mark.parametrize(
         ("keys", "prefix", "from_datetime", "to_datetime"),
@@ -1162,17 +1165,14 @@ class TestS3DeleteObjectsOperator:
         conn.create_bucket(Bucket=bucket)
         conn.upload_fileobj(Bucket=bucket, Key=key_of_test, Fileobj=BytesIO(b"input"))
 
-        # Set valid values for constructor, and change them later for emulate rendering template
         op = S3DeleteObjectsOperator(
             task_id="test_validate_keys_and_prefix_in_execute",
             bucket=bucket,
-            keys="keys-exists",
-            prefix=None,
+            keys=keys,
+            prefix=prefix,
+            from_datetime=from_datetime,
+            to_datetime=to_datetime,
         )
-        op.keys = keys
-        op.prefix = prefix
-        op.from_datetime = from_datetime
-        op.to_datetime = to_datetime
 
         # The object should be detected before the DELETE action is tested
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_of_test)
