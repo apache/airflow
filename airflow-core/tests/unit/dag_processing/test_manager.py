@@ -2726,6 +2726,34 @@ class TestDagFileProcessorManager:
 
         assert state == BundleState(last_refreshed=refreshed_at, version="v1")
 
+    def test_get_bundle_state_reads_latest_database_values(self, session):
+        bundle_name = "test_fresh_state_bundle"
+        initial_refreshed_at = timezone.datetime(2024, 1, 15, 12, 0, 0)
+        refreshed_at = timezone.datetime(2024, 1, 16, 12, 0, 0)
+        model = DagBundleModel(name=bundle_name, version="old")
+        model.last_refreshed = initial_refreshed_at
+        session.add(model)
+        session.commit()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=initial_refreshed_at, version="old")
+
+        with create_session(scoped=False) as update_session:
+            update_model = update_session.get(DagBundleModel, bundle_name)
+            assert update_model is not None
+            update_model.last_refreshed = refreshed_at
+            update_model.version = "fresh"
+
+        # End the read transaction started by the first get_bundle_state() call so we don't keep
+        # reading a stale snapshot on backends like SQLite.
+        session.commit()
+
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=refreshed_at, version="fresh")
+
     def test_get_bundle_state_null_fields(self, session):
         bundle_name = "test_null_state_bundle"
         session.add(DagBundleModel(name=bundle_name))

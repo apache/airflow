@@ -25,6 +25,25 @@
 Changelog
 ---------
 
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Quote file paths in Teradata TPT shell commands and pass the openssl passphrase via stdin (#69380)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Refactor Teradata provider tests to remove legacy unittest imports (#68190)``
+
+
 3.6.0
 .....
 

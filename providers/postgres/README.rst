@@ -96,7 +96,7 @@ Extra                Dependencies
 ``openlineage``      ``apache-airflow-providers-openlineage``
 ``pandas``           ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``polars``           ``polars>=1.26.0``
-``psycopg2``         ``psycopg2-binary>=2.9.9; python_version < "3.13"``, ``psycopg2-binary>=2.9.10; python_version >= "3.13"``
+``psycopg2``         ``psycopg2-binary>=2.9.9; python_version < '3.13'``, ``psycopg2-binary>=2.9.10; python_version >= '3.13'``
 ``sqlalchemy``       ``sqlalchemy>=1.4.54``
 ===================  ============================================================================================================================================================
 
