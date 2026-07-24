@@ -118,7 +118,6 @@ class PsrpOperator(BaseOperator):
         self.psrp_session_init = psrp_session_init
 
     def execute(self, context: Context) -> list[Any] | None:
-        # These are template fields; validate their combination after rendering, not in __init__.
         if not exactly_one(*{self.command, self.powershell, self.cmdlet}):
             raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
         if self.arguments and not (self.powershell or self.cmdlet):
