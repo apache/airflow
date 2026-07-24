@@ -66,6 +66,12 @@
   --color-bundle: #0ea5e9;
   --color-decorator: #d946ef;
   --color-toolset: #84cc16;
+  --color-extra_link: #06b6d4;
+  --color-queue: #eab308;
+  --color-plugin: #8b5cf6;
+  --color-auth_manager: #ef4444;
+  --color-db_manager: #10b981;
+  --color-dialect: #f472b6;
 
   /* Additional Colors */
   --color-green-400: #4ade80;

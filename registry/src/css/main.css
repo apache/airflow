@@ -3066,6 +3066,55 @@ main {
 .tab-icon.bundle { background: rgb(from var(--color-bundle) r g b / 0.2); color: var(--color-bundle); }
 .tab-icon.decorator { background: rgb(from var(--color-decorator) r g b / 0.2); color: var(--color-decorator); }
 .tab-icon.toolset { background: rgb(from var(--color-toolset) r g b / 0.2); color: var(--color-toolset); }
+.tab-icon.extra_link { background: rgb(from var(--color-extra_link) r g b / 0.2); color: var(--color-extra_link); }
+.tab-icon.queue { background: rgb(from var(--color-queue) r g b / 0.2); color: var(--color-queue); }
+.tab-icon.plugin { background: rgb(from var(--color-plugin) r g b / 0.2); color: var(--color-plugin); }
+.tab-icon.auth_manager { background: rgb(from var(--color-auth_manager) r g b / 0.2); color: var(--color-auth_manager); }
+.tab-icon.db_manager { background: rgb(from var(--color-db_manager) r g b / 0.2); color: var(--color-db_manager); }
+.tab-icon.dialect { background: rgb(from var(--color-dialect) r g b / 0.2); color: var(--color-dialect); }
+
+/* Module Tabs "More" overflow menu */
+.module-tab-more {
+  position: relative;
+}
+
+.module-tab-more-btn {
+  display: inline-flex;
+}
+
+.module-tab-more-btn svg {
+  width: 1rem;
+  height: 1rem;
+  transition: transform var(--transition-base);
+}
+
+.module-tab-more-btn[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.module-tab-more-menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 12rem;
+  padding: var(--space-2);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.module-tab-more-menu[hidden] {
+  display: none;
+}
+
+.module-tab-more-menu .module-tab {
+  justify-content: flex-start;
+}
 
 /* Modules Layout (sidebar + content) */
 .modules-layout {

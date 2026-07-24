@@ -109,6 +109,48 @@ MODULE_TYPES: dict[str, dict] = {
         "label": "Toolsets",
         "icon": "U",
     },
+    "extra_link": {
+        "yaml_key": "extra-links",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Extra Links",
+        "icon": "I",
+    },
+    "queue": {
+        "yaml_key": "queues",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Message Queues",
+        "icon": "Q",
+    },
+    "plugin": {
+        "yaml_key": "plugins",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Plugins",
+        "icon": "P",
+    },
+    "auth_manager": {
+        "yaml_key": "auth-managers",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Auth Managers",
+        "icon": "A",
+    },
+    "db_manager": {
+        "yaml_key": "db-managers",
+        "level": "flat",
+        "suffixes": [],
+        "label": "DB Managers",
+        "icon": "D",
+    },
+    "dialect": {
+        "yaml_key": "dialects",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Dialects",
+        "icon": "C",
+    },
 }
 
 # Runtime base class imports for issubclass checks (extract_parameters.py).
@@ -139,11 +181,27 @@ TYPE_SUFFIXES: dict[str, list[str]] = {type_id: info["suffixes"] for type_id, in
 
 # Class-level sections used by extract_parameters.py (subset of flat that
 # list full class paths rather than simple entries).
+#
+# "plugins" and "dialects" are also flat/class-path sections, but each entry is a
+# dict (plugin-class / dialect-class-name) rather than a bare string, so they are
+# handled by their own loops in extract_parameters.py instead of this generic one.
 CLASS_LEVEL_SECTIONS: dict[str, str] = {
     "notifications": "notifier",
     "secrets-backends": "secret",
     "logging": "logging",
     "executors": "executor",
+    "extra-links": "extra_link",
+    "queues": "queue",
+    "auth-managers": "auth_manager",
+    "db-managers": "db_manager",
+}
+
+# Maps yaml section key -> category string for class-level (FQCN) sections.
+# Only lists yaml keys whose category differs from the key itself. Callers
+# fall back to the yaml key via .get(section_name, section_name) for every
+# other key, including ones like "notifications" where key == category.
+CLASS_LEVEL_CATEGORY_OVERRIDES: dict[str, str] = {
+    "secrets-backends": "secrets",
 }
 
 # All type ids, ordered consistently.

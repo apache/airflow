@@ -30,6 +30,7 @@ from extract_parameters import (
     Module,
     _get_source_line,
     _parse_requested_providers,
+    _resolve_dotted_path,
     _should_skip_class,
     compare_with_ast,
     discover_classes_from_provider,
@@ -1062,3 +1063,31 @@ class TestParseRequestedProviders:
 
     def test_duplicate_providers_collapsed(self):
         assert _parse_requested_providers("amazon amazon google") == {"amazon", "google"}
+
+
+class TestResolveDottedPath:
+    @pytest.mark.parametrize(
+        "class_path",
+        (
+            "no_dot_here",
+            "this.module.does.not.exist.at.all.Foo",
+        ),
+    )
+    def test__resolve_dotted_path_returns_none(self, class_path: str):
+        assert _resolve_dotted_path(class_path) is None
+
+    @pytest.mark.parametrize(
+        ("class_path", "expected"),
+        (
+            (
+                "extract_parameters.ThisAttrDoesNotExist",
+                ("extract_parameters", "ThisAttrDoesNotExist", None),
+            ),
+            (
+                "extract_parameters.get_category",
+                ("extract_parameters", "get_category", get_category),
+            ),
+        ),
+    )
+    def test__resolve_dottted_path(self, class_path: str, expected: tuple[str, str, object]):
+        assert _resolve_dotted_path(class_path) == expected
