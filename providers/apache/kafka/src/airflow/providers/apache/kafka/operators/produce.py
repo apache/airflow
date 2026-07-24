@@ -23,7 +23,7 @@ from typing import Any
 
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 
 local_logger = logging.getLogger("airflow")
 
@@ -58,7 +58,7 @@ class ProduceToTopicOperator(BaseOperator):
     :param synchronous: If writes to kafka should be fully synchronous, defaults to True
     :param poll_timeout: How long of a delay should be applied when calling poll after production to kafka,
         defaults to 0
-    :raises AirflowException: _description_
+    :raises ValueError: If ``topic`` or ``producer_function`` is not provided.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -100,15 +100,13 @@ class ProduceToTopicOperator(BaseOperator):
         self.synchronous = synchronous
         self.poll_timeout = poll_timeout
 
+    def execute(self, context) -> None:
         if not (self.topic and self.producer_function):
-            raise AirflowException(
+            raise ValueError(
                 "topic and producer_function must be provided. Got topic="
                 f"{self.topic} and producer_function={self.producer_function}"
             )
 
-        return
-
-    def execute(self, context) -> None:
         # Get producer and callable
         producer = KafkaProducerHook(kafka_config_id=self.kafka_config_id).get_producer()
 
