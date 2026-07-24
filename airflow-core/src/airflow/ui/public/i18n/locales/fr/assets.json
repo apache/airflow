@@ -3,6 +3,22 @@
   "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "assetStateStore": {
+    "add": "Ajouter un Stockage d'état d'Asset",
+    "clearAll": {
+      "resource": "tout le stockage d'état d'Asset",
+      "title": "Effacer tout le Stockage d'état d'Asset",
+      "warning": "Tout le stockage d'état d'Asset sera effacé. Les tâches qui utilisent ce stockage pour coordonner leur travail perdront leur mémoire persistée."
+    },
+    "delete": "Supprimer le Stockage d'état d'Asset",
+    "deleteWarning": "L'Asset perdra cette entrée de stockage d'état persistée.",
+    "edit": "Modifier le Stockage d'état d'Asset",
+    "emptyState": "Le stockage d'état d'Asset stocke des valeurs liées à l'identité d'un Asset, partagées entre toutes les exécutions de Dag. Les workers peuvent écrire dans le stockage d'état d'Asset via le Task SDK.",
+    "lastUpdatedBy": "Dernière mise à jour par",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Stockage d'état d'Asset"
+  },
   "consumingDags": "Dags consomatteurs",
   "consumingTasks": "Tâches consommatrices",
   "createEvent": {
@@ -26,6 +42,7 @@
     },
     "title": "Créer un événement d'Asset pour {{name}}"
   },
+  "events": "Événements",
   "extra": "Extra",
   "group": "Group",
   "lastAssetEvent": "Dernier événement d'Asset",
