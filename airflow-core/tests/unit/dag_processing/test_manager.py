@@ -45,6 +45,7 @@ from uuid6 import uuid7
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import (
@@ -83,6 +84,18 @@ pytestmark = pytest.mark.db_test
 
 logger = logging.getLogger(__name__)
 TEST_DAG_FOLDER = Path(__file__).parents[1].resolve() / "dags"
+
+
+class _HealthControlledDagBundle(LocalDagBundle):
+    """LocalDagBundle that fails to instantiate unless its health file contains "ok"."""
+
+    def __init__(self, *, health_file: str, **kwargs) -> None:
+        state = Path(health_file).read_text().strip()
+        if state != "ok":
+            raise RuntimeError(f"simulated {state}")
+        super().__init__(**kwargs)
+
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
@@ -1085,6 +1098,77 @@ class TestDagFileProcessorManager:
             ).all()
         )
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+
+    def test_transient_bundle_creation_error_keeps_bundle_active_and_dags_fresh(self, tmp_path):
+        """A bundle failing to instantiate with transient error must not be deactivated."""
+        dags_dir = tmp_path / "dags"
+        dags_dir.mkdir()
+        (dags_dir / "good_dag.py").write_text(
+            textwrap.dedent(
+                """
+                from airflow.providers.standard.operators.empty import EmptyOperator
+                from airflow.sdk import DAG
+
+                with DAG(dag_id="dag_in_flaky_bundle", schedule=None):
+                    EmptyOperator(task_id="noop")
+                """
+            )
+        )
+        (dags_dir / "broken_dag.py").write_text("an invalid airflow DAG")
+        health_file = tmp_path / "health.txt"
+
+        bundle_config = [
+            {
+                "name": "flaky-bundle",
+                "classpath": f"{__name__}._HealthControlledDagBundle",
+                "kwargs": {
+                    "path": str(dags_dir),
+                    "health_file": str(health_file),
+                    "refresh_interval": 0,
+                },
+            }
+        ]
+
+        def get_db_state():
+            with create_session() as session:
+                active = session.scalar(
+                    select(DagBundleModel.active).where(DagBundleModel.name == "flaky-bundle")
+                )
+                fresh_dags = session.scalar(
+                    select(func.count())
+                    .select_from(DagModel)
+                    .where(DagModel.bundle_name == "flaky-bundle", ~DagModel.is_stale)
+                )
+                import_errors = session.scalar(select(func.count()).select_from(ParseImportError))
+            return active, fresh_dags, import_errors
+
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+            # Phase 1: misconfigured from day one — sync never succeeds, so no bundle row exists at all
+            health_file.write_text("misconfiguration")
+            DagFileProcessorManager(max_runs=1, processor_timeout=365 * 86_400).run()
+            assert get_db_state() == (None, 0, 0)
+
+            # Phase 2: healthy restart — the bundle row appears and Dags get parsed
+            health_file.write_text("ok")
+            DagFileProcessorManager(max_runs=1, processor_timeout=365 * 86_400).run()
+            assert get_db_state() == (True, 1, 1)
+
+            # Phase 3: restart with transient connection error — must not deactivate the bundle
+            health_file.write_text("transient connection error")
+            DagFileProcessorManager(max_runs=1, processor_timeout=365 * 86_400).run()
+            assert get_db_state() == (True, 1, 1)
+
+            # Phase 4: healthy again
+            health_file.write_text("ok")
+            DagFileProcessorManager(max_runs=1, processor_timeout=365 * 86_400).run()
+            assert get_db_state() == (True, 1, 1)
+
+        # Phase 5: removing the (again failing) bundle from config must follow the removal
+        # path: deactivate it, mark its Dags stale, and drop its import errors.
+        health_file.write_text("transient connection error")
+        with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps([])}):
+            DagFileProcessorManager(max_runs=1, processor_timeout=365 * 86_400).run()
+            assert get_db_state() == (False, 0, 0)
 
     @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
     @pytest.mark.usefixtures("testing_dag_bundle")
