@@ -1060,8 +1060,8 @@ Dags, and global components emit the same metrics without a ``team_name`` tag.
 
 The ``team_name`` tag is applied to metrics across the following components:
 
-- **Triggerer**: heartbeat, capacity, and trigger-outcome metrics (for example, ``triggerer_heartbeat``,
-  ``triggers.running``, ``triggers.succeeded``).
+- **Triggerer**: heartbeat, capacity, trigger-queue delay, and trigger-outcome metrics (for example,
+  ``triggerer_heartbeat``, ``triggers.running``, ``triggers.succeeded``, ``triggerer.trigger_queue_delay``).
 - **Executors**: executor slot gauges (for example, ``executor.open_slots``, ``executor.queued_tasks``).
 - **Scheduler**: pool slot gauges for team-scoped pools plus task- and asset-scheduling counters (for
   example, ``pool.open_slots``, ``scheduler.tasks.killed_externally``, ``asset.triggered_dagruns``).
@@ -1076,9 +1076,10 @@ The ``team_name`` tag is applied to metrics across the following components:
 
 .. note::
 
-    Only metrics emitted by Airflow core carry the ``team_name`` tag in 3.3; provider-specific metrics
-    were not updated for this release. Provider executors are an exception: their ``executor.*`` slot
-    gauges are tagged because they inherit them from the core base executor.
+    Provider-specific metrics are also tagged where the provider carries a team identity (for example,
+    team-scoped executor and worker metrics). Provider executors additionally inherit core
+    ``executor.*`` slot gauges from the base executor. Check individual provider change logs for the
+    minimum Airflow version that includes ``team_name`` tagging.
 
 Important Considerations
 ------------------------
