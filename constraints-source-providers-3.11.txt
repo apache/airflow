@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-23T20:10:27.367836
+# This constraints file was automatically generated on 2026-07-24T08:28:38.333213
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -108,7 +108,7 @@ azure-datalake-store==0.0.53
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.0
 azure-kusto-data==6.0.4
-azure-mgmt-compute==38.1.0
+azure-mgmt-compute==38.2.0
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==15.0.0
 azure-mgmt-core==1.6.0
@@ -118,7 +118,7 @@ azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==26.0.0
-azure-mgmt-storage==25.0.0
+azure-mgmt-storage==25.1.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.3
 azure-storage-blob==12.30.0
@@ -135,7 +135,7 @@ bcrypt==5.0.0
 beartype==0.22.9
 beautifulsoup4==4.15.0
 billiard==4.2.4
-bitarray==3.9.0
+bitarray==3.9.1
 black==26.5.1
 bleach==6.4.0
 blinker==1.9.0
@@ -211,11 +211,11 @@ facebook_business==25.0.3
 fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.1.1
+fastcore==2.1.3
 fastjsonschema==2.21.2
 fastmcp-slim==3.4.4
 fastuuid==0.14.0
-filelock==3.31.0
+filelock==3.31.1
 filetype==1.2.0
 flask-appbuilder==5.2.2
 flask-babel==4.0.0
@@ -274,7 +274,7 @@ google-cloud-redis==2.22.0
 google-cloud-resource-manager==1.18.0
 google-cloud-run==0.16.1
 google-cloud-secret-manager==2.30.0
-google-cloud-spanner==3.69.0
+google-cloud-spanner==3.59.0
 google-cloud-speech==2.40.0
 google-cloud-storage-control==1.12.0
 google-cloud-storage-transfer==1.21.0
@@ -361,7 +361,7 @@ jeepney==0.9.0
 jiter==0.16.0
 jmespath==1.1.0
 joblib==1.5.3
-joserfc==1.7.3
+joserfc==1.7.4
 jpype1==1.7.1
 jsonpatch==1.33
 jsonpath-ng==1.8.0
@@ -476,7 +476,6 @@ opentelemetry-exporter-otlp-proto-http==1.44.0
 opentelemetry-exporter-otlp==1.44.0
 opentelemetry-exporter-prometheus==0.65b0
 opentelemetry-proto==1.44.0
-opentelemetry-resourcedetector-gcp==1.12.0a0
 opentelemetry-sdk==1.44.0
 opentelemetry-semantic-conventions==0.65b0
 opsgenie-sdk==2.1.5
@@ -605,7 +604,7 @@ readme_renderer==45.0
 redis==6.4.0
 redshift_connector==2.1.15
 referencing==0.37.0
-regex==2026.7.10
+regex==2026.7.19
 requests-file==3.0.1
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -652,7 +651,7 @@ snowflake-connector-python==4.7.1
 snowflake-snowpark-python==1.53.1
 snowflake-sqlalchemy==1.11.0
 sortedcontainers==2.4.0
-soupsieve==2.8.4
+soupsieve==2.9
 sphinx-argparse==0.6.0
 sphinx-autoapi==3.8.0
 sphinx-autobuild==2025.8.25
@@ -666,7 +665,7 @@ sphinxcontrib-htmlhelp==2.1.0
 sphinxcontrib-httpdomain==2.0.0
 sphinxcontrib-jquery==4.1
 sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-mermaid==2.0.3
+sphinxcontrib-mermaid==2.1.0
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-serializinghtml==2.0.0
 sphinxcontrib-spelling==8.0.2
@@ -769,7 +768,7 @@ xxhash==3.8.1
 yamllint==1.38.0
 yandex-query-client==0.1.4
 yandexcloud==0.399.0
-yarl==1.24.2
+yarl==1.24.5
 ydb-dbapi==0.1.22
 ydb==3.30.0
 zeep==4.3.3
