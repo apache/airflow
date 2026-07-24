@@ -4458,11 +4458,8 @@ class TestSchedulerJob:
 
         self.job_runner._do_scheduling(session)
 
-        # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
-        self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
-        assert call_args[0].dag_id == dr.dag_id
-        assert call_args[1] is None
+        # Verify Callback is not sent to processor when no callbacks are defined on DAG
+        self.job_runner._send_dag_callbacks_to_processor.assert_not_called()
 
         session.rollback()
 
@@ -4491,7 +4488,7 @@ class TestSchedulerJob:
 
         self.job_runner._do_scheduling(session)
 
-        # Verify Callback is set (i.e is None) when no callbacks are set on DAG
+        # Verify Callback is sent to processor when callbacks are defined on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
         call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
