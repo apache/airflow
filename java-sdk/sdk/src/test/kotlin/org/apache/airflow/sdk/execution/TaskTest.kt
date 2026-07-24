@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk.execution
 
+import kotlinx.coroutines.yield
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
@@ -32,6 +33,8 @@ import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TIRunContext
 import org.apache.airflow.sdk.execution.comm.TaskInstance
 import org.apache.airflow.sdk.execution.comm.TaskState
+import org.apache.airflow.sdk.kotlin.AsyncClient
+import org.apache.airflow.sdk.kotlin.AsyncTask
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -42,7 +45,7 @@ class TaskTest {
   @Test
   @DisplayName("Should execute task and return success")
   fun shouldExecuteTaskAndReturnSuccess() {
-    val result = runTask(bundleWith("success", SuccessTask::class.java), startupDetails(taskId = "success"), noOpClient())
+    val result = runTask(bundleWith("success", SuccessTask::class.java), startupDetails(taskId = "success"))
 
     Assertions.assertInstanceOf(SucceedTask::class.java, result)
   }
@@ -50,7 +53,7 @@ class TaskTest {
   @Test
   @DisplayName("Should return removed when task is missing")
   fun shouldReturnRemovedWhenTaskIsMissing() {
-    val result = runTask(bundleWith("other", SuccessTask::class.java), startupDetails(taskId = "missing"), noOpClient())
+    val result = runTask(bundleWith("other", SuccessTask::class.java), startupDetails(taskId = "missing"))
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals(TaskState.State.REMOVED, (result as TaskState).state)
@@ -59,7 +62,7 @@ class TaskTest {
   @Test
   @DisplayName("Should return failed when task throws")
   fun shouldReturnFailedWhenTaskThrows() {
-    val result = runTask(bundleWith("failing", FailingTask::class.java), startupDetails(taskId = "failing"), noOpClient())
+    val result = runTask(bundleWith("failing", FailingTask::class.java), startupDetails(taskId = "failing"))
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
@@ -70,7 +73,7 @@ class TaskTest {
   fun shouldReturnRetryWhenTaskThrowsAndShouldRetryIsTrue() {
     val details = startupDetails(taskId = "failing")
     details.tiContext?.shouldRetry = true
-    val result = runTask(bundleWith("failing", FailingTask::class.java), details, noOpClient())
+    val result = runTask(bundleWith("failing", FailingTask::class.java), details)
 
     Assertions.assertInstanceOf(RetryTask::class.java, result)
   }
@@ -78,15 +81,46 @@ class TaskTest {
   @Test
   @DisplayName("Should return failed when task throws an Error")
   fun shouldReturnFailedWhenTaskThrowsError() {
-    val result = runTask(bundleWith("erroring", ErrorThrowingTask::class.java), startupDetails(taskId = "erroring"), noOpClient())
+    val result = runTask(bundleWith("erroring", ErrorThrowingTask::class.java), startupDetails(taskId = "erroring"))
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
   }
 
+  @Test
+  @DisplayName("Should execute async task and return success")
+  fun shouldExecuteAsyncTaskAndReturnSuccess() {
+    val result = runTask(asyncBundleWith("async", SuccessAsyncTask::class.java), startupDetails(taskId = "async"))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+  }
+
+  @Test
+  @DisplayName("Should return failed when async task throws")
+  fun shouldReturnFailedWhenAsyncTaskThrows() {
+    val result = runTask(asyncBundleWith("async", FailingAsyncTask::class.java), startupDetails(taskId = "async"))
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
+  private fun runTask(
+    bundle: Bundle,
+    details: StartupDetails,
+  ) = runTask(bundle, details, noOpClient(), noOpAsyncClient())
+
   private fun bundleWith(
     taskId: String,
     taskClass: Class<out Task>,
+  ): Bundle {
+    val dag = Dag("test_dag")
+    dag.addTask(taskId, taskClass)
+    return Bundle(listOf(dag))
+  }
+
+  private fun asyncBundleWith(
+    taskId: String,
+    taskClass: Class<out AsyncTask>,
   ): Bundle {
     val dag = Dag("test_dag")
     dag.addTask(taskId, taskClass)
@@ -150,6 +184,34 @@ class TaskTest {
       },
     )
 
+  private fun noOpAsyncClient() =
+    AsyncClient(
+      startupDetails(taskId = "unused"),
+      object : org.apache.airflow.sdk.execution.AsyncClient {
+        override suspend fun getConnection(id: String) = throw UnsupportedOperationException("not used in test")
+
+        override suspend fun getVariable(key: String) = throw UnsupportedOperationException("not used in test")
+
+        override suspend fun getXCom(
+          key: String,
+          dagId: String,
+          taskId: String,
+          runId: String,
+          mapIndex: Int?,
+          includePriorDates: Boolean,
+        ) = throw UnsupportedOperationException("not used in test")
+
+        override suspend fun setXCom(
+          key: String,
+          value: Any,
+          dagId: String,
+          taskId: String,
+          runId: String,
+          mapIndex: Int,
+        ): Unit = throw UnsupportedOperationException("not used in test")
+      },
+    )
+
   class SuccessTask : Task {
     override fun execute(
       context: Context,
@@ -170,5 +232,21 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw NoClassDefFoundError("simulated")
+  }
+
+  class SuccessAsyncTask : AsyncTask {
+    override suspend fun execute(
+      context: Context,
+      client: AsyncClient,
+    ) {
+      yield()
+    }
+  }
+
+  class FailingAsyncTask : AsyncTask {
+    override suspend fun execute(
+      context: Context,
+      client: AsyncClient,
+    ): Unit = throw IllegalStateException("boom")
   }
 }

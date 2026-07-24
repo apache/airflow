@@ -21,7 +21,12 @@ plugins {
     `java-library`
     id("airflow-jvm-conventions")
     id("airflow-publish")
+    kotlin("kapt")
 }
+
+val processorJar = tasks.named<Jar>("jar")
+
+kapt { includeCompileClasspath = false }
 
 dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
@@ -30,6 +35,9 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("com.google.testing.compile:compile-testing:0.23.0")
+    add("kaptTest", files(processorJar))
+    add("kaptTest", project(":sdk"))
+    add("kaptTest", "com.squareup:javapoet:1.13.0")
 }
 
 java {

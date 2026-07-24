@@ -22,6 +22,9 @@ package org.apache.airflow.sdk.execution
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.Bundle
@@ -40,6 +43,7 @@ import java.time.ZoneOffset
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import org.apache.airflow.sdk.Client as PublicClient
+import org.apache.airflow.sdk.kotlin.AsyncClient as PublicAsyncClient
 
 fun byteArrayFromHexString(hexString: String): ByteArray =
   hexString
@@ -190,4 +194,43 @@ class CommsTest {
     Assertions.assertTrue(errors.isEmpty(), "concurrent public-client calls failed: $errors")
     Assertions.assertEquals(n, results.size)
   }
+
+  @Test
+  @DisplayName("Should serve concurrent coroutine client calls")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun asyncPublicClientServesConcurrentCoroutineCalls() =
+    runBlocking {
+      val toClient = ByteChannel(autoFlush = true)
+      val fromClient = ByteChannel(autoFlush = true)
+      val comm = CoordinatorComm(Bundle(emptyList()), toClient, fromClient)
+      val details =
+        StartupDetails().also {
+          it.ti =
+            TaskInstance().also { ti ->
+              ti.dagId = "d"
+              ti.runId = "r"
+            }
+        }
+      val client = PublicAsyncClient(details, CoordinatorAsyncClient(comm))
+      val n = 50
+
+      val server =
+        launch {
+          repeat(n) {
+            val prefix = fromClient.readByteArray(4)
+            val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix))
+            val response = responseFrame(CoordinatorComm.decode(payload).id)
+            toClient.writeByteArray(Frame.lengthPrefix(response.size))
+            toClient.writeByteArray(response)
+          }
+        }
+      val results =
+        (1..n)
+          .map {
+            async { client.getXCom(taskId = "upstream") }
+          }.awaitAll()
+      server.join()
+
+      Assertions.assertEquals(n, results.size)
+    }
 }

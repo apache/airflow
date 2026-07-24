@@ -20,6 +20,7 @@
 package org.apache.airflow.sdk
 
 import org.apache.airflow.sdk.execution.Client
+import org.apache.airflow.sdk.execution.comm.ConnectionResult
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 
 /**
@@ -70,21 +71,7 @@ class Client internal constructor(
    * @return The connection.
    * @throws ApiError if the connection does not exist or the API call fails.
    */
-  fun getConnection(id: String): Connection =
-    with(impl.getConnection(id)) {
-      Connection(
-        id = connId,
-        type = connType,
-        host = host as String?,
-        schema = schema as String?,
-        login = login as String?,
-        password = password as String?,
-        // The msgpack decoder yields Long for wire integers, so convert
-        // numerically instead of casting.
-        port = (port as Number?)?.toInt(),
-        extra = extra,
-      )
-    }
+  fun getConnection(id: String): Connection = impl.getConnection(id).toSdkConnection()
 
   /**
    * Retrieves an Airflow variable.
@@ -169,3 +156,17 @@ class MissingXComException(
       "(e.g. Integer instead of int) to receive null.",
   )
 }
+
+internal fun ConnectionResult.toSdkConnection() =
+  Connection(
+    id = connId,
+    type = connType,
+    host = host as String?,
+    schema = schema as String?,
+    login = login as String?,
+    password = password as String?,
+    // The msgpack decoder yields Long for wire integers, so convert
+    // numerically instead of casting.
+    port = (port as Number?)?.toInt(),
+    extra = extra,
+  )
