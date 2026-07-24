@@ -28,13 +28,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from common_prek_utils import AIRFLOW_ROOT_PATH
 from rich.console import Console
 from rich.markup import escape
 
 console = Console(color_system="standard", width=200)
 # Pre-existing violations exempted from the checks; burn-down tracked at
 # https://github.com/apache/airflow/issues/70296
-EXEMPTIONS_PATH = Path(__file__).parent / "validate_operators_init_exemptions.txt"
+EXEMPTIONS_PATH = AIRFLOW_ROOT_PATH / "generated" / "validate_operators_init_exemptions.txt"
 BASE_CLASS_NAME_SUFFIXES = ("BaseOperator", "BaseSensorOperator")
 # Helper callables used as template_fields values, mapped to the fields the helper injects
 # on top of the explicit arguments. Injected fields are owned and assigned by the base class,
@@ -512,7 +513,7 @@ def main():
                 console.print(
                     f"[red]Stale exemption for {class_name} — the class has no findings anymore "
                     f"(or is not detected as an operator); remove its entry from "
-                    f"{EXEMPTIONS_PATH.name}[/red]"
+                    f"{EXEMPTIONS_PATH.relative_to(AIRFLOW_ROOT_PATH)}[/red]"
                 )
     return err
 
