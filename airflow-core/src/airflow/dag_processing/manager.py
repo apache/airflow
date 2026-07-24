@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import gc
 import inspect
@@ -1163,6 +1164,42 @@ class DagFileProcessorManager(LoggingMixin):
         for file in stats_to_remove:
             del self._file_stats[file]
 
+    def _deregister_processor_sockets(self, processor: DagFileProcessorProcess) -> None:
+        """
+        Drain buffered log data from all sockets of a killed processor, then close them.
+
+        After SIGKILL the OS closes the subprocess write ends; kernel buffers may still hold
+        unread data. Reading and processing that data here prevents log lines from being lost.
+        """
+        for sock in list(processor._open_sockets.keys()):
+            try:
+                key = self.selector.get_key(sock)
+            except KeyError:
+                pass
+            else:
+                try:
+                    socket_handler, on_close_callback = key.data
+                    sock.setblocking(False)
+                    while True:
+                        try:
+                            if not socket_handler(sock):
+                                break
+                        except (BlockingIOError, InterruptedError, OSError):
+                            break
+                    if on_close_callback is not None:
+                        on_close_callback(sock)
+                    else:
+                        with contextlib.suppress(KeyError):
+                            self.selector.unregister(sock)
+                except Exception:
+                    self.log.exception("Failed to drain log buffer for killed processor socket.")
+                    with contextlib.suppress(KeyError):
+                        self.selector.unregister(sock)
+            finally:
+                with contextlib.suppress(OSError, ValueError):
+                    sock.close()
+        processor._open_sockets.clear()
+
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
         present_keys = {file.presence_key for file in present}
@@ -1187,6 +1224,7 @@ class DagFileProcessorManager(LoggingMixin):
                     ),
                 )
                 processor.kill(signal.SIGKILL)
+                self._deregister_processor_sockets(processor)
                 processor.close()
                 self._file_stats.pop(file, None)
 
@@ -1624,6 +1662,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
+            self._deregister_processor_sockets(processor)
             processor.close()
 
     def _add_files_to_queue(

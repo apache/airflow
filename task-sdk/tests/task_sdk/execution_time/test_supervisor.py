@@ -49,6 +49,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import get_current_span
 from pytest_unordered import unordered
+from structlog.typing import FilteringBoundLogger
 from task_sdk import FAKE_BUNDLE, make_client
 from uuid6 import uuid7
 
@@ -4048,6 +4049,50 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
         (None, logging.DEBUG, "A debug"),
         (None, logging.ERROR, "An error"),
     ]
+
+
+def test_process_log_messages_closed_logger_is_skipped():
+    """A logger whose file handle is closed is skipped; other loggers still receive messages
+    and the generator continues processing subsequent lines."""
+    closed_logger = mock.Mock(spec=FilteringBoundLogger)
+    closed_logger.log.side_effect = ValueError("write to closed file")
+
+    good_logger = mock.Mock(spec=FilteringBoundLogger)
+
+    def fake_reconfigure(log, *args, **kwargs):
+        return log
+
+    with mock.patch(
+        "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+        side_effect=fake_reconfigure,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(closed_logger, good_logger))
+        next(gen)
+
+        # closed_logger raises; good_logger should still receive both messages
+        gen.send(b'{"level": "info", "event": "hello"}\n')
+        gen.send(b'{"level": "info", "event": "world"}\n')
+
+    assert good_logger.log.call_count == 2
+
+
+def test_process_log_messages_unexpected_value_error_is_reraised():
+    """A ValueError unrelated to a closed file handle must propagate, not be silently swallowed."""
+    buggy_logger = mock.Mock(spec=FilteringBoundLogger)
+    buggy_logger.log.side_effect = ValueError("unexpected formatting bug")
+
+    def fake_reconfigure(log, *args, **kwargs):
+        return log
+
+    with mock.patch(
+        "airflow.sdk.execution_time.supervisor.reconfigure_logger",
+        side_effect=fake_reconfigure,
+    ):
+        gen = process_log_messages_from_subprocess(loggers=(buggy_logger,))
+        next(gen)
+
+        with pytest.raises(ValueError, match="unexpected formatting bug"):
+            gen.send(b'{"level": "info", "event": "test"}\n')
 
 
 def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
