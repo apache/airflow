@@ -26,6 +26,7 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -58,7 +59,8 @@ type worker struct {
 	// Are we currently attempting to drain jobs?
 	drain bool
 
-	activeWorkloads map[uuid.UUID]bundlev1.ExecuteTaskWorkload
+	activeWorkloadsMu sync.Mutex
+	activeWorkloads   map[uuid.UUID]bundlev1.ExecuteTaskWorkload
 
 	// We need to send this on most requests, so we keep a copy of it around
 	sysInfo map[string]edgeapi.WorkerStateBody_Sysinfo_AdditionalProperties
@@ -230,7 +232,9 @@ func (w *worker) heartbeat(ctx context.Context) error {
 	slot.FromWorkerStateBodySysinfo1(edgeapi.WorkerStateBodySysinfo1(free))
 	w.sysInfo["free_concurrency"] = slot
 
+	w.activeWorkloadsMu.Lock()
 	jobsActive := len(w.activeWorkloads)
+	w.activeWorkloadsMu.Unlock()
 
 	resp, err := w.client.Worker().SetState(ctx, w.hostname, &edgeapi.WorkerStateBody{
 		State:      state,
@@ -324,7 +328,10 @@ func (w *worker) mainLoop(ctx context.Context) error {
 			return nil
 		}
 
-		if w.drain && len(w.activeWorkloads) == 0 {
+		w.activeWorkloadsMu.Lock()
+		activeCount := len(w.activeWorkloads)
+		w.activeWorkloadsMu.Unlock()
+		if w.drain && activeCount == 0 {
 			return nil
 		}
 	}
@@ -445,7 +452,9 @@ func (w *worker) runWorkload(
 ) error {
 	var err error
 	w.freeConcurrency.Add(-slots)
+	w.activeWorkloadsMu.Lock()
 	w.activeWorkloads[workload.TI.Id] = workload
+	w.activeWorkloadsMu.Unlock()
 
 	mapIndex := -1
 	if workload.TI.MapIndex != nil {
@@ -486,7 +495,9 @@ func (w *worker) runWorkload(
 		)
 
 		w.freeConcurrency.Add(slots)
+		w.activeWorkloadsMu.Lock()
 		delete(w.activeWorkloads, workload.TI.Id)
+		w.activeWorkloadsMu.Unlock()
 	}()
 
 	client, err := w.ClientForBundle(workload.BundleInfo.Name, workload.BundleInfo.Version)
