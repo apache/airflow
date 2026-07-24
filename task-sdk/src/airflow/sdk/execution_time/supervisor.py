@@ -128,6 +128,7 @@ from airflow.sdk.execution_time.comms import (
     TaskStateStoreResult,
     ToSupervisor,
     TriggerDagRun,
+    UpdateDagRunNote,
     ValidateInletsAndOutlets,
     _RequestFrame,
     _ResponseFrame,
@@ -153,6 +154,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_mask_secret,
     handle_put_variable,
     handle_set_xcom,
+    handle_update_dag_run_note,
 )
 from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
 
@@ -1819,6 +1821,8 @@ class ActivitySubprocess(WatchedSubprocess):
             resp, dump_opts = handle_get_dr_count(self.client, msg)
         elif isinstance(msg, GetDagRunState):
             resp, dump_opts = handle_get_dag_run_state(self.client, msg)
+        elif isinstance(msg, UpdateDagRunNote):
+            resp, dump_opts = handle_update_dag_run_note(self.client, msg)
         elif isinstance(msg, GetPreviousDagRun):
             resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
         elif isinstance(msg, GetPreviousTI):

@@ -49,7 +49,9 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.services.public.dag_run import patch_dag_run_note
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRunNoteUpdatePayload,
     InactiveAssetsResponse,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
@@ -877,6 +879,42 @@ def _raise_ti_not_in_live_table(task_instance_id: UUID, session: SessionDep) -> 
             "message": "Task Instance not found",
         },
     )
+
+
+@ti_id_router.patch(
+    "/{task_instance_id}/dag-run-note",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Task Instance not found"),
+            (HTTP_422_UNPROCESSABLE_CONTENT, "Invalid payload for the DagRun note update"),
+        ]
+    ),
+)
+def update_dag_run_note(
+    task_instance_id: UUID,
+    body: DagRunNoteUpdatePayload,
+    session: SessionDep,
+) -> None:
+    """Update the note for the DagRun associated with this task instance."""
+    bind_contextvars(ti_id=str(task_instance_id))
+
+    dag_run = session.scalar(
+        select(DR)
+        .join(TI, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
+        .options(joinedload(DR.dag_run_note))
+        .where(TI.id == task_instance_id)
+    )
+    if dag_run is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": "Task Instance not found"},
+        )
+
+    # Reuse the public API note logic so both editing paths stay consistent. A None/empty note
+    # from runtime clears it (removes the row), matching the UI/public API. Runtime notes carry no
+    # acting user, so they are stored unattributed (user_id=None).
+    patch_dag_run_note(dag_run=dag_run, note=body.note or "", user_id=None)
 
 
 @ti_id_router.put(
