@@ -1871,51 +1871,101 @@ def _finalize_task_failure(
     )
 
 
+_TRIGGERED_RUN_ID_KEY = "triggered_dag_run_id"
+
+
+def _evaluate_prior_triggered_run(
+    run_id: str, drte: DagRunTriggerException, log: Logger
+) -> Literal["succeeded", "reconnect", "resubmit"]:
+    """
+    Classify a run triggered on a prior attempt so the synchronous wait can resume safely.
+
+    ``"succeeded"`` — already finished in an allowed state; skip resubmission.
+    ``"reconnect"`` — still running; resume the wait without resubmitting.
+    ``"resubmit"`` — failed, gone, or state unreadable; trigger a fresh run.
+    """
+    comms_msg = SUPERVISOR_COMMS.send(GetDagRunState(dag_id=drte.trigger_dag_id, run_id=run_id))
+    state = comms_msg.state if isinstance(comms_msg, DagRunStateResult) else None
+    if state in drte.allowed_states:
+        log.info("Run triggered on a prior attempt already succeeded; not resubmitting.", run_id=run_id)
+        return "succeeded"
+    if state is None or state in drte.failed_states:
+        log.warning(
+            "Run triggered on a prior attempt is not resumable; resubmitting.", run_id=run_id, state=state
+        )
+        return "resubmit"
+    log.info("Reconnecting to run triggered on a prior attempt.", run_id=run_id, state=state)
+    return "reconnect"
+
+
 def _handle_trigger_dag_run(
     drte: DagRunTriggerException, context: Context, ti: RuntimeTaskInstance, log: Logger
 ) -> tuple[ToSupervisor, TaskInstanceState]:
     """Handle exception from TriggerDagRunOperator."""
-    log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
-    comms_msg = SUPERVISOR_COMMS.send(
-        TriggerDagRun(
-            dag_id=drte.trigger_dag_id,
-            run_id=drte.dag_run_id,
-            logical_date=drte.logical_date,
-            run_after=drte.run_after,
-            conf=drte.conf,
-            reset_dag_run=drte.reset_dag_run,
-            note=drte.note,
-        ),
-    )
+    # Crash-safety for the synchronous wait: persist the triggered run id before polling so a worker
+    # crash mid-wait reconnects to the in-flight run on retry instead of triggering a duplicate.
+    task_state_store = context.get("task_state_store")
+    durable = drte.durable and drte.wait_for_completion and not drte.deferrable
 
-    if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
-        if drte.skip_when_already_exists:
-            log.info(
-                "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
+    run_id = drte.dag_run_id
+    reconnecting = False
+    if durable and task_state_store is not None:
+        stored_run_id = task_state_store.get(_TRIGGERED_RUN_ID_KEY)
+        if stored_run_id is not None:
+            prior_run_id = str(stored_run_id)
+            decision = _evaluate_prior_triggered_run(prior_run_id, drte, log)
+            if decision == "succeeded":
+                ti.xcom_push(key="trigger_run_id", value=prior_run_id)
+                return _handle_current_task_success(context, ti)
+            if decision == "reconnect":
+                run_id = prior_run_id
+                reconnecting = True
+
+    if not reconnecting:
+        log.info("Triggering Dag Run.", trigger_dag_id=drte.trigger_dag_id)
+        comms_msg = SUPERVISOR_COMMS.send(
+            TriggerDagRun(
                 dag_id=drte.trigger_dag_id,
-            )
-            msg = TaskState(
-                state=TaskInstanceState.SKIPPED,
-                end_date=datetime.now(tz=timezone.utc),
-                rendered_map_index=ti.rendered_map_index,
-            )
-            state = TaskInstanceState.SKIPPED
-        else:
-            log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
-            msg = TaskState(
-                state=TaskInstanceState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
-                rendered_map_index=ti.rendered_map_index,
-            )
-            state = TaskInstanceState.FAILED
+                run_id=run_id,
+                logical_date=drte.logical_date,
+                run_after=drte.run_after,
+                conf=drte.conf,
+                reset_dag_run=drte.reset_dag_run,
+                note=drte.note,
+            ),
+        )
 
-        return msg, state
+        if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+            if drte.skip_when_already_exists:
+                log.info(
+                    "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
+                    dag_id=drte.trigger_dag_id,
+                )
+                msg = TaskState(
+                    state=TaskInstanceState.SKIPPED,
+                    end_date=datetime.now(tz=timezone.utc),
+                    rendered_map_index=ti.rendered_map_index,
+                )
+                state = TaskInstanceState.SKIPPED
+            else:
+                log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
+                msg = TaskState(
+                    state=TaskInstanceState.FAILED,
+                    end_date=datetime.now(tz=timezone.utc),
+                    rendered_map_index=ti.rendered_map_index,
+                )
+                state = TaskInstanceState.FAILED
 
-    log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
+            return msg, state
 
-    # Store the run id from the dag run (either created or found above) to
-    # be used when creating the extra link on the webserver.
-    ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
+        log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
+
+        if durable and task_state_store is not None:
+            # Persist before polling so a crash mid-wait reconnects on retry instead of resubmitting.
+            task_state_store.set(_TRIGGERED_RUN_ID_KEY, run_id)
+
+    # Store the run id (created above or reconnected to) for the webserver extra link.
+    ti.xcom_push(key="trigger_run_id", value=run_id)
 
     if drte.wait_for_completion:
         if drte.deferrable:
@@ -1940,14 +1990,12 @@ def _handle_trigger_dag_run(
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",
                 dag_id=drte.trigger_dag_id,
-                run_id=drte.dag_run_id,
+                run_id=run_id,
                 allowed_state=drte.allowed_states,
             )
             time.sleep(drte.poke_interval)
 
-            comms_msg = SUPERVISOR_COMMS.send(
-                GetDagRunState(dag_id=drte.trigger_dag_id, run_id=drte.dag_run_id)
-            )
+            comms_msg = SUPERVISOR_COMMS.send(GetDagRunState(dag_id=drte.trigger_dag_id, run_id=run_id))
             if TYPE_CHECKING:
                 assert isinstance(comms_msg, DagRunStateResult)
             if comms_msg.state in drte.failed_states:
