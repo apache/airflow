@@ -60,7 +60,6 @@ class KubernetesInstallKueueOperator(BaseOperator):
 
     @property
     def _kueue_yaml_url(self) -> str:
-        # kueue_version is a template field; build the URL on access so it uses the rendered value.
         return (
             f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
         )
