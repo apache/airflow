@@ -23,6 +23,7 @@ import pytest
 
 from airflow_breeze.commands import release_management_commands
 from airflow_breeze.commands.release_management_commands import (
+    ISSUE_MATCH_IN_BODY,
     _ensure_default_python_for_reproducible_client,
     _is_initial_provider_release,
     _should_include_provider_in_issue,
@@ -292,3 +293,18 @@ def test_get_package_version_possibly_from_stable_txt_for_java_sdk(
         stable_txt.parent.mkdir(parents=True)
         stable_txt.write_text(stable_txt_content)
     assert get_package_version_possibly_from_stable_txt("java-sdk") == expected_version
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ("Some description closes: #12345 and more text", [12345]),
+        # reference at the very end of the body (e.g. "Fixes #53843" as the last line)
+        ("Generated-by: some agent Fixes #53843", [53843]),
+        ("related: #111, also see #222", [111, 222]),
+        ("no references here", []),
+        ("PR#123 without space is not a reference", []),
+    ],
+)
+def test_issue_match_in_body(body: str, expected: list[int]):
+    assert [int(m.group(1)) for m in ISSUE_MATCH_IN_BODY.finditer(body)] == expected
