@@ -82,6 +82,7 @@ from airflow.models.asset import AssetActive
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
+from airflow.models.expandinput import NotFullyPopulated, SchedulerDictOfListsExpandInput
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
@@ -90,6 +91,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
+from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg, SchedulerXComArg
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.sqlalchemy import get_dialect_name
@@ -118,17 +120,101 @@ tracer = trace.get_tracer(__name__)
 _STUB_TASK_TYPE = "_StubOperator"
 
 
-def _get_arg_bindings(
-    dag_bag: DagBagDep, dag_version_id: UUID | None, task_id: str, *, session
-) -> list | None:
-    """Extract the stub task's captured TaskFlow arg spec from its Dag version."""
-    if dag_version_id is None:
+def _get_arg_bindings(dag_bag: DagBagDep, ti: Any, *, session) -> list | None:
+    """Extract or derive the stub task's TaskFlow arg spec from its Dag version."""
+    if ti.dag_version_id is None:
         return None
-    if (dag := dag_bag.get_dag(dag_version_id, session=session)) is None:
+    if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
         return None
-    if (task := dag.task_dict.get(task_id)) is None:
+    if (task := dag.task_dict.get(ti.task_id)) is None:
         return None
+    if task.is_mapped:
+        return _resolve_mapped_stub_arg_bindings(task, ti, session=session)
     return getattr(task, "_arg_bindings", None)
+
+
+def _unsupported_arg_bindings(detail: str) -> NoReturn:
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail={
+            "reason": "invalid_arg_bindings",
+            "message": f"The stub task's TaskFlow arguments cannot be delivered: {detail}.",
+        },
+    )
+
+
+def _resolve_mapped_stub_arg_bindings(task: Any, ti: Any, *, session) -> list[dict[str, Any]]:
+    """
+    Build the per-map-index arg spec for a mapped (``.expand()``) stub task.
+
+    A mapped stub never instantiates at parse time, so no spec is captured in the
+    serialized Dag; it is derived here from the serialized expand input instead, using
+    the same index decomposition as the task-sdk's ``DictOfListsExpandInput.resolve``.
+    Value schemas come from the stub function's annotations, which are not available
+    server-side, so mapped bindings omit them (runtimes fall back to decode-only checks).
+    """
+    expand_input = task._get_specified_expand_input()
+    if not isinstance(expand_input, SchedulerDictOfListsExpandInput):
+        _unsupported_arg_bindings("expand_kwargs() is not supported on stub tasks")
+    if ti.map_index < 0:
+        _unsupported_arg_bindings("the task instance has not been expanded to a map index")
+
+    expand_value = expand_input.value
+    if len(expand_value) == 1:
+        sub_indexes = dict.fromkeys(expand_value, ti.map_index)
+    else:
+        try:
+            lengths = expand_input._get_map_lengths(ti.run_id, session=session)
+        except NotFullyPopulated as e:
+            _unsupported_arg_bindings(f"upstream map lengths are not yet known for {sorted(e.missing)}")
+        sub_indexes = {}
+        index = ti.map_index
+        for key in reversed(expand_value):
+            sub_indexes[key] = index % lengths[key]
+            index //= lengths[key]
+
+    spec = [
+        _bind_mapped_stub_arg(name, value, sub_index=None)
+        for name, value in (task.partial_kwargs.get("op_kwargs") or {}).items()
+    ]
+    spec += [
+        _bind_mapped_stub_arg(name, value, sub_index=sub_indexes[name])
+        for name, value in expand_value.items()
+    ]
+    return spec
+
+
+def _bind_mapped_stub_arg(name: str, value: Any, *, sub_index: int | None) -> dict[str, Any]:
+    """Build one arg-binding dict; ``sub_index`` is set for expanded kwargs, None for partial ones."""
+    if isinstance(value, SchedulerPlainXComArg):
+        if value.key != "return_value":
+            _unsupported_arg_bindings(f"parameter {name!r} references the XCom key {value.key!r}")
+        entry: dict[str, Any] = {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
+        if sub_index is not None:
+            if value.operator.is_mapped:
+                entry["map_index"] = sub_index
+            else:
+                entry["element_index"] = sub_index
+        return entry
+    if isinstance(value, SchedulerXComArg):
+        _unsupported_arg_bindings(
+            f"parameter {name!r} received a {type(value).__name__}; only direct upstream"
+            " task outputs and literals are supported"
+        )
+    if sub_index is not None:
+        items = list(value.items()) if isinstance(value, dict) else value
+        try:
+            value = items[sub_index]
+        except (IndexError, KeyError, TypeError):
+            _unsupported_arg_bindings(f"parameter {name!r} has no element at expansion index {sub_index}")
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError):
+        _unsupported_arg_bindings(
+            f"parameter {name!r} carries a {type(value).__name__} value, which cannot cross"
+            " the language boundary"
+        )
+    return {"name": name, "kind": "literal", "value": value}
 
 
 @ti_id_router.patch(
@@ -335,7 +421,7 @@ def ti_run(
         # Only set for stub (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
         if ti.operator == _STUB_TASK_TYPE and (
-            arg_bindings := _get_arg_bindings(dag_bag, ti.dag_version_id, ti.task_id, session=session)
+            arg_bindings := _get_arg_bindings(dag_bag, ti, session=session)
         ):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)

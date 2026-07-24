@@ -4661,6 +4661,23 @@
         "task_id": {
           "title": "Task Id",
           "type": "string"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "element_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Element Index"
         }
       },
       "required": [

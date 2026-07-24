@@ -28,7 +28,7 @@ import pytest
 from airflow.providers.common.compat.sdk import DAG, task_group
 from airflow.providers.standard.decorators.stub import _infer_value_schema, stub
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 
 def fn_ellipsis(): ...
@@ -250,13 +250,10 @@ class TestStubTaskflowArgs:
             },
         ]
 
-    @pytest.mark.skipif(
-        not AIRFLOW_V_3_4_PLUS, reason="task-sdk honors the supports_expand opt-out from Airflow 3.4"
-    )
-    def test_expand_rejected_at_parse_time(self):
+    def test_expand_builds_mapped_stub_without_parse_time_bindings(self):
         with DAG(dag_id="d"):
-            with pytest.raises(TypeError, match="do not support dynamic task mapping"):
-                stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
+            result = stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
+        assert result.operator.is_mapped
 
     def test_stub_with_args_inside_mapped_task_group_rejected(self):
         @task_group
