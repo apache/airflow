@@ -81,6 +81,7 @@ Bug Fixes
 Features
 ~~~~~~~~
 
+* ``Add optional KubernetesPodOperator zombie pod cleanup``
 * ``Decide pod_template and image based on Coordinator for lang-SDK tasks on KubernetesExecutor (#68713)``
 * ``Add team_name tags to Kubernetes executor metrics (#69046)``
 
