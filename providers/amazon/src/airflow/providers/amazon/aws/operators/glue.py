@@ -449,8 +449,7 @@ class GlueDataQualityOperator(AwsBaseOperator[GlueDataQualityHook]):
                 raise AttributeError("Target table must have DatabaseName and TableName")
 
     def execute(self, context: Context):
-        # ruleset is a template field; strip the rendered value here rather than in __init__,
-        # which only sees the un-rendered Jinja expression.
+        # ruleset is a template field; strip the rendered value here, not in __init__.
         self.ruleset = self.ruleset.strip()
         self.validate_inputs()
 

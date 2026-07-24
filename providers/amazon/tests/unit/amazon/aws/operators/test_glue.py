@@ -817,9 +817,7 @@ class TestGlueDataQualityOperator:
 
     @mock.patch.object(GlueDataQualityHook, "conn")
     def test_execute_strips_rendered_ruleset(self, glue_data_quality_mock_conn):
-        # ruleset is a template field: __init__ sees the un-rendered "{{ ... }}" (nothing to strip),
-        # and rendering can yield surrounding whitespace. execute must strip the rendered value so
-        # validate_inputs passes and the API gets the clean ruleset.
+        # ruleset is a template field; execute strips the rendered value (rendering can add whitespace).
         with DAG("glue_dq_strip", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
             self.operator = GlueDataQualityOperator(
                 task_id="create_data_quality_ruleset",
