@@ -7,8 +7,6 @@
 # execute()) MUST remove its entry in the same PR — the hook fails on stale entries.
 # Burn-down tracked at https://github.com/apache/airflow/issues/70296
 providers/amazon/src/airflow/providers/amazon/aws/operators/appflow.py::AppflowBaseOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/bedrock.py::BedrockCreateKnowledgeBaseOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/bedrock.py::BedrockRaGOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::DmsModifyTaskOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::DmsStartReplicationOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::EcsRunTaskOperator
