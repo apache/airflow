@@ -1136,6 +1136,11 @@ components:
           type: string
           title: Sentry Integration
           default: ''
+        execute_tasks_new_python_interpreter:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Execute Tasks New Python Interpreter
         type:
           type: string
           const: ExecuteTask
