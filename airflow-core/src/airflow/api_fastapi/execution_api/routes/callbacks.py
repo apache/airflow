@@ -37,8 +37,6 @@ from airflow.utils.state import CallbackState
 
 log = structlog.get_logger(logger_name=__name__)
 
-# The ``callback``-scoped token is accepted only on this router; ``callback:self`` pins it
-# to its own callback id and it can reach only the exchange endpoint below.
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
     dependencies=[
@@ -67,13 +65,8 @@ def run_callback(
     """
     Exchange a single-use callback token for a short-lived execution token.
 
-    The deadline-callback subprocess calls this once, before reading any
-    context. The exchange is gated on an atomic ``QUEUED -> RUNNING`` transition
-    under ``SELECT ... FOR UPDATE``: the first call transitions the row and
-    returns a fresh ``execution`` token via the ``Refreshed-API-Token`` header;
-    any second presentation of the same callback token finds the row already in
-    ``RUNNING`` (or terminal) and gets ``409``. This makes the callback token
-    exchangeable exactly once, mirroring the Task Instance ``/run`` pattern.
+    Gated on an atomic ``QUEUED -> RUNNING`` transition, so the exchange
+    succeeds at most once; the new token is returned via ``Refreshed-API-Token``.
     """
     callback = session.get(Callback, callback_id, with_for_update=True)
     if callback is None:

@@ -2200,7 +2200,6 @@ class TestCallbackOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.callbacks.run(callback_id)
 
-        # The single-use callback token has been swapped for the execution token.
         assert client.auth is not None
         assert client.auth.token == "execution-token"
 

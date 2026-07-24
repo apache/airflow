@@ -64,7 +64,6 @@ class TestRunCallback:
 
         assert response.status_code == 204
 
-        # A real execution-scope JWT is minted with the callback id as its subject.
         refreshed = response.headers["Refreshed-API-Token"]
         payload = jwt.decode(refreshed, options={"verify_signature": False})
         assert payload["scope"] == "execution"
@@ -143,7 +142,6 @@ def test_run_rejects_callback_token_for_other_callback(client, session):
 
     validator = mock.AsyncMock(spec=JWTValidator)
     validator.avalidated_claims.return_value = {
-        # sub belongs to a different callback than the one in the URL.
         "sub": "11111111-1111-1111-1111-111111111111",
         "scope": "callback",
         "exp": 9999999999,
