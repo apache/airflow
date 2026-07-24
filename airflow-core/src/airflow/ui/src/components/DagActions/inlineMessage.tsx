@@ -16,18 +16,78 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Skeleton } from "@chakra-ui/react";
+import { Text, Skeleton, VStack } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 
-export const getInlineMessage = (isPendingDryRun: boolean, totalEntries: number, translate: TFunction) =>
-  isPendingDryRun ? (
-    <Skeleton height="20px" width="100px" />
-  ) : totalEntries === 0 ? (
-    <Text color="fg.error" fontSize="sm" fontWeight="medium">
-      {translate("backfill.affectedNone")}
-    </Text>
-  ) : (
+import type { DryRunBackfillResponse } from "openapi/requests/types.gen";
+
+const PARTITION_PREVIEW_LIMIT = 10;
+
+type InlineMessageOptions = {
+  readonly backfills?: Array<DryRunBackfillResponse>;
+  readonly isPartitioned?: boolean;
+  readonly isPendingDryRun: boolean;
+  readonly totalEntries: number;
+  readonly translate: TFunction;
+};
+
+export const getInlineMessage = ({
+  backfills = [],
+  isPartitioned = false,
+  isPendingDryRun,
+  totalEntries,
+  translate,
+}: InlineMessageOptions) => {
+  if (isPendingDryRun) {
+    return <Skeleton height="20px" width="100px" />;
+  }
+
+  if (isPartitioned) {
+    if (totalEntries === 0) {
+      return (
+        <Text color="fg.error" fontSize="sm" fontWeight="medium">
+          {translate("backfill.partitionsNone")}
+        </Text>
+      );
+    }
+
+    const keys = backfills
+      .map((backfill) => backfill.partition_key)
+      .filter((key): key is string => key !== null);
+    const preview = keys.slice(0, PARTITION_PREVIEW_LIMIT);
+    const nullCount = backfills.length - keys.length;
+    const remaining = totalEntries - nullCount - preview.length;
+
+    return (
+      <VStack alignItems="flex-start" gap={1}>
+        <Text color="fg.success" fontSize="sm">
+          {translate("backfill.partitionsAffected", { count: totalEntries })}
+        </Text>
+        {preview.map((key) => (
+          <Text fontSize="sm" key={key} pl={2}>
+            {key}
+          </Text>
+        ))}
+        {remaining > 0 ? (
+          <Text color="fg.muted" fontSize="sm" pl={2}>
+            {translate("backfill.andOthers", { count: remaining })}
+          </Text>
+        ) : undefined}
+      </VStack>
+    );
+  }
+
+  if (totalEntries === 0) {
+    return (
+      <Text color="fg.error" fontSize="sm" fontWeight="medium">
+        {translate("backfill.affectedNone")}
+      </Text>
+    );
+  }
+
+  return (
     <Text color="fg.success" fontSize="sm">
       {translate("backfill.affected", { count: totalEntries })}
     </Text>
   );
+};
