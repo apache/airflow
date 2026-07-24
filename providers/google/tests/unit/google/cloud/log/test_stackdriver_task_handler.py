@@ -692,8 +692,9 @@ class TestStackdriverLoggingHandlerTask:
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
-    def test_should_return_valid_external_url(self, mock_client, mock_get_creds_and_project_id):
+    def test_should_return_valid_external_url(self, mock_client, mock_get_creds_and_project_id, monkeypatch):
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
+        monkeypatch.setenv("GOOGLE_CLOUD_HIGH_VALUE_COOKIE_DOMAIN", "googleapis.cn")
 
         stackdriver_task_handler = StackdriverTaskHandler(gcp_key_path="KEY_PATH")
         url = stackdriver_task_handler.get_external_log_url(self.ti, self.ti.try_number)
@@ -701,7 +702,7 @@ class TestStackdriverLoggingHandlerTask:
         parsed_url = urlsplit(url)
         parsed_qs = parse_qs(parsed_url.query)
         assert parsed_url.scheme == "https"
-        assert parsed_url.netloc == "console.cloud.google.com"
+        assert parsed_url.netloc == "console.cloud.googleapis.cn"
         assert parsed_url.path == "/logs/viewer"
         assert {"project", "interval", "resource", "advancedFilter"} == set(parsed_qs.keys())
         assert "global" in parsed_qs["resource"]
