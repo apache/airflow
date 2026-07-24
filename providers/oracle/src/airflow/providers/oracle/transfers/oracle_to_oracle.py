@@ -56,8 +56,8 @@ class OracleToOracleOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if source_sql_params is None:
-            source_sql_params = {}
+        # if source_sql_params is None:
+        #     source_sql_params = {}
         self.oracle_destination_conn_id = oracle_destination_conn_id
         self.destination_table = destination_table
         self.oracle_source_conn_id = oracle_source_conn_id
@@ -84,6 +84,8 @@ class OracleToOracleOperator(BaseOperator):
             cursor.close()
 
     def execute(self, context: Context) -> None:
+        if self.source_sql_params is None:
+            self.source_sql_params = {}
         src_hook = OracleHook(oracle_conn_id=self.oracle_source_conn_id)
         dest_hook = OracleHook(oracle_conn_id=self.oracle_destination_conn_id)
         self._execute(src_hook, dest_hook, context)

@@ -68,3 +68,30 @@ class TestOracleToOracleTransfer:
         mock_dest_hook.bulk_insert_rows.assert_called_once_with(
             destination_table, cursor_rows, commit_every=rows_chunk, target_fields=["id", "description"]
         )
+
+    @mock.patch("airflow.providers.oracle.transfers.oracle_to_oracle.OracleHook")
+    def test_source_sql_params_defaults_to_empty_dict_at_execute(self, mock_oracle_hook):
+        """
+        `source_sql_params` is a template field, so its None -> {} default must be
+        applied in execute() (after rendering), not in __init__.
+        """
+        op = OracleToOracleOperator(
+            task_id="copy_data",
+            oracle_destination_conn_id="dest_conn",
+            destination_table="destination_table",
+            oracle_source_conn_id="source_conn",
+            source_sql="select 1 from dual",
+        )
+
+        # __init__ keeps the value verbatim; the {} default is deferred to execute().
+        assert op.source_sql_params is None
+
+        mock_conn = mock_oracle_hook.return_value.get_conn.return_value.__enter__.return_value
+        mock_cursor = mock_conn.cursor.return_value
+        mock_cursor.description = []
+        mock_cursor.fetchmany.side_effect = [[]]
+
+        op.execute(context={})
+
+        assert op.source_sql_params == {}
+        mock_cursor.execute.assert_called_once_with("select 1 from dual", {})
