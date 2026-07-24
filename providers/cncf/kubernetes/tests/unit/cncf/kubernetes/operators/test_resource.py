@@ -95,8 +95,7 @@ class TestKubernetesXResourceOperator:
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_missing_yaml_conf_rejected_at_execute(self, context):
-        # yaml_conf/yaml_conf_file are template fields: the presence check must run at execute
-        # (after rendering), so constructing with neither no longer raises in __init__.
+        # yaml_conf/yaml_conf_file are template fields; the presence check runs at execute.
         for operator_class in (KubernetesCreateResourceOperator, KubernetesDeleteResourceOperator):
             op = operator_class(task_id="test_task_id")
             with pytest.raises(AirflowException, match="One of `yaml_conf` or `yaml_conf_file`"):

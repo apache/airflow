@@ -85,8 +85,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
         self.config_file = config_file
 
     def _validate_yaml_conf(self) -> None:
-        # yaml_conf/yaml_conf_file are template fields; validate after rendering (from execute),
-        # not in __init__ where they are still the un-rendered Jinja expressions.
+        # yaml_conf/yaml_conf_file are template fields; validate after rendering, called from execute.
         if not any([self.yaml_conf, self.yaml_conf_file]):
             raise AirflowException("One of `yaml_conf` or `yaml_conf_file` arguments must be provided")
 
