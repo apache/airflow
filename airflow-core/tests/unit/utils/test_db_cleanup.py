@@ -448,6 +448,122 @@ class TestDBCleanup:
             )
 
     @pytest.mark.parametrize(
+        "table_names",
+        [
+            pytest.param(["asset_event", "task_reschedule", "deadline"], id="isolated"),
+            pytest.param(
+                ["asset_event", "task_reschedule", "deadline", "task_instance", "dag_run"], id="with-cascade"
+            ),
+        ],
+    )
+    def test_cleanup_with_dag_id_filtering_for_joined_tables(self, table_names):
+        """
+        Verify that dag_ids and exclude_dag_ids parameters correctly filter and cleanup
+        asset_event, task_reschedule, and deadline tables.
+        Also test the cascade-deletion interaction by including base tables (task_instance, dag_run).
+        """
+        from airflow.models.asset import AssetEvent
+        from airflow.models.deadline import Deadline
+        from airflow.models.taskreschedule import TaskReschedule
+
+        class SyncCallback:
+            def __init__(self):
+                self.path = "my_path"
+                self.kwargs = {}
+                self.executor = "default"
+
+            def serialize(self):
+                return {"path": self.path, "kwargs": self.kwargs, "executor": self.executor}
+
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            # Create records for dag1 (should be cleaned) and dag2 (should be kept)
+            for dag_id in ["dag1", "dag2"]:
+                dag = DAG(dag_id=dag_id)
+                dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+                session.add(dm)
+                SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+                dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+                dag_run = DagRun(
+                    dag.dag_id,
+                    run_id=f"{dag_id}_run",
+                    run_type=DagRunType.MANUAL,
+                    start_date=base_date,
+                )
+                session.add(dag_run)
+                session.flush()
+
+                ti = create_task_instance(
+                    PythonOperator(task_id="dummy-task", python_callable=print),
+                    run_id=dag_run.run_id,
+                    dag_version_id=dag_version.id,
+                )
+                ti.dag_id = dag.dag_id
+                ti.start_date = base_date
+                session.add(ti)
+                session.flush()
+
+                # 1. AssetEvent
+                ae = AssetEvent(
+                    asset_id=1,
+                    source_dag_id=dag_id,
+                    timestamp=base_date,
+                )
+                session.add(ae)
+
+                # 2. TaskReschedule
+                tr = TaskReschedule(
+                    ti_id=ti.id,
+                    start_date=base_date,
+                    end_date=base_date.add(minutes=5),
+                    reschedule_date=base_date.add(minutes=10),
+                )
+                session.add(tr)
+
+                # 3. Deadline
+                dl = Deadline(
+                    deadline_time=base_date,
+                    callback=SyncCallback(),
+                    dagrun_id=dag_run.id,
+                    deadline_alert_id=None,
+                )
+                session.add(dl)
+
+            session.commit()
+
+            # Run cleanup targeting only dag1
+            clean_before_date = base_date.add(days=10)
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=table_names,
+                dag_ids=["dag1"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            # Assertions
+            remaining_aes = session.scalars(select(AssetEvent)).all()
+            assert len(remaining_aes) == 1
+            assert remaining_aes[0].source_dag_id == "dag2"
+
+            remaining_trs = session.scalars(select(TaskReschedule)).all()
+            assert len(remaining_trs) == 1
+            ti2 = session.scalars(select(TaskInstance).where(TaskInstance.dag_id == "dag2")).one()
+            assert remaining_trs[0].ti_id == ti2.id
+
+            remaining_dls = session.scalars(select(Deadline)).all()
+            assert len(remaining_dls) == 1
+            dr2 = session.scalars(select(DagRun).where(DagRun.dag_id == "dag2")).one()
+            assert remaining_dls[0].dagrun_id == dr2.id
+
+    @pytest.mark.parametrize(
         ("skip_archive", "expected_archives"),
         [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
     )
