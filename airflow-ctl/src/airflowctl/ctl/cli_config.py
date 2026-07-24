@@ -294,6 +294,11 @@ ARG_LOGICAL_DATE = Arg(
 )
 
 # Task Commands Args
+ARG_TASK_ID = Arg(
+    flags=("task_id",),
+    type=str,
+    help="The task ID",
+)
 ARG_RUN_ID = Arg(
     flags=("run_id",),
     type=str,
@@ -304,6 +309,12 @@ ARG_LOGICAL_DATE = Arg(
     flags=("--logical-date",),
     type=str,
     help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
+)
+ARG_MAP_INDEX = Arg(
+    flags=("--map-index",),
+    type=int,
+    default=-1,
+    help="Mapped task index",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -1085,6 +1096,23 @@ POOL_COMMANDS = (
 )
 
 TASK_COMMANDS = (
+    ActionCommand(
+        name="failed-deps",
+        help="Returns the unmet dependencies for a task instance",
+        description=(
+            "Returns the unmet dependencies for a task instance from the perspective of the scheduler. "
+            "In other words, why a task instance doesn't get scheduled and then queued by the scheduler, "
+            "and then run by an executor."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.failed_deps"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASK_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
+            ARG_MAP_INDEX,
+        ),
+    ),
     ActionCommand(
         name="states-for-dag-run",
         help="Get the status of all task instances in a Dag run",

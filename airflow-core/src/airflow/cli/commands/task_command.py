@@ -262,6 +262,7 @@ class TaskCommandMarker:
     """Marker for listener hooks, to properly detect from which component they are called."""
 
 
+@deprecated_for_airflowctl("airflowctl tasks failed-deps")
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_failed_deps(args) -> None:

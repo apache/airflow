@@ -87,6 +87,8 @@ providers:
 
 taskinstances:
   list: "List all task instances for a given Dag run"
+  get: "Get a task instance for a given Dag run"
+  get-dependencies: "Get unmet scheduler dependencies for a task instance"
 
 tasks:
   clear: "Clear task instances of a Dag by its ID"
