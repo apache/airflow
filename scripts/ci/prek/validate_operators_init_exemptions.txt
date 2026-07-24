@@ -7,14 +7,10 @@
 # execute()) MUST remove its entry in the same PR — the hook fails on stale entries.
 # Burn-down tracked at https://github.com/apache/airflow/issues/70296
 providers/amazon/src/airflow/providers/amazon/aws/operators/appflow.py::AppflowBaseOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/bedrock.py::BedrockCreateKnowledgeBaseOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/bedrock.py::BedrockRaGOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/datasync.py::DataSyncOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::DmsModifyTaskOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::DmsStartReplicationOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::EcsRunTaskOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::EmrAddStepsOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/glue.py::GlueDataQualityOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStartDbClusterOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStopDbClusterOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/s3.py::S3DeleteObjectsOperator
@@ -29,19 +25,12 @@ providers/anthropic/src/airflow/providers/anthropic/operators/agent.py::Anthropi
 providers/apache/hive/src/airflow/providers/apache/hive/sensors/hive_partition.py::HivePartitionSensor
 providers/apache/hive/src/airflow/providers/apache/hive/sensors/named_hive_partition.py::NamedHivePartitionSensor
 providers/apache/kafka/src/airflow/providers/apache/kafka/operators/produce.py::ProduceToTopicOperator
-providers/apache/spark/src/airflow/providers/apache/spark/operators/spark_submit.py::SparkSubmitOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/kueue.py::KubernetesInstallKueueOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
-providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/resource.py::KubernetesResourceBaseOperator
-providers/cohere/src/airflow/providers/cohere/operators/embedding.py::CohereEmbeddingOperator
-providers/common/ai/src/airflow/providers/common/ai/operators/agent.py::AgentOperator
-providers/common/ai/src/airflow/providers/common/ai/operators/document_loader.py::DocumentLoaderOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposCreateOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposDeleteOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposUpdateOperator
-providers/databricks/src/airflow/providers/databricks/operators/databricks_sql.py::DatabricksCopyIntoOperator
 providers/databricks/src/airflow/providers/databricks/sensors/databricks.py::DatabricksSQLStatementsSensor
-providers/dbt/cloud/src/airflow/providers/dbt/cloud/operators/dbt.py::DbtCloudGetJobRunArtifactOperator
 providers/docker/src/airflow/providers/docker/operators/docker.py::DockerOperator
 providers/google/src/airflow/providers/google/cloud/operators/bigquery.py::BigQueryInsertJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/cloud_batch.py::CloudBatchSubmitJobOperator
@@ -63,8 +52,6 @@ providers/google/src/airflow/providers/google/cloud/operators/functions.py::Clou
 providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSDeleteObjectsOperator
 providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSFileTransformOperator
 providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSListObjectsOperator
-providers/google/src/airflow/providers/google/cloud/operators/gen_ai.py::GenAIGeminiCreateBatchJobOperator
-providers/google/src/airflow/providers/google/cloud/operators/gen_ai.py::GenAIGeminiCreateEmbeddingsBatchJobOperator
 providers/google/src/airflow/providers/google/cloud/sensors/bigquery_dts.py::BigQueryDataTransferServiceTransferRunSensor
 providers/google/src/airflow/providers/google/cloud/sensors/cloud_composer.py::CloudComposerExternalTaskSensor
 providers/google/src/airflow/providers/google/cloud/transfers/azure_fileshare_to_gcs.py::AzureFileShareToGCSOperator
@@ -73,17 +60,13 @@ providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_bigquery.py
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_gcs.py::GCSToGCSOperator
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_local.py::GCSToLocalFilesystemOperator
 providers/google/src/airflow/providers/google/marketing_platform/operators/campaign_manager.py::GoogleCampaignManagerDeleteReportOperator
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/compute.py::AzureVirtualMachineStateSensor
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/gcs_to_wasb.py::GCSToAzureBlobStorageOperator
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/oracle_to_azure_data_lake.py::OracleToAzureDataLakeOperator
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator
-providers/neo4j/src/airflow/providers/neo4j/operators/neo4j.py::Neo4jOperator
 providers/papermill/src/airflow/providers/papermill/operators/papermill.py::PapermillOperator
-providers/snowflake/src/airflow/providers/snowflake/operators/snowpark_containers.py::SnowparkContainerJobOperator
 providers/ssh/src/airflow/providers/ssh/operators/ssh.py::SSHOperator
 providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::SSHRemoteJobOperator
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
-providers/standard/src/airflow/providers/standard/operators/hitl.py::HITLOperator
 providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::TriggerDagRunOperator
 providers/standard/src/airflow/providers/standard/sensors/date_time.py::DateTimeSensor
 providers/teradata/src/airflow/providers/teradata/transfers/teradata_to_teradata.py::TeradataToTeradataOperator
