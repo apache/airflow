@@ -1373,6 +1373,8 @@ class TestSchedulerJob:
 
     def test_executor_heartbeat_emits_timer(self, mock_executors, configure_testing_dag_bundle):
         with configure_testing_dag_bundle(os.devnull):
+            mock_executors[0].team_name = "team_a"
+            mock_executors[1].team_name = None
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
             with patch("airflow.jobs.scheduler_job_runner.stats.timer") as mock_timer:
@@ -1385,7 +1387,10 @@ class TestSchedulerJob:
             ]
             assert len(heartbeat_calls) == len(self.job_runner.executors)
             for executor, timer_call in zip(self.job_runner.executors, heartbeat_calls):
-                assert timer_call.kwargs.get("tags") == {"executor": type(executor).__name__}
+                expected_tags = {"executor": type(executor).__name__}
+                if executor.team_name:
+                    expected_tags["team_name"] = executor.team_name
+                assert timer_call.kwargs.get("tags") == expected_tags
 
     def test_executor_events_processed(self, mock_executors, configure_testing_dag_bundle):
         with configure_testing_dag_bundle(os.devnull):
@@ -12659,6 +12664,48 @@ class TestDispatchConnectionTests:
 
         assert mock_load.call_args.kwargs["team_name"] == "team_a"
 
+    @pytest.mark.parametrize(
+        ("multi_team", "row_team_name", "expected_workload_team"),
+        [
+            pytest.param(True, "team_a", "team_a", id="multi_team_with_team"),
+            pytest.param(True, None, None, id="multi_team_without_team"),
+            pytest.param(False, "team_a", None, id="single_team_ignores_row_team"),
+        ],
+    )
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_puts_team_name_on_workload(
+        self,
+        scheduler_job_runner_for_connection_tests,
+        session,
+        multi_team,
+        row_team_name,
+        expected_workload_team,
+    ):
+        """Queued TestConnection workloads carry team_name only in multi-team mode."""
+        runner = scheduler_job_runner_for_connection_tests
+        runner._multi_team = multi_team
+
+        session.add(
+            ConnectionTestRequest(
+                conn_type="test_type",
+                connection_id="team_conn",
+                team_name=row_team_name,
+            )
+        )
+        session.commit()
+
+        runner._enqueue_connection_tests(session=session)
+
+        queued = list(runner.executor.queued_connection_tests.values())
+        assert len(queued) == 1
+        assert queued[0].team_name == expected_workload_team
+
     @mock.patch.dict(
         os.environ,
         {
@@ -13037,6 +13084,51 @@ class TestReapStaleConnectionTests:
         session.expire_all()
         assert session.get(ConnectionTestRequest, ct_success.id).state == ConnectionTestState.SUCCESS
         assert session.get(ConnectionTestRequest, ct_failed.id).state == ConnectionTestState.FAILED
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param(
+                True,
+                "team_alpha",
+                {"prior_state": "queued", "team_name": "team_alpha"},
+                id="with_team",
+            ),
+            pytest.param(True, None, {"prior_state": "queued"}, id="multi_team_no_team_on_row"),
+            pytest.param(False, "team_alpha", {"prior_state": "queued"}, id="single_team_ignores_row_team"),
+        ],
+    )
+    @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
+    def test_reap_emits_team_name_tag(
+        self,
+        scheduler_job_runner_for_connection_tests,
+        session,
+        multi_team,
+        team_name,
+        expected_tags,
+    ):
+        """Reaper connection_test.reaped metric includes team_name only when multi-team is on."""
+        runner = scheduler_job_runner_for_connection_tests
+        runner._multi_team = multi_team
+        initial_time = timezone.utcnow()
+
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTestRequest(
+                conn_type="test_type",
+                connection_id="reap_team_conn",
+                team_name=team_name,
+            )
+            ct.state = ConnectionTestState.QUEUED
+            session.add(ct)
+            session.commit()
+
+        with (
+            time_machine.travel(initial_time + timedelta(seconds=200), tick=False),
+            mock.patch("airflow.jobs.scheduler_job_runner.stats.incr") as mock_stats_incr,
+        ):
+            runner._reap_stale_connection_tests(session=session)
+
+        mock_stats_incr.assert_called_once_with("connection_test.reaped", tags=expected_tags)
 
 
 @pytest.mark.need_serialized_dag

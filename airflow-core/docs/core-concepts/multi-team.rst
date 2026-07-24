@@ -1060,9 +1060,11 @@ Dags, and global components emit the same metrics without a ``team_name`` tag.
 
 The ``team_name`` tag is applied to metrics across the following components:
 
-- **Triggerer**: heartbeat, capacity, and trigger-outcome metrics (for example, ``triggerer_heartbeat``,
-  ``triggers.running``, ``triggers.succeeded``).
-- **Executors**: executor slot gauges (for example, ``executor.open_slots``, ``executor.queued_tasks``).
+- **Triggerer**: heartbeat, capacity, blocked-main-thread, and trigger-outcome metrics (for example,
+  ``triggerer_heartbeat``, ``triggers.running``, ``triggers.succeeded``,
+  ``triggers.blocked_main_thread``).
+- **Executors**: executor slot gauges and scheduler-observed executor heartbeat timing (for example,
+  ``executor.open_slots``, ``executor.queued_tasks``, ``scheduler.executor_heartbeat_duration``).
 - **Scheduler**: pool slot gauges for team-scoped pools plus task- and asset-scheduling counters (for
   example, ``pool.open_slots``, ``scheduler.tasks.killed_externally``, ``asset.triggered_dagruns``).
 - **Dag runs**: dag run timing and lifecycle metrics (for example, ``dagrun.duration.<state>``,
@@ -1073,6 +1075,9 @@ The ``team_name`` tag is applied to metrics across the following components:
   ``dag_processing.processor_timeouts``, ``dag_processing.callback_only_count``).
 - **Callbacks**: callback execution counters (``callback_success`` / ``callback_failure``, optionally
   prefixed).
+- **Connection tests**: per-request worker and reaper metrics for team-owned connection tests (for
+  example, ``connection_test.success``, ``connection_test.failed``, ``connection_test.hook_duration``,
+  ``connection_test.reaped``). Instance-wide connection-test queue gauges remain untagged.
 
 .. note::
 

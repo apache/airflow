@@ -1844,7 +1844,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 for executor in self.executors:
                     with stats.timer(
                         "scheduler.executor_heartbeat_duration",
-                        tags={"executor": type(executor).__name__},
+                        tags=prune_dict(
+                            {
+                                "executor": type(executor).__name__,
+                                "team_name": executor.team_name,
+                            }
+                        ),
                     ):
                         executor.heartbeat()
 
@@ -4002,6 +4007,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 connection_id=ct.connection_id,
                 timeout=timeout,
                 queue=ct.queue,
+                team_name=team_name,
                 generator=executor.jwt_generator,
             )
             executor.queue_workload(workload, session=session)
@@ -4047,7 +4053,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 prior_state_value,
                 ct.team_name,
             )
-            stats.incr("connection_test.reaped", tags={"prior_state": prior_state_value})
+            stats.incr(
+                "connection_test.reaped",
+                tags=prune_dict(
+                    {
+                        "prior_state": prior_state_value,
+                        "team_name": ct.team_name if self._multi_team else None,
+                    }
+                ),
+            )
             key = ConnectionTestKey(id=str(ct.id))
             for executor in self.executors:
                 if executor.supports_connection_test:
