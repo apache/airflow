@@ -85,3 +85,24 @@ class TestProduceToTopic:
         )
 
         operator.execute(context={})
+
+    @pytest.mark.parametrize(
+        ("topic", "producer_function"),
+        [
+            pytest.param("", _simple_producer, id="missing-topic"),
+            pytest.param("test_1", None, id="missing-producer-function"),
+        ],
+    )
+    def test_missing_topic_or_producer_function_is_validated_in_execute(self, topic, producer_function):
+        # Template fields are rendered after __init__, so a missing value must be caught in
+        # execute(), not at construction time.
+        operator = ProduceToTopicOperator(
+            kafka_config_id="kafka_d",
+            topic=topic,
+            producer_function=producer_function,
+            task_id="test",
+            synchronous=False,
+        )
+
+        with pytest.raises(ValueError, match="topic and producer_function must be provided"):
+            operator.execute(context={})
