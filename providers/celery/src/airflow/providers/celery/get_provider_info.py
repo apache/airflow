@@ -117,6 +117,13 @@ def get_provider_info():
                         "example": None,
                         "default": None,
                     },
+                    "task_logs_to_stdout": {
+                        "description": "Also forward task subprocess stdout/stderr to the Celery worker's own stdout,\nso task logs reach a container-level log collector (e.g. Kubernetes/Loki) in\naddition to the task-log handler and the UI. This gives the Celery worker parity\nwith the LocalExecutor and the KubernetesExecutor per-task pod, which always\nforward task logs to stdout. Disabled by default to preserve existing behaviour.\n",
+                        "version_added": None,
+                        "type": "boolean",
+                        "example": None,
+                        "default": "False",
+                    },
                     "broker_url": {
                         "description": "The Celery broker URL. Celery supports multiple broker types. See:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview\n",
                         "version_added": None,

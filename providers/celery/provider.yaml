@@ -228,6 +228,17 @@ config:
         type: boolean
         example: ~
         default: ~
+      task_logs_to_stdout:
+        description: |
+          Also forward task subprocess stdout/stderr to the Celery worker's own stdout,
+          so task logs reach a container-level log collector (e.g. Kubernetes/Loki) in
+          addition to the task-log handler and the UI. This gives the Celery worker parity
+          with the LocalExecutor and the KubernetesExecutor per-task pod, which always
+          forward task logs to stdout. Disabled by default to preserve existing behaviour.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "False"
       broker_url:
         description: |
           The Celery broker URL. Celery supports multiple broker types. See:
