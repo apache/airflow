@@ -115,7 +115,6 @@ class TestNamedHivePartitionSensor:
         )
 
     def test_native_templated_partition_names(self):
-        # A whole-list native template renders from a str, so the array-type check must run at poke.
         self.hook.metastore.__enter__().check_for_named_partition.return_value = True
         partitions = [f"{self.database}.{self.table}/{self.partition_by}={DEFAULT_DATE_DS}"]
         dag = DAG(
@@ -135,6 +134,17 @@ class TestNamedHivePartitionSensor:
         sensor.render_template_fields({"params": {"names": partitions}})
         assert sensor.partition_names == partitions
         assert sensor.poke(None)
+
+    def test_poke_rejects_str_partition_names(self):
+        """partition_names is validated at poke now, so a rendered str raises there, not in __init__."""
+        sensor = NamedHivePartitionSensor(
+            partition_names="not-a-list",
+            task_id="test_poke_rejects_str_partition_names",
+            poke_interval=1,
+            hook=self.hook,
+        )
+        with pytest.raises(TypeError, match="partition_names must be an array of strings"):
+            sensor.poke(None)
 
 
 @pytest.mark.skipif(
