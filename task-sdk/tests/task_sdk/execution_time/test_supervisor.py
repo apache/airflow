@@ -185,6 +185,23 @@ log = logging.getLogger(__name__)
 TI_ID = uuid7()
 
 
+@pytest.mark.parametrize(
+    ("task_override", "global_config", "expected"),
+    [(True, False, True), (False, True, False), (None, True, True), (None, False, False)],
+)
+def test_should_use_exec_for_task_honors_task_override(monkeypatch, task_override, global_config, expected):
+    monkeypatch.setattr(supervisor.sys, "platform", "linux")
+    monkeypatch.setattr(supervisor.conf, "getboolean", lambda *args, **kwargs: global_config)
+
+    assert supervisor._should_use_exec_for_task(task_override) is expected
+
+
+def test_should_use_exec_for_task_keeps_platform_exec_requirement(monkeypatch):
+    monkeypatch.setattr(supervisor.sys, "platform", "darwin")
+
+    assert supervisor._should_use_exec_for_task(False) is True
+
+
 def lineno():
     """Returns the current line number in our program."""
     return inspect.currentframe().f_back.f_lineno
