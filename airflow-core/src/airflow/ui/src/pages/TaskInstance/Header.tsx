@@ -28,14 +28,21 @@ import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import NotePreview from "src/components/NotePreview";
-import { RunManualSectionButton } from "src/components/RunManualSection";
+import {
+  getManualSectionTarget,
+  isRunnableManualGate,
+  RunManualSectionButton,
+} from "src/components/RunManualSection";
 import Time from "src/components/Time";
+import { Alert } from "src/components/ui";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
+  const manualSectionTarget = getManualSectionTarget(taskInstance);
+  const isManualSectionRunnable = isRunnableManualGate(manualSectionTarget);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -76,7 +83,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
               onOpen={() => setClearOpen(true)}
               taskInstance={taskInstance}
             />
-            <RunManualSectionButton taskInstance={taskInstance} />
+            {isManualSectionRunnable ? undefined : <RunManualSectionButton taskInstance={taskInstance} />}
             <MarkTaskInstanceAsButton isHotkeyEnabled taskInstance={taskInstance} />
           </>
         }
@@ -85,6 +92,20 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
+      {isManualSectionRunnable ? (
+        <Alert
+          endElement={
+            <Box flexShrink={0}>
+              <RunManualSectionButton taskInstance={taskInstance} />
+            </Box>
+          }
+          mt={2}
+          status="info"
+          title={translate("dags:runAndTaskActions.manualSection.readyTitle")}
+        >
+          {translate("dags:runAndTaskActions.manualSection.readyDescription")}
+        </Alert>
+      ) : undefined}
       <NotePreview
         header={translate("note.taskInstance")}
         isPending={isPending}

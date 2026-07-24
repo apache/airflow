@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { TaskInstanceState } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 
 const MANUAL_GATE_OPERATOR_NAME = "ManualGateOperator";
 
@@ -37,3 +37,16 @@ export const isRunnableManualGate = (target: ManualSectionTarget) =>
   target.state === "success" &&
   target.mapIndex === -1 &&
   (target.operatorName === MANUAL_GATE_OPERATOR_NAME || target.operator === MANUAL_GATE_OPERATOR_NAME);
+
+export const getManualSectionTarget = (taskInstance: TaskInstanceResponse): ManualSectionTarget => ({
+  dagId: taskInstance.dag_id,
+  dagRunId: taskInstance.dag_run_id,
+  mapIndex: taskInstance.map_index,
+  note: taskInstance.note,
+  operator: taskInstance.operator,
+  operatorName: taskInstance.operator_name,
+  startDate: taskInstance.start_date,
+  state: taskInstance.state,
+  taskDisplayName: taskInstance.task_display_name,
+  taskId: taskInstance.task_id,
+});

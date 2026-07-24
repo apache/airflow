@@ -60,6 +60,8 @@
     },
     "manualSection": {
       "button": "Run manual section",
+      "readyDescription": "This gate bypassed optional downstream tasks for this Dag run. Run the manual section when those tasks are needed.",
+      "readyTitle": "Manual section ready",
       "resourceName": "manual section",
       "title": "Run manual section"
     },
