@@ -63,16 +63,20 @@ class Neo4jOperator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            if cypher is not None:
-                raise ValueError("Cannot provide both `sql` and `cypher`. Use `cypher` only.")
-            cypher = sql
-        if cypher is None:
-            raise ValueError("Parameter `cypher` is required.")
         self.neo4j_conn_id = neo4j_conn_id
         self.cypher = cypher
+        self.sql = sql
         self.parameters = parameters
 
     def execute(self, context: Context) -> None:
-        self.log.info("Executing: %s", self.cypher)
+        cypher = self.cypher
+        if self.sql is not None:
+            if cypher is not None:
+                raise ValueError("Cannot provide both `sql` and `cypher`. Use `cypher` only.")
+            cypher = self.render_template(self.sql, context)
+        if cypher is None:
+            raise ValueError("Parameter `cypher` is required.")
+
+        self.log.info("Executing: %s", cypher)
         hook = Neo4jHook(conn_id=self.neo4j_conn_id)
-        hook.run(self.cypher, self.parameters)
+        hook.run(cypher, self.parameters)

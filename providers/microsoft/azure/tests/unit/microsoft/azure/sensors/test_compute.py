@@ -43,14 +43,24 @@ class TestAzureVirtualMachineStateSensor:
         assert sensor.target_state == "running"
         assert sensor.azure_conn_id == CONN_ID
 
-    def test_init_invalid_target_state(self):
+    def test_invalid_target_state_rejected_at_poke(self):
+        sensor = AzureVirtualMachineStateSensor(
+            task_id="sense_vm",
+            resource_group_name=RESOURCE_GROUP,
+            vm_name=VM_NAME,
+            target_state="invalid_state",
+        )
         with pytest.raises(ValueError, match="Invalid target_state"):
-            AzureVirtualMachineStateSensor(
-                task_id="sense_vm",
-                resource_group_name=RESOURCE_GROUP,
-                vm_name=VM_NAME,
-                target_state="invalid_state",
-            )
+            sensor.poke(context=None)
+
+    def test_templated_target_state_constructs(self):
+        sensor = AzureVirtualMachineStateSensor(
+            task_id="sense_vm",
+            resource_group_name=RESOURCE_GROUP,
+            vm_name=VM_NAME,
+            target_state="{{ params.state }}",
+        )
+        assert sensor.target_state == "{{ params.state }}"
 
     def test_template_fields(self):
         sensor = AzureVirtualMachineStateSensor(

@@ -65,6 +65,7 @@
     "lastDagRun_other": "最近 {{count}} 次 Dag 執行",
     "lastTaskInstance_one": "最近 1 次任務實例",
     "lastTaskInstance_other": "最近 {{count}} 次任務實例",
+    "medianTotalDuration": "總計: {{duration}}",
     "queuedDuration": "排隊等候時間",
     "runAfter": "最早可執行時間",
     "runDuration": "執行持續時間"
