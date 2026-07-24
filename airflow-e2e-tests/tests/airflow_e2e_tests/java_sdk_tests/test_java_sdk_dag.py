@@ -71,6 +71,35 @@ _JAVA_TASK_TIMEOUT = 600
 _LOG_FETCH_TIMEOUT = 60
 
 
+def _wait_for_task_log_record(
+    airflow_client: AirflowClient,
+    dag_id: str,
+    task_id: str,
+    run_id: str,
+    try_number: int,
+    match: Callable[[dict], bool],
+) -> tuple[dict | None, list[dict]]:
+    """Poll a task's logs until a record matching *match* appears.
+
+    Logs can lag behind the terminal task state, and earlier records arrive
+    before the one under test, so returning on any record would race. Keep
+    polling until the target record shows up or the deadline passes. Returns
+    the matching record (or ``None``) and the last batch of records seen for
+    diagnostics.
+    """
+    deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
+    records: list[dict] = []
+    while True:
+        resp = airflow_client.get_task_logs(
+            dag_id=dag_id, run_id=run_id, task_id=task_id, try_number=try_number
+        )
+        records = [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
+        record = next((r for r in records if match(r)), None)
+        if record is not None or time.monotonic() > deadline:
+            return record, records
+        time.sleep(3)
+
+
 class TestJavaSDKAnnotationExample:
     """Verify the annotation-based Java SDK example executes correctly."""
 
@@ -225,29 +254,6 @@ class TestJavaSDKAnnotationExample:
             f"try_number={load_ti.get('try_number')!r}, ti: {load_ti}"
         )
 
-    def _wait_for_transform_log_record(
-        self, run_id: str, try_number: int, match: Callable[[dict], bool]
-    ) -> tuple[dict | None, list[dict]]:
-        """Poll the ``transform`` task logs until a record matching *match* appears.
-
-        Logs can lag behind the terminal task state, and earlier records (e.g. the
-        first transform line) arrive before the one under test, so returning on any
-        record would race. Keep polling until the target record shows up or the
-        deadline passes. Returns the matching record (or ``None``) and the last
-        batch of records seen for diagnostics.
-        """
-        deadline = time.monotonic() + _LOG_FETCH_TIMEOUT
-        records: list[dict] = []
-        while True:
-            resp = self.airflow_client.get_task_logs(
-                dag_id="java_annotation_example", run_id=run_id, task_id="transform", try_number=try_number
-            )
-            records = [entry for entry in resp.get("content", []) if isinstance(entry, dict)]
-            record = next((r for r in records if match(r)), None)
-            if record is not None or time.monotonic() > deadline:
-                return record, records
-            time.sleep(3)
-
     def test_application_logs_preserve_their_level(self):
         """A Java task's SLF4J ``logger.info`` must reach the UI as INFO, not ERROR.
 
@@ -280,7 +286,10 @@ class TestJavaSDKAnnotationExample:
         )
 
         # transform logs `logger.info("Got variable {}", variable)` -> "Got variable 123".
-        record, records = self._wait_for_transform_log_record(
+        record, records = _wait_for_task_log_record(
+            self.airflow_client,
+            "java_annotation_example",
+            "transform",
             run_id,
             transform_ti.get("try_number", 1),
             lambda r: str(r.get("event", "")).startswith("Got variable"),
@@ -291,6 +300,74 @@ class TestJavaSDKAnnotationExample:
         )
         assert str(record.get("level", "")).lower() == "info", (
             f"application INFO log should keep its level, got {record.get('level')!r}; record: {record}"
+        )
+
+
+class TestJavaSDKUninstantiableExample:
+    """Verify a task class the runner cannot instantiate fails with an actionable log."""
+
+    airflow_client = AirflowClient()
+
+    @pytest.mark.parametrize(
+        ("task_id", "expected_task_class"),
+        [
+            (
+                "missing_no_arg_constructor",
+                "org.apache.airflow.example.UninstantiableExampleBuilder$MissingNoArgConstructor",
+            ),
+            (
+                "non_static_inner",
+                "org.apache.airflow.example.UninstantiableExampleBuilder$NonStaticInner",
+            ),
+        ],
+    )
+    def test_uninstantiable_task_fails_with_actionable_error(self, task_id: str, expected_task_class: str):
+        """A task class the runner cannot instantiate fails with a clear log message."""
+        resp = self.airflow_client.trigger_dag(
+            "java_uninstantiable_example",
+            json={"logical_date": datetime.now(timezone.utc).isoformat()},
+        )
+        run_id = resp["dag_run_id"]
+
+        dag_state = self.airflow_client.wait_for_dag_run(
+            dag_id="java_uninstantiable_example",
+            run_id=run_id,
+            timeout=_JAVA_TASK_TIMEOUT,
+        )
+
+        ti_resp = self.airflow_client.get_task_instances(dag_id="java_uninstantiable_example", run_id=run_id)
+        ti_map = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
+        ti = ti_map.get(task_id, {})
+
+        assert ti.get("state") == "failed", (
+            f"Java {task_id!r} task should fail cleanly.\n"
+            f"  task state : {ti.get('state')!r}\n"
+            f"  dag state  : {dag_state!r}\n"
+            f"  all tasks  : { {k: v.get('state') for k, v in ti_map.items()} }"
+        )
+
+        record, records = _wait_for_task_log_record(
+            self.airflow_client,
+            "java_uninstantiable_example",
+            task_id,
+            run_id,
+            ti.get("try_number", 1),
+            lambda r: str(r.get("event", "")).startswith("Cannot instantiate task class"),
+        )
+        assert record is not None, (
+            f"{task_id!r} should emit a 'Cannot instantiate task class' record; "
+            f"events seen: {[r.get('event') for r in records]}"
+        )
+        assert record.get("event") == (
+            "Cannot instantiate task class. "
+            "A task class must be concrete and declare a public no-argument constructor"
+        ), f"instantiation error should carry the full actionable message; record: {record}"
+        assert str(record.get("level", "")).lower() == "error", (
+            f"instantiation error should be logged as ERROR, got {record.get('level')!r}; record: {record}"
+        )
+        assert record.get("taskClass") == expected_task_class, (
+            f"instantiation error should name the offending class {expected_task_class!r}, "
+            f"got {record.get('taskClass')!r}; record: {record}"
         )
 
 

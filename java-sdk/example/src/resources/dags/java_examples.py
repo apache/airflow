@@ -73,6 +73,14 @@ def produce_fraction(): ...
 def consume_float(): ...
 
 
+@task.stub(queue="java")
+def missing_no_arg_constructor(): ...
+
+
+@task.stub(queue="java")
+def non_static_inner(): ...
+
+
 @task()
 def python_task_2(transformed):
     print("python_task_2")
@@ -103,6 +111,13 @@ def java_xcom_casting_example():
     produce_fraction() >> consume_float()
 
 
+@dag(dag_id="java_uninstantiable_example")
+def java_uninstantiable_example():
+    missing_no_arg_constructor()
+    non_static_inner()
+
+
 java_interface_example()
 java_annotation_example()
 java_xcom_casting_example()
+java_uninstantiable_example()

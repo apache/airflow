@@ -35,6 +35,8 @@ import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import java.io.ByteArrayOutputStream
+import java.io.PrintStream
 import java.time.OffsetDateTime
 import java.util.UUID
 
@@ -82,6 +84,45 @@ class TaskTest {
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
+  @Test
+  @DisplayName("Should not duplicate the stack trace to stderr when task fails")
+  fun shouldNotDuplicateStackTraceToStderrWhenTaskFails() {
+    val captured = ByteArrayOutputStream()
+    val original = System.err
+    System.setErr(PrintStream(captured))
+    try {
+      runTask(bundleWith("failing", FailingTask::class.java), startupDetails(taskId = "failing"), noOpClient())
+    } finally {
+      System.setErr(original)
+    }
+
+    Assertions.assertEquals("", captured.toString())
+  }
+
+  @Test
+  @DisplayName("Should return failed and log an actionable message when task class has no public no-argument constructor")
+  fun shouldReturnFailedWhenTaskClassHasNoNoArgConstructor() {
+    LogSender.messages.clear()
+    val result =
+      runTask(bundleWith("uninstantiable", NoDefaultConstructorTask::class.java), startupDetails(taskId = "uninstantiable"), noOpClient())
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    val message = LogSender.messages.single { it.level == Level.ERROR }
+    Assertions.assertTrue(message.event.contains("public no-argument constructor")) { "unexpected event: ${message.event}" }
+    Assertions.assertEquals(NoDefaultConstructorTask::class.java.name, message.arguments["taskClass"])
+  }
+
+  @Test
+  @DisplayName("Should return retry when task class cannot be instantiated and should_retry is true")
+  fun shouldReturnRetryWhenTaskClassCannotBeInstantiatedAndShouldRetryIsTrue() {
+    val details = startupDetails(taskId = "uninstantiable")
+    details.tiContext?.shouldRetry = true
+    val result = runTask(bundleWith("uninstantiable", NoDefaultConstructorTask::class.java), details, noOpClient())
+
+    Assertions.assertInstanceOf(RetryTask::class.java, result)
   }
 
   private fun bundleWith(
@@ -170,5 +211,14 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw NoClassDefFoundError("simulated")
+  }
+
+  class NoDefaultConstructorTask(
+    private val marker: String,
+  ) : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ): Unit = throw IllegalStateException(marker)
   }
 }
