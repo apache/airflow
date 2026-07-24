@@ -8,6 +8,7 @@
     "Variables": "Variables"
   },
   "allOperators": "Tous les opérateurs",
+  "allTeams": "Toutes les équipes",
   "appearance": {
     "appearance": "Apparence",
     "darkMode": "Mode sombre",
@@ -20,11 +21,15 @@
   "assetEvent_many": "Événements d'Asset",
   "assetEvent_one": "Événement d'Asset",
   "assetEvent_other": "Événements d'Asset",
+  "assetInactive": {
+    "tooltip": "L'Asset en amont a été désactivé ; le planificateur suspend l'évaluation des partitions jusqu'à sa réactivation."
+  },
   "backfill_many": "Rattrapages",
   "backfill_one": "Rattrapage",
   "backfill_other": "Rattrapages",
   "browse": {
     "auditLog": "Journal d'audit",
+    "deadlines": "Échéances",
     "jobs": "Travaux",
     "requiredActions": "Actions requises",
     "xcoms": "XComs"
@@ -58,7 +63,8 @@
     "owner": "Propriétaire",
     "params": "Paramètres",
     "schedule": "Planification",
-    "tags": "Tags"
+    "tags": "Tags",
+    "team": "Équipe"
   },
   "dagId": "ID du Dag",
   "dagRun": {
@@ -73,6 +79,7 @@
     "expectedDuration": "Durée Attendue",
     "lastSchedulingDecision": "Dernière décision de planification",
     "mappedPartitionKey": "Clé de partition mappée",
+    "partitionDate": "Date de partition",
     "partitionKey": "Clé de partition",
     "queuedAt": "Mis en file à",
     "runAfter": "Exécuté après",
@@ -147,7 +154,11 @@
     "selectDateRange": "Sélectionner une plage de dates",
     "startTime": "Heure de début"
   },
+  "fullscreen": {
+    "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
+  },
   "generateToken": "Générer un jeton",
+  "key": "Clé",
   "logicalDate": "Date logique",
   "logout": "Déconnexion",
   "logoutConfirmation": "Vous êtes sur le point de vous déconnecter de l'application.",
@@ -177,10 +188,14 @@
   "note": {
     "add": "Ajouter une note",
     "dagRun": "Note d'exécution du Run",
+    "edit": "Modifier la note",
     "label": "Note",
     "placeholder": "Ajouter une note...",
-    "taskInstance": "Note de Task Instance"
+    "preview": "Aperçu",
+    "taskInstance": "Note de Task Instance",
+    "write": "Écrire"
   },
+  "overallStatus": "Statut global",
   "partitionedDagRun_many": "Exécutions de Dag partitionnées",
   "partitionedDagRun_one": "Exécution de Dag partitionnée",
   "partitionedDagRun_other": "Exécutions de Dag partitionnées",
@@ -190,6 +205,23 @@
   "pendingDagRun_many": "{{count}} exécutions de Dag en attente",
   "pendingDagRun_one": "{{count}} exécution de Dag en attente",
   "pendingDagRun_other": "{{count}} exécutions de Dag en attente",
+  "presetFilters": {
+    "deleteTitle": "Supprimer le filtre prédéfini",
+    "deleteWarning": "Les filtres prédéfinis sont stockés uniquement dans ce navigateur.",
+    "duplicate": "Le filtre prédéfini « {{name}} » enregistre déjà exactement cette configuration.",
+    "empty": "Aucun filtre prédéfini pour le moment",
+    "info": {
+      "default": "Épinglez un filtre prédéfini comme filtre par défaut et il sera appliqué automatiquement lorsque vous arrivez sur cette page sans filtre appliqué.",
+      "save": "Enregistrez les filtres et le tri actuels comme filtre prédéfini nommé, puis revenez-y à tout moment.",
+      "storage": "Les filtres prédéfinis sont stockés dans ce navigateur."
+    },
+    "namePlaceholder": "Nom du filtre prédéfini",
+    "nothingToSave": "Rien à enregistrer. Appliquez des filtres ou un tri pour enregistrer un filtre prédéfini.",
+    "save": "Enregistrer",
+    "setDefault": "Définir par défaut",
+    "title": "Filtres prédéfinis",
+    "unsetDefault": "Annuler le filtre par défaut"
+  },
   "reset": "Réinitialiser",
   "runId": "ID d'exécution",
   "runTypes": {
@@ -221,6 +253,47 @@
   },
   "selectLanguage": "Choisir la langue",
   "selected": "Sélectionné",
+  "shortcuts": {
+    "categories": {
+      "code": "Code",
+      "dagView": "Vue Dag",
+      "filters": "Filtres",
+      "global": "Général",
+      "logs": "Journaux",
+      "navigation": "Navigation",
+      "runActions": "Actions de Run et de tâche",
+      "search": "Recherche"
+    },
+    "descriptions": {
+      "clearRun": "Effacer $t(dagRun_one)",
+      "clearTaskInstance": "Effacer $t(taskInstance_one)",
+      "downloadLogs": "Télécharger les journaux",
+      "focusFilterSearch": "Cibler la recherche de filtres",
+      "focusLogSearch": "Rechercher dans les journaux",
+      "focusSearch": "Cibler la recherche",
+      "markRunFailed": "Marquer $t(dagRun_one) comme échoué",
+      "markRunSuccess": "Marquer $t(dagRun_one) comme réussi",
+      "markTaskFailed": "Marquer $t(task_one) comme échoué",
+      "markTaskGroupFailed": "Marquer $t(taskGroup_one) comme échoué",
+      "markTaskGroupSuccess": "Marquer $t(taskGroup_one) comme réussi",
+      "markTaskSuccess": "Marquer $t(task_one) comme réussi",
+      "navigateTasks": "Naviguer entre les $t(task_other)",
+      "openGraphFilters": "Ouvrir les filtres du graphe",
+      "scrollBottom": "Défiler vers le bas",
+      "scrollTop": "Défiler vers le haut",
+      "searchDags": "Rechercher des $t(dag_other)",
+      "showHelp": "Afficher $t(shortcuts.title)",
+      "toggleExpand": "Développer ou réduire tous les groupes",
+      "toggleFullscreen": "Basculer le plein écran",
+      "toggleGraphGrid": "Basculer entre la vue graphe et grille",
+      "toggleSource": "Basculer la source",
+      "toggleTaskGroup": "Développer ou réduire $t(taskGroup_one)",
+      "toggleTimestamp": "Basculer les horodatages",
+      "toggleWrap": "Basculer $t(wrap.wrap)"
+    },
+    "empty": "Aucun raccourci clavier n'est disponible sur cette page.",
+    "title": "Raccourcis clavier"
+  },
   "showDetailsPanel": "Afficher le panneau des détails",
   "signedInAs": "Connecté en tant que",
   "source": {
@@ -234,6 +307,7 @@
   "startDate": "Date de début",
   "state": "État",
   "states": {
+    "awaiting_input": "En attente de saisie",
     "deferred": "Différé",
     "failed": "Échoué",
     "no_status": "Aucun statut",
@@ -262,31 +336,41 @@
     "from": "De",
     "maxActiveRuns": "Exécutions actives max.",
     "noTagsFound": "Aucun tag trouvé",
+    "noTeamsFound": "Aucune équipe trouvée",
     "tagMode": {
       "all": "Tous",
       "any": "N'importe lequel"
     },
     "tagPlaceholder": "Filtrer par tag",
-    "to": "À"
+    "to": "À",
+    "updatedAt": "Mis à jour le"
   },
   "task": {
+    "dependsOnPast": "Dépend du passé",
     "documentation": "Documentation de la tâche",
     "lastInstance": "Dernière instance",
     "operator": "Opérateur",
-    "triggerRule": "Règle de déclenchement"
+    "retries": "Tentatives",
+    "triggerRule": "Règle de déclenchement",
+    "waitForDownstream": "Attendre l'aval"
   },
   "task_many": "Tâches",
   "task_one": "Tâche",
   "task_other": "Tâches",
+  "taskGroup": {
+    "documentation": "Documentation du groupe de tâches"
+  },
   "taskGroup_many": "Groupes de tâches",
   "taskGroup_one": "Groupe de tâches",
   "taskGroup_other": "Groupes de tâches",
   "taskId": "ID de la tâche",
   "taskInstance": {
+    "additionalAttributes": "Attributs supplémentaires de l'instance de tâche",
     "dagVersion": "Version du Dag",
     "executor": "Exécuteur",
     "executorConfig": "Configuration de l'exécuteur",
     "hostname": "Nom d'hôte",
+    "id": "ID",
     "maxTries": "Essais max.",
     "pid": "PID",
     "pool": "Pool",
@@ -296,11 +380,13 @@
     "queuedWhen": "Mis en file à",
     "renderedMapIndex": "Map Index rendu",
     "scheduledWhen": "Planifié à",
+    "trigger": "Déclencheur",
     "triggerer": {
       "assigned": "Déclencheur assigné",
       "class": "Classe de déclencheur",
       "createdAt": "Heure de création du déclencheur",
       "id": "ID du déclencheur",
+      "job": "Job du déclencheur",
       "latestHeartbeat": "Dernier battement du déclencheur",
       "title": "Infos sur le déclencheur"
     },
@@ -398,6 +484,7 @@
     "mustBeAtLeast": "Doit être au moins {{min}}.",
     "mustBeValidNumber": "Doit être un nombre valide."
   },
+  "value": "Valeur",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Appuyez sur {{hotkey}} pour activer/désactiver le retour à la ligne",
