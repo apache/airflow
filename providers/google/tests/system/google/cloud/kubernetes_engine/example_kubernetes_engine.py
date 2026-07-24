@@ -51,7 +51,7 @@ CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 
 # [START howto_operator_gcp_gke_create_cluster_definition]
-CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1, "autopilot": {"enabled": True}}
+CLUSTER = {"name": CLUSTER_NAME, "autopilot": {"enabled": True}}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
 
