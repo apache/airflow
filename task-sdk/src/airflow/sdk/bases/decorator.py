@@ -253,6 +253,16 @@ def determine_kwargs(
     return KeywordParameters.determine(func, args, kwargs).unpacking()
 
 
+_TASK_DECORATOR_CALL_HINT = (
+    "This can happen when a @task-decorated function shadows another callable and the decorated task "
+    "object is called like a regular function. Rename the task function or call the original callable instead."
+)
+
+
+def _should_add_task_decorator_call_hint(err: TypeError, op_args: Collection[Any]) -> bool:
+    return bool(op_args) and "too many positional arguments" in str(err)
+
+
 class DecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
@@ -365,10 +375,15 @@ class DecoratedOperator(BaseOperator):
         # check all the arguments we know are valid. Whether these are enough
         # can only be known at execution time, when unmapping happens, and this
         # is called without the _airflow_mapped_validation_only flag.
-        if kwargs.get("_airflow_mapped_validation_only"):
-            signature.bind_partial(*op_args, **op_kwargs)
-        else:
-            signature.bind(*op_args, **op_kwargs)
+        try:
+            if kwargs.get("_airflow_mapped_validation_only"):
+                signature.bind_partial(*op_args, **op_kwargs)
+            else:
+                signature.bind(*op_args, **op_kwargs)
+        except TypeError as err:
+            if _should_add_task_decorator_call_hint(err, op_args):
+                raise TypeError(f"{err}. {_TASK_DECORATOR_CALL_HINT}") from err
+            raise
 
         # Params in injected_for_ordering are semantically required even though they received a
         # None default to satisfy Python's ordering constraint. Verify they are actually provided.
