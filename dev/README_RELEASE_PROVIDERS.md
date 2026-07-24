@@ -825,71 +825,39 @@ not be needed unless there is some problem with workflow automation above)
 
 ## Prepare issue in GitHub to keep status of testing
 
-Create a GitHub issue with the content generated via manual execution of the command below. You will use
-link to that issue in the next step.
+To avoid GitHub's URL length limitations when creating massive issues, and to allow local modifications (such as carrying over completed checkmarks from previous waves), the recommended workflow is to **first generate the issue body locally into a file**, edit/update it as needed, and then publish it using the GitHub CLI.
+
+### 1. Generate the issue content locally to `files/provider_issue.md`
+
+Run the following command to fetch all relevant PRs and write the issue body to a local file:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management generate-issue-content-providers --only-available-in-dist
-```
-
-By default the command will attempt to retrieve the GitHub token used to authenticate with GH and tackle
-rate limiting from locally run `gh auth token` command output - but if you do not have `gh` installed,
-you can generate such token in GitHub Interface and pass it to the command manually. When you use
-`breeze release-management generate-issue-content-providers --help` - you will see the link that you
-will be able to click to generate such token.
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-breeze release-management generate-issue-content-providers --only-available-in-dist --github-token TOKEN
-```
-
-Sometimes, when there are big PRs implemented across many providers, you want to filter them out
-from the issue content. When there are many of the same PRs/issues they create a noise in the issue
-and not add value, usually those PRs and issues are about package preparation mechanism so they
-are tested well outside regular package testing.
-
-The command will exclude automatically PRs that are commented out, but sometimes there
-are issues you want to exclude additionally.
-
-You can optionally pass list of such PR to be excluded from  the issue with `--excluded-pr-list`.
-This might limit the scope of verification. Some providers might disappear
-from the list and list of authors that will be pinged in the generated issue.
-
-You can repeat that and regenerate the issue content until you are happy with the generated issue
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-breeze release-management generate-issue-content-providers --only-available-in-dist --github-token TOKEN \
-    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
-```
-
-The command always writes the full, untruncated issue body to a file (a temporary file by
-default, or the path you pass with `--output-file`) and prints that path together with a ready
-to run `gh issue create --body-file ...` command. This file is the source of truth for the issue
-content - it is safe to edit it before the issue is created. There is a comment generated with
-NOTE TO RELEASE MANAGER about this in the issue content.
-
-By default, the command will ask whether to create the issue. You can answer Yes and it will
-create the issue with the `gh` tool using `--body-file` (so there is no longer any "URL too long"
-limitation - the previous `--web` based flow encoded the whole body into the URL and failed on
-large provider waves). If you prefer to create it yourself (or want to preview it first), answer
-No and run the printed `gh issue create --body-file ...` command, or copy the file content into a
-"New Issue" screen in GitHub.
-
-For non-interactive / agentic runs you can skip the prompt by passing `--answer yes` (create the
-issue) or `--answer no` (only generate the file). For example, to generate the body without
-creating the issue:
-
-```shell script
 breeze release-management generate-issue-content-providers --only-available-in-dist \
     --output-file files/provider_issue.md --answer no
 ```
 
-### Always carry over checkmarks from the previous wave's testing issue
+By default, the command attempts to retrieve the GitHub token used to authenticate with `gh`. If you ran into GitHub rate limits, or do not have `gh` installed globally, you can generate a token in the GitHub web interface and pass it manually:
+
+```shell script
+breeze release-management generate-issue-content-providers --only-available-in-dist \
+    --output-file files/provider_issue.md --answer no --github-token TOKEN
+```
+
+#### Filtering out noisy PRs (Optional)
+
+Sometimes, large PRs that took place across many providers (like preparation mechanisms or boilerplate changes) create redundant noise. You can specify a comma-separated list of PRs to exclude:
+
+```shell script
+breeze release-management generate-issue-content-providers --only-available-in-dist \
+    --output-file files/provider_issue.md --answer no --github-token TOKEN \
+    --excluded-pr-list PR_NUMBER1,PR_NUMBER2
+```
+
+This local file (`files/provider_issue.md`) is now your working source of truth. You can preview or edit it directly before posting.
+
+### 2. Always carry over checkmarks from the previous wave's testing issue
 
 Whenever a provider in this wave is a **re-cut** of one that already appeared in
 an earlier wave's testing issue — providers held back from the previous wave and
@@ -899,27 +867,41 @@ ticked in the new one. Testers should not be asked to re-verify unchanged code;
 only the genuinely new commits in the re-cut are left unchecked. **Do this every
 time** before creating the issue.
 
+> [!IMPORTANT]
+> **Prerequisite**: You must have generated the local `files/provider_issue.md` file using the command in Step 1 before running the `sed` commands below.
+
 Extract the checked PRs from the previous issue and carry them over to the
-generated body:
+generated body. Note that the `sed` command behaves differently on macOS and GNU/Linux:
 
 ```shell script
 # PREV_ISSUE = the previous wave's testing-status issue number
 gh issue view PREV_ISSUE --repo apache/airflow --json body -q .body > /tmp/prev_issue.md
 checked=$(grep -E '^\s*- \[x\]' /tmp/prev_issue.md | grep -oE '#[0-9]+' | tr -d '#' | sort -u | paste -sd '|' -)
-# macOS sed: `sed -i ''`; GNU/Linux sed: `sed -i`
+
+# On macOS:
 sed -i '' -E "s/- \[ \] (.*\(#(${checked})\))/- [x] \1/" files/provider_issue.md
+
+# On GNU/Linux:
+sed -i -E "s/- \[ \] (.*\(#(${checked})\))/- [x] \1/" files/provider_issue.md
 ```
 
-Review the resulting `[x]` lines (PRs only present in the new wave stay
-unchecked), then create the issue as below. If the issue was already created,
-apply the same edit to the file and run `gh issue edit <ISSUE> --body-file ...`.
+Review the resulting `[x]` lines in `files/provider_issue.md` (PRs only present in the new wave stay
+unchecked). If the issue was already created, apply the same local edit and then edit the online issue as described in Step 3.
 
-then create it from the file:
+### 3. Create the issue on GitHub
+
+Once you are satisfied with `files/provider_issue.md` (and any checkmarks have been carried over), create the issue from the file:
 
 ```shell script
 gh issue create --repo apache/airflow \
     --title "Status of testing Providers that were prepared on <MONTH DD, YYYY>" \
     --body-file files/provider_issue.md --label "testing status,kind:meta"
+```
+
+If the issue has already been created on GitHub and you only need to update its description with the carried-over checkmarks:
+
+```shell script
+gh issue edit <ISSUE_NUMBER> --repo apache/airflow --body-file files/provider_issue.md
 ```
 
 ## Prepare voting email for Providers release candidate
