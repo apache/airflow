@@ -412,7 +412,6 @@ class TestKeda:
         return jmespath.search("spec.template.spec.containers[].env[].name", doc) or []
 
     def test_worker_keda_db_conn_not_leaked_to_other_components(self):
-        """Worker KEDA_DB_CONN should render on the worker only, not on unrelated components."""
         docs = render_chart(
             values={
                 "workers": {"celery": {"keda": {"enabled": True, "usePgbouncer": False}}},
@@ -435,7 +434,6 @@ class TestKeda:
         assert "KEDA_DB_CONN" not in self._env_names(triggerer)
 
     def test_triggerer_keda_db_conn_not_leaked_to_other_components(self):
-        """Triggerer KEDA_DB_CONN should render on the triggerer only, not on the worker or others."""
         docs = render_chart(
             values={
                 "triggerer": {"keda": {"enabled": True, "usePgbouncer": False}},

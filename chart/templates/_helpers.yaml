@@ -150,11 +150,7 @@ If release name contains chart name it will be used as a full name.
 
 {{/* KEDA scaler database connection for the worker and triggerer autoscalers */}}
 {{- define "keda_airflow_environment" }}
-  {{- $triggererKedaEnabled := and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
-  {{- $workersKedaNeedsDbConn := and .Values.workers.celery.keda.enabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.workers.celery.keda.usePgbouncer))) }}
-  {{- $triggererKedaNeedsDbConn := and $triggererKedaEnabled (or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .Values.triggerer.keda.usePgbouncer))) }}
-  {{- $component := .Component | default "" }}
-  {{- if or (and (eq $component "worker") $workersKedaNeedsDbConn) (and (eq $component "triggerer") $triggererKedaNeedsDbConn) }}
+  {{- if or (eq .Values.data.metadataConnection.protocol "mysql") (and .Values.pgbouncer.enabled (not .UsePgbouncer)) }}
   - name: KEDA_DB_CONN
     valueFrom:
       secretKeyRef:
