@@ -94,10 +94,6 @@
     "critical": "CRITIQUE",
     "debug": "DÉBOGAGE",
     "error": "ERREUR",
-    "fullscreen": {
-      "button": "Plein écran",
-      "tooltip": "Appuyez sur {{hotkey}} pour le plein écran"
-    },
     "info": "INFO",
     "noTryNumber": "Aucun essai",
     "search": {
@@ -233,12 +229,34 @@
     "renderedTemplates": "Modèles rendus",
     "requiredActions": "Actions requises",
     "runs": "Runs",
+    "storage": "Stockage",
     "taskInstances": "Task Instances",
+    "taskStateStore": "Stockage d'état de tâche",
     "tasks": "Tâches",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "Réduire tous les groupes de tâches",
     "expandAll": "Développer tous les groupes de tâches"
+  },
+  "taskStateStore": {
+    "add": "Ajouter un Stockage d'état de tâche",
+    "clearAll": {
+      "resource": "tout le stockage d'état de tâche",
+      "title": "Effacer tout le Stockage d'état de tâche",
+      "warning": "Tout le stockage d'état de tâche sera effacé. Les tâches qui utilisent ce stockage pour suivre un travail externe ne pourront pas reprendre sans être ré-exécutées depuis le début."
+    },
+    "delete": "Supprimer le Stockage d'état de tâche",
+    "deleteWarning": "La tâche perdra cette mémoire persistée. Si la tâche utilise cette clé pour suivre un travail externe (par exemple un ID de job externe), elle ne pourra pas le reprendre.",
+    "edit": "Modifier le Stockage d'état de tâche",
+    "emptyStore": "Le stockage d'état de tâche stocke des valeurs qui persistent entre les tentatives. Les workers peuvent écrire dans le stockage d'état de tâche via le Task SDK.",
+    "expiresAt": {
+      "column": "Expire le",
+      "custom": "Personnalisé",
+      "default": "Par défaut ({{interval}})",
+      "label": "Expiration",
+      "never": "Jamais"
+    },
+    "title": "Stockage d'état de tâche"
   }
 }
