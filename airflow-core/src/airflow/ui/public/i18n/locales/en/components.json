@@ -7,9 +7,15 @@
     "backwards": "Run Backwards",
     "dateRange": "Date Range",
     "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
+    "exceptionReason": {
+      "alreadyExists": "Already exists",
+      "inFlight": "In flight",
+      "unknown": "Unknown"
+    },
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
     "missingRuns": "Missing Runs",
+    "notCreatedReason": "Not Created Reason",
     "overrideExistingParams": "Override parameters on existing runs",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
     "reprocessBehavior": "Reprocess Behavior",

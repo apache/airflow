@@ -30,11 +30,10 @@ import {
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
-import { Tooltip } from "src/components/ui";
+import { RouterLink, Tooltip } from "src/components/ui";
 import { useAutoRefresh } from "src/utils";
 
 import Time from "../Time";
-import { ProgressBar } from "../ui";
 
 type Props = {
   readonly dagId: string;
@@ -107,7 +106,9 @@ const BackfillBanner = ({ dagId }: Props) => {
     <Box bg="info.solid" borderRadius="full" color="info.contrast" my="1" px="2" py="1">
       <HStack alignItems="center" ml={3}>
         <RiArrowGoBackFill />
-        <Text key="backfill">{translate("banner.backfillInProgress")}:</Text>
+        <RouterLink color="inherit" fontWeight="medium" to={`/dags/${dagId}/backfills/${backfill.id}`}>
+          {translate("banner.backfillInProgress")}:
+        </RouterLink>
         <Tooltip content={translate("backfill.schedulerPriorityHint")} showArrow>
           <span>
             <MdInfo />
@@ -119,7 +120,6 @@ const BackfillBanner = ({ dagId }: Props) => {
         </Text>
 
         <Spacer flex="max-content" />
-        <ProgressBar size="xs" visibility="visible" />
         <Button
           aria-label={backfill.is_paused ? translate("banner.unpause") : translate("banner.pause")}
           loading={isPausePending || isUnPausePending}

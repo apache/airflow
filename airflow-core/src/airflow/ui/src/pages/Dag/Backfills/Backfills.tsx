@@ -27,15 +27,19 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+import { RouterLink } from "src/components/ui";
 import { getDuration } from "src/utils";
 
-const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
+const getColumns = (
+  dagId: string,
+  translate: (key: string) => string,
+): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
-      <Text>
+      <RouterLink fontWeight="bold" to={`/dags/${dagId}/backfills/${row.original.id}`}>
         <Time datetime={row.original.from_date} />
-      </Text>
+      </RouterLink>
     ),
     enableSorting: false,
     header: translate("table.from"),
@@ -110,14 +114,13 @@ export const Backfills = () => {
   const { pagination } = tableURLState;
 
   const { dagId = "" } = useParams();
-
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
-  const columns = getColumns(translate);
+  const columns = getColumns(dagId, translate);
 
   return (
     <Box>
