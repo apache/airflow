@@ -458,6 +458,31 @@ class TestGenAIGeminiCreateBatchJobOperator:
             op.execute(context={"ti": mock.MagicMock()})
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_prepare_results_for_xcom_results_folder_not_exists_raises_airflow_exception(self, mock_hook):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_FILE_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            results_folder=TEST_FILE_PATH,
+        )
+        mock_job = mock.MagicMock()
+        mock_job.dest.inlined_responses = None
+        mock_job.dest.file_name = "results-file"
+
+        with pytest.raises(
+            AirflowException,
+            match="path to results_folder does not exist, please provide correct path",
+        ):
+            op._prepare_results_for_xcom(mock_job)
+
+        mock_hook.return_value.download_file.assert_not_called()
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test__wait_until_complete_exception_raises_airflow_exception(self, mock_hook):
         op = GenAIGeminiCreateBatchJobOperator(
             task_id=TASK_ID,
@@ -831,6 +856,31 @@ class TestGenAIGeminiCreateEmbeddingsBatchJobOperator:
             match="path to results_folder does not exist, please provide correct path",
         ):
             op.execute(context={"ti": mock.MagicMock()})
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_prepare_results_for_xcom_results_folder_not_exists_raises_airflow_exception(self, mock_hook):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_FILE_NAME,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            results_folder=TEST_FILE_PATH,
+        )
+        mock_job = mock.MagicMock()
+        mock_job.dest.inlined_embed_content_responses = None
+        mock_job.dest.file_name = "results-file"
+
+        with pytest.raises(
+            AirflowException,
+            match="path to results_folder does not exist, please provide correct path",
+        ):
+            op._prepare_results_for_xcom(mock_job)
+
+        mock_hook.return_value.download_file.assert_not_called()
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test__wait_until_complete_exception_raises_airflow_exception(self, mock_hook):

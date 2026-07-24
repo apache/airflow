@@ -499,6 +499,11 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("Something went wrong during waiting of the batch job.")
         return job
 
+    def _validate_results_folder(self):
+        # Re-checked where the results file is written: deferral resume skips execute().
+        if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
+            raise AirflowException("path to results_folder does not exist, please provide correct path")
+
     def _prepare_results_for_xcom(self, job):
         results = []
         if job.dest and job.dest.inlined_responses:
@@ -514,6 +519,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
                     self.log.warning("Error found in the inline result")
                     results.append(inline_response.error)
         elif job.dest and job.dest.file_name:
+            self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
             file_name = job.display_name or job.name.replace("/", "-")
@@ -541,8 +547,7 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         if self.results_folder and not isinstance(self.input_source, str):
             raise AirflowException("results_folder works only when input_source is file name")
 
-        if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
-            raise AirflowException("path to results_folder does not exist, please provide correct path")
+        self._validate_results_folder()
 
         if self.deferrable:
             self.defer(
@@ -944,6 +949,11 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("Something went wrong during waiting of the batch job: %s", e)
         return job
 
+    def _validate_results_folder(self):
+        # Re-checked where the results file is written: deferral resume skips execute().
+        if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
+            raise AirflowException("path to results_folder does not exist, please provide correct path")
+
     def _prepare_results_for_xcom(self, job):
         results = []
         if job.dest and job.dest.inlined_embed_content_responses:
@@ -959,6 +969,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
                     self.log.warning("Error found in the inline result")
                     results.append(inline_embed_response.error)
         elif job.dest and job.dest.file_name:
+            self._validate_results_folder()
             file_content_bytes = self.hook.download_file(file_name=job.dest.file_name)
             file_content = file_content_bytes.decode("utf-8")
             file_name = job.display_name or job.name.replace("/", "-")
@@ -986,8 +997,7 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
         if self.results_folder and not isinstance(self.input_source, str):
             raise AirflowException("results_folder works only when input_source is file name")
 
-        if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
-            raise AirflowException("path to results_folder does not exist, please provide correct path")
+        self._validate_results_folder()
         if self.deferrable:
             self.defer(
                 trigger=GenAIGeminiCreateEmbeddingsBatchJobTrigger(
