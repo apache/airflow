@@ -60,8 +60,6 @@ providers/google/src/airflow/providers/google/cloud/operators/functions.py::Clou
 providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSDeleteObjectsOperator
 providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSFileTransformOperator
 providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSListObjectsOperator
-providers/google/src/airflow/providers/google/cloud/operators/gen_ai.py::GenAIGeminiCreateBatchJobOperator
-providers/google/src/airflow/providers/google/cloud/operators/gen_ai.py::GenAIGeminiCreateEmbeddingsBatchJobOperator
 providers/google/src/airflow/providers/google/cloud/sensors/bigquery_dts.py::BigQueryDataTransferServiceTransferRunSensor
 providers/google/src/airflow/providers/google/cloud/sensors/cloud_composer.py::CloudComposerExternalTaskSensor
 providers/google/src/airflow/providers/google/cloud/transfers/azure_fileshare_to_gcs.py::AzureFileShareToGCSOperator
