@@ -633,6 +633,9 @@ class TestSerializedDagModel:
         content is unchanged, ``write_dag`` must refresh the latest DagVersion's
         ``bundle_version`` in place (so tasks resolve the current commit) without
         creating a new DagVersion (which would inflate versions on every commit).
+
+        This only applies to bundles without ``version_data`` (e.g. Git), where
+        ``bundle_version`` alone is enough to recover the code.
         """
         with dag_maker("test_dag_bundle_version_refresh", bundle_name="bundleA") as dag:
             EmptyOperator(task_id="task1")
@@ -643,21 +646,18 @@ class TestSerializedDagModel:
             LazyDeserializedDAG.from_dag(dag),
             bundle_name="bundleA",
             bundle_version="commit_A",
-            version_data={"manifest": "A"},
             session=session,
         )
         assert did_write is True
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
         latest = DagVersion.get_latest_version(dag.dag_id, session=session)
         assert latest.bundle_version == "commit_A"
-        assert latest.version_data == {"manifest": "A"}
 
         # Same content, same bundle_name, but the bundle moved to a new commit.
         did_write = SDM.write_dag(
             LazyDeserializedDAG.from_dag(dag),
             bundle_name="bundleA",
             bundle_version="commit_B",
-            version_data={"manifest": "B"},
             session=session,
         )
 
@@ -666,6 +666,101 @@ class TestSerializedDagModel:
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
         latest = DagVersion.get_latest_version(dag.dag_id, session=session)
         assert latest.bundle_version == "commit_B"
+
+    @pytest.mark.parametrize(
+        ("new_bundle_version", "new_version_data"),
+        [
+            pytest.param("hash_B", {"manifest": "B"}, id="manifest-changed"),
+            pytest.param(None, None, id="version-data-removed"),
+        ],
+    )
+    def test_new_dag_version_created_when_version_data_changes_and_version_in_use(
+        self, dag_maker, session, new_bundle_version, new_version_data
+    ):
+        """When ``version_data`` is in play (e.g. an S3 bundle manifest) and the current
+        DagVersion already has task instances, a bundle change with unchanged serialized
+        content must create a NEW DagVersion instead of overwriting the row in place.
+
+        The old row's ``version_data`` is the only way runs pinned to the old
+        ``bundle_version`` can reconstruct their code — overwriting it would break their
+        reproducibility.
+        """
+        with dag_maker("test_dag_version_data_preserved", bundle_name="bundleA") as dag:
+            EmptyOperator(task_id="task1")
+
+        SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="hash_A",
+            version_data={"manifest": "A"},
+            session=session,
+        )
+        # Task instances now reference the (hash_A, manifest A) version.
+        dag_maker.create_dagrun(run_id="test_run")
+        pinned = DagVersion.get_latest_version(dag.dag_id, session=session)
+
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version=new_bundle_version,
+            version_data=new_version_data,
+            session=session,
+        )
+        session.flush()
+
+        assert did_write is True
+        assert (
+            session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag.dag_id)
+            )
+            == 2
+        )
+        # The pinned version's manifest survives untouched.
+        session.refresh(pinned)
+        assert pinned.bundle_version == "hash_A"
+        assert pinned.version_data == {"manifest": "A"}
+        # The new version is the latest, carries the new metadata, and is fully usable
+        # (has its own serialized dag) so new runs can be created against it.
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.id != pinned.id
+        assert latest.version_number == pinned.version_number + 1
+        assert latest.bundle_version == new_bundle_version
+        assert latest.version_data == new_version_data
+        assert latest.serialized_dag is not None
+
+    def test_version_data_updated_in_place_when_version_not_in_use(self, dag_maker, session):
+        """Without task instances referencing the version, nothing is pinned to it, so the
+        bundle metadata (including ``version_data``) is refreshed in place without
+        creating a new DagVersion.
+        """
+        with dag_maker("test_dag_version_data_no_ti", bundle_name="bundleA") as dag:
+            EmptyOperator(task_id="task1")
+
+        SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="hash_A",
+            version_data={"manifest": "A"},
+            session=session,
+        )
+
+        did_write = SDM.write_dag(
+            LazyDeserializedDAG.from_dag(dag),
+            bundle_name="bundleA",
+            bundle_version="hash_B",
+            version_data={"manifest": "B"},
+            session=session,
+        )
+
+        assert did_write is True
+        assert (
+            session.scalar(
+                select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag.dag_id)
+            )
+            == 1
+        )
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.bundle_version == "hash_B"
         assert latest.version_data == {"manifest": "B"}
 
     def test_write_dag_unchanged_with_same_bundle_version_skips_write(self, dag_maker, session):
