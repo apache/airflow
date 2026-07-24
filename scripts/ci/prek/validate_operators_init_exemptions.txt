@@ -27,7 +27,6 @@ providers/apache/hive/src/airflow/providers/apache/hive/sensors/named_hive_parti
 providers/apache/kafka/src/airflow/providers/apache/kafka/operators/produce.py::ProduceToTopicOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/kueue.py::KubernetesInstallKueueOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
-providers/cohere/src/airflow/providers/cohere/operators/embedding.py::CohereEmbeddingOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposCreateOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposDeleteOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposUpdateOperator
