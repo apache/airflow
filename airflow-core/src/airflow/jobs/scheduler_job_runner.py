@@ -161,6 +161,9 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 
+_TRIGGER_TIMEOUT_BATCH_SIZE = 1000
+"""Maximum number of task instances to lock per trigger-timeout batch."""
+
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -3430,25 +3433,45 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self, max_retries: int = MAX_DB_RETRIES, *, session: Session = NEW_SESSION
     ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
-        for attempt in run_with_db_retries(max_retries, logger=self.log):
-            with attempt:
-                result = session.execute(
-                    update(TI)
-                    .where(
-                        TI.state == TaskInstanceState.DEFERRED,
-                        TI.trigger_timeout < timezone.utcnow(),
+        while True:
+            task_instance_ids = []
+            for attempt in run_with_db_retries(max_retries, logger=self.log):
+                with attempt:
+                    now = timezone.utcnow()
+                    candidates = (
+                        select(TI.id)
+                        .where(
+                            TI.state == TaskInstanceState.DEFERRED,
+                            TI.trigger_timeout < now,
+                        )
+                        .order_by(TI.id)
+                        .limit(_TRIGGER_TIMEOUT_BATCH_SIZE)
                     )
-                    .values(
-                        state=TaskInstanceState.SCHEDULED,
-                        next_method=TRIGGER_FAIL_REPR,
-                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
-                        scheduled_dttm=timezone.utcnow(),
-                        trigger_id=None,
+                    task_instance_ids = list(
+                        session.scalars(
+                            with_row_locks(candidates, of=TI, session=session, skip_locked=True)
+                        ).all()
                     )
-                )
-                num_timed_out_tasks = getattr(result, "rowcount", 0)
-                if num_timed_out_tasks:
-                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+                    if task_instance_ids:
+                        result = session.execute(
+                            update(TI)
+                            .where(TI.id.in_(task_instance_ids))
+                            .values(
+                                state=TaskInstanceState.SCHEDULED,
+                                next_method=TRIGGER_FAIL_REPR,
+                                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                                scheduled_dttm=now,
+                                trigger_id=None,
+                            )
+                            .execution_options(synchronize_session=False)
+                        )
+                        num_timed_out_tasks = getattr(result, "rowcount", 0)
+                        if num_timed_out_tasks:
+                            self.log.info(
+                                "Timed out %i deferred tasks without fired triggers", num_timed_out_tasks
+                            )
+            if len(task_instance_ids) < _TRIGGER_TIMEOUT_BATCH_SIZE:
+                break
 
     @provide_session
     def check_awaiting_input_timeouts(

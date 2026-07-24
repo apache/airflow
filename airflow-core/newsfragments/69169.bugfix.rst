@@ -1,0 +1,1 @@
+Preserve retry attempt metadata when recording task instance history.
