@@ -875,8 +875,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             ti=ser_ti,  # type: ignore
         )
 
+        dag_run = trigger.task_instance.get_dagrun(session=session)
         serialized_dag_model = dag_bag.get_serialized_dag_model(
-            version_id=trigger.task_instance.dag_version_id,
+            version_id=DBDagBag._version_from_dag_run(dag_run=dag_run, session=session)
+            or trigger.task_instance.dag_version_id,
             session=session,
         )
 
@@ -888,7 +890,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             # will allow us to build a context on which we will render the templated fields.
             if task.start_from_trigger:
                 log.info("Start from trigger enabled for task %s", task.task_id)
-                dag_run = trigger.task_instance.get_dagrun(session=session)
 
                 return workloads.RunTrigger(
                     id=trigger.id,

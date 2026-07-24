@@ -609,6 +609,58 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     assert factory.log_path == f"/logs/ti.trigger.{jobless_supervisor.id}.log"
 
 
+@pytest.mark.parametrize(
+    "pinned", [True, False], ids=["pinned-uses-run-created-version", "unpinned-uses-latest-version"]
+)
+def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mocker, pinned):
+    """The trigger should load the run's Dag version: created version if pinned, latest otherwise."""
+    run_created_version = uuid.uuid4()
+    latest_version = uuid.uuid4()
+    bumped_ti_version = uuid.uuid4()
+
+    trigger = mocker.Mock()
+    trigger.id = 8
+    trigger.classpath = "some.path.Trigger"
+    trigger.encrypted_kwargs = ""
+    trigger.task_instance.dag_version_id = bumped_ti_version
+    trigger.task_instance.task_id = "t"
+    trigger.task_instance.trigger_timeout = None
+
+    dag_run = mocker.Mock(spec=DagRun)
+    dag_run.dag_id = "test_dag"
+    dag_run.bundle_version = "some-bundle-version" if pinned else None
+    dag_run.created_dag_version_id = run_created_version
+    dag_run.dag_run_data = mocker.Mock()
+    dag_run.dag_run_data.model_dump.return_value = {}
+    trigger.task_instance.get_dagrun.return_value = dag_run
+
+    mocker.patch.object(
+        DagVersion, "get_latest_version", return_value=mocker.Mock(spec=DagVersion, id=latest_version)
+    )
+    mocker.patch(
+        "airflow.jobs.triggerer_job_runner.TaskInstanceDTO.model_validate",
+        return_value=mocker.Mock(spec=TaskInstanceDTO),
+    )
+
+    dag_bag = mocker.Mock()
+    serialized_dag_model = mocker.Mock()
+    task = mocker.Mock(start_from_trigger=True)
+    serialized_dag_model.dag.get_task.return_value = task
+    serialized_dag_model.data = {}
+    dag_bag.get_serialized_dag_model.return_value = serialized_dag_model
+
+    session = mocker.Mock()
+    jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=dag_bag,
+        render_log_fname=mocker.Mock(return_value="/logs/ti"),
+        session=session,
+    )
+
+    expected_version = run_created_version if pinned else latest_version
+    dag_bag.get_serialized_dag_model.assert_called_once_with(version_id=expected_version, session=session)
+
+
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
     """_create_workload() should populate watched_assets when trigger.task_instance is None and assets exist."""
     asset1 = mocker.Mock(spec=Asset)
