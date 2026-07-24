@@ -34,9 +34,9 @@ type BundleProvider interface {
 	// Registry, for example:
 	//
 	//	func (m *myBundle) RegisterDags(dagbag bundlev1.Registry) error {
-	//		dag := dagbag.AddDag("simple_dag")
-	//		dag.AddTask(extract)
-	//		dag.AddTask(transform)
+	//		dag := dagbag.AddDag(bundlev1.DagSpec{DagId: "simple_dag"})
+	//		extracted := dag.Task(extract)
+	//		dag.Task(transform, bundlev1.Inputs(extracted))
 	//		return nil
 	//	}
 	//
