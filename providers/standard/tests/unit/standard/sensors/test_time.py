@@ -135,3 +135,14 @@ class TestTimeSensor:
             op.execute_complete(context={}, event={"status": "success"})
         except TypeError as e:
             pytest.fail(f"TypeError raised: {e}")
+
+    def test_start_from_trigger_raises_value_error(self):
+        """start_from_trigger bakes datetime.now() into trigger_kwargs at parse time,
+        causing the DAG version to change on every parse. See #69543."""
+        with DAG(
+            dag_id="test_start_from_trigger_raises",
+            schedule=None,
+            start_date=datetime(2020, 1, 1, 13, 0),
+        ):
+            with pytest.raises(ValueError, match="TimeSensor does not support start_from_trigger=True"):
+                TimeSensor(task_id="test", target_time=time(10, 0), start_from_trigger=True)

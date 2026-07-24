@@ -41,7 +41,13 @@ TimeSensor
 
 Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to end sensing after time specified. ``TimeSensor`` can be run in deferrable mode, if a Triggerer is available.
 
-Time will be evaluated against ``data_interval_end`` if present for the Dag run, otherwise ``run_after`` will be used.
+The target moment is "today" (in the Dag's timezone) combined with ``target_time``, evaluated fresh
+each time the operator is instantiated -- which, for the default and for ``deferrable=True`` execution,
+happens close to the actual task run.
+
+``start_from_trigger`` is not supported by ``TimeSensor``: the target moment can only be correctly
+computed at task-execution time, not at Dag-parse time, so it cannot be handed to the triggerer ahead
+of time. Setting ``start_from_trigger=True`` raises a ``ValueError``.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
