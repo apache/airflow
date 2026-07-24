@@ -46,7 +46,7 @@ from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_s
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
-from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.asset import AssetActive, AssetEvent, AssetEventQueue, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.log import Log
 from airflow.models.task_state_store import TaskStateStoreModel
@@ -102,19 +102,6 @@ def _is_task_instance_update(statement) -> bool:
 
 def _is_select_for_update(statement) -> bool:
     return getattr(statement, "is_select", False) and "FOR UPDATE" in str(statement.compile()).upper()
-
-
-def _create_asset_aliases(session, num: int = 2) -> None:
-    asset_aliases = [
-        AssetAliasModel(
-            id=i,
-            name=f"simple{i}",
-            group="alias",
-        )
-        for i in range(1, 1 + num)
-    ]
-    session.add_all(asset_aliases)
-    session.commit()
 
 
 @pytest.fixture
@@ -1229,17 +1216,9 @@ class TestTIUpdateState:
         assert ti.rendered_map_index == rendered_map_index
 
     @pytest.mark.parametrize(
-        "task_outlets",
+        "outlet_events",
         [
-            pytest.param([{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}], id="asset"),
-            pytest.param([{"name": "my-task", "type": "AssetNameRef"}], id="name-ref"),
-            pytest.param([{"uri": "s3://bucket/my-task", "type": "AssetUriRef"}], id="uri-ref"),
-        ],
-    )
-    @pytest.mark.parametrize(
-        ("outlet_events", "expected_extra"),
-        [
-            pytest.param([], {}, id="default"),
+            pytest.param([], id="default"),
             pytest.param(
                 [
                     {
@@ -1251,23 +1230,18 @@ class TestTIUpdateState:
                         "extra": {"foo": 2},
                     },
                 ],
-                {"foo": 1},
                 id="extra",
             ),
         ],
     )
-    def test_ti_update_state_to_success_with_asset_events(
-        self, client, session, create_task_instance, task_outlets, outlet_events, expected_extra
+    def test_ti_update_state_to_success_enqueues_asset_events(
+        self, client, session, create_task_instance, outlet_events
     ):
-        asset = AssetModel(
-            id=1,
-            name="my-task",
-            uri="s3://bucket/my-task",
-            group="asset",
-            extra={},
-        )
-        asset_active = AssetActive.for_asset(asset)
-        session.add_all([asset, asset_active])
+        """A successful task with outlets records a durable ``asset_event_queue`` marker in the same
+        transaction as the state. Registration is the scheduler drain's job, so no ``AssetEvent``
+        exists yet -- the request only enqueues the raw outlets/events plus the TI natural key the
+        drain resolves the live task instance with."""
+        task_outlets = [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}]
 
         ti = create_task_instance(
             task_id="test_ti_update_state_to_success_with_asset_events",
@@ -1290,52 +1264,37 @@ class TestTIUpdateState:
         assert response.text == ""
         session.expire_all()
 
-        event = session.scalars(select(AssetEvent)).all()
-        assert len(event) == 1
-        assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
-        assert event[0].extra == expected_extra
+        # Registration is deferred to the scheduler drain: nothing registered inline.
+        assert session.scalars(select(AssetEvent)).all() == []
 
-    @pytest.mark.parametrize(
-        ("outlet_events", "expected_extra"),
-        [
-            pytest.param([], None, id="default"),
-            pytest.param(
-                [
-                    {
-                        "dest_asset_key": {"name": "my-task", "uri": "s3://bucket/my-task"},
-                        "source_alias_name": "simple1",
-                        "extra": {"foo": 1},
-                    },
-                    {
-                        "dest_asset_key": {"name": "my-task-2", "uri": "s3://bucket/my-task-2"},
-                        "extra": {"foo": 2},
-                    },
-                    {
-                        "dest_asset_key": {"name": "my-task-2", "uri": "s3://bucket/my-task-2"},
-                        "source_alias_name": "simple2",
-                        "extra": {"foo": 3},
-                    },
-                ],
-                {"foo": 1},
-                id="extra",
-            ),
-        ],
-    )
-    def test_ti_update_state_to_success_with_asset_alias_events(
-        self, client, session, create_task_instance, outlet_events, expected_extra
+        rows = session.scalars(select(AssetEventQueue)).all()
+        assert len(rows) == 1
+        assert rows[0].ti_id == ti.id
+        assert rows[0].attempts == 0
+        assert rows[0].payload == {
+            "task_outlets": task_outlets,
+            "outlet_events": outlet_events,
+            "ti_key": {
+                "dag_id": ti.dag_id,
+                "run_id": ti.run_id,
+                "task_id": ti.task_id,
+                "map_index": ti.map_index,
+            },
+        }
+
+    def test_ti_update_state_to_success_with_asset_alias_events_enqueues(
+        self, client, session, create_task_instance
     ):
-        asset = AssetModel(
-            id=1,
-            name="my-task",
-            uri="s3://bucket/my-task",
-            group="asset",
-            extra={},
-        )
-        asset_active = AssetActive.for_asset(asset)
-        session.add_all([asset, asset_active])
-
-        _create_asset_aliases(session, num=2)
-
+        """Alias outlets are enqueued verbatim; the scheduler drain resolves the alias to concrete
+        AssetEvents when it registers (see the manager/drain tests), so the request itself creates
+        only the queue marker and registers nothing inline."""
+        outlet_events = [
+            {
+                "dest_asset_key": {"name": "my-task", "uri": "s3://bucket/my-task"},
+                "source_alias_name": "simple1",
+                "extra": {"foo": 1},
+            },
+        ]
         ti = create_task_instance(
             task_id="test_ti_update_state_to_success_with_asset_events",
             start_date=DEFAULT_START_DATE,
@@ -1357,13 +1316,72 @@ class TestTIUpdateState:
         assert response.text == ""
         session.expire_all()
 
-        events = session.scalars(select(AssetEvent)).all()
-        if expected_extra is None:
-            assert events == []
-        else:
-            assert len(events) == 1
-            assert events[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
-            assert events[0].extra == expected_extra
+        assert session.scalars(select(AssetEvent)).all() == []
+        rows = session.scalars(select(AssetEventQueue)).all()
+        assert len(rows) == 1
+        assert rows[0].payload["task_outlets"] == [{"name": "simple1", "uri": None, "type": "AssetAlias"}]
+        assert rows[0].payload["outlet_events"] == outlet_events
+
+    def test_ti_update_state_forced_failure_skips_asset_queue(self, client, session, create_task_instance):
+        """When an unexpected error while building the state update forces the TI to FAILED, the
+        success-only asset path must not run: nothing is registered and nothing is enqueued."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_forced_failure_skips_asset_queue",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances."
+            "_create_ti_state_update_query_and_update_state",
+            side_effect=Exception("kaboom"),
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                    "outlet_events": [],
+                },
+            )
+
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        assert session.get(TaskInstance, ti.id).state == State.FAILED
+        assert session.scalars(select(AssetEventQueue)).all() == []
+        assert session.scalars(select(AssetEvent)).all() == []
+
+    def test_ti_update_state_success_no_outlets_no_queue(self, client, session, create_task_instance):
+        """A successful TI with no outlets and no outlet events short-circuits: no registration, no
+        queue row, no AssetEvent."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_success_no_outlets_no_queue",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [],
+                "outlet_events": [],
+            },
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+        session.expire_all()
+
+        assert session.get(TaskInstance, ti.id).state == State.SUCCESS
+        assert session.scalars(select(AssetEventQueue)).all() == []
+        assert session.scalars(select(AssetEvent)).all() == []
 
     @pytest.mark.parametrize(
         ("partition_key", "expected_status"),

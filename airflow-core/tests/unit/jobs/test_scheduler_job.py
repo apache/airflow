@@ -68,6 +68,7 @@ from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
+    AssetEventQueue,
     AssetModel,
     AssetPartitionDagRun,
     DagScheduleAssetReference,
@@ -5716,6 +5717,151 @@ class TestSchedulerJob:
         )
 
         assert created_run.creating_job_id == scheduler_job.id
+
+    def _seed_asset_producer_and_queue_row(self, session, dag_maker, *, outlet_events=None):
+        """Create a producer DAG whose task has an asset outlet, a downstream DAG scheduled on that
+        asset, a successful producer TI, and a matching ``AssetEventQueue`` row. Returns the TI."""
+        asset = Asset(uri="test://drain-asset", name="drain_asset", group="test_group")
+
+        with dag_maker(dag_id="drain-producer", start_date=timezone.utcnow(), session=session) as dag:
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
+        dr = dag_maker.create_dagrun(run_id="producer-run")
+        [ti] = dr.get_task_instances(session=session)
+        ti.state = State.SUCCESS
+        # Capture the outlet profiles before creating other DAGs staled the serialized reference.
+        task_outlets = [o.asprofile().model_dump(mode="json") for o in dag.get_task("task").outlets]
+        session.flush()
+
+        # Downstream DAG scheduled on the asset -> registration should enqueue it (ADRQ row).
+        with dag_maker(dag_id="drain-consumer", schedule=[asset], session=session):
+            EmptyOperator(task_id="downstream")
+        session.add(
+            AssetEventQueue(
+                ti_id=ti.id,
+                payload={
+                    "task_outlets": task_outlets,
+                    "outlet_events": outlet_events or [],
+                    "ti_key": {
+                        "dag_id": ti.dag_id,
+                        "run_id": ti.run_id,
+                        "task_id": ti.task_id,
+                        "map_index": ti.map_index,
+                    },
+                },
+                attempts=0,
+            )
+        )
+        session.commit()
+        return ti
+
+    @pytest.mark.need_serialized_dag
+    def test_drain_asset_event_queue_registers_and_deletes(self, session, dag_maker):
+        """A pending queue row for a successful producer TI is registered (AssetEvent + downstream
+        AssetDagRunQueue), the queue row is deleted, and the processed metric is emitted."""
+        ti = self._seed_asset_producer_and_queue_row(session, dag_maker)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats:
+            self.job_runner._drain_asset_event_queue(session=session)
+
+        # The queue row was consumed.
+        assert session.scalars(select(AssetEventQueue)).all() == []
+        # An AssetEvent was produced by the (now drained) TI.
+        event = session.scalar(select(AssetEvent).where(AssetEvent.source_run_id == ti.run_id))
+        assert event is not None
+        # The downstream asset-scheduled DAG was queued.
+        adrq = session.scalars(
+            select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == "drain-consumer")
+        ).all()
+        assert len(adrq) == 1
+        mock_stats.incr.assert_any_call("asset.event_queue.processed", 1)
+
+    @pytest.mark.need_serialized_dag
+    def test_drain_asset_event_queue_retries_then_parks(self, session, dag_maker):
+        """A row whose registration keeps failing is retried across drain passes, one attempt per
+        pass, until it reaches max_attempts, at which point it is parked (no longer claimed) and the
+        failures metric is emitted exactly once. Further passes leave attempts capped."""
+        self._seed_asset_producer_and_queue_row(session, dag_maker)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        max_attempts = self.job_runner._asset_event_queue_max_attempts
+
+        with mock.patch(
+            "airflow.models.taskinstance.TaskInstance.register_asset_changes_in_db",
+            side_effect=RuntimeError("boom"),
+        ):
+            # Run one extra pass beyond max_attempts to prove the counter caps and does not overflow.
+            for cur_attempt in range(max_attempts + 1):
+                with mock.patch("airflow.jobs.scheduler_job_runner.stats") as mock_stats:
+                    self.job_runner._drain_asset_event_queue(session=session)
+                session.expire_all()
+                row = session.scalars(select(AssetEventQueue)).one()
+                # attempts increases by one per pass until it reaches max_attempts, then stays there
+                # because the drain only claims rows WHERE attempts < max_attempts.
+                assert row.attempts == min(cur_attempt + 1, max_attempts)
+                if cur_attempt + 1 == max_attempts:
+                    # The pass that reaches the cap parks the row and reports it once.
+                    mock_stats.incr.assert_any_call("asset.event_queue.failures")
+                else:
+                    assert mock.call("asset.event_queue.failures") not in mock_stats.incr.mock_calls
+
+    @pytest.mark.need_serialized_dag
+    def test_drain_asset_event_queue_missing_ti_purged(self, session, dag_maker):
+        """A queue row whose task instance can no longer be resolved by natural key is dropped
+        without error or registration. We point the row's ``ti_key`` at a run that does not exist so
+        the drain's lookup misses, exercising the purge branch."""
+        self._seed_asset_producer_and_queue_row(session, dag_maker)
+        row = session.scalars(select(AssetEventQueue)).one()
+        row.payload = {**row.payload, "ti_key": {**row.payload["ti_key"], "run_id": "does-not-exist"}}
+        session.commit()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        self.job_runner._drain_asset_event_queue(session=session)
+
+        assert session.scalars(select(AssetEventQueue)).all() == []
+        # Nothing was registered because the task instance could not be resolved.
+        assert session.scalars(select(AssetEvent)).all() == []
+
+    @pytest.mark.need_serialized_dag
+    def test_drain_asset_event_queue_empty_noop(self, session, dag_maker):
+        """With no pending rows the drain is a no-op and creates nothing."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        self.job_runner._drain_asset_event_queue(session=session)
+
+        assert session.scalars(select(AssetEventQueue)).all() == []
+        assert session.scalars(select(AssetEvent)).all() == []
+
+    @pytest.mark.need_serialized_dag
+    def test_clearing_ti_still_registers_via_natural_key(self, session, dag_maker):
+        """Clearing/retrying a TI reassigns its uuid7 id. The drain resolves the live task instance
+        by natural key (dag_id, run_id, task_id, map_index), not by the enqueued surrogate id, so the
+        pending asset events are still registered after a clear. This runs on the default sqlite
+        engine (no ``PRAGMA foreign_keys=ON``), which does not honor the FK's ON UPDATE CASCADE --
+        exactly the production condition under which a cascade-dependent re-point would drop them."""
+        ti = self._seed_asset_producer_and_queue_row(session, dag_maker)
+        old_id = ti.id
+
+        # Clearing reassigns the id; the same run_id keeps the DagRun partition context intact.
+        ti.prepare_db_for_next_try(session=session)
+        session.commit()
+        assert ti.id != old_id
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._drain_asset_event_queue(session=session)
+
+        # The events were registered despite the id change, and the queue row was consumed.
+        assert session.scalars(select(AssetEventQueue)).all() == []
+        event = session.scalar(select(AssetEvent).where(AssetEvent.source_run_id == ti.run_id))
+        assert event is not None
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(

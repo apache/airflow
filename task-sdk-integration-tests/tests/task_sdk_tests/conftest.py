@@ -725,10 +725,12 @@ def sdk_client_for_assets(asset_test_setup):
 @pytest.fixture(scope="session")
 def asset_test_setup(docker_compose_setup, airflow_ready):
     """Setup assets for testing by triggering asset_producer_dag."""
+    import time
+
     headers = airflow_ready["headers"]
     auth_token = airflow_ready["auth_token"]
 
-    return setup_dag_and_get_client(
+    setup = setup_dag_and_get_client(
         dag_id="asset_producer_dag",
         headers=headers,
         auth_token=auth_token,
@@ -741,3 +743,22 @@ def asset_test_setup(docker_compose_setup, airflow_ready):
             "alias_name": "test_asset_alias",
         },
     )
+
+    # A successful task only enqueues its asset events; the scheduler registers them when it
+    # drains the queue, so there is a short delay between the producer Dag reaching "success"
+    # and the events being queryable. Wait for the first event to appear before handing the
+    # setup to the tests, otherwise they race the scheduler drain and see zero events.
+    sdk_client = setup["sdk_client"]
+    for attempt in range(30):
+        response = sdk_client.asset_events.get(name=setup["name"])
+        if response.asset_events:
+            console.print(f"[green]✅ Asset event registered after {attempt + 1} attempt(s)")
+            break
+        console.print(
+            f"[blue]Waiting for asset event registration (attempt {attempt + 1}/30, drained by scheduler)"
+        )
+        time.sleep(2)
+    else:
+        raise TimeoutError("Asset events for asset_producer_dag were not registered within timeout period")
+
+    return setup

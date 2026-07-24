@@ -2639,6 +2639,31 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    asset_event_queue_drain_interval:
+      description: |
+        How often (in seconds) the scheduler drains the asset event queue, registering asset
+        events that the execution API deferred to the queue (for example when the synchronous
+        write on task completion hit database lock contention).
+      version_added: 3.4.0
+      type: float
+      example: ~
+      default: "5.0"
+    asset_event_queue_batch_size:
+      description: |
+        The maximum number of pending asset event registrations the scheduler processes in a
+        single drain pass.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "100"
+    asset_event_queue_max_attempts:
+      description: |
+        How many times the scheduler retries a failing asset event registration before parking
+        the row for inspection and emitting the ``asset.event_queue.failures`` metric.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "5"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)

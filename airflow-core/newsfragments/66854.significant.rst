@@ -1,0 +1,34 @@
+Asset events from successful tasks are registered asynchronously
+
+When a task succeeds, its asset events (and the resulting scheduling of downstream
+asset-triggered Dags) are no longer written synchronously inside the task state-update
+request. The execution API now records the events as a durable marker in a new
+``asset_event_queue`` table, committed in the same transaction as the task state, and the
+scheduler drains that queue and registers the events. This removes the asset registration
+work from the task-completion request path, which previously held the ``task_instance`` row
+lock while it ran and could pile up requests and exhaust the API server under high fan-out.
+
+As a result there can be a short delay between a task succeeding and its asset events being
+visible (typically one scheduler loop, longer under sustained load). A queued registration is
+retried up to ``[scheduler] asset_event_queue_max_attempts`` times; a row that still fails
+after that is parked in ``asset_event_queue`` and surfaced via the ``asset.event_queue.failures``
+metric rather than retried forever. ``dag.test`` runs without a scheduler, so it drains the queue
+itself after each task, keeping asset events visible during a test run. The drain cadence and
+batch size are tunable via ``[scheduler] asset_event_queue_drain_interval``,
+``asset_event_queue_batch_size`` and ``asset_event_queue_max_attempts``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * None - a new ``asset_event_queue`` table is created by the schema migration; no user
+    action is required.
