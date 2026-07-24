@@ -208,7 +208,7 @@ arbitrary bounds, such as the start of day or of hour.
 
     from datetime import timedelta
 
-    from airflow.sdk import DeltaDataIntervalTimetable
+    from airflow.sdk import dag, DeltaDataIntervalTimetable
 
 
     @dag(schedule=DeltaDataIntervalTimetable(timedelta(minutes=30)))
@@ -229,7 +229,7 @@ trigger points, and triggers a Dag run at the end of each data interval. You can
 
 .. code-block:: python
 
-    from airflow.sdk import CronDataIntervalTimetable
+    from airflow.sdk import dag, CronDataIntervalTimetable
 
 
     @dag(schedule=CronDataIntervalTimetable("0 1 * * 3"))  # At 01:00 on Wednesday.
