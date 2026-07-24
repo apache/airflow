@@ -58,12 +58,12 @@ class OpenAIBatchTrigger(BaseTrigger):
         hook = OpenAIHook(conn_id=self.conn_id)
         try:
             while (batch := hook.get_batch(self.batch_id)) and BatchStatus.is_in_progress(batch.status):
-                if self.end_time < time.time():
+                if self.end_time < time.monotonic():
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"Batch {self.batch_id} has not reached a terminal status after "
-                            f"{time.time() - self.end_time} seconds.",
+                            "message": f"Batch {self.batch_id} has not reached a terminal status within "
+                            f"the configured timeout.",
                             "batch_id": self.batch_id,
                         }
                     )
