@@ -26,8 +26,15 @@ import typing
 from collections.abc import Callable, Collection, Mapping
 from typing import TYPE_CHECKING, Any
 
-from pydantic import PydanticSchemaGenerationError, TypeAdapter
-from pydantic.json_schema import GenerateJsonSchema
+try:
+    from pydantic import PydanticInvalidForJsonSchema, PydanticSchemaGenerationError, TypeAdapter
+    from pydantic.json_schema import GenerateJsonSchema
+except ImportError:
+    # Airflow 3 always ships pydantic but Airflow 2.x base installs do not; without it,
+    # stub args carry no value schemas and runtimes keep their decode-only fallback.
+    GenerateJsonSchema = object  # type: ignore[assignment,misc]
+    TypeAdapter = None  # type: ignore[assignment,misc]
+    PydanticInvalidForJsonSchema = PydanticSchemaGenerationError = None  # type: ignore[assignment,misc]
 
 from airflow.providers.common.compat.sdk import (
     KNOWN_CONTEXT_KEYS,
@@ -58,6 +65,7 @@ class _ValueSchemaGenerator(GenerateJsonSchema):
         return {**super().float_schema(schema), "format": "double"}
 
 
+# Most-derived first: datetime subclasses date, so it must be matched before date.
 _TEMPORAL_BASES = (datetime.datetime, datetime.date, datetime.time, datetime.timedelta)
 
 
@@ -65,8 +73,8 @@ def _normalize_temporal_annotation(annotation: Any) -> Any:
     """
     Map temporal subclasses (e.g. ``pendulum.DateTime``) to their stdlib base.
 
-    Applied recursively through unions and containers, since pydantic only generates
-    schemas for the stdlib temporal types themselves.
+    Applied recursively through unions and containers, and only as a retry when direct
+    schema generation fails, so temporal types carrying their own pydantic schema keep it.
     """
     if isinstance(annotation, type):
         return next((base for base in _TEMPORAL_BASES if issubclass(annotation, base)), annotation)
@@ -92,6 +100,8 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
     binding then omits ``value_schema`` and the foreign runtime falls back to a
     decode-only check.
     """
+    if TypeAdapter is None:
+        return None
     if annotation is inspect.Parameter.empty or annotation is None or annotation is Any:
         return None
     if annotation is type(None):
@@ -99,11 +109,15 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
         # that can only ever be None constrains nothing worth shipping.
         return None
     try:
-        schema = TypeAdapter(_normalize_temporal_annotation(annotation)).json_schema(
-            schema_generator=_ValueSchemaGenerator
-        )
-    except PydanticSchemaGenerationError:
-        return None
+        schema = TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
+    except (PydanticSchemaGenerationError, PydanticInvalidForJsonSchema):
+        normalized = _normalize_temporal_annotation(annotation)
+        if normalized is annotation:
+            return None
+        try:
+            schema = TypeAdapter(normalized).json_schema(schema_generator=_ValueSchemaGenerator)
+        except (PydanticSchemaGenerationError, PydanticInvalidForJsonSchema):
+            return None
     return schema or None
 
 

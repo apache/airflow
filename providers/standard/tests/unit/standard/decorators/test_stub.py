@@ -20,6 +20,7 @@ import contextlib
 import datetime
 import typing
 from typing import Any
+from unittest import mock
 
 import pendulum
 import pytest
@@ -378,7 +379,18 @@ class TestStubTaskflowArgs:
             id="union-unclassifiable-member",
         ),
         pytest.param(contextlib.AbstractContextManager, None, id="custom-class"),
+        pytest.param(typing.Callable[[int], str], None, id="callable-invalid-for-json-schema"),
+        pytest.param(
+            pendulum.DateTime | contextlib.AbstractContextManager,
+            None,
+            id="union-temporal-and-unclassifiable",
+        ),
     ],
 )
 def test_infer_value_schema(annotation, expected):
     assert _infer_value_schema(annotation) == expected
+
+
+@mock.patch("airflow.providers.standard.decorators.stub.TypeAdapter", None)
+def test_infer_value_schema_without_pydantic():
+    assert _infer_value_schema(str) is None
