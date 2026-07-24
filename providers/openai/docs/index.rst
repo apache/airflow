@@ -19,20 +19,25 @@
 ``apache-airflow-providers-openai``
 ======================================
 
+The ``openai`` provider gives Dags direct access to OpenAI's own APIs — this page compares
+that choice against ``common.ai``.
+
 When to use this provider
 --------------------------
 
 Use ``openai`` when a Dag needs OpenAI's native API surface — thin wrappers over
-OpenAI-specific endpoints and options:
+OpenAI-specific endpoints and options, built on ``OpenAIHook``, the underlying client the
+operators below share:
 
 * ``OpenAIEmbeddingOperator`` — call the Embeddings API directly, e.g. to feed a vector
   store.
 * ``OpenAIResponseOperator`` — call the
   `Responses API <https://platform.openai.com/docs/api-reference/responses>`__ with
   OpenAI-specific parameters.
-* ``OpenAITriggerBatchOperator`` and ``OpenAIHook`` — submit a
+* ``OpenAITriggerBatchOperator`` — submit a
   `Batch API <https://platform.openai.com/docs/guides/batch>`__ job for asynchronous bulk
-  processing and wait for it to complete.
+  processing and wait for it to complete; OpenAI prices Batch API calls at roughly half the
+  cost of the equivalent synchronous call, in exchange for a turnaround of up to ~24 hours.
 
 Use :doc:`apache-airflow-providers-common-ai:index` instead when the AI step should be run by
 Airflow itself and stay vendor-neutral:
@@ -106,10 +111,10 @@ apache-airflow-providers-openai package
 
 `OpenAI <https://platform.openai.com/docs/introduction>`__ provider for Apache Airflow.
 Enables interaction with OpenAI APIs for text generation, embeddings,
-and other AI-powered workflows directly from Airflow DAGs.
+and other AI-powered workflows directly from Airflow Dags.
 
 
-Release: 1.8.0
+Release: 1.8.1
 
 Provider package
 ----------------
@@ -134,7 +139,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``openai[datalib]``                         ``>=2.37.0``
+``openai``                                  ``>=2.37.0``
 ==========================================  ==================
 
 Downloading official packages
@@ -143,5 +148,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-openai 1.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-openai 1.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-openai 1.8.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-openai 1.8.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openai-1.8.1-py3-none-any.whl.sha512>`__)

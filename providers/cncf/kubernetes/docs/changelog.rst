@@ -27,6 +27,54 @@
 Changelog
 ---------
 
+10.20.0
+.......
+
+.. note::
+   The ``KubernetesExecutor`` now transparently requeues a worker pod that fails *before* the
+   task process starts (node drain, autoscaler scale-down, node boot race, transient image pull
+   failure, etc.) instead of failing the task on the first pod failure. This is a change in
+   default behavior, controlled by the new ``[kubernetes_executor] pod_launch_failure_retries``
+   option (default ``1``); requeues do not consume a task-level retry. Set it to ``0`` to restore
+   the previous behavior of failing immediately. Avoid ``-1`` (unlimited) with a pod that fails on
+   every launch, as the failed pods are not cleaned up under the default
+   ``delete_worker_pods_on_failure = False`` and will accumulate. The companion
+   ``pod_launch_failure_excluded_container_reasons`` option (default ``Error``) lists container
+   reasons that are excluded from the requeue path.
+
+.. note::
+   ``KubernetesPodOperator.reattach_on_restart`` is deprecated in favor of the new ``durable``
+   parameter, which keeps the same meaning and the same ``True`` default. Passing
+   ``reattach_on_restart`` still works and still wins, but emits an
+   ``AirflowProviderDeprecationWarning`` on Airflow 3.3+ and will be removed in a future release —
+   rename the argument to ``durable`` in your Dags (including in ``default_args``). On Airflow
+   3.3+ the reattach itself also changes: the operator now reconnects using the pod identity it
+   persisted in the task state store rather than searching by label, which removes the ambiguity
+   failure that a label search hits when more than one matching pod exists. On older Airflow
+   versions the previous label-search behavior is unchanged.
+
+Features
+~~~~~~~~
+
+* ``Replace 'reattach_on_restart' with 'durable' execution in KPO (#69914)``
+* ``Add streaming task log support to KubernetesExecutor (#69300)``
+* ``Add running_pod_log_lines config option to KubernetesExecutor (#69301)``
+* ``Allow configuring XCom sidecar container security context (#69613)``
+* ``Requeue KubernetesExecutor tasks whose pod failed before execution started (#69058)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cncf-kubernetes: fix potential race condition in trigger_reentry flow caused by 'is_istio_enabled' (#69269)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Hide non-user-facing entries from ad-hoc provider release notes``
+   * ``Fix flaky KubernetesPodOperator log-timestamp test (#69563)``
+   * ``Prepare ad-hoc providers release 2026-07-01 (cncf.kubernetes, common.io, keycloak) (#69223)``
+   * ``Prepare ad-hoc providers release 2026-07-01``
+
+
 10.19.0
 .......
 
@@ -760,7 +808,6 @@ Misc
 * ``Use contextlib.suppress(exception) instead of try-except-pass and add SIM105 ruff rule (#49251)``
 * ``remove superfluous else block (#49199)``
 * ``Remove unused db method in k8s provider (#49186)``
-
 
 
 10.4.2

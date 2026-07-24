@@ -22,6 +22,7 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -133,6 +134,32 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                 if previous_run_after:
                     assert previous_run_after > dag_run["run_after"]
                 previous_run_after = dag_run["run_after"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize("state", ["queued", "running", "failed", "success"])
+    def test_dag_run_state_matches_any_run_not_only_latest(self, test_client, session, state):
+        # Give DAG1 an older run in the probed state while its latest run ends in a
+        # different state, so a latest-run filter misses it but an any-run filter finds it
+        # (e.g. failure history hidden behind a green latest run).
+        older_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_1")
+        )
+        older_run.state = DagRunState(state)
+        latest_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "run_id_5")
+        )
+        latest_run.state = DagRunState.FAILED if state == "success" else DagRunState.SUCCESS
+        session.commit()
+
+        # last_dag_run_state only looks at the latest run, which is in a different state
+        last_state = test_client.get("/dags", params={"last_dag_run_state": state, "dag_ids": [DAG1_ID]})
+        assert last_state.status_code == 200
+        assert [dag["dag_id"] for dag in last_state.json()["dags"]] == []
+
+        # dag_run_state matches a Dag that has any run in the state
+        any_state = test_client.get("/dags", params={"dag_run_state": state, "dag_ids": [DAG1_ID]})
+        assert any_state.status_code == 200
+        assert [dag["dag_id"] for dag in any_state.json()["dags"]] == [DAG1_ID]
 
     @pytest.fixture
     def setup_hitl_data(self, create_task_instance: TaskInstance, session: Session):
@@ -262,6 +289,47 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         with mock.patch.object(SimpleAuthManager, "is_authorized_dag", restricted_is_authorized_dag):
             response = test_client.get("/dags")
         assert response.status_code == 403
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_orders_latest_runs_by_run_after(self, test_client, session):
+        running_run_after = pendulum.datetime(2026, 1, 1, tz="UTC")
+        queued_run_after = pendulum.datetime(2026, 1, 2, tz="UTC")
+        session.add_all(
+            [
+                DagRun(
+                    dag_id=DAG1_ID,
+                    run_id="manual__running_latest",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=running_run_after,
+                    run_after=running_run_after,
+                    start_date=pendulum.datetime(2026, 1, 3, tz="UTC"),
+                    state=DagRunState.RUNNING,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+                DagRun(
+                    dag_id=DAG2_ID,
+                    run_id="manual__queued_latest",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=queued_run_after,
+                    run_after=queued_run_after,
+                    start_date=None,
+                    state=DagRunState.QUEUED,
+                    triggered_by=DagRunTriggeredByType.TEST,
+                ),
+            ]
+        )
+        session.commit()
+
+        response = test_client.get(
+            "/dags",
+            params={
+                "dag_ids": [DAG1_ID, DAG2_ID],
+                "order_by": "-last_run_run_after",
+            },
+        )
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG2_ID, DAG1_ID]
 
     def test_get_dags_no_n_plus_one_queries(self, session, test_client):
         """Test that fetching DAGs with tags doesn't trigger n+1 queries."""

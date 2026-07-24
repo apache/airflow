@@ -1147,8 +1147,13 @@ class TestClickHouseHookTestConnection:
         hook = ClickHouseHook(clickhouse_conn_id="clickhouse_test")
         hook.test_connection()
 
-        # clickhouse_connect.dbapi.Cursor passes parameters positionally; None when not provided.
-        mock_client.query.assert_called_once_with("SELECT 1", None)
+        # Assert on the statement and the bound parameters only. Anything the
+        # driver appends beyond those (e.g. a settings kwarg) is its own concern
+        # and varies between releases.
+        mock_client.query.assert_called_once()
+        sql, parameters = mock_client.query.call_args.args[:2]
+        assert sql == "SELECT 1"
+        assert not parameters
 
 
 # ---------------------------------------------------------------------------

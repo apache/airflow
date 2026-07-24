@@ -577,6 +577,14 @@ class TestGetAssets(TestAssets):
                     "wasb://some_asset_bucket_/key",
                 },
             ),
+            # Exact-match ``uri`` filter: only the asset whose full URI matches is returned.
+            ({"uri": "s3://folder/key"}, {"s3://folder/key"}),
+            ({"uri": "gcp://bucket/key"}, {"gcp://bucket/key"}),
+            # Repeated ``uri`` params match any of the given URIs.
+            ({"uri": ["s3://folder/key", "gcp://bucket/key"]}, {"s3://folder/key", "gcp://bucket/key"}),
+            # A substring of an existing URI must NOT match (unlike uri_pattern).
+            ({"uri": "s3://folder"}, set()),
+            ({"uri": "does-not-exist://key"}, set()),
         ],
     )
     @provide_session
@@ -1077,6 +1085,162 @@ class TestGetAssetEvents(TestAssets):
             ],
             "total_entries": 2,
         }
+
+
+class TestGetAssetEventsPartitionKeyRegex(TestAssets):
+    """Tests for partition_key_regexp_pattern regex filter on GET /assets/events.
+
+    Patterns are written to work consistently across PostgreSQL (~),
+    MySQL (REGEXP), and SQLite (re.match), including both anchored and
+    unanchored expressions where appropriate.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _enable_regexp_query_filters(self):
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def _create_partition_key_test_data(self, setup, session):
+        _create_assets(session=session)
+        events = [
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r1",
+                partition_key="2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r2",
+                partition_key="2024-01-02",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r3",
+                partition_key="us|2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r4",
+                partition_key="eu|2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r5",
+                partition_key="apac|2024-03-20",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r6",
+                partition_key=None,
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("partition_key_regexp_pattern", "expected_count"),
+        [
+            ("^2024-01-01$", 1),
+            ("^2024-01-", 2),
+            ("^us\\|", 1),
+            (".*\\|2024-01-01$", 2),
+            ("^(us|eu)\\|", 2),
+            ("^nonexistent", 0),
+        ],
+    )
+    def test_partition_key_regexp_pattern_filtering(
+        self, test_client, partition_key_regexp_pattern, expected_count
+    ):
+        response = test_client.get(
+            "/assets/events", params={"partition_key_regexp_pattern": partition_key_regexp_pattern}
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ({"partition_key_regexp_pattern": "^us\\|", "asset_id": "1"}, 1),
+            ({"partition_key_regexp_pattern": "^us\\|", "asset_id": "2"}, 0),
+            ({"partition_key_regexp_pattern": ".*\\|2024-01-01$", "source_dag_id": "d"}, 2),
+            ({"partition_key_regexp_pattern": ".*\\|2024-01-01$", "source_dag_id": "other"}, 0),
+        ],
+    )
+    def test_partition_key_regexp_pattern_combined_filters(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    def test_partition_key_regexp_pattern_invalid_regex_returns_400(self, test_client):
+        response = test_client.get(
+            "/assets/events", params={"partition_key_regexp_pattern": "[invalid(regex"}
+        )
+        assert response.status_code == 400
+        assert "Invalid regular expression" in response.json()["detail"]
+
+    def test_partition_key_regexp_pattern_disabled_returns_400(self, test_client):
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
+            response = test_client.get("/assets/events", params={"partition_key_regexp_pattern": "^2024-"})
+        assert response.status_code == 400
+        assert "disabled" in response.json()["detail"]
+
+    def test_exact_match_works_when_regex_disabled(self, test_client):
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
+            response = test_client.get("/assets/events", params={"partition_key": "2024-01-01"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    def test_partition_key_exact_match_via_regex(self, test_client):
+        response = test_client.get("/assets/events", params={"partition_key_regexp_pattern": "^2024-01-01$"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_count"),
+        [
+            ("2024-01-01", 1),
+            ("us|2024-01-01", 1),
+            ("nonexistent", 0),
+        ],
+    )
+    def test_partition_key_exact_match(self, test_client, partition_key, expected_count):
+        response = test_client.get("/assets/events", params={"partition_key": partition_key})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    def test_partition_key_and_pattern_combined(self, test_client):
+        # Both filters are allowed and combine with AND: a disjoint pair yields no results.
+        response = test_client.get(
+            "/assets/events",
+            params={"partition_key": "2024-01-01", "partition_key_regexp_pattern": "^2025-"},
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 0
 
 
 class TestGetAssetEventsExtraFilter(TestAssets):
@@ -1663,6 +1827,7 @@ class TestPostAssetMaterialize(TestAssets):
             "triggering_user_name": "test",
             "conf": {},
             "note": None,
+            "team_name": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1755,6 +1920,43 @@ class TestPostAssetMaterialize(TestAssets):
             == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
         )
 
+    def test_materialize_allowed_run_types_from_requested_version(self, test_client, session, dag_maker):
+        """Asset materialization allowed_run_types is enforced from the requested bundle version, not latest."""
+        bundle_name = "allowed_run_types_bundle"
+        asset = session.get(AssetModel, 1).to_serialized()
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v1", outlets=asset)
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v2", outlets=asset)
+
+        # v1 allows materialization; latest v2 does not. Requesting v1 must succeed.
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 200
+        assert response.json()["bundle_version"] == "v1"
+
+        # Without bundle_version the latest (v2) governs and rejects the run.
+        response = test_client.post("/assets/1/materialize")
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == f"Dag with dag_id: '{self.DAG_ASSET1_ID}' does not allow asset materialization runs"
+        )
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_403_when_user_cannot_trigger_dag(self, test_client):
         with mock.patch(
@@ -1775,6 +1977,57 @@ class TestPostAssetMaterialize(TestAssets):
                 details=DagDetails(id=self.DAG_ASSET1_ID),
                 user=mock.ANY,
             )
+
+    def test_should_respond_with_bundle_version(self, test_client, session, dag_maker):
+        """Test that asset materialization respects bundle_version parameter."""
+        bundle_name = "testing_bundle"
+        asset = session.get(AssetModel, 1).to_serialized()
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v1", outlets=asset)
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v2", outlets=asset)
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 200
+        assert response.json()["bundle_version"] == "v1"
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "invalid_version"})
+        assert response.status_code == 404
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not have a version for bundle_version 'invalid_version'"
+            in response.json()["detail"]
+        )
+
+        with dag_maker(
+            self.DAG_ASSET1_ID,
+            bundle_name=bundle_name,
+            bundle_version="v3",
+            schedule=None,
+            session=session,
+        ):
+            EmptyOperator(task_id="task_v3", outlets=asset)
+            dag_maker.dag.disable_bundle_versioning = True
+
+        response = test_client.post("/assets/1/materialize", json={"bundle_version": "v1"})
+        assert response.status_code == 400
+        assert (
+            f"DAG with dag_id: '{self.DAG_ASSET1_ID}' does not support bundle versioning"
+            in response.json()["detail"]
+        )
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_400_on_invalid_dag_run_id(self, test_client):

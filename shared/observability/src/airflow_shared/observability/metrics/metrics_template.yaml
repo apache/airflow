@@ -39,14 +39,6 @@ metrics:
     legacy_name: "-"
     name_variables: ["job_name"]
 
-  - name: "local_task_job.task_exit"
-    description: "Number of ``LocalTaskJob`` terminations with a ``{return_code}`` while
-    running a task ``{task_id}`` of a Dag  ``{dag_id}``.
-    Metric with job_id, dag_id, task_id and return_code tagging."
-    type: "counter"
-    legacy_name: "local_task_job.task_exit.{job_id}.{dag_id}.{task_id}.{return_code}"
-    name_variables: ["job_id", "dag_id", "task_id", "return_code"]
-
   - name: "operator_failures"
     description: "Operator ``{operator_name}`` failures."
     type: "counter"
@@ -158,12 +150,6 @@ metrics:
 
   - name: "dag_processing.file_path_queue_update_count"
     description: "Number of times we've scanned the filesystem and queued all existing Dags"
-    type: "counter"
-    legacy_name: "-"
-    name_variables: []
-
-  - name: "dag_file_processor_timeouts"
-    description: "(DEPRECATED) same behavior as ``dag_processing.processor_timeouts``"
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -433,12 +419,6 @@ metrics:
     legacy_name: "dag_processing.last_run.seconds_ago.{file_name}"
     name_variables: ["file_name"]
 
-  - name: "dag_processing.last_num_of_db_queries.{dag_file}"
-    description: "Number of queries to Airflow database during parsing per ``{dag_file}``"
-    type: "gauge"
-    legacy_name: "-"
-    name_variables: ["dag_file"]
-
   - name: "scheduler.tasks.starving"
     description: "Number of tasks that cannot be scheduled because of no open slot in pool"
     type: "gauge"
@@ -698,6 +678,12 @@ metrics:
     legacy_name: "dagrun.schedule_delay.{dag_id}"
     name_variables: ["dag_id"]
 
+  - name: "triggerer.batch_trigger_creation_duration"
+    description: "Time in milliseconds spent creating a batch of pending triggers."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "scheduler.critical_section_duration"
     description: "Milliseconds spent in the critical section of scheduler loop"
     type: "timer"
@@ -719,6 +705,13 @@ metrics:
   - name: "scheduler.executor_heartbeat_duration"
     description: "Milliseconds spent in ``executor.heartbeat()`` per scheduler loop iteration, tagged
       by executor class name so each configured executor is reported separately."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "triggerer.trigger_queue_delay"
+    description: "Time in milliseconds between a trigger workload being queued and being processed by
+      the TriggerRunner."
     type: "timer"
     legacy_name: "-"
     name_variables: []

@@ -133,10 +133,6 @@ def deadline_orm(dagrun, session):
 @pytest.mark.db_test
 class TestDeadline:
     @staticmethod
-    def setup_method():
-        _clean_db()
-
-    @staticmethod
     def teardown_method():
         _clean_db()
 
@@ -322,10 +318,6 @@ class TestDeadline:
 
 @pytest.mark.db_test
 class TestCalculatedDeadlineDatabaseCalls:
-    @staticmethod
-    def setup_method():
-        _clean_db()
-
     @staticmethod
     def teardown_method():
         _clean_db()

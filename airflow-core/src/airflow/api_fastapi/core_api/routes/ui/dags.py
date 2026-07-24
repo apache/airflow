@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.db.dags import generate_dag_with_latest_run_quer
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
+    QueryAnyDagRunStateFilter,
     QueryAssetDependencyFilter,
     QueryBundleNameFilter,
     QueryBundleVersionFilter,
@@ -50,6 +51,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryPausedFilter,
     QueryPendingActionsFilter,
     QueryTagsFilter,
+    QueryTeamsFilter,
     SortParam,
     filter_param_factory,
 )
@@ -95,6 +97,7 @@ def get_dags(
     offset: QueryOffset,
     tags: QueryTagsFilter,
     owners: QueryOwnersFilter,
+    teams: QueryTeamsFilter,
     dag_ids: Annotated[
         FilterParam[list[str] | None],
         Depends(filter_param_factory(DagModel.dag_id, list[str] | None, FilterOptionEnum.IN, "dag_ids")),
@@ -107,6 +110,7 @@ def get_dags(
     paused: QueryPausedFilter,
     has_import_errors: QueryHasImportErrorsFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
+    dag_run_state: QueryAnyDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
     order_by: Annotated[
@@ -115,7 +119,11 @@ def get_dags(
             SortParam(
                 ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
                 DagModel,
-                {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
+                {
+                    "last_run_state": DagRun.state,
+                    "last_run_start_date": DagRun.start_date,
+                    "last_run_run_after": DagRun.run_after,
+                },
             ).dynamic_depends()
         ),
     ],
@@ -151,7 +159,9 @@ def get_dags(
             dag_display_name_prefix_pattern,
             tags,
             owners,
+            teams,
             last_dag_run_state,
+            dag_run_state,
             is_favorite,
             has_asset_schedule,
             asset_dependency,
@@ -225,6 +235,13 @@ def get_dags(
         for dag_id, hitl_detail in pending_actions:
             pending_actions_by_dag_id[dag_id].append(hitl_detail)
 
+    # Fetch team names when multi-team is enabled
+    team_names_by_dag_id: dict[str, str | None] = {}
+    if conf.getboolean("core", "multi_team") and dags:
+        team_names_by_dag_id = DagModel.get_dag_id_to_team_name_mapping(
+            [dag.dag_id for dag in dags], session=session
+        )
+
     # aggregate rows by dag_id
     # Build the dict dynamically from DAGResponse.model_fields so that new fields
     # added to DAGResponse are picked up automatically without code changes here.
@@ -242,6 +259,7 @@ def get_dags(
                 "latest_dag_runs": [],
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
                 "is_favorite": dag.dag_id in favorite_dag_ids,
+                "team_name": team_names_by_dag_id.get(dag.dag_id),
             }
         )
         dag_runs_by_dag_id[dag.dag_id] = DAGWithLatestDagRunsResponse.model_validate(dag_data)

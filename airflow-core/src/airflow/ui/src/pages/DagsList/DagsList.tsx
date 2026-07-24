@@ -42,6 +42,7 @@ import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDagRunStateCounts } from "src/queries/useDagRunStateCounts";
 import { useDags } from "src/queries/useDags";
+import { useDocumentTitle } from "src/utils";
 
 import { DagImportErrors } from "../Dashboard/Stats/DagImportErrors";
 import { DagCard } from "./DagCard";
@@ -52,6 +53,10 @@ import { Schedule } from "./Schedule";
 import { SortSelect } from "./SortSelect";
 import { useTagFilter } from "./useTagFilter";
 
+type GetColumnsParams = {
+  readonly multiTeam: boolean;
+};
+
 type RunStateCountsContext = {
   readonly countsByDag: Record<string, Record<string, number> | undefined>;
   readonly isLoading: boolean;
@@ -61,6 +66,7 @@ type RunStateCountsContext = {
 const createColumns = (
   translate: (key: string, options?: Record<string, unknown>) => string,
   runStateContext: RunStateCountsContext,
+  { multiTeam }: GetColumnsParams,
 ): Array<ColumnDef<DAGWithLatestDagRunsResponse>> => [
   {
     accessorKey: "is_paused",
@@ -112,7 +118,7 @@ const createColumns = (
     header: () => translate("dagDetails.nextRun"),
   },
   {
-    accessorKey: "last_run_start_date",
+    accessorKey: "last_run_run_after",
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <RouterLink
@@ -154,6 +160,19 @@ const createColumns = (
     enableSorting: false,
     header: () => translate("dagDetails.tags"),
   },
+  ...(multiTeam
+    ? [
+        {
+          accessorKey: "team_name",
+          cell: ({ row: { original } }: { row: { original: DAGWithLatestDagRunsResponse } }) =>
+            original.team_name !== undefined && original.team_name !== null ? (
+              <RouterLink to={`/dags?teams=${original.team_name}`}>{original.team_name}</RouterLink>
+            ) : undefined,
+          enableSorting: false,
+          header: () => translate("dagDetails.team"),
+        },
+      ]
+    : []),
   {
     accessorKey: "pending_actions",
     cell: ({ row: { original: dag } }) => <NeedsReviewBadge pendingActions={dag.pending_actions} />,
@@ -193,6 +212,7 @@ const createColumns = (
 ];
 
 const {
+  DAG_RUN_STATE,
   FAVORITE,
   LAST_DAG_RUN_STATE,
   NAME_PATTERN,
@@ -200,6 +220,7 @@ const {
   OFFSET,
   OWNERS,
   PAUSED,
+  TEAMS,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithLatestDagRunsResponse> => ({
@@ -218,20 +239,26 @@ const createCardDef = (runStateContext: RunStateCountsContext): CardDef<DAGWithL
 
 export const DagsList = () => {
   const { t: translate } = useTranslation();
+
+  useDocumentTitle(translate("common:nav.dags"));
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
   const dagRunsLimit = display === "card" ? 14 : 1;
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
 
   const showPaused = searchParams.get(PAUSED);
   const showFavorites = searchParams.get(FAVORITE);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
+  const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
   const { selectedTags, tagFilterMode: selectedMatchMode } = useTagFilter();
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
+  const teams = searchParams.getAll(TEAMS);
 
   const { setTableURLState, tableURLState } = useTableURLState();
 
@@ -284,6 +311,7 @@ export const DagsList = () => {
     advancedSearch: advancedSearch.enabled,
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern) ? dagDisplayNamePattern : undefined,
     dagRunsLimit,
+    dagRunState,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,
@@ -294,6 +322,7 @@ export const DagsList = () => {
     pendingHitl,
     tags: selectedTags,
     tagsMatchMode: selectedMatchMode,
+    teams: teams.length > 0 ? teams : undefined,
   });
 
   const { data: runStateCountsData, isLoading: runStateCountsLoading } = useDagRunStateCounts({
@@ -308,7 +337,7 @@ export const DagsList = () => {
     stateCountLimit: runStateCountsData?.state_count_limit,
   };
 
-  const columns = createColumns(translate, runStateContext);
+  const columns = createColumns(translate, runStateContext, { multiTeam: multiTeamEnabled });
   const cardDef = createCardDef(runStateContext);
 
   const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {

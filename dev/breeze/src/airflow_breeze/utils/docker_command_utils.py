@@ -52,6 +52,7 @@ except ImportError:
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_DEBIAN_VERSIONS,
+    CURRENT_POSTGRES_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     KNOWN_DOCKER_COMPOSE_PROJECT_NAMES,
@@ -113,6 +114,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
+    ("ts-sdk", "/opt/airflow/ts-sdk"),
 ]
 
 
@@ -1030,9 +1032,12 @@ def enter_shell(
             console_print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
-        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
+        if (
+            shell_params.backend != "postgres"
+            or shell_params.postgres_version not in CURRENT_POSTGRES_VERSIONS
+        ):
             console_print(
-                "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
+                f"\n[error]Only PostgreSQL {', '.join(CURRENT_POSTGRES_VERSIONS)} are supported "
                 "as a backend with OpenLineage integration via Breeze[/]\n"
             )
             sys.exit(1)

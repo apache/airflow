@@ -3842,6 +3842,30 @@ class TestXComAfterTaskExecution:
         )
 
 
+def _recording_email_backend(
+    to: list[str] | Iterable[str],
+    subject: str,
+    html_content: str,
+    files: list[str] | None = None,
+    dryrun: bool = False,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
+    conn_id: str | None = None,
+    custom_headers: dict[str, Any] | None = None,
+    **kwargs,
+) -> None:
+    """
+    Legacy ``[email] email_backend`` stub, patched with an autospecced mock in tests.
+
+    Mirrors the ``airflow.utils.email.send_email`` signature so the autospec enforces the
+    calling convention ``_LegacyEmailBackendNotifier`` has to honour. Duplicated here rather
+    than imported because the Task SDK must not depend on ``airflow-core``.
+    """
+    raise AssertionError("should be patched in the test")
+
+
 class TestEmailNotifications:
     FROM = "from@airflow"
 
@@ -4007,6 +4031,77 @@ class TestEmailNotifications:
                     == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
                 )
                 assert kwargs["from_email"] is None
+
+    def test_custom_email_backend_is_used(self, create_runtime_ti, mock_supervisor_comms):
+        """A custom ``[email] email_backend`` is wrapped and invoked with rendered fields."""
+        backend = mock.create_autospec(_recording_email_backend)
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="legacy_backend_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars(
+            {
+                ("email", "email_backend"): f"{__name__}._recording_email_backend",
+                ("email", "email_conn_id"): "my_smtp",
+                ("email", "from_email"): self.FROM,
+            }
+        ):
+            with mock.patch(f"{__name__}._recording_email_backend", backend):
+                with mock.patch(
+                    "airflow.providers.smtp.notifications.smtp.SmtpNotifier", autospec=True
+                ) as mock_smtp_notifier:
+                    state, _, error = run(runtime_ti, context, log)
+                    finalize(runtime_ti, state, context, log, error)
+
+        # The default SMTP notifier must not be used when a custom backend is configured.
+        mock_smtp_notifier.assert_not_called()
+        backend.assert_called_once()
+        args, kwargs = backend.call_args
+        # send_email(to, subject, html_content, conn_id=..., from_email=...)
+        assert args[0] == ["test@example.com"]
+        assert kwargs["conn_id"] == "my_smtp"
+        assert kwargs["from_email"] == self.FROM
+
+    def test_unresolvable_email_backend_is_logged(self, create_runtime_ti, mock_supervisor_comms):
+        """An unimportable custom backend is logged, and does not silently fall back to SMTP."""
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed on purpose")
+
+        task = FailingOperator(
+            task_id="bad_backend_task",
+            email=["test@example.com"],
+            email_on_failure=True,
+        )
+
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with conf_vars({("email", "email_backend"): "airflow.does.not.Exist"}):
+            # SmtpNotifier is patched to succeed, so a logged exception can only come from
+            # resolving the custom backend -- without that, this would pass pre-fix too.
+            with mock.patch(
+                "airflow.providers.smtp.notifications.smtp.SmtpNotifier", autospec=True
+            ) as mock_smtp_notifier:
+                state, _, error = run(runtime_ti, context, log)
+                # Must not raise even though the backend cannot be loaded.
+                finalize(runtime_ti, state, context, log, error)
+
+        mock_smtp_notifier.assert_not_called()
+        log.exception.assert_called()
 
     @pytest.mark.enable_redact
     def test_rendered_templates_mask_secrets(self, create_runtime_ti, mock_supervisor_comms):
@@ -5434,11 +5529,11 @@ class TestTaskInstanceMetrics:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             # verify ti.start was called in legacy format
-            backend.incr.assert_any_call(f"ti.start.{ti.dag_id}.{ti.task_id}")
+            backend.incr.assert_any_call(f"ti.start.{ti.dag_id}.{ti.task_id}", tags={"run_type": "manual"})
             # verify ti.start was called in tagged format
             backend.incr.assert_any_call(
                 "ti.start",
-                tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+                tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"},
             )
 
     @pytest.mark.parametrize(
@@ -5463,11 +5558,18 @@ class TestTaskInstanceMetrics:
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
             # verify ti.finish was called in legacy format
-            backend.incr.assert_any_call(f"ti.finish.{ti.dag_id}.{ti.task_id}.{expected_state}")
+            backend.incr.assert_any_call(
+                f"ti.finish.{ti.dag_id}.{ti.task_id}.{expected_state}", tags={"run_type": "manual"}
+            )
             # verify ti.finish was called in tagged format
             backend.incr.assert_any_call(
                 "ti.finish",
-                tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": expected_state},
+                tags={
+                    "dag_id": ti.dag_id,
+                    "task_id": ti.task_id,
+                    "run_type": "manual",
+                    "state": expected_state,
+                },
             )
 
     def test_operator_successes_metrics_emitted(self, create_runtime_ti, mock_supervisor_comms):
@@ -5480,7 +5582,7 @@ class TestTaskInstanceMetrics:
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"}
 
             # verify operator_successes in legacy format
             backend.incr.assert_any_call("operator_successes_PythonOperator", tags=stats_tags)
@@ -5501,7 +5603,7 @@ class TestTaskInstanceMetrics:
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": "manual"}
 
             # verify operator_failures in legacy format
             backend.incr.assert_any_call("operator_failures_PythonOperator", tags=stats_tags)
@@ -5532,7 +5634,12 @@ class TestTaskInstanceMetrics:
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-            expected = {"dag_id": ti.dag_id, "task_id": ti.task_id, **expected_tags_extra}
+            expected = {
+                "dag_id": ti.dag_id,
+                "task_id": ti.task_id,
+                "run_type": "manual",
+                **expected_tags_extra,
+            }
             backend.incr.assert_any_call("ti.start", tags=expected)
 
     @pytest.mark.parametrize(
@@ -5554,7 +5661,12 @@ class TestTaskInstanceMetrics:
             mock_get_backend.return_value = backend
             run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-            stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "team_name": "team_a"}
+            stats_tags = {
+                "dag_id": ti.dag_id,
+                "task_id": ti.task_id,
+                "run_type": "manual",
+                "team_name": "team_a",
+            }
             backend.incr.assert_any_call(
                 operator_metric,
                 tags={**stats_tags, "operator_name": "PythonOperator"},
@@ -6343,3 +6455,40 @@ class TestRegisterDeserializationAllowedClasses:
         with patch("airflow.sdk.execution_time.task_runner.allow_class", side_effect=ValueError("nope")):
             # Must not raise -- the walk swallows per-class registration errors.
             _register_deserialization_allowed_classes(dag, structlog.get_logger())
+
+
+def _make_dag_tagged_ti(create_runtime_ti, tags):
+    """Build a RuntimeTaskInstance whose in-memory Dag carries the given tags."""
+    from airflow.sdk import DAG
+    from airflow.sdk.bases.operator import BaseOperator
+
+    with DAG("tagged_dag", tags=tags):
+        task = BaseOperator(task_id="t")
+    return create_runtime_ti(task=task)
+
+
+def test_stats_tags_dag_tags_disabled_by_default(create_runtime_ti):
+    """With the flag off (the default), dag tags must not leak into metrics."""
+    ti = _make_dag_tagged_ti(create_runtime_ti, ["env:prod", "validation"])
+    assert ti.stats_tags == {"dag_id": "tagged_dag", "task_id": "t", "run_type": "manual"}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_without_dag_tags(create_runtime_ti):
+    tags = _make_dag_tagged_ti(create_runtime_ti, []).stats_tags
+    assert tags == {"dag_id": "tagged_dag", "task_id": "t", "run_type": "manual"}
+    # run_type must be a plain str, not a DagRunType enum member: DagRunType is a str-enum, so the
+    # dict equality above passes either way, but the enum serializes as "dagruntype.manual" on the wire.
+    assert type(tags["run_type"]) is str
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
+    ti = _make_dag_tagged_ti(create_runtime_ti, ["env:prod", "validation"])
+    assert ti.stats_tags == {
+        "env": "prod",
+        "validation": "",
+        "dag_id": "tagged_dag",
+        "task_id": "t",
+        "run_type": "manual",
+    }

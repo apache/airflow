@@ -68,9 +68,9 @@ class DocumentLoaderOperator(BaseOperator):
     :param source_path: A local path, glob pattern, or storage URI
         (``s3://``, ``gs://``, ``azure://``, ``file://``, ...). Cloud URIs
         go through :class:`~airflow.sdk.ObjectStoragePath` / fsspec.
-        ``**`` enables recursive matching for local globs. Cloud URIs
-        accept a single file or a directory; cross-directory globs in a
-        cloud URI are not supported in this version.
+        ``**`` enables recursive matching, for both local paths and cloud
+        URIs. Wildcards must not appear in the scheme or bucket segment
+        of a cloud URI.
     :param source_conn_id: Airflow connection ID used by
         ``ObjectStoragePath`` for cloud URIs (``aws_default``,
         ``google_cloud_default``, ...). Ignored for local paths.
@@ -208,7 +208,10 @@ class DocumentLoaderOperator(BaseOperator):
         return self._filter_files([p for p in candidates if p.is_file()], is_directory_mode=is_directory_mode)
 
     def _resolve_remote_files(self, source_path: str) -> list[FilePathT]:
-        from airflow.sdk import ObjectStoragePath
+        from airflow.providers.common.compat.sdk import ObjectStoragePath
+
+        if any(char in source_path for char in "*?["):
+            return self._resolve_remote_glob(source_path)
 
         root = ObjectStoragePath(source_path, conn_id=self.source_conn_id)
         try:
@@ -219,17 +222,28 @@ class DocumentLoaderOperator(BaseOperator):
             pass
 
         if not root.is_dir():
-            raise FileNotFoundError(
-                f"Cloud URI '{source_path}' is neither a file nor a directory. "
-                "Cross-directory globs in cloud URIs aren't supported here; "
-                "point ``source_path`` at a single object or a directory."
-            )
+            raise FileNotFoundError(f"Cloud URI '{source_path}' is neither a file nor a directory.")
 
         candidates = sorted(
             (p for p in root.iterdir() if not p.name.startswith(".")),
             key=str,
         )
         return self._filter_files([p for p in candidates if p.is_file()], is_directory_mode=True)
+
+    def _resolve_remote_glob(self, source_path: str) -> list[FilePathT]:
+        from airflow.providers.common.compat.sdk import ObjectStoragePath
+
+        segments = source_path.split("/")
+        magic_at = next(i for i, seg in enumerate(segments) if any(c in seg for c in "*?["))
+        # segments[:3] is ``scheme:``, ``""``, ``bucket``; a wildcard there has no fixed root.
+        if magic_at < 3:
+            raise ValueError(
+                f"Cloud URI '{source_path}' must not use wildcards in the scheme or bucket segment."
+            )
+
+        root = ObjectStoragePath("/".join(segments[:magic_at]), conn_id=self.source_conn_id)
+        candidates = sorted(root.glob("/".join(segments[magic_at:])), key=str)
+        return self._filter_files([p for p in candidates if p.is_file()], is_directory_mode=False)
 
     def _filter_files(self, results: list[FilePathT], *, is_directory_mode: bool) -> list[FilePathT]:
         if self.file_extensions:
@@ -289,6 +303,8 @@ class DocumentLoaderOperator(BaseOperator):
 
     def _resolve_backend(self, ext: str) -> str:
         if self.parser != "auto":
+            if self.parser not in set(self.EXTENSION_BACKEND_MAP.values()):
+                raise ValueError(f"No parser found for backend '{self.parser}'.")
             return self.parser
 
         ext = ext.lower()

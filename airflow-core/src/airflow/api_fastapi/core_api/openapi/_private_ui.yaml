@@ -197,7 +197,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/pending_partitioned_dag_run/{dag_id}/{partition_key}:
+  /ui/pending_partitioned_dag_run/{dag_id}:
     get:
       tags:
       - PartitionedDagRun
@@ -215,7 +215,7 @@ paths:
           type: string
           title: Dag Id
       - name: partition_key
-        in: path
+        in: query
         required: true
         schema:
           type: string
@@ -338,6 +338,14 @@ paths:
           items:
             type: string
           title: Owners
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: dag_ids
         in: query
         required: false
@@ -473,6 +481,16 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          description: Filter Dags that have any DagRun in the given state.
+          title: Dag Run State
+        description: Filter Dags that have any DagRun in the given state.
       - name: bundle_name
         in: query
         required: false
@@ -498,13 +516,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+            next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+          next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`'
       - name: is_favorite
         in: query
         required: false
@@ -2617,6 +2635,11 @@ components:
         is_favorite:
           type: boolean
           title: Is Favorite
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         is_backfillable:
           type: boolean
           title: Is Backfillable
@@ -3176,6 +3199,9 @@ components:
         has_missed_deadline:
           type: boolean
           title: Has Missed Deadline
+        has_note:
+          type: boolean
+          title: Has Note
         duration:
           type: number
           title: Duration
@@ -3191,6 +3217,7 @@ components:
       - state
       - run_type
       - has_missed_deadline
+      - has_note
       - duration
       title: GridRunsResponse
       description: Base Node serializer for responses.
@@ -3648,6 +3675,16 @@ components:
             - and-gate
           - type: 'null'
           title: Asset Condition Type
+        ui_color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ui Color
+        ui_fgcolor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ui Fgcolor
       type: object
       required:
       - id
@@ -4053,6 +4090,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id

@@ -62,6 +62,58 @@ def get_dialect_name(session: Session) -> str | None:
     return getattr(bind.dialect, "name", None)
 
 
+@contextlib.contextmanager
+def apply_regex_query_timeout(session: Session) -> Generator[None, None, None]:
+    """
+    Bound the runtime of a user-supplied regex filter, scoped to the wrapped query.
+
+    Reads the ``[api] regexp_query_timeout`` config (in seconds, fractional values allowed) and sets
+    a database-side timeout for the duration of the ``with`` block, then restores the previous value
+    so it does not affect any other statement running later in the same transaction/session:
+
+    * PostgreSQL: transaction-local ``statement_timeout`` (via ``set_config(..., is_local=True)``).
+    * MySQL: session ``max_execution_time`` (applies to read-only ``SELECT`` statements).
+
+    The previous value is captured and restored (rather than reset to ``0``) so a server- or
+    role-level global timeout is preserved instead of being cleared. This is a ReDoS safeguard: a
+    malicious pattern is aborted instead of pinning a database backend. No-op on other backends
+    (e.g. SQLite) and when the configured timeout is ``0`` (which also means regexp filtering is
+    disabled).
+    """
+    timeout_seconds = conf.getfloat("api", "regexp_query_timeout")
+    if timeout_seconds <= 0:
+        yield
+        return
+    # ``timeout_ms`` is derived from the (operator-controlled) config, not from user input.
+    timeout_ms = int(timeout_seconds * 1000)
+    dialect_name = get_dialect_name(session)
+    if dialect_name == "postgresql":
+        previous = session.execute(text("SELECT current_setting('statement_timeout')")).scalar()
+        session.execute(
+            text("SELECT set_config('statement_timeout', :timeout, true)").bindparams(timeout=str(timeout_ms))
+        )
+        try:
+            yield
+        finally:
+            # Restore the previous value (e.g. a global statement_timeout) instead of clearing it, so
+            # the bound only applies to the regexp query and not later statements in the transaction.
+            session.execute(
+                text("SELECT set_config('statement_timeout', :timeout, true)").bindparams(
+                    timeout=str(previous) if previous is not None else "0"
+                )
+            )
+    elif dialect_name == "mysql":
+        previous = session.execute(text("SELECT @@SESSION.max_execution_time")).scalar()
+        session.execute(text(f"SET SESSION max_execution_time = {timeout_ms}"))
+        try:
+            yield
+        finally:
+            # Restore the previous value so a global max_execution_time is preserved.
+            session.execute(text(f"SET SESSION max_execution_time = {int(previous or 0)}"))
+    else:
+        yield
+
+
 def build_upsert_stmt(
     dialect: str | None,
     model: Any,
@@ -642,6 +694,10 @@ def is_lock_not_available_error(error: OperationalError):
     # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
     # importing it. This doesn't
     if db_err_code in ("55P03", 1205, 3572):
+        return True
+    # SQLite: `database is locked` (SQLITE_BUSY) — check the error text since
+    # sqlite3.OperationalError.args[0] is a human-readable string, not a numeric code
+    if error.orig and "database is locked" in str(error.orig).lower():
         return True
     return False
 

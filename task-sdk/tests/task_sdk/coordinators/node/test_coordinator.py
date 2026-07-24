@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import base64
 import pathlib
 
 import pytest
@@ -25,6 +26,7 @@ from uuid6 import uuid7
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.coordinators.node.coordinator import (
+    EMBEDDED_METADATA_MAX_BYTES,
     NodeCoordinator,
     _find_bundle,
 )
@@ -45,27 +47,28 @@ def _make_ti(dag_id: str = "test_dag", queue: str = "ts") -> TaskInstance:
     )
 
 
-def write_bundle(root: pathlib.Path, schema_version: str = SCHEMA_VERSION) -> pathlib.Path:
+def _metadata_yaml(schema_version: str) -> str:
+    return f"""\
+airflow_bundle_metadata_version: "1.0"
+sdk:
+  language: typescript
+  version: "0.1.0"
+  supervisor_schema_version: "{schema_version}"
+source: src/airflow.ts
+dags:
+  test_dag:
+    tasks:
+      - test_task
+"""
+
+
+def write_bundle(
+    root: pathlib.Path, schema_version: str = SCHEMA_VERSION, payload: str | None = None
+) -> pathlib.Path:
+    if payload is None:
+        payload = base64.b64encode(_metadata_yaml(schema_version).encode("utf-8")).decode("ascii")
     bundle = root / "bundle.mjs"
-    bundle.write_text("export {};\n", encoding="utf-8")
-    (root / "airflow-metadata.yaml").write_text(
-        "\n".join(
-            [
-                'airflow_bundle_metadata_version: "1.0"',
-                "sdk:",
-                "  language: typescript",
-                '  version: "0.1.0"',
-                f'  supervisor_schema_version: "{schema_version}"',
-                "source: src/airflow.ts",
-                "dags:",
-                "  test_dag:",
-                "    tasks:",
-                "      - test_task",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+    bundle.write_text(f"//# airflowMetadata={payload}\nexport {{}};\n", encoding="utf-8")
     return bundle
 
 
@@ -105,6 +108,36 @@ class TestNodeCoordinatorBundleSelection:
         assert found.path == bundle
         assert found.schema_version == SCHEMA_VERSION
 
+    @pytest.mark.parametrize(
+        ("payload", "message"),
+        [
+            ("not-base64!", "cannot parse embedded airflow metadata"),
+            (base64.b64encode(b"[not-a-mapping]").decode("ascii"), "must contain a mapping"),
+            (base64.b64encode(b"sdk: [not-a-mapping]").decode("ascii"), "missing sdk metadata mapping"),
+            (
+                base64.b64encode(b"sdk:\n  language: typescript").decode("ascii"),
+                "missing or invalid sdk.supervisor_schema_version",
+            ),
+        ],
+    )
+    def test_find_bundle_rejects_invalid_embedded_metadata(self, tmp_path, payload, message):
+        write_bundle(tmp_path, payload=payload)
+
+        with pytest.raises(FileNotFoundError, match=message):
+            _find_bundle([tmp_path])
+
+    def test_find_bundle_rejects_oversized_embedded_metadata(self, tmp_path):
+        write_bundle(tmp_path, payload="A" * EMBEDDED_METADATA_MAX_BYTES)
+
+        with pytest.raises(FileNotFoundError, match="embedded airflow metadata exceeds"):
+            _find_bundle([tmp_path])
+
+    def test_find_bundle_rejects_empty_marker(self, tmp_path):
+        (tmp_path / "bundle.mjs").write_text("//# airflowMetadata=\nexport {};\n", encoding="utf-8")
+
+        with pytest.raises(FileNotFoundError, match="must contain a mapping"):
+            _find_bundle([tmp_path])
+
     def test_find_bundle_checks_multiple_roots(self, tmp_path):
         first = tmp_path / "first"
         second = tmp_path / "second"
@@ -126,36 +159,21 @@ class TestNodeCoordinatorBundleSelection:
     def test_find_bundle_rejects_bundle_without_metadata(self, tmp_path):
         (tmp_path / "bundle.mjs").write_text("export {};\n", encoding="utf-8")
 
-        with pytest.raises(FileNotFoundError, match="missing airflow-metadata.yaml"):
+        with pytest.raises(FileNotFoundError, match="no embedded airflow metadata"):
             _find_bundle([tmp_path])
 
-    @pytest.mark.parametrize(
-        ("metadata", "message"),
-        [
-            ("[not-a-mapping]\n", "airflow-metadata.yaml must contain a mapping"),
-            ("sdk: [not-a-mapping]\n", "missing sdk metadata mapping"),
-            ("sdk:\n  language: typescript\n", "missing or invalid sdk.supervisor_schema_version"),
-        ],
-    )
-    def test_find_bundle_rejects_invalid_metadata_shape(self, tmp_path, metadata, message):
-        (tmp_path / "bundle.mjs").write_text("export {};\n", encoding="utf-8")
-        (tmp_path / "airflow-metadata.yaml").write_text(metadata, encoding="utf-8")
-
-        with pytest.raises(FileNotFoundError, match=message):
-            _find_bundle([tmp_path])
-
-    def test_find_bundle_reports_unreadable_metadata(self, tmp_path, monkeypatch):
+    def test_find_bundle_reports_unreadable_bundle(self, tmp_path, monkeypatch):
         write_bundle(tmp_path)
 
         def raise_os_error(self, *args, **kwargs):
-            if self.name == "airflow-metadata.yaml":
+            if self.name == "bundle.mjs":
                 raise PermissionError("denied")
             return original_open(self, *args, **kwargs)
 
         original_open = pathlib.Path.open
         monkeypatch.setattr(pathlib.Path, "open", raise_os_error)
 
-        with pytest.raises(FileNotFoundError, match="cannot read airflow-metadata.yaml"):
+        with pytest.raises(FileNotFoundError, match="cannot read bundle.mjs"):
             _find_bundle([tmp_path])
 
     def test_find_bundle_rejects_invalid_schema_version(self, tmp_path):

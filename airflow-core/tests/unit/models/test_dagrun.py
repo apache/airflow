@@ -21,7 +21,7 @@ import datetime
 from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import contextmanager
-from functools import reduce
+from functools import partial, reduce
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, call
@@ -45,7 +45,10 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
-from airflow._shared.observability.traces import OverrideableRandomIdGenerator
+from airflow._shared.observability.traces import (
+    DAGRUN_PARENT_TRACE_CONTEXT_KEY,
+    OverrideableRandomIdGenerator,
+)
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
@@ -142,7 +145,6 @@ def deadline_test_dag(session):
 class TestDagRun:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
-        self._clean_db()
         yield
         self._clean_db()
 
@@ -1084,10 +1086,12 @@ class TestDagRun:
         )
 
         if state == DagRunState.RUNNING:
-            func = DagRun.get_running_dag_runs_to_examine
+            fetch = partial(
+                DagRun.get_running_dag_runs_to_examine, session=session, eagerly_load_dag_tags=False
+            )
         else:
-            func = DagRun.get_queued_dag_runs_to_set_running
-        runs = func(session).all()
+            fetch = partial(DagRun.get_queued_dag_runs_to_set_running, session)
+        runs = fetch().all()
 
         assert runs == [dr]
 
@@ -1095,7 +1099,7 @@ class TestDagRun:
         session.merge(orm_dag)
         session.commit()
 
-        runs = func(session).all()
+        runs = fetch().all()
         assert runs == []
 
     @mock.patch("airflow._shared.observability.metrics.stats.timing")
@@ -4159,6 +4163,100 @@ class TestDagRunHandleDagCallback:
         mock_incr.assert_any_call("dag.callback_exceptions", tags=expected_tags)
 
 
+_EXTERNAL_TRACE_ID = "11111111111111111111111111111111"
+_EXTERNAL_SPAN_ID = "2222222222222222"
+
+
+@pytest.mark.parametrize(
+    ("conf", "expected_trace_id"),
+    [
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+            _EXTERNAL_TRACE_ID,
+            id="traceparent-string",
+        ),
+        pytest.param(
+            {
+                DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+                    "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"
+                }
+            },
+            _EXTERNAL_TRACE_ID,
+            id="carrier-dict",
+        ),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: "not-a-traceparent"}, None, id="malformed"),
+        # An unknown version prefix is accepted by the propagator's forward-compat parsing,
+        # so a 99- traceparent still rides the external trace rather than being rejected.
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"99-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+            _EXTERNAL_TRACE_ID,
+            id="future-version-prefix",
+        ),
+        pytest.param(
+            {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-zz"},
+            None,
+            id="almost-valid-bad-flag-string",
+        ),
+        pytest.param(
+            {
+                DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+                    "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-zz"
+                }
+            },
+            None,
+            id="almost-valid-bad-flag-dict",
+        ),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: 123}, None, id="non-str"),
+        pytest.param({DAGRUN_PARENT_TRACE_CONTEXT_KEY: {"nope": "x"}}, None, id="dict-without-traceparent"),
+        pytest.param({}, None, id="empty-conf"),
+        pytest.param(None, None, id="no-conf"),
+        pytest.param({"other": "x"}, None, id="unrelated-key"),
+    ],
+)
+def test_parent_trace_context(conf, expected_trace_id):
+    """Only a valid W3C traceparent (string or carrier dict) yields a parent context; else None."""
+    from airflow.models.dagrun import parent_trace_context
+
+    ctx = parent_trace_context(conf)
+    if expected_trace_id is None:
+        assert ctx is None
+    else:
+        span_ctx = otel_trace.get_current_span(ctx).get_span_context()
+        assert span_ctx.is_valid
+        assert format(span_ctx.trace_id, "032x") == expected_trace_id
+
+
+@pytest.mark.parametrize(
+    ("tracestate", "expected"),
+    [
+        pytest.param("foo=bar", "bar", id="str-preserved"),
+        pytest.param(123, None, id="non-str-dropped"),
+    ],
+)
+def test_parent_trace_context_tracestate(tracestate, expected):
+    """A str tracestate rides alongside the traceparent; a non-str one is dropped, not raised."""
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {
+        DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+            "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01",
+            "tracestate": tracestate,
+        }
+    }
+    span_ctx = otel_trace.get_current_span(parent_trace_context(conf)).get_span_context()
+    assert format(span_ctx.trace_id, "032x") == _EXTERNAL_TRACE_ID
+    assert span_ctx.trace_state.get("foo") == expected
+
+
+@mock.patch("airflow.models.dagrun.TraceContextTextMapPropagator.extract", side_effect=ValueError("boom"))
+def test_parent_trace_context_swallows_propagator_error(mock_extract):
+    """A propagator failure degrades to a root trace instead of failing run creation."""
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"}
+    assert parent_trace_context(conf) is None
+
+
 class TestDagRunTracing:
     """Tests for DagRun OpenTelemetry span behavior."""
 
@@ -4442,35 +4540,140 @@ class TestDagRunTracing:
         span_ctx = trace.get_current_span(ctx).get_span_context()
         assert span_ctx.trace_flags.sampled is flag
 
-
-class TestDagRunStatsTagsTeamName:
-    def test_stats_tags_without_team_name(self, dag_maker):
-        """stats_tags should not include team_name when _team_name is not set."""
-        with dag_maker("test_dag"):
+    @pytest.mark.parametrize(
+        ("conf", "embeds"),
+        [
+            pytest.param(
+                {DAGRUN_PARENT_TRACE_CONTEXT_KEY: f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01"},
+                True,
+                id="with-parent-conf-embeds",
+            ),
+            pytest.param(None, False, id="without-parent-conf-is-root"),
+        ],
+    )
+    def test_context_carrier_parent_conf(self, dag_maker, conf, embeds):
+        """The carrier rides the external trace only when the parent conf key is set; else a root trace."""
+        with dag_maker("test_tracing_parent_conf"):
             EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        tags = dr.stats_tags
-        assert "team_name" not in tags
-        assert tags == {"dag_id": "test_dag", "run_type": "manual"}
+        dr = dag_maker.create_dagrun(conf=conf)
 
-    def test_stats_tags_with_team_name(self, dag_maker):
-        """stats_tags should include team_name when _team_name is set."""
-        with dag_maker("test_dag"):
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        dr._team_name = "my_team"
-        tags = dr.stats_tags
-        assert tags["team_name"] == "my_team"
-        assert tags == {"dag_id": "test_dag", "run_type": "manual", "team_name": "my_team"}
+        ctx = TraceContextTextMapPropagator().extract(dr.context_carrier)
+        trace_id = format(otel_trace.get_current_span(ctx).get_span_context().trace_id, "032x")
+        if embeds:
+            assert trace_id == _EXTERNAL_TRACE_ID
+        else:
+            assert trace_id != _EXTERNAL_TRACE_ID
 
-    def test_stats_tags_with_none_team_name(self, dag_maker):
-        """stats_tags should not include team_name when _team_name is None."""
-        with dag_maker("test_dag"):
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun()
-        dr._team_name = None
-        tags = dr.stats_tags
-        assert "team_name" not in tags
+
+def test_stats_tags_without_team_name(dag_maker):
+    """stats_tags omits team_name when _team_name is not set."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type}
+
+
+def test_stats_tags_with_team_name(dag_maker):
+    """stats_tags includes team_name when _team_name is set."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    dr._team_name = "my_team"
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type, "team_name": "my_team"}
+
+
+def test_stats_tags_with_none_team_name(dag_maker):
+    """stats_tags omits team_name when _team_name is None."""
+    with dag_maker("test_dag"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    dr._team_name = None
+    assert dr.stats_tags == {"dag_id": "test_dag", "run_type": dr.run_type}
+
+
+def test_stats_tags_dag_tags_disabled_by_default(dag_maker, session):
+    """With the flag off (the default), dag tags must not leak into metrics."""
+    with dag_maker("disabled_tag_dag", tags=["production", "env:prod"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "disabled_tag_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_without_dag_tags(dag_maker, session):
+    with dag_maker("no_tags_dag", session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "no_tags_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_with_standalone_dag_tag(dag_maker, session):
+    with dag_maker("standalone_tag_dag", tags=["production"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags  # eager-load so _dag_tags_for_stats sees the tags
+    tags = dr.stats_tags
+    assert tags == {"dag_id": "standalone_tag_dag", "run_type": "manual", "production": ""}
+    # run_type is the bare value, not a DagRunType enum (serializes as "manual", not "dagruntype.manual")
+    assert type(tags["run_type"]) is str
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_with_key_value_dag_tag(dag_maker, session):
+    with dag_maker("kv_tag_dag", tags=["env:staging"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    assert dr.stats_tags == {"dag_id": "kv_tag_dag", "run_type": dr.run_type, "env": "staging"}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_builtin_keys_win_on_collision(dag_maker, session):
+    with dag_maker("collision_dag", tags=["dag_id:sneaky"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    _ = dr.dag_model.tags
+    # built-in dag_id wins over the colliding "dag_id:sneaky" tag
+    assert dr.stats_tags == {"dag_id": "collision_dag", "run_type": dr.run_type}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_stats_tags_lazy_loads_dag_tags_when_not_eager_loaded(dag_maker, session):
+    """When dag_model is not eager-loaded, stats_tags lazy-loads it in-session so tags still appear."""
+    from sqlalchemy import inspect as sa_inspect
+
+    with dag_maker("lazy_tag_dag", tags=["env:prod"], session=session):
+        pass
+    dr = dag_maker.create_dagrun()
+    session.expire(dr, ["dag_model"])  # not eager-loaded
+    assert "dag_model" in sa_inspect(dr).unloaded
+
+    # lazy fallback loads dag_model.tags in-session, so the tags are still emitted
+    assert dr.stats_tags == {"dag_id": "lazy_tag_dag", "run_type": dr.run_type, "env": "prod"}
+
+
+@conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+def test_get_running_dag_runs_to_examine_eager_loads_dag_tags(dag_maker, session):
+    """With the flag on, the scheduler query eager-loads dag_model.tags so stats_tags fires no lazy load."""
+    from sqlalchemy import inspect as sa_inspect
+
+    with dag_maker("eager_tag_dag", tags=["env:prod"], session=session):
+        pass
+    dag_maker.create_dagrun(state=DagRunState.RUNNING)
+    session.commit()
+
+    dr = next(
+        r
+        for r in DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=True)
+        if r.dag_id == "eager_tag_dag"
+    )
+    # dag_model and its tags are already populated — no lazy load needed at metric-emission time.
+    assert "dag_model" not in sa_inspect(dr).unloaded
+    assert "tags" not in sa_inspect(dr.dag_model).unloaded
+    assert dr.stats_tags == {"dag_id": "eager_tag_dag", "run_type": dr.run_type, "env": "prod"}
 
 
 class TestClearPartitionRuns:

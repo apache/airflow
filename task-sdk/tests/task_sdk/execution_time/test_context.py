@@ -360,6 +360,99 @@ class TestVariableAccessor:
         val = accessor.get("nonexistent_var_key", default="default_value")
         assert val == "default_value"
 
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_masks_from_cache(self, mock_mask_secret):
+        """SecretCache hit path applies the same masking as the backends path."""
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        raw_json = '{"password": "s3cr3t", "host": "db.example.com"}'
+        with mock.patch.object(SecretCache, "get_variable", return_value=raw_json):
+            accessor = VariableAccessor(deserialize_json=True)
+            val = accessor.db_config
+
+        assert val == {"password": "s3cr3t", "host": "db.example.com"}
+        mock_mask_secret.assert_any_call(raw_json, "db_config")
+        mock_mask_secret.assert_any_call({"password": "s3cr3t", "host": "db.example.com"})
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_value_masks_secret(self, mock_mask_secret, mock_supervisor_comms):
+        """var.value.<key> masks the string value when the key name is sensitive."""
+        accessor = VariableAccessor(deserialize_json=False)
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_password", value="s3cr3t")
+
+        val = accessor.my_password
+
+        assert val == "s3cr3t"
+        mock_mask_secret.assert_called_once_with("s3cr3t", "my_password")
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_masks_raw_string_and_dict_values(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json.<key> masks both the raw JSON string and the deserialized dict's sensitive fields."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '{"password": "s3cr3t", "host": "db.example.com"}'
+        mock_supervisor_comms.send.return_value = VariableResult(key="db_config", value=raw_json)
+
+        val = accessor.db_config
+
+        assert val == {"password": "s3cr3t", "host": "db.example.com"}
+        # First call: raw JSON string with variable key (masks if key name is sensitive)
+        mock_mask_secret.assert_any_call(raw_json, "db_config")
+        # Second call: deserialized dict so internal sensitive fields like "password" get masked
+        mock_mask_secret.assert_any_call({"password": "s3cr3t", "host": "db.example.com"})
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_sensitive_key_masks_raw_json(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json.<sensitive_key> masks the entire raw JSON string because the variable key is sensitive."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '{"endpoint": "https://api.example.com", "token": "abc123"}'
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_secret", value=raw_json)
+
+        val = accessor.my_secret
+
+        assert val == {"endpoint": "https://api.example.com", "token": "abc123"}
+        mock_mask_secret.assert_any_call(raw_json, "my_secret")
+        mock_mask_secret.assert_any_call({"endpoint": "https://api.example.com", "token": "abc123"})
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_string_value_masks_both_forms(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json with a JSON string value masks both the quoted raw and the unquoted value."""
+        accessor = VariableAccessor(deserialize_json=True)
+        mock_supervisor_comms.send.return_value = VariableResult(key="my_token", value='"s3cr3t"')
+
+        val = accessor.my_token
+
+        assert val == "s3cr3t"
+        assert mock_mask_secret.call_count == 2
+        mock_mask_secret.assert_any_call('"s3cr3t"', "my_token")
+        mock_mask_secret.assert_any_call("s3cr3t", "my_token")
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_list_value_does_not_over_mask(self, mock_mask_secret, mock_supervisor_comms):
+        """var.json with a non-sensitive list variable does not mask individual list elements."""
+        accessor = VariableAccessor(deserialize_json=True)
+        raw_json = '["us-east-1", "eu-west-1"]'
+        mock_supervisor_comms.send.return_value = VariableResult(key="aws_regions", value=raw_json)
+
+        val = accessor.aws_regions
+
+        assert val == ["us-east-1", "eu-west-1"]
+        mock_mask_secret.assert_called_once_with(raw_json, "aws_regions")
+
+    @mock.patch("airflow.sdk.execution_time.context.mask_secret")
+    def test_var_json_invalid_json_raises(self, mock_mask_secret):
+        """Invalid JSON raises JSONDecodeError; the raw value is still masked before the error."""
+        import json
+
+        from airflow.sdk.execution_time.cache import SecretCache
+
+        raw = "not-valid-json"
+        with mock.patch.object(SecretCache, "get_variable", return_value=raw):
+            accessor = VariableAccessor(deserialize_json=True)
+            with pytest.raises(json.JSONDecodeError):
+                accessor.bad_var
+
+        mock_mask_secret.assert_called_once_with(raw, "bad_var")
+
 
 class TestCurrentContext:
     def test_current_context_roundtrip(self):
@@ -1405,6 +1498,161 @@ class TestTaskStateStoreAccessor:
         assert result == {"rows": 123}
         backend.deserialize_task_state_store_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
 
+    @pytest.mark.asyncio
+    async def test_aget_returns_value(self, mock_supervisor_comms):
+        """aget awaits asend and returns the stored value, without touching sync send."""
+        mock_supervisor_comms.asend.return_value = TaskStateStoreResult(value="app_001")
+
+        result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("job_id")
+
+        assert result == "app_001"
+        mock_supervisor_comms.asend.assert_called_once_with(GetTaskStateStore(ti_id=self.TI_ID, key="job_id"))
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aget_returns_default_when_key_missing(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "job_id"}
+        )
+
+        result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget(
+            "job_id", default="default-id"
+        )
+
+        assert result == "default-id"
+
+    @pytest.mark.asyncio
+    async def test_aget_raises_on_error(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = ErrorResponse(
+            error=ErrorType.GENERIC_ERROR, detail={"message": "server error"}
+        )
+
+        with pytest.raises(AirflowRuntimeError):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("some_key")
+
+    @pytest.mark.asyncio
+    async def test_aget_with_custom_backend_removes_decoration_marker(self, mock_supervisor_comms):
+        """aget unwraps the external Store marker and resolves the ref via the backend."""
+        mock_supervisor_comms.asend.return_value = TaskStateStoreResult(
+            value=_wrap_external_ref("s3://bucket/ti_123/job_id")
+        )
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.deserialize_task_state_store_from_ref.return_value = {"rows": 123}
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend", return_value=backend
+        ):
+            result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("job_id")
+
+        assert result == {"rows": 123}
+        backend.deserialize_task_state_store_from_ref.assert_called_once_with("s3://bucket/ti_123/job_id")
+
+    @pytest.mark.asyncio
+    async def test_aset_with_global_retention(self, mock_supervisor_comms, time_machine):
+        """aset awaits asend with the message built from the global retention config."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        now = datetime(2026, 5, 14, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(now, tick=False)
+
+        with conf_vars({("state_store", "default_retention_days"): "30"}):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", "app_001")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetTaskStateStore(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value="app_001",
+                expires_at=datetime(2026, 6, 13, 12, 0, 0, tzinfo=dt_timezone.utc),
+            )
+        )
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aset_none_raises(self, mock_supervisor_comms):
+        with pytest.raises(ValueError, match="Cannot set value as None"):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", None)
+
+        mock_supervisor_comms.asend.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aset_with_custom_backend_decorates_value_with_marker(self, mock_supervisor_comms):
+        """aset wraps the custom backend ref in the external Store marker before sending."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        backend = MagicMock(spec=BaseStoreBackend)
+        backend.serialize_task_state_store_to_ref.return_value = "s3://bucket/ti_123/job_id"
+
+        with (
+            patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=backend,
+            ),
+            conf_vars({("state_store", "default_retention_days"): "0"}),
+        ):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", "spark_001")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetTaskStateStore(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value=_wrap_external_ref("s3://bucket/ti_123/job_id"),
+                expires_at=None,
+            )
+        )
+
+    @pytest.mark.asyncio
+    async def test_adelete_awaits_asend(self, mock_supervisor_comms):
+        """adelete awaits asend without touching sync send."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).adelete("job_id")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            DeleteTaskStateStore(ti_id=self.TI_ID, key="job_id")
+        )
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aclear_awaits_asend(self, mock_supervisor_comms):
+        """aclear awaits asend without touching sync send."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+
+        await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aclear()
+
+        mock_supervisor_comms.asend.assert_called_once_with(ClearTaskStateStore(ti_id=self.TI_ID))
+        mock_supervisor_comms.send.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_adelete_purges_via_async_backend(self, mock_supervisor_comms):
+        """adelete awaits the async backend instead of blocking on the sync delete."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+            return_value=backend,
+        ):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).adelete("job_id")
+
+        backend.adelete.assert_awaited_once_with(self.SCOPE, "job_id")
+        backend.delete.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_aclear_purges_via_async_backend(self, mock_supervisor_comms):
+        """aclear awaits the async backend instead of blocking on the sync clear."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        backend = MagicMock(spec=BaseStoreBackend)
+
+        with patch(
+            "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+            return_value=backend,
+        ):
+            await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aclear()
+
+        backend.aclear.assert_awaited_once_with(self.SCOPE)
+        backend.clear.assert_not_called()
+
 
 class TestAssetStateStoreAccessor:
     ASSET_NAME = "debug_watcher_asset"
@@ -1849,6 +2097,41 @@ class TestTaskStateStoreAccessorWithCustomBackend:
         assert "job_id" not in backend._actual_key_value_store
         assert "checkpoint" not in backend._actual_key_value_store
         mock_supervisor_comms.send.assert_any_call(ClearTaskStateStore(ti_id=self.TI_ID))
+
+    @pytest.mark.asyncio
+    async def test_aset_returns_reference_to_storage(self, mock_supervisor_comms, backend, time_machine):
+        """aset() stores actual value in backend and sends mem:// reference via comms."""
+        mock_supervisor_comms.asend.return_value = OKResponse(ok=True)
+        expected_ref = f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
+
+        frozen_dt = datetime(2026, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc)
+        time_machine.move_to(frozen_dt, tick=False)
+
+        await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aset("job_id", "app_001")
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            SetTaskStateStore(
+                ti_id=self.TI_ID,
+                key="job_id",
+                value=_wrap_external_ref(expected_ref),
+                expires_at=frozen_dt + timedelta(days=30),
+            )
+        )
+        assert backend._actual_key_value_store["job_id"] == "app_001"
+        assert backend.reference["job_id"] == expected_ref
+
+    @pytest.mark.asyncio
+    async def test_aget_resolves_reference_to_actual_value(self, mock_supervisor_comms, backend):
+        """aget() fetches mem:// reference from DB, resolves it to actual value via backend."""
+        ref = _wrap_external_ref(
+            f"mem://{self.SCOPE.dag_id}/{self.SCOPE.run_id}/{self.SCOPE.task_id}/{self.SCOPE.map_index}/job_id"
+        )
+        backend._actual_key_value_store["job_id"] = "app_001"
+        mock_supervisor_comms.asend.return_value = TaskStateStoreResult(value=ref)
+
+        result = await TaskStateStoreAccessor(ti_id=self.TI_ID, scope=self.SCOPE).aget("job_id")
+
+        assert result == "app_001"
 
 
 class TestAssetStateStoreAccessorWithCustomBackend:
