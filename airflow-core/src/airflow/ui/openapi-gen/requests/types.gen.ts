@@ -2206,6 +2206,7 @@ export type BaseNodeResponse = {
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
+    asset_condition_type?: 'or-gate' | 'and-gate' | null;
 };
 
 export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
@@ -2480,7 +2481,6 @@ export type EdgeResponse = {
     target_id: string;
     is_setup_teardown?: boolean | null;
     label?: string | null;
-    is_source_asset?: boolean | null;
 };
 
 /**
@@ -2643,12 +2643,12 @@ export type NodeResponse = {
     label: string;
     type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
+    asset_condition_type?: 'or-gate' | 'and-gate' | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     tooltip?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
-    asset_condition_type?: 'or-gate' | 'and-gate' | null;
     ui_color?: string | null;
     ui_fgcolor?: string | null;
 };
@@ -4689,7 +4689,6 @@ export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
 export type StructureDataData = {
     dagId: string;
     depth?: number | null;
-    externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     root?: string | null;
@@ -8569,10 +8568,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: StructureDataResponse;
-                /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

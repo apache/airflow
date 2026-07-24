@@ -1969,20 +1969,18 @@ export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: Que
 * @param data.includeDownstream
 * @param data.depth
 * @param data.root
-* @param data.externalDependencies
 * @param data.versionNumber
 * @returns StructureDataResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseStructureServiceStructureData = (queryClient: QueryClient, { dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }: {
+export const prefetchUseStructureServiceStructureData = (queryClient: QueryClient, { dagId, depth, includeDownstream, includeUpstream, root, versionNumber }: {
   dagId: string;
   depth?: number;
-  externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string;
   versionNumber?: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }), queryFn: () => StructureService.structureData({ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, depth, includeDownstream, includeUpstream, root, versionNumber }), queryFn: () => StructureService.structureData({ dagId, depth, includeDownstream, includeUpstream, root, versionNumber }) });
 /**
 * Get Dag Structure
 * Return dag structure for grid view.

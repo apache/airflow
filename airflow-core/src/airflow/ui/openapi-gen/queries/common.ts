@@ -979,15 +979,14 @@ export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, limit, off
 export type StructureServiceStructureDataDefaultResponse = Awaited<ReturnType<typeof StructureService.structureData>>;
 export type StructureServiceStructureDataQueryResult<TData = StructureServiceStructureDataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useStructureServiceStructureDataKey = "StructureServiceStructureData";
-export const UseStructureServiceStructureDataKeyFn = ({ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }: {
+export const UseStructureServiceStructureDataKeyFn = ({ dagId, depth, includeDownstream, includeUpstream, root, versionNumber }: {
   dagId: string;
   depth?: number;
-  externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string;
   versionNumber?: number;
-}, queryKey?: Array<unknown>) => [useStructureServiceStructureDataKey, ...(queryKey ?? [{ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }])];
+}, queryKey?: Array<unknown>) => [useStructureServiceStructureDataKey, ...(queryKey ?? [{ dagId, depth, includeDownstream, includeUpstream, root, versionNumber }])];
 export type GridServiceGetDagStructureDefaultResponse = Awaited<ReturnType<typeof GridService.getDagStructure>>;
 export type GridServiceGetDagStructureQueryResult<TData = GridServiceGetDagStructureDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetDagStructureKey = "GridServiceGetDagStructure";

@@ -1969,20 +1969,18 @@ export const useDeadlinesServiceGetDagDeadlineAlertsSuspense = <TData = Common.D
 * @param data.includeDownstream
 * @param data.depth
 * @param data.root
-* @param data.externalDependencies
 * @param data.versionNumber
 * @returns StructureDataResponse Successful Response
 * @throws ApiError
 */
-export const useStructureServiceStructureDataSuspense = <TData = Common.StructureServiceStructureDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }: {
+export const useStructureServiceStructureDataSuspense = <TData = Common.StructureServiceStructureDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, depth, includeDownstream, includeUpstream, root, versionNumber }: {
   dagId: string;
   depth?: number;
-  externalDependencies?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string;
   versionNumber?: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }, queryKey), queryFn: () => StructureService.structureData({ dagId, depth, externalDependencies, includeDownstream, includeUpstream, root, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseStructureServiceStructureDataKeyFn({ dagId, depth, includeDownstream, includeUpstream, root, versionNumber }, queryKey), queryFn: () => StructureService.structureData({ dagId, depth, includeDownstream, includeUpstream, root, versionNumber }) as TData, ...options });
 /**
 * Get Dag Structure
 * Return dag structure for grid view.

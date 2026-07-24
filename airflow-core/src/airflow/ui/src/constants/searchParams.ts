@@ -37,7 +37,6 @@ export enum SearchParamsKeys {
   DEADLINE_TIME_GTE = "deadline_time_gte",
   DEADLINE_TIME_LTE = "deadline_time_lte",
   DEADLINE_TIME_RANGE = "deadline_time_range",
-  DEPENDENCIES = "dependencies",
   DURATION_GTE = "duration_gte",
   DURATION_LTE = "duration_lte",
   END_DATE = "end_date",

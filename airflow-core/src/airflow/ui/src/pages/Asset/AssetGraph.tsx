@@ -26,7 +26,7 @@ import type { AssetResponse } from "openapi/requests/types.gen";
 import type { Direction } from "src/components/Graph/DirectionDropdown";
 import { DownloadButton } from "src/components/Graph/DownloadButton";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
-import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
+import { getGatePathEdgeIdsForSelection, type CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
 import { directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
@@ -60,9 +60,15 @@ export const AssetGraph = ({
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
 
+  const isNodeSelected = (nodeId: string) => nodeId === `asset:${assetId}`;
+
   const nodes = layoutData?.nodes.map((node) =>
-    node.id === `asset:${assetId}` ? { ...node, data: { ...node.data, isSelected: true } } : node,
+    isNodeSelected(node.id) ? { ...node, data: { ...node.data, isSelected: true } } : node,
   );
+
+  const gatePathEdgeIds = layoutData
+    ? getGatePathEdgeIdsForSelection(layoutData.nodes, layoutData.edges, isNodeSelected)
+    : new Set<string>();
 
   const edges = (layoutData?.edges ?? []).map((edge) => ({
     ...edge,
@@ -71,7 +77,10 @@ export const AssetGraph = ({
       rest: {
         ...edge.data?.rest,
         edgeType: dependencyType,
-        isSelected: `asset:${asset?.id}` === edge.source || `asset:${asset?.id}` === edge.target,
+        isSelected:
+          `asset:${asset?.id}` === edge.source ||
+          `asset:${asset?.id}` === edge.target ||
+          gatePathEdgeIds.has(edge.id),
       },
     },
   }));
