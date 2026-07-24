@@ -23,6 +23,7 @@ import re
 from datetime import time, timedelta
 from unittest import mock
 
+import pendulum
 import pytest
 from sqlalchemy import select
 
@@ -490,6 +491,16 @@ class TestExternalTaskSensorV2:
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (f"Poking for DAG 'other_dag' on {DEFAULT_DATE.isoformat()} ... ") in caplog.messages
+
+    def test_external_dag_sensor_log_uses_configured_timezone(self, monkeypatch):
+        monkeypatch.setattr(settings, "TIMEZONE", pendulum.timezone("Asia/Seoul"))
+
+        dttm_filter = [pendulum.datetime(2026, 7, 6, 21, tz="UTC")]
+
+        assert (
+            ExternalTaskSensor._serialize_dttm_filter_for_log(dttm_filter)
+            == "2026-07-06T21:00:00+00:00 (default timezone: 2026-07-07T06:00:00+09:00)"
+        )
 
     def test_external_dag_sensor_soft_fail_as_skipped(self, dag_maker, session):
         with dag_maker("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once"):
@@ -1412,6 +1423,28 @@ class TestExternalTaskSensorV3:
             task_ids=["test_task"],
         )
         assert op.external_dates_filter == expected_date.isoformat()
+
+    @pytest.mark.execution_timeout(10)
+    def test_external_dag_sensor_log_uses_configured_timezone(self, monkeypatch, caplog, dag_maker):
+        monkeypatch.setattr(settings, "TIMEZONE", pendulum.timezone("Asia/Seoul"))
+        logical_date = pendulum.datetime(2026, 7, 6, 21, tz="UTC")
+        self.context["logical_date"] = logical_date
+        self.context["ti"].get_dr_count.return_value = 0
+
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_dag_sensor_check",
+                external_dag_id="other_dag",
+            )
+
+        with caplog.at_level(logging.INFO, logger=op.log.name):
+            caplog.clear()
+            op.poke(context=self.context)
+
+        assert (
+            "Poking for DAG 'other_dag' on "
+            "2026-07-06T21:00:00+00:00 (default timezone: 2026-07-07T06:00:00+09:00) ... "
+        ) in caplog.messages
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_duplicate_task_ids(self, dag_maker):
