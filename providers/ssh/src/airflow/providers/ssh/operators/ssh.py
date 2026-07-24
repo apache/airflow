@@ -121,7 +121,7 @@ class SSHOperator(BaseOperator):
         """Create SSHHook to run commands on remote host."""
         if self.ssh_conn_id:
             self.log.info("ssh_hook is not provided or invalid. Trying ssh_conn_id to create SSHHook.")
-            if self.remote_host is not None:
+            if self.remote_host:
                 self.log.info(
                     "remote_host is provided explicitly. "
                     "It will replace the remote_host which was defined "
