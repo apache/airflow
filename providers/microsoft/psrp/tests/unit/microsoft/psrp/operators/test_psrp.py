@@ -45,6 +45,18 @@ class TestPsrpOperator:
         with pytest.raises(ValueError, match=exception_msg):
             op.execute(None)
 
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"command": "hostname", "arguments": ["x"]}, "Arguments only allowed"),
+            ({"command": "hostname", "parameters": {"k": "v"}}, "Parameters only allowed"),
+        ],
+    )
+    def test_arguments_and_parameters_require_powershell_or_cmdlet(self, kwargs, match):
+        op = PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, **kwargs)
+        with pytest.raises(ValueError, match=match):
+            op.execute(None)
+
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize(
         ("had_errors", "rc"), [(False, 0), (False, None), (True, None), (False, 1), (True, 1)]
