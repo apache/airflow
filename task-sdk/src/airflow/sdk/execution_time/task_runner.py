@@ -58,6 +58,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
+from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -895,6 +896,14 @@ def _xcom_push(
     """Push a XCom through XCom.set, which pushes to XCom Backend if configured."""
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
+
+    if key == XCOM_SKIPMIXIN_KEY:
+        # The branch/skip decision is control-plane data the scheduler reads (via
+        # NotPreviouslySkippedDep) to skip mapped or cleared downstream tasks. It must
+        # bypass any custom XCom backend, which could externalize it into a pointer the
+        # scheduler cannot interpret, silently leaving those tasks unskipped (#50491).
+        _xcom_push_to_db(ti, key, value)
+        return
 
     XCom.set(
         key=key,
