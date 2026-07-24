@@ -294,7 +294,7 @@ class ImapHook(BaseHook):
         self, mail_attachments: list, local_output_directory: str, overwrite: bool = True
     ) -> None:
         for name, payload in mail_attachments:
-            if self._is_symlink(name):
+            if self._is_symlink(name, local_output_directory):
                 self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
                 self.log.error("Can not create file because it is escaping the current directory!")
@@ -313,13 +313,23 @@ class ImapHook(BaseHook):
                 file_path = f"{base}_{counter}{ext}"
                 counter += 1
 
-        with open(file_path, "wb") as file:
+        # O_NOFOLLOW closes the check-then-open race: if a symlink is planted at
+        # file_path after the _is_symlink check but before this write, the open
+        # fails instead of following it. The flag is absent on some platforms
+        # (e.g. Windows), where it degrades to a no-op.
+        def opener(path: str, flags: int) -> int:
+            return os.open(path, flags | getattr(os, "O_NOFOLLOW", 0))
+
+        with open(file_path, "wb", opener=opener) as file:
             file.write(payload)
 
-    def _is_symlink(self, name: str) -> bool:
+    def _is_symlink(self, name: str, local_output_directory: str) -> bool:
+        # Check the resolved destination, not the bare attachment name: an
+        # attacker-supplied name is written under local_output_directory, so a
+        # symlink planted there is what would be followed by the open() below.
         # IMPORTANT NOTE: os.path.islink is not working for windows symlinks
         # See: https://stackoverflow.com/a/11068434
-        return os.path.islink(name)
+        return os.path.islink(self._correct_path(name, local_output_directory))
 
     def _is_escaping_current_directory(self, name: str) -> bool:
         return f"..{os.sep}" in name
