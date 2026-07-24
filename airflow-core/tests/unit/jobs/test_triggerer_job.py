@@ -3124,3 +3124,87 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
     trigger_id, _event, seq = events[0]
     assert trigger_id == 1
     assert seq is None
+
+
+@pytest.mark.asyncio
+async def test_trigger_event_payload_not_logged_at_info(cap_structlog):
+    """Ensure the full event payload is not logged at INFO level."""
+    runner = TriggerRunner()
+    runner.triggers = {
+        1: {
+            "task": MagicMock(spec=asyncio.Task),
+            "is_watcher": False,
+            "name": "test_dag/run_id/test_task/0/1",
+            "events": 0,
+        }
+    }
+
+    mock_trigger = MagicMock(spec=BaseTrigger)
+    mock_trigger.task_instance = MagicMock()
+    mock_trigger.task_instance.map_index = -1
+
+    payload = {"api_response": {"token": "s3cr3t-api-k3y", "user_id": 42}}
+
+    async def fake_run():
+        yield TriggerEvent(payload)
+
+    mock_trigger.run = fake_run
+
+    mock_trigger.cleanup = AsyncMock()
+
+    task = asyncio.create_task(runner.run_trigger(1, mock_trigger))
+    await task
+
+    assert any(log["event"] == "Trigger fired event" for log in cap_structlog), (
+        "Expected a 'Trigger fired event' log entry"
+    )
+    info_logs = [log for log in cap_structlog if log.get("log_level") == "info"]
+
+    for _key, value in payload.items():
+        assert not any(str(value) in str(log) for log in info_logs), (
+            "payload value must not appear in INFO-level logs"
+        )
+
+
+@pytest.mark.asyncio
+async def test_trigger_event_payload_available_at_debug(cap_structlog):
+    runner = TriggerRunner()
+    runner.triggers = {
+        1: {
+            "task": MagicMock(spec=asyncio.Task),
+            "is_watcher": False,
+            "name": "test_dag/run_id/test_task/0/1",
+            "events": 0,
+        }
+    }
+
+    mock_trigger = MagicMock(spec=BaseTrigger)
+    mock_trigger.task_instance = MagicMock()
+    mock_trigger.task_instance.map_index = -1
+
+    payload = {"api_response": {"token": "s3cr3t-api-k3y", "user_id": 42}}
+
+    async def fake_run():
+        yield TriggerEvent(payload)
+
+    mock_trigger.run = fake_run
+
+    mock_log = AsyncMock()
+    mock_log.isEnabledFor = MagicMock(return_value=True)
+    runner.log = mock_log
+
+    mock_trigger.cleanup = AsyncMock()
+
+    task = asyncio.create_task(runner.run_trigger(1, mock_trigger))
+    await task
+
+    # ainfo must not be called with result
+    for call in mock_log.ainfo.call_args_list:
+        assert "result" not in call.kwargs, "Payload must not appear in ainfo call"
+
+    # adebug must be called with full payload as 'result'
+    print(mock_log.adebug.call_args.kwargs.get("result"))
+    mock_log.adebug.assert_awaited_once()
+    assert mock_log.adebug.call_args.kwargs.get("result") == TriggerEvent(payload), (
+        "Full event payload must be passed to adebug as 'result'"
+    )
