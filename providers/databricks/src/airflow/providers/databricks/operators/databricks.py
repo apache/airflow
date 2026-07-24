@@ -1941,6 +1941,31 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         errors = event.get("errors", [])
         self._handle_terminal_run_state(run_state, errors)
 
+    def on_kill(self) -> None:
+        if self.databricks_run_id is None:
+            return
+        if self._databricks_workflow_task_group:
+            # Workflow member: cancel only this task's child run, not the shared parent workflow run.
+            # Cancelling the parent would also stop all sibling tasks.
+            # If the child run_id cannot be resolved, log and bail out — do NOT fall back to the
+            # parent run_id as that would cancel sibling tasks.
+            try:
+                run_id_to_cancel = self._get_current_databricks_task()["run_id"]
+            except Exception:
+                self.log.exception(
+                    "Task: %s could not resolve child run_id; skipping cancel to avoid stopping sibling tasks.",
+                    self.task_id,
+                )
+                return
+        else:
+            run_id_to_cancel = self.databricks_run_id
+        self._hook.cancel_run(run_id_to_cancel)
+        self.log.info(
+            "Task: %s with run_id: %s was requested to be cancelled.",
+            self.task_id,
+            run_id_to_cancel,
+        )
+
 
 class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     """
