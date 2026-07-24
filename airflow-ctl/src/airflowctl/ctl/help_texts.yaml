@@ -86,6 +86,7 @@ providers:
   list: "List all installed Airflow providers"
 
 taskinstances:
+  get: "Get a task instance by Dag ID, Dag run ID and task ID, optionally with a map index"
   list: "List all task instances for a given Dag run"
 
 tasks:

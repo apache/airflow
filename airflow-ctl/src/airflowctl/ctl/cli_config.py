@@ -294,6 +294,23 @@ ARG_LOGICAL_DATE = Arg(
 )
 
 # Task Commands Args
+ARG_DAG_RUN_ID = Arg(
+    flags=("dag_run_id",),
+    type=str,
+    help="The Dag Run ID",
+)
+ARG_TASK_ID = Arg(
+    flags=("task_id",),
+    type=str,
+    help="The Task ID",
+)
+ARG_MAP_INDEX = Arg(
+    flags=("--map-index",),
+    type=int,
+    dest="map_index",
+    default=-1,
+    help="If set, query the mapped task instance with this map index (negative means non-mapped)",
+)
 ARG_RUN_ID = Arg(
     flags=("run_id",),
     type=str,
@@ -1085,6 +1102,18 @@ POOL_COMMANDS = (
 )
 
 TASK_COMMANDS = (
+    ActionCommand(
+        name="state",
+        help="Get the state of a task instance",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.task_state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_DAG_RUN_ID,
+            ARG_TASK_ID,
+            ARG_MAP_INDEX,
+            ARG_OUTPUT,
+        ),
+    ),
     ActionCommand(
         name="states-for-dag-run",
         help="Get the status of all task instances in a Dag run",

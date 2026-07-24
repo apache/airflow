@@ -97,3 +97,17 @@ def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
         data=[_format_task_instance(ti, has_mapped_instances) for ti in task_instances],
         output=args.output,
     )
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def task_state(args, api_client=NEW_API_CLIENT) -> None:
+    """Get the state of a task instance."""
+    ti = api_client.task_instances.get(
+        dag_id=args.dag_id,
+        dag_run_id=args.dag_run_id,
+        task_id=args.task_id,
+        map_index=args.map_index,
+    )
+    # ``state`` is a str-mixin enum; ``str()`` on it yields "TaskInstanceState.SUCCESS".
+    state = getattr(ti.state, "value", ti.state)
+    AirflowConsole().print_as(data=[{"state": state}], output=args.output)

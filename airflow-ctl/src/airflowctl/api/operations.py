@@ -70,6 +70,7 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -779,6 +780,28 @@ class ProvidersOperations(BaseOperations):
 
 class TaskInstancesOperations(BaseOperations):
     """Task instance operations."""
+
+    def get(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+    ) -> TaskInstanceResponse | ServerResponseError:
+        """
+        Get a task instance.
+
+        When ``map_index`` is non-negative, the mapped task instance endpoint is
+        called; otherwise the standard (unmapped) endpoint is used.
+        """
+        path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+        if map_index is not None and map_index >= 0:
+            path = f"{path}/{map_index}"
+        try:
+            self.response = self.client.get(path)
+            return TaskInstanceResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances for a Dag run."""

@@ -97,11 +97,14 @@ TEST_COMMANDS = [
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
     # Tasks commands
+    'tasks state example_bash_operator "manual__{date_param}" runme_0',
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
     'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
     'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
     # Task Instances commands
     'taskinstances list example_bash_operator "manual__{date_param}"',
+    # Task instance get (auto-generated command, uses positional args) - needs a Dag run with completed tasks
+    'taskinstances get example_bash_operator "manual__{date_param}" runme_0',
     # XCom commands - need a Dag run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
