@@ -1,0 +1,1 @@
+Add automatic creation of team default pools in multi-team deployments and assign tasks without an explicitly configured pool to their team's default pool during DAG parsing. Existing multi-team deployments should run `airflow teams sync` after upgrading to provision default pools for existing teams.
