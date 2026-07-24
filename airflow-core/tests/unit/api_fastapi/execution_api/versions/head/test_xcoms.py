@@ -237,6 +237,12 @@ class TestXComsGetEndpoint:
             pytest.param(slice(-1, None, -1), id="-1::-1"),
             pytest.param(slice(-2, -1, None), id="-2:-1"),
             pytest.param(slice(-1, -3, -1), id="-1:-3:-1"),
+            # Crossed-bound slices (stop before start) must return [] rather than
+            # emitting a negative SQL LIMIT; one case per .slice() branch.
+            pytest.param(slice(2, 1, None), id="2:1"),
+            pytest.param(slice(0, 1, -1), id="0:1:-1"),
+            pytest.param(slice(-2, -1, -1), id="-2:-1:-1"),
+            pytest.param(slice(-1, -2, None), id="-1:-2"),
         ],
     )
     def test_xcom_get_with_slice(self, client, dag_maker, session, key):
