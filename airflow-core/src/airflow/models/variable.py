@@ -160,6 +160,9 @@ class Variable(Base, LoggingMixin):
         :param deserialize_json: Deserialize the value to a Python dict
         :param team_name: Team name associated to the task trying to access the variable (if any)
         """
+        if not key or not isinstance(key, str):
+            raise ValueError("Variable key must be a non-empty string")
+
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer
@@ -220,6 +223,9 @@ class Variable(Base, LoggingMixin):
         :param team_name: Team name associated to the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
+        if not key or not isinstance(key, str):
+            raise ValueError("Variable key must be a non-empty string")
+
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer
