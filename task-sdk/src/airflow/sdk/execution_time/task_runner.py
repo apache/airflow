@@ -1634,9 +1634,10 @@ def run(
         log.info("::group::Post Execute")
         if e.args:
             log.info("Skipping task.", reason=e.args[0])
+        ti.end_date = datetime.now(tz=timezone.utc)
         msg = TaskState(
             state=TaskInstanceState.SKIPPED,
-            end_date=datetime.now(tz=timezone.utc),
+            end_date=ti.end_date,
             rendered_map_index=ti.rendered_map_index,
         )
         state = TaskInstanceState.SKIPPED
@@ -1889,26 +1890,23 @@ def _handle_trigger_dag_run(
     )
 
     if isinstance(comms_msg, ErrorResponse) and comms_msg.error == ErrorType.DAGRUN_ALREADY_EXISTS:
+        ti.end_date = datetime.now(tz=timezone.utc)
+        state: Literal[TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
         if drte.skip_when_already_exists:
             log.info(
                 "Dag Run already exists, skipping task as skip_when_already_exists is set to True.",
                 dag_id=drte.trigger_dag_id,
             )
-            msg = TaskState(
-                state=TaskInstanceState.SKIPPED,
-                end_date=datetime.now(tz=timezone.utc),
-                rendered_map_index=ti.rendered_map_index,
-            )
             state = TaskInstanceState.SKIPPED
         else:
             log.error("Dag Run already exists, marking task as failed.", dag_id=drte.trigger_dag_id)
-            msg = TaskState(
-                state=TaskInstanceState.FAILED,
-                end_date=datetime.now(tz=timezone.utc),
-                rendered_map_index=ti.rendered_map_index,
-            )
             state = TaskInstanceState.FAILED
 
+        msg = TaskState(
+            state=state,
+            end_date=ti.end_date,
+            rendered_map_index=ti.rendered_map_index,
+        )
         return msg, state
 
     log.info("Dag Run triggered successfully.", trigger_dag_id=drte.trigger_dag_id)
