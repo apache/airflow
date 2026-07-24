@@ -34,6 +34,7 @@ import (
 
 	"github.com/apache/airflow/go-sdk/internal/airflowmetadata"
 	"github.com/apache/airflow/go-sdk/internal/bundlefooter"
+	"github.com/apache/airflow/go-sdk/pkg/execution"
 )
 
 // crossArchFor returns an architecture different from the host that the Go
@@ -142,7 +143,7 @@ func TestPack_CrossArchExecutableWithMetadataFile(t *testing.T) {
 sdk:
   language: "go"
   version: "` + sdkVersion + `"
-  supervisor_schema_version: "2026-06-16"
+  supervisor_schema_version: "` + execution.SupervisorSchemaVersion + `"
 source: "main.go"
 dags:
   concurrent_xcom_dag:
@@ -153,6 +154,17 @@ dags:
       - "extract"
       - "transform"
       - "load"
+  taskflow_binding_dag:
+    tasks:
+      - "make_config"
+      - "make_numbers"
+      - "make_region"
+      - "via_flat_args"
+      - "via_struct_no_tags"
+      - "via_struct_arg_tag"
+      - "via_struct_unmatched_arg"
+      - "via_flat_map"
+      - "via_struct_map"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

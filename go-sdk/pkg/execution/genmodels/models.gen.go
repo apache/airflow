@@ -20,6 +20,10 @@ package genmodels
 
 import "time"
 
+type ArgBindings []TaskArgBinding
+
+type ArgValueSchema map[string]JsonValue
+
 // Schema for AssetAliasModel used in AssetEventDagRunReference.
 type AssetAliasReferenceAssetEventDagRun struct {
 	// Name corresponds to the JSON schema field "name".
@@ -370,6 +374,9 @@ type DagCallbackRequest struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
+
+	// VersionData corresponds to the JSON schema field "version_data".
+	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
 // Request for DAG File Parsing.
@@ -749,6 +756,9 @@ type EmailRequest struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
+
+	// VersionData corresponds to the JSON schema field "version_data".
+	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
 type EmailRequestEmailType string
@@ -808,11 +818,21 @@ type GetAssetEventByAsset struct {
 	// Before corresponds to the JSON schema field "before".
 	Before interface{} `msgpack:"before,omitempty"`
 
+	// Extra corresponds to the JSON schema field "extra".
+	Extra *Extra `msgpack:"extra,omitempty"`
+
 	// Limit corresponds to the JSON schema field "limit".
 	Limit interface{} `msgpack:"limit,omitempty"`
 
 	// Name corresponds to the JSON schema field "name".
 	Name interface{} `msgpack:"name"`
+
+	// PartitionKey corresponds to the JSON schema field "partition_key".
+	PartitionKey interface{} `msgpack:"partition_key,omitempty"`
+
+	// PartitionKeyRegexpPattern corresponds to the JSON schema field
+	// "partition_key_regexp_pattern".
+	PartitionKeyRegexpPattern interface{} `msgpack:"partition_key_regexp_pattern,omitempty"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
@@ -834,8 +854,18 @@ type GetAssetEventByAssetAlias struct {
 	// Before corresponds to the JSON schema field "before".
 	Before interface{} `msgpack:"before,omitempty"`
 
+	// Extra corresponds to the JSON schema field "extra".
+	Extra *Extra `msgpack:"extra,omitempty"`
+
 	// Limit corresponds to the JSON schema field "limit".
 	Limit interface{} `msgpack:"limit,omitempty"`
+
+	// PartitionKey corresponds to the JSON schema field "partition_key".
+	PartitionKey interface{} `msgpack:"partition_key,omitempty"`
+
+	// PartitionKeyRegexpPattern corresponds to the JSON schema field
+	// "partition_key_regexp_pattern".
+	PartitionKeyRegexpPattern interface{} `msgpack:"partition_key_regexp_pattern,omitempty"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
@@ -1239,6 +1269,24 @@ type LazyDeserializedDAG struct {
 	LastLoaded interface{} `msgpack:"last_loaded,omitempty"`
 }
 
+// One positional stub-task argument carrying an inline literal from the Dag file.
+type LiteralArgBinding struct {
+	// FromDefault corresponds to the JSON schema field "from_default".
+	FromDefault bool `msgpack:"from_default,omitempty"`
+
+	// Kind corresponds to the JSON schema field "kind".
+	Kind string `msgpack:"kind"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name string `msgpack:"name"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value,omitempty"`
+
+	// ValueSchema corresponds to the JSON schema field "value_schema".
+	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
+}
+
 type LogicalDates []time.Time
 
 // Add a new value to be redacted in task logs.
@@ -1564,6 +1612,9 @@ type TICount struct {
 
 // Response schema for TaskInstance run context.
 type TIRunContext struct {
+	// ArgBindings corresponds to the JSON schema field "arg_bindings".
+	ArgBindings *ArgBindings `msgpack:"arg_bindings,omitempty"`
+
 	// Connections corresponds to the JSON schema field "connections".
 	Connections []ConnectionResponse `msgpack:"connections,omitempty"`
 
@@ -1595,6 +1646,8 @@ type TIRunContext struct {
 	// XcomKeysToClear corresponds to the JSON schema field "xcom_keys_to_clear".
 	XcomKeysToClear []string `msgpack:"xcom_keys_to_clear,omitempty"`
 }
+
+type TaskArgBinding interface{}
 
 type TaskBreadcrumbsResult struct {
 	// Breadcrumbs corresponds to the JSON schema field "breadcrumbs".
@@ -1636,6 +1689,9 @@ type TaskCallbackRequest struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
+
+	// VersionData corresponds to the JSON schema field "version_data".
+	VersionData *VersionData `msgpack:"version_data,omitempty"`
 }
 
 type TaskIds []string
@@ -1777,19 +1833,6 @@ type TriggerDagRun struct {
 
 type TriggerKwargs map[string]JsonValue
 
-type Warnings []interface{}
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
-
-type VersionData map[string]interface{}
-
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
 	// ChosenOptions corresponds to the JSON schema field "chosen_options".
@@ -1824,6 +1867,19 @@ type VariableKeysResult struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
+type Warnings []interface{}
+
+type VersionData map[string]interface{}
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
+}
+
 type VariableResult struct {
 	// Key corresponds to the JSON schema field "key".
 	Key string `msgpack:"key"`
@@ -1833,6 +1889,27 @@ type VariableResult struct {
 
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value,omitempty"`
+}
+
+// One positional stub-task argument pulled from an upstream task's XCom.
+type XComArgBinding struct {
+	// ElementIndex corresponds to the JSON schema field "element_index".
+	ElementIndex interface{} `msgpack:"element_index,omitempty"`
+
+	// Kind corresponds to the JSON schema field "kind".
+	Kind string `msgpack:"kind"`
+
+	// MapIndex corresponds to the JSON schema field "map_index".
+	MapIndex *int `msgpack:"map_index,omitempty"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name string `msgpack:"name"`
+
+	// TaskID corresponds to the JSON schema field "task_id".
+	TaskID string `msgpack:"task_id"`
+
+	// ValueSchema corresponds to the JSON schema field "value_schema".
+	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
 }
 
 type XComCountResponse struct {
