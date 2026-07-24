@@ -124,6 +124,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     get_dialect_name,
     is_lock_not_available_error,
+    is_serialization_error,
     prohibit_commit,
     random_db_uuid,
     with_row_locks,
@@ -2002,7 +2003,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # We know we can't do anything here, so don't even try!
                 self.log.debug("All executors are full, skipping critical section")
                 num_queued_tis = 0
+                guard.commit()
             else:
+                # Snapshot the executors' in-memory queues so a failed commit can discard
+                # exactly the workloads buffered in this round. They must not be dispatched
+                # if their QUEUED state never reached the database.
+                queued_keys_before = {executor: set(executor.queued_tasks) for executor in self.executors}
                 try:
                     timer = stats.timer("scheduler.critical_section_duration")
                     timer.start()
@@ -2013,6 +2019,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down
                     timer.stop(send=True)
+
+                    # Serialization failures can surface at commit time as well, so the commit
+                    # must happen inside this handler.
+                    guard.commit()
                 except OperationalError as e:
                     timer.stop(send=False)
 
@@ -2021,9 +2031,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         stats.incr("scheduler.critical_section_busy")
                         session.rollback()
                         return 0
+                    if is_serialization_error(error=e):
+                        self.log.debug(
+                            "Critical section hit a database serialization conflict, "
+                            "will retry on the next scheduler loop"
+                        )
+                        stats.incr("scheduler.critical_section_conflict")
+                        session.rollback()
+                        for executor, keys_before in queued_keys_before.items():
+                            for key in set(executor.queued_tasks) - keys_before:
+                                del executor.queued_tasks[key]
+                        return 0
                     raise
-
-            guard.commit()
 
         return num_queued_tis
 
