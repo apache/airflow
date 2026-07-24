@@ -709,6 +709,20 @@ class TestPodManager:
         with pytest.raises(AirflowException):
             self.pod_manager.read_pod(mock.sentinel)
 
+    def test_read_pod_404_propagates_immediately(self):
+        mock.sentinel.metadata = mock.MagicMock()
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=404, reason="Not Found")
+        with pytest.raises(ApiException):
+            self.pod_manager.read_pod(mock.sentinel)
+        assert self.mock_kube_client.read_namespaced_pod.call_count == 1
+
+    def test_read_pod_non_404_api_exception_propagates_immediately(self):
+        mock.sentinel.metadata = mock.MagicMock()
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=403, reason="Forbidden")
+        with pytest.raises(ApiException):
+            self.pod_manager.read_pod(mock.sentinel)
+        assert self.mock_kube_client.read_namespaced_pod.call_count == 1
+
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
     def test_fetch_container_logs_returning_last_timestamp(
