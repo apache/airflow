@@ -236,7 +236,7 @@ class TestKillCommands:
     def test_posix_kill_signals_process_group_then_falls_back(self):
         """POSIX kill targets the process group first, then a single PID as fallback."""
         cmd = build_posix_kill_command("/tmp/pid")
-        assert "cat '/tmp/pid'" in cmd
+        assert "cat /tmp/pid" in cmd
         # Negative PID => signal the whole process group (kills the job's children too)
         assert 'kill -TERM -"$p"' in cmd
         # Fallback for jobs that are not group leaders (host without setsid)
@@ -413,3 +413,33 @@ class TestCleanupCommands:
         """Test Windows cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_windows_cleanup_command("C:\\temp\\other_dir")
+
+
+class TestPosixPathQuoting:
+    """A shell metacharacter in remote_base_dir must stay data, never become a command."""
+
+    @staticmethod
+    def _builders(paths):
+        return {
+            "wrapper": lambda: build_posix_wrapper_command("true", paths),
+            "cleanup": lambda: build_posix_cleanup_command(paths.job_dir),
+            "kill": lambda: build_posix_kill_command(paths.pid_file),
+            "log_tail": lambda: build_posix_log_tail_command(paths.log_file, 0, 64),
+            "file_size": lambda: build_posix_file_size_command(paths.log_file),
+            "completion": lambda: build_posix_completion_check_command(paths.exit_code_file),
+        }
+
+    @pytest.mark.parametrize(
+        "builder",
+        ["wrapper", "cleanup", "kill", "log_tail", "file_size", "completion"],
+    )
+    def test_single_quote_in_base_dir_does_not_execute(self, builder, tmp_path):
+        marker = tmp_path / "injected"
+        # The prefix keeps job_dir under POSIX_DEFAULT_BASE_DIR so _validate_job_dir passes.
+        base_dir = f"/tmp/airflow-ssh-jobs/x'; touch {marker}; :'"
+        paths = RemoteJobPaths(job_id="job_123", remote_os="posix", base_dir=base_dir)
+
+        cmd = self._builders(paths)[builder]()
+        subprocess.run(["sh", "-c", cmd], capture_output=True, check=False)
+
+        assert not marker.exists()
