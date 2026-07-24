@@ -34,6 +34,7 @@ from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from http import HTTPStatus
 from itertools import chain
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
@@ -53,7 +54,10 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
     KubernetesResults,
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    TRANSIENT_CONNECTION_ERRORS,
+    annotations_to_key,
+)
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
@@ -457,92 +461,210 @@ class KubernetesExecutor(BaseExecutor):
                 last_resource_version[ns] or resource_instance.resource_version[ns]
             )
 
-        from kubernetes.client.rest import ApiException
-
         if self.create_pods_after and self.create_pods_after > datetime.now():
             self.log.warning("Skipping pod creation due to kubernetes rate limit")
             return
 
         self.create_pods_after = None
 
+        if self.kube_config.async_pod_creation:
+            self._create_pods_concurrently()
+        else:
+            self._create_pods_sequentially()
+
+    def _create_pods_sequentially(self) -> None:
+        """Dequeue a batch and create worker pods one at a time (default behavior)."""
+        from kubernetes.client.rest import ApiException
+
+        if TYPE_CHECKING:
+            assert self.kube_scheduler
+            assert self.task_queue
+        created: int = 0
+        start: float = time.monotonic()
         with contextlib.suppress(Empty):
             for _ in range(self.kube_config.worker_pods_creation_batch_size):
-                task = self.task_queue.get_nowait()
-
+                task: KubernetesJob = self.task_queue.get_nowait()
+                created += 1
                 try:
-                    key = task.key
                     self.kube_scheduler.run_next(task)
-                    self.task_publish_retries.pop(key, None)
-                except PodReconciliationError as e:
-                    self.log.exception(
-                        "Pod reconciliation failed, likely due to kubernetes library upgrade. "
-                        "Try clearing the task to re-run.",
-                    )
-                    self.fail(task[0], e)
-                except ApiException as e:
-                    try:
-                        if e.body:
-                            body = json.loads(e.body)
-                        else:
-                            # If no body content, use reason as the message
-                            body = {"message": e.reason}
-                    except (json.JSONDecodeError, ValueError, TypeError):
-                        # If the body is a string (e.g., in a 429 error), it can't be parsed as JSON.
-                        # Use the body directly as the message instead.
-                        body = {"message": e.body}
-
-                    headers = e.headers or {}
-                    retries = self.task_publish_retries[key]
-                    # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
-                    # In case of a rate limit, wait and do not create new pods for "Retry-After" seconds
-                    can_retry_publish = (
-                        self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
-                    )
-                    message = body.get("message", "")
-                    if (
-                        (str(e.status) == "403" and "exceeded quota" in message)
-                        or (str(e.status) == "409" and "object has been modified" in message)
-                        or (str(e.status) == "410" and "too old resource version" in message)
-                        or str(e.status) == "500"
-                        or str(e.status) == "429"
-                    ) and can_retry_publish:
-                        self.log.warning(
-                            "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
-                            self.task_publish_retries[key] + 1,
-                            self.task_publish_max_retries,
-                            key,
-                            e.reason,
-                            message,
-                        )
-
-                        self.task_queue.put(task)
-                        self.task_publish_retries[key] = retries + 1
-
-                        if str(e.status) == "429":
-                            self.create_pods_after = datetime.now() + timedelta(
-                                seconds=int(headers.get("Retry-After", "0"))
-                            )
-                            self.log.warning(
-                                "Got rate limit from k8s api, skipping pod creation until %s",
-                                self.create_pods_after,
-                            )
-                            # stop pod creation to stop api requests
-                            break
-                    else:
-                        self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
-                        key = task.key
-                        self.fail(key, e)
-                        self.task_publish_retries.pop(key, None)
-                except PodMutationHookException as e:
-                    key = task.key
-                    self.log.error(
-                        "Pod Mutation Hook failed for the task %s. Failing task. Details: %s",
-                        key,
-                        e.__cause__,
-                    )
-                    self.fail(key, e)
+                    self.task_publish_retries.pop(task.key, None)
+                except (
+                    PodReconciliationError,
+                    ApiException,
+                    PodMutationHookException,
+                    *TRANSIENT_CONNECTION_ERRORS,
+                ) as e:
+                    if self._handle_pod_publish_error(task, e):
+                        # Rate limited: stop creating further pods this loop.
+                        break
                 finally:
                     self.task_queue.task_done()
+        if created:
+            self._record_pod_creation_batch(created, time.monotonic() - start)
+
+    def _create_pods_concurrently(self) -> None:
+        """
+        Dequeue a batch and create worker pods concurrently via the async client.
+
+        The whole batch is in flight before any response returns, so (unlike the sequential
+        path) a mid-batch 429 cannot stop the burst — it is bounded only by
+        ``pod_creation_max_concurrency``, and a 429 still suppresses the next loop via
+        ``create_pods_after``.
+        """
+        if TYPE_CHECKING:
+            assert self.kube_scheduler
+            assert self.task_queue
+        jobs: list[KubernetesJob] = []
+        with contextlib.suppress(Empty):
+            for _ in range(self.kube_config.worker_pods_creation_batch_size):
+                jobs.append(self.task_queue.get_nowait())
+        if not jobs:
+            return
+        start: float = time.monotonic()
+        try:
+            results: list[tuple[KubernetesJob, Exception | None]] = self.kube_scheduler.run_next_batch(jobs)
+        except Exception:
+            # Catastrophic failure (e.g. async client setup): keep queue accounting correct
+            # by marking every dequeued task done before surfacing the error.
+            for _ in jobs:
+                self.task_queue.task_done()
+            raise
+        self._record_pod_creation_batch(len(jobs), time.monotonic() - start)
+        for task, error in results:
+            try:
+                if error is None:
+                    self.task_publish_retries.pop(task.key, None)
+                else:
+                    self._handle_pod_publish_error(task, error)
+            finally:
+                self.task_queue.task_done()
+
+    def _record_pod_creation_batch(self, count: int, duration_seconds: float) -> None:
+        """Emit per-loop pod-creation batch metrics (duration, size); both paths use the same names."""
+        Stats.timing("kubernetes_executor.pod_creation_batch_duration", timedelta(seconds=duration_seconds))
+        Stats.gauge("kubernetes_executor.pod_creation_batch_size", count)
+
+    def _handle_pod_publish_error(self, task: KubernetesJob, e: Exception) -> bool:
+        """
+        Handle a build/create failure for a worker pod; shared by both creation paths.
+
+        The sync and async clients' ApiExceptions expose the same fields, so they are handled
+        uniformly. Returns True if pod creation should stop for the rest of this scheduler loop
+        (rate limit), else False.
+        """
+        from kubernetes.client.rest import ApiException
+        from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
+
+        if TYPE_CHECKING:
+            assert self.task_queue
+        key: TaskInstanceKey = task.key
+        if isinstance(e, PodReconciliationError):
+            self.log.exception(
+                "Pod reconciliation failed, likely due to kubernetes library upgrade. "
+                "Try clearing the task to re-run.",
+            )
+            self.fail(key, e)
+            return False
+        if isinstance(e, PodMutationHookException):
+            self.log.error(
+                "Pod Mutation Hook failed for the task %s. Failing task. Details: %s",
+                key,
+                e.__cause__,
+            )
+            self.fail(key, e)
+            return False
+        if isinstance(e, (ApiException, AsyncApiException)):
+            body: dict[str, Any]
+            try:
+                if e.body:
+                    body = json.loads(e.body)
+                else:
+                    # If no body content, use reason as the message
+                    body = {"message": e.reason}
+            except (json.JSONDecodeError, ValueError, TypeError):
+                # If the body is a string (e.g., in a 429 error), it can't be parsed as JSON.
+                # Use the body directly as the message instead.
+                body = {"message": e.body}
+
+            headers = e.headers or {}
+            retries: int = self.task_publish_retries[key]
+            # Requeue transient failures (exceeded-quota / stale-version conflicts and the api
+            # server's 429 / 5xx) up to task_publish_max_retries; anything else fails immediately.
+            can_retry_publish = self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries
+            message: str = body.get("message", "")
+            # Retry-After (seconds): the apiserver sets it on 429 (APF throttling) and on 503 while
+            # shutting down. Ignore a malformed value rather than crashing the scheduler loop.
+            retry_after = headers.get("Retry-After")
+            try:
+                retry_after_seconds: int | None = int(retry_after) if retry_after is not None else None
+            except (TypeError, ValueError):
+                retry_after_seconds = None
+            transient_5xx = (
+                HTTPStatus.INTERNAL_SERVER_ERROR,
+                HTTPStatus.BAD_GATEWAY,
+                HTTPStatus.SERVICE_UNAVAILABLE,
+                HTTPStatus.GATEWAY_TIMEOUT,
+            )
+            if (
+                (e.status == HTTPStatus.FORBIDDEN and "exceeded quota" in message)
+                or (e.status == HTTPStatus.CONFLICT and "object has been modified" in message)
+                or (e.status == HTTPStatus.GONE and "too old resource version" in message)
+                or e.status == HTTPStatus.TOO_MANY_REQUESTS
+                or e.status in transient_5xx
+            ) and can_retry_publish:
+                self.log.warning(
+                    "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
+                    self.task_publish_retries[key] + 1,
+                    self.task_publish_max_retries,
+                    key,
+                    e.reason,
+                    message,
+                )
+
+                self.task_queue.put(task)
+                self.task_publish_retries[key] = retries + 1
+
+                # Pause the loop until Retry-After when the server told us to back off (429, or 503
+                # on apiserver shutdown); other transient 5xx retry on the next loop.
+                if e.status == HTTPStatus.TOO_MANY_REQUESTS or retry_after_seconds is not None:
+                    self.create_pods_after = datetime.now() + timedelta(seconds=retry_after_seconds or 0)
+                    self.log.warning(
+                        "Backing off pod creation until %s after status %s from k8s api",
+                        self.create_pods_after,
+                        e.status,
+                    )
+                    # stop pod creation to stop api requests
+                    return True
+            else:
+                self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
+                self.fail(key, e)
+                self.task_publish_retries.pop(key, None)
+            return False
+        if isinstance(e, TRANSIENT_CONNECTION_ERRORS):
+            # Connection-level failure talking to the api server (reset / DNS blip / read timeout) —
+            # the category generic_api_retry treats as transient. Re-queue rather than fail; the
+            # create may not have reached the server, so a later loop retries.
+            retries = self.task_publish_retries[key]
+            if self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries:
+                self.log.warning(
+                    "[Try %s of %s] Transient connection error creating pod for Task %s: %r",
+                    retries + 1,
+                    self.task_publish_max_retries,
+                    key,
+                    e,
+                )
+                self.task_queue.put(task)
+                self.task_publish_retries[key] = retries + 1
+            else:
+                self.log.error(
+                    "Connection error creating pod, retries exhausted. Failing task %s: %r", key, e
+                )
+                self.fail(key, e)
+                self.task_publish_retries.pop(key, None)
+            return False
+        # Unknown exception type: fail the task rather than silently dropping it.
+        self.fail(key, e)
+        return False
 
     @provide_session
     def _change_state(
