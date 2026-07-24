@@ -28,7 +28,7 @@ Create Date: 2024-04-15 14:19:49.913797
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
+from alembic import context, op
 from sqlalchemy import literal
 
 # revision identifiers, used by Alembic.
@@ -39,40 +39,57 @@ depends_on = None
 airflow_version = "2.9.2"
 
 
-def upgrade():
-    """Apply Update missing constraints."""
-    conn = op.get_bind()
-    if conn.dialect.name == "mysql":
-        # TODO: Rewrite these queries to use alembic when lowest MYSQL version supports IF EXISTS
-        conn.execute(
-            sa.text("""
-        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-            CONSTRAINT_SCHEMA = DATABASE() AND
-            TABLE_NAME        = 'connection' AND
-            CONSTRAINT_NAME   = 'unique_conn_id' AND
-            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE connection
-            DROP INDEX unique_conn_id','select 1');
+def _mysql_drop_unique_constraint_if_exists(conn, table: str, index_name: str) -> None:
+    """
+    Drop a MySQL unique constraint only if it is actually present.
 
-        prepare stmt from @var;
-        execute stmt;
-        deallocate prepare stmt;
-        """)
-        )
-        # Dropping the below and recreating cause there's no IF NOT EXISTS in mysql
+    MySQL has no ``DROP INDEX IF EXISTS``, and PyMySQL does not support the
+    ``prepare``/``execute``/``deallocate prepare`` sequence in a single
+    ``cursor.execute()`` call, so the existence check and the drop are issued as two
+    separate single statements. In offline (``--sql``) mode there is no live connection
+    to query information_schema against, so the guarded dynamic SQL is emitted as literal
+    script text instead, to be run later through a real SQL client that supports
+    multi-statement scripts.
+    """
+    if context.is_offline_mode():
         conn.execute(
-            sa.text("""
+            sa.text(f"""
                 set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
                     CONSTRAINT_SCHEMA = DATABASE() AND
-                    TABLE_NAME        = 'connection' AND
-                    CONSTRAINT_NAME   = 'connection_conn_id_uq' AND
-                    CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE connection
-                    DROP INDEX connection_conn_id_uq','select 1');
+                    TABLE_NAME        = '{table}' AND
+                    CONSTRAINT_NAME   = '{index_name}' AND
+                    CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE {table}
+                    DROP INDEX {index_name}','select 1');
 
                 prepare stmt from @var;
                 execute stmt;
                 deallocate prepare stmt;
                 """)
         )
+        return
+    existing_indexes = {
+        row[0]
+        for row in conn.execute(
+            sa.text(f"""
+                SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS
+                WHERE CONSTRAINT_SCHEMA = DATABASE()
+                AND TABLE_NAME = '{table}'
+                AND CONSTRAINT_TYPE = 'UNIQUE'
+            """)
+        )
+    }
+    if index_name in existing_indexes:
+        conn.execute(sa.text(f"ALTER TABLE {table} DROP INDEX {index_name}"))
+
+
+def upgrade():
+    """Apply Update missing constraints."""
+    conn = op.get_bind()
+    if conn.dialect.name == "mysql":
+        # TODO: Rewrite these queries to use alembic when lowest MYSQL version supports IF EXISTS
+        # Dropping the below and recreating cause there's no IF NOT EXISTS in mysql
+        for index_name in ("unique_conn_id", "connection_conn_id_uq"):
+            _mysql_drop_unique_constraint_if_exists(conn, "connection", index_name)
     elif conn.dialect.name == "sqlite":
         # SQLite does not support DROP CONSTRAINT
         # We have to recreate the table without the constraint
@@ -121,63 +138,14 @@ def upgrade():
         batch_op.drop_constraint("task_reschedule_dr_fkey", type_="foreignkey")
 
     if conn.dialect.name == "mysql":
-        conn.execute(
-            sa.text("""
-                        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                            CONSTRAINT_SCHEMA = DATABASE() AND
-                            TABLE_NAME        = 'dag_run' AND
-                            CONSTRAINT_NAME   = 'dag_run_dag_id_execution_date_uq' AND
-                            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                            DROP INDEX dag_run_dag_id_execution_date_uq','select 1');
-
-                        prepare stmt from @var;
-                        execute stmt;
-                        deallocate prepare stmt;
-                        """)
-        )
-        conn.execute(
-            sa.text("""
-                        set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                            CONSTRAINT_SCHEMA = DATABASE() AND
-                            TABLE_NAME        = 'dag_run' AND
-                            CONSTRAINT_NAME   = 'dag_run_dag_id_run_id_uq' AND
-                            CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                            DROP INDEX dag_run_dag_id_run_id_uq','select 1');
-
-                        prepare stmt from @var;
-                        execute stmt;
-                        deallocate prepare stmt;
-                        """)
-        )
         # below we drop and recreate the constraints because there's no IF NOT EXISTS
-        conn.execute(
-            sa.text("""
-                                set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                                    CONSTRAINT_SCHEMA = DATABASE() AND
-                                    TABLE_NAME        = 'dag_run' AND
-                                    CONSTRAINT_NAME   = 'dag_run_dag_id_execution_date_key' AND
-                                    CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                                    DROP INDEX dag_run_dag_id_execution_date_key','select 1');
-
-                                prepare stmt from @var;
-                                execute stmt;
-                                deallocate prepare stmt;
-                                """)
-        )
-        conn.execute(
-            sa.text("""
-                            set @var=if((SELECT true FROM information_schema.TABLE_CONSTRAINTS WHERE
-                                CONSTRAINT_SCHEMA = DATABASE() AND
-                                TABLE_NAME        = 'dag_run' AND
-                                CONSTRAINT_NAME   = 'dag_run_dag_id_run_id_key' AND
-                                CONSTRAINT_TYPE   = 'UNIQUE') = true,'ALTER TABLE dag_run
-                                DROP INDEX dag_run_dag_id_run_id_key','select 1');
-
-                            prepare stmt from @var;
-                            execute stmt;
-                            deallocate prepare stmt;
-                            """)
-        )
+        for index_name in (
+            "dag_run_dag_id_execution_date_uq",
+            "dag_run_dag_id_run_id_uq",
+            "dag_run_dag_id_execution_date_key",
+            "dag_run_dag_id_run_id_key",
+        ):
+            _mysql_drop_unique_constraint_if_exists(conn, "dag_run", index_name)
         with op.batch_alter_table("callback_request", schema=None) as batch_op:
             batch_op.alter_column(
                 "processor_subdir",
