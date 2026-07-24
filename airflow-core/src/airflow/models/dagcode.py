@@ -190,5 +190,6 @@ class DagCode(Base):
         if new_source_code_hash != latest_dagcode.source_code_hash:
             latest_dagcode.source_code = new_source_code
             latest_dagcode.source_code_hash = new_source_code_hash
-            # Keep fileloc aligned with the refreshed source.
+        # Keep fileloc aligned even when the contents are unchanged (e.g. the file was moved/renamed).
+        if fileloc != latest_dagcode.fileloc:
             latest_dagcode.fileloc = fileloc
