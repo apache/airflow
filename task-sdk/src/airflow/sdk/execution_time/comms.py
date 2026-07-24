@@ -410,14 +410,8 @@ class AssetEventSourceTaskInstance:
     dag_run: DagRun
     task_id: str
     map_index: int
-
-    @property
-    def dag_id(self) -> str:
-        return self.dag_run.dag_id
-
-    @property
-    def run_id(self) -> str:
-        return self.dag_run.run_id
+    dag_id: str
+    run_id: str
 
     def xcom_pull(self, *, key: str = "return_value", default: Any = None) -> Any:
         from airflow.sdk.execution_time.xcom import XCom
@@ -459,6 +453,8 @@ class AssetEventResult(AssetEventResponse):
             dag_run=dag_run,
             task_id=self.source_task_id,
             map_index=self.source_map_index,
+            dag_id=self.source_dag_id,
+            run_id=self.source_run_id,
         )
 
 
@@ -511,6 +507,8 @@ class AssetEventDagRunReferenceResult(AssetEventDagRunReference):
             dag_run=dag_run,
             task_id=self.source_task_id,
             map_index=self.source_map_index,
+            dag_id=self.source_dag_id,
+            run_id=self.source_run_id,
         )
 
 

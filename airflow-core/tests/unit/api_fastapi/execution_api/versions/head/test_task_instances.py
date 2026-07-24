@@ -254,8 +254,6 @@ class TestTIRunState:
         result = response.json()
         assert result == {
             "dag_run": {
-                "dag_id": ti.dag_id,
-                "run_id": "test",
                 "clear_number": 0,
                 "logical_date": instant_str,
                 "data_interval_start": instant.subtract(days=1).to_iso8601_string(),
@@ -971,8 +969,6 @@ class TestTIRunState:
         assert dag_run["triggering_user_name"] == "test_user"
 
         # Verify other expected fields are still present
-        assert dag_run["dag_id"] == ti.dag_id
-        assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
 
     @pytest.mark.parametrize(

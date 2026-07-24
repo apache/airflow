@@ -701,7 +701,6 @@ class DagModelOperation(NamedTuple):
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []
                 dm.schedule_asset_alias_references = []
-            # FIXME: STORE NEW REFERENCES.
 
             if dag.tags:
                 _update_dag_tags(set(dag.tags), dm, session=session)

@@ -92,7 +92,7 @@ class TestTIUpdateState:
         result = response.json()
         # upstream_map_indexes is now computed by SDK, server returns None
         assert result["upstream_map_indexes"] is None
-        assert result["dag_run"]["dag_id"] == "dag"
+
         assert result["task_reschedule_count"] == 0
         assert result["max_tries"] == 0
         assert result["should_retry"] is False
