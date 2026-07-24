@@ -351,6 +351,12 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         if celery_task_id:
             args.external_executor_id = celery_task_id
 
+        # Reset SIGCHLD to default to prevent billiard's inherited handler from stealing 
+        # the exit status of child processes spawned by the supervisor.
+        import signal
+        if hasattr(signal, "SIGCHLD"):
+            signal.signal(signal.SIGCHLD, signal.SIG_DFL)
+
         setproctitle(f"airflow task supervisor: {command_to_exec}")
         log.debug("calling func '%s' with args %s", args.func.__name__, args)
         args.func(args)
