@@ -177,20 +177,14 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         assert response.json() == expected_response
 
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager.view_url")
-    @mock.patch("airflow.models.dag_version.hasattr")
-    def test_get_dag_version_with_unconfigured_bundle(
-        self, mock_hasattr, mock_view_url, test_client, dag_maker, session
-    ):
-        """Test that when a bundle is no longer configured, the bundle_url returns an error message."""
-        mock_hasattr.return_value = False
-        mock_view_url.side_effect = ValueError("Bundle not configured")
-
+    @mock.patch("airflow.models.dag_version.DagBundlesManager.view_url")
+    @mock.patch("airflow.models.dagbundle.DagBundleModel.render_url", return_value=None)
+    def test_get_dag_version_with_unconfigured_bundle(self, mock_render_url, mock_view_url, test_client):
+        """A bundle row with no URL template yields an empty bundle_url without the deprecated fallback."""
         response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/1")
         assert response.status_code == 200
-
-        response_data = response.json()
-        assert not response_data["bundle_url"]
+        assert not response.json()["bundle_url"]
+        mock_view_url.assert_not_called()
 
     def test_get_dag_version_404(self, test_client):
         response = test_client.get("/dags/dag_with_multiple_versions/dagVersions/99")
