@@ -177,6 +177,7 @@
           "title": "非严格模式"
         }
       },
+      "parsingFile": "正在解析文件",
       "title": "导入变量",
       "upload": "上传 JSON 文件",
       "uploadPlaceholder": "上传包含变量的 JSON 文件 (例如：{\"key\": \"value\", ...})"
