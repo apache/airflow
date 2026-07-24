@@ -27,6 +27,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
@@ -167,6 +168,7 @@ from airflow.sdk.execution_time.supervisor import (
     _make_process_nondumpable,
     _remote_logging_conn,
     in_process_api_server,
+    length_prefixed_frame_reader,
     make_buffered_socket_reader,
     process_log_messages_from_subprocess,
     set_supervisor_comms,
@@ -3176,6 +3178,12 @@ class TestHandleRequest:
         req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=message.model_dump())
         generator.send(req_frame)
 
+        # Some handlers (e.g. SetXCom) run on a worker thread and only reply once the supervisor
+        # event loop drains them; wait for them so the response is on the socket before reading it.
+        while watched_subprocess._pending_requests:
+            watched_subprocess._pending_requests[0][0].exception()  # Block until done, don't raise
+            watched_subprocess._drain_pending_requests()
+
         if mask_secret_args is not None:
             mock_mask_secret.assert_called_with(*mask_secret_args)
 
@@ -3362,6 +3370,78 @@ class TestHandleRequest:
         req2 = _RequestFrame(id=randint(1, 2**32 - 1), body=msg2.model_dump())
         # Should not raise StopIteration (which would mean the loop crashed).
         generator.send(req2)
+
+    def test_slow_set_xcom_does_not_block_heartbeats(self, watched_subprocess, mocker):
+        """A slow XCom upload must not starve the supervisor event loop of heartbeats.
+
+        Uploading a large XCom payload used to run inline on the event-loop
+        thread, so `_send_heartbeat_if_needed` could not run until the upload
+        finished and the scheduler killed the task as a zombie once
+        `task_instance_heartbeat_timeout` passed (#64628). The upload now runs
+        on a worker thread: simulate a slow `client.xcoms.set` that only
+        returns once a heartbeat has been observed, and verify the supervisor
+        keeps heartbeating while the upload is in flight and still sends the
+        response back to the task afterwards.
+        """
+        watched_subprocess, read_socket = watched_subprocess
+
+        # Heartbeat on every loop iteration, and make `_check_subprocess_exit` a no-op.
+        mocker.patch("airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", 0.0)
+        watched_subprocess._process.TimeoutExpired = psutil.TimeoutExpired
+        watched_subprocess._process.wait.side_effect = psutil.TimeoutExpired(0)
+
+        heartbeat_seen = threading.Event()
+        heartbeat_arrived_during_upload = False
+
+        def slow_xcom_set(*args, **kwargs):
+            # Block until the supervisor manages to heartbeat. If the event loop is blocked by
+            # this very call, no heartbeat can happen and this times out with the flag False.
+            nonlocal heartbeat_arrived_during_upload
+            heartbeat_arrived_during_upload = heartbeat_seen.wait(timeout=5.0)
+
+        watched_subprocess.client.xcoms.set = mocker.Mock(side_effect=slow_xcom_set)
+        watched_subprocess.client.task_instances.heartbeat = mocker.Mock(
+            side_effect=lambda *args, **kwargs: heartbeat_seen.set()
+        )
+
+        # Register the requests socket with the selector, as `_register_pipe_readers` does.
+        watched_subprocess.selector.register(
+            watched_subprocess.stdin,
+            selectors.EVENT_READ,
+            length_prefixed_frame_reader(
+                watched_subprocess.handle_requests(log=mocker.Mock()),
+                on_close=watched_subprocess._on_socket_closed,
+            ),
+        )
+
+        msg = SetXCom(
+            dag_id="test_dag", run_id="test_run", task_id="test_task", key="key", value="a-large-value"
+        )
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        read_socket.sendall(req_frame.as_bytes())
+
+        # Drive the supervisor event loop like `_monitor_subprocess` does, until the response for
+        # the XCom request arrives (or we give up).
+        read_socket.setblocking(False)
+        response_frame = None
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            watched_subprocess._service_subprocess(max_wait_time=0.1)
+            watched_subprocess._send_heartbeat_if_needed()
+            try:
+                frame_len = int.from_bytes(read_socket.recv(4), "big")
+            except BlockingIOError:
+                continue
+            response_frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+            break
+
+        watched_subprocess.client.xcoms.set.assert_called_once()
+        assert heartbeat_arrived_during_upload, (
+            "No heartbeat while the XCom upload was in flight: the upload blocked the event loop"
+        )
+        assert response_frame is not None, "Task never got a response for the SetXCom request"
+        assert response_frame.id == req_frame.id
+        assert response_frame.error is None
 
     @pytest.mark.parametrize(
         ("msg", "api_method", "expected_state"),

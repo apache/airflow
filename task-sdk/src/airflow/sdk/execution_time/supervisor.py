@@ -34,6 +34,7 @@ import time
 import weakref
 from collections import deque
 from collections.abc import Callable, Generator
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -664,6 +665,21 @@ class WatchedSubprocess:
         factory=weakref.WeakKeyDictionary, init=False
     )
 
+    _request_executor: ThreadPoolExecutor | None = attrs.field(default=None, init=False)
+    """
+    Lazily created executor running slow request handlers off the event-loop thread.
+
+    A single worker preserves the order in which requests were received.
+    """
+
+    _pending_requests: deque[tuple[Future[tuple[BaseModel | None, dict[str, bool]]], int]] = attrs.field(
+        factory=deque, init=False
+    )
+    """Handlers running on ``_request_executor``, each with the request id to respond to."""
+
+    _request_wakeup: tuple[socket, socket] | None = attrs.field(default=None, init=False)
+    """Socketpair used by ``_request_executor`` workers to wake up the selector loop."""
+
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector, repr=False)
 
     _frame_encoder: msgspec.msgpack.Encoder = attrs.field(factory=comms._new_encoder, repr=False)
@@ -980,6 +996,126 @@ class WatchedSubprocess:
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         raise NotImplementedError()
 
+    def _submit_request_to_thread(
+        self,
+        handler: Callable[[], tuple[BaseModel | None, dict[str, bool]]],
+        req_id: int,
+    ) -> None:
+        """
+        Run a request handler on a worker thread and respond once it completes.
+
+        Handlers that upload large payloads (e.g. ``SetXCom`` with a big value) can block for
+        longer than the task-instance heartbeat timeout; running them inline would stall the
+        single-threaded event loop and starve :meth:`ActivitySubprocess._send_heartbeat_if_needed`,
+        getting the task killed as a zombie. The single worker preserves request ordering, and
+        since the child blocks on each request until it gets a response, at most one request per
+        child socket is in flight at a time.
+
+        The response is written back to the child by :meth:`_drain_pending_requests` so that all
+        socket writes stay on the event-loop thread.
+        """
+        if self._request_executor is None:
+            self._request_executor = ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="supervisor-request"
+            )
+            # Self-pipe so a completing worker wakes up the selector loop instead of the
+            # response waiting for the loop's select() timeout to expire.
+            wakeup_read, wakeup_write = socketpair()
+            wakeup_read.setblocking(False)
+            self._request_wakeup = (wakeup_read, wakeup_write)
+            self.selector.register(
+                wakeup_read, selectors.EVENT_READ, (self._on_request_wakeup, lambda sock: None)
+            )
+
+        # Capture the current trace context (attached in handle_requests) so outbound HTTP
+        # calls made on the worker thread are still linked to the correct task span.
+        ctx = otel_context.get_current()
+
+        def run_handler() -> tuple[BaseModel | None, dict[str, bool]]:
+            token = otel_context.attach(ctx)
+            try:
+                return handler()
+            finally:
+                otel_context.detach(token)
+
+        def wake_up_selector(_: Future) -> None:
+            # Runs on the worker thread once the future is done; a 1-byte write is enough to
+            # interrupt the selector's select() so the response is sent without delay.
+            if self._request_wakeup is not None:
+                with suppress(OSError):
+                    self._request_wakeup[1].send(b"\x01")
+
+        future = self._request_executor.submit(run_handler)
+        self._pending_requests.append((future, req_id))
+        future.add_done_callback(wake_up_selector)
+
+    def _on_request_wakeup(self, sock: socket) -> bool:
+        """Discard wake-up bytes sent by ``_request_executor`` workers; the selector loop drains the completed requests."""
+        with suppress(BlockingIOError):
+            while sock.recv(4096):
+                pass
+        return True
+
+    def _drain_pending_requests(self) -> None:
+        """
+        Respond to any background request handlers that have finished.
+
+        Only the head of the queue is checked so responses are always sent in the order the
+        requests were received. Errors are mapped to the same ``ErrorResponse`` shapes as the
+        inline error handling in :meth:`handle_requests`, so the child is never left waiting.
+        """
+        while self._pending_requests and self._pending_requests[0][0].done():
+            future, req_id = self._pending_requests.popleft()
+            try:
+                resp, dump_opts = future.result()
+            except ServerResponseError as e:
+                status_code = e.response.status_code if e.response is not None else None
+                error_details = None
+                if e.response is not None:
+                    with suppress(Exception):
+                        error_details = e.response.json()
+                log.error(
+                    "API server error",
+                    status_code=status_code,
+                    detail=error_details,
+                    message=str(e),
+                )
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.API_SERVER_ERROR,
+                            detail={
+                                "status_code": status_code,
+                                "message": str(e),
+                                "detail": error_details,
+                            },
+                        ),
+                        request_id=req_id,
+                    )
+            except Exception as e:
+                log.exception(
+                    "Unhandled exception while handling task request in background",
+                    request_id=req_id,
+                    exc_info=e,
+                )
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.API_SERVER_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": str(e),
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=req_id,
+                    )
+            else:
+                with suppress(BrokenPipeError, ConnectionResetError):
+                    self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+
     @staticmethod
     def _close_unused_sockets(*sockets):
         """Close unused ends of sockets after fork."""
@@ -1002,6 +1138,14 @@ class WatchedSubprocess:
 
         if stuck_sockets:
             log.warning("Force-closed stuck sockets", pid=self.pid, sockets=stuck_sockets)
+
+        if self._request_executor is not None:
+            self._request_executor.shutdown(wait=False)
+        if self._request_wakeup is not None:
+            for sock in self._request_wakeup:
+                with suppress(Exception):
+                    sock.close()
+            self._request_wakeup = None
 
         self._open_sockets.clear()
         self.selector.close()
@@ -1124,6 +1268,10 @@ class WatchedSubprocess:
                 sock: socket = key.fileobj  # type: ignore[assignment]
                 on_close(sock)
                 sock.close()
+
+        # Respond to any request handlers that finished on the worker thread. This runs on the
+        # event-loop thread so all writes to the child sockets stay on this thread.
+        self._drain_pending_requests()
 
         # Check if the subprocess has exited
         return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
@@ -1731,9 +1879,15 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):
-            resp, dump_opts = handle_set_xcom(self.client, msg)
+            # Uploading a large XCom value can outlast the heartbeat timeout, so run the handler
+            # on a worker thread to keep the event loop (and thus heartbeats) going. The response
+            # is sent from `_drain_pending_requests` once the API call finishes, so return here.
+            self._submit_request_to_thread(functools.partial(handle_set_xcom, self.client, msg), req_id)
+            return
         elif isinstance(msg, DeleteXCom):
-            resp, dump_opts = handle_delete_xcom(self.client, msg)
+            # Same as SetXCom: deleting mapped XComs can be slow on the API server side.
+            self._submit_request_to_thread(functools.partial(handle_delete_xcom, self.client, msg), req_id)
+            return
         elif isinstance(msg, PutVariable):
             resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, SetRenderedFields):
@@ -2002,6 +2156,17 @@ class InProcessTestSupervisor(ActivitySubprocess):
         # InProcessSupervisor has no subprocess, so we don't need to poll anything. This is called from
         # _handle_socket_comms, so we need to override it
         return None
+
+    def _submit_request_to_thread(
+        self,
+        handler: Callable[[], tuple[BaseModel | None, dict[str, bool]]],
+        req_id: int,
+    ) -> None:
+        # Run the handler inline: requests are made synchronously via `InProcessSupervisorComms`
+        # and there is no event loop to starve, so keep dag.test()'s synchronous semantics
+        # (including exceptions propagating to the caller).
+        resp, dump_opts = handler()
+        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
 
     def _handle_socket_comms(self):
         while self._open_sockets:
