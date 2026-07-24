@@ -796,10 +796,12 @@ class TestSerializedDagModel:
         # Hashes should be identical
         assert hash_1 == hash_2, "Hashes should be identical when dicts are sorted consistently"
 
-    def test_dynamic_dag_update_preserves_null_check(self, dag_maker, session):
+    def test_new_dag_version_is_created_when_version_exists_but_serialized_dag_row_missing(
+        self, dag_maker, session
+    ):
         """
         Test that dynamic DAG update gracefully handles case where SerializedDagModel doesn't exist.
-        This preserves the null-check fix from PR #56422 and tests the direct UPDATE path.
+        This adds the serialized dag entry
         """
         with dag_maker(dag_id="test_missing_serdag", serialized=True, session=session) as dag:
             EmptyOperator(task_id="task1")
@@ -827,7 +829,7 @@ class TestSerializedDagModel:
         # Verify no SerializedDagModel exists
         assert SDM.get("test_missing_serdag", session=session) is None
 
-        # Try to update - should return False gracefully (not crash)
+        # Try to update - should create the serialized dag
         result = SDM.write_dag(
             dag=lazy_dag,
             bundle_name="test_bundle",
@@ -835,8 +837,11 @@ class TestSerializedDagModel:
             min_update_interval=None,
             session=session,
         )
+        session.commit()
 
-        assert result is False  # Should return False when SerializedDagModel is missing
+        serialized_dag = session.scalar(select(SDM).where(SDM.dag_id == "test_missing_serdag").limit(1))
+        assert serialized_dag is not None
+        assert result is True
 
     def test_dynamic_dag_update_success(self, dag_maker, session):
         """
