@@ -573,11 +573,23 @@ func (s *BindingSuite) TestResolveStructPointer() {
 	s.Equal("widget", input.Name)
 }
 
-func (s *BindingSuite) TestResolveStructWholeValueFallback() {
-	// A single explicitly passed argument that no field claims decodes whole
-	// into the struct, so a sole struct can still receive an upstream object.
+func (s *BindingSuite) TestResolveLoneStructBothModes() {
+	// The same one-struct signature resolves either way, chosen per execution
+	// from the argument spec: field-by-field when the argument names match the
+	// struct's fields, or whole from a single argument no field claims.
 	fn := func(cfg wholeConfig) error { return nil }
-	got, err := s.resolve(fn, []Arg{
+	want := wholeConfig{Environment: "production", Region: "eu-west-1"}
+
+	// Struct-based: two arguments named like the fields bind by name.
+	named, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "Environment", Value: "production", DataType: DataTypeString},
+		LiteralArg{Name: "Region", Value: "eu-west-1", DataType: DataTypeString},
+	}, &fakeXComClient{})
+	s.Require().NoError(err)
+	s.Equal(want, named[0].Interface(), "argument names matching the fields bind field-by-field")
+
+	// Flat-based: one argument no field claims decodes whole into the struct.
+	whole, err := s.resolve(fn, []Arg{
 		LiteralArg{
 			Name:     "cfg",
 			Value:    map[string]any{"environment": "production", "region": "eu-west-1"},
@@ -585,7 +597,7 @@ func (s *BindingSuite) TestResolveStructWholeValueFallback() {
 		},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
-	s.Equal(wholeConfig{Environment: "production", Region: "eu-west-1"}, got[0].Interface())
+	s.Equal(want, whole[0].Interface(), "a single unclaimed argument decodes whole into the struct")
 }
 
 func (s *BindingSuite) TestResolveStructUnclaimedArgFailsLoudly() {
