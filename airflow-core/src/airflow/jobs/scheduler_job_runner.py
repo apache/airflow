@@ -43,7 +43,9 @@ from sqlalchemy import (
     delete,
     exists,
     func,
+    insert,
     inspect,
+    literal,
     or_,
     select,
     text,
@@ -85,6 +87,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    association_table,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun
@@ -138,6 +141,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
+    from sqlalchemy.sql import Select
     from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
@@ -160,6 +164,23 @@ TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 # Internal constant rather than a user setting — this is a performance
 # safety bound, not a behavioural knob operators need to tune.
 MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
+
+
+def _associate_asset_events_with_dag_run(
+    *,
+    dag_run: DagRun,
+    asset_event_ids_select: Select[tuple[int]],
+    session: Session,
+) -> None:
+    """Associate selected asset events without materializing ORM objects."""
+    selected_event_ids = asset_event_ids_select.subquery()
+    session.execute(
+        insert(association_table).from_select(
+            ["dag_run_id", "event_id"],
+            select(literal(dag_run.id), selected_event_ids.c.event_id),
+        )
+    )
+    session.expire(dag_run, ["consumed_asset_events"])
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -2386,13 +2407,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 creating_job_id=self.job.id,
                 session=session,
             )
-            asset_events = session.scalars(
-                select(AssetEvent).where(
-                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                    PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
-                )
+            asset_event_ids_select = select(AssetEvent.id.label("event_id")).where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
             )
-            dag_run.consumed_asset_events.extend(asset_events)
+            _associate_asset_events_with_dag_run(
+                dag_run=dag_run,
+                asset_event_ids_select=asset_event_ids_select,
+                session=session,
+            )
             session.flush()
             apdr.created_dag_run_id = dag_run.id
             session.flush()
@@ -2660,27 +2683,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             event_window_floor.append(date.min)
 
-            asset_events = list(
-                session.scalars(
-                    select(AssetEvent)
-                    .where(
-                        or_(
-                            AssetEvent.asset_id.in_(
-                                select(DagScheduleAssetReference.asset_id).where(
-                                    DagScheduleAssetReference.dag_id == dag.dag_id
-                                )
-                            ),
-                            AssetEvent.source_aliases.any(
-                                AssetAliasModel.scheduled_dags.any(
-                                    DagScheduleAssetAliasReference.dag_id == dag.dag_id
-                                )
+            asset_event_ids_select = (
+                select(AssetEvent.id.label("event_id"))
+                .where(
+                    or_(
+                        AssetEvent.asset_id.in_(
+                            select(DagScheduleAssetReference.asset_id).where(
+                                DagScheduleAssetReference.dag_id == dag.dag_id
                             ),
                         ),
-                        AssetEvent.timestamp <= triggered_date,
-                        AssetEvent.timestamp > func.coalesce(*event_window_floor),
-                    )
-                    .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
+                        AssetEvent.source_aliases.any(
+                            AssetAliasModel.scheduled_dags.any(
+                                DagScheduleAssetAliasReference.dag_id == dag.dag_id
+                            )
+                        ),
+                    ),
+                    AssetEvent.timestamp <= triggered_date,
+                    AssetEvent.timestamp > func.coalesce(*event_window_floor),
                 )
+                .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             )
 
             dag_run = dag.create_dagrun(
@@ -2702,12 +2723,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 else None
             )
             stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
-            dag_run.consumed_asset_events.extend(asset_events)
+            _associate_asset_events_with_dag_run(
+                dag_run=dag_run,
+                asset_event_ids_select=asset_event_ids_select,
+                session=session,
+            )
+            consumed_asset_event_count = (
+                session.scalar(
+                    select(func.count())
+                    .select_from(association_table)
+                    .where(association_table.c.dag_run_id == dag_run.id)
+                )
+                or 0
+            )
             self.log.info(
                 "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
                 dag.dag_id,
                 dag_run.run_id,
-                len(asset_events),
+                consumed_asset_event_count,
             )
 
             # Delete only consumed ADRQ rows to avoid dropping newly queued events

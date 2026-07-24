@@ -36,7 +36,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import delete, func, inspect, select, update
+from sqlalchemy import delete, event as sqlalchemy_event, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
@@ -62,7 +62,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.jobs.job import Job, run_job
-from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner, _associate_asset_events_with_dag_run
 from airflow.models.asset import (
     AssetActive,
     AssetAliasModel,
@@ -194,6 +194,29 @@ EXAMPLE_STANDARD_DAGS_FOLDER = (
     / "standard"
     / "example_dags"
 )
+
+
+@contextmanager
+def assert_no_asset_event_materialization(session: Session) -> Generator[None, None, None]:
+    """Assert a scheduler operation does not select full AssetEvent entities."""
+    materializing_queries = []
+
+    def track_orm_execute(orm_execute_state):
+        if orm_execute_state.is_select and any(
+            description.get("expr") is AssetEvent
+            for description in orm_execute_state.statement.column_descriptions
+        ):
+            materializing_queries.append(orm_execute_state.statement)
+
+    sqlalchemy_event.listen(session, "do_orm_execute", track_orm_execute)
+    try:
+        yield
+    finally:
+        sqlalchemy_event.remove(session, "do_orm_execute", track_orm_execute)
+
+    assert materializing_queries == []
+
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 DEFAULT_LOGICAL_DATE = timezone.coerce_datetime(DEFAULT_DATE)
 TRY_NUMBER = 1
@@ -5605,6 +5628,30 @@ class TestSchedulerJob:
         assert dr.start_date is None
         assert dr.creating_job_id == scheduler_job.id
 
+    def test_associate_asset_events_with_dag_run_keeps_relationship_coherent(self, session, dag_maker):
+        with dag_maker(dag_id="asset-event-association"):
+            pass
+        dag_run = dag_maker.create_dagrun()
+        asset = AssetModel(name="association-asset", uri="association-asset", group="asset")
+        session.add(asset)
+        session.flush()
+        asset_event = AssetEvent(asset_id=asset.id)
+        session.add(asset_event)
+        session.flush()
+        asset_event_id = asset_event.id
+        session.expunge(asset_event)
+
+        with assert_queries_count(1, session=session):
+            _associate_asset_events_with_dag_run(
+                dag_run=dag_run,
+                asset_event_ids_select=select(AssetEvent.id.label("event_id")).where(
+                    AssetEvent.id == asset_event_id
+                ),
+                session=session,
+            )
+
+        assert [event.id for event in dag_run.consumed_asset_events] == [asset_event_id]
+
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_assets(self, session, dag_maker):
         """
@@ -5680,7 +5727,8 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
 
         with create_session() as session:
-            self.job_runner._create_dagruns_for_dags(session, session)
+            with assert_no_asset_event_materialization(session):
+                self.job_runner._create_dagruns_for_dags(session, session)
 
         def dict_from_obj(obj):
             """Get dict of column attrs from SqlAlchemy object."""
@@ -11041,7 +11089,8 @@ def test_partitioned_dag_run_with_customized_mapper(
             dag_maker=dag_maker,
             expected_partition_key="key-1",
         )
-        partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+        with assert_no_asset_event_materialization(session):
+            partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
     session.refresh(apdr)
     # Since asset event for Asset(name="asset-2") with key "key-1" has not yet been created,
     # no Dag run will be created
