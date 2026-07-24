@@ -8,6 +8,7 @@
     "Variables": "משתנים"
   },
   "allOperators": "כל האופרטורים",
+  "allTeams": "כל הצוותים",
   "appearance": {
     "appearance": "מראה",
     "darkMode": "מצב כהה",
@@ -62,7 +63,8 @@
     "owner": "בעלים",
     "params": "פרמטרים",
     "schedule": "תזמון",
-    "tags": "תגיות"
+    "tags": "תגיות",
+    "team": "צוות"
   },
   "dagId": "מזהה Dag",
   "dagRun": {
@@ -77,6 +79,7 @@
     "expectedDuration": "משך זמן צפוי",
     "lastSchedulingDecision": "החלטת תזמון אחרונה",
     "mappedPartitionKey": "מפתח חלוקה ממופה",
+    "partitionDate": "תאריך חלוקה",
     "partitionKey": "מפתח חלוקה",
     "queuedAt": "זמן כניסה לתור",
     "runAfter": "ריצה לאחר",
@@ -151,7 +154,11 @@
     "selectDateRange": "בחר טווח תאריכים",
     "startTime": "זמן התחלה"
   },
+  "fullscreen": {
+    "tooltip": "לחץ {{hotkey}} למסך מלא"
+  },
   "generateToken": "צור אסימון",
+  "key": "מפתח",
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
   "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
@@ -181,10 +188,14 @@
   "note": {
     "add": "הוסף הערה",
     "dagRun": "הערת הרצת Dag",
+    "edit": "ערוך הערה",
     "label": "הערה",
     "placeholder": "הוסף הערה...",
-    "taskInstance": "הערת משימה"
+    "preview": "תצוגה מקדימה",
+    "taskInstance": "הערת משימה",
+    "write": "כתיבה"
   },
+  "overallStatus": "סטטוס כללי",
   "partitionedDagRun_one": "הרצת Dag מחולקת",
   "partitionedDagRun_other": "הרצות Dag מחולקות",
   "partitionedDagRun_two": "הרצות Dag מחולקות",
@@ -194,6 +205,23 @@
   "pendingDagRun_one": "{{count}} הרצת Dag ממתינה",
   "pendingDagRun_other": "{{count}} הרצות Dag ממתינות",
   "pendingDagRun_two": "{{count}} הרצות Dag ממתינות",
+  "presetFilters": {
+    "deleteTitle": "מחק מסנן מוגדר מראש",
+    "deleteWarning": "מסננים מוגדרים מראש נשמרים בדפדפן זה בלבד.",
+    "duplicate": "המסנן המוגדר מראש \"{{name}}\" כבר שומר בדיוק את ההגדרה הזו.",
+    "empty": "אין עדיין מסננים מוגדרים מראש",
+    "info": {
+      "default": "נעץ מסנן מוגדר מראש כברירת מחדל, והוא יוחל אוטומטית בכל כניסה לדף זה ללא מסננים פעילים.",
+      "save": "שמור את המסננים והמיון הנוכחיים כמסנן מוגדר מראש בעל שם, וחזור אליו בכל עת.",
+      "storage": "מסננים מוגדרים מראש נשמרים בדפדפן זה."
+    },
+    "namePlaceholder": "שם המסנן המוגדר מראש",
+    "nothingToSave": "אין מה לשמור. החל מסננים או מיון כדי לשמור מסנן מוגדר מראש.",
+    "save": "שמור",
+    "setDefault": "הגדר כברירת מחדל",
+    "title": "מסננים מוגדרים מראש",
+    "unsetDefault": "בטל ברירת מחדל"
+  },
   "reset": "אתחל",
   "runId": "מזהה ריצה",
   "runTypes": {
@@ -225,6 +253,47 @@
   },
   "selectLanguage": "בחר שפה",
   "selected": "נבחר",
+  "shortcuts": {
+    "categories": {
+      "code": "קוד",
+      "dagView": "תצוגת Dag",
+      "filters": "מסננים",
+      "global": "כללי",
+      "logs": "רישומים",
+      "navigation": "ניווט",
+      "runActions": "פעולות ריצה ומשימה",
+      "search": "חיפוש"
+    },
+    "descriptions": {
+      "clearRun": "נקה $t(dagRun_one)",
+      "clearTaskInstance": "נקה $t(taskInstance_one)",
+      "downloadLogs": "הורד רישומים",
+      "focusFilterSearch": "מיקוד בחיפוש מסננים",
+      "focusLogSearch": "חפש ברישומים",
+      "focusSearch": "מיקוד בחיפוש",
+      "markRunFailed": "סמן $t(dagRun_one) ככשלון",
+      "markRunSuccess": "סמן $t(dagRun_one) כהצלחה",
+      "markTaskFailed": "סמן $t(task_one) ככשלון",
+      "markTaskGroupFailed": "סמן $t(taskGroup_one) ככשלון",
+      "markTaskGroupSuccess": "סמן $t(taskGroup_one) כהצלחה",
+      "markTaskSuccess": "סמן $t(task_one) כהצלחה",
+      "navigateTasks": "נווט בין $t(task_other)",
+      "openGraphFilters": "פתח מסנני גרף",
+      "scrollBottom": "גלול לתחתית",
+      "scrollTop": "גלול לראש הדף",
+      "searchDags": "חפש $t(dag_other)",
+      "showHelp": "הצג $t(shortcuts.title)",
+      "toggleExpand": "הרחב או כווץ את כל הקבוצות",
+      "toggleFullscreen": "הפעל/כבה מסך מלא",
+      "toggleGraphGrid": "החלף בין תצוגת גרף לתצוגת רשת",
+      "toggleSource": "הצג/הסתר מקור",
+      "toggleTaskGroup": "הרחב או כווץ $t(taskGroup_one)",
+      "toggleTimestamp": "הצג/הסתר חותמות זמן",
+      "toggleWrap": "הפעל/כבה גלישת טקסט"
+    },
+    "empty": "אין קיצורי מקלדת זמינים בדף זה.",
+    "title": "קיצורי מקלדת"
+  },
   "showDetailsPanel": "הצג לוח פרטים",
   "signedInAs": "מחובר כ",
   "source": {
@@ -267,18 +336,23 @@
     "from": "מ-",
     "maxActiveRuns": "מספר הרצות פעילות מרבי",
     "noTagsFound": "לא נמצאו תגיות",
+    "noTeamsFound": "לא נמצאו צוותים",
     "tagMode": {
       "all": "הכל",
       "any": "כלשהו"
     },
     "tagPlaceholder": "סנן לפי תגית",
-    "to": "עד"
+    "to": "עד",
+    "updatedAt": "עודכן בתאריך"
   },
   "task": {
+    "dependsOnPast": "תלוי בעבר",
     "documentation": "תיעוד משימה",
     "lastInstance": "משימה אחרונה",
     "operator": "אופרטור",
-    "triggerRule": "כלל הפעלה"
+    "retries": "ניסיונות חוזרים",
+    "triggerRule": "כלל הפעלה",
+    "waitForDownstream": "המתן למשימות במורד הזרם"
   },
   "task_one": "משימה",
   "task_other": "משימות",
@@ -291,10 +365,12 @@
   "taskGroup_two": "קבוצות משימות",
   "taskId": "מזהה משימה",
   "taskInstance": {
+    "additionalAttributes": "מאפייני מופע משימה נוספים",
     "dagVersion": "גרסת Dag",
     "executor": "Executor",
     "executorConfig": "הגדרות Executor",
     "hostname": "שם מארח",
+    "id": "מזהה",
     "maxTries": "מספר נסיונות מרבי",
     "pid": "מזהה תהליך",
     "pool": "מאגר משאבים",
@@ -304,11 +380,13 @@
     "queuedWhen": "זמן כניסה לתור",
     "renderedMapIndex": "אינדקס מיפוי מעובד",
     "scheduledWhen": "מועד תזמון",
+    "trigger": "מפעיל",
     "triggerer": {
       "assigned": "מפעיל מוקצה",
       "class": "סוג מפעיל",
       "createdAt": "זמן יצירת מפעיל",
       "id": "מזהה מפעיל",
+      "job": "עבודת מפעיל",
       "latestHeartbeat": "אות חיים אחרון",
       "title": "פרטי מפעיל"
     },
@@ -406,6 +484,7 @@
     "mustBeAtLeast": "חייב להיות {{min}} לפחות.",
     "mustBeValidNumber": "חייב להיות מספר תקין."
   },
+  "value": "ערך",
   "wrap": {
     "hotkey": "w",
     "tooltip": "לחץ {{hotkey}} להפעלת/כיבוי גלישת טקסט",
