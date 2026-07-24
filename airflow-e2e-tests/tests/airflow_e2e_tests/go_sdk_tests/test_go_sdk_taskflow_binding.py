@@ -112,10 +112,10 @@ def test_via_flat_args_summary_reflects_bound_arguments(completed_run: _Complete
 
 
 def test_via_struct_no_tags_reflects_bound_arguments(completed_run: _CompletedRun):
-    """``via_struct_no_tags`` demonstrates the Go SDK's ``sdk.TaskInput`` struct-field
-    injection mode with no field tags at all: each field binds the TaskFlow argument
-    spelled exactly like its Go field name (``RegionCode``, ``Threshold``). The region
-    is ``make_region``'s XCom, so a struct field binds an XCom-sourced value here."""
+    """``via_struct_no_tags`` demonstrates the Go SDK's name-based struct binding
+    with no field tags at all: each field binds the TaskFlow argument spelled
+    exactly like its Go field name (``RegionCode``, ``Threshold``). The region is
+    ``make_region``'s XCom, so a struct field binds an XCom-sourced value here."""
     assert completed_run.xcom("via_struct_no_tags") == {
         "region_code": "eu-west-1",
         "threshold": 0.75,

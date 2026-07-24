@@ -18,51 +18,53 @@
 // Package binding turns a task function's parameter list into the concrete
 // argument values it is called with at execution time.
 //
-// Three kinds of parameter are supported:
+// Parameters fall into two groups:
 //
 //   - Injectable runtime values: context.Context, sdk.TIRunContext,
 //     *slog.Logger, and any interface whose method set is a subset of
 //     sdk.Client. These are filled by type, in any position.
-//   - Data parameters: everything else (except TaskInput structs, below), in
-//     declaration order. They receive the positional arguments the Python
-//     stub Dag captured at parse time from the TaskFlow call
-//     (“transform("uk", extract())“) and delivered in StartupDetails. A
-//     literal argument decodes directly; an XCom argument is pulled from the
-//     named upstream task in the current Dag run first (independent pulls run
-//     concurrently).
-//   - TaskInput structs: a struct that anonymously embeds sdk.TaskInput opts
-//     into per-field, name-based binding instead of consuming one positional
-//     slot as a whole-value decode target. Each exported field binds by name
-//     against the Dag's TaskFlow call arguments: an `arg:"<name>"` tag names
-//     the argument to claim, and a field with no tag claims its own Go field
-//     name, verbatim. At most one such parameter is allowed per function.
+//   - Data parameters: everything else, in declaration order. They receive the
+//     positional arguments the Python stub Dag captured at parse time from the
+//     TaskFlow call (“transform("uk", extract())“) and delivered in
+//     StartupDetails. A literal argument decodes directly; an XCom argument is
+//     pulled from the named upstream task in the current Dag run first
+//     (independent pulls run concurrently). A struct data parameter is decoded
+//     whole from its one positional argument.
 //
-// The two data-parameter shapes are mutually exclusive: a function declares
-// either plain flat data parameters or one TaskInput struct, never both.
-// Analyze rejects a signature that mixes them -- splitting one TaskFlow
-// call's arguments between by-name claiming and positional order is too
-// ambiguous to reason about.
+// Data parameters are positional-argument binding: order matters, every
+// parameter must be filled, and Resolve fails the task before its body runs on
+// an arity or type mismatch. A declared type of "any" (or a Go parameter typed
+// any) opts that argument out of the type check; the decode step still fails
+// loudly on unusable values.
 //
-// Conceptually, flat data parameters are positional-argument binding: order
-// matters, and every parameter must be filled or Resolve fails the task
-// before its body runs. A TaskInput struct is closer to keyword-argument
-// binding: fields match by name, and a field whose name has no corresponding
-// TaskFlow call argument is simply left at its Go zero value instead of
-// failing the task -- the same way an unpassed keyword argument falls back
-// to its default in a kwargs-style call. The check runs both ways: an
-// explicitly passed argument that no field claims fails the task (catching
-// typo'd field names), while spec entries the Python side captured from the
-// stub signature's defaults (from_default on the wire) may go unclaimed. And
-// a TaskInput struct with bindable fields fails loudly when no argument spec
-// arrives at all (e.g. the Edge Worker path, where nothing could ever fill
-// them), matching the flat-parameter arity check.
+// One shape is treated specially: a function whose sole data parameter is a
+// (pointer-to-)struct binds by field name (kwarg-style) instead, using the
+// per-execution argument spec. Each exported field claims the argument named by
+// its `arg:"<name>"` tag, or its verbatim Go field name when untagged -- so an
+// untagged Name binds the argument "Name", and a snake_case argument like
+// "count" needs an explicit tag. A field whose name has no corresponding
+// argument is left at its Go zero value rather than failing the task, the same
+// way an unpassed keyword argument falls back to its default; conversely every
+// explicitly passed argument must be claimed by some field (catching typo'd
+// field names), while entries the Python side captured from the stub
+// signature's defaults (from_default on the wire) may go unclaimed. When the
+// sole struct instead receives exactly one explicitly passed argument that no
+// field claims, it falls back to a whole-value decode of that argument -- so a
+// struct can still receive an upstream object as one argument. A bindable-field
+// struct fails loudly when no argument spec arrives at all (e.g. the Edge
+// Worker path, where nothing could ever fill it), matching the flat-parameter
+// arity check.
+//
+// Because `arg:` tags only take effect in that sole-struct name-binding path, a
+// struct data parameter that carries an `arg:` tag must be the only data
+// parameter; Analyze rejects a signature that pairs a tagged struct with other
+// data parameters rather than silently ignoring the tags.
 //
 // Analyze inspects a function once at registration and returns a Plan; Resolve
 // builds the call arguments for each execution from that Plan and the
-// per-execution argument spec, failing loudly on arity or type mismatches of
-// flat data parameters. A declared type of "any" (or a Go parameter typed
-// any) opts that argument out of the type check; the decode step still fails
-// loudly on unusable values.
+// per-execution argument spec. The flat-vs-name-bound choice for a sole struct
+// parameter is made per execution, so the same function can bind either way in
+// different Dags.
 //
 // Mapped upstream fan-in is out of scope: XCom arguments always pull the
 // unmapped upstream instance (map_index is never sent).
@@ -108,8 +110,8 @@ const (
 // from the coordinator protocol.
 type Arg interface {
 	// ArgName is the stub function's parameter name this binding fills; used
-	// to match a TaskInput struct field's `arg:` tag (or its verbatim
-	// field-name fallback).
+	// to match a struct field's `arg:` tag (or its verbatim field-name
+	// fallback) in name-based binding.
 	ArgName() string
 	// DeclaredType is the Dag-declared language-neutral type for the argument;
 	// empty is treated as DataTypeAny.
@@ -147,15 +149,15 @@ const (
 	paramLogger
 	paramClient
 	paramData
-	// paramTaskInput is a struct that anonymously embeds sdk.TaskInput,
-	// opting into per-field, name-based binding instead of consuming one
-	// positional slot as a whole-value decode target.
-	paramTaskInput
+	// paramLoneStruct is the function's sole data parameter and is a
+	// (pointer-to-)struct. Resolve decides per execution whether to bind its
+	// fields by name (kwarg-style) or decode one argument whole into it.
+	paramLoneStruct
 )
 
-// taskInputField describes how Resolve fills one exported field of a
-// TaskInput-embedding struct. Precomputed once by Analyze.
-type taskInputField struct {
+// structField describes how Resolve fills one exported field of a name-bound
+// struct parameter. Precomputed once by Analyze.
+type structField struct {
 	// structIndex is the field's index within the struct, for
 	// reflect.Value.Field.
 	structIndex int
@@ -171,23 +173,25 @@ type taskInputField struct {
 type paramPlan struct {
 	kind paramKind
 	// typ is the declared Go type of a data parameter (kind == paramData) or
-	// the struct type (kind == paramTaskInput).
+	// the struct type (kind == paramLoneStruct).
 	typ reflect.Type
 	// index is the parameter's position in the function signature, for error
 	// messages.
 	index int
 	// fields describes each exported field's binding. Set only for
-	// kind == paramTaskInput.
-	fields []taskInputField
+	// kind == paramLoneStruct.
+	fields []structField
 }
 
 // Plan is the precomputed recipe for filling a task function's parameters. It
 // is built once by Analyze and reused for every execution of that function.
 type Plan struct {
-	fnName       string
-	params       []paramPlan
-	numData      int
-	hasTaskInput bool
+	fnName  string
+	params  []paramPlan
+	numData int
+	// loneStruct is true when the sole data parameter is a struct resolved
+	// per execution (kind == paramLoneStruct).
+	loneStruct bool
 }
 
 // Analyze inspects the parameters of a task function type and builds a Plan.
@@ -196,36 +200,47 @@ type Plan struct {
 // anything else is a registration error.
 func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 	p := &Plan{fnName: fnName, params: make([]paramPlan, fnType.NumIn())}
-	seenTaskInput := -1
+	var dataIdxs []int
 	for i := range fnType.NumIn() {
 		plan, err := classifyParam(fnName, fnType.In(i), i)
 		if err != nil {
 			return nil, err
 		}
-		if plan.kind == paramTaskInput {
-			if seenTaskInput >= 0 {
-				return nil, fmt.Errorf(
-					"task function %s: parameter %d: only one TaskInput struct parameter is allowed "+
-						"per function (parameter %d already is one)",
-					fnName,
-					i,
-					seenTaskInput,
-				)
-			}
-			seenTaskInput = i
-		}
 		if plan.kind == paramData {
 			p.numData++
+			dataIdxs = append(dataIdxs, i)
 		}
 		p.params[i] = plan
 	}
-	if seenTaskInput >= 0 {
-		p.hasTaskInput = true
-		if p.numData > 0 {
+
+	// A function whose sole data parameter is a struct binds its fields by name
+	// at execution (see resolveLoneStructParam); any other struct data
+	// parameter is decoded whole from its positional slot.
+	if p.numData == 1 {
+		i := dataIdxs[0]
+		if st := structParamType(p.params[i].typ); st != nil {
+			fields, err := buildStructFields(fnName, st, i)
+			if err != nil {
+				return nil, err
+			}
+			p.params[i].kind = paramLoneStruct
+			p.params[i].fields = fields
+			p.numData = 0
+			p.loneStruct = true
+			return p, nil
+		}
+	}
+
+	// `arg:` tags only take effect in the sole-struct name-binding path above;
+	// a tagged struct alongside other data parameters would silently ignore its
+	// tags (it is decoded whole), so reject it as a likely mistake.
+	for _, i := range dataIdxs {
+		if st := structParamType(p.params[i].typ); st != nil && hasArgTag(st) {
 			return nil, fmt.Errorf(
-				"task function %s: cannot mix a TaskInput struct parameter (parameter %d) with "+
-					"plain data parameters; declare either flat data parameters or one TaskInput struct",
-				fnName, seenTaskInput,
+				"task function %s: parameter %d: a struct with `arg:` tags must be the function's "+
+					"only data parameter (its fields bind TaskFlow arguments by name); it cannot be "+
+					"combined with other data parameters",
+				fnName, i,
 			)
 		}
 	}
@@ -233,10 +248,10 @@ func Analyze(fnType reflect.Type, fnName string) (*Plan, error) {
 }
 
 // Resolve builds the ordered argument values for one call. Injectable
-// parameters receive values derived from ctx, logger, or client. A TaskInput
-// struct's fields claim entries out of args by name; plain flat data
-// parameters consume args in declaration order (the two shapes are mutually
-// exclusive; see Analyze). An error fails the task before its body runs.
+// parameters receive values derived from ctx, logger, or client. Plain flat
+// data parameters consume args in declaration order; a sole struct data
+// parameter is instead resolved by field name or decoded whole (see Analyze
+// and resolveLoneStructParam). An error fails the task before its body runs.
 //
 // client must be the full sdk.Client -- not just the sdk.XComClient the
 // resolve helpers narrow to -- because a paramClient parameter receives the
@@ -265,12 +280,12 @@ func (p *Plan) Resolve(
 			out[i] = reflect.ValueOf(logger)
 		case paramClient:
 			out[i] = reflect.ValueOf(client)
-		case paramData, paramTaskInput:
+		case paramData, paramLoneStruct:
 			// Filled below, once the spec is matched and XComs are pulled.
 		}
 	}
-	if p.hasTaskInput {
-		return p.resolveTaskInputParam(ctx, client, args, out)
+	if p.loneStruct {
+		return p.resolveLoneStructParam(ctx, client, args, out)
 	}
 	return p.resolveFlatParams(ctx, client, args, out)
 }
@@ -313,12 +328,14 @@ func (p *Plan) resolveFlatParams(
 	return out, nil
 }
 
-// resolveTaskInputParam fills the single TaskInput struct parameter by name
-// (kwarg-style). Every explicitly passed spec entry must be claimed by some
-// field; entries the Python side captured from the stub signature's defaults
-// (FromDefault) may go unclaimed, the same way an unpassed keyword argument
-// never reaches the callee.
-func (p *Plan) resolveTaskInputParam(
+// resolveLoneStructParam fills the function's sole struct data parameter. It
+// binds by field name (kwarg-style) by default: every explicitly passed spec
+// entry must be claimed by some field; entries the Python side captured from
+// the stub signature's defaults (FromDefault) may go unclaimed, the same way an
+// unpassed keyword argument never reaches the callee. When instead exactly one
+// explicitly passed argument arrives that no field claims, the struct is
+// decoded whole from it (see resolveWholeStructParam).
+func (p *Plan) resolveLoneStructParam(
 	ctx context.Context,
 	c sdk.XComClient,
 	args []Arg,
@@ -327,18 +344,10 @@ func (p *Plan) resolveTaskInputParam(
 	var paramIdx int
 	var plan paramPlan
 	for i, pl := range p.params {
-		if pl.kind == paramTaskInput {
+		if pl.kind == paramLoneStruct {
 			paramIdx, plan = i, pl
 			break
 		}
-	}
-
-	if len(args) == 0 && len(plan.fields) > 0 {
-		return nil, fmt.Errorf(
-			"task function %s: no TaskFlow arg bindings arrived but the TaskInput struct declares "+
-				"%d bindable field(s); nothing can fill them on this execution path",
-			p.fnName, len(plan.fields),
-		)
 	}
 
 	byName := make(map[string]int, len(args))
@@ -350,12 +359,12 @@ func (p *Plan) resolveTaskInputParam(
 
 	claimed := make([]bool, len(args))
 	type fieldBind struct {
-		field  taskInputField
+		field  structField
 		argIdx int
 	}
 	binds := make([]fieldBind, 0, len(plan.fields))
-	for _, tif := range plan.fields {
-		idx, ok := byName[tif.argName]
+	for _, sf := range plan.fields {
+		idx, ok := byName[sf.argName]
 		if !ok {
 			// No TaskFlow call argument carries this name -- kwarg-style, an
 			// unpassed name leaves the field at its Go zero value rather than
@@ -363,7 +372,22 @@ func (p *Plan) resolveTaskInputParam(
 			continue
 		}
 		claimed[idx] = true
-		binds = append(binds, fieldBind{field: tif, argIdx: idx})
+		binds = append(binds, fieldBind{field: sf, argIdx: idx})
+	}
+
+	// Whole-value fallback: a single explicitly passed argument that no field
+	// claims decodes whole into the struct, so a sole struct parameter can still
+	// receive an upstream object as one positional argument.
+	if len(binds) == 0 && isLoneWholeValueArg(args) {
+		return p.resolveWholeStructParam(ctx, c, args, plan, paramIdx, out)
+	}
+
+	if len(args) == 0 && len(plan.fields) > 0 {
+		return nil, fmt.Errorf(
+			"task function %s: no TaskFlow arg bindings arrived but the struct declares "+
+				"%d bindable field(s); nothing can fill them on this execution path",
+			p.fnName, len(plan.fields),
+		)
 	}
 
 	var unclaimed []string
@@ -385,7 +409,7 @@ func (p *Plan) resolveTaskInputParam(
 	}
 	if len(unclaimed) > 0 {
 		return nil, fmt.Errorf(
-			"task function %s: %d TaskFlow call argument(s) not claimed by any TaskInput "+
+			"task function %s: %d TaskFlow call argument(s) not claimed by any struct "+
 				"field: %s",
 			p.fnName, len(unclaimed), strings.Join(unclaimed, ", "),
 		)
@@ -405,7 +429,7 @@ func (p *Plan) resolveTaskInputParam(
 	for _, b := range binds {
 		v, err := p.decodeArg(
 			args[b.argIdx], raws[b.argIdx], b.field.fieldType,
-			fmt.Sprintf("TaskInput field %s (parameter %d)", b.field.goName, plan.index),
+			fmt.Sprintf("struct field %s (parameter %d)", b.field.goName, plan.index),
 		)
 		if err != nil {
 			return nil, err
@@ -418,6 +442,43 @@ func (p *Plan) resolveTaskInputParam(
 	} else {
 		out[paramIdx] = structVal
 	}
+	return out, nil
+}
+
+// isLoneWholeValueArg reports whether args is a single explicitly passed
+// argument (not a captured default) -- the case a sole struct parameter decodes
+// whole rather than binding field-by-field.
+func isLoneWholeValueArg(args []Arg) bool {
+	if len(args) != 1 || args[0] == nil {
+		return false
+	}
+	lit, ok := args[0].(LiteralArg)
+	return !ok || !lit.FromDefault
+}
+
+// resolveWholeStructParam decodes the sole struct parameter's one positional
+// argument whole into it, honouring pointer-ness (decodeArg allocates through
+// plan.typ, the same as a flat data parameter).
+func (p *Plan) resolveWholeStructParam(
+	ctx context.Context,
+	c sdk.XComClient,
+	args []Arg,
+	plan paramPlan,
+	paramIdx int,
+	out []reflect.Value,
+) ([]reflect.Value, error) {
+	raws, err := p.fetchArgValues(ctx, c, args, nil)
+	if err != nil {
+		return nil, err
+	}
+	v, err := p.decodeArg(
+		args[0], raws[0], plan.typ,
+		fmt.Sprintf("argument %q (parameter %d)", args[0].ArgName(), plan.index),
+	)
+	if err != nil {
+		return nil, err
+	}
+	out[paramIdx] = v
 	return out, nil
 }
 
@@ -497,7 +558,7 @@ func (p *Plan) fetchArgValues(
 
 // decodeArg decodes one argument-spec entry's raw value into targetType:
 // type-check against the declared Dag type, then a strict decode. errCtx
-// names the destination parameter or TaskInput field for error messages.
+// names the destination parameter or struct field for error messages.
 func (p *Plan) decodeArg(
 	arg Arg,
 	raw any,
@@ -564,13 +625,6 @@ func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error)
 			fnName, index, in, explainClientMismatch(in),
 		)
 	}
-	if structType := taskInputStructType(in); structType != nil {
-		fields, err := buildTaskInputFields(fnName, structType, index)
-		if err != nil {
-			return paramPlan{}, err
-		}
-		return paramPlan{kind: paramTaskInput, typ: in, index: index, fields: fields}, nil
-	}
 	if !isDecodableType(in) {
 		return paramPlan{}, fmt.Errorf(
 			"task function %s: parameter %d: type %s cannot receive a task argument "+
@@ -581,10 +635,10 @@ func classifyParam(fnName string, in reflect.Type, index int) (paramPlan, error)
 	return paramPlan{kind: paramData, typ: in, index: index}, nil
 }
 
-// taskInputStructType reports whether in (after dereferencing one pointer
-// level, matching checkDataType's convention) is a struct that anonymously
-// embeds sdk.TaskInput, returning that struct type or nil.
-func taskInputStructType(in reflect.Type) reflect.Type {
+// structParamType reports whether in (after dereferencing one pointer level,
+// matching checkDataType's convention) is a struct, returning that struct type
+// or nil.
+func structParamType(in reflect.Type) reflect.Type {
 	t := in
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -592,38 +646,42 @@ func taskInputStructType(in reflect.Type) reflect.Type {
 	if t.Kind() != reflect.Struct {
 		return nil
 	}
-	for i := range t.NumField() {
-		f := t.Field(i)
-		if f.Anonymous && f.Type == taskInputType {
-			return t
-		}
-	}
-	return nil
+	return t
 }
 
-// buildTaskInputFields validates and precomputes the field-binding plan for a
-// TaskInput-embedding struct parameter. It runs once at registration time so
-// a misconfigured struct fails loudly before any task ever executes.
-func buildTaskInputFields(
+// hasArgTag reports whether structType has an exported field carrying a
+// non-empty `arg:` tag -- the signal that its author means for it to bind
+// TaskFlow arguments by name.
+func hasArgTag(structType reflect.Type) bool {
+	for i := range structType.NumField() {
+		f := structType.Field(i)
+		if f.IsExported() && f.Tag.Get("arg") != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// buildStructFields validates and precomputes the by-name field-binding plan
+// for a sole struct parameter. It runs once at registration time so a
+// misconfigured struct fails loudly before any task ever executes.
+func buildStructFields(
 	fnName string,
 	structType reflect.Type,
 	paramIndex int,
-) ([]taskInputField, error) {
-	var fields []taskInputField
+) ([]structField, error) {
+	var fields []structField
 	seenArgNames := make(map[string]string) // resolved arg name -> Go field name that claims it
 
 	for i := range structType.NumField() {
 		f := structType.Field(i)
-		if f.Anonymous && f.Type == taskInputType {
-			continue
-		}
 		if !f.IsExported() {
 			continue
 		}
 
 		if !isDecodableType(f.Type) {
 			return nil, fmt.Errorf(
-				"task function %s: parameter %d: TaskInput field %s: type %s cannot receive a task "+
+				"task function %s: parameter %d: struct field %s: type %s cannot receive a task "+
 					"argument (func/chan/unsafe-pointer values cannot be decoded)",
 				fnName,
 				paramIndex,
@@ -632,19 +690,19 @@ func buildTaskInputFields(
 			)
 		}
 
-		tif := taskInputField{structIndex: i, goName: f.Name, fieldType: f.Type}
-		tif.argName = f.Tag.Get("arg")
-		if tif.argName == "" {
-			tif.argName = f.Name
+		sf := structField{structIndex: i, goName: f.Name, fieldType: f.Type}
+		sf.argName = f.Tag.Get("arg")
+		if sf.argName == "" {
+			sf.argName = f.Name
 		}
-		if existing, ok := seenArgNames[tif.argName]; ok {
+		if existing, ok := seenArgNames[sf.argName]; ok {
 			return nil, fmt.Errorf(
-				"task function %s: parameter %d: TaskInput fields %s and %s both bind arg name %q",
-				fnName, paramIndex, existing, f.Name, tif.argName,
+				"task function %s: parameter %d: struct fields %s and %s both bind arg name %q",
+				fnName, paramIndex, existing, f.Name, sf.argName,
 			)
 		}
-		seenArgNames[tif.argName] = f.Name
-		fields = append(fields, tif)
+		seenArgNames[sf.argName] = f.Name
+		fields = append(fields, sf)
 	}
 	return fields, nil
 }
@@ -741,7 +799,6 @@ var (
 	tiRunContextType = reflect.TypeFor[sdk.TIRunContext]()
 	slogLoggerType   = reflect.TypeFor[*slog.Logger]()
 	clientType       = reflect.TypeFor[sdk.Client]()
-	taskInputType    = reflect.TypeFor[sdk.TaskInput]()
 )
 
 func isContext(inType reflect.Type) bool {

@@ -292,33 +292,32 @@ type extractResult struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
-// simpleTaskInput is the minimal TaskInput struct: one field, no tags, so it
+// simpleInput is the minimal name-bound struct: one field, no tags, so it
 // falls back to matching its own field name, verbatim.
-type simpleTaskInput struct {
-	sdk.TaskInput
+type simpleInput struct {
 	Name string
 }
 
-// twoFieldTaskInput has one field the args always match (Name) and one whose
+// twoFieldInput has one field the args always match (Name) and one whose
 // arg name is never present in the tests that use it (Missing), to prove an
 // unmatched field is left at its Go zero value instead of failing the task.
-type twoFieldTaskInput struct {
-	sdk.TaskInput
+type twoFieldInput struct {
 	Name    string
 	Missing string `arg:"missing"`
 }
 
-// nonEmbeddingStruct has no sdk.TaskInput sentinel, so it must keep resolving
-// as today's whole-value decode target, not per-field TaskInput binding.
-type nonEmbeddingStruct struct {
-	Name string
+// wholeConfig carries only `json:` tags, so it names no TaskFlow argument by
+// field. As a flat data parameter it is decoded whole; as a sole struct
+// parameter it is the whole-value fallback target.
+type wholeConfig struct {
+	Environment string `json:"environment"`
+	Region      string `json:"region"`
 }
 
-// combineInput exercises both TaskInput field-binding modes side by side:
-// Name falls back to its verbatim field name, Count is explicitly named
-// via its `arg:` tag.
+// combineInput exercises both field-binding modes side by side: Name falls
+// back to its verbatim field name, Count is explicitly named via its `arg:`
+// tag.
 type combineInput struct {
-	sdk.TaskInput
 	Name  string
 	Count int `arg:"count"`
 }
@@ -327,16 +326,8 @@ type combineInput struct {
 // wire order those names appear in, to prove field declaration order is
 // irrelevant to by-name claiming.
 type reportInput struct {
-	sdk.TaskInput
 	Ratio  float64
 	Region string `arg:"region"`
-}
-
-// mixedInput pairs a TaskInput struct with a plain data parameter in the
-// functions that assert Analyze rejects that combination.
-type mixedInput struct {
-	sdk.TaskInput
-	Name string
 }
 
 func (s *BindingSuite) TestResolveXComArgs() {
@@ -465,28 +456,39 @@ func (s *BindingSuite) TestResolveTIRunContextRebuild() {
 	s.Equal("uk", got[1].Interface())
 }
 
-func (s *BindingSuite) TestAnalyzeTaskInputClassification() {
-	plan := analyze(s, func(input simpleTaskInput) error { return nil })
-	s.Zero(plan.numData, "a TaskInput struct claims by name, not by position")
+func (s *BindingSuite) TestAnalyzeLoneStructClassification() {
+	plan := analyze(s, func(input simpleInput) error { return nil })
+	s.True(plan.loneStruct, "a sole struct data parameter is resolved by name at execution")
+	s.Zero(plan.numData)
 
-	ptrPlan := analyze(s, func(input *simpleTaskInput) error { return nil })
-	s.Zero(ptrPlan.numData, "a pointer to a TaskInput struct is detected the same way")
+	ptrPlan := analyze(s, func(input *simpleInput) error { return nil })
+	s.True(ptrPlan.loneStruct, "a pointer to a sole struct is detected the same way")
+	s.Zero(ptrPlan.numData)
 
-	plainPlan := analyze(s, func(cfg nonEmbeddingStruct) error { return nil })
-	s.Equal(
-		1, plainPlan.numData,
-		"a plain struct without the TaskInput sentinel stays a whole-value data parameter",
-	)
+	flatPlan := analyze(s, func(prefix string, cfg wholeConfig) error { return nil })
+	s.False(flatPlan.loneStruct, "a struct alongside another data parameter is a flat slot")
+	s.Equal(2, flatPlan.numData)
+
+	scalarPlan := analyze(s, func(name string) error { return nil })
+	s.False(scalarPlan.loneStruct, "a sole non-struct data parameter is plain positional")
+	s.Equal(1, scalarPlan.numData)
 }
 
-func (s *BindingSuite) TestAnalyzeTaskInputValidation() {
+func (s *BindingSuite) TestAnalyzeMultipleStructsAreFlat() {
+	// With no marker, the old "only one struct" / "cannot mix" restrictions are
+	// gone: any struct that is not the sole data parameter is a flat whole-value
+	// slot, so these signatures are now accepted rather than rejected.
+	plan := analyze(s, func(a wholeConfig, b wholeConfig) error { return nil })
+	s.False(plan.loneStruct)
+	s.Equal(2, plan.numData)
+}
+
+func (s *BindingSuite) TestAnalyzeStructValidation() {
 	type duplicateArgNames struct {
-		sdk.TaskInput
 		A string
 		B string `arg:"A"`
 	}
 	type nonDecodableField struct {
-		sdk.TaskInput
 		Bad chan int
 	}
 
@@ -502,17 +504,15 @@ func (s *BindingSuite) TestAnalyzeTaskInputValidation() {
 			func(input nonDecodableField) error { return nil },
 			"cannot receive a task argument",
 		},
-		"two-taskinput-params": {
-			func(a simpleTaskInput, b simpleTaskInput) error { return nil },
-			"only one TaskInput struct parameter is allowed",
+		// A struct carrying `arg:` tags must be the sole data parameter, else its
+		// tags would be silently ignored (the struct would be decoded whole).
+		"tagged-struct-not-sole": {
+			func(prefix string, input combineInput) error { return nil },
+			"must be the function's only data parameter",
 		},
-		"mixed-with-flat-data-param": {
-			func(prefix string, input mixedInput) error { return nil },
-			"cannot mix a TaskInput struct parameter",
-		},
-		"mixed-with-trailing-flat-data-param": {
-			func(input mixedInput, suffix string) error { return nil },
-			"cannot mix a TaskInput struct parameter",
+		"tagged-struct-trailing": {
+			func(input combineInput, suffix string) error { return nil },
+			"must be the function's only data parameter",
 		},
 	}
 	for name, tt := range cases {
@@ -525,7 +525,7 @@ func (s *BindingSuite) TestAnalyzeTaskInputValidation() {
 	}
 }
 
-func (s *BindingSuite) TestResolveTaskInputAllStruct() {
+func (s *BindingSuite) TestResolveStructAllFields() {
 	fn := func(input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
@@ -538,7 +538,7 @@ func (s *BindingSuite) TestResolveTaskInputAllStruct() {
 	s.Equal(7, input.Count, "the `arg:` tag claims its named entry")
 }
 
-func (s *BindingSuite) TestResolveTaskInputXComArg() {
+func (s *BindingSuite) TestResolveStructXComArg() {
 	fn := func(log *slog.Logger, input reportInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		XComArg{Name: "region", TaskID: "make_region", DataType: DataTypeString},
@@ -551,40 +551,58 @@ func (s *BindingSuite) TestResolveTaskInputXComArg() {
 	s.Equal(0.5, input.Ratio)
 }
 
-func (s *BindingSuite) TestResolveTaskInputLiteralThroughArgName() {
-	fn := func(input simpleTaskInput) error { return nil }
+func (s *BindingSuite) TestResolveStructSingleClaimedArgBindsByName() {
+	// A single argument whose name a field claims binds by name -- the tie-break
+	// that keeps a one-field struct name-bound rather than whole-value decoded.
+	fn := func(input simpleInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
-	s.Equal("widget", got[0].Interface().(simpleTaskInput).Name)
+	s.Equal("widget", got[0].Interface().(simpleInput).Name)
 }
 
-func (s *BindingSuite) TestResolveTaskInputPointerStruct() {
-	fn := func(input *simpleTaskInput) error { return nil }
+func (s *BindingSuite) TestResolveStructPointer() {
+	fn := func(input *simpleInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
-	input := got[0].Interface().(*simpleTaskInput)
+	input := got[0].Interface().(*simpleInput)
 	s.Require().NotNil(input)
 	s.Equal("widget", input.Name)
 }
 
-func (s *BindingSuite) TestResolveTaskInputUnclaimedArgFailsLoudly() {
-	fn := func(input simpleTaskInput) error { return nil }
-	_, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "different_name", Value: "x", DataType: DataTypeString},
+func (s *BindingSuite) TestResolveStructWholeValueFallback() {
+	// A single explicitly passed argument that no field claims decodes whole
+	// into the struct, so a sole struct can still receive an upstream object.
+	fn := func(cfg wholeConfig) error { return nil }
+	got, err := s.resolve(fn, []Arg{
+		LiteralArg{
+			Name:     "cfg",
+			Value:    map[string]any{"environment": "production", "region": "eu-west-1"},
+			DataType: DataTypeObject,
+		},
 	}, &fakeXComClient{})
-	// No TaskInput field claims "different_name"; the leftover argument fails
-	// the task rather than being dropped silently.
+	s.Require().NoError(err)
+	s.Equal(wholeConfig{Environment: "production", Region: "eu-west-1"}, got[0].Interface())
+}
+
+func (s *BindingSuite) TestResolveStructUnclaimedArgFailsLoudly() {
+	fn := func(input combineInput) error { return nil }
+	_, err := s.resolve(fn, []Arg{
+		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "typo", Value: "x", DataType: DataTypeString},
+	}, &fakeXComClient{})
+	// Name is claimed, so this is name-binding (not the whole-value fallback);
+	// the leftover "typo" argument fails the task rather than being dropped.
 	if s.Assert().Error(err) {
-		s.Contains(err.Error(), `not claimed by any TaskInput field: "different_name"`)
+		s.Contains(err.Error(), `not claimed by any struct field: "typo"`)
 	}
 }
 
-func (s *BindingSuite) TestResolveTaskInputUnclaimedFromDefaultAllowed() {
-	fn := func(input simpleTaskInput) error { return nil }
+func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultAllowed() {
+	fn := func(input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 		// The Dag author never passed "threshold"; Python captured it from the
@@ -592,11 +610,11 @@ func (s *BindingSuite) TestResolveTaskInputUnclaimedFromDefaultAllowed() {
 		LiteralArg{Name: "threshold", Value: 0.75, DataType: DataTypeNumber, FromDefault: true},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
-	s.Equal("widget", got[0].Interface().(simpleTaskInput).Name)
+	s.Equal("widget", got[0].Interface().(combineInput).Name)
 }
 
-func (s *BindingSuite) TestResolveTaskInputEmptySpecFailsLoudly() {
-	fn := func(input simpleTaskInput) error { return nil }
+func (s *BindingSuite) TestResolveStructEmptySpecFailsLoudly() {
+	fn := func(input simpleInput) error { return nil }
 	for name, args := range map[string][]Arg{"nil-spec": nil, "empty-spec": {}} {
 		s.Run(name, func() {
 			_, err := s.resolve(fn, args, &fakeXComClient{})
@@ -609,24 +627,27 @@ func (s *BindingSuite) TestResolveTaskInputEmptySpecFailsLoudly() {
 	}
 }
 
-func (s *BindingSuite) TestResolveTaskInputOnlyDefaultsSpecZeroValuesUnmatchedFields() {
-	fn := func(input twoFieldTaskInput) error { return nil }
+func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
+	// A lone from_default argument that no field claims is neither whole-value
+	// decoded (defaults were never explicitly passed) nor an error; the fields
+	// keep their kwarg-style zero values.
+	fn := func(input twoFieldInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "threshold", Value: 0.75, DataType: DataTypeNumber, FromDefault: true},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
-	input := got[0].Interface().(twoFieldTaskInput)
+	input := got[0].Interface().(twoFieldInput)
 	s.Equal("", input.Name, "no explicit entry arrived; fields keep kwarg-style zero values")
 	s.Equal("", input.Missing)
 }
 
-func (s *BindingSuite) TestResolveTaskInputUnmatchedArgNameZeroValuedAlongsideMatch() {
-	fn := func(input twoFieldTaskInput) error { return nil }
+func (s *BindingSuite) TestResolveStructUnmatchedFieldZeroValued() {
+	fn := func(input twoFieldInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
 		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
-	input := got[0].Interface().(twoFieldTaskInput)
+	input := got[0].Interface().(twoFieldInput)
 	s.Equal("widget", input.Name, "the matched field binds normally")
 	s.Equal("", input.Missing, "the unmatched field is left at its Go zero value, not an error")
 }

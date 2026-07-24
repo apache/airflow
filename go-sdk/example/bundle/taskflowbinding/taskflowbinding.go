@@ -21,9 +21,9 @@
 // from two upstream Go tasks decoded into a strict struct and a typed slice --
 // where simple_dag's transform shows the minimal case (one literal, one
 // XCom), this shows the full argument surface. The ViaStruct* functions
-// instead show the sdk.TaskInput struct-field injection mode -- conceptually
-// keyword-argument binding, where fields match by name and an unmatched name
-// is left at its zero value rather than failing the task -- one field-binding
+// instead show name-based (keyword-argument) binding, used when a struct is the
+// task's sole data parameter: fields match by name and an unmatched name is
+// left at its zero value rather than failing the task -- one field-binding
 // mode at a time: ViaStructNoTags (verbatim field-name fallback),
 // ViaStructArgTag (explicit `arg:` naming), and ViaStructUnmatchedArg (a
 // field whose name has no corresponding TaskFlow call argument at all). Each
@@ -146,12 +146,11 @@ func ViaFlatArgs(
 	}, nil
 }
 
-// ViaStructNoTagsInput demonstrates the sdk.TaskInput struct-field injection
-// mode with no field tags at all: each field binds the TaskFlow call argument
-// spelled exactly like its Go field name ("RegionCode", "Threshold"), which
-// is why the stub declares capitalized parameters.
+// ViaStructNoTagsInput demonstrates name-based binding with no field tags at
+// all: each field binds the TaskFlow call argument spelled exactly like its Go
+// field name ("RegionCode", "Threshold"), which is why the stub declares
+// capitalized parameters.
 type ViaStructNoTagsInput struct {
-	sdk.TaskInput
 	RegionCode string
 	Threshold  float64
 }
@@ -168,13 +167,13 @@ func ViaStructNoTags(
 ) (any, error) {
 	if input.RegionCode != "eu-west-1" || input.Threshold != 0.75 {
 		return nil, fmt.Errorf(
-			"TaskInput fields bound incorrectly: region_code=%q threshold=%v",
+			"struct fields bound incorrectly: region_code=%q threshold=%v",
 			input.RegionCode,
 			input.Threshold,
 		)
 	}
 
-	log.InfoContext(ctx, "Bound TaskInput struct (no tags)",
+	log.InfoContext(ctx, "Bound struct (no tags)",
 		"region_code", input.RegionCode,
 		"threshold", input.Threshold,
 	)
@@ -184,14 +183,12 @@ func ViaStructNoTags(
 	}, nil
 }
 
-// ViaStructArgTagInput demonstrates the sdk.TaskInput struct-field injection
-// mode with explicit arg: tags: Region binds to the "region_code" TaskFlow
-// argument under a renamed Go field, proving the tag remaps the name rather
-// than coincidentally matching it; Threshold is intentionally tagged
-// "threshold" because an untagged field would only match an argument spelled
-// exactly "Threshold".
+// ViaStructArgTagInput demonstrates name-based binding with explicit arg: tags:
+// Region binds to the "region_code" TaskFlow argument under a renamed Go field,
+// proving the tag remaps the name rather than coincidentally matching it;
+// Threshold is intentionally tagged "threshold" because an untagged field would
+// only match an argument spelled exactly "Threshold".
 type ViaStructArgTagInput struct {
-	sdk.TaskInput
 	Region    string  `arg:"region_code"`
 	Threshold float64 `arg:"threshold"`
 }
@@ -208,13 +205,13 @@ func ViaStructArgTag(
 ) (any, error) {
 	if input.Region != "eu-west-1" || input.Threshold != 0.75 {
 		return nil, fmt.Errorf(
-			"TaskInput fields bound incorrectly: region=%q threshold=%v",
+			"struct fields bound incorrectly: region=%q threshold=%v",
 			input.Region,
 			input.Threshold,
 		)
 	}
 
-	log.InfoContext(ctx, "Bound TaskInput struct (arg: tag)",
+	log.InfoContext(ctx, "Bound struct (arg: tag)",
 		"region", input.Region,
 		"threshold", input.Threshold,
 	)
@@ -234,7 +231,6 @@ func ViaStructArgTag(
 // struct is free not to mirror it (an explicitly passed argument no field
 // claims would fail the task instead).
 type ViaStructUnmatchedArgInput struct {
-	sdk.TaskInput
 	Region  string `arg:"region_code"`
 	Missing string `arg:"does_not_exist"`
 }
@@ -252,7 +248,7 @@ func ViaStructUnmatchedArg(
 	ctx sdk.TIRunContext, log *slog.Logger, input ViaStructUnmatchedArgInput,
 ) (any, error) {
 	if input.Region != "eu-west-1" {
-		return nil, fmt.Errorf("TaskInput field bound incorrectly: region=%q", input.Region)
+		return nil, fmt.Errorf("struct field bound incorrectly: region=%q", input.Region)
 	}
 	if input.Missing != "" {
 		return nil, fmt.Errorf(
@@ -261,7 +257,7 @@ func ViaStructUnmatchedArg(
 		)
 	}
 
-	log.InfoContext(ctx, "Bound TaskInput struct (unmatched arg)",
+	log.InfoContext(ctx, "Bound struct (unmatched arg)",
 		"region", input.Region,
 		"missing_was_empty", input.Missing == "",
 	)
