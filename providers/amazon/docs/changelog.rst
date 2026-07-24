@@ -26,6 +26,91 @@
 Changelog
 ---------
 
+9.33.0
+......
+
+.. note::
+    ``RedshiftSQLHook.get_sqlalchemy_engine()``, used for the SQLAlchemy engine backing
+    lineage/reflection, now resolves an explicit Postgres DB-API driver for a bare
+    ``postgresql://`` URL, preferring ``psycopg`` (v3) when importable and falling back to
+    ``psycopg2``. Where both drivers are installed, this engine now uses ``psycopg`` (v3),
+    matching the sync Postgres driver default change in ``apache-airflow-providers-postgres``.
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage parent info to EMR Spark steps (#70182)``
+* ``Add S3RemoteLogIO.from_config and register s3 remote logging scheme (#69817)``
+* ``Add CloudWatchRemoteLogIO.from_config and register cloudwatch scheme (#69816)``
+* ``Add Amazon ECR repository operators (#69886)``
+* ``Add dedicated Glue crawler lifecycle operators (#69930)``
+* ``Allow 'AthenaOperator' queries without a 'database' argument (#69846)``
+* ``Add durable execution to 'RedshiftDataOperator' (#69530)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make RedshiftDeleteClusterOperator delete reliably during cluster transitions (#69574)``
+* ``Fix Amazon provider log messages to show actual values (#69967)``
+* ``Secure AWS auth cookies behind TLS proxies (#69898)``
+* ``Generate a fresh EmrContainerOperator request token on each task attempt (#69625)``
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+* ``Warn for bad combination of parameters for RedshiftDataOperator (#69524)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+* ``Fix documentation misusing previous/next for task relationships (#69179)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#69890)" (#70259)``
+   * ``Pin task bundle manifest to the dagrun's version (#69941)``
+   * ``Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#69890)``
+   * ``Consume external role ARN in Neptune Analytics system test (#69682)``
+   * ``Update 'example_bedrock_agentcore' system test to use 'codeConfiguration' instead of ECR image (#69576)``
+
+
+9.32.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add CRUD methods to DynamoDBHook (#69142)``
+* ``Add Amazon Provider Neptune Analytics (#64274)``
+* ``Add team_name tags to Amazon executor metrics (#69072)``
+* ``Add S3CopyPrefixOperator to copy all objects under a prefix (#68946)``
+* ``Add output_files_to_xcom parameter to SageMakerProcessingOperator (#69002)``
+* ``Propagate AWS hook parameters through RedshiftClusterTrigger (#68925)``
+* ``Propagate verify and botocore_config through EC2StateSensorTrigger (#68921)``
+* ``Adds Airflow 3 compatibility in 'try_adopt_task_instances' for BatchExec (#68027)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent path traversal in s3 to sftp/ftp transfer destinations (#68984)``
+* ``Fix SageMakerTransformOperator succeeding on a failed deferred job (#69042)``
+* ``Close S3 download_file handle once the download finishes or fails (#69084)``
+* ``Make Amazon SageMaker triggers inherit AWS base classes (#68927)``
+* ``Persist BatchOperator deferrable xcom links (#64745)``
+* ``Standardize ECS TaskDoneTrigger on region_name and AWS hook parameters (#68923)``
+* ``Fix CloudWatch remote logging for ephemeral lifecycle executor (#68779)``
+* ``Fix Cloudwatch remote logging crash API server if ResourceNotFoundException (#68781)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Thread version_data through BundleInfo to worker-side bundle initialization (#67217)``
+   * ``Fix mypy type errors in DynamoDB example system test (#68849)``
+   * ``Fix AwsBatchExecutor test_try_adopt_task_instances after TaskInstanceDTO hostname requirement (#68871)``
+
 9.31.0
 ......
 

@@ -79,6 +79,7 @@ from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
 from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
@@ -124,12 +125,24 @@ pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
+def _force_bare_fork(monkeypatch):
+    """
+    Keep the runner child on a bare ``os.fork`` on every platform.
+
+    On macOS the triggerer forks+execs a clean interpreter for fork-safety
+    (see ``TriggerRunnerSupervisor.start``).  These tests fork the real runner
+    with trigger classes defined in this module, which a fresh exec'd interpreter
+    cannot import.  Forcing bare fork makes local macOS runs match Linux/CI.
+    """
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: False)
+
+
+@pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
-    clear_db_dag_bundles()
     clear_db_xcom()
     clear_db_variables()
     clear_db_triggers()
@@ -230,6 +243,20 @@ def test_triggerer_job_runner_stores_team_name(team_name):
     job = Job()
     runner = TriggererJobRunner(job, capacity=10, team_name=team_name)
     assert runner.team_name == team_name
+
+
+@pytest.mark.parametrize("platform_uses_exec", [True, False])
+def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec):
+    """start() forks+execs the runner child on fork-unsafe platforms (macOS)."""
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: platform_uses_exec)
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+
+    TriggerRunnerSupervisor.start(job=Job(id=999), capacity=10)
+
+    assert base_start.call_args.kwargs["use_exec"] is platform_uses_exec
+    assert base_start.call_args.kwargs["target"] == TriggerRunnerSupervisor.run_in_process
 
 
 @pytest.fixture
@@ -976,6 +1003,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
                 encrypted_kwargs=trigger_orm.encrypted_kwargs,
                 kind="RunTrigger",
                 dag_data=ANY,
+                queued_at=ANY,
             )
         )
         # OK, now remove it from the DB
@@ -1051,8 +1079,15 @@ def test_trigger_logger_fd_closed_when_removed(session):
         trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
         trigger_runner_supervisor.load_triggers()
 
-        for _ in range(30):
+        # The 0.5s trigger must fire and its finished-trigger cleanup must run before the log FD is
+        # closed. How many service iterations that takes depends on real wall-clock timing and runner
+        # speed (_service_subprocess returns as soon as there is I/O, not after a full 0.1s), so poll
+        # until the close happens rather than relying on a fixed iteration count -- a fixed count is
+        # flaky on slow/loaded runners where the trigger has not fired yet within the window.
+        for _ in range(300):
             trigger_runner_supervisor._service_subprocess(0.1)
+            if mock_file.close.called:
+                break
 
     mock_file.close.assert_called_once()
 
@@ -1510,6 +1545,106 @@ class TestTriggerRunner:
 
         # The test passes if no exceptions were raised during trigger creation
         trigger_instance.cancel()
+        await runner.cleanup_finished_triggers()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.stats.timing")
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    async def test_create_triggers_emits_queue_delay_metric(
+        self,
+        mock_get_trigger_by_classpath,
+        mock_decrypt_kwargs,
+        mock_timing,
+        team_name,
+        expected_tags,
+    ):
+        mock_decrypt_kwargs.return_value = {"moment": timezone.utcnow() + datetime.timedelta(hours=1)}
+
+        workload = workloads.RunTrigger.model_construct(
+            id=1,
+            classpath="abc",
+            encrypted_kwargs="fake",
+            queued_at=100.0,
+        )
+
+        runner = TriggerRunner()
+        runner.team_name = team_name
+        runner.to_create.append(workload)
+
+        with (
+            patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=101.5),
+            patch("airflow.jobs.triggerer_job_runner.time.time", return_value=90.0),
+        ):
+            await runner.create_triggers()
+
+        mock_timing.assert_any_call(
+            "triggerer.trigger_queue_delay",
+            1500,
+            tags=expected_tags,
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.stats.timing")
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    async def test_create_triggers_emits_creation_duration_metric(
+        self,
+        mock_get_trigger_by_classpath,
+        mock_decrypt_kwargs,
+        mock_timing,
+        team_name,
+        expected_tags,
+    ):
+        mock_decrypt_kwargs.return_value = {"moment": timezone.utcnow() + datetime.timedelta(hours=1)}
+
+        workload = workloads.RunTrigger.model_construct(
+            id=1,
+            classpath="abc",
+            encrypted_kwargs="fake",
+        )
+
+        runner = TriggerRunner()
+        runner.team_name = team_name
+        runner.to_create.append(workload)
+
+        await runner.create_triggers()
+
+        mock_timing.assert_called_once()
+
+        metric_name, metric_value = mock_timing.call_args.args
+
+        assert metric_name == "triggerer.batch_trigger_creation_duration"
+
+        # Specific metric_value is not being asserted here as time.monotonic is difficult
+        # to mock deterministically.
+        assert metric_value >= 0
+        assert mock_timing.call_args.kwargs == {"tags": expected_tags}
+
+        task = runner.triggers[workload.id]["task"]
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
         await runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio
@@ -2209,6 +2344,8 @@ def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker)
     supervisor = supervisor_builder()
     supervisor.running_triggers = {1, 3}
     workload = workloads.RunTrigger(id=2, classpath="some.trigger", encrypted_kwargs="", ti=None)
+    monotonic = mocker.patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=100.0)
+    mocker.patch("airflow.jobs.triggerer_job_runner.time.time", return_value=90.0)
     build_trigger_workloads = mocker.patch.object(
         TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[workload]
     )
@@ -2217,6 +2354,8 @@ def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker)
 
     build_trigger_workloads.assert_called_once_with(supervisor, {2})
     assert list(supervisor.creating_triggers) == [workload]
+    assert workload.queued_at == 100.0
+    monotonic.assert_called_once_with()
     assert supervisor.cancelling_triggers == {1}
 
 
@@ -2844,7 +2983,12 @@ def test_handle_events_does_not_confirm_seq_when_persist_fails(jobless_superviso
 def test_handle_events_emits_team_name(jobless_supervisor, team_name, expected_tags):
     """triggers.succeeded carries the triggerer's team_name (omitted when the triggerer has none)."""
     jobless_supervisor.team_name = team_name
-    jobless_supervisor.events.append(TriggerEventEntry(1, TriggerEvent(True), 7))
+    jobless_supervisor.events.extend(
+        [
+            TriggerEventEntry(1, TriggerEvent(True), 7),
+            TriggerEventEntry(2, TriggerEvent(True), 8),
+        ]
+    )
 
     with (
         mock.patch.object(TriggerRunnerSupervisor, "on_trigger_event", autospec=True),
@@ -2852,7 +2996,13 @@ def test_handle_events_emits_team_name(jobless_supervisor, team_name, expected_t
     ):
         jobless_supervisor.handle_events()
 
-    mock_incr.assert_called_once_with("triggers.succeeded", tags=expected_tags)
+    mock_incr.assert_has_calls(
+        [
+            mock.call("triggers.succeeded", tags=expected_tags),
+            mock.call("triggers.succeeded", tags=expected_tags),
+        ]
+    )
+    assert mock_incr.call_count == 2
 
 
 @pytest.mark.parametrize(
@@ -2865,7 +3015,12 @@ def test_handle_events_emits_team_name(jobless_supervisor, team_name, expected_t
 def test_handle_failed_triggers_emits_team_name(jobless_supervisor, team_name, expected_tags):
     """triggers.failed carries the triggerer's team_name (omitted when the triggerer has none)."""
     jobless_supervisor.team_name = team_name
-    jobless_supervisor.failed_triggers.append((1, None))
+    jobless_supervisor.failed_triggers.extend(
+        [
+            (1, Exception("failure one")),
+            (2, Exception("failure two")),
+        ]
+    )
 
     with (
         mock.patch.object(TriggerRunnerSupervisor, "on_trigger_failure", autospec=True),
@@ -2873,7 +3028,13 @@ def test_handle_failed_triggers_emits_team_name(jobless_supervisor, team_name, e
     ):
         jobless_supervisor.handle_failed_triggers()
 
-    mock_incr.assert_called_once_with("triggers.failed", tags=expected_tags)
+    mock_incr.assert_has_calls(
+        [
+            mock.call("triggers.failed", tags=expected_tags),
+            mock.call("triggers.failed", tags=expected_tags),
+        ]
+    )
+    assert mock_incr.call_count == 2
 
 
 @pytest.mark.parametrize(

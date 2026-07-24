@@ -20,6 +20,79 @@
 Changelog
 ---------
 
+3.7.3
+.....
+
+.. note::
+    The Azure AD OAuth provider in the FAB auth manager now verifies the ``id_token``
+    signature by default: ``verify_signature`` now defaults to ``True`` (previously
+    ``False``), consistent with the Authentik provider. Deployments that intentionally
+    relied on skipping signature verification must set ``verify_signature: False``
+    explicitly in the Azure provider ``client_kwargs`` to keep the previous behaviour.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AUTH_ROLE_PUBLIC returning 401 in FastAPI API server (#69773)``
+* ``Verify Azure AD OAuth id_token signatures by default in FAB auth manager (#69374)``
+
+Misc
+~~~~
+
+* ``Bump flask-appbuilder to 5.2.2 in FAB provider (#69730)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify FAB and Auth documentation regarding external_db_managers (#69929)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky static checks caused by migration-reference hook race (#70170)``
+   * ``[main] Upgrade important CI environment (#69694)``
+   * ``Bump eslint (#69932)``
+   * ``Bump prettier (#69835)``
+   * ``Add upgrade-fab-provider skill and FAB contributing doc (#69729)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69664)``
+   * ``Bump moment-timezone from 0.6.2 to 0.6.3 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#70308)``
+
+
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG named "DAGs" colliding with the global DAGs permission resource (#69106)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69344)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69210)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69186)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69133)``
+
+3.7.1
+.....
+
+.. note::
+    The ``get_cli_user`` method added to the FAB auth manager in 3.7.0 has been removed
+    together with the revert of the airflowctl CLI client integration in Airflow core.
+    If you relied on ``airflowctl`` CLI authentication through the FAB auth manager,
+    provide an API token via the ``AIRFLOW_CLI_TOKEN`` environment variable instead.
+
+Misc
+~~~~
+
+* ``Revert airflowctl dependency from airflow-core (#68856)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.7.0
 .....
 

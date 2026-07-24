@@ -16,11 +16,12 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
+default_install_hook_types: [pre-commit, commit-msg]
 minimum_prek_version: '0.3.4'
 default_language_version:
   python: python3
   node: 22.19.0
-  golang: 1.24.0
+  golang: 1.25.0
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -269,6 +270,31 @@ repos:
           ^Dockerfile\.ci$
         pass_filenames: false
         require_serial: true
+      - id: sync-java-sdk-supervisor-schema
+        name: Sync Java SDK supervisor schema with configured version
+        description: "Download the Supervisor Schema when Java SDK's bundled schema.json drifts"
+        entry: ./java-sdk/gradlew -p ./java-sdk :sdk:syncSupervisorSchema
+        language: system
+        pass_filenames: false
+        files: >
+          (?x)
+          ^java-sdk/gradle\.properties$|
+          ^java-sdk/sdk/schema/schema\.json$
+      - id: check-go-version-in-sync
+        name: Check Go toolchain version is consistent across build files
+        entry: ./scripts/ci/prek/check_go_version_in_sync.py
+        language: python
+        files: >
+          (?x)
+          ^go-sdk/go\.mod$|
+          ^kubernetes-tests/lang_sdk/go_example/go\.mod$|
+          ^\.github/workflows/ci-(arm|amd)\.yml$|
+          ^airflow-e2e-tests/tests/airflow_e2e_tests/constants\.py$|
+          ^dev/breeze/src/airflow_breeze/commands/kubernetes_commands\.py$|
+          ^go-sdk/\.pre-commit-config\.yaml$|
+          ^\.pre-commit-config\.yaml$
+        pass_filenames: false
+        require_serial: true
       - id: check-partition-mapper-defaults-in-sync
         name: Check partition-mapper core/SDK sync (FanOutMapper table + SegmentWindow/FixedKeyMapper)
         entry: ./scripts/ci/prek/check_partition_mapper_defaults_in_sync.py
@@ -424,7 +450,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a  # frozen: v2.4.2
+    rev: 57b21406f092110c18776e39b0bda50d37c945c8  # frozen: v2.4.3
     hooks:
       - id: codespell
         name: Run codespell
@@ -452,7 +478,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 9257c6050c0261b8c57e712f632dc4a8010109a9  # frozen: v1.25.2
+    rev: 64a97fb7fa63188393d3215c6e312f5f9c6d0f78  # frozen: v1.27.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -461,7 +487,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: 467197f13e30c16befe54b8f83c17bf91952a741  # frozen: nightly
+    rev: af73b4e02731e0ff3a678b56769704d689138279  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -562,7 +588,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.17']
+        additional_dependencies: ['ruff==0.15.22']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -643,6 +669,23 @@ repos:
         entry: ./scripts/ci/prek/supported_versions.py
         language: python
         files: ^airflow-core/docs/installation/supported-versions\.rst$|^scripts/ci/prek/supported_versions\.py$|^README\.md$
+        pass_filenames: false
+      - id: generate-api-permissions-doc
+        name: Generate REST API permission reference documentation
+        entry: ./scripts/ci/prek/extract_permissions.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/api_fastapi/core_api/routes/public/.*\.py$|
+          ^airflow-core/src/airflow/api_fastapi/core_api/security\.py$|
+          ^scripts/ci/prek/extract_permissions\.py$|
+          ^airflow-core/docs/security/api_permissions_ref\.rst$
+        pass_filenames: false
+      - id: update-tested-versions
+        name: Update tested Python/DB/Kubernetes versions in docs
+        entry: ./scripts/ci/prek/update_tested_versions.py
+        language: python
+        files: ^airflow-core/docs/installation/prerequisites\.rst$|^README\.md$|^dev/breeze/src/airflow_breeze/global_constants\.py$|^scripts/ci/prek/update_tested_versions\.py$|^scripts/ci/prek/common_prek_utils\.py$
         pass_filenames: false
       - id: check-revision-heads-map
         name: Check that the REVISION_HEADS_MAP is up-to-date
@@ -730,6 +773,7 @@ repos:
           ^java-sdk/gradlew$|
           ^java-sdk/gradlew\.bat$|
           ^java-sdk/gradle|
+          ^java-sdk/scala_spark_example/src/main/scala/org/apache/airflow/example/ScalaSparkExample\.scala$|
           ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
@@ -880,9 +924,10 @@ repos:
         name: Check that metrics in the codebase are in sync with the metrics registry YAML file.
         entry: ./scripts/ci/prek/check_metrics_synced_with_the_registry.py
         language: python
-        files: \.py$
-        exclude: ^(tests/|.*/tests/)
+        files: \.py$|^shared/observability/src/airflow_shared/observability/metrics/metrics_template\.yaml$
+        exclude: ^(tests/|.*/tests/|airflow-core/src/airflow/observability/stats\.py$|task-sdk/src/airflow/sdk/observability/stats\.py$)
         pass_filenames: true
+        require_serial: true
         additional_dependencies: ["PyYAML>=6.0", "rich>=13.6.0"]
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
@@ -944,6 +989,57 @@ repos:
           ^scripts/ci/prek/generate_agent_skills\.py$
         pass_filenames: false
         additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+      - id: check-documented-commands
+        name: Check documented breeze and prek commands exist
+        entry: ./scripts/ci/prek/check_documented_commands.py
+        language: python
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^contributing-docs/.*\.rst$|
+          ^dev/breeze/src/airflow_breeze/commands/|
+          ^(?:.*/)?\.pre-commit-config\.yaml$|
+          ^scripts/ci/prek/check_documented_commands\.py$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+      - id: run-skill-eval
+        name: Run skill-eval against AGENTS.md and cases
+        entry: ./dev/skill-evals/eval.py
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+        verbose: true
+      - id: view-skill-eval
+        name: View skill-eval results in browser (manual)
+        entry: env PROMPTFOO_CONFIG_DIR=.build/promptfoo promptfoo view
+        language: node
+        language_version: '22.22.0'
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        stages: ['manual']
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/
+        pass_filenames: false
+        require_serial: true
+      - id: check-eval-hash
+        name: Verify skill-eval ran on current AGENTS.md and cases
+        entry: ./scripts/ci/prek/check_eval_hash.py
+        language: python
+        files: >
+          (?x)
+          ^AGENTS\.md$|
+          ^dev/skill-evals/cases/|
+          ^dev/skill-evals/last-eval-hash\.txt$
+        pass_filenames: false
       - id: update-pyproject-toml
         name: Update Airflow's meta-package pyproject.toml
         language: python
@@ -1093,6 +1189,14 @@ repos:
         files: changelog\.(rst|txt)$
         entry: ./scripts/ci/prek/changelog_duplicates.py
         pass_filenames: true
+      - id: check-no-conventional-commit-message
+        name: Check commit message is not Conventional Commits style
+        description: "Reject feat:/fix:/chore: style commit subjects - Airflow uses plain prose"
+        language: python
+        entry: ./scripts/ci/prek/check_no_conventional_commit_message.py
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: true
       - id: check-changelog-format
         name: Check changelog format
         language: python
@@ -1209,7 +1313,7 @@ repos:
         files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
         require_serial: true
       - id: check-migration-patterns
-        name: Check migration files for anti-patterns (MIG001/MIG002/MIG003)
+        name: Check migration files for anti-patterns and style (MIG001-MIG004)
         entry: ./scripts/ci/prek/check_migration_patterns.py
         language: python
         pass_filenames: true

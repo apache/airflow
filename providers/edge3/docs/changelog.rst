@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add worker-name filter to 'airflow edge list-workers' (#70095)``
+* ``Add team name tags to Edge worker metrics (#69149)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bring back edge worker metric compatibility with Airflow 3.2 (#67328)``
+
+Misc
+~~~~
+
+* ``Upgrade NPM dependencies in edge provider (#70253)``
+* ``Bump axios in /providers/edge3/src/airflow/providers/edge3/plugins/www (#70145)``
+* ``Change log level from info to debug for Edge job fetch (#68736)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky static checks caused by migration-reference hook race (#70170)``
+   * ``[main] Upgrade important CI environment (#69694)``
+   * ``Fix flaky test_adjust_maintenance_mode_based_on_sysinfo_exit (#69738)``
+
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add team_name tag to Edge executor sync metric (#69005)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Thread version_data through BundleInfo to worker-side bundle initialization (#67217)``
+
 4.0.0
 .....
 

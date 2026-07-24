@@ -32,6 +32,7 @@ import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useDocumentTitle } from "src/utils";
 
 import { EventsFilters } from "./EventsFilters";
 
@@ -161,6 +162,10 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
+
+  // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
+  useDocumentTitle(dagId === undefined ? translate("common:browse.auditLog") : undefined);
+
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;

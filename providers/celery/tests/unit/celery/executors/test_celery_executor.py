@@ -39,7 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout, conf
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
@@ -75,6 +75,13 @@ else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
+
+
+@pytest.fixture(autouse=True)
+def clear_cached_workload_celery_apps():
+    celery_executor_utils._get_celery_app_for_workload.cache_clear()
+    yield
+    celery_executor_utils._get_celery_app_for_workload.cache_clear()
 
 
 FAKE_EXCEPTION_MSG = "Fake Exception"
@@ -208,6 +215,64 @@ class TestCeleryExecutor:
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @pytest.mark.backend("mysql", "postgres")
+    @pytest.mark.parametrize(
+        ("team_name", "tags"),
+        [
+            pytest.param(
+                None,
+                {},
+                id="without_team",
+            ),
+            pytest.param(
+                "team_a",
+                {"team_name": "team_a"},
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS,
+                    reason="team_name metrics require Airflow 3.1+",
+                ),
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.celery.executors.celery_executor.Stats")
+    def test_send_workloads_emits_task_timeout_metric(
+        self,
+        mock_stats,
+        team_name,
+        tags,
+    ):
+        with _prepare_app():
+            executor = celery_executor.CeleryExecutor()
+            executor.team_name = team_name
+
+            key = TaskInstanceKey(
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                try_number=1,
+            )
+            timeout = AirflowTaskTimeout()
+            exception = celery_executor_utils.ExceptionWithTraceback(timeout, "traceback")
+
+            executor.workload_publish_max_retries = 3
+            executor.workload_publish_retries[key] = 0
+            executor.queued_tasks[key] = mock.Mock()
+
+            with mock.patch.object(
+                executor,
+                "_send_workloads_to_celery",
+                return_value=[(key, None, exception)],
+            ):
+                executor._send_workloads([mock.Mock()])
+
+            mock_stats.incr.assert_called_once_with(
+                "celery.task_timeout_error",
+                tags=tags,
+            )
+
+            assert executor.workload_publish_retries[key] == 1
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have execute_command anymore")
     @pytest.mark.parametrize(
@@ -551,6 +616,98 @@ def test_send_workload_uses_external_executor_id_as_celery_task_id():
     assert result.task_id == pre_assigned_id
 
 
+@pytest.mark.parametrize("team_name", [None, "team-a"])
+def test_get_celery_app_for_workload_reuses_cache_for_same_team(team_name):
+    first_app = mock.Mock()
+    second_app = mock.Mock()
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        side_effect=[first_app, second_app],
+    ) as mock_create_celery_app:
+        assert celery_executor_utils._get_celery_app_for_workload(team_name) is first_app
+        assert celery_executor_utils._get_celery_app_for_workload(team_name) is first_app
+
+    mock_create_celery_app.assert_called_once()
+
+
+def test_get_celery_app_for_workload_keeps_cache_team_scoped():
+    team_a_app = mock.Mock()
+    team_b_app = mock.Mock()
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        side_effect=[team_a_app, team_b_app],
+    ) as mock_create_celery_app:
+        assert celery_executor_utils._get_celery_app_for_workload("team-a") is team_a_app
+        assert celery_executor_utils._get_celery_app_for_workload("team-b") is team_b_app
+
+    assert mock_create_celery_app.call_count == 2
+
+
+def test_send_workload_reuses_celery_app_for_same_team():
+    """Publishing multiple workloads for the same team reuses the cached Celery app."""
+    key = TaskInstanceKey(
+        dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1
+    )
+    mock_result = mock.Mock(task_id="mock-task-id")
+    mock_celery_task = mock.Mock()
+    mock_celery_task.apply_async.return_value = mock_result
+    mock_app = mock.Mock()
+    task_name = "execute_workload" if AIRFLOW_V_3_0_PLUS else "execute_command"
+    mock_app.tasks = {task_name: mock_celery_task}
+
+    if AIRFLOW_V_3_0_PLUS:
+        workload = mock.Mock()
+        workload.ti.external_executor_id = None
+        workload.model_dump_json.return_value = "{}"
+    else:
+        workload = ["airflow", "tasks", "run", "test_dag", "test_task", "test_run"]
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        return_value=mock_app,
+    ) as mock_create_celery_app:
+        celery_executor_utils.send_workload_to_executor((key, workload, "default", "team-a"))
+        celery_executor_utils.send_workload_to_executor((key, workload, "default", "team-a"))
+
+    mock_create_celery_app.assert_called_once()
+    assert mock_celery_task.apply_async.call_count == 2
+
+
+def test_send_workload_keeps_celery_app_cache_team_scoped():
+    """Different teams get distinct cached Celery app instances in the publisher process."""
+    key = TaskInstanceKey(
+        dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=-1, try_number=1
+    )
+    mock_result = mock.Mock(task_id="mock-task-id")
+    team_a_task = mock.Mock()
+    team_a_task.apply_async.return_value = mock_result
+    team_b_task = mock.Mock()
+    team_b_task.apply_async.return_value = mock_result
+    task_name = "execute_workload" if AIRFLOW_V_3_0_PLUS else "execute_command"
+    team_a_app = mock.Mock(tasks={task_name: team_a_task})
+    team_b_app = mock.Mock(tasks={task_name: team_b_task})
+
+    if AIRFLOW_V_3_0_PLUS:
+        workload = mock.Mock()
+        workload.ti.external_executor_id = None
+        workload.model_dump_json.return_value = "{}"
+    else:
+        workload = ["airflow", "tasks", "run", "test_dag", "test_task", "test_run"]
+
+    with mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.create_celery_app",
+        side_effect=[team_a_app, team_b_app],
+    ) as mock_create_celery_app:
+        celery_executor_utils.send_workload_to_executor((key, workload, "default", "team-a"))
+        celery_executor_utils.send_workload_to_executor((key, workload, "default", "team-b"))
+
+    assert mock_create_celery_app.call_count == 2
+    team_a_task.apply_async.assert_called_once()
+    team_b_task.apply_async.assert_called_once()
+
+
 @conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
 def test_celery_executor_with_no_recommended_result_backend(caplog):
     import importlib
@@ -688,6 +845,32 @@ def test_result_backend_transport_options_with_multiple_options():
     result_backend_opts = default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]
     assert result_backend_opts["sentinel_kwargs"] == {"password": "redis_password"}
     assert result_backend_opts["master_name"] == "mymaster"
+
+
+@conf_vars(
+    {
+        ("celery", "result_backend"): None,
+        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+    }
+)
+def test_result_backend_derived_from_sql_alchemy_conn_uses_psycopg(monkeypatch):
+    """A driverless sql_alchemy_conn must derive a psycopg (v3) result_backend, not psycopg2."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", True)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg://user:pass@host/db"
+
+
+@conf_vars(
+    {
+        ("celery", "result_backend"): None,
+        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+    }
+)
+def test_result_backend_falls_back_to_psycopg2_without_psycopg3(monkeypatch):
+    """Without psycopg/SQLAlchemy 2.0 available, the derivation must fall back to psycopg2."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", False)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg2://user:pass@host/db"
 
 
 @conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): "invalid_json"})

@@ -48,7 +48,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.2.2"
+ARG AIRFLOW_VERSION="3.3.0"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
 ARG AIRFLOW_PYTHON_VERSION="3.13.14"
@@ -73,7 +73,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.1.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.11.21
+ARG AIRFLOW_UV_VERSION=0.11.29
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -123,6 +123,8 @@ AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 TEMURIN_VERSION=${TEMURIN_VERSION:-11}
+NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
+PNPM_VERSION=${PNPM_VERSION:-10.28.1}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
@@ -514,6 +516,36 @@ https://packages.adoptium.net/artifactory/deb ${DISTRO_CODENAME} main" \
     rm -rf /var/lib/apt/lists/*
 }
 
+function install_nodejs() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A nodejs_targets=(
+        [amd64]="linux-x64"
+        [arm64]="linux-arm64"
+    )
+    declare -A nodejs_sha256s=(
+        # https://nodejs.org/dist/v${NODEJS_VERSION}/SHASUMS256.txt
+        [amd64]="9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578"
+        [arm64]="0294e8b915ab75f92c7513d2fcb830ae06e10684e6c603e99a87dbf8835389c1"
+    )
+    local target="${nodejs_targets[${arch}]}"
+    local nodejs_sha256="${nodejs_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for nodejs: ${arch}"
+        exit 1
+    fi
+    curl --retry 3 --retry-delay 5 \
+        "https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-${target}.tar.xz" \
+        -o /tmp/nodejs.tar.xz
+    echo "${nodejs_sha256}  /tmp/nodejs.tar.xz" | sha256sum --check
+    tar -xJf /tmp/nodejs.tar.xz --strip-components=1 -C /usr/local --no-same-owner
+    rm -f /tmp/nodejs.tar.xz
+    corepack enable --install-directory /usr/local/bin
+    # corepack enable only writes shims; prepare downloads and caches the pnpm binary into the
+    # image so it is available offline and matches the version ts-sdk pins.
+    corepack prepare "pnpm@${PNPM_VERSION}" --activate
+}
+
 function install_rustup() {
     local arch
     arch="$(dpkg --print-architecture)"
@@ -560,6 +592,7 @@ else
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
         install_jdk
+        install_nodejs
     fi
     install_docker_cli
     apt_clean

@@ -45,6 +45,7 @@ from structlog.contextvars import bind_contextvars
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
@@ -135,6 +136,11 @@ from airflow.sdk.execution_time.context import (
     context_to_airflow_vars,
     get_previous_dagrun_success,
     set_current_context,
+)
+from airflow.sdk.execution_time.email_backend import (
+    _DEFAULT_EMAIL_BACKEND,
+    _ErrorEmailNotifier,
+    _LegacyEmailBackendNotifier,
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
@@ -254,10 +260,20 @@ class RuntimeTaskInstance(TaskInstance):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        """Metric tags for this task instance, including team_name when available."""
-        tags: dict[str, str] = {"dag_id": self.dag_id, "task_id": self.task_id}
-        if self._ti_context_from_server and self._ti_context_from_server.dag_run.team_name:
-            tags["team_name"] = self._ti_context_from_server.dag_run.team_name
+        """Metric tags for this task instance, including dag tags and team_name when available."""
+        tags: dict[str, str] = {}
+        if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False):
+            tags.update(build_dag_metric_tags(self.task.dag.tags))
+        # Built-in keys always win on collision.
+        tags.update(dag_id=self.dag_id, task_id=self.task_id)
+        if self._ti_context_from_server:
+            # run_type keeps the tag set consistent with the scheduler-side TaskInstance.stats_tags.
+            # Coerce the DagRunType enum to its bare value so it serializes as e.g. "scheduled" rather
+            # than "dagruntype.scheduled" (matching the scheduler, which emits the plain string).
+            run_type = self._ti_context_from_server.dag_run.run_type
+            tags["run_type"] = getattr(run_type, "value", run_type)
+            if self._ti_context_from_server.dag_run.team_name:
+                tags["team_name"] = self._ti_context_from_server.dag_run.team_name
         return tags
 
     def __rich_repr__(self):
@@ -1001,6 +1017,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_instance = DagBundlesManager().get_bundle(
         name=bundle_info.name,
         version=bundle_info.version,
+        version_data=bundle_info.version_data,
     )
     bundle_instance.initialize()
     _verify_bundle_access(bundle_instance, log)
@@ -1997,19 +2014,38 @@ def _send_error_email_notification(
     error: BaseException | str | None,
     log: Logger,
 ) -> None:
-    """Send email notification for task errors using SmtpNotifier."""
-    try:
-        from airflow.providers.smtp.notifications.smtp import SmtpNotifier
-    except ImportError:
-        log.error(
-            "Failed to send task failure or retry email notification: "
-            "`apache-airflow-providers-smtp` is not installed. "
-            "Install this provider to enable email notifications."
-        )
-        return
+    """
+    Send email notification for task errors through the configured email backend.
 
+    A non-default ``[email] email_backend`` (an SES, SendGrid or org-internal callable with the
+    ``airflow.utils.email.send_email`` signature) is wrapped in
+    :class:`~airflow.sdk.execution_time.email_backend._LegacyEmailBackendNotifier`; otherwise the
+    default :class:`~airflow.providers.smtp.notifications.smtp.SmtpNotifier` is used.
+
+    Both the worker task-runner path (:func:`finalize`) and the DAG-processor callback path
+    (``_execute_email_callbacks``) funnel through this function, so the resolved backend is used
+    consistently regardless of how the task failed.
+    """
     if not task.email:
         return
+
+    email_backend = conf.get("email", "email_backend", fallback=_DEFAULT_EMAIL_BACKEND)
+    notifier_description = "SmtpNotifier"
+
+    if email_backend and email_backend != _DEFAULT_EMAIL_BACKEND:
+        notifier_class: _ErrorEmailNotifier = _LegacyEmailBackendNotifier
+        notifier_description = f"configured email_backend {email_backend!r}"
+    else:
+        try:
+            from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+        except ImportError:
+            log.error(
+                "Failed to send task failure or retry email notification: "
+                "`apache-airflow-providers-smtp` is not installed. "
+                "Install this provider to enable email notifications."
+            )
+            return
+        notifier_class = SmtpNotifier
 
     subject_template_file = conf.get("email", "subject_template", fallback=None)
 
@@ -2053,7 +2089,7 @@ def _send_error_email_notification(
         return
 
     try:
-        notifier = SmtpNotifier(
+        notifier = notifier_class(
             to=to_emails,
             subject=subject,
             html_content=html_content,
@@ -2061,7 +2097,44 @@ def _send_error_email_notification(
         )
         notifier(email_context)
     except Exception:
-        log.exception("Failed to send email notification")
+        log.exception("Failed to send email notification via %s", notifier_description)
+
+
+@detail_span("task.execute")
+def _run_execute_callable(
+    context: Context,
+    execute: Callable[..., Any] | functools.partial[Any],
+    task: BaseOperator,
+) -> Any:
+    """
+    Run the task's execute callable, applying the execution timeout if one is set.
+
+    The contextvars snapshot is taken here, after the ``task.execute`` span is
+    current, so spans the operator emits during ``execute`` nest under it rather
+    than under the caller. ``ExecutorSafeguard``'s tracker is set into that copy
+    so the operator's ``execute`` passes the safeguard check, while the copy keeps
+    the change from leaking into the surrounding context.
+    """
+    ctx = contextvars.copy_context()
+    ctx.run(ExecutorSafeguard.tracker.set, task)
+    if task.execution_timeout:
+        from airflow.sdk.execution_time.timeout import timeout
+
+        # TODO: handle timeout in case of deferral
+        timeout_seconds = task.execution_timeout.total_seconds()
+        try:
+            # It's possible we're already timed out, so fast-fail if true
+            if timeout_seconds <= 0:
+                raise AirflowTaskTimeout()
+            # Run task in timeout wrapper
+            with timeout(timeout_seconds):
+                result = ctx.run(execute, context=context)
+        except AirflowTaskTimeout:
+            task.on_kill()
+            raise
+    else:
+        result = ctx.run(execute, context=context)
+    return result
 
 
 @detail_span("_execute_task")
@@ -2087,10 +2160,6 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-    ctx = contextvars.copy_context()
-    # Populate the context var so ExecutorSafeguard doesn't complain
-    ctx.run(ExecutorSafeguard.tracker.set, task)
-
     # Export context in os.environ to make it available for operators to use.
     airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
     os.environ.update(airflow_context_vars)
@@ -2106,23 +2175,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     log.info("::endgroup::")
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
-
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
-            task.on_kill()
-            raise
-    else:
-        result = ctx.run(execute, context=context)
+    result = _run_execute_callable(context, execute, task)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
@@ -2303,13 +2356,6 @@ def main():
                 log.info("::group::Pre Execute")
                 startup_details = get_startup_details()
 
-                # On macOS fork+exec path, the structured log channel wasn't
-                # inherited (exec replaces the address space). Request it from
-                # the supervisor using the existing ResendLoggingFD mechanism.
-                # Must happen after get_startup_details() so we don't read the
-                # startup message as a ResendLoggingFD response.
-                if os.environ.pop("_AIRFLOW_FORK_EXEC", None) == "1":
-                    reinit_supervisor_comms()
                 span_ctx_mgr = _make_task_span(msg=startup_details)
                 span = stack.enter_context(span_ctx_mgr)
                 ti, context, log = startup(msg=startup_details)
@@ -2332,6 +2378,15 @@ def main():
             ):
                 state, _, error = run(ti, context, log)
                 context["exception"] = error
+                # run() funnels every failure path into `error` rather than
+                # re-raising, so the worker span never sees the exception via
+                # propagation. Mark it here, where the worker span is in scope
+                # regardless of trace detail level.
+                if error is not None:
+                    span.record_exception(error)
+                    span.set_status(
+                        Status(StatusCode.ERROR, description=f"Exception: {type(error).__name__}")
+                    )
                 finalize(ti, state, context, log, error)
                 # If run() couldn't deliver a FAILED / UP_FOR_RETRY terminal
                 # state to the supervisor, fail closed now — finalize() has

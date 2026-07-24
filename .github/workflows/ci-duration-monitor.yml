@@ -49,12 +49,25 @@ jobs:
           # main coverage comes from the scheduled canary runs of the AMD workflow.
           WORKFLOW_NAME: "ci-amd.yml"
           BRANCH: "main"
+          # Only successful (green) canary runs feed the baseline — a failed or cancelled
+          # canary stops partway, so its truncated wall-clock and per-job durations would
+          # skew the trend downwards and mask real regressions. Set explicitly so the
+          # green-only guarantee is visible at the call site and can't be silently changed.
+          ONLY_SUCCESSFUL: "true"
           MAX_RUNS: "25"
+          # Compare the median of the last few nightly runs (not a single run) against the
+          # baseline so one unlucky run — slow PyPI, runner queue pressure, cold cache — does
+          # not trip the alert. With LATEST_RUNS=1 both sides were asymmetric (raw point vs
+          # median) and the alert fired most nights on whichever jobs happened to be slow.
+          LATEST_RUNS: "3"
+          # Network-bound jobs (constraint resolution, provider installs) legitimately swing
+          # tens of minutes run-to-run; require a larger sustained jump before flagging them.
+          JOB_MIN_ABS_INCREASE_MINUTES: "6"
           OUTPUT_FILE: "slack-message.json"
 
       - name: "Post duration alert to Slack"
         if: steps.analyze.outputs.has-regression == 'true'
-        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c  # v3.0.3
+        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}

@@ -45,7 +45,6 @@ class TestGenerateDagWithLatestRunQuery:
     @pytest.fixture(autouse=True)
     def setup_teardown(self):
         """Setup and teardown for each test."""
-        self._clear_db()
         yield
         self._clear_db()
 

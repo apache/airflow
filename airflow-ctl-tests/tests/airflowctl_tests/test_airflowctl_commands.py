@@ -82,8 +82,10 @@ TEST_COMMANDS = [
     "dags list-import-errors",
     "dags list-version example_bash_operator",
     "dags list-warning",
-    # Order of trigger and pause/unpause is important for test stability because state checked
+    # Order of trigger, state, and pause/unpause is important for test stability
     "dags trigger example_bash_operator --logical-date={date_param} --run-after={date_param}",
+    'dags state example_bash_operator "manual__{date_param}"',
+    'dags state example_bash_operator --logical-date "{date_param}"',
     # Test trigger without logical-date (should default to now)
     "dags trigger example_bash_operator",
     "dags next-execution example_bash_operator",
@@ -94,12 +96,20 @@ TEST_COMMANDS = [
     "dags update example_bash_operator --no-is-paused",
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
+    # Tasks commands
+    'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
+    'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
+    'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
+    # Task Instances commands
+    'taskinstances list example_bash_operator "manual__{date_param}"',
     # XCom commands - need a Dag run with completed tasks
     'xcom add example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"test": "value"}}\'',
     'xcom get example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
     'xcom list example_bash_operator "manual__{date_param}" runme_0',
     'xcom edit example_bash_operator "manual__{date_param}" runme_0 {xcom_key} \'{{"updated": "value"}}\'',
     'xcom delete example_bash_operator "manual__{date_param}" runme_0 {xcom_key}',
+    # Delete Dag run command - needs to run after xcom ops
+    'dagrun delete example_bash_operator "manual__{date_param}"',
     # Jobs commands
     "jobs list",
     # Pools commands

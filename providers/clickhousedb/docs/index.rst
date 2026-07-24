@@ -77,7 +77,7 @@ apache-airflow-providers-clickhousedb package
 `ClickHouse <https://clickhouse.com/>`__
 
 
-Release: 1.0.0
+Release: 1.0.1
 
 Provider package
 ----------------
@@ -105,30 +105,11 @@ PIP package                              Version required
 ``clickhouse-connect``                   ``>=1.3.0``
 =======================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-clickhousedb[common.sql]
-
-
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
-
 Downloading official packages
 -----------------------------
 
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-clickhousedb 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-clickhousedb 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-clickhousedb 1.0.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-clickhousedb 1.0.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_clickhousedb-1.0.1-py3-none-any.whl.sha512>`__)

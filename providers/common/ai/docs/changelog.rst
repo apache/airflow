@@ -25,6 +25,86 @@
 Changelog
 ---------
 
+0.7.0
+.....
+
+.. note::
+    The ``skills`` extra now requires ``pydantic-ai-skills>=1.2.0`` (previously ``>=0.11.0``);
+    the file-exclusion support added in #69924 relies on the 1.x API. Every 0.x release is
+    excluded, so environments that pin ``pydantic-ai-skills`` below 1.2.0 will fail to resolve
+    ``apache-airflow-providers-common-ai[skills]``. To migrate, upgrade ``pydantic-ai-skills``
+    to 1.2.0 or newer; if you cannot, stay on ``common.ai`` 0.6.0. Installations that do not use
+    the ``skills`` extra are unaffected.
+
+Features
+~~~~~~~~
+
+* ``Add AWS services toolset for agents to access 1000+ APIs (#70087)``
+* ``Add pydantic-ai capability matrix references doc to Common AI (#69887)``
+* ``Support excluding files from 'common.ai' Agent Skills discovery (#69924)``
+* ``Use task state store for 'common.ai' durable execution on Airflow 3.3+ (#68926)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow Common AI SQL imports without DataFusion (#69990)``
+* ``Fix HITL review showing altered agent output to reviewers (#70070)``
+* ``Fix 'LLMSQLQueryOperator' not stripping single-line markdown code fences (#70137)``
+* ``Harden common.ai SQLToolset allowed_tables against function/COPY bypass (#70134)``
+* ``Preserve output_type through human approval in LLM operators (#70075)``
+* ``Fix DocumentLoaderOperator ignoring unknown parser on byte input (#70071)``
+* ``Reject unsupported require_approval in LLM branch and schema compare operators (#70069)``
+* ``Fix '@task.llm_branch' import failure on Task SDK-only workers (#70068)``
+* ``Fix common.ai durable execution skipping Toolset-capability tools (#69881)``
+
+Misc
+~~~~
+
+* ``Add dataclasses-json floor to common.ai llamaindex extra (#69755)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add self-hosted model guide for the common.ai provider (#69867)``
+* ``Update retired model ids and fill doc gaps in common.ai provider docs (#69711)``
+* ``Add quick start guide to common.ai provider docs (#69552)``
+* ``Document the dynamic 'system_prompt' pattern for common-ai agents (#69636)``
+* ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
+* ``Add an Examples entry point to the common.ai provider docs (#69650)``
+* ``Document when to use common.ai vs vendor-specific AI providers (#69551)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix toolsets python-modules check for common.ai provider (#70181)``
+   * ``Add toolset as a provider module category (#70122)``
+   * ``[main] Upgrade important CI environment (#69694)``
+   * ``Guard code_mode example DAG on SQLToolset import (#69677)``
+
+
+0.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'env_provider' and 'Extra.env' support to MCP stdio transport (#69225)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace deprecated 'pydantic-ai' MCP classes with 'MCPToolset' in 'common.ai' (#69006)``
+
+Misc
+~~~~
+
+* ``Migrate common.ai provider to pydantic-ai 2.x and remove the <2 cap (#69358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``[main] Upgrade important CI environment (#68933)``
+
 0.5.0
 .....
 

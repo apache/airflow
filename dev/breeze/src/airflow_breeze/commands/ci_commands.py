@@ -41,6 +41,8 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.global_constants import (
+    CI_AMD_PLATFORM,
+    CI_PLATFORMS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MILESTONE_BUG_LABELS,
     MILESTONE_SKIP_LABELS,
@@ -58,7 +60,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.github import retrieve_github_token
+from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
@@ -237,6 +239,16 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     default="",
 )
 @click.option(
+    "--platform",
+    "ci_platform",
+    type=BetterChoice(CI_PLATFORMS),
+    default=CI_AMD_PLATFORM,
+    help="Platform the tests of this run execute on. "
+    "It decides which integrations and providers are testable.",
+    envvar="PLATFORM",
+    show_default=True,
+)
+@click.option(
     "--github-context",
     help="GitHub context (JSON formatted) passed by GitHub Actions",
     envvar="GITHUB_CONTEXT",
@@ -262,6 +274,7 @@ def selective_check(
     github_actor: str,
     github_context: str,
     github_context_input: StringIO | None,
+    ci_platform: str,
 ):
     try:
         from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -287,6 +300,7 @@ def selective_check(
             github_repository=github_repository,
             github_actor=github_actor,
             github_context_dict=github_context_dict,
+            platform=ci_platform,
         )
         print(str(sc), file=sys.stderr)
     except Exception:
@@ -780,7 +794,7 @@ def upgrade(
 
     console_print("[info]Running upgrade of important CI environment.[/]")
 
-    github_token = retrieve_github_token(github_token)
+    github_token = retrieve_github_token(github_token, description="airflow-ci-upgrade", scopes="public_repo")
 
     # Create a copy of the environment to pass to commands
     command_env = os.environ.copy()
@@ -791,7 +805,8 @@ def upgrade(
     else:
         console_print(
             "[warning]Could not retrieve GitHub token from --github-token, gh CLI, or token env. "
-            "Commands may fail if they require authentication.[/]"
+            "Commands may fail if they require authentication. "
+            f"{format_github_token_scope_guidance(description='airflow-ci-upgrade', scopes='public_repo')}[/]"
         )
 
     # All upgrade commands run locally with check=False to continue on errors.

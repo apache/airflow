@@ -27,6 +27,57 @@
 Changelog
 ---------
 
+14.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Fix Azure Data Factory hook broken with azure-mgmt-datafactory 10 (#69800)``
+
+  The minimum ``azure-mgmt-datafactory`` requirement moves from ``2.0.0`` to ``10.0.0``. SDK 10 replaced the ``if_match``/``if_none_match`` arguments with an ``etag`` + ``match_condition`` pair (see the `azure-mgmt-datafactory changelog <https://github.com/Azure/azure-sdk-for-python/blob/main/sdk/datafactory/azure-mgmt-datafactory/CHANGELOG.md#breaking-changes>`__), and ``AzureDataFactoryHook`` now calls the new form unconditionally, so it no longer works against older SDKs. To migrate, upgrade ``azure-mgmt-datafactory`` to 10.0.0 or newer in your Airflow environment. Your Dag code does not need to change: the hook keeps its ``if_match``/``if_none_match`` parameters and translates them internally. If you cannot upgrade the SDK yet, stay on the 13.x line of this provider.
+
+Features
+~~~~~~~~
+
+* ``Add Azure AI Foundry Agents operators (Create, Update, Delete, Run) (#68799)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace vars(response) with attribute access in Azure Data Factory and Synapse operators for SDK v10 compatibility (#69689)``
+* ``Fix WASB log source URLs to use storage account endpoint (#68510)``
+* ``Construct default token_endpoint for msgraph filesystem (#69463) (#69522)``
+* ``Restrict MSGraph pagination nextLink to the configured host (#69742)``
+* ``Introduced CachedAsyncTokenCredential which keeps the session open during lifecycle of cached RequestAdapter (#69365)``
+
+Misc
+~~~~
+
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Azure Data Factory async test on azure-mgmt-datafactory 10 (#69798)``
+   * ``Fix Azure Data Factory test broken by azure-mgmt-datafactory update (#69785)``
+
+
+13.5.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``refactor: Fix _is_http_client_closed returning True for a transport that was never opened (#69329)``
+* ``Invalidate cached RequestAdapter of KiotaRequestAdapterHook if session of AuthenticationProvider is closed (#69128)``
+* ``Fix msgraph/Power BI auth failure from empty allowed_hosts list (#69014)``
+* ``MSgraph: fix UnicodeDecodeError in DefaultResponseHandler when response content is binary (#68495)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 13.5.0
 ......
 

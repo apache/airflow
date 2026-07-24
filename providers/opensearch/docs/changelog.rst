@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent malformed OpenSearch log entries from crashing task log fetch (#69307)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+1.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Show running task logs in the UI with OpenSearch remote logging (#69407)``
+* ``Generalize extra parameters (#65613)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 1.10.0
 ......
 

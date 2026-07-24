@@ -19,7 +19,7 @@ assets:
   get: "Retrieve an asset by its ID"
   get-by-alias: "Retrieve an asset by its alias"
   list: "List all assets"
-  list-by-alias: "List all asset aliases"
+  list-aliases: "List all asset aliases"
   create-event: "Create an event for a given asset"
   materialize: "Trigger materialization of an asset by its ID"
   get-queued-events: "List queued events for a given asset"
@@ -64,11 +64,13 @@ dags:
   get-version: "Retrieve a specific version of a Dag"
   list-version: "List all versions of a Dag"
   list-warning: "List all Dag warnings"
+  state: "Get the status of a Dag run"
   trigger: "Trigger a new Dag run"
 
 dagrun:
   get: "Retrieve a Dag run by Dag ID and run ID"
   list: "List Dag runs, optionally filtered by state and date range"
+  delete: "Delete a Dag run by Dag ID and run ID"
 
 jobs:
   list: "List scheduler, triggerer, and other Airflow jobs"
@@ -82,6 +84,12 @@ pools:
 
 providers:
   list: "List all installed Airflow providers"
+
+taskinstances:
+  list: "List all task instances for a given Dag run"
+
+tasks:
+  clear: "Clear task instances of a Dag by its ID"
 
 variables:
   get: "Retrieve a variable by its key"

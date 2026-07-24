@@ -97,7 +97,7 @@ from airflow.models.connection_test import (
     ConnectionTestState,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion
+from airflow.models.dag_version import DagVersion, _resolve_version_data
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -185,6 +185,26 @@ def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
         base.selectinload(AssetEvent.asset),
         base.selectinload(AssetEvent.source_aliases),
     )
+
+
+def _resolve_ti_callback_bundle_info(ti: TaskInstance) -> tuple[str, str | None, Any]:
+    """
+    Resolve the bundle name/version/version-data needed to build a TaskCallbackRequest or EmailRequest.
+
+    Used by the heartbeat-timeout purge path. Encapsulates the bundle-pinning semantics: fall back
+    to ``dag_model`` for legacy tasks with no ``dag_version`` (pre-AIP-66 migrations), and leave the
+    bundle version unpinned when the dag run itself wasn't pinned (``disable_bundle_versioning``),
+    so the callback runs against the same code as the task did. ``process_executor_events`` inlines
+    the same resolution for its externally-killed-task path.
+    """
+    bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
+    bundle_version = (
+        ti.dag_version.bundle_version
+        if ti.dag_version and ti.dag_run.bundle_version is not None
+        else ti.dag_run.bundle_version
+    )
+    version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
+    return bundle_name, bundle_version, version_data
 
 
 def _ensure_ti_has_dag_version_id(ti: TaskInstance, session: Session, log: Logger) -> bool:
@@ -334,6 +354,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._scheduler_use_job_schedule = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
         self._parallelism = conf.getint("core", "parallelism")
         self._multi_team = conf.getboolean("core", "multi_team")
+        self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
@@ -684,6 +705,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ranked_query.c.map_index_for_ordering,
                 )
                 .options(selectinload(TI.dag_model))
+                # Eager-load the run's pinned DagVersion (dag_run.created_dag_version): TIs become
+                # transient (via make_transient) before ExecuteTask.make() reads
+                # ti.dag_run.created_dag_version.version_data to ship the bundle manifest matching
+                # the run's pinned bundle_version. Lazy loads on transient objects silently return
+                # None instead of raising DetachedInstanceError. Scope the SELECT to version_data
+                # (the PK is auto-included) so we read two columns rather than the full row.
+                .options(
+                    joinedload(TI.dag_run)
+                    .selectinload(DagRun.created_dag_version)
+                    .load_only(DagVersion.version_data)
+                )
             )
 
             query = query.limit(max_tis)
@@ -730,10 +762,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     list(unique_dag_ids),
                 )
                 for ti in task_instances_to_examine:
-                    # Set team as a transient attribute; team lives on the Bundle, not
-                    # on the TI/DagRun schema, so we resolve it at scheduling time.
+                    # Team lives on the Bundle, not the TI/DagRun schema, so resolve it at scheduling
+                    # time and stash it on the dag run, where stats_tags reads it for metric tagging.
                     if team := dag_id_to_team_name.get(ti.dag_id):
-                        ti._team_name = team
+                        ti.dag_run._team_name = team
 
             executor_slots_available: dict[ExecutorName, int] = {}
             # First get a mapping of executor names to slots they have available
@@ -1248,16 +1280,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return conf.getboolean("traces", "otel_on")
 
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
-        return SchedulerJobRunner.process_executor_events(
-            executor=executor,
-            job_id=self.job.id,
-            scheduler_dag_bag=self.scheduler_dag_bag,
-            session=session,
-        )
+        try:
+            return SchedulerJobRunner.process_executor_events(
+                executor=executor,
+                job_id=self.job.id,
+                scheduler_dag_bag=self.scheduler_dag_bag,
+                session=session,
+                eagerly_load_dag_tags=self._dag_tags_in_metrics,
+            )
+        except Exception as exc:
+            stats.incr("scheduler.executor_events.failed", tags={"exception_class": type(exc).__name__})
+            raise
+
+    @staticmethod
+    def _emit_executor_events_batch_metrics(num_events: int) -> None:
+        stats.gauge("scheduler.executor_events.batch_size", num_events)
+        stats.incr("scheduler.executor_events.processed", num_events)
 
     @classmethod
     def process_executor_events(
-        cls, executor: BaseExecutor, job_id: int | None, scheduler_dag_bag: DBDagBag, session: Session
+        cls,
+        executor: BaseExecutor,
+        job_id: int | None,
+        scheduler_dag_bag: DBDagBag,
+        session: Session,
+        eagerly_load_dag_tags: bool = False,
     ) -> int:
         """
         Process task completion events from the executor and update task instance states.
@@ -1280,6 +1327,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param job_id: The scheduler job ID, used to detect task requeuing by other schedulers
         :param scheduler_dag_bag: Serialized DAG bag for retrieving task definitions
         :param session: Database session for task instance updates
+        :param eagerly_load_dag_tags: When True, eager-load dag_model.tags so the per-finished-task
+            metrics carry Dag tags without a per-TI lazy load. The scheduler passes its cached flag so
+            the hot path never reads conf; other callers (e.g. ``dag.test()``) leave it at the default.
 
         :return: Number of events processed from the executor event buffer
 
@@ -1291,6 +1341,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
+        num_events = len(event_buffer)
         tis_with_right_state: list[TaskInstanceKey] = []
         callback_keys_with_events: list[CallbackKey] = []
 
@@ -1352,11 +1403,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Return if no finished tasks
         if not tis_with_right_state:
+            cls._emit_executor_events_batch_metrics(num_events)
             return len(event_buffer)
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
         if filter_for_tis is None:
+            cls._emit_executor_events_batch_metrics(num_events)
             return len(event_buffer)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
         query = (
@@ -1368,6 +1421,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .options(joinedload(TI.dag_run).selectinload(DagRun.created_dag_version))
             .options(joinedload(TI.dag_version))
         )
+        # When emitting Dag tags as metric tags, eager-load dag_model.tags so the per-finished-task
+        # ti_failures / operator_failures / task.*_duration metrics carry them without a per-TI lazy load.
+        # TI already joins DagModel by dag_id, so warm tags off that relationship directly rather than
+        # via the dag_run hop; the DagModel is shared in the identity map, so dag_run.dag_model.tags is free.
+        if eagerly_load_dag_tags:
+            query = query.options(selectinload(TI.dag_model).selectinload(DagModel.tags))
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
@@ -1433,6 +1492,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # or the TI is queued by another job. Either ways we should not fail it.
             # 3) the trigger already put the TI back to scheduled (resume after defer) but the executor success
             # from the worker exit after defer() has not been processed yet - should not fail it.
+            # 4) the trigger already put the TI back to queued (resume after defer) but the executor success
+            # from the worker exit after defer() has not been processed yet - should not fail it.
 
             # All of this could also happen if the state is "running",
             # but that is handled by the scheduler detecting task instances without heartbeats.
@@ -1447,9 +1508,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
                 or (
-                    # Resume-after-defer: trigger moved TI to scheduled (next_method set) before we saw the
-                    # executor success from the defer exit for the same try_number.
-                    ti.state == TaskInstanceState.SCHEDULED
+                    # Resume-after-defer: trigger moved TI to scheduled or queued (next_method set)
+                    # before we saw the executor success from the defer exit for the same try_number.
+                    ti.state in (TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED)
                     and state == TaskInstanceState.SUCCESS
                     and ti.next_method is not None
                 )
@@ -1506,6 +1567,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
                     )
+                    _version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1513,6 +1575,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_bundle_name,
                         bundle_version=_bundle_version,
+                        version_data=_version_data,
                         ti=ti,
                         msg=msg,
                         task_callback_type=(
@@ -1555,6 +1618,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     _email_bundle_version = (
                         ti.dag_version.bundle_version if ti.dag_version else ti.dag_run.bundle_version
                     )
+                    _email_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
@@ -1562,6 +1626,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         filepath=ti.dag_model.relative_fileloc or "",
                         bundle_name=_email_bundle_name,
                         bundle_version=_email_bundle_version,
+                        version_data=_email_version_data,
                         ti=ti,
                         msg=msg,
                         email_type="retry" if ti.is_eligible_to_retry() else "failure",
@@ -1578,6 +1643,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
+        cls._emit_executor_events_batch_metrics(num_events)
         return len(event_buffer)
 
     def _execute(self) -> int | None:
@@ -1613,7 +1679,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if settings.Session is not None:
                 settings.Session.remove()
-        except Exception:
+        except Exception as exc:
+            stats.incr("scheduler.loop_exceptions", tags={"exception_class": type(exc).__name__})
             self.log.exception("Exception when executing SchedulerJob._run_scheduler_loop")
             raise
         finally:
@@ -1896,7 +1963,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # examining, rather than making one query per DagRun.
             # Materialize into a list because the multi-team block below iterates
             # the result and ScalarResult is a one-pass iterator.
-            dag_runs = list(DagRun.get_running_dag_runs_to_examine(session=session))
+            dag_runs = list(
+                DagRun.get_running_dag_runs_to_examine(
+                    session=session, eagerly_load_dag_tags=self._dag_tags_in_metrics
+                )
+            )
 
             if self._multi_team and dag_runs:
                 unique_dag_ids = {dr.dag_id for dr in dag_runs}
@@ -2391,19 +2462,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate DagRuns
-        existing_dagrun_objects = (
-            session.scalars(
-                select(DagRun)
-                .where(
-                    tuple_(DagRun.dag_id, DagRun.logical_date).in_(
-                        (dm.dag_id, dm.next_dagrun) for dm in dag_models
-                    )
+        existing_dagrun_objects = session.scalars(
+            select(DagRun)
+            .where(
+                tuple_(DagRun.dag_id, DagRun.logical_date).in_(
+                    (dm.dag_id, dm.next_dagrun) for dm in dag_models
                 )
-                .options(load_only(DagRun.dag_id, DagRun.logical_date))
             )
-            .unique()
-            .all()
-        )
+            .options(load_only(DagRun.dag_id, DagRun.logical_date))
+        ).all()
         existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
 
         # backfill runs are not created by scheduler and their concurrency is separate
@@ -2581,6 +2648,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .cte()
             )
 
+            # A first asset-triggered run has no previous run to floor the event window. With
+            # catchup off, floor it at when the Dag started scheduling on its assets so the
+            # backlog is skipped; with catchup on, only date.min applies and the backlog replays.
+            event_window_floor: list[Any] = [cte.c.previous_dag_run_run_after]
+            if not dag.catchup:
+                event_window_floor.append(
+                    select(func.min(DagScheduleAssetReference.created_at))
+                    .where(DagScheduleAssetReference.dag_id == dag.dag_id)
+                    .scalar_subquery()
+                )
+            event_window_floor.append(date.min)
+
             asset_events = list(
                 session.scalars(
                     select(AssetEvent)
@@ -2598,7 +2677,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ),
                         ),
                         AssetEvent.timestamp <= triggered_date,
-                        AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
+                        AssetEvent.timestamp > func.coalesce(*event_window_floor),
                     )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
@@ -3062,6 +3141,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if ti.dag_version and ti.dag_run.bundle_version is not None
                         else ti.dag_run.bundle_version
                     )
+                    _stuck_version_data = _resolve_version_data(ti.dag_version, ti.dag_run.bundle_version)
                     # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
                     # Note: we cannot use `continue` here because this method is not
                     # inside a loop.  If backfilling fails we simply skip the callback.
@@ -3070,6 +3150,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             filepath=ti.dag_model.relative_fileloc or "",
                             bundle_name=_stuck_bundle_name,
                             bundle_version=_stuck_bundle_version,
+                            version_data=_stuck_version_data,
                             ti=ti,
                             msg=msg,
                             context_from_server=TIRunContext(
@@ -3327,7 +3408,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                     stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
                     stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
-
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
                         self.log.info(
@@ -3475,6 +3555,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if task_instances_without_heartbeats := self._find_task_instances_without_heartbeats(
                 session=session
             ):
+                stats.incr(
+                    "scheduler.zombies.detected",
+                    len(task_instances_without_heartbeats),
+                    tags={"reason": "heartbeat_timeout"},
+                )
                 self._purge_task_instances_without_heartbeats(
                     task_instances_without_heartbeats, session=session
                 )
@@ -3483,22 +3568,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._task_instance_heartbeat_timeout_secs)
         asset_loader, alias_loader = _eager_load_dag_run_for_validation()
-        task_instances_without_heartbeats = list(
-            session.scalars(
-                select(TI)
-                .options(selectinload(TI.dag_model))
-                .options(asset_loader)
-                .options(alias_loader)
-                .options(selectinload(TI.dag_version))
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                .join(DM, TI.dag_id == DM.dag_id)
-                .where(
-                    TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
-                    TI.last_heartbeat_at < limit_dttm,
-                )
-                .where(TI.queued_by_job_id == self.job.id)
+        query = (
+            select(TI)
+            .options(selectinload(TI.dag_model))
+            .options(asset_loader)
+            .options(alias_loader)
+            .options(selectinload(TI.dag_version))
+            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+            .join(DM, TI.dag_id == DM.dag_id)
+            .where(
+                TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
+                TI.last_heartbeat_at < limit_dttm,
             )
+            .where(TI.queued_by_job_id == self.job.id)
         )
+        # Lock the rows (FOR UPDATE, of=TI so the FOR UPDATE isn't applied to the joined dag_model)
+        # so a worker can't commit a terminal state on the same TI between this scan and the
+        # handle_failure() in the purge that follows in the same transaction. skip_locked keeps HA
+        # schedulers from blocking on each other. _purge_task_instances_without_heartbeats still
+        # revalidates each row's state before acting, as defense in depth.
+        query = with_row_locks(query, of=TI, session=session, skip_locked=True)
+        task_instances_without_heartbeats = list(session.scalars(query))
         if task_instances_without_heartbeats:
             self.log.warning(
                 "Failing %s TIs without heartbeat after %s",
@@ -3513,42 +3603,76 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if self._multi_team:
             unique_dag_ids = {ti.dag_id for ti in task_instances_without_heartbeats}
             dag_id_to_team_name = self._get_team_names_for_dag_ids(unique_dag_ids, session)
-            for ti in task_instances_without_heartbeats:
-                if team := dag_id_to_team_name.get(ti.dag_id):
-                    ti._team_name = team
         else:
             dag_id_to_team_name = {}
 
         for ti in task_instances_without_heartbeats:
+            # The scan locked this row (FOR UPDATE / skip_locked), but revalidate against the
+            # committed state before emitting any side effect: a worker can commit a terminal state
+            # (e.g. SUCCESS) around the same time the scan runs. Failing the TI here would clobber
+            # that terminal state and emit a spurious failure callback. Mirrors the lock-then-recheck
+            # guard in process_executor_events.
+            ti.refresh_from_db(session=session)
+            if ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING):
+                self.log.info(
+                    "Task instance %s is no longer running (state=%s); skipping heartbeat-timeout purge",
+                    ti,
+                    ti.state,
+                )
+                continue
+
             task_instance_heartbeat_timeout_message_details = (
                 self._generate_task_instance_heartbeat_timeout_message_details(ti)
             )
-            # Safely extract bundle info with fallback for legacy tasks
-            # (dag_version may be None after Airflow 2 → 3 migration).
-            _hb_bundle_name = ti.dag_version.bundle_name if ti.dag_version else ti.dag_model.bundle_name
-            # Mirror dag_run pinning: if the run wasn't pinned (e.g. dag.disable_bundle_versioning=True),
-            # leave the callback unpinned so it runs against the same code as the task.
-            _hb_bundle_version = (
-                ti.dag_version.bundle_version
-                if ti.dag_version and ti.dag_run.bundle_version is not None
-                else ti.dag_run.bundle_version
+            msg = str(task_instance_heartbeat_timeout_message_details)
+
+            # Load the serialized task, mirroring how process_executor_events' external-kill path
+            # loads it, so handle_failure() below can see fail_fast (ti.task.dag.fail_fast) instead
+            # of silently skipping it, and so email/callback gating below can check the real task
+            # definition. Unlike that path, there's no executor-reported state to fall back to here,
+            # so a load failure still falls through to fail the TI below, just without task context.
+            try:
+                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                if not dag:
+                    raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+                task = dag.get_task(ti.task_id)
+            except Exception:
+                self.log.exception(
+                    "Could not load task for heartbeat-timed-out task instance %s; "
+                    "continuing without fail_fast/email context",
+                    ti,
+                )
+                task = None
+            ti.task = task
+
+            # Single source of truth for the retry decision, matching
+            # TaskInstance.fetch_handle_failure_context exactly, so the callback type sent here can
+            # never disagree with the state handle_failure() actually persists below (this previously
+            # diverged for RESTARTING task instances with max_tries=0).
+            task_callback_type = (
+                TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
             )
+
+            bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
             # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
             if not _ensure_ti_has_dag_version_id(ti, session, self.log):
                 continue
+            context_from_server = TIRunContext(
+                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                max_tries=ti.max_tries,
+                variables=[],
+                connections=[],
+                xcom_keys_to_clear=[],
+            )
             request = TaskCallbackRequest(
                 filepath=ti.dag_model.relative_fileloc or "",
-                bundle_name=_hb_bundle_name,
-                bundle_version=_hb_bundle_version,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
                 ti=ti,
-                msg=str(task_instance_heartbeat_timeout_message_details),
-                context_from_server=TIRunContext(
-                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                    max_tries=ti.max_tries,
-                    variables=[],
-                    connections=[],
-                    xcom_keys_to_clear=[],
-                ),
+                msg=msg,
+                task_callback_type=task_callback_type,
+                context_from_server=context_from_server,
             )
             session.add(
                 Log(
@@ -3569,6 +3693,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 request,
             )
             self.executor.send_callback(request)
+
+            # This purge path leaves the executor's own "task finished but TI still looked queued"
+            # handling in process_executor_events unreachable for this TI once handle_failure() below
+            # moves it out of RUNNING, so the email notification has to be sent from here directly.
+            if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
+                self.executor.send_callback(
+                    EmailRequest(
+                        filepath=ti.dag_model.relative_fileloc or "",
+                        bundle_name=bundle_name,
+                        bundle_version=bundle_version,
+                        version_data=version_data,
+                        ti=ti,
+                        msg=msg,
+                        email_type=(
+                            "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
+                        ),
+                        context_from_server=context_from_server,
+                    )
+                )
+
+            ti.handle_failure(error=msg, session=session)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )

@@ -25,7 +25,8 @@ dayjs.extend(dayjsDuration);
 dayjs.extend(relativeTime);
 dayjs.extend(tz);
 
-export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
+export const DATE_FORMAT = "YYYY-MM-DD";
+export const DEFAULT_DATETIME_FORMAT = `${DATE_FORMAT} HH:mm:ss`;
 export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
 export const renderDuration = (
@@ -52,6 +53,56 @@ export const renderDuration = (
 
   // If under 1 day, render as HH:mm:ss otherwise include the number of days
   return duration.asSeconds() < 86_400 ? duration.format("HH:mm:ss") : duration.format("D[d]HH:mm:ss");
+};
+
+// Chart axes need whole units at a glance; HH:mm:ss forces the reader to decode
+// every tick to work out the magnitude.
+export const renderCompactDuration = (durationSeconds: number): string => {
+  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+    return "0s";
+  }
+
+  if (durationSeconds < 1) {
+    return `${Math.round(durationSeconds * 1000)}ms`;
+  }
+
+  const duration = dayjs.duration(Math.round(durationSeconds), "seconds");
+  const days = Math.floor(duration.asDays());
+  const hours = duration.hours();
+  const minutes = duration.minutes();
+  const seconds = duration.seconds();
+
+  if (days > 0) {
+    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  }
+
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  }
+
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+
+  return `${seconds}s`;
+};
+
+// Chart.js picks decimal steps, which on a time axis reads as 26m 40s / 33m 20s.
+// Snapping to units people actually count in keeps the ticks legible.
+const DURATION_TICK_STEPS_SECONDS = [
+  1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 10_800, 21_600, 43_200, 86_400, 172_800,
+  604_800,
+];
+
+export const getDurationTickStep = (maxSeconds: number, maxTicks = 8): number => {
+  if (!Number.isFinite(maxSeconds) || maxSeconds <= 0) {
+    return 1;
+  }
+
+  return (
+    DURATION_TICK_STEPS_SECONDS.find((candidate) => maxSeconds / candidate <= maxTicks) ??
+    Math.ceil(maxSeconds / maxTicks)
+  );
 };
 
 export const getDuration = (

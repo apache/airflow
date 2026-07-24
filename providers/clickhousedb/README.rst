@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-clickhousedb``
 
-Release: ``1.0.0``
+Release: ``1.0.1``
 
 
 `ClickHouse <https://clickhouse.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``clickhousedb`` provider. All classes for this p
 are in ``airflow.providers.clickhousedb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-clickhousedb/1.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-clickhousedb/1.0.1/>`_.
 
 Installation
 ------------
@@ -58,24 +58,5 @@ PIP package                              Version required
 ``clickhouse-connect``                   ``>=1.3.0``
 =======================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-clickhousedb[common.sql]
-
-
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-clickhousedb/1.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-clickhousedb/1.0.1/changelog.html>`_.

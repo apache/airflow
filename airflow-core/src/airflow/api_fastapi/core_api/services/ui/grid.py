@@ -43,6 +43,7 @@ class GridNodeAgg:
     min_start_date: datetime | None = None
     max_end_date: datetime | None = None
     dag_version_number: int | None = None
+    has_note: bool = False
 
     def add_ti(
         self,
@@ -51,6 +52,7 @@ class GridNodeAgg:
         start_date: datetime | None,
         end_date: datetime | None,
         dag_version_number: int | None,
+        has_note: bool = False,
     ) -> None:
         """Merge one task instance row into the summary."""
         self.child_states[state] += 1
@@ -62,6 +64,7 @@ class GridNodeAgg:
             self.dag_version_number is None or dag_version_number > self.dag_version_number
         ):
             self.dag_version_number = dag_version_number
+        self.has_note = self.has_note or has_note
 
     def merge(self, other: GridNodeAgg) -> None:
         """Merge another summary into this one."""
@@ -78,6 +81,7 @@ class GridNodeAgg:
             self.dag_version_number is None or other.dag_version_number > self.dag_version_number
         ):
             self.dag_version_number = other.dag_version_number
+        self.has_note = self.has_note or other.has_note
 
     def with_placeholder_state(self) -> GridNodeAgg:
         """Represent mapped tasks without rows as a single no-status square in the grid."""
@@ -133,6 +137,7 @@ def _get_aggs_for_node(summary: GridNodeAgg) -> dict[str, Any]:
         "max_end_date": summary.max_end_date,
         "child_states": _serialize_child_states(summary.child_states),
         "dag_version_number": summary.dag_version_number,
+        "has_note": summary.has_note,
     }
 
 

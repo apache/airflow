@@ -28,6 +28,7 @@ import warnings
 from base64 import b64encode
 from collections.abc import Callable
 from configparser import ConfigParser
+from importlib.util import find_spec
 from inspect import ismodule
 from io import StringIO
 from re import Pattern
@@ -372,12 +373,18 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         Upgrade SQL schemas.
 
         As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres`
-        must be replaced with `postgresql`.
+        must be replaced with `postgresql+psycopg` if the psycopg (v3) driver
+        is installed, or `postgresql+psycopg2` otherwise. The bare `postgresql`
+        scheme is upgraded the same way to make the driver explicit.
         """
         section, key = "database", "sql_alchemy_conn"
         old_value = self.get(section, key, _extra_stacklevel=1)
-        bad_schemes = ["postgres+psycopg2", "postgres"]
-        good_scheme = "postgresql"
+        bad_schemes = ["postgres+psycopg2", "postgres", "postgresql"]
+        # The provider-side hooks (common.sql / postgres / amazon) also gate psycopg (v3) on an
+        # ``_is_sqlalchemy_2()`` check, because they support Airflow 2.11 on SQLAlchemy 1.4, which has
+        # no native ``postgresql+psycopg`` dialect. airflow-core pins ``sqlalchemy>=2.0``, so that
+        # dialect is always present when the package is importable — ``find_spec`` alone suffices here.
+        good_scheme = "postgresql+psycopg" if find_spec("psycopg") is not None else "postgresql+psycopg2"
         parsed = urlsplit(old_value)
         if parsed.scheme in bad_schemes:
             warnings.warn(

@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -68,6 +69,7 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskInstanceCollectionResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -86,6 +88,16 @@ if TYPE_CHECKING:
 log = structlog.get_logger(logger_name=__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+
+def _serialize_query_param(value: Any) -> Any:
+    if isinstance(value, datetime.datetime):
+        return value.isoformat()
+    return value
+
+
+def _build_query_params(**values: Any) -> dict[str, Any]:
+    return {name: _serialize_query_param(value) for name, value in values.items() if value is not None}
 
 
 # Generic Server Response Error
@@ -269,8 +281,8 @@ class AssetsOperations(BaseOperations):
         """List all assets from the API server."""
         return super().execute_list(path="assets", data_model=AssetCollectionResponse)
 
-    def list_by_alias(self) -> AssetAliasCollectionResponse | ServerResponseError:
-        """List all assets by alias from the API server."""
+    def list_aliases(self) -> AssetAliasCollectionResponse | ServerResponseError:
+        """List all assets aliases from the API server."""
         return super().execute_list(path="/assets/aliases", data_model=AssetAliasCollectionResponse)
 
     def create_event(
@@ -601,10 +613,15 @@ class DagsOperations(BaseOperations):
 class DagRunOperations(BaseOperations):
     """Dag run operations."""
 
-    def get(self, dag_id: str, dag_run_id: str) -> DAGRunResponse | ServerResponseError:
+    def get(
+        self, dag_id: str, dag_run_id: str, *, suppress_error_log: bool = False
+    ) -> DAGRunResponse | ServerResponseError:
         """Get a dag run."""
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns/{dag_run_id}",
+                extensions={"airflowctl_suppress_error_log": suppress_error_log},
+            )
             return DAGRunResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
@@ -616,6 +633,11 @@ class DagRunOperations(BaseOperations):
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
+        logical_date_gte: datetime.datetime | None = None,
+        logical_date_lte: datetime.datetime | None = None,
+        order_by: str | None = None,
+        *,
+        suppress_error_log: bool = False,
     ) -> DAGRunCollectionResponse | ServerResponseError:
         """
         List dag runs (at most `limit` results).
@@ -626,22 +648,40 @@ class DagRunOperations(BaseOperations):
             end_date: Filter dag runs by end date (optional)
             limit: Limit the number of results returned
             dag_id: The DAG ID to filter by. If None, retrieves dag runs for all DAGs (using "~").
+            logical_date_gte: Filter dag runs with a logical date greater than or equal to this value.
+            logical_date_lte: Filter dag runs with a logical date less than or equal to this value.
+            order_by: Order the results by the specified field.
+            suppress_error_log: Skip client-side error logging, for callers handling the error themselves.
         """
         # Use "~" for all DAGs if dag_id is not specified
         if not dag_id:
             dag_id = "~"
 
-        params: dict[str, Any] = {"limit": limit}
-        if state is not None:
-            params["state"] = str(state)
-        if start_date is not None:
-            params["start_date"] = start_date.isoformat()
-        if end_date is not None:
-            params["end_date"] = end_date.isoformat()
+        params = _build_query_params(
+            limit=limit,
+            state=str(state) if state is not None else None,
+            start_date=start_date,
+            end_date=end_date,
+            logical_date_gte=logical_date_gte,
+            logical_date_lte=logical_date_lte,
+            order_by=order_by,
+        )
 
         try:
-            self.response = self.client.get(f"/dags/{dag_id}/dagRuns", params=params)
+            self.response = self.client.get(
+                f"/dags/{dag_id}/dagRuns",
+                params=params,
+                extensions={"airflowctl_suppress_error_log": suppress_error_log},
+            )
             return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
+
+    def delete(self, dag_id: str, dag_run_id: str) -> str | ServerResponseError:
+        """Delete a Dag run."""
+        try:
+            self.client.delete(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            return dag_run_id
         except ServerResponseError as e:
             raise e
 
@@ -654,15 +694,27 @@ class JobsOperations(BaseOperations):
         job_type: str | None = None,
         hostname: str | None = None,
         is_alive: bool | None = None,
+        dag_id: str | None = None,
+        state: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        order_by: str | None = None,
     ) -> JobCollectionResponse | ServerResponseError:
         """List all jobs."""
-        params: dict[str, Any] = {}
-        if job_type:
-            params["job_type"] = job_type
-        if hostname:
-            params["hostname"] = hostname
-        if is_alive is not None:
-            params["is_alive"] = is_alive
+        params = _build_query_params(
+            job_type=job_type or None,
+            hostname=hostname or None,
+            is_alive=is_alive,
+            dag_id=dag_id or None,
+            job_state=state or None,
+            order_by=order_by or "-start_date",
+            limit=limit,
+            offset=offset,
+        )
+
+        if limit is not None or offset is not None:
+            self.response = self.client.get("jobs", params=params)
+            return JobCollectionResponse.model_validate_json(self.response.content)
 
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
@@ -723,6 +775,34 @@ class ProvidersOperations(BaseOperations):
     def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
+
+
+class TaskInstancesOperations(BaseOperations):
+    """Task instance operations."""
+
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List task instances for a Dag run."""
+        return super().execute_list(
+            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
+        )
+
+
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
+
+    def clear(
+        self, dag_id: str, clear_task_instances: ClearTaskInstancesBody
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances of a Dag; with dry_run (the default) only previews the affected task instances."""
+        try:
+            self.response = self.client.post(
+                f"dags/{dag_id}/clearTaskInstances",
+                json=clear_task_instances.model_dump(mode="json", exclude_none=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
 
 class VariablesOperations(BaseOperations):

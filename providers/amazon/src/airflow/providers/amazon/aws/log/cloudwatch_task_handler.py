@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import inspect
 import json
 import logging
 import os
@@ -28,6 +29,7 @@ from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 import attrs
 import watchtower
@@ -92,6 +94,10 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     log_stream_name: str = ""
     log_group: str = attrs.field(init=False, repr=False)
     region_name: str = attrs.field(init=False, repr=False)
+    _cached_handler: watchtower.CloudWatchLogHandler | None = attrs.field(
+        init=False, default=None, repr=False
+    )
+    _closed: bool = attrs.field(init=False, default=False, repr=False)
 
     @log_group.default
     def _(self):
@@ -101,6 +107,40 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
     def _(self):
         return self.log_group_arn.split(":")[3]
 
+    @classmethod
+    def from_config(cls) -> CloudWatchRemoteLogIO:
+        """Build the remote log IO from Airflow logging configuration."""
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        # remote_task_handler_kwargs mixes FileTaskHandler kwargs with IO kwargs; only the
+        # latter belong to this class (same split as airflow_local_settings.py).
+        fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+            "self",
+            "base_log_folder",
+        }
+        io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in fth_params}
+        remote_base_log_folder = conf.get_mandatory_value("logging", "remote_base_log_folder")
+        url_parts = urlsplit(remote_base_log_folder)
+        log_group_arn = url_parts.netloc + url_parts.path
+        if not log_group_arn:
+            raise ValueError(
+                "Cannot derive a CloudWatch log group ARN from "
+                f"logging/remote_base_log_folder: {remote_base_log_folder!r}"
+            )
+        return cls(
+            **{
+                "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+                "remote_base": remote_base_log_folder,
+                "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+                "log_group_arn": log_group_arn,
+            }
+            | io_kwargs,
+        )
+
     @cached_property
     def hook(self):
         """Returns AwsLogsHook."""
@@ -108,8 +148,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             aws_conn_id=conf.get("logging", "remote_log_conn_id"), region_name=self.region_name
         )
 
-    @cached_property
-    def handler(self) -> watchtower.CloudWatchLogHandler:
+    def _build_handler(self) -> watchtower.CloudWatchLogHandler:
         _json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer", fallback=None)
         return watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
@@ -118,6 +157,20 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             boto3_client=self.hook.get_conn(),
             json_serialize_default=_json_serialize or json_serialize_legacy,
         )
+
+    @property
+    def handler(self) -> watchtower.CloudWatchLogHandler:
+        """
+        Return the streaming handler, rebuilding it if dictConfig closed it mid-task.
+
+        dictConfig's non-incremental reset closes every handler in ``logging._handlerList``,
+        leaving this one with ``shutting_down=True`` (it then silently drops every record).
+        Rebuild only while the IO is live: once :meth:`close` has run, keep the closed handler
+        so a late record is dropped instead of spawning an orphan handler and background thread.
+        """
+        if self._cached_handler is None or (not self._closed and self._cached_handler.shutting_down):
+            self._cached_handler = self._build_handler()
+        return self._cached_handler
 
     @cached_property
     def processors(self) -> tuple[structlog.typing.Processor, ...]:
@@ -128,16 +181,19 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         logRecordFactory = getLogRecordFactory()
         # The handler MUST be initted here, before the processor is actually used to log anything.
         # Otherwise, logging that occurs during the creation of the handler can create infinite loops.
-        _handler = self.handler
+        _ = self.handler
         from airflow.sdk.log import relative_path_from_logger
 
         def proc(logger: structlog.typing.WrappedLogger, method_name: str, event: structlog.typing.EventDict):
             if not logger or not (stream_name := relative_path_from_logger(logger)):
                 return event
+            # Resolve the handler on every record: configure_logging() may have
+            # closed the one built above, in which case ``handler`` rebuilds it.
+            handler = self.handler
             # We can't set the log stream name in the above init handler because
             # the log path isn't known at that stage.
             # Instead, we should always rely on the path (log stream name) provided by the logger.
-            _handler.log_stream_name = stream_name.as_posix().replace(":", "_")
+            handler.log_stream_name = stream_name.as_posix().replace(":", "_")
             name = event.get("logger_name") or event.get("logger", "")
             level = structlog.stdlib.NAME_TO_LEVEL.get(method_name.lower(), logging.INFO)
             msg = copy.copy(event)
@@ -152,20 +208,25 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
                 ct = created.timestamp()
                 record.created = ct
                 record.msecs = int((ct - int(ct)) * 1000) + 0.0  # Copied from stdlib logging
-            _handler.handle(record)
+            handler.handle(record)
             return event
 
         return (proc,)
 
     def close(self):
-        # Use the flush method to ensure all logs are sent to CloudWatch.
-        # Closing the handler sets `shutting_down` to True, which prevents any further logs from being sent.
-        # When `shutting_down` is True, means the logging system is in the process of shutting down,
-        # during which it attempts to flush the logs which are queued.
-        if self.handler is None or self.handler.shutting_down:
+        """
+        Flush pending events one last time and mark the IO closed.
+
+        Only ever called from :meth:`upload`. Mark the IO closed first so ``handler`` stops
+        rebuilding: a record arriving after teardown must be dropped, not revive a fresh
+        handler. Read the cached handler directly so we never build one just to flush it.
+        """
+        self._closed = True
+        handler = self._cached_handler
+        if handler is None or handler.shutting_down:
             return
 
-        self.handler.flush()
+        handler.flush()
 
     def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
@@ -338,8 +399,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         if self.closed:
             return
 
-        if self.handler is not None:
-            self.handler.close()
+        # Close the handler the IO is actually using now, not the reference captured in
+        # set_context(): dictConfig may have closed that one and the IO rebuilt since, and
+        # closing the stale handler would leak the live handler's background thread.
+        live_handler = self.io._cached_handler
+        if live_handler is not None:
+            live_handler.close()
         if hasattr(self, "ti"):
             try:
                 self.io.upload(self.log_relative_path, self.ti)

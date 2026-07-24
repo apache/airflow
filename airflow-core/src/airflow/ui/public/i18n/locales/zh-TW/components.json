@@ -65,6 +65,7 @@
     "lastDagRun_other": "最近 {{count}} 次 Dag 執行",
     "lastTaskInstance_one": "最近 1 次任務實例",
     "lastTaskInstance_other": "最近 {{count}} 次任務實例",
+    "medianTotalDuration": "總計: {{duration}}",
     "queuedDuration": "排隊等候時間",
     "runAfter": "最早可執行時間",
     "runDuration": "執行持續時間"
@@ -136,6 +137,7 @@
     "loading": "正在載入 Dag 資訊...",
     "loadingFailed": "載入 Dag 資訊失敗，請重試。",
     "manualRunDenied": "此 Dag 不允許手動執行",
+    "partitionKeyHelp": "選填 - 僅適用於分區的 Dag",
     "runIdHelp": "選填 - 若未提供將會自動產生",
     "selectDescription": "觸發此 Dag 單次執行",
     "selectLabel": "單次執行",

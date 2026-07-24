@@ -23,15 +23,16 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Generic, TypeVar
 
-from fastapi import HTTPException, Request, status
-from sqlalchemy.exc import DatabaseError, DataError, IntegrityError
+from fastapi import FastAPI, HTTPException, Request, status
+from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError
 
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.utils.strings import get_random_string
 
 T = TypeVar("T", bound=Exception)
-DBError = TypeVar("DBError", bound=DatabaseError)
+DBError = TypeVar("DBError", bound=SQLAlchemyError)
 
 log = logging.getLogger(__name__)
 
@@ -70,34 +71,40 @@ class _DatabaseErrorHandler(BaseErrorHandler[DBError]):
     def _should_handle(self, exc: DBError) -> bool:
         return True
 
-    def exception_handler(self, request: Request, exc: DBError):
-        if not self._should_handle(exc):
-            return
+    def _raise_database_error_response(self, exc: DBError) -> None:
+        statement = getattr(exc, "statement", "hidden")
+        orig_error = getattr(exc, "orig", "hidden")
         exception_id = get_random_string()
         stacktrace = "".join(traceback.format_tb(exc.__traceback__))
-        log_message = f"Error with id {exception_id}, statement: {exc.statement}\n{stacktrace}"
+        log_message = f"Error with id {exception_id}, statement: {statement}\n{stacktrace}"
         log.error(log_message)
+
         if conf.get("api", "expose_stacktrace") == "True":
             message = log_message
-            statement = str(exc.statement)
-            orig_error = str(exc.orig)
+            statement_out = str(statement)
+            orig_error_out = str(orig_error)
         else:
             message = (
                 "Serious error when handling your request. Check logs for more details - "
                 f"you will find it in api server when you look for ID {exception_id}"
             )
-            statement = "hidden"
-            orig_error = "hidden"
+            statement_out = "hidden"
+            orig_error_out = "hidden"
 
         raise HTTPException(
             status_code=self.status_code,
             detail={
                 "reason": self.reason,
-                "statement": statement,
-                "orig_error": orig_error,
+                "statement": statement_out,
+                "orig_error": orig_error_out,
                 "message": message,
             },
         )
+
+    def exception_handler(self, request: Request, exc: DBError):
+        if not self._should_handle(exc):
+            return
+        self._raise_database_error_response(exc)
 
 
 class _UniqueConstraintErrorHandler(_DatabaseErrorHandler[IntegrityError]):
@@ -137,7 +144,7 @@ class DataErrorHandler(_DatabaseErrorHandler[DataError]):
     range, or the wrong type for its column), so it is a client error, not a 500.
     """
 
-    status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+    status_code = HTTP_422_UNPROCESSABLE_CONTENT
     reason = "Value rejected by database"
 
     def __init__(self):
@@ -152,14 +159,42 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
 
     def exception_handler(self, request: Request, exc: DeserializationError):
         """Handle Dag deserialization exceptions."""
+        if conf.get("api", "expose_stacktrace") == "True":
+            log.error("Error while trying to deserialize Dag: %s", exc, exc_info=exc)
+            detail = f"An error occurred while trying to deserialize Dag: {exc}"
+        else:
+            # Only mint a correlation id when the detail is redacted, so the
+            # generic client message can be tied back to the server-side log.
+            exception_id = get_random_string()
+            log.error("Error with id %s while trying to deserialize Dag: %s", exception_id, exc, exc_info=exc)
+            detail = (
+                "An error occurred while trying to deserialize the Dag. Check the api server "
+                f"logs for more details - look for ID {exception_id}."
+            )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while trying to deserialize Dag: {exc}",
+            detail=detail,
         )
+
+
+class SQLAlchemyErrorHandler(_DatabaseErrorHandler[SQLAlchemyError]):
+    """Generic handler for SQLAlchemyError -> 500 responses."""
+
+    status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    reason = "Database error"
+
+    def __init__(self):
+        super().__init__(SQLAlchemyError)
 
 
 ERROR_HANDLERS: list[BaseErrorHandler] = [
     _UniqueConstraintErrorHandler(),
     DataErrorHandler(),
+    SQLAlchemyErrorHandler(),
     DagErrorHandler(),
 ]
+
+
+def init_error_handlers(app: FastAPI) -> None:
+    for handler in ERROR_HANDLERS:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)
