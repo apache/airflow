@@ -53,6 +53,11 @@ KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
 # OpenLineage E2E test paths. The DAGs are sourced from the provider system tests at runtime by
 # openlineage_tests/prepare_dags.py; the overlay carries the OpenLineage-specific env + dag_doc mount.
 OPENLINEAGE_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "openlineage.yml"
+# Pins the metadata-DB driver back to psycopg2 for the compat matrix (--airflow-version), whose
+# released base images predate the psycopg3 default; see openlineage-compat-db.yml for details.
+OPENLINEAGE_COMPAT_DB_COMPOSE_PATH = (
+    AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "openlineage-compat-db.yml"
+)
 
 # CI sets this (the same switch the lang-SDK k8s job uses) to build the lang-SDK
 # artifacts with the host toolchain instead of ephemeral toolchain containers.

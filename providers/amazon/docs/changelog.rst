@@ -26,6 +26,56 @@
 Changelog
 ---------
 
+9.33.0
+......
+
+.. note::
+    ``RedshiftSQLHook.get_sqlalchemy_engine()``, used for the SQLAlchemy engine backing
+    lineage/reflection, now resolves an explicit Postgres DB-API driver for a bare
+    ``postgresql://`` URL, preferring ``psycopg`` (v3) when importable and falling back to
+    ``psycopg2``. Where both drivers are installed, this engine now uses ``psycopg`` (v3),
+    matching the sync Postgres driver default change in ``apache-airflow-providers-postgres``.
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage parent info to EMR Spark steps (#70182)``
+* ``Add S3RemoteLogIO.from_config and register s3 remote logging scheme (#69817)``
+* ``Add CloudWatchRemoteLogIO.from_config and register cloudwatch scheme (#69816)``
+* ``Add Amazon ECR repository operators (#69886)``
+* ``Add dedicated Glue crawler lifecycle operators (#69930)``
+* ``Allow 'AthenaOperator' queries without a 'database' argument (#69846)``
+* ``Add durable execution to 'RedshiftDataOperator' (#69530)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make RedshiftDeleteClusterOperator delete reliably during cluster transitions (#69574)``
+* ``Fix Amazon provider log messages to show actual values (#69967)``
+* ``Secure AWS auth cookies behind TLS proxies (#69898)``
+* ``Generate a fresh EmrContainerOperator request token on each task attempt (#69625)``
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+* ``Warn for bad combination of parameters for RedshiftDataOperator (#69524)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+* ``Fix documentation misusing previous/next for task relationships (#69179)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#69890)" (#70259)``
+   * ``Pin task bundle manifest to the dagrun's version (#69941)``
+   * ``Make Redshift system-test clusters non-public in sql_to_s3/s3_to_sql (#69890)``
+   * ``Consume external role ARN in Neptune Analytics system test (#69682)``
+   * ``Update 'example_bedrock_agentcore' system test to use 'codeConfiguration' instead of ECR image (#69576)``
+
+
 9.32.0
 ......
 
