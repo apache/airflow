@@ -100,11 +100,8 @@ class ProduceToTopicOperator(BaseOperator):
         self.synchronous = synchronous
         self.poll_timeout = poll_timeout
 
-        return
-
     def execute(self, context) -> None:
-        # topic is a template field; validate the rendered value here rather than in __init__,
-        # which only sees the un-rendered Jinja expression.
+        # topic is a template field; validate the rendered value here, not in __init__.
         if not (self.topic and self.producer_function):
             raise AirflowException(
                 "topic and producer_function must be provided. Got topic="

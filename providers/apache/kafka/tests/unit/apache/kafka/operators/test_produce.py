@@ -90,8 +90,7 @@ class TestProduceToTopic:
         operator.execute(context={})
 
     def test_execute_rejects_empty_rendered_topic(self):
-        # topic is a template field: __init__ sees the un-rendered "{{ ... }}" (truthy), so the
-        # presence check must run in execute against the rendered value.
+        # topic is a template field and un-rendered Jinja is truthy, so the check must run in execute.
         with DAG("kafka_produce", schedule=None, start_date=pendulum.datetime(2020, 1, 1, tz="UTC")):
             operator = ProduceToTopicOperator(
                 kafka_config_id="kafka_d",
