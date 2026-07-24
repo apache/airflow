@@ -20,7 +20,9 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.snowflake.operators.snowpark_containers import SnowparkContainerJobOperator
+from airflow.providers.snowflake.triggers.snowpark_containers import SnowparkContainerJobTrigger
 
 TASK_ID = "test_spcs_job"
 COMPUTE_POOL = "test_pool"
@@ -75,6 +77,21 @@ class TestSnowparkContainerJobOperator:
         op = _make_operator(**kwargs)
         with pytest.raises(ValueError, match=match):
             op.execute(context=None)
+
+    @pytest.mark.parametrize(
+        ("deferrable", "wait_for_completion", "warns"),
+        (
+            pytest.param(True, False, True, id="deferrable_no_wait"),
+            pytest.param(True, True, False, id="deferrable_wait"),
+            pytest.param(False, False, False, id="sync_no_wait"),
+        ),
+    )
+    @mock.patch.object(SnowparkContainerJobOperator, "log")
+    def test_warns_when_deferrable_without_wait_for_completion(
+        self, mock_log, deferrable, wait_for_completion, warns
+    ):
+        _make_operator(deferrable=deferrable, wait_for_completion=wait_for_completion)
+        assert mock_log.warning.called is warns
 
     def test_build_sql_with_spec_stage(self):
         op = _make_operator()
@@ -150,6 +167,21 @@ class TestSnowparkContainerJobOperator:
         op.job_name = JOB_NAME
         assert op._poll_for_status() == "DONE"
         assert mock_sleep.call_count == 2
+
+    @mock.patch("time.sleep")
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_poll_raises_on_timeout(self, mock_hook_cls, sleep_mock, time_machine):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = {"status": "RUNNING"}
+        op = _make_operator(poll_interval=5, timeout=10)
+        op.job_name = JOB_NAME
+
+        time_machine.move_to(0, tick=False)
+        sleep_mock.side_effect = lambda seconds: time_machine.shift(seconds + 0.1)
+
+        with pytest.raises(TimeoutError, match="did not reach a terminal status"):
+            op._poll_for_status()
+        mock_hook.run.assert_any_call(f"DROP SERVICE IF EXISTS {JOB_NAME}")
 
     @mock.patch(MOCK_HOOK_PATH)
     def test_log_container_output_uses_info_on_done(self, mock_hook_cls):
@@ -280,4 +312,59 @@ class TestSnowparkContainerJobOperator:
         mock_hook = mock_hook_cls.return_value
         op = _make_operator(drop_on_completion=False)
         op.execute(context=None)
+        mock_hook.run.assert_not_called()
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_submit_job", return_value=JOB_NAME)
+    def test_execute_defers_when_deferrable(self, mock_submit):
+        op = _make_operator(deferrable=True)
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context=None)
+        assert isinstance(exc.value.trigger, SnowparkContainerJobTrigger)
+        assert exc.value.trigger.job_name == JOB_NAME
+        assert exc.value.method_name == "execute_complete"
+
+    @mock.patch(MOCK_HOOK_PATH)
+    @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
+    def test_execute_complete_success_drops_and_returns(self, mock_log, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        op = _make_operator(drop_on_completion=True)
+        result = op.execute_complete(context=None, event={"status": "DONE", "job_name": JOB_NAME})
+        assert result == JOB_NAME
+        mock_log.assert_called_once_with("DONE")
+        mock_hook.run.assert_called_once_with(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+
+    @mock.patch(MOCK_HOOK_PATH)
+    @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
+    def test_execute_complete_failure_raises_without_drop(self, mock_log, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        op = _make_operator()
+        with pytest.raises(RuntimeError, match="FAILED"):
+            op.execute_complete(context=None, event={"status": "FAILED", "job_name": JOB_NAME})
+        mock_log.assert_called_once_with("FAILED")
+        mock_hook.run.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("status", "exc", "drops"),
+        [("timeout", TimeoutError, True), ("error", RuntimeError, False)],
+    )
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_execute_complete_raises_and_drops_only_on_timeout(self, mock_hook_cls, status, exc, drops):
+        mock_hook = mock_hook_cls.return_value
+        op = _make_operator()
+        with pytest.raises(exc, match="boom"):
+            op.execute_complete(
+                context=None,
+                event={"status": status, "job_name": JOB_NAME, "message": "boom"},
+            )
+        if drops:
+            mock_hook.run.assert_called_once_with(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+        else:
+            mock_hook.run.assert_not_called()
+
+    @mock.patch(MOCK_HOOK_PATH)
+    @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
+    def test_execute_complete_skips_drop_when_disabled(self, mock_log, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        op = _make_operator(drop_on_completion=False)
+        op.execute_complete(context=None, event={"status": "DONE", "job_name": JOB_NAME})
         mock_hook.run.assert_not_called()

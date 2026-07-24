@@ -19,49 +19,23 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
-from enum import Enum
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.compat.standard.operators import BaseOperator
 from airflow.providers.common.sql.hooks.handlers import fetch_one_handler
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.triggers.snowpark_containers import (
+    NON_TERMINAL_STATUSES,
+    TERMINAL_STATUSES,
+    SnowparkContainerJobStatus,
+    SnowparkContainerJobTrigger,
+)
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
-
-
-class SnowparkContainerJobStatus(str, Enum):
-    """Statuses of a Snowpark Container Services."""
-
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    CANCELLING = "CANCELLING"
-    SUSPENDING = "SUSPENDING"
-    DELETING = "DELETING"
-    DONE = "DONE"
-    FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
-    INTERNAL_ERROR = "INTERNAL_ERROR"
-
-
-TERMINAL_STATUSES: frozenset[SnowparkContainerJobStatus] = frozenset(
-    {
-        SnowparkContainerJobStatus.DONE,
-        SnowparkContainerJobStatus.FAILED,
-        SnowparkContainerJobStatus.CANCELLED,
-        SnowparkContainerJobStatus.INTERNAL_ERROR,
-    }
-)
-NON_TERMINAL_STATUSES: frozenset[SnowparkContainerJobStatus] = frozenset(
-    {
-        SnowparkContainerJobStatus.PENDING,
-        SnowparkContainerJobStatus.RUNNING,
-        SnowparkContainerJobStatus.CANCELLING,
-        SnowparkContainerJobStatus.SUSPENDING,
-        SnowparkContainerJobStatus.DELETING,
-    }
-)
 
 
 class SnowparkContainerJobOperator(BaseOperator):
@@ -100,6 +74,14 @@ class SnowparkContainerJobOperator(BaseOperator):
         (default value: 10)
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
+    :param deferrable: Run the operator in deferrable mode. Only effective when
+        ``wait_for_completion`` is True. With ``wait_for_completion=False`` the
+        operator submits the job and returns immediately without deferring.
+        (default value: False)
+    :param timeout: Maximum seconds to wait for the job to reach a terminal
+        state. When it elapses the job service is dropped and the task fails.
+        A shorter ``execution_timeout`` preempts this cleanup, so the service
+        may be left running. (default value: 86400)
     :param database: name of database (will overwrite database defined
         in connection)
     :param schema: name of schema (will overwrite schema defined in
@@ -137,6 +119,8 @@ class SnowparkContainerJobOperator(BaseOperator):
         drop_on_completion: bool = True,
         poll_interval: int = 10,
         snowflake_conn_id: str = "snowflake_default",
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        timeout: int = 24 * 60 * 60,
         database: str | None = None,
         schema: str | None = None,
         role: str | None = None,
@@ -156,12 +140,17 @@ class SnowparkContainerJobOperator(BaseOperator):
         self.drop_on_completion = drop_on_completion
         self.poll_interval = poll_interval
         self.snowflake_conn_id = snowflake_conn_id
+        self.deferrable = deferrable
+        self.timeout = timeout
         self.database = database
         self.schema = schema
         self.role = role
         self.warehouse = warehouse
         # Set after the job is submitted, parsed from the job submission response.
         self.job_name: str | None = None
+
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning("deferrable has no effect when wait_for_completion is False.")
 
     @cached_property
     def _hook(self) -> SnowflakeHook:
@@ -201,6 +190,7 @@ class SnowparkContainerJobOperator(BaseOperator):
 
     def _poll_for_status(self) -> str:
         """Poll until the job reaches a terminal state."""
+        end_time = time.time() + self.timeout
         while True:
             response = self._run_one(f"DESCRIBE SERVICE {self.job_name}", return_dictionaries=True)
             status = response.get("status")
@@ -208,6 +198,9 @@ class SnowparkContainerJobOperator(BaseOperator):
                 return status
             if status not in NON_TERMINAL_STATUSES:
                 raise RuntimeError(f"Job {self.job_name} returned unexpected status: {status}")
+            if time.time() > end_time:
+                self._drop_service()
+                raise TimeoutError(f"Job {self.job_name} did not reach a terminal status before the timeout.")
             time.sleep(self.poll_interval)
 
     def _log_container_output(self, status: str) -> None:
@@ -222,13 +215,25 @@ class SnowparkContainerJobOperator(BaseOperator):
             else:
                 self.log.info("Logs for instance_id %d:\n%s", instance_id, response)
 
+    def _drop_service(self) -> None:
+        """Best-effort drop of the job service."""
+        try:
+            self._hook.run(f"DROP SERVICE IF EXISTS {self.job_name}")
+        except Exception as e:
+            self.log.error("Error dropping service %s: %s", self.job_name, e)
+
     def on_kill(self) -> None:
         """Drop the running service on task kill."""
         if self.job_name:
-            try:
-                self._hook.run(f"DROP SERVICE IF EXISTS {self.job_name}")
-            except Exception as e:
-                self.log.error("Error dropping service %s: %s", self.job_name, e)
+            self._drop_service()
+
+    def _handle_final_status(self, status: str) -> None:
+        """Log container output, fail unless the job is DONE, and optionally drop the service on success."""
+        self._log_container_output(status)
+        if status != SnowparkContainerJobStatus.DONE:
+            raise RuntimeError(f"Job '{self.job_name}' finished with status: {status}")
+        if self.drop_on_completion:
+            self._drop_service()
 
     def execute(self, context: Context) -> str:
         """Submit and optionally wait for a Snowpark Container Services job."""
@@ -242,10 +247,35 @@ class SnowparkContainerJobOperator(BaseOperator):
             raise RuntimeError("Job name was not returned")
         if not self.wait_for_completion:
             return self.job_name
+        if self.deferrable:
+            self.defer(
+                trigger=SnowparkContainerJobTrigger(
+                    job_name=self.job_name,
+                    snowflake_conn_id=self.snowflake_conn_id,
+                    poll_interval=self.poll_interval,
+                    end_time=time.time() + self.timeout,
+                    database=self.database,
+                    schema=self.schema,
+                    role=self.role,
+                    warehouse=self.warehouse,
+                ),
+                # Pad past the trigger's end_time so its timeout event, which drops the service,
+                # fires before this hard backstop. A user-set execution_timeout takes precedence.
+                timeout=self.execution_timeout or timedelta(seconds=self.timeout + self.poll_interval + 60),
+                method_name="execute_complete",
+            )
         status = self._poll_for_status()
-        self._log_container_output(status)
-        if status != SnowparkContainerJobStatus.DONE:
-            raise RuntimeError(f"Job '{self.job_name}' finished with status: {status}")
-        if self.drop_on_completion:
-            self._hook.run(f"DROP SERVICE IF EXISTS {self.job_name}")
+        self._handle_final_status(status)
+        return self.job_name
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> str:
+        """Resume after the trigger fires."""
+        self.job_name = event["job_name"]
+        status = event["status"]
+        if status == "timeout":
+            self._drop_service()
+            raise TimeoutError(event.get("message", f"Job '{self.job_name}' did not complete: {status}"))
+        if status == "error":
+            raise RuntimeError(event.get("message", f"Job '{self.job_name}' did not complete: {status}"))
+        self._handle_final_status(status)
         return self.job_name
