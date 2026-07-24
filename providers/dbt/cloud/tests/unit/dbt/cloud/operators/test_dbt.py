@@ -1060,8 +1060,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     def test_default_output_file_name_uses_rendered_path(self, mock_get_artifact, tmp_path, monkeypatch):
-        # run_id/path are template fields: the default file name (and its "/"->"-" flattening) must
-        # be derived after rendering, so a templated path resolves before its slashes are replaced.
+        # The default name flattens "/"->"-", so a templated path must resolve before that.
         operator = DbtCloudGetJobRunArtifactOperator(
             task_id=TASK_ID,
             dbt_cloud_conn_id=ACCOUNT_ID_CONN,
