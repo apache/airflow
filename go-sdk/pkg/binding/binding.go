@@ -66,9 +66,12 @@
 // parameter is made per execution, so the same function can bind either way in
 // different Dags.
 //
-// Mapped upstream fan-in is out of scope: the wire spec may carry a map_index /
-// element_index, but this version ignores them and always pulls the unmapped
-// upstream instance.
+// A mapped (.expand()) stub delivers, per expanded argument, either a map_index
+// (pull that specific upstream row -- an expand over a mapped upstream) or an
+// element_index (pull the unmapped list and take that element -- an expand over
+// an unmapped upstream's output); an unmapped argument carries neither and takes
+// the whole value. Literal expands are resolved to their element server-side and
+// arrive as plain literals.
 package binding
 
 import (
@@ -110,7 +113,10 @@ type Arg interface {
 
 // XComArg sources the argument from an upstream task's return-value XCom.
 // Kind carries the wire discriminant ("xcom") from the generated shape; the
-// resolve path dispatches on the Go type itself and never reads it.
+// resolve path dispatches on the Go type itself and never reads it. MapIndex
+// selects the upstream row to pull (nil for the unmapped row) and ElementIndex,
+// when set, takes that element of the pulled sequence -- both populated only for
+// a mapped stub's expanded argument.
 type XComArg genmodels.XComArgBinding
 
 // LiteralArg carries an inline value from the Dag file. Kind carries the wire
@@ -504,19 +510,49 @@ func (p *Plan) fetchArgValues(
 			"task function %s: no workload in context, cannot resolve xcom arguments", p.fnName,
 		)
 	}
-	// Always the return-value XCom -- a stub Dag cannot reference any other
-	// key. Pull from the upstream's unmapped instance (map_index nil); mapped
-	// upstream fan-in is out of scope for now.
+	// Always the return-value XCom -- a stub Dag cannot reference any other key.
+	// A mapped (.expand()) stub's expanded argument selects a specific upstream
+	// row (a.MapIndex) or, for an expand over an unmapped upstream's output, an
+	// element of the pulled list (a.ElementIndex); an unmapped argument carries
+	// neither and takes the whole value.
 	pull := func(i int) error {
 		a := args[i].(XComArg)
 		raw, err := c.GetXCom(
-			ctx, workload.TI.DagId, workload.TI.RunId, a.TaskID, nil, api.XComReturnValueKey, nil,
+			ctx,
+			workload.TI.DagId,
+			workload.TI.RunId,
+			a.TaskID,
+			a.MapIndex,
+			api.XComReturnValueKey,
+			nil,
 		)
 		if err != nil {
 			return fmt.Errorf(
 				"task function %s: argument %q: pulling xcom from task %q: %w",
 				p.fnName, a.Name, a.TaskID, err,
 			)
+		}
+		if idx, ok := a.ElementIndex.(int); ok {
+			seq, ok := raw.([]any)
+			if !ok {
+				return fmt.Errorf(
+					"task function %s: argument %q: element_index %d requires the xcom from task %q "+
+						"to be a sequence, got %T",
+					p.fnName,
+					a.Name,
+					idx,
+					a.TaskID,
+					raw,
+				)
+			}
+			if idx < 0 || idx >= len(seq) {
+				return fmt.Errorf(
+					"task function %s: argument %q: element_index %d is out of range for the xcom "+
+						"from task %q (length %d)",
+					p.fnName, a.Name, idx, a.TaskID, len(seq),
+				)
+			}
+			raw = seq[idx]
 		}
 		raws[i] = raw
 		return nil
