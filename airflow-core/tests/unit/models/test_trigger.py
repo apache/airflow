@@ -235,8 +235,39 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     mock_callback_handle_event.assert_called_once_with(event, session)
 
 
+def test_submit_event_uses_configured_asset_manager(session):
+    """
+    Regression test: ``Trigger.submit_event`` must notify assets through the
+    configured ``[core] asset_manager_class`` instance (the module-level
+    ``asset_manager`` singleton), not the hardcoded base ``AssetManager`` class.
+
+    Before the fix, ``submit_event`` called ``AssetManager.register_asset_change``
+    on the base class, so a custom asset manager set via ``asset_manager_class``
+    was silently bypassed for asset events produced by triggers / asset watchers.
+    Patching the module-level ``asset_manager`` reference stands in for a
+    configured custom manager, since that singleton is exactly what
+    ``resolve_asset_manager()`` builds from config.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+
+    asset = AssetModel(name="configured_manager_asset")
+    asset.add_trigger(trigger, "test_asset_watcher")
+    session.add(asset)
+    session.commit()
+
+    with patch("airflow.models.trigger.asset_manager") as mock_asset_manager:
+        Trigger.submit_event(trigger.id, TriggerEvent("payload"), session=session)
+
+    # The configured singleton -- not the base class -- must be the one notified.
+    mock_asset_manager.register_asset_change.assert_called_once()
+    _, kwargs = mock_asset_manager.register_asset_change.call_args
+    assert kwargs["extra"] == {"from_trigger": True, "payload": "payload"}
+
+
 @pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 6), (5, 6)])
-@patch("airflow.models.trigger.AssetManager.register_asset_change")
+@patch("airflow.assets.manager.AssetManager.register_asset_change")
 def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected_query_count):
     """Ensure asset notifications do not trigger per-asset lazy-load queries."""
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
