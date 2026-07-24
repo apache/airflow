@@ -117,6 +117,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    GetXComByKeys,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
@@ -2822,6 +2823,22 @@ REQUEST_TEST_CASES = [
             response=XComSequenceSliceResult(root=["foo", "bar"]),
         ),
         test_id="get_xcom_seq_slice",
+    ),
+    RequestTestCase(
+        message=GetXComByKeys(
+            keys=["return_value_0", "return_value_1"],
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            map_index=-1,
+        ),
+        expected_body={"root": ["foo", "bar"], "type": "XComSequenceSliceResult"},
+        client_mock=ClientMock(
+            method_path="xcoms.get_by_keys",
+            args=("test_dag", "test_run", "test_task", ["return_value_0", "return_value_1"], -1),
+            response=XComSequenceSliceResult(root=["foo", "bar"]),
+        ),
+        test_id="get_xcom_by_keys",
     ),
     RequestTestCase(
         message=TaskState(state=TaskInstanceState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),

@@ -513,6 +513,14 @@ class VariableResponse(BaseModel):
     value: Annotated[str | None, Field(title="Value")] = None
 
 
+class XComKeysRequest(BaseModel):
+    """
+    Request body for fetching multiple XCom values by key list in a single query.
+    """
+
+    keys: Annotated[list[str], Field(title="Keys")]
+
+
 class XComResponse(BaseModel):
     """
     XCom schema for responses with fields that are needed for Runtime.

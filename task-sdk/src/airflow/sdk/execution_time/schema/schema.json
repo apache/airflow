@@ -2747,6 +2747,49 @@
       "title": "GetXCom",
       "type": "object"
     },
+    "GetXComByKeys": {
+      "description": "Fetch multiple XCom values by key list in a single round-trip.",
+      "properties": {
+        "keys": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Keys",
+          "type": "array"
+        },
+        "dag_id": {
+          "title": "Dag Id",
+          "type": "string"
+        },
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "type": {
+          "const": "GetXComByKeys",
+          "default": "GetXComByKeys",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "keys",
+        "dag_id",
+        "run_id",
+        "task_id"
+      ],
+      "title": "GetXComByKeys",
+      "type": "object"
+    },
     "GetXComCount": {
       "description": "Get the number of (mapped) XCom values available.",
       "properties": {

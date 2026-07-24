@@ -22,12 +22,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
+    XComKeysRequest,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -42,7 +43,6 @@ def has_xcom_access(
     dag_id: str,
     run_id: str,
     task_id: str,
-    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     session: SessionDep,
     token=CurrentTIToken,
@@ -68,6 +68,7 @@ def has_xcom_access(
     from airflow.configuration import conf
 
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
+    xcom_key = request.path_params.get("key")
 
     log.debug(
         "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
@@ -112,6 +113,7 @@ router = APIRouter(
     },
     dependencies=[Depends(has_xcom_access)],
 )
+
 
 log = logging.getLogger(__name__)
 
@@ -354,6 +356,38 @@ def get_xcom(
         )
 
     return XComResponse(key=key, value=(result[0] if isinstance(result, tuple) else result).value)
+
+
+@router.post(
+    "/{dag_id}/{run_id}/{task_id}/keys",
+    summary="Get multiple XCom values by keys",
+    description=(
+        "Fetch multiple XCom values by key list in a single database query. "
+        "Optimised for XComIterable iteration, reducing N round-trips to one."
+    ),
+)
+def get_xcom_by_keys(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    request_body: XComKeysRequest,
+    session: SessionDep,
+    map_index: Annotated[int, Query()] = -1,
+) -> XComSequenceSliceResponse:
+    """Fetch multiple XCom values by different keys in a single database query."""
+    key_list = request_body.keys
+    if not key_list:
+        return XComSequenceSliceResponse([])
+
+    query = select(XComModel.key, XComModel.value).where(
+        XComModel.dag_id == dag_id,
+        XComModel.run_id == run_id,
+        XComModel.task_id == task_id,
+        XComModel.map_index == map_index,
+        XComModel.key.in_(key_list),
+    )
+    rows = {row.key: row.value for row in session.execute(query)}
+    return XComSequenceSliceResponse([rows.get(key) for key in key_list])
 
 
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
