@@ -1016,13 +1016,12 @@ def update_config(args) -> None:
             continue
         conf_section = change.config.section.lower()
         conf_option = change.config.option.lower()
-        full_key = f"{conf_section}.{conf_option}"
 
         if update_sections_lower is not None and conf_section not in update_sections_lower:
             continue
-        if update_options_lower is not None and full_key not in update_options_lower:
+        if update_options_lower is not None and conf_option not in update_options_lower:
             continue
-        if conf_section in ignore_sections_lower or full_key in ignore_options_lower:
+        if conf_section in ignore_sections_lower or conf_option in ignore_options_lower:
             continue
 
         if conf_section not in config_dict or conf_option not in config_dict[conf_section]:
