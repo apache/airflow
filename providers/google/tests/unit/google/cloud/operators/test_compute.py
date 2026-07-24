@@ -516,6 +516,30 @@ class TestGceInstanceDelete:
             zone=GCE_ZONE,
         )
 
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_delete_instance_builds_field_validator_in_execute(self, mock_hook):
+        # api_version is a template field, so the body validator (which reads it) must be built in
+        # execute() — after rendering — not in the constructor.
+        op = ComputeEngineDeleteInstanceOperator(
+            resource_id=GCE_RESOURCE_ID,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+        )
+        assert op._field_validator is None
+        op.execute(context=mock.MagicMock())
+        assert op._field_validator is not None
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_delete_instance_skips_field_validator_when_validate_body_false(self, mock_hook):
+        op = ComputeEngineDeleteInstanceOperator(
+            resource_id=GCE_RESOURCE_ID,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            validate_body=False,
+        )
+        op.execute(context=mock.MagicMock())
+        assert op._field_validator is None
+
     def test_delete_instance_should_throw_ex_when_missing_zone(self):
         with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
             ComputeEngineDeleteInstanceOperator(
