@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-06-30"
+API_VERSION: Final[str] = "2026-10-30"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -608,6 +608,10 @@ class DagAttributeTypes(str, Enum):
     TASK_GROUP = "taskgroup"
 
 
+class ArgValueSchema(RootModel[dict[str, JsonValue] | None]):
+    root: dict[str, JsonValue] | None = None
+
+
 class AssetReferenceAssetEventDagRun(BaseModel):
     """
     Schema for AssetModel used in AssetEventDagRunReference.
@@ -697,6 +701,18 @@ class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
 
 
+class LiteralArgBinding(BaseModel):
+    """
+    One positional stub-task argument carrying an inline literal from the Dag file.
+    """
+
+    kind: Annotated[Literal["literal"], Field(title="Kind")]
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    value: JsonValue | None = None
+    from_default: Annotated[bool | None, Field(title="From Default")] = False
+
+
 class TITerminalStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a terminal state except SUCCESS state.
@@ -708,6 +724,17 @@ class TITerminalStatePayload(BaseModel):
     state: TerminalStateNonSuccess
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+
+
+class XComArgBinding(BaseModel):
+    """
+    One positional stub-task argument pulled from an upstream task's XCom.
+    """
+
+    kind: Annotated[Literal["xcom"], Field(title="Kind")]
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    task_id: Annotated[str, Field(title="Task Id")]
 
 
 class AssetEventDagRunReference(BaseModel):
@@ -782,6 +809,10 @@ class DagRun(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class TaskArgBinding(RootModel[XComArgBinding | LiteralArgBinding]):
+    root: Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")]
+
+
 class TIRunContext(BaseModel):
     """
     Response schema for TaskInstance run context.
@@ -797,3 +828,4 @@ class TIRunContext(BaseModel):
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
     start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
+    arg_bindings: Annotated[list[TaskArgBinding] | None, Field(title="Arg Bindings")] = None

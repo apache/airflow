@@ -32,7 +32,7 @@ from fastapi import Body, HTTPException, Query, Response, Security, status
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from pydantic import JsonValue
+from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
@@ -49,6 +49,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
@@ -110,6 +111,25 @@ ti_id_router = VersionedAPIRouter(
 log = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+# Task type recorded on the TI row (``TaskInstance.operator``) for
+# ``airflow.providers.standard.decorators.stub._StubOperator``. Used to gate the
+# serialized-Dag lookup for ``arg_bindings`` so regular tasks never pay for it.
+# The gate matches the exact class name; a subclass would need its own entry here.
+_STUB_TASK_TYPE = "_StubOperator"
+
+
+def _get_arg_bindings(
+    dag_bag: DagBagDep, dag_version_id: UUID | None, task_id: str, *, session
+) -> list | None:
+    """Extract the stub task's captured TaskFlow arg spec from its Dag version."""
+    if dag_version_id is None:
+        return None
+    if (dag := dag_bag.get_dag(dag_version_id, session=session)) is None:
+        return None
+    if (task := dag.task_dict.get(task_id)) is None:
+        return None
+    return getattr(task, "_arg_bindings", None)
+
 
 @ti_id_router.patch(
     "/{task_instance_id}/run",
@@ -163,6 +183,8 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
+            TI.operator,
+            TI.dag_version_id,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -309,6 +331,28 @@ def ti_run(
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
+
+        # Only set for stub (foreign-runtime) tasks with a captured TaskFlow arg
+        # spec; the route excludes unset fields, keeping regular responses lean.
+        if ti.operator == _STUB_TASK_TYPE and (
+            arg_bindings := _get_arg_bindings(dag_bag, ti.dag_version_id, ti.task_id, session=session)
+        ):
+            try:
+                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+            except ValidationError:
+                log.exception(
+                    "Serialized arg_bindings spec failed validation",
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    dag_version_id=ti.dag_version_id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "reason": "invalid_arg_bindings",
+                        "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
+                    },
+                )
 
         # Only set if they are non-null
         if ti.next_method:

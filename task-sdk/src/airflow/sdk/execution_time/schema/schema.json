@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-06-16",
+  "api_version": "2026-10-30",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
     "AssetAliasReferenceAssetEventDagRun": {
@@ -4563,6 +4563,114 @@
       "title": "ConnectionResponse",
       "type": "object"
     },
+    "ArgValueSchema": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "ArgValueSchema",
+      "type": "object"
+    },
+    "LiteralArgBinding": {
+      "description": "One positional stub-task argument carrying an inline literal from the Dag file.",
+      "properties": {
+        "kind": {
+          "const": "literal",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "from_default": {
+          "default": false,
+          "title": "From Default",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "title": "LiteralArgBinding",
+      "type": "object"
+    },
+    "TaskArgBinding": {
+      "discriminator": {
+        "mapping": {
+          "literal": "#/$defs/LiteralArgBinding",
+          "xcom": "#/$defs/XComArgBinding"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/XComArgBinding"
+        },
+        {
+          "$ref": "#/$defs/LiteralArgBinding"
+        }
+      ],
+      "title": "TaskArgBinding"
+    },
+    "XComArgBinding": {
+      "description": "One positional stub-task argument pulled from an upstream task's XCom.",
+      "properties": {
+        "kind": {
+          "const": "xcom",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "task_id"
+      ],
+      "title": "XComArgBinding",
+      "type": "object"
+    },
     "AssetEventDagRunReference": {
       "additionalProperties": false,
       "description": "Schema for AssetEvent model used in DagRun.",
@@ -4926,6 +5034,21 @@
           ],
           "default": null,
           "title": "Start Date"
+        },
+        "arg_bindings": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/TaskArgBinding"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Arg Bindings"
         }
       },
       "required": [

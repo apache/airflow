@@ -142,6 +142,48 @@
       "description": "A python dictionary containing values of any type",
       "type": "object"
     },
+    "typed_dict": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "dict"
+        },
+        "__var": { "$ref": "#/definitions/dict" }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
+    "arg_binding": {
+      "$comment": "One captured TaskFlow call argument of a @task.stub task, in dict-encoded form. The inner object stays open so future binding fields keep validating on older cores",
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "dict"
+        },
+        "__var": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "kind": { "type": "string" },
+            "value_schema": { "$ref": "#/definitions/typed_dict" },
+            "task_id": { "type": "string" },
+            "value": {},
+            "from_default": { "type": "boolean" }
+          },
+          "required": [ "name", "kind" ]
+        }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
     "color": {
       "type": "string",
       "pattern": "^#[a-fA-F0-9]{3,6}$"
@@ -345,7 +387,12 @@
         "is_teardown": {"type": "boolean", "default": false},
         "on_failure_fail_dagrun": {"type": "boolean", "default": false},
         "max_active_tis_per_dag": {"type": "integer"},
-        "max_active_tis_per_dagrun": {"type": "integer"}
+        "max_active_tis_per_dagrun": {"type": "integer"},
+        "_arg_bindings": {
+          "$comment": "Only present on @task.stub tasks called with TaskFlow arguments",
+          "type": "array",
+          "items": { "$ref": "#/definitions/arg_binding" }
+        }
       },
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],

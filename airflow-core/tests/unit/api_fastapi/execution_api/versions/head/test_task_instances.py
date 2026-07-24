@@ -32,6 +32,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
+from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -370,6 +371,109 @@ class TestTIRunState:
         extras = mock_gen.generate.call_args.kwargs["extras"]
         assert extras["scope"] == "execution"
         assert extras["sub"] == str(ti.id)
+
+    def test_ti_run_returns_arg_bindings_for_stub_task(self, client, dag_maker):
+        """A stub task's TaskFlow arg spec is extracted from the serialized Dag and returned."""
+        with dag_maker("test_arg_bindings_dag", serialized=True):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(country: str, extracted: dict, limit: int = 10): ...
+
+            transform("uk", extract())
+
+        dr = dag_maker.create_dagrun()
+        tis = {ti.task_id: ti for ti in dr.get_task_instances()}
+        for ti in tis.values():
+            ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        payload = {
+            "state": "running",
+            "hostname": "random-hostname",
+            "unixname": "random-unixname",
+            "pid": 100,
+            "start_date": "2024-09-30T12:00:00Z",
+        }
+
+        response = client.patch(f"/execution/task-instances/{tis['transform'].id}/run", json=payload)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "task_id": "extract",
+            },
+            {
+                "name": "limit",
+                "kind": "literal",
+                "value_schema": {"type": "integer", "format": "int64"},
+                "value": 10,
+                "from_default": True,
+            },
+        ]
+
+        # An argless stub has no captured spec, so the field stays unset.
+        response = client.patch(f"/execution/task-instances/{tis['extract'].id}/run", json=payload)
+        assert response.status_code == 200
+        assert "arg_bindings" not in response.json()
+
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.task_instances._get_arg_bindings",
+        autospec=True,
+        return_value=[{"name": "country", "kind": "hologram", "value": "uk"}],
+    )
+    def test_ti_run_reports_invalid_arg_bindings_spec(self, _, client, dag_maker):
+        """A serialized spec this core version cannot validate fails with a structured error, not a bare 500."""
+        with dag_maker("test_invalid_arg_bindings_dag", serialized=True):
+
+            @task.stub
+            def transform(country: str): ...
+
+            transform("uk")
+
+        dr = dag_maker.create_dagrun()
+        (ti,) = dr.get_task_instances()
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 500
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+
+    def test_arg_bindings_adapter_rejects_unknown_kind(self):
+        """The discriminated union refuses serialized specs with an unrecognised kind."""
+        from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+
+        with pytest.raises(ValidationError, match="does not match any of the expected tags"):
+            get_arg_bindings_adapter().validate_python(
+                [{"name": "country", "kind": "template", "value": "x"}]
+            )
+
+    def test_arg_bindings_adapter_carries_value_schema_fragments_verbatim(self):
+        """The fragment is free-form JSON schema: every keyword the provider generated must
+        survive validation untouched -- a typed model would silently strip what it doesn't know."""
+        from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+
+        fragment = {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"type": "null"}]}
+        (binding,) = get_arg_bindings_adapter().validate_python(
+            [{"name": "tags", "kind": "literal", "value_schema": fragment, "value": ["a"]}]
+        )
+        assert binding.value_schema == fragment
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
