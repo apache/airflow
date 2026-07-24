@@ -1285,7 +1285,7 @@ class TestKubernetesPodOperator:
         never prove the base container didn't run, so this remains opt-in rather than automatic."""
         find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
         self.await_start_mock.side_effect = ApiException(status=404, reason="Not Found")
-        k = KubernetesPodOperator(task_id="task", reattach_on_restart=False)
+        k = KubernetesPodOperator(task_id="task", durable=False)
         context = create_context(k)
         context["ti"].xcom_push = MagicMock()
 
@@ -1304,7 +1304,7 @@ class TestKubernetesPodOperator:
         (e.g. preempted while still Pending) is discarded and a fresh pod (new unique name) is launched
         automatically."""
         find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
-        k = KubernetesPodOperator(task_id="task", reattach_on_restart=False, retry_on_pod_not_found=True)
+        k = KubernetesPodOperator(task_id="task", durable=False, retry_on_pod_not_found=True)
         self.await_start_mock.side_effect = [ApiException(status=404, reason="Not Found"), None]
         self.await_pod_mock.return_value = self._succeeded_remote_pod_mock(k.base_container_name)
         context = create_context(k)
@@ -1330,7 +1330,7 @@ class TestKubernetesPodOperator:
         self.await_start_mock.side_effect = ApiException(status=404, reason="Not Found")
         k = KubernetesPodOperator(
             task_id="task",
-            reattach_on_restart=False,
+            durable=False,
             retry_on_pod_not_found=True,
             pod_not_found_max_retries=2,
         )
@@ -1354,7 +1354,7 @@ class TestKubernetesPodOperator:
         the task already performed."""
         find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
         self.await_pod_mock.side_effect = ApiException(status=404, reason="Not Found")
-        k = KubernetesPodOperator(task_id="task", reattach_on_restart=False, retry_on_pod_not_found=True)
+        k = KubernetesPodOperator(task_id="task", durable=False, retry_on_pod_not_found=True)
         context = create_context(k)
         context["ti"].xcom_push = MagicMock()
 
@@ -1378,7 +1378,7 @@ class TestKubernetesPodOperator:
         retry_on_pod_not_found=True."""
         find_pod_mock.return_value.status.phase = PodPhase.SUCCEEDED
         await_init_mock.side_effect = ApiException(status=404, reason="Not Found")
-        k = KubernetesPodOperator(task_id="task", reattach_on_restart=False, retry_on_pod_not_found=True)
+        k = KubernetesPodOperator(task_id="task", durable=False, retry_on_pod_not_found=True)
         context = create_context(k)
         context["ti"].xcom_push = MagicMock()
 
