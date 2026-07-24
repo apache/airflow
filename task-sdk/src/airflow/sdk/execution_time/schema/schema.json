@@ -4856,6 +4856,19 @@
           "title": "Task Reschedule Count",
           "type": "integer"
         },
+        "first_task_reschedule_start_date": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Task Reschedule Start Date"
+        },
         "max_tries": {
           "title": "Max Tries",
           "type": "integer"
