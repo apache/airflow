@@ -37,12 +37,25 @@ Login (required)
 Password (required)
     Specify the password to connect.
 
+Port (optional)
+    Specify the port to connect to. Default is 1025 for Teradata.
+
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Teradata
     connection. The following parameters out of the standard python parameters
     are supported:
 
-    * ``tmode`` - Specifies the transaction mode.Possible values are DEFAULT (the default), ANSI, or TERA
+    **Authentication:**
+
+    * ``logmech`` - Specifies the login mechanism. Possible values are:
+      ``TD2`` (native Teradata authentication, the default), or ``LDAP``.
+
+    **Transaction Mode:**
+
+    * ``tmode`` - Specifies the transaction mode. Possible values are DEFAULT (the default), ANSI, or TERA.
+
+    **SSL/TLS Configuration:**
+
     * ``sslmode`` - This option specifies the mode for connections to the database.
       There are six modes:
       ``disable``, ``allow``, ``prefer``, ``require``, ``verify-ca``, ``verify-full``.
@@ -58,7 +71,7 @@ Extra (optional)
     More details on all Teradata parameters supported can be found in
     `Teradata documentation <https://github.com/Teradata/python-driver?tab=readme-ov-file#connection-parameters>`_.
 
-    Example "extras" field:
+    Example "extras" field for native Teradata (TD2) authentication with SSL:
 
     .. code-block:: json
 
@@ -70,16 +83,61 @@ Extra (optional)
           "sslkey": "/tmp/client-key.pem"
        }
 
+    Example "extras" field for LDAP authentication:
+
+    .. code-block:: json
+
+       {
+          "logmech": "LDAP",
+          "tmode": "TERA",
+          "sslmode": "verify-ca",
+          "sslca": "/tmp/server-ca.pem"
+       }
+
 
     When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
     following the standard syntax of DB connections, where extras are passed as parameters
     of the URI (note that all components of the URI should be URL-encoded).
 
-    For example:
+    For example (native Teradata authentication):
 
     .. code-block:: bash
 
         export AIRFLOW_CONN_TERADATA_DEFAULT='teradata://teradata_user:XXXXXXXXXXXX@1.1.1.1:/teradatadb?tmode=tera&sslmode=verify-ca&sslca=%2Ftmp%2Fserver-ca.pem'
+
+    For example (LDAP authentication):
+
+    .. code-block:: bash
+
+        export AIRFLOW_CONN_TERADATA_DEFAULT='teradata://ldap_user:ldap_password@1.1.1.1:/teradatadb?logmech=LDAP&tmode=tera&sslmode=verify-ca&sslca=%2Ftmp%2Fserver-ca.pem'
+
+Authentication Mechanisms
+--------------------------
+
+The Teradata provider supports multiple authentication mechanisms:
+
+**Native Teradata Authentication (TD2 - Default)**
+    Uses native Teradata username and password authentication.
+    No special configuration required; simply provide ``login`` and ``password`` in the connection.
+
+**LDAP Authentication**
+    Uses LDAP server for authentication. To enable LDAP:
+
+    1. Set ``logmech`` to ``"LDAP"`` in the connection extras
+    2. Provide LDAP username in ``login`` field
+    3. Provide LDAP password in ``password`` field
+
+    Example:
+
+    .. code-block:: json
+
+       {
+          "logmech": "LDAP"
+       }
+
+    The Teradata server must be configured to accept LDAP authentication.
+    The ``host`` field still specifies the Teradata database server address;
+    the teradatasql driver negotiates LDAP authentication with that server.
 
 Setting QueryBand
 -----------------
