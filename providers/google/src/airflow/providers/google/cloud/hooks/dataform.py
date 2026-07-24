@@ -187,8 +187,6 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         parent = f"projects/{project_id}/locations/{region}/repositories/{repository_id}"
-        if isinstance(workflow_invocation, dict):
-            workflow_invocation = WorkflowInvocation(workflow_invocation)
         return client.create_workflow_invocation(
             request={"parent": parent, "workflow_invocation": workflow_invocation},
             retry=retry,
