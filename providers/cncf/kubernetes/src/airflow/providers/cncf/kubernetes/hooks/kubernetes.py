@@ -862,6 +862,10 @@ def _get_bool(val) -> bool | None:
     return None
 
 
+def _split_log_bytes(raw_bytes: bytes) -> list[str]:
+    return raw_bytes.decode("utf-8", errors="replace").splitlines()
+
+
 class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
@@ -1159,9 +1163,8 @@ class AsyncKubernetesHook(KubernetesHook):
 
                 raw_resp: ClientResponse = await v1_api.read_namespaced_pod_log(**kwargs)  # type: ignore  # _preload_content=False makes returning ClientResponse instead of str!
                 raw_bytes = await raw_resp.read()
-                logs = raw_bytes.decode("utf-8", errors="replace")
-                logs_list: list[str] = logs.splitlines()
-                return logs_list
+                # CPU-bound decode/split, offloaded so it can't block the triggerer event loop.
+                return await asyncio.to_thread(_split_log_bytes, raw_bytes)
             except HTTPError as e:
                 raise KubernetesApiError from e
 
