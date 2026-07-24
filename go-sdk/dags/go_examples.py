@@ -160,6 +160,14 @@ def via_struct_arg_tag(region_code: str, threshold: float): ...
 def via_struct_unmatched_arg(region_code: str, sample_rate: float = 0.1): ...
 
 
+@task.stub(queue="golang")
+def via_flat_map(config: dict): ...
+
+
+@task.stub(queue="golang")
+def via_struct_map(payload: dict): ...
+
+
 @dag(dag_id="taskflow_binding_dag")
 def taskflow_binding_dag():
     """
@@ -201,6 +209,12 @@ def taskflow_binding_dag():
       the task. And the stub's defaulted ``sample_rate`` is never passed, so its
       captured-from-default entry needs no matching struct field (an explicitly
       passed argument no field claims would fail the task instead).
+
+    ``via_flat_map`` and ``via_struct_map`` each pass a single dict literal to
+    show the two ways one map binds on the Go side: ``via_flat_map``'s ``config``
+    argument matches no struct field, so the whole dict is decoded into a Go
+    struct (flat), while ``via_struct_map``'s ``payload`` argument binds by name
+    onto a Go struct's ``map`` field (struct-based).
     """
     via_flat_args(
         "summary",
@@ -215,6 +229,8 @@ def taskflow_binding_dag():
     via_struct_no_tags(RegionCode=region, Threshold=0.75)
     via_struct_arg_tag(region_code=region, threshold=0.75)
     via_struct_unmatched_arg(region_code=region)
+    via_flat_map(config={"region": "eu-west-1", "count": 3})
+    via_struct_map(payload={"region": "eu-west-1", "count": 3})
 
 
 taskflow_binding_dag()

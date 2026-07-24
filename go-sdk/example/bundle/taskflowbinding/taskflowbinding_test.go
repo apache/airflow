@@ -127,3 +127,40 @@ func TestViaStructUnmatchedArgRejectsNonZeroMissingField(t *testing.T) {
 	})
 	assert.ErrorContains(t, err, "expected the unmatched field to stay at its Go zero value")
 }
+
+func TestViaFlatMap(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	got, err := ViaFlatMap(ctx, slog.Default(), FlatMapConfig{Region: "eu-west-1", Count: 3})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaFlatMap should return a map summary, got %T", got)
+	assert.Equal(t, "eu-west-1", summary["region"])
+	assert.Equal(t, 3, summary["count"])
+}
+
+func TestViaFlatMapRejectsWrongBinding(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	_, err := ViaFlatMap(ctx, slog.Default(), FlatMapConfig{Region: "wrong-region", Count: 3})
+	assert.ErrorContains(t, err, "whole-value map bound incorrectly")
+}
+
+func TestViaStructMap(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	got, err := ViaStructMap(ctx, slog.Default(), StructMapInput{
+		Payload: map[string]any{"region": "eu-west-1", "count": 3},
+	})
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaStructMap should return a map summary, got %T", got)
+	assert.Equal(t, map[string]any{"region": "eu-west-1", "count": 3}, summary["payload"])
+}
+
+func TestViaStructMapRejectsWrongBinding(t *testing.T) {
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	_, err := ViaStructMap(ctx, slog.Default(), StructMapInput{
+		Payload: map[string]any{"region": "wrong-region"},
+	})
+	assert.ErrorContains(t, err, "map field bound incorrectly")
+}
