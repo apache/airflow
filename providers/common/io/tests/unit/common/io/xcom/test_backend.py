@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -42,6 +43,12 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
     from airflow.models.xcom import BaseXCom, resolve_xcom_backend  # type: ignore[no-redef]
+
+
+def _xcommodel_supports_get_value_backend_regression() -> bool:
+    if not AIRFLOW_V_3_0_PLUS or not hasattr(XComModel, "get_value"):
+        return False
+    return "serialize" in inspect.signature(XComModel.set).parameters
 
 
 @pytest.fixture(autouse=True)
@@ -221,6 +228,35 @@ class TestXComObjectStorageBackend:
                 session=session,
             )
             assert str(p) == qry.first().value
+
+    @pytest.mark.skipif(
+        not _xcommodel_supports_get_value_backend_regression(),
+        reason="XComModel.get_value backend regression requires the current server-side XComModel helpers",
+    )
+    def test_xcommodel_get_value_uses_configured_backend(self, task_instance, session):
+        session.add(task_instance)
+        session.commit()
+        XCom = resolve_xcom_backend()
+        airflow.models.xcom.XCom = XCom
+
+        expected_value = {"key": "bigvaluebigvaluebigvalue" * 100}
+        stored_value = XCom.serialize_value(
+            value=expected_value,
+            key=XCOM_RETURN_KEY,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
+        )
+        XComModel.set(
+            key=XCOM_RETURN_KEY,
+            value=stored_value,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
+            serialize=False,
+        )
+
+        assert XComModel.get_value(key=XCOM_RETURN_KEY, ti_key=task_instance.key) == expected_value
 
     def test_clear(self, task_instance, session, mock_supervisor_comms):
         session.add(task_instance)
