@@ -24,6 +24,20 @@
     "success": "任务 {{taskId}} 响应成功",
     "title": "人类参与流程任务实例 - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "选择一个待操作的任务实例以查看详情"
+    },
+    "list": {
+      "completedRequiredActions": "已完成的待操作任务实例 ({{count}})",
+      "loadError": "无法加载待操作的任务实例",
+      "loadingActions": "正在加载待操作的任务实例...",
+      "pendingRequiredActions": "待处理的待操作任务实例 ({{count}})"
+    },
+    "openReviewDrawer": "打开审阅抽屉",
+    "pageLimitHint": "此处仅显示前几项待操作的任务实例。使用 \"$t(review.viewAll)\" 查看全部。",
+    "viewAll": "查看全部待操作的任务实例"
+  },
   "state": {
     "approvalReceived": "已批准",
     "approvalRequired": "需要批准",
