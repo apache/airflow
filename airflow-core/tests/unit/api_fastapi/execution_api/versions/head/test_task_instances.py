@@ -323,6 +323,115 @@ class TestTIRunState:
         )
         assert response.status_code == 409
 
+    def test_ti_run_emits_queued_duration_metric(self, client, session, create_task_instance, time_machine):
+        """The queued_duration metric is re-emitted on the QUEUED -> RUNNING transition (Airflow 3)."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_emits_queued_duration",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = instant.subtract(seconds=42)
+        session.commit()
+        expected_tags = {"task_id": ti.task_id, "dag_id": ti.dag_id, "queue": ti.queue}
+
+        body = {
+            "state": "running",
+            "hostname": "random-hostname",
+            "unixname": "random-unixname",
+            "pid": 100,
+            "start_date": instant_str,
+        }
+        with mock.patch("airflow._shared.observability.metrics.stats.timing") as mock_timing:
+            response = client.patch(f"/execution/task-instances/{ti.id}/run", json=body)
+            assert response.status_code == 200
+
+            queued_duration_calls = [
+                call for call in mock_timing.call_args_list if call.args[0] == "task.queued_duration"
+            ]
+            assert len(queued_duration_calls) == 1
+            assert queued_duration_calls[0].args[1].total_seconds() == 42
+            assert queued_duration_calls[0].kwargs["tags"] == expected_tags
+
+            # A duplicate run request from the same worker must not emit the metric a second time.
+            response = client.patch(f"/execution/task-instances/{ti.id}/run", json=body)
+            assert response.status_code == 200
+            queued_duration_calls = [
+                call for call in mock_timing.call_args_list if call.args[0] == "task.queued_duration"
+            ]
+            assert len(queued_duration_calls) == 1
+
+    def test_ti_run_skips_queued_duration_without_queued_dttm(
+        self, client, session, create_task_instance, time_machine
+    ):
+        """No queued_duration is emitted when the task has no queued_dttm recorded."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_no_queued_dttm",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = None
+        session.commit()
+
+        with mock.patch("airflow._shared.observability.metrics.stats.timing") as mock_timing:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": instant_str,
+                },
+            )
+        assert response.status_code == 200
+        assert all(call.args[0] != "task.queued_duration" for call in mock_timing.call_args_list)
+
+    def test_ti_run_skips_queued_duration_on_retry(self, client, session, create_task_instance, time_machine):
+        """queued_duration fires only on the first try (no prior end_date), matching Airflow 2."""
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_queued_duration_retry",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        ti.queued_dttm = instant.subtract(seconds=42)
+        ti.end_date = instant.subtract(seconds=10)  # a prior attempt already ended
+        session.commit()
+
+        with mock.patch("airflow._shared.observability.metrics.stats.timing") as mock_timing:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "random-hostname",
+                    "unixname": "random-unixname",
+                    "pid": 100,
+                    "start_date": instant_str,
+                },
+            )
+        assert response.status_code == 200
+        assert all(call.args[0] != "task.queued_duration" for call in mock_timing.call_args_list)
+
     def test_ti_run_returns_execution_token(
         self, client, exec_app, session, create_task_instance, time_machine
     ):
