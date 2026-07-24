@@ -1397,3 +1397,43 @@ class TestBundlePathSysPath:
 
         assert str(tmp_path) not in dag.description
         assert sys.path == syspath_before
+
+
+class TestDagBagIncludeExamples:
+    """Regression tests for https://github.com/apache/airflow/issues/70283."""
+
+    def test_include_examples_not_passed_uses_config_no_warning(self):
+        """Omitting include_examples entirely must not warn and must fall back to config."""
+        with conf_vars({("core", "LOAD_EXAMPLES"): "False"}):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                dagbag = DagBag(dag_folder=os.devnull, collect_dags=True)
+            assert not any(issubclass(w.category, DeprecationWarning) for w in caught)
+            assert dagbag.dags == {}
+
+    def test_include_examples_explicit_true_loads_examples_and_warns(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            dagbag = DagBag(dag_folder=os.devnull, include_examples=True, collect_dags=True)
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+        assert len(dagbag.dags) > 0  # example DAGs were loaded
+
+    def test_include_examples_explicit_false_warns_but_loads_nothing(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            dagbag = DagBag(dag_folder=os.devnull, include_examples=False, collect_dags=True)
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+        assert dagbag.dags == {}
+
+    def test_bundle_dagbag_ignores_include_examples_true_with_warning(self, tmp_path):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            dagbag = BundleDagBag(
+                dag_folder=os.devnull,
+                bundle_path=tmp_path,
+                include_examples=True,
+                collect_dags=True,
+            )
+        assert any(issubclass(w.category, UserWarning) for w in caught)
+        assert dagbag.dags == {}
+        sys.path.remove(str(tmp_path))
