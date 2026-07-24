@@ -84,7 +84,12 @@ class TestArgBindingsFieldBackwardCompat:
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
             {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
-            {"name": "extracted", "kind": "xcom", "value_schema": {"type": "object"}, "task_id": "extract"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "task_id": "extract",
+            },
             {
                 "name": "limit",
                 "kind": "literal",

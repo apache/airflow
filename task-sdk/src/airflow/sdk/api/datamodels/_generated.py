@@ -218,16 +218,6 @@ class IntermediateTIState(str, Enum):
     AWAITING_INPUT = "awaiting_input"
 
 
-class JsonSchemaType(str, Enum):
-    STRING = "string"
-    INTEGER = "integer"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    OBJECT = "object"
-    ARRAY = "array"
-    NULL = "null"
-
-
 class PrevSuccessfulDagRunResponse(BaseModel):
     """
     Schema for response with previous successful DagRun information for Task Template Context.
@@ -618,19 +608,8 @@ class DagAttributeTypes(str, Enum):
     TASK_GROUP = "taskgroup"
 
 
-class ArgValueSchema(BaseModel):
-    """
-    JSON-schema fragment constraining the value a stub-task argument binds to.
-
-    Only the ``type`` and ``format`` keywords are carried today, with their standard
-    JSON-schema semantics: ``type`` is asserted by the runtime, ``format`` is an
-    annotation a runtime may additionally check. Unknown keywords from newer providers
-    are ignored rather than rejected (as JSON-schema consumers do), so a core on this
-    version keeps serving specs written by a newer provider.
-    """
-
-    type: Annotated[JsonSchemaType | list[JsonSchemaType] | None, Field(title="Type")] = None
-    format: Annotated[str | None, Field(title="Format")] = None
+class ArgValueSchema(RootModel[dict[str, JsonValue] | None]):
+    root: dict[str, JsonValue] | None = None
 
 
 class AssetReferenceAssetEventDagRun(BaseModel):

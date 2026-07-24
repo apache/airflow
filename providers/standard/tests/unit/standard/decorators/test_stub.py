@@ -108,7 +108,7 @@ class TestStubTaskflowArgs:
             {
                 "name": "extracted",
                 "kind": "xcom",
-                "value_schema": {"type": "object"},
+                "value_schema": {"type": "object", "additionalProperties": True},
                 "task_id": "fn_extract",
             },
             {
@@ -131,7 +131,7 @@ class TestStubTaskflowArgs:
             {
                 "name": "extracted",
                 "kind": "xcom",
-                "value_schema": {"type": "object"},
+                "value_schema": {"type": "object", "additionalProperties": True},
                 "task_id": "fn_extract",
             },
             {
@@ -237,7 +237,7 @@ class TestStubTaskflowArgs:
             {
                 "name": "extracted",
                 "kind": "xcom",
-                "value_schema": {"type": "object"},
+                "value_schema": {"type": "object", "additionalProperties": True},
                 "task_id": "fn_extract",
             },
             {
@@ -282,51 +282,91 @@ class TestStubTaskflowArgs:
         pytest.param(bool, {"type": "boolean"}, id="bool"),
         pytest.param(int, {"type": "integer", "format": "int64"}, id="int"),
         pytest.param(float, {"type": "number", "format": "double"}, id="float"),
-        pytest.param(dict, {"type": "object"}, id="dict"),
-        pytest.param(dict[str, int], {"type": "object"}, id="dict-parameterized"),
-        pytest.param(typing.Mapping[str, int], {"type": "object"}, id="mapping"),
-        pytest.param(list, {"type": "array"}, id="list"),
-        pytest.param(list[int], {"type": "array"}, id="list-parameterized"),
-        pytest.param(tuple, {"type": "array"}, id="tuple"),
-        pytest.param(set, {"type": "array"}, id="set"),
-        pytest.param(typing.Sequence[int], {"type": "array"}, id="sequence"),
+        pytest.param(dict, {"type": "object", "additionalProperties": True}, id="dict"),
+        pytest.param(
+            dict[str, int],
+            {"type": "object", "additionalProperties": {"type": "integer", "format": "int64"}},
+            id="dict-parameterized",
+        ),
+        pytest.param(
+            typing.Mapping[str, int],
+            {"type": "object", "additionalProperties": {"type": "integer", "format": "int64"}},
+            id="mapping",
+        ),
+        pytest.param(list, {"type": "array", "items": {}}, id="list"),
+        pytest.param(
+            list[int],
+            {"type": "array", "items": {"type": "integer", "format": "int64"}},
+            id="list-parameterized",
+        ),
+        pytest.param(tuple, {"type": "array", "items": {}}, id="tuple"),
+        pytest.param(set, {"type": "array", "items": {}, "uniqueItems": True}, id="set"),
+        pytest.param(
+            typing.Sequence[int],
+            {"type": "array", "items": {"type": "integer", "format": "int64"}},
+            id="sequence",
+        ),
         pytest.param(datetime.datetime, {"type": "string", "format": "date-time"}, id="datetime"),
-        pytest.param(pendulum.DateTime, {"type": "string", "format": "date-time"}, id="pendulum-datetime"),
         pytest.param(datetime.date, {"type": "string", "format": "date"}, id="date"),
         pytest.param(datetime.time, {"type": "string", "format": "time"}, id="time"),
         pytest.param(datetime.timedelta, {"type": "string", "format": "duration"}, id="timedelta"),
+        pytest.param(bytes, {"type": "string", "format": "binary"}, id="bytes"),
+        pytest.param(
+            typing.Literal["a", "b"],
+            {"type": "string", "enum": ["a", "b"]},
+            id="literal",
+        ),
         pytest.param(Any, None, id="any"),
         pytest.param(None, None, id="none"),
         pytest.param(type(None), None, id="nonetype"),
-        pytest.param(bytes, None, id="bytes"),
+        pytest.param(
+            pendulum.DateTime,
+            None,
+            id="pendulum-datetime",
+            # pydantic has no schema for arbitrary datetime subclasses; decode-only fallback.
+        ),
         pytest.param(
             typing.Optional[str],  # noqa: UP045 -- legacy form on purpose
-            {"type": ["string", "null"]},
+            {"anyOf": [{"type": "string"}, {"type": "null"}]},
             id="optional-str",
         ),
         pytest.param(
             typing.Union[int, str],  # noqa: UP007 -- legacy form on purpose
-            {"type": ["integer", "string"]},
+            {"anyOf": [{"type": "integer", "format": "int64"}, {"type": "string"}]},
             id="union",
         ),
-        pytest.param(str | None, {"type": ["string", "null"]}, id="pep604-optional"),
-        pytest.param(int | None, {"type": ["integer", "null"], "format": "int64"}, id="optional-int"),
+        pytest.param(str | None, {"anyOf": [{"type": "string"}, {"type": "null"}]}, id="pep604-optional"),
+        pytest.param(
+            int | None,
+            {"anyOf": [{"type": "integer", "format": "int64"}, {"type": "null"}]},
+            id="optional-int",
+        ),
         pytest.param(
             datetime.datetime | None,
-            {"type": ["string", "null"], "format": "date-time"},
+            {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
             id="optional-datetime",
         ),
-        pytest.param(int | str, {"type": ["integer", "string"]}, id="pep604-union"),
-        pytest.param(dict | bool, {"type": ["object", "boolean"]}, id="union-dict-bool"),
-        pytest.param(bool | int, {"type": ["boolean", "integer"]}, id="union-bool-int-order"),
-        pytest.param(str | int | None, {"type": ["string", "integer", "null"]}, id="union-with-null"),
-        pytest.param(list | tuple, {"type": "array"}, id="union-collapses-to-one-type"),
+        pytest.param(
+            dict | bool,
+            {"anyOf": [{"type": "object", "additionalProperties": True}, {"type": "boolean"}]},
+            id="union-dict-bool",
+        ),
+        pytest.param(
+            str | int | None,
+            {"anyOf": [{"type": "string"}, {"type": "integer", "format": "int64"}, {"type": "null"}]},
+            id="union-with-null",
+        ),
+        pytest.param(list | tuple, {"type": "array", "items": {}}, id="union-dedupes-equal-members"),
         pytest.param(
             datetime.datetime | str,
-            {"type": "string"},
-            id="mixed-format-union-drops-format",
+            {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "string"}]},
+            id="mixed-format-union-keeps-both",
         ),
-        pytest.param(str | bytes, None, id="union-unclassifiable-member"),
+        pytest.param(
+            str | contextlib.AbstractContextManager,
+            None,
+            id="union-unclassifiable-member",
+        ),
         pytest.param(contextlib.AbstractContextManager, None, id="custom-class"),
     ],
 )

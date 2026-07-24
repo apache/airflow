@@ -449,7 +449,7 @@ class TestRealBundleArgBindingsDowngrade:
         assert "arg_bindings" not in out["ti_context"]
 
     def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
-        from airflow.sdk.api.datamodels._generated import JsonSchemaType, LiteralArgBinding, XComArgBinding
+        from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
 
         out = real_migrator.downgrade(startup_details, "2026-10-30")
         assert out.ti_context.arg_bindings is not None
@@ -462,7 +462,7 @@ class TestRealBundleArgBindingsDowngrade:
         assert isinstance(xcom, XComArgBinding)
         assert xcom.task_id == "extract"
         assert xcom.name == "extracted"
-        assert xcom.value_schema.type == JsonSchemaType.OBJECT
+        assert xcom.value_schema.root == {"type": "object"}
         assert isinstance(defaulted, LiteralArgBinding)
         assert defaulted.from_default is True
-        assert defaulted.value_schema.format == "int64"
+        assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}

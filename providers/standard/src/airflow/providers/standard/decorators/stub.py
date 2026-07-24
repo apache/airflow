@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import ast
-import datetime
 import inspect
 import json
-import types
 import typing
-from collections.abc import Callable, Collection, Mapping, Sequence
-from typing import TYPE_CHECKING, Any, Union
+from collections.abc import Callable, Collection, Mapping
+from typing import TYPE_CHECKING, Any
+
+from pydantic import PydanticSchemaGenerationError, TypeAdapter
+from pydantic.json_schema import GenerateJsonSchema
 
 from airflow.providers.common.compat.sdk import (
     KNOWN_CONTEXT_KEYS,
@@ -39,52 +40,34 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-def _json_schema_fragment(annotation: Any) -> dict[str, Any] | None:
-    """Map one non-union annotation to a JSON-schema fragment; ``None`` = unclassifiable."""
-    if annotation is type(None):
-        return {"type": "null"}
-    origin = typing.get_origin(annotation)
-    if origin is not None:
-        annotation = origin
-    if not isinstance(annotation, type):
-        return None
-    # bool subclasses int, str/bytes are Sequences, and datetime subclasses date -- order matters.
-    if issubclass(annotation, bool):
-        return {"type": "boolean"}
-    if issubclass(annotation, int):
-        return {"type": "integer", "format": "int64"}
-    if issubclass(annotation, float):
-        return {"type": "number", "format": "double"}
-    if issubclass(annotation, str):
-        return {"type": "string"}
-    if issubclass(annotation, bytes):
-        return None
-    if issubclass(annotation, datetime.datetime):
-        return {"type": "string", "format": "date-time"}
-    if issubclass(annotation, datetime.date):
-        return {"type": "string", "format": "date"}
-    if issubclass(annotation, datetime.time):
-        return {"type": "string", "format": "time"}
-    if issubclass(annotation, datetime.timedelta):
-        return {"type": "string", "format": "duration"}
-    if issubclass(annotation, (dict, Mapping)):
-        return {"type": "object"}
-    if issubclass(annotation, (list, tuple, set, frozenset, Sequence)):
-        return {"type": "array"}
-    return None
+class _ValueSchemaGenerator(GenerateJsonSchema):
+    """
+    Pydantic's stock JSON-schema generation plus OpenAPI's fixed-width numeric formats.
+
+    A foreign runtime decodes numbers into machine types, which the bare
+    ``integer``/``number`` type names cannot convey; ``format`` is an annotation per
+    JSON schema, so runtimes that don't know these names simply skip them.
+    """
+
+    def int_schema(self, schema):
+        return {**super().int_schema(schema), "format": "int64"}
+
+    def float_schema(self, schema):
+        return {**super().float_schema(schema), "format": "double"}
 
 
 def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
     """
-    Map a stub function parameter annotation to a JSON-schema fragment.
+    Build the JSON-schema fragment for one stub parameter annotation, via pydantic.
 
-    Fragments carry the standard ``type`` keyword -- a single name, or a list for union
-    annotations (set semantics; member order follows the annotation) -- plus a ``format``
-    annotation where the Python type implies a wire representation the type name alone
-    cannot (``int`` -> ``int64``, ``datetime`` -> ``date-time``, ``timedelta`` ->
-    ``duration``, ...). Returns ``None`` when the annotation gives no constraint; the
-    binding then omits ``value_schema`` and the foreign runtime falls back to a
-    decode-only check.
+    Whatever ``pydantic.TypeAdapter(annotation).json_schema()`` produces is shipped
+    verbatim (``anyOf`` for unions, ``items``/``additionalProperties`` for parameterized
+    containers, ``enum`` for Literals, ...), so the fragment's exact shape follows the
+    pydantic version active at parse time and runtimes must treat it as open-vocabulary
+    JSON schema. Returns ``None`` when the annotation constrains nothing (missing,
+    ``Any``, bare ``None``) or pydantic cannot generate a schema for it (arbitrary
+    classes, including anywhere inside a union); the binding then omits ``value_schema``
+    and the foreign runtime falls back to a decode-only check.
     """
     if annotation is inspect.Parameter.empty or annotation is None or annotation is Any:
         return None
@@ -92,31 +75,11 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
         # get_type_hints normalizes a bare ``None`` annotation to NoneType; a parameter
         # that can only ever be None constrains nothing worth shipping.
         return None
-    origin = typing.get_origin(annotation)
-    if origin is Union or origin is types.UnionType:
-        fragments: list[dict[str, Any]] = []
-        for member in typing.get_args(annotation):
-            fragment = _json_schema_fragment(member)
-            if fragment is None:
-                # One unclassifiable member makes the whole union unconstrained: a
-                # partial schema would wrongly reject that member's values.
-                return None
-            if fragment not in fragments:
-                fragments.append(fragment)
-        data_fragments = [f for f in fragments if f["type"] != "null"]
-        if len(data_fragments) == 1:
-            # A single data type (+ optional null) keeps its format: format only
-            # constrains values of its own type, so null passes it untouched.
-            schema = dict(data_fragments[0])
-            if len(fragments) > len(data_fragments):
-                schema["type"] = [schema["type"], "null"]
-            return schema
-        # Mixed-type union: formats are per-member and inexpressible in one flat
-        # fragment, so carry the type names only.
-        type_names = [f["type"] for f in fragments]
-        deduped = list(dict.fromkeys(type_names))
-        return {"type": deduped if len(deduped) > 1 else deduped[0]}
-    return _json_schema_fragment(annotation)
+    try:
+        schema = TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
+    except PydanticSchemaGenerationError:
+        return None
+    return schema or None
 
 
 def _build_arg_bindings(

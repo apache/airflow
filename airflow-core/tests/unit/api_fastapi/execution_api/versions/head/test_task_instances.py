@@ -401,7 +401,12 @@ class TestTIRunState:
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
             {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
-            {"name": "extracted", "kind": "xcom", "value_schema": {"type": "object"}, "task_id": "extract"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "task_id": "extract",
+            },
             {
                 "name": "limit",
                 "kind": "literal",
@@ -458,22 +463,16 @@ class TestTIRunState:
                 [{"name": "country", "kind": "template", "value": "x"}]
             )
 
-    def test_arg_bindings_adapter_tolerates_unknown_value_schema_keyword(self):
-        """A JSON-schema keyword this core version does not know (e.g. from a newer provider)
-        must not fail the spec -- JSON-schema consumers ignore unknown keywords by design."""
+    def test_arg_bindings_adapter_carries_value_schema_fragments_verbatim(self):
+        """The fragment is free-form JSON schema: every keyword the provider generated must
+        survive validation untouched -- a typed model would silently strip what it doesn't know."""
         from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 
+        fragment = {"anyOf": [{"type": "array", "items": {"type": "string"}}, {"type": "null"}]}
         (binding,) = get_arg_bindings_adapter().validate_python(
-            [
-                {
-                    "name": "tags",
-                    "kind": "literal",
-                    "value_schema": {"type": "array", "items": {"type": "string"}},
-                    "value": ["a"],
-                }
-            ]
+            [{"name": "tags", "kind": "literal", "value_schema": fragment, "value": ["a"]}]
         )
-        assert binding.value_schema.type == "array"
+        assert binding.value_schema == fragment
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""
