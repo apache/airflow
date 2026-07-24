@@ -3877,10 +3877,10 @@ def test_runtime_partition_key_does_not_backfill_dag_run_when_none(dag_maker, se
 def test_runtime_partition_key_backfill_does_not_deadlock_on_sqlite(dag_maker, session):
     """Regression test for the SQLite ``database is locked`` deadlock between the
     writes in ``register_asset_changes_in_db`` and the second connection that
-    ``AssetManager.create_asset_event`` used to
+    ``_create_asset_event`` used to
     open. On file-based SQLite (the default ``-b sqlite`` test backend) the two
     connections compete for the same RESERVED lock; the SQLite branch of
-    ``create_asset_event`` must add the event directly to the caller's session
+    ``_create_asset_event`` must add the event directly to the caller's session
     instead of opening a second connection.
     """
     asset = Asset(name="hello")
