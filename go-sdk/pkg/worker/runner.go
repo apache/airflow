@@ -273,12 +273,9 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 				slog.Int("status_code", resp.StatusCode()),
 				slog.Group(
 					"request",
-					"url",
-					resp.Request.URL,
-					"method",
-					resp.Request.Method,
-					"headers",
-					resp.Request.Header,
+					slog.String("path", resp.Request.RawRequest.URL.Path),
+					slog.String("method", resp.Request.Method),
+					slog.String("correlation_id", resp.Request.Header.Get("Correlation-Id")),
 				),
 			)
 		}
