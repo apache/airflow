@@ -221,6 +221,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
 
     deserialization_allowed_class_fields: ClassVar[tuple[str, ...]] = ("output_type",)
 
+    # This operator supports durable execution directly, without ResumableJobMixin --
+    # it caches step results via task_state_store for replay on retry.
+    __supports_durable_execution: ClassVar[bool] = True
+
     template_fields: Sequence[str] = (
         "prompt",
         "llm_conn_id",
