@@ -356,6 +356,33 @@ def ti_update_state(
     bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
 
+    # For a success payload, register outlet asset events *before* acquiring the task_instance
+    # row lock below, so the registration work (asset lookups, event inserts, dag-run queueing)
+    # never runs while holding that lock and concurrent completions do not pile up behind it.
+    # The locked SELECT below re-checks the state: if the transaction does not commit (duplicate
+    # or invalid transition), these writes roll back with it, so the registered events are only
+    # ever observable together with the committed SUCCESS state.
+    assets_registered = False
+    if isinstance(ti_patch_payload, TISuccessStatePayload) and (
+        ti_patch_payload.task_outlets or ti_patch_payload.outlet_events
+    ):
+        ti = session.get(TI, task_instance_id)
+        if ti is not None and ti.state == TaskInstanceState.RUNNING:
+            try:
+                _validate_outlet_event_partition_keys(ti_patch_payload.outlet_events)
+            except InvalidPartitionKeyError as e:
+                raise HTTPException(
+                    status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+                    detail={"reason": "invalid_partition_key", "message": str(e)},
+                ) from e
+            TI.register_asset_changes_in_db(
+                ti,
+                ti_patch_payload.task_outlets,
+                ti_patch_payload.outlet_events,
+                session=session,
+            )
+            assets_registered = True
+
     old = (
         select(
             TI.state,
@@ -409,6 +436,10 @@ def ti_update_state(
     # SUCCESS or DEFERRED -> DEFERRED), including duplicates that would not pass the RUNNING
     # transition check below.
     if ti_patch_payload.state.value == previous_state:
+        if assets_registered:
+            # A concurrent completion won the race and committed its own registration;
+            # discard ours so the events are not recorded twice.
+            session.rollback()
         log.info(
             "Duplicate state update request received; state already set",
             requested_state=ti_patch_payload.state.value,
@@ -458,6 +489,7 @@ def ti_update_state(
             query=query,
             dag_id=dag_id,
             dag_bag=dag_bag,
+            assets_registered=assets_registered,
         )
     except DataError:
         # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
@@ -626,6 +658,7 @@ def _create_ti_state_update_query_and_update_state(
     session: SessionDep,
     dag_bag: DagBagDep,
     dag_id: str,
+    assets_registered: bool = False,
 ) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
         ti = session.get(TI, task_instance_id, with_for_update={"of": TI})
@@ -656,7 +689,11 @@ def _create_ti_state_update_query_and_update_state(
             # These are cleared when the task enters RUNNING (ti_run).
             query = query.values(retry_delay_override=retry_delay_override, retry_reason=retry_reason)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
-            if ti is not None:
+            # Normally the events were registered before the row lock was taken (see
+            # ti_update_state). Falling in here means the state was not RUNNING at the
+            # unlocked pre-read but is now: a new try started in between. Register under
+            # the lock, preserving the previous behaviour for that race.
+            if ti is not None and not assets_registered:
                 TI.register_asset_changes_in_db(
                     ti,
                     ti_patch_payload.task_outlets,

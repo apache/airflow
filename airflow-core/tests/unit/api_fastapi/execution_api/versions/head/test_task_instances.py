@@ -1295,6 +1295,139 @@ class TestTIUpdateState:
         assert event[0].asset == AssetModel(name="my-task", uri="s3://bucket/my-task", extra={})
         assert event[0].extra == expected_extra
 
+    def test_ti_update_state_success_registers_assets_before_taking_ti_row_lock(
+        self, client, session, create_task_instance
+    ):
+        import sqlalchemy.event
+
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        ti = create_task_instance(
+            task_id="test_register_assets_before_ti_row_lock",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        statement_order: list[str] = []
+
+        def _before_execute(conn, clauseelement, multiparams, params, execution_options):
+            if getattr(clauseelement, "_for_update_arg", None) is not None:
+                statement_order.append("locked_select")
+            elif getattr(getattr(clauseelement, "table", None), "name", None) == "asset_event":
+                statement_order.append("asset_event_insert")
+
+        engine = session.get_bind()
+        sqlalchemy.event.listen(engine, "before_execute", _before_execute)
+        try:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                    "outlet_events": [],
+                },
+            )
+        finally:
+            sqlalchemy.event.remove(engine, "before_execute", _before_execute)
+
+        assert response.status_code == 204
+        assert "asset_event_insert" in statement_order
+        assert "locked_select" in statement_order
+        assert statement_order.index("asset_event_insert") < statement_order.index("locked_select")
+
+    @pytest.mark.parametrize(
+        ("concurrent_state", "expected_status"),
+        [
+            pytest.param(TaskInstanceState.SUCCESS, 200, id="duplicate-success"),
+            pytest.param(TaskInstanceState.FAILED, 409, id="failed-during-registration"),
+        ],
+    )
+    @mock.patch.object(TaskInstance, "register_asset_changes_in_db")
+    def test_ti_update_state_success_rolls_back_asset_events_when_state_changes_during_registration(
+        self,
+        mock_register,
+        client,
+        session,
+        create_task_instance,
+        concurrent_state,
+        expected_status,
+    ):
+        real_register = mock_register.get_original()[0]
+
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        ti = create_task_instance(
+            task_id="test_rollback_asset_events_on_concurrent_state_change",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        def _register_then_concurrent_transition(ti_arg, task_outlets, outlet_events, *, session):
+            real_register(ti_arg, task_outlets, outlet_events, session=session)
+            # Simulate a concurrent transition landing between the unlocked registration
+            # and the locked state re-check.
+            session.execute(
+                update(TaskInstance).where(TaskInstance.id == ti_arg.id).values(state=concurrent_state)
+            )
+
+        mock_register.side_effect = _register_then_concurrent_transition
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                "outlet_events": [],
+            },
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.scalars(select(AssetEvent)).all() == []
+
+    def test_ti_update_state_success_registers_assets_under_lock_when_pre_read_skips(
+        self, client, session, create_task_instance
+    ):
+        """A success whose unlocked pre-read cannot confirm RUNNING must still register its events."""
+        asset = AssetModel(id=1, name="my-task", uri="s3://bucket/my-task", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        ti = create_task_instance(
+            task_id="test_fallback_registration_under_lock",
+            start_date=DEFAULT_START_DATE,
+            state=State.RUNNING,
+        )
+        session.commit()
+
+        real_get = Session.get
+        pre_read_skipped = False
+
+        def _none_on_first_ti_get(session_self, entity, *args, **kwargs):
+            nonlocal pre_read_skipped
+            if not pre_read_skipped and entity is TaskInstance:
+                pre_read_skipped = True
+                return None
+            return real_get(session_self, entity, *args, **kwargs)
+
+        with mock.patch.object(Session, "get", autospec=True, side_effect=_none_on_first_ti_get):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/state",
+                json={
+                    "state": "success",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                    "task_outlets": [{"name": "my-task", "uri": "s3://bucket/my-task", "type": "Asset"}],
+                    "outlet_events": [],
+                },
+            )
+
+        assert pre_read_skipped
+        assert response.status_code == 204
+        session.expire_all()
+        assert len(session.scalars(select(AssetEvent)).all()) == 1
+
     @pytest.mark.parametrize(
         ("outlet_events", "expected_extra"),
         [
