@@ -29,10 +29,14 @@ from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
 
 
-def _server_error(status_code: int) -> ServerResponseError:
+def _make_server_error(status_code: int) -> ServerResponseError:
     request = httpx.Request("GET", "http://testserver/api/v2/dags/test_dag/dagRuns/test_run")
     response = httpx.Response(status_code, request=request, json={"detail": "boom"})
     return ServerResponseError(message="boom", request=request, response=response)
+
+
+def _normalize_rich_output(text: str) -> str:
+    return " ".join(text.split())
 
 
 class TestDagCommands:
@@ -245,13 +249,14 @@ class TestDagCommands:
     def test_state_by_logical_date(self, capsys):
         api_client = mock.MagicMock()
         logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
-        api_client.dag_runs.get.side_effect = _server_error(404)
         api_client.dag_runs.list.return_value.dag_runs = [
             mock.MagicMock(state="failed", conf={"reason": "[red]test[/red]"})
         ]
 
         dag_command.state(
-            self.parser.parse_args(["dags", "state", self.dag_id, logical_date.isoformat()]),
+            self.parser.parse_args(
+                ["dags", "state", self.dag_id, "--logical-date", logical_date.isoformat()]
+            ),
             api_client=api_client,
         )
 
@@ -262,67 +267,95 @@ class TestDagCommands:
             logical_date_lte=logical_date,
             order_by="-id",
             limit=1,
+            suppress_error_log=True,
+        )
+        api_client.dag_runs.get.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [
+            [],
+            ["test_run", "--logical-date", "2025-01-01T00:00:00+00:00"],
+        ],
+        ids=["neither", "both"],
+    )
+    def test_state_requires_exactly_one_of_run_id_and_logical_date(self, extra_args, capsys):
+        api_client = mock.MagicMock()
+
+        with pytest.raises(SystemExit) as ctx:
+            dag_command.state(
+                self.parser.parse_args(["dags", "state", self.dag_id, *extra_args]),
+                api_client=api_client,
+            )
+
+        assert ctx.value.code == 1
+        api_client.dag_runs.get.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Provide either run_id or --logical-date, but not both"
         )
 
     @pytest.mark.parametrize(
-        ("value", "expected_list_kwargs"),
+        ("logical_date", "expected_message"),
         [
-            pytest.param("missing_run", {"dag_id": dag_id, "limit": 1}, id="run-id"),
-            pytest.param(
-                "2025-01-01T00:00:00+00:00",
-                {
-                    "dag_id": dag_id,
-                    "logical_date_gte": datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
-                    "logical_date_lte": datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
-                    "order_by": "-id",
-                    "limit": 1,
-                },
-                id="logical-date",
-            ),
+            ("not-a-date", "Invalid --logical-date: 'not-a-date'"),
+            ("2025-01-01T00:00:00", "--logical-date must include a timezone offset"),
         ],
+        ids=["unparsable", "naive"],
     )
-    @mock.patch("rich.print")
-    def test_state_missing_run_prints_message(self, mock_rich_print, value, expected_list_kwargs):
+    def test_state_rejects_bad_logical_date(self, logical_date, expected_message, capsys):
         api_client = mock.MagicMock()
-        api_client.dag_runs.get.side_effect = _server_error(404)
-        api_client.dag_runs.list.return_value.dag_runs = []
 
-        dag_command.state(
-            self.parser.parse_args(["dags", "state", self.dag_id, value]),
-            api_client=api_client,
+        with pytest.raises(SystemExit) as ctx:
+            dag_command.state(
+                self.parser.parse_args(["dags", "state", self.dag_id, "--logical-date", logical_date]),
+                api_client=api_client,
+            )
+
+        assert ctx.value.code == 1
+        api_client.dag_runs.list.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == expected_message
+
+    @pytest.mark.parametrize("list_failure", ["no_matching_run", "dag_not_found_404"])
+    def test_state_dag_run_not_found_by_logical_date(self, list_failure, capsys):
+        api_client = mock.MagicMock()
+        if list_failure == "no_matching_run":
+            api_client.dag_runs.list.return_value.dag_runs = []
+        else:
+            api_client.dag_runs.list.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit) as ctx:
+            dag_command.state(
+                self.parser.parse_args(
+                    ["dags", "state", self.dag_id, "--logical-date", "2025-01-01T00:00:00+00:00"]
+                ),
+                api_client=api_client,
+            )
+
+        assert ctx.value.code == 1
+        api_client.dag_runs.get.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Dag run for test_dag with logical date '2025-01-01T00:00:00+00:00' not found"
         )
 
-        mock_rich_print.assert_called_once_with("[yellow]No matching Dag run found.[/yellow]")
-        api_client.dag_runs.list.assert_called_once_with(**expected_list_kwargs)
-
-    def test_state_missing_dag_propagates_api_error(self):
+    def test_state_dag_run_not_found_by_run_id(self, capsys):
         api_client = mock.MagicMock()
-        api_client.dag_runs.get.side_effect = _server_error(404)
-        api_client.dag_runs.list.side_effect = error = _server_error(404)
+        api_client.dag_runs.get.side_effect = _make_server_error(404)
 
-        with pytest.raises(ServerResponseError) as ctx:
+        with pytest.raises(SystemExit) as ctx:
             dag_command.state(
                 self.parser.parse_args(["dags", "state", self.dag_id, "missing_run"]),
                 api_client=api_client,
             )
 
-        assert ctx.value is error
-
-    def test_state_rejects_naive_logical_date(self):
-        api_client = mock.MagicMock()
-        api_client.dag_runs.get.side_effect = _server_error(404)
-
-        with pytest.raises(SystemExit, match="Logical date must include a timezone offset"):
-            dag_command.state(
-                self.parser.parse_args(["dags", "state", self.dag_id, "2025-01-01T00:00:00"]),
-                api_client=api_client,
-            )
-
+        assert ctx.value.code == 1
         api_client.dag_runs.list.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Dag run 'missing_run' of Dag 'test_dag' not found"
+        )
 
-    def test_state_propagates_non_404_api_error(self):
+    def test_state_reraises_non_404_dag_run_get_error(self):
         api_client = mock.MagicMock()
-        api_client.dag_runs.get.side_effect = error = _server_error(500)
+        api_client.dag_runs.get.side_effect = error = _make_server_error(500)
 
         with pytest.raises(ServerResponseError) as ctx:
             dag_command.state(
@@ -332,3 +365,18 @@ class TestDagCommands:
 
         assert ctx.value is error
         api_client.dag_runs.list.assert_not_called()
+
+    def test_state_reraises_non_404_dag_run_list_error(self):
+        api_client = mock.MagicMock()
+        api_client.dag_runs.list.side_effect = error = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError) as ctx:
+            dag_command.state(
+                self.parser.parse_args(
+                    ["dags", "state", self.dag_id, "--logical-date", "2025-01-01T00:00:00+00:00"]
+                ),
+                api_client=api_client,
+            )
+
+        assert ctx.value is error
+        api_client.dag_runs.get.assert_not_called()
