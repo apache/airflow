@@ -65,6 +65,18 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
+def _sorted_by_dag_id(dags: Collection[DagModel]) -> list[DagModel]:
+    """
+    Order dags deterministically before queueing their AssetDagRunQueue rows.
+
+    ``dags_to_queue`` is a set, whose iteration order varies between processes. If two
+    concurrent transactions queue the same dags for one asset in different orders, they take
+    the per-row locks (from ON CONFLICT / ON DUPLICATE KEY / the SAVEPOINT merge) in opposite
+    orders and can deadlock. Inserting in a fixed order removes that lock-ordering cycle.
+    """
+    return sorted(dags, key=lambda dag: dag.dag_id)
+
+
 @contextmanager
 def _lock_asset_model(
     *,
@@ -808,7 +820,7 @@ class AssetManager(LoggingMixin):
                 cls.logger().debug("Skipping record %s", item, exc_info=True)
             return dag.dag_id
 
-        queued_results = (_queue_dagrun_if_needed(dag) for dag in dags_to_queue)
+        queued_results = (_queue_dagrun_if_needed(dag) for dag in _sorted_by_dag_id(dags_to_queue))
         if queued_dag_ids := [r for r in queued_results if r is not None]:
             cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
@@ -818,7 +830,7 @@ class AssetManager(LoggingMixin):
     ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
-        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
+        values = [{"target_dag_id": dag.dag_id} for dag in _sorted_by_dag_id(dags_to_queue)]
         stmt = insert(AssetDagRunQueue).values(asset_id=asset_id).on_conflict_do_nothing()
         session.execute(stmt, values)
 
@@ -828,7 +840,7 @@ class AssetManager(LoggingMixin):
     ) -> None:
         from sqlalchemy.dialects.mysql import insert
 
-        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
+        values = [{"target_dag_id": dag.dag_id} for dag in _sorted_by_dag_id(dags_to_queue)]
         stmt = insert(AssetDagRunQueue).values(asset_id=asset_id)
         # MySQL has no "ON CONFLICT DO NOTHING"; a no-op ON DUPLICATE KEY UPDATE turns a
         # conflicting (asset_id, target_dag_id) row into a no-op rather than an error,
