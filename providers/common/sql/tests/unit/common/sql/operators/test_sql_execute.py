@@ -24,6 +24,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
@@ -33,7 +34,9 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.operators import read_only_guard
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 
 DATE = "2017-04-20"
@@ -380,3 +383,195 @@ def test_with_no_openlineage_provider():
         op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1;")
         assert op.get_openlineage_facets_on_start() is None
         assert op.get_openlineage_facets_on_complete(None) is None
+
+
+class TestSQLExecuteQueryOperatorDeferrable:
+    def test_execute_defers(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True)
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute({})
+        assert isinstance(exc.value.trigger, SQLExecuteQueryTrigger)
+        assert exc.value.method_name == "execute_complete"
+
+    def test_execute_complete_raises_on_none_event(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True)
+        with pytest.raises(RuntimeError, match="Unknown error in SQLExecuteQueryTrigger"):
+            op.execute_complete(context={}, event=None)
+
+    def test_execute_complete_raises_on_error_event(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True)
+        with pytest.raises(RuntimeError, match="something went wrong"):
+            op.execute_complete(context={}, event={"status": "error", "message": "something went wrong"})
+
+    def test_execute_complete_returns_none_when_no_xcom_push(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=False)
+        result = op.execute_complete(context={}, event={"status": "success", "results": [("row1",)]})
+        assert result is None
+
+    def test_execute_complete_returns_none_when_no_results(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=True)
+        result = op.execute_complete(context={}, event={"status": "success", "results": None})
+        assert result is None
+
+    def test_execute_sets_fetch_results_from_output_processing(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=True)
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute({})
+        assert exc.value.trigger.fetch_results is True
+
+    def test_execute_sets_fetch_results_false_without_output_processing(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=False)
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute({})
+        assert exc.value.trigger.fetch_results is False
+
+    def test_execute_complete_applies_default_handler(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=True)
+        result = op.execute_complete(
+            context={},
+            event={
+                "status": "success",
+                "results": [("a",), ("b",)],
+                "descriptions": [[["col", 23, None, None, None, None, None]]],
+            },
+        )
+        assert result == [("a",), ("b",)]
+
+    def test_execute_complete_applies_custom_handler_on_worker(self):
+        # The handler runs on the worker over a replayed cursor and can read rows and descriptions.
+        def handler(cursor):
+            return {"columns": [column[0] for column in cursor.description], "rows": cursor.fetchall()}
+
+        op = SQLExecuteQueryOperator(
+            task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=True, handler=handler
+        )
+        result = op.execute_complete(
+            context={},
+            event={
+                "status": "success",
+                "results": [("x",)],
+                "descriptions": [[["col", 23, None, None, None, None, None]]],
+            },
+        )
+        assert result == {"columns": ["col"], "rows": [("x",)]}
+
+    def test_execute_complete_applies_handler_per_statement(self):
+        op = SQLExecuteQueryOperator(
+            task_id=TASK_ID,
+            sql=["SELECT 1", "SELECT 2"],
+            deferrable=True,
+            do_xcom_push=True,
+            split_statements=True,
+            return_last=False,
+            handler=fetch_all_handler,
+        )
+        description = [["col", 23, None, None, None, None, None]]
+        result = op.execute_complete(
+            context={},
+            event={
+                "status": "success",
+                "results": [[("a",)], [("b",)]],
+                "descriptions": [description, description],
+            },
+        )
+        assert result == [[("a",)], [("b",)]]
+
+    def test_execute_complete_replay_cursor_rejects_live_cursor_features(self):
+        def handler(cursor):
+            return cursor.connection
+
+        op = SQLExecuteQueryOperator(
+            task_id=TASK_ID, sql="SELECT 1", deferrable=True, do_xcom_push=True, handler=handler
+        )
+        with pytest.raises(AttributeError, match="deferrable=False"):
+            op.execute_complete(
+                context={},
+                event={"status": "success", "results": [("a",)], "descriptions": [None]},
+            )
+
+    def test_execute_defers_read_only_by_default(self):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1", deferrable=True)
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute({})
+        assert exc.value.trigger.read_only is True
+
+    def test_execute_passes_enforce_read_only_false_to_trigger(self):
+        op = SQLExecuteQueryOperator(
+            task_id=TASK_ID, sql="INSERT INTO foo VALUES (1)", deferrable=True, enforce_read_only=False
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute({})
+        assert exc.value.trigger.read_only is False
+
+    def test_execute_raises_before_deferring_on_proven_write(self):
+        op = SQLExecuteQueryOperator(
+            task_id=TASK_ID, sql="INSERT INTO foo VALUES (1)", deferrable=True, enforce_read_only=True
+        )
+        with pytest.raises(ValueError, match="enforce_read_only=True but the SQL appears to contain a write"):
+            op.execute({})
+
+
+@pytest.mark.parametrize(
+    ("sql", "expected_kind"),
+    [
+        pytest.param("SELECT * FROM foo", None, id="select"),
+        pytest.param("SELECT 1;", None, id="select-trailing-semicolon"),
+        pytest.param("INSERT INTO foo VALUES (1)", "INSERT", id="insert"),
+        pytest.param("UPDATE foo SET x = 1", "UPDATE", id="update"),
+        pytest.param("DELETE FROM foo", "DELETE", id="delete"),
+        pytest.param(
+            "MERGE INTO foo USING bar ON foo.id = bar.id WHEN MATCHED THEN UPDATE SET x = 1",
+            "MERGE",
+            id="merge",
+        ),
+        pytest.param("CREATE TABLE foo (id int)", "CREATE", id="create"),
+        pytest.param("ALTER TABLE foo ADD COLUMN y int", "ALTER", id="alter"),
+        pytest.param("DROP TABLE foo", "DROP", id="drop"),
+        pytest.param("TRUNCATE TABLE foo", "TRUNCATETABLE", id="truncate"),
+        pytest.param(
+            "WITH cte AS (INSERT INTO foo VALUES (1) RETURNING *) SELECT * FROM cte",
+            "INSERT",
+            id="write-inside-cte",
+        ),
+    ],
+)
+def test_scan_for_writes_detects_write_kind(sql, expected_kind):
+    is_write, reason = read_only_guard.scan_for_writes(sql)
+    if expected_kind is None:
+        assert is_write is False
+        assert "no write detected" in reason
+    else:
+        assert is_write is True
+        assert f"proven write ({expected_kind})" in reason
+
+
+def test_scan_for_writes_detects_write_in_second_of_multiple_statements():
+    is_write, reason = read_only_guard.scan_for_writes("SELECT 1; INSERT INTO foo VALUES (1)")
+    assert is_write is True
+    assert "statement #2" in reason
+    assert "INSERT" in reason
+
+
+def test_scan_for_writes_list_of_read_only_statements():
+    is_write, reason = read_only_guard.scan_for_writes(["SELECT 1", "SELECT 2"])
+    assert is_write is False
+    assert "no write detected" in reason
+
+
+def test_scan_for_writes_detects_write_across_list_of_statements():
+    is_write, reason = read_only_guard.scan_for_writes(["SELECT 1", "INSERT INTO foo VALUES (1)"])
+    assert is_write is True
+    assert "statement #2" in reason
+
+
+def test_scan_for_writes_unparseable_sql_defers_to_read_only_transaction():
+    is_write, reason = read_only_guard.scan_for_writes("SELECT * FROM foo WHERE x = 'unterminated")
+    assert is_write is False
+    assert "unparseable" in reason
+
+
+def test_scan_for_writes_sqlglot_missing_defers_to_read_only_transaction(monkeypatch):
+    monkeypatch.setattr(read_only_guard, "_SQLGLOT_AVAILABLE", False)
+    is_write, reason = read_only_guard.scan_for_writes("INSERT INTO foo VALUES (1)")
+    assert is_write is False
+    assert "sqlglot not installed" in reason

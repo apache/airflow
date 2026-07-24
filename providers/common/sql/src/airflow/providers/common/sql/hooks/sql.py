@@ -16,10 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import contextlib
+import inspect
 import warnings
-from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
-from contextlib import closing, contextmanager, suppress
+from collections.abc import (
+    Awaitable,
+    Callable,
+    Generator,
+    Iterable,
+    Mapping,
+    MutableMapping,
+    Sequence,
+)
+from contextlib import asynccontextmanager, closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
 from importlib.util import find_spec
@@ -27,12 +37,13 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overloa
 from urllib.parse import urlparse
 
 import sqlparse
-from deprecated import deprecated
+from asgiref.sync import sync_to_async
+from deprecated import deprecated  # type: ignore[import-untyped]
 from methodtools import lru_cache
 from more_itertools import chunked
 
 try:
-    from sqlalchemy import create_engine, inspect
+    from sqlalchemy import create_engine, inspect as sa_inspect
     from sqlalchemy.engine import make_url
     from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 except ImportError:
@@ -44,6 +55,7 @@ except ImportError:
 
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -66,6 +78,7 @@ if TYPE_CHECKING:
 
 
 T = TypeVar("T")
+HANDLER = Callable[[Any], Any | Awaitable[Any]]
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
@@ -378,7 +391,7 @@ class DbApiHook(BaseHook):
                 "SQLAlchemy is required for database inspection. "
                 "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
             )
-        return inspect(self.get_sqlalchemy_engine())
+        return sa_inspect(self.get_sqlalchemy_engine())
 
     def get_table_schema(self, table_name: str, schema: str | None = None) -> list[dict[str, str]]:
         """
@@ -850,7 +863,8 @@ class DbApiHook(BaseHook):
             with closing(conn.cursor()) as cur:
                 results = []
                 for sql_statement in sql_list:
-                    self._run_command(cur, sql_statement, parameters)
+                    sql_to_run = self._translate_sql(sql_statement)
+                    self._run_command(cur, sql_to_run, parameters)
 
                     if handler is not None:
                         result = self._make_common_data_structure(handler(cur))
@@ -1171,3 +1185,216 @@ class DbApiHook(BaseHook):
 
         :param conn: Connection object
         """
+
+    def _translate_sql(self, sql: str) -> str:
+        """
+        Translate SQL to driver-specific paramstyle.
+
+        DB-specific hooks may override this to translate from a canonical style
+        to their driver's paramstyle if you want a unified SQL authoring style.
+        """
+        return sql
+
+    def _prepare_parameters(self, parameters: Iterable | Mapping[str, Any] | None):
+        """DB hooks may override to adapt parameter style."""
+        return parameters
+
+    def _build_conn_kwargs_from_airflow_connection(self, db) -> dict:
+        """Build a DB-agnostic kwargs dict."""
+        extra = {}
+        extra_dejson = getattr(db, "extra_dejson", None)
+        if isinstance(extra_dejson, dict):
+            extra = extra_dejson
+        try:
+            port = int(db.port) if db.port else None
+        except (TypeError, ValueError):
+            port = None
+        return {
+            "host": db.host or "",
+            "port": port,
+            "username": db.login or "",
+            "password": db.password or "",
+            "database": extra.get("database") or extra.get("dbname") or "",
+            "schema": db.schema or "",
+            "conn_type": db.conn_type,
+            "extra": extra,
+            "raw_connection": db,
+        }
+
+    async def aget_conn(self) -> Any:
+        if not hasattr(self, "_conn_lock"):
+            self._conn_lock = asyncio.Lock()
+        async with self._conn_lock:
+            if not self._connection:
+                self._connection = await get_async_connection(self.get_conn_id())
+            db = self._connection
+            if self.connector is None:
+                raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
+            conn_kwargs = self._build_conn_kwargs_from_airflow_connection(db)
+            return await self.connector.connect(**conn_kwargs)
+
+    async def _call(self, func: Callable, *args, **kwargs) -> Any:
+        if inspect.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        return await sync_to_async(func)(*args, **kwargs)
+
+    @asynccontextmanager
+    async def _acreate_autocommit_connection(self, autocommit: bool = False):
+        conn = await self.aget_conn()
+        try:
+            if self.supports_autocommit:
+                set_autocommit = getattr(conn, "set_autocommit", None)
+                if set_autocommit and inspect.iscoroutinefunction(set_autocommit):
+                    await set_autocommit(autocommit)
+                else:
+                    self.set_autocommit(conn, autocommit)
+            yield conn
+        finally:
+            close = getattr(conn, "aclose", None) or getattr(conn, "close", None)
+            if close:
+                await self._call(close)
+
+    @asynccontextmanager
+    async def _aget_cursor(self, conn):
+        cursor = getattr(conn, "cursor", None)
+        if cursor is None:
+            raise TypeError(
+                f"{type(conn).__name__} has no cursor() method. "
+                "Override _aget_cursor in the DB-specific hook."
+            )
+        cur_or_cm = cursor()
+        if inspect.isawaitable(cur_or_cm):
+            cur_or_cm = await cur_or_cm
+        if hasattr(cur_or_cm, "__aenter__") and hasattr(cur_or_cm, "__aexit__"):
+            async with cur_or_cm as cur:
+                yield cur
+            return
+        execute = getattr(cur_or_cm, "execute", None)
+        if execute and inspect.iscoroutinefunction(execute):
+            try:
+                yield cur_or_cm
+            finally:
+                close = getattr(cur_or_cm, "aclose", None) or getattr(cur_or_cm, "close", None)
+                if close:
+                    if inspect.iscoroutinefunction(close):
+                        await close()
+                    else:
+                        close()
+            return
+        raise RuntimeError(
+            f"Unsupported cursor type returned by {type(conn).__name__}. "
+            "Override _aget_cursor in the DB-specific hook."
+        )
+
+    def supports_readonly_execution(self) -> bool:
+        """Whether the DB-specific hook overrides :meth:`_aenter_read_only`."""
+        return type(self)._aenter_read_only is not DbApiHook._aenter_read_only
+
+    async def _aenter_read_only(self, conn):
+        """
+        Put the opened async connection in read-only mode.
+
+        Called by :meth:`arun` before any statement runs, whenever the operator
+        requests read-only execution. The base implementation raises an exception
+        if this method is not implemented in the DB-specific hook.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement read-only execution. Override "
+            "_aenter_read_only to support deferrable read-only queries for this database,"
+        )
+
+    async def _arun_command(self, cur, sql_statement, parameters):
+        """Run a statement using an already open cursor."""
+        if self.log_sql:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+        prepared_params = await self._call(self._prepare_parameters, parameters)
+        if prepared_params:
+            await cur.execute(sql_statement, prepared_params)
+        else:
+            await cur.execute(sql_statement)
+        if cur.rowcount >= 0:
+            self.log.info("Rows affected: %s", cur.rowcount)
+
+    @overload
+    async def arun(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+        read_only: bool = ...,
+    ) -> None: ...
+
+    @overload
+    async def arun(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: HANDLER = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+        read_only: bool = ...,
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
+
+    async def arun(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: HANDLER | None = None,
+        split_statements: bool = False,
+        return_last: bool = True,
+        read_only: bool = False,
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None:
+        self.descriptions = []
+        if isinstance(sql, str):
+            if split_statements:
+                sql_list: Iterable[str] = self.split_sql_string(sql=sql, strip_semicolon=self.strip_semicolon)
+            else:
+                sql_list = [sql] if sql.strip() else []
+        else:
+            sql_list = sql
+        if sql_list:
+            self.log.debug("Executing following statements against DB: %s", sql_list)
+        else:
+            raise ValueError("List of SQL statements is empty")
+        _last_result = None
+        _last_description = None
+        async with self._acreate_autocommit_connection(autocommit) as conn:
+            try:
+                if read_only:
+                    await self._aenter_read_only(conn)
+                async with self._aget_cursor(conn) as cur:
+                    results = []
+                    for sql_statement in sql_list:
+                        sql_to_run = await self._call(self._translate_sql, sql_statement)
+                        await self._arun_command(cur, sql_to_run, parameters)
+                        if handler is not None:
+                            handled = handler(cur)
+                            if inspect.isawaitable(handled):
+                                handled = await handled
+                            result = self._make_common_data_structure(handled)
+                            if handlers.return_single_query_results(sql, return_last, split_statements):
+                                _last_result = result
+                                _last_description = cur.description
+                            else:
+                                results.append(result)
+                                self.descriptions.append(cur.description)
+                if not self.get_autocommit(conn):
+                    await self._call(conn.commit)
+            except Exception:
+                rb = getattr(conn, "rollback", None)
+                if rb and not self.get_autocommit(conn):
+                    await self._call(rb)
+                raise
+            finally:
+                await self._call(self.get_db_log_messages, conn)
+        if handler is None:
+            return None
+        if handlers.return_single_query_results(sql, return_last, split_statements):
+            self.descriptions = [_last_description]
+            return _last_result
+        return results

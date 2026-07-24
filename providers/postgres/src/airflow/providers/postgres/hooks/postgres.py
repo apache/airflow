@@ -273,8 +273,8 @@ class PostgresHook(DbApiHook):
 
         return f"airflow_cursor_{uuid.uuid4().hex}"
 
-    def get_conn(self) -> CompatConnection:
-        """Establish a connection to a postgres database."""
+    def _build_conn_args(self) -> tuple[dict[str, Any], Any]:
+        """Build base connection arguments from the Airflow connection."""
         conn = deepcopy(self.connection)
 
         if conn.extra_dejson.get("iam", False):
@@ -299,15 +299,46 @@ class PostgresHook(DbApiHook):
             if arg_name not in self.ignored_extra_options:
                 conn_args[arg_name] = arg_val
 
-        raw_cursor = conn.extra_dejson.get("cursor")
+        return conn_args, conn
 
+    def get_conn(self) -> CompatConnection:
+        """Establish a connection to a postgres database."""
+        conn_args, conn = self._build_conn_args()
+        raw_cursor = conn.extra_dejson.get("cursor")
         if raw_cursor:
             key, value = self._get_cursor_config(raw_cursor)
             conn_args[key] = value
-
         self.conn = self._create_connection(conn_args)
-
         return self.conn
+
+    async def aget_conn(self) -> Any:
+        """Establish an async connection to a postgres database."""
+        if not USE_PSYCOPG3:
+            raise NotImplementedError("Async connections for PostgresHook require psycopg3.")
+        from psycopg import AsyncConnection
+
+        conn_args, conn = self._build_conn_args()
+
+        raw_cursor = conn.extra_dejson.get("cursor")
+        if raw_cursor:
+            conn_args["row_factory"] = self._get_cursor(raw_cursor)
+
+        # Use Any type for the connection args to avoid type conflicts
+        connection = await AsyncConnection.connect(**cast("Any", conn_args))
+
+        # Register JSON handlers for both json and jsonb types
+        # This ensures JSON data is properly decoded from bytes to Python objects
+        register_default_adapters(connection)
+
+        # Add the notice handler AFTER the connection is established
+        if self.enable_log_db_messages and hasattr(connection, "add_notice_handler"):
+            connection.add_notice_handler(self._notice_handler)
+
+        return connection
+
+    async def _aenter_read_only(self, conn) -> None:
+        """Put the async connection's next transaction into read-only mode."""
+        await conn.set_read_only(True)
 
     @overload
     def get_df(
