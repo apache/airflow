@@ -26,7 +26,9 @@ from airflow_breeze.commands.release_management_commands import (
     _ensure_default_python_for_reproducible_client,
     _is_initial_provider_release,
     _should_include_provider_in_issue,
+    get_commented_out_prs_from_provider_changelogs,
     get_package_version_possibly_from_stable_txt,
+    get_prs_for_package,
     get_prs_from_git_log_for_new_provider,
     get_suffix_from_package_in_dist,
     is_package_in_dist,
@@ -99,6 +101,73 @@ def test_get_prs_from_git_log_for_new_provider(monkeypatch):
     prs = get_prs_from_git_log_for_new_provider("clickhousedb")
 
     assert prs == [68400, 68345, 67999, 67080]
+
+
+def test_get_prs_for_package_extracts_multiple_prs_per_line(tmp_path: Path, monkeypatch):
+    changelog = tmp_path / "changelog.rst"
+    changelog.write_text(
+        "\n".join(
+            [
+                "1.15.0",
+                "......",
+                "",
+                "Features",
+                "~~~~~~~~",
+                "",
+                "* ``Add Kafka Event Producer publishing DagRun and TaskInstance state-change events (#68082, #70014)``",
+                "* ``Add Amazon MSK IAM (OAUTHBEARER) support to Apache Kafka provider (#69427)``",
+                "",
+                ".. Below changes are excluded from the changelog. Move them to",
+                "   appropriate section above if needed. Do not delete the lines(!):",
+                "   * ``Release prep commit (#99999)``",
+                "",
+                "1.14.0",
+                "......",
+            ]
+        )
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.get_provider_details",
+        lambda provider_id: SimpleNamespace(changelog_path=changelog),
+    )
+
+    prs = get_prs_for_package("apache.kafka", current_release_version="1.15.0")
+
+    assert prs == [68082, 70014, 69427]
+
+
+def test_get_commented_out_prs_extracts_multiple_prs_per_line(tmp_path: Path, monkeypatch):
+    changelog = tmp_path / "changelog.rst"
+    changelog.write_text(
+        "\n".join(
+            [
+                "1.15.0",
+                "......",
+                "",
+                "Features",
+                "~~~~~~~~",
+                "",
+                "* ``Visible change (#11111)``",
+                "",
+                ".. Below changes are excluded from the changelog. Move them to",
+                "   appropriate section above if needed. Do not delete the lines(!):",
+                "   * ``Internal change (#22222, #33333)``",
+                "",
+            ]
+        )
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.get_provider_distributions_metadata",
+        lambda: {"apache.kafka": {}},
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.commands.release_management_commands.get_provider_details",
+        lambda provider_id: SimpleNamespace(changelog_path=changelog),
+    )
+
+    prs = get_commented_out_prs_from_provider_changelogs()
+
+    assert prs == [22222, 33333]
 
 
 @pytest.mark.parametrize(

@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import (
     BedrockAgentCoreControlHook,
     BedrockAgentCoreHook,
     BedrockAgentHook,
+    BedrockAgentRuntimeHook,
     BedrockHook,
     BedrockRuntimeHook,
 )
@@ -621,6 +622,25 @@ class TestBedrockCreateKnowledgeBaseOperator:
 
         assert result == self.KNOWLEDGE_BASE_ID
 
+    def test_knowledge_base_config_uses_rendered_embedding_model_arn(self, mock_conn):
+        """The knowledgeBaseConfiguration must be built from embedding_model_arn as it
+        stands at execute() time, since template rendering happens after __init__."""
+        self.operator.wait_for_completion = False
+        rendered_arn = "arn:aws:bedrock:us-east-1::foundation-model/rendered-model"
+        self.operator.embedding_model_arn = rendered_arn
+
+        self.operator.execute({})
+
+        mock_conn.create_knowledge_base.assert_called_once_with(
+            name=self.KNOWLEDGE_BASE_ID,
+            roleArn="role-arn",
+            knowledgeBaseConfiguration={
+                "type": "VECTOR",
+                "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": rendered_arn},
+            },
+            storageConfiguration=self.operator.storage_config,
+        )
+
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
@@ -940,6 +960,26 @@ class TestBedrockRaGOperator:
         else:
             with pytest.raises(AttributeError):
                 op.validate_inputs()
+
+    @mock.patch.object(BedrockAgentRuntimeHook, "conn", new_callable=mock.PropertyMock)
+    def test_source_type_normalized_in_execute_not_init(self, mock_conn):
+        """source_type upper-casing must happen in execute(), after templating, not in __init__."""
+        mock_client = mock.MagicMock()
+        mock_client.retrieve_and_generate.return_value = {"output": {"text": "answer"}, "citations": []}
+        mock_conn.return_value = mock_client
+
+        op = BedrockRaGOperator(
+            task_id="test_rag",
+            input="some text prompt",
+            source_type="knowledge_base",
+            model_arn=self.MODEL_ARN,
+            knowledge_base_id=self.KNOWLEDGE_BASE_ID,
+        )
+        assert op.source_type == "knowledge_base"
+
+        op.execute({})
+
+        assert op.source_type == "KNOWLEDGE_BASE"
 
     @pytest.mark.parametrize(
         "prompt_template",
