@@ -61,7 +61,17 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, Asset, AssetAlias, BaseHook, TaskGroup, WeightRule, XComArg, teardown
+from airflow.sdk import (
+    DAG,
+    Asset,
+    AssetAlias,
+    BaseHook,
+    EventsTimetable,
+    TaskGroup,
+    WeightRule,
+    XComArg,
+    teardown,
+)
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
@@ -780,6 +790,28 @@ class TestStringifiedDAGs:
         dag = get_timetable_based_simple_dag(timetable)
         roundtripped = DagSerialization.from_json(DagSerialization.to_json(dag))
         self.validate_deserialized_dag(roundtripped, dag)
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("description", "expected_summary"),
+        [
+            pytest.param(None, "2 events", id="no-description"),
+            pytest.param("World Cup", "World Cup", id="with-description"),
+        ],
+    )
+    def test_dag_roundtrip_from_sdk_events_timetable(self, description, expected_summary):
+        """Round-trip a Dag scheduled with the SDK ``EventsTimetable``.
+
+        The SDK timetable serializer does not emit ``_summary``, so the core
+        ``EventsTimetable.deserialize`` must tolerate its absence instead of
+        raising ``KeyError``.
+        """
+        event_dates = [pendulum.datetime(2025, 1, 1), pendulum.datetime(2025, 6, 1)]
+        dag = get_timetable_based_simple_dag(
+            EventsTimetable(event_dates=event_dates, description=description)
+        )
+        roundtripped = DagSerialization.from_json(DagSerialization.to_json(dag))
+        assert roundtripped.timetable.summary == expected_summary
 
     def validate_deserialized_dag(self, serialized_dag: SerializedDAG, dag: DAG):
         """
