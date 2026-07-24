@@ -24,6 +24,7 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { shouldShowRunOnLatestVersionForRun } from "src/components/Clear/Run/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
@@ -91,14 +92,12 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     onSuccessConfirm: handleClose,
   });
 
-  // Check if DAG versions differ (works for both bundle-versioned and local bundles)
-  const latestDagVersionNumber = dagDetails?.latest_dag_version?.version_number;
-  const dagRunVersionNumber = dagRun.dag_versions.at(-1)?.version_number;
-  const versionsDiffer =
-    latestDagVersionNumber !== undefined &&
-    dagRunVersionNumber !== undefined &&
-    latestDagVersionNumber !== dagRunVersionNumber;
-  const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
+  const shouldShowBundleVersionOption = shouldShowRunOnLatestVersionForRun({
+    bundleVersion: dagRun.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    onlyNew,
+    runDagVersionNumber: dagRun.dag_versions.at(-1)?.version_number,
+  });
 
   return (
     <Dialog.Root
