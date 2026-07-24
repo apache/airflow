@@ -26,6 +26,20 @@
     "success": "התגובה של {{taskId}} הצליחה",
     "title": "מופע משימה ידנית - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "בחר פעולה נדרשת כדי לראות פרטים"
+    },
+    "list": {
+      "completedRequiredActions": "פעולות נדרשות שהושלמו ({{count}})",
+      "loadError": "לא ניתן לטעון פעולות נדרשות",
+      "loadingActions": "טוען פעולות נדרשות...",
+      "pendingRequiredActions": "פעולות נדרשות ממתינות ({{count}})"
+    },
+    "openReviewDrawer": "פתח מגירת סקירה",
+    "pageLimitHint": "כאן מוצגות רק הפעולות הראשונות. השתמש ב-\"$t(review.viewAll)\" כדי לראות את כולן.",
+    "viewAll": "הצג את כל הפעולות הנדרשות"
+  },
   "state": {
     "approvalReceived": "האישור התקבל",
     "approvalRequired": "נדרש אישור",
