@@ -1401,3 +1401,45 @@ class TestAuthManagerDependency:
         assert auth_manager is not None
         assert hasattr(auth_manager, "get_url_login")
         assert hasattr(auth_manager, "get_url_logout")
+
+
+class TestSystemUserAccess:
+    """Trusted ``SystemUser`` access bypasses authorization and permission filtering."""
+
+    def test_is_system_access(self):
+        from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
+        from airflow.api_fastapi.core_api.security import _is_system_access
+
+        assert _is_system_access(SystemUser(process_type="scheduler")) is True
+        assert _is_system_access(SimpleAuthManagerUser(username="u", role="admin")) is False
+
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    def test_requires_access_dag_granted_for_system_user_without_auth_manager(self, mock_get_auth_manager):
+        from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
+        from airflow.api_fastapi.core_api.security import requires_access_dag
+
+        fastapi_request = Mock()
+        fastapi_request.path_params = {}
+        fastapi_request.query_params = {}
+        user = SystemUser(process_type="dag_processor")
+
+        # Granted (returns None) and the auth manager is never consulted.
+        assert requires_access_dag("DELETE")(fastapi_request, user) is None
+        mock_get_auth_manager.assert_not_called()
+
+    def test_permitted_dag_filter_unrestricted_for_system_user_without_enumeration(self):
+        from sqlalchemy import select
+
+        from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
+        from airflow.api_fastapi.core_api.security import _UnrestrictedFilter, permitted_dag_filter_factory
+
+        auth_manager = Mock()
+        dep = permitted_dag_filter_factory("GET")
+        result = dep(user=SystemUser(process_type="scheduler"), auth_manager=auth_manager)
+
+        assert isinstance(result, _UnrestrictedFilter)
+        # No metadata DB enumeration happens for system access.
+        auth_manager.get_authorized_dag_ids.assert_not_called()
+        # The filter leaves the statement unchanged (no WHERE clause added).
+        stmt = select(DagModel.dag_id)
+        assert result.to_orm(stmt) is stmt

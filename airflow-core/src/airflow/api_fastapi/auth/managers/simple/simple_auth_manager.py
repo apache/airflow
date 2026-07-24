@@ -38,6 +38,7 @@ from termcolor import colored
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
+from airflow.api_fastapi.auth.managers.models.system_user import SystemUser
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
@@ -471,6 +472,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             equal than this role, they have access. If not provided, ``allow_role`` is used
         :param team_name: team associated to the resource (if any)
         """
+        if isinstance(user, SystemUser):
+            # Trusted in-process system access (see InProcessCoreAPI / LocalRESTClient). A SystemUser is
+            # never deserialized from a token, so it can only originate from trusted in-tree code.
+            return True
         if not user.role:
             return False
 
