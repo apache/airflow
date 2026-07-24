@@ -240,15 +240,15 @@
     "expandAll": "Développer tous les groupes de tâches"
   },
   "taskStateStore": {
-    "add": "Ajouter un Stockage d'état de tâche",
+    "add": "Ajouter un stockage d'état de tâche",
     "clearAll": {
       "resource": "tout le stockage d'état de tâche",
-      "title": "Effacer tout le Stockage d'état de tâche",
+      "title": "Effacer tout le stockage d'état de tâche",
       "warning": "Tout le stockage d'état de tâche sera effacé. Les tâches qui utilisent ce stockage pour suivre un travail externe ne pourront pas reprendre sans être ré-exécutées depuis le début."
     },
-    "delete": "Supprimer le Stockage d'état de tâche",
+    "delete": "Supprimer le stockage d'état de tâche",
     "deleteWarning": "La tâche perdra cette mémoire persistée. Si la tâche utilise cette clé pour suivre un travail externe (par exemple un ID de job externe), elle ne pourra pas le reprendre.",
-    "edit": "Modifier le Stockage d'état de tâche",
+    "edit": "Modifier le stockage d'état de tâche",
     "emptyStore": "Le stockage d'état de tâche stocke des valeurs qui persistent entre les tentatives. Les workers peuvent écrire dans le stockage d'état de tâche via le Task SDK.",
     "expiresAt": {
       "column": "Expire le",
