@@ -43,15 +43,19 @@ class TestAzureVirtualMachineStateSensor:
         assert sensor.target_state == "running"
         assert sensor.azure_conn_id == CONN_ID
 
-    def test_invalid_target_state_rejected_at_poke(self):
+    @pytest.mark.parametrize("deferrable", [False, True])
+    def test_invalid_target_state_rejected_at_execute(self, deferrable):
         sensor = AzureVirtualMachineStateSensor(
             task_id="sense_vm",
             resource_group_name=RESOURCE_GROUP,
             vm_name=VM_NAME,
             target_state="invalid_state",
+            deferrable=deferrable,
+            silent_fail=True,
+            timeout=0,
         )
         with pytest.raises(ValueError, match="Invalid target_state"):
-            sensor.poke(context=None)
+            sensor.execute(context=None)
 
     def test_templated_target_state_constructs(self):
         sensor = AzureVirtualMachineStateSensor(

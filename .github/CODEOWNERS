@@ -115,11 +115,11 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /generated/provider_metadata.json @potiuk @eladkal @shahar1 @vincbeck @jscheffl
 
 # Provider Registry
-/registry/ @kaxil
-/dev/registry/ @kaxil
-/dev/breeze/src/airflow_breeze/commands/registry_commands*.py @kaxil
-/dev/breeze/src/airflow_breeze/utils/publish_registry_versions.py @kaxil
-/dev/breeze/tests/test_publish_registry_versions.py @kaxil
+/registry/ @kaxil @amoghrajesh
+/dev/registry/ @kaxil @amoghrajesh
+/dev/breeze/src/airflow_breeze/commands/registry_commands*.py @kaxil @amoghrajesh
+/dev/breeze/src/airflow_breeze/utils/publish_registry_versions.py @kaxil @amoghrajesh
+/dev/breeze/tests/test_publish_registry_versions.py @kaxil @amoghrajesh
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @jason810496
