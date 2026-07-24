@@ -2904,8 +2904,9 @@ pgbouncer:
   containerLifecycleHooks:
     preStop:
       exec:
-        # Allow existing queries clients to complete within 120 seconds
-        command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+        # Sleep first to give time to Kubernetes for removing Service endpoints
+        # before PgBouncer stops accepting and draining existing connections.
+        command: ["/bin/sh", "-c", "sleep 10 && killall -INT pgbouncer && sleep 20"]
 
   metricsExporterSidecar:
     resources: {}

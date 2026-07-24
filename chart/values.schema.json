@@ -7931,7 +7931,7 @@
                                 "command": [
                                     "/bin/sh",
                                     "-c",
-                                    "killall -INT pgbouncer && sleep 120"
+                                    "sleep 10 && killall -INT pgbouncer && sleep 20"
                                 ]
                             }
                         }
