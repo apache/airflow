@@ -2182,3 +2182,39 @@ class TestAssetStateOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.asset_state_store.clear(uri="s3://bucket/key")
         assert result == OKResponse(ok=True)
+
+
+class TestCallbackOperations:
+    def test_run_exchanges_token(self):
+        """run() PATCHes the exchange endpoint and adopts the refreshed execution token."""
+        callback_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == f"/callbacks/{callback_id}/run"
+            return httpx.Response(
+                status_code=204,
+                headers={"Refreshed-API-Token": "execution-token"},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        client.callbacks.run(callback_id)
+
+        # The single-use callback token has been swapped for the execution token.
+        assert client.auth is not None
+        assert client.auth.token == "execution-token"
+
+    def test_run_raises_on_conflict(self):
+        """A second exchange (callback no longer QUEUED) surfaces as ServerResponseError."""
+        callback_id = uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                status_code=409,
+                json={"detail": {"reason": "invalid_state", "previous_state": "running"}},
+            )
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.run(callback_id)
+        assert err.value.response.status_code == 409

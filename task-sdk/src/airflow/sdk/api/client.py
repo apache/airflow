@@ -1091,6 +1091,26 @@ class ConnectionTestOperations:
         self.client.patch(f"connection-tests/{id}", content=body.model_dump_json())
 
 
+class CallbackOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def run(self, callback_id: uuid.UUID) -> None:
+        """
+        Exchange the single-use callback token for a short-lived execution token.
+
+        Marks the callback RUNNING on the server and swaps this client's
+        ``callback``-scoped token for an ``execution`` token via the
+        ``Refreshed-API-Token`` response header (adopted automatically by
+        ``_update_auth``). Must be called once, before any context read; a
+        second call raises ``ServerResponseError`` (409) because the callback
+        is no longer QUEUED.
+        """
+        self.client.patch(f"callbacks/{callback_id}/run")
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -1297,6 +1317,12 @@ class Client(httpx.Client):
     def connection_tests(self) -> ConnectionTestOperations:
         """Operations related to Connection Tests."""
         return ConnectionTestOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def callbacks(self) -> CallbackOperations:
+        """Operations related to Callbacks."""
+        return CallbackOperations(self)
 
     @lru_cache()  # type: ignore[misc]
     @property
