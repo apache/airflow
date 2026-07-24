@@ -33,6 +33,7 @@ import { PausedFilter } from "./PausedFilter";
 import { RequiredActionFilter } from "./RequiredActionFilter";
 import { RunStateSelect } from "./RunStateSelect";
 import { TagFilter } from "./TagFilter";
+import { TeamFilter } from "./TeamFilter";
 
 const {
   DAG_RUN_STATE: DAG_RUN_STATE_PARAM,
@@ -41,13 +42,12 @@ const {
   NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
   OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
+  TEAMS: TEAMS_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type BooleanFilterValue = "all" | "false" | "true";
 
-const lastRunStates = ["failed", "queued", "running", "success"] as const;
-// Mirrors the backend limit (see _AnyDagRunStateFilter): only running/queued are indexed on dag_run.
-const anyRunStates = ["queued", "running"] as const;
+const runStates = ["failed", "queued", "running", "success"] as const;
 const booleanFilterValues: ReadonlyArray<BooleanFilterValue> = ["all", "true", "false"];
 
 const toBooleanFilterValue = (
@@ -60,12 +60,14 @@ export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { t: translate } = useTranslation("dags");
   const { selectedTags, setSelectedTags, setTagFilterMode, tagFilterMode } = useTagFilter();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const showPaused = searchParams.get(PAUSED_PARAM);
   const showFavorites = searchParams.get(FAVORITE_PARAM);
   const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const activeRunState = searchParams.get(DAG_RUN_STATE_PARAM);
+  const selectedTeams = searchParams.getAll(TEAMS_PARAM);
 
   const [pattern, setPattern] = useState("");
 
@@ -152,6 +154,15 @@ export const DagsFilters = () => {
     setTagFilterMode(checked ? "all" : "any");
   };
 
+  const handleTeamsChange = (teams: Array<string>) => {
+    searchParams.delete(TEAMS_PARAM);
+    for (const team of teams) {
+      searchParams.append(TEAMS_PARAM, team);
+    }
+    resetPagination();
+    setSearchParams(searchParams);
+  };
+
   const pausedValue = toBooleanFilterValue(showPaused, defaultShowPaused);
   const favoriteValue = toBooleanFilterValue(showFavorites);
 
@@ -161,14 +172,14 @@ export const DagsFilters = () => {
         dataTestId="dags-last-run-state-filter"
         label={translate("filters.lastRunState")}
         onChange={handleStateChange}
-        states={lastRunStates}
+        states={runStates}
         value={state ?? undefined}
       />
       <RunStateSelect
         dataTestId="dags-any-run-state-filter"
         label={translate("filters.anyRunState")}
         onChange={handleActiveRunChange}
-        states={anyRunStates}
+        states={runStates}
         value={activeRunState ?? undefined}
       />
       <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
@@ -188,6 +199,9 @@ export const DagsFilters = () => {
         tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
       />
       <FavoriteFilter onChange={handleFavoriteChange} value={favoriteValue} />
+      {multiTeamEnabled ? (
+        <TeamFilter onChange={handleTeamsChange} selectedTeams={selectedTeams} />
+      ) : undefined}
     </HStack>
   );
 };

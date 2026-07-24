@@ -338,6 +338,14 @@ paths:
           items:
             type: string
           title: Owners
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: dag_ids
         in: query
         required: false
@@ -480,11 +488,9 @@ paths:
           anyOf:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
-          description: Filter Dags that have any DagRun in the given state. Only ``queued``
-            and ``running`` are supported.
+          description: Filter Dags that have any DagRun in the given state.
           title: Dag Run State
-        description: Filter Dags that have any DagRun in the given state. Only ``queued``
-          and ``running`` are supported.
+        description: Filter Dags that have any DagRun in the given state.
       - name: bundle_name
         in: query
         required: false
@@ -2629,6 +2635,11 @@ components:
         is_favorite:
           type: boolean
           title: Is Favorite
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         is_backfillable:
           type: boolean
           title: Is Backfillable
@@ -4079,6 +4090,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id

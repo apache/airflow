@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
+import sys
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -148,8 +150,13 @@ class TestBigQueryToPostgresOperator:
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id"
     )
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.register_adapter")
-    def test_adapters_to_json_registered(self, mock_register_adapter, mock_get_creds, mock_get_client):
+    @mock.patch("psycopg2.extensions.register_adapter")
+    def test_adapters_to_json_registered_on_psycopg2_path(
+        self, mock_register_adapter, mock_get_creds, mock_get_client, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "airflow.providers.google.cloud.transfers.bigquery_to_postgres.USE_PSYCOPG3", False
+        )
         mock_get_creds.return_value = (None, TEST_PROJECT)
         client = MagicMock()
         client.list_rows.return_value = []
@@ -165,6 +172,32 @@ class TestBigQueryToPostgresOperator:
 
         mock_register_adapter.assert_any_call(list, Json)
         mock_register_adapter.assert_any_call(dict, Json)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id"
+    )
+    @mock.patch("psycopg2.extensions.register_adapter")
+    def test_adapters_not_registered_on_psycopg3_path(
+        self, mock_register_adapter, mock_get_creds, mock_get_client, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "airflow.providers.google.cloud.transfers.bigquery_to_postgres.USE_PSYCOPG3", True
+        )
+        mock_get_creds.return_value = (None, TEST_PROJECT)
+        client = MagicMock()
+        client.list_rows.return_value = []
+        mock_get_client.return_value = client
+
+        operator = BigQueryToPostgresOperator(
+            task_id=TASK_ID,
+            dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
+            target_table_name=TEST_DESTINATION_TABLE,
+            replace=False,
+        )
+        operator.postgres_hook
+
+        mock_register_adapter.assert_not_called()
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_postgres.PostgresHook")
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
@@ -254,3 +287,17 @@ class TestBigQueryToPostgresOperator:
         assert "columnLineage" in output_ds.facets
         col_lineage = output_ds.facets["columnLineage"]
         assert set(col_lineage.fields.keys()) == {"id", "name"}
+
+
+def test_bigquery_to_postgres_module_imports_without_psycopg2(monkeypatch):
+    """The module must import cleanly even when psycopg2 isn't installed."""
+    monkeypatch.setitem(sys.modules, "psycopg2", None)
+    monkeypatch.setitem(sys.modules, "psycopg2.extensions", None)
+    monkeypatch.setitem(sys.modules, "psycopg2.extras", None)
+    module_name = "airflow.providers.google.cloud.transfers.bigquery_to_postgres"
+    monkeypatch.delitem(sys.modules, module_name, raising=False)
+    try:
+        module = importlib.import_module(module_name)
+        assert module.BigQueryToPostgresOperator is not None
+    finally:
+        monkeypatch.delitem(sys.modules, module_name, raising=False)
