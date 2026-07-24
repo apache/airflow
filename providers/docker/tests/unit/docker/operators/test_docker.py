@@ -874,8 +874,7 @@ class TestDockerOperator:
                 Mount(target="/logs", source="logs", type="volume"),
             ],
         )
-        # mounts is a template field, so __init__ keeps the raw input; normalization to Mount
-        # objects happens in execute(), after rendering.
+        # __init__ keeps the raw input; execute() normalizes to Mount objects.
         assert not isinstance(op.mounts[0], Mount)
 
         op.execute(None)
@@ -899,6 +898,5 @@ class TestDockerOperator:
             ],
         )
         rendered = ti.render_templates()
-        # mounts stays a raw dict through rendering (Mount is a dict subclass; Jinja renders its
-        # values natively), so the templated value resolves before execute() converts it.
+        # Raw dict keeps its lowercase input keys through rendering; execute() converts to Mount.
         assert rendered.mounts[0]["target"] == f"/{ti.run_id}"
