@@ -163,6 +163,8 @@ dags:
       - "via_struct_no_tags"
       - "via_struct_arg_tag"
       - "via_struct_unmatched_arg"
+      - "via_flat_map"
+      - "via_struct_map"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

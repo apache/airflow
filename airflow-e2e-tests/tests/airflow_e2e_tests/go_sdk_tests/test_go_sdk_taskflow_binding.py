@@ -80,6 +80,8 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
         "via_struct_no_tags",
         "via_struct_arg_tag",
         "via_struct_unmatched_arg",
+        "via_flat_map",
+        "via_struct_map",
     ):
         assert completed_run.ti_states.get(task_id) == "success", completed_run.ti_states
 
@@ -143,4 +145,18 @@ def test_via_struct_unmatched_arg_reflects_zero_valued_field(completed_run: _Com
     assert completed_run.xcom("via_struct_unmatched_arg") == {
         "region": "eu-west-1",
         "missing_was_empty": True,
+    }
+
+
+def test_via_flat_map_decodes_single_dict_whole(completed_run: _CompletedRun):
+    """``via_flat_map`` passes one dict literal whose argument name matches no Go
+    struct field, so the whole map is decoded into the struct (flat binding)."""
+    assert completed_run.xcom("via_flat_map") == {"region": "eu-west-1", "count": 3}
+
+
+def test_via_struct_map_binds_single_dict_onto_map_field(completed_run: _CompletedRun):
+    """``via_struct_map`` passes one dict literal whose argument name binds by name
+    onto a Go struct's ``map`` field (struct-based binding)."""
+    assert completed_run.xcom("via_struct_map") == {
+        "payload": {"region": "eu-west-1", "count": 3},
     }

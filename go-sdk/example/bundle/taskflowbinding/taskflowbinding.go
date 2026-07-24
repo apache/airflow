@@ -28,7 +28,9 @@
 // ViaStructArgTag (explicit `arg:` naming), and ViaStructUnmatchedArg (a
 // field whose name has no corresponding TaskFlow call argument at all). Each
 // ViaStruct* call binds MakeRegion's XCom onto its region field alongside a
-// literal, so struct fields are exercised with both argument sources.
+// literal, so struct fields are exercised with both argument sources. ViaFlatMap
+// and ViaStructMap round out the two ways a single dict argument binds: whole
+// into a struct (flat) versus onto a struct's map field (by name).
 package taskflowbinding
 
 import (
@@ -265,4 +267,62 @@ func ViaStructUnmatchedArg(
 		"region":            input.Region,
 		"missing_was_empty": input.Missing == "",
 	}, nil
+}
+
+// FlatMapConfig is decoded whole from a single dict argument -- the flat
+// (whole-value) side of single-map injection. The TaskFlow call passes one
+// object whose keys land on these fields; because the argument's name matches
+// no field, the runtime decodes it whole rather than binding field-by-field.
+type FlatMapConfig struct {
+	Region string `json:"region"`
+	Count  int    `json:"count"`
+}
+
+// ViaFlatMap is called as
+//
+//	via_flat_map(config={"region": "eu-west-1", "count": 3})
+//
+// The single "config" argument matches no FlatMapConfig field, so the whole
+// dict is decoded into the struct -- one map bound flat into a struct.
+func ViaFlatMap(
+	ctx sdk.TIRunContext, log *slog.Logger, config FlatMapConfig,
+) (any, error) {
+	if config.Region != "eu-west-1" || config.Count != 3 {
+		return nil, fmt.Errorf(
+			"whole-value map bound incorrectly: region=%q count=%d",
+			config.Region,
+			config.Count,
+		)
+	}
+
+	log.InfoContext(ctx, "Bound whole map into struct",
+		"region", config.Region,
+		"count", config.Count,
+	)
+	return map[string]any{"region": config.Region, "count": config.Count}, nil
+}
+
+// StructMapInput is a name-bound struct whose single field is itself a map, so
+// one dict argument binds onto that field by name -- the struct-based side of
+// single-map injection.
+type StructMapInput struct {
+	Payload map[string]any `arg:"payload"`
+}
+
+// ViaStructMap is called as
+//
+//	via_struct_map(payload={"region": "eu-west-1", "count": 3})
+//
+// The "payload" argument matches the Payload field by name, so the dict binds
+// onto the map field -- one map bound by name onto a struct field.
+func ViaStructMap(
+	ctx sdk.TIRunContext, log *slog.Logger, input StructMapInput,
+) (any, error) {
+	region, _ := input.Payload["region"].(string)
+	if region != "eu-west-1" {
+		return nil, fmt.Errorf("map field bound incorrectly: payload=%v", input.Payload)
+	}
+
+	log.InfoContext(ctx, "Bound map onto struct field", "payload", fmt.Sprint(input.Payload))
+	return map[string]any{"payload": input.Payload}, nil
 }
