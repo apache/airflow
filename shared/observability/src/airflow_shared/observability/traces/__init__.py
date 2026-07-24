@@ -29,13 +29,32 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
 from opentelemetry.sdk.trace.sampling import Decision
-from opentelemetry.trace import NonRecordingSpan, Span, SpanContext, TraceFlags, TraceState
+from opentelemetry.trace import INVALID_SPAN, NonRecordingSpan, Span, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from configparser import ConfigParser
 log = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
+
+_otel_debug_traces_on = False
+
+
+@contextmanager
+def start_debug_span(name: str, **kwargs) -> Iterator[Span]:
+    """
+    Start a current span if the ``[traces] otel_debug_traces_on`` flag is enabled.
+
+    Usable as a context manager or as a decorator.
+    When the flag is disabled, a non-recording span is yielded.
+    """
+    if not _otel_debug_traces_on:
+        yield INVALID_SPAN
+        return
+    with tracer.start_as_current_span(name, **kwargs) as span:
+        yield span
+
 
 OVERRIDE_SPAN_ID_KEY = context.create_key("override_span_id")
 OVERRIDE_TRACE_ID_KEY = context.create_key("override_trace_id")
@@ -249,9 +268,13 @@ def _load_exporter_from_env() -> SpanExporter:
 
 
 def configure_otel(conf: ConfigParser):
+    global _otel_debug_traces_on
+
     otel_on = conf.getboolean("traces", "otel_on", fallback=False)
     if not otel_on:
         return
+
+    _otel_debug_traces_on = conf.getboolean("traces", "otel_debug_traces_on", fallback=False)
 
     # ideally both endpoint and resource are None here
     # they would only be something other than None if user is using deprecated

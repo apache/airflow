@@ -30,6 +30,7 @@ from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow._shared.observability.metrics import stats
+from airflow._shared.observability.traces import start_debug_span
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -187,6 +188,7 @@ class Job(Base, LoggingMixin):
         """Will be called when an external kill command is received."""
 
     @provide_session
+    @start_debug_span("job.heartbeat")
     def heartbeat(self, heartbeat_callback: Callable[..., None], *, session: Session = NEW_SESSION) -> None:
         """
         Update the job's entry in the database with the latest_heartbeat timestamp.
