@@ -274,6 +274,27 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "team_name": None,
         }
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        original_bundle_name = _attach_dag_to_team(
+            session, "example_python_operator", bundle_name="team-bundle-ti", team_name="team-ti"
+        )
+        try:
+            response = test_client.get(
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+            )
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-ti"
+        finally:
+            _detach_dag_from_team(
+                session,
+                "example_python_operator",
+                bundle_name="team-bundle-ti",
+                team_name="team-ti",
+                original_bundle_name=original_bundle_name,
+            )
+
     def test_should_respond_200_with_decorator(self, test_client, session):
         self.create_task_instances(session, "example_python_decorator")
         response = test_client.get(
@@ -700,6 +721,30 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "The Mapped Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context`, and map_index: `10` was not found"
         }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        original_bundle_name = _attach_dag_to_team(
+            session,
+            "example_python_operator",
+            bundle_name="team-bundle-mapped-ti",
+            team_name="team-mapped-ti",
+        )
+        try:
+            response = test_client.get(
+                "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/-1",
+            )
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-mapped-ti"
+        finally:
+            _detach_dag_from_team(
+                session,
+                "example_python_operator",
+                bundle_name="team-bundle-mapped-ti",
+                team_name="team-mapped-ti",
+                original_bundle_name=original_bundle_name,
+            )
 
 
 class TestGetMappedTaskInstances:
