@@ -34,7 +34,7 @@ from collections.abc import Callable, Container, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager, suppress
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import kubernetes
 import pendulum
@@ -282,6 +282,10 @@ class KubernetesPodOperator(BaseOperator):
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
     #  - airflow-core/src/airflow/decorators/__init__.pyi  (by a separate PR)
+
+    # This operator supports durable execution directly, without ResumableJobMixin --
+    # it reconnects via task_state_store on retry instead of resubmitting.
+    __supports_durable_execution: ClassVar[bool] = True
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"

@@ -255,6 +255,7 @@ MY_DIR_PATH = os.path.dirname(__file__)
 # always correct regardless of how breeze is launched.
 SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
+PR_REFERENCE_PATTERN = re.compile(r"#([0-9]+)")
 ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 # Release-management commits (provider documentation / release preparation) are pure
 # release-process noise: they are not user-facing changes and existing providers already
@@ -2611,8 +2612,8 @@ def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str 
 
 
 def get_prs_for_package(provider_id: str, current_release_version: str | None = None) -> list[int]:
-    pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
-    prs = []
+    prs: list[int] = []
+    seen_prs: set[int] = set()
     if current_release_version is None:
         provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
         if not provider_yaml_dict:
@@ -2636,9 +2637,12 @@ def get_prs_for_package(provider_id: str, current_release_version: str | None = 
             if line.startswith(".. Below changes are excluded from the changelog"):
                 # The reminder of PRs is not important skipping it
                 break
-            match_result = pr_matcher.match(line.strip())
-            if match_result:
-                prs.append(int(match_result.group(1)))
+            if line.lstrip().startswith("*"):
+                for pr_match in PR_REFERENCE_PATTERN.findall(line):
+                    pr_number = int(pr_match)
+                    if pr_number not in seen_prs:
+                        seen_prs.add(pr_number)
+                        prs.append(pr_number)
     return prs
 
 
@@ -2732,7 +2736,6 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
     Returns list of PRs that are commented out in the changelog.
     :return: list of PR numbers that appear only in comments in changelog.rst files in "providers" dir
     """
-    pr_matcher = re.compile(r".*\(#([0-9]+)\).*")
     commented_prs = set()
 
     # Get all provider distributions
@@ -2770,9 +2773,8 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
 
             # Extract PRs from excluded sections
             if in_excluded_section and line.strip().startswith("*"):
-                match_result = pr_matcher.search(line)
-                if match_result:
-                    commented_prs.add(int(match_result.group(1)))
+                for pr_match in PR_REFERENCE_PATTERN.findall(line):
+                    commented_prs.add(int(pr_match))
 
     return sorted(commented_prs)
 
