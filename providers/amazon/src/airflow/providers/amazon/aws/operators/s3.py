@@ -697,11 +697,6 @@ class S3DeleteObjectsOperator(AwsBaseOperator[S3Hook]):
 
         self._keys: str | list[str] = ""
 
-        if not exactly_one(keys is None, all(var is None for var in [prefix, from_datetime, to_datetime])):
-            raise AirflowException(
-                "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
-            )
-
     def execute(self, context: Context):
         if not exactly_one(
             self.keys is None, all(var is None for var in [self.prefix, self.from_datetime, self.to_datetime])

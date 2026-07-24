@@ -85,7 +85,7 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::4
 providers/amazon/src/airflow/providers/amazon/aws/operators/rds.py::4
 providers/amazon/src/airflow/providers/amazon/aws/operators/redshift_cluster.py::9
 providers/amazon/src/airflow/providers/amazon/aws/operators/redshift_data.py::2
-providers/amazon/src/airflow/providers/amazon/aws/operators/s3.py::5
+providers/amazon/src/airflow/providers/amazon/aws/operators/s3.py::4
 providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker.py::22
 providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker_unified_studio.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/step_function.py::2
