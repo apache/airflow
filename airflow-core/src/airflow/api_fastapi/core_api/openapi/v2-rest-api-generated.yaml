@@ -2681,6 +2681,14 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: order_by
         in: query
         required: false
@@ -9169,6 +9177,14 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: try_number
         in: query
         required: false
@@ -14230,6 +14246,11 @@ components:
             format: date-time
           - type: 'null'
           title: Partition Date
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - dag_run_id
@@ -16414,6 +16435,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id
