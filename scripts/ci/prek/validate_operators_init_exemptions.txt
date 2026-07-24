@@ -69,4 +69,3 @@ providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::SSHRemoteJo
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
 providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::TriggerDagRunOperator
 providers/standard/src/airflow/providers/standard/sensors/date_time.py::DateTimeSensor
-providers/weaviate/src/airflow/providers/weaviate/operators/weaviate.py::WeaviateIngestOperator
