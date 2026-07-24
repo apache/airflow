@@ -1236,9 +1236,10 @@ class DagFileProcessorManager(LoggingMixin):
 
         if proc.parsing_result is not None:
             try:
+                bundle_version = self._bundle_versions.get(file.bundle_name)
                 self.persist_parsing_result(
                     bundle_name=file.bundle_name,
-                    bundle_version=self._bundle_versions[file.bundle_name],
+                    bundle_version=bundle_version,
                     version_data=self._bundle_version_data.get(file.bundle_name),
                     parsing_result=proc.parsing_result,
                     run_duration=run_duration,
