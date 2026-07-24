@@ -2,6 +2,22 @@
   "additional_data": "נתונים נוספים",
   "asset_many": "נכסים",
   "asset_one": "נכס",
+  "assetStateStore": {
+    "add": "הוסף מאגר מצב נכס",
+    "clearAll": {
+      "resource": "כל מאגר מצב הנכס",
+      "title": "נקה את כל מאגר מצב הנכס",
+      "warning": "כל מאגר מצב הנכס יימחק. משימות שמשתמשות במאגר זה לתיאום עבודה יאבדו את הזיכרון השמור שלהן."
+    },
+    "delete": "מחק מאגר מצב נכס",
+    "deleteWarning": "הנכס יאבד רשומה זו ממאגר המצב.",
+    "edit": "ערוך מאגר מצב נכס",
+    "emptyState": "מאגר מצב הנכס שומר ערכים בהקשר של זהות נכס, המשותפים לכל הרצות ה-Dags. עובדים יכולים לכתוב למאגר מצב הנכס באמצעות Task SDK.",
+    "lastUpdatedBy": "עודכן לאחרונה על-ידי",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "מאגר מצב נכס"
+  },
   "consumingDags": "צורכים Dags",
   "consumingTasks": "משימות צורכות",
   "createEvent": {
@@ -25,6 +41,7 @@
     },
     "title": "יצירת אירוע בנכס עבור {{name}}"
   },
+  "events": "אירועים",
   "extra": "תוכן",
   "group": "קבוצה",
   "lastAssetEvent": "אירוע אחרון בנכס",
