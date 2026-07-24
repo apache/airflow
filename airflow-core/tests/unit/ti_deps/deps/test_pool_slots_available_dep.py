@@ -70,6 +70,33 @@ class TestPoolSlotsAvailableDep:
         ti_to_fail = Mock(pool="test_pool", state=TaskInstanceState.DEFERRED, pool_slots=1)
         assert not PoolSlotsAvailableDep().is_met(ti=ti_to_fail)
 
+    @patch("airflow.models.Pool.open_slots", return_value=0)
+    def test_post_deferral_scheduled_pooled_task_pass(self, mock_open_slots):
+        """Scheduled TIs resuming after deferral already hold a slot when include_deferred is on."""
+        ti = Mock(
+            pool="test_includes_deferred_pool",
+            state=TaskInstanceState.SCHEDULED,
+            pool_slots=1,
+            next_method="execute_complete",
+        )
+        assert PoolSlotsAvailableDep().is_met(ti=ti)
+        # First-lifetime scheduled (no next_method) must still require an open slot.
+        ti_first_schedule = Mock(
+            pool="test_includes_deferred_pool",
+            state=TaskInstanceState.SCHEDULED,
+            pool_slots=1,
+            next_method=None,
+        )
+        assert not PoolSlotsAvailableDep().is_met(ti=ti_first_schedule)
+        # include_deferred=False never treats scheduled as occupied.
+        ti_excluded = Mock(
+            pool="test_pool",
+            state=TaskInstanceState.SCHEDULED,
+            pool_slots=1,
+            next_method="execute_complete",
+        )
+        assert not PoolSlotsAvailableDep().is_met(ti=ti_excluded)
+
     def test_task_with_nonexistent_pool(self):
         ti = Mock(pool="nonexistent_pool", pool_slots=1)
         assert not PoolSlotsAvailableDep().is_met(ti=ti)

@@ -21,8 +21,9 @@ import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, and_, func, or_, select
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql.elements import ColumnElement
 
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -35,6 +36,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
+
+    from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
 
 logger = logging.getLogger(__name__)
 
@@ -242,11 +245,32 @@ class Pool(Base):
             else:
                 raise AirflowException(f"Unexpected state. Expected values: {allowed_execution_states}.")
 
+        # Scheduled TIs that are resuming after deferral still hold a pool slot when
+        # include_deferred is enabled (see get_occupied_states / occupied_slots).
+        # Distinguish them via next_method so first-lifetime scheduled TIs are not counted
+        # (that would deadlock scheduling when open = total - scheduled).
+        post_deferral_scheduled_by_pool: dict[str, int] = {}
+        if any(pool_includes_deferred.values()):
+            post_deferral_rows = session.execute(
+                select(TaskInstance.pool, func.sum(TaskInstance.pool_slots))
+                .where(
+                    TaskInstance.state == TaskInstanceState.SCHEDULED,
+                    TaskInstance.next_method.is_not(None),
+                )
+                .group_by(TaskInstance.pool)
+            )
+            post_deferral_scheduled_by_pool = {
+                pool_name: int(decimal_count)
+                for pool_name, decimal_count in post_deferral_rows
+                if pool_name is not None
+            }
+
         # calculate open metric
         for pool_name, stats_dict in pools.items():
             stats_dict["open"] = stats_dict["total"] - stats_dict["running"] - stats_dict["queued"]
             if pool_includes_deferred[pool_name]:
                 stats_dict["open"] -= stats_dict["deferred"]
+                stats_dict["open"] -= post_deferral_scheduled_by_pool.get(pool_name, 0)
 
         return pools
 
@@ -270,28 +294,62 @@ class Pool(Base):
         """
         Get the number of slots used by running/queued tasks at the moment.
 
+        When ``include_deferred`` is enabled, deferred tasks and scheduled tasks that are
+        resuming after deferral (``next_method`` is set) also count as occupied.
+
         :param session: SQLAlchemy ORM Session
         :return: the used number of slots
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         occupied_states = self.get_occupied_states()
+        occupancy_filter: ColumnElement[bool]
+        if self.include_deferred:
+            # Post-deferral scheduled TIs keep holding the slot until they are queued/running.
+            occupancy_filter = or_(
+                TaskInstance.state.in_(occupied_states),
+                and_(
+                    TaskInstance.state == TaskInstanceState.SCHEDULED,
+                    TaskInstance.next_method.is_not(None),
+                ),
+            )
+        else:
+            occupancy_filter = TaskInstance.state.in_(occupied_states)
 
         return int(
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state.in_(occupied_states))
+                .filter(occupancy_filter)
             )
             or 0
         )
 
     def get_occupied_states(self):
+        """
+        Return states that always occupy pool slots for this pool.
+
+        Post-deferral ``scheduled`` occupancy (``next_method`` set) is handled separately in
+        :meth:`occupied_slots` and :meth:`task_instance_occupies_slot` because it cannot be
+        expressed as a state-only set without also counting first-lifetime scheduled tasks.
+        """
         if self.include_deferred:
             return EXECUTION_STATES | {
                 TaskInstanceState.DEFERRED,
             }
         return EXECUTION_STATES
+
+    def task_instance_occupies_slot(self, ti: TaskInstanceModel) -> bool:
+        """
+        Return whether ``ti`` currently occupies a slot in this pool.
+
+        Used by pool availability deps so a TI that already holds a slot does not block itself.
+        """
+        if ti.state in self.get_occupied_states():
+            return True
+        return bool(
+            self.include_deferred and ti.state == TaskInstanceState.SCHEDULED and ti.next_method is not None
+        )
 
     @provide_session
     def running_slots(self, *, session: Session = NEW_SESSION) -> int:
