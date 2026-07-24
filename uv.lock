@@ -4311,11 +4311,17 @@ dependencies = [
     { name = "urllib3" },
 ]
 
+[package.optional-dependencies]
+standard = [
+    { name = "apache-airflow-providers-standard" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow" },
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-standard" },
     { name = "apache-airflow-task-sdk" },
 ]
 docs = [
@@ -4327,6 +4333,7 @@ requires-dist = [
     { name = "aiofiles", specifier = ">=23.2.0" },
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-standard", marker = "extra == 'standard'", editable = "providers/standard" },
     { name = "asgiref", marker = "python_full_version < '3.14'", specifier = ">=3.5.2" },
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "cryptography", specifier = ">=44.0.3" },
@@ -4334,12 +4341,14 @@ requires-dist = [
     { name = "kubernetes-asyncio", specifier = ">=32.0.0,<37.0.0" },
     { name = "urllib3", specifier = ">=2.1.0,!=2.6.0" },
 ]
+provides-extras = ["standard"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]

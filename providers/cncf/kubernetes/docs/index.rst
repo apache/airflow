@@ -122,6 +122,42 @@ PIP package                                 Version required
 ``kubernetes_asyncio``                      ``>=32.0.0,<37.0.0``
 ==========================================  ======================================
 
+Optional cross provider package dependencies
+--------------------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-cncf-kubernetes[standard]
+
+
+========================================================================================================  ============
+Dependent package                                                                                         Extra
+========================================================================================================  ============
+`apache-airflow-providers-standard <https://airflow.apache.org/docs/apache-airflow-providers-standard>`_  ``standard``
+========================================================================================================  ============
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-cncf-kubernetes[standard]
+
+
+============  =====================================
+Extra         Dependencies
+============  =====================================
+``standard``  ``apache-airflow-providers-standard``
+============  =====================================
+
 Downloading official packages
 -----------------------------
 
