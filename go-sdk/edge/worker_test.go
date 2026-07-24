@@ -24,12 +24,80 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync/atomic"
+	"syscall"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/pkg/config"
 	"github.com/apache/airflow/go-sdk/pkg/edgeapi"
 )
+
+func buildTestWorker(t *testing.T, apiURL string) *worker {
+	t.Helper()
+	w, err := NewWorker(config.WorkerConfig{
+		ApiURL:   apiURL,
+		Hostname: "test-worker",
+		Queues:   []string{"default"},
+	})
+	require.NoError(t, err)
+	return w
+}
+
+func TestSecondSIGTERMForcesDrainingWorkerShutdown(t *testing.T) {
+	var requestCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestCount.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(edgeapi.WorkerSetStateReturn{
+			State: edgeapi.EdgeWorkerStateIdle,
+		}); err != nil {
+			t.Errorf("failed to encode worker state: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	w := buildTestWorker(t, server.URL+"/")
+	w.activeWorkloads[uuid.New()] = bundlev1.ExecuteTaskWorkload{}
+
+	sigChan := make(chan os.Signal)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- w.runMainLoop(ctx, sigChan)
+	}()
+
+	select {
+	case sigChan <- syscall.SIGTERM:
+	case <-ctx.Done():
+		t.Fatal("worker did not receive the first SIGTERM")
+	}
+
+	select {
+	case sigChan <- syscall.SIGTERM:
+	case err := <-done:
+		t.Fatalf("worker stopped after the first SIGTERM: %v", err)
+	case <-ctx.Done():
+		t.Fatal("worker did not receive the second SIGTERM")
+	}
+
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-ctx.Done():
+		t.Fatal("worker did not stop after the second SIGTERM")
+	}
+
+	require.True(t, w.drain)
+	require.Equal(t, int32(0), requestCount.Load())
+}
 
 func TestFetchJobDoesNotLogToken(t *testing.T) {
 	var logBuffer bytes.Buffer
