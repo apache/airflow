@@ -26,6 +26,29 @@
 Changelog
 ---------
 
+7.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Databricks OIDC token federation for AWS IAM (#69509)``
+* ``Add supplied-token OIDC federation to the Databricks provider (#69272)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DatabricksSqlHook sqlalchemy_url missing http_path from connection extra (#69747)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 7.17.0
 ......
 

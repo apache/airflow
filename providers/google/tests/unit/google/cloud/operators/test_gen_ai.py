@@ -395,50 +395,67 @@ class TestGenAIGeminiCreateBatchJobOperator:
         mock_hook.return_value.get_batch_job.assert_called_once_with("test-name")
         mock_job.model_dump.assert_called_once_with(mode="json")
 
-    def test_init_retrieve_result_and_not_wait_until_complete_raises_airflow_exception(self):
-        with pytest.raises(AirflowException):
-            GenAIGeminiCreateBatchJobOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                model=TEST_GEMINI_MODEL,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                input_source=TEST_BATCH_JOB_INLINED_REQUESTS,
-                gemini_api_key=TEST_GEMINI_API_KEY,
-                wait_until_complete=False,
-                retrieve_result=True,
-            )
+    def test_execute_retrieve_result_and_not_wait_until_complete_raises_airflow_exception(self):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_BATCH_JOB_INLINED_REQUESTS,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            wait_until_complete=False,
+            retrieve_result=True,
+        )
 
-    def test_init_input_source_not_string_raises_airflow_exception(self):
-        with pytest.raises(AirflowException):
-            GenAIGeminiCreateBatchJobOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                model=TEST_GEMINI_MODEL,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                input_source=TEST_BATCH_JOB_INLINED_REQUESTS,
-                gemini_api_key=TEST_GEMINI_API_KEY,
-                wait_until_complete=False,
-                results_folder=TEST_FILE_PATH,
-            )
+        with pytest.raises(
+            AirflowException,
+            match=(
+                "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
+            ),
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
 
-    def test_init_results_folder_not_exists_raises_airflow_exception(self):
-        with pytest.raises(AirflowException):
-            GenAIGeminiCreateBatchJobOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                model=TEST_GEMINI_MODEL,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                input_source=TEST_FILE_NAME,
-                gemini_api_key=TEST_GEMINI_API_KEY,
-                wait_until_complete=False,
-                results_folder=TEST_FILE_PATH,
-            )
+    def test_execute_input_source_not_string_raises_airflow_exception(self):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_BATCH_JOB_INLINED_REQUESTS,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            wait_until_complete=False,
+            results_folder=TEST_FILE_PATH,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match="results_folder works only when input_source is file name",
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
+
+    def test_execute_results_folder_not_exists_raises_airflow_exception(self):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_FILE_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            wait_until_complete=False,
+            results_folder=TEST_FILE_PATH,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match="path to results_folder does not exist, please provide correct path",
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test__wait_until_complete_exception_raises_airflow_exception(self, mock_hook):
@@ -753,50 +770,67 @@ class TestGenAIGeminiCreateEmbeddingsBatchJobOperator:
             create_embeddings_config=None,
         )
 
-    def test_init_retrieve_result_and_not_wait_until_complete_raises_airflow_exception(self):
-        with pytest.raises(AirflowException):
-            GenAIGeminiCreateEmbeddingsBatchJobOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
-                model=EMBEDDING_MODEL,
-                gemini_api_key=TEST_GEMINI_API_KEY,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                wait_until_complete=False,
-                retrieve_result=True,
-            )
+    def test_execute_retrieve_result_and_not_wait_until_complete_raises_airflow_exception(self):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            wait_until_complete=False,
+            retrieve_result=True,
+        )
 
-    def test_init_input_source_not_string_raises_airflow_exception(self):
-        with pytest.raises(AirflowException):
-            GenAIGeminiCreateEmbeddingsBatchJobOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
-                model=EMBEDDING_MODEL,
-                gemini_api_key=TEST_GEMINI_API_KEY,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                wait_until_complete=False,
-                results_folder=TEST_FILE_PATH,
-            )
+        with pytest.raises(
+            AirflowException,
+            match=(
+                "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
+            ),
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
 
-    def test_init_results_folder_not_exists_raises_airflow_exception(self):
-        with pytest.raises(AirflowException):
-            GenAIGeminiCreateEmbeddingsBatchJobOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                input_source=TEST_FILE_NAME,
-                model=EMBEDDING_MODEL,
-                gemini_api_key=TEST_GEMINI_API_KEY,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                wait_until_complete=False,
-                results_folder=TEST_FILE_PATH,
-            )
+    def test_execute_input_source_not_string_raises_airflow_exception(self):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            wait_until_complete=False,
+            results_folder=TEST_FILE_PATH,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match="results_folder works only when input_source is file name",
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
+
+    def test_execute_results_folder_not_exists_raises_airflow_exception(self):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_FILE_NAME,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            wait_until_complete=False,
+            results_folder=TEST_FILE_PATH,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match="path to results_folder does not exist, please provide correct path",
+        ):
+            op.execute(context={"ti": mock.MagicMock()})
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test__wait_until_complete_exception_raises_airflow_exception(self, mock_hook):

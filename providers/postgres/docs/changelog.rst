@@ -63,10 +63,32 @@ Breaking changes
     To keep using psycopg2 on Airflow 3.4.0+, set
     ``[database] sql_alchemy_conn = postgresql+psycopg2://...`` explicitly.
 
+.. note::
+    The two notes above describe the **metadata database** only. Independently of them,
+    ``PostgresHook`` selects ``psycopg`` (psycopg3) for the connections it opens whenever
+    SQLAlchemy 2.x is installed — the default on Airflow 3.2 and later, and also the case on
+    Airflow 3.1 if SQLAlchemy has been upgraded to 2.x. Airflow 2.11 and 3.0 pin SQLAlchemy below
+    2.0 and are unaffected.
+
+    The ``google``, ``pgvector`` and ``amazon`` (Redshift SQLAlchemy/OpenLineage engine)
+    integrations follow the same selection, as does a Celery ``result_backend`` derived from the
+    metadata-database URL — unless ``[celery] result_backend`` is set explicitly.
+
+    There is no connection or configuration option to keep hooks on psycopg2; the
+    ``sql_alchemy_conn`` workarounds above cover the metadata database only. If your Dags rely on
+    psycopg2-specific behaviour, test before upgrading or pin the provider below 7.0.0.
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
 * ``Switch the default async Postgres driver from asyncpg to psycopg3 (#69089)``
+
+Misc
+~~~~
+
+* ``Keep asyncpg installed by default in the Postgres provider (#69690)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-07-06 (#69486)``
    * ``Document each provider's optional extras in its docs index (#69478)``
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
 
