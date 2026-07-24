@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
+import { Accordion, Box, Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useDagServiceGetDag } from "openapi/queries";
+import { useDagServiceGetDag, useDagServiceGetDagDetails } from "openapi/queries";
+import ReactMarkdown from "src/components/ReactMarkdown";
 import { Dialog, Tooltip } from "src/components/ui";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useTrigger } from "src/queries/useTrigger";
@@ -75,13 +76,24 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   const isBackfillable = dag?.is_backfillable ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
+  // useDagServiceGetDag returns the summary DAGResponse, which doesn't include doc_md.
+  // Fetch it separately from the details endpoint, only while the modal is open.
+  const { data: dagDetails } = useDagServiceGetDagDetails(
+    {
+      dagId,
+    },
+    undefined,
+    {
+      enabled: open,
+    },
+  );
   const { error, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} unmountOnExit>
-      <Dialog.Content backdrop>
+      <Dialog.Content backdrop maxW="3xl" width="90vw">
         <Dialog.Header paddingBottom={0}>
           <VStack align="start" gap={2} width="100%" wordBreak="break-all">
             <Heading size="xl">
@@ -138,18 +150,42 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
               ) : undefined}
 
               {runMode === RunMode.SINGLE ? (
-                <TriggerDAGForm
-                  dagDisplayName={dagDisplayName}
-                  dagId={dagId}
-                  error={error}
-                  hasSchedule={hasSchedule}
-                  isPartitioned={isPartitioned}
-                  isPaused={isPaused}
-                  isPending={isPending}
-                  onSubmitTrigger={triggerDagRun}
-                  open={open}
-                  prefillConfig={prefillConfig}
-                />
+                <>
+                  {dagDetails?.doc_md === null || dagDetails?.doc_md === undefined ? undefined : (
+                    <Accordion.Root collapsible defaultValue={["dag-docs"]} mb={4}>
+                      <Accordion.Item value="dag-docs">
+                        <Accordion.ItemTrigger>
+                          <Text fontWeight="semibold">{translate("triggerDag.dagDocs")}</Text>
+                          <Accordion.ItemIndicator />
+                        </Accordion.ItemTrigger>
+                        <Accordion.ItemContent>
+                          <Box
+                            borderColor="border.emphasized"
+                            borderLeft="solid 3px"
+                            maxH="200px"
+                            overflow="auto"
+                            pl={3}
+                            py={2}
+                          >
+                            <ReactMarkdown>{dagDetails.doc_md}</ReactMarkdown>
+                          </Box>
+                        </Accordion.ItemContent>
+                      </Accordion.Item>
+                    </Accordion.Root>
+                  )}
+                  <TriggerDAGForm
+                    dagDisplayName={dagDisplayName}
+                    dagId={dagId}
+                    error={error}
+                    hasSchedule={hasSchedule}
+                    isPartitioned={isPartitioned}
+                    isPaused={isPaused}
+                    isPending={isPending}
+                    onSubmitTrigger={triggerDagRun}
+                    open={open}
+                    prefillConfig={prefillConfig}
+                  />
+                </>
               ) : (
                 isBackfillable && dag && <RunBackfillForm dag={dag} onClose={onClose} />
               )}
