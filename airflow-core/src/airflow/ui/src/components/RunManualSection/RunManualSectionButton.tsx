@@ -17,7 +17,8 @@
  * under the License.
  */
 import { Button, Flex, Heading, VStack, useDisclosure } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import type { IconButtonProps } from "@chakra-ui/react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
@@ -29,34 +30,32 @@ import { Checkbox, Dialog, IconButton } from "src/components/ui";
 import { useRunManualSection } from "src/queries/useRunManualSection";
 import { useRunManualSectionDryRun } from "src/queries/useRunManualSectionDryRun";
 
+import { isRunnableManualGate, type ManualSectionTarget } from "./manualSectionTarget";
+
 type Props = {
   readonly taskInstance: TaskInstanceResponse;
 };
 
-const MANUAL_GATE_OPERATOR_NAME = "ManualGateOperator";
+type ActionProps = {
+  readonly buttonProps?: Omit<IconButtonProps, "aria-label" | "children" | "onClick">;
+  readonly onButtonClick?: (event: MouseEvent<HTMLButtonElement>) => void;
+  readonly target: ManualSectionTarget;
+};
 
-const isRunnableManualGate = (taskInstance: TaskInstanceResponse) =>
-  taskInstance.state === "success" &&
-  taskInstance.map_index === -1 &&
-  (taskInstance.operator_name === MANUAL_GATE_OPERATOR_NAME ||
-    taskInstance.operator === MANUAL_GATE_OPERATOR_NAME);
-
-const RunManualSectionAction = ({ taskInstance }: Props) => {
+export const RunManualSectionAction = ({ buttonProps, onButtonClick, target }: ActionProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
-  const [note, setNote] = useState<string | null>(taskInstance.note);
+  const [note, setNote] = useState<string | null>(target.note);
   const [preventRunningTask, setPreventRunningTask] = useState(true);
 
   useEffect(() => {
     if (open) {
-      setNote(taskInstance.note);
+      setNote(target.note);
       setPreventRunningTask(true);
     }
-  }, [open, taskInstance.note]);
+  }, [open, target.note]);
 
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-  const taskId = taskInstance.task_id;
+  const { dagId, dagRunId, taskId } = target;
   const requestBody = {
     note,
     prevent_running_task: preventRunningTask,
@@ -88,7 +87,14 @@ const RunManualSectionAction = ({ taskInstance }: Props) => {
 
   return (
     <>
-      <IconButton label={label} onClick={onOpen}>
+      <IconButton
+        {...buttonProps}
+        label={label}
+        onClick={(event) => {
+          onButtonClick?.(event);
+          onOpen();
+        }}
+      >
         <FiPlay />
       </IconButton>
       <Dialog.Root
@@ -105,8 +111,8 @@ const RunManualSectionAction = ({ taskInstance }: Props) => {
             <VStack align="start" gap={4}>
               <Heading size="xl">
                 <strong>{translate("dags:runAndTaskActions.manualSection.title")}:</strong>{" "}
-                {taskInstance.task_display_name} <Time datetime={taskInstance.start_date} />{" "}
-                <StateBadge state={taskInstance.state} />
+                {target.taskDisplayName} <Time datetime={target.startDate} />{" "}
+                <StateBadge state={target.state} />
               </Heading>
             </VStack>
           </Dialog.Header>
@@ -147,7 +153,23 @@ const RunManualSectionAction = ({ taskInstance }: Props) => {
   );
 };
 
-const RunManualSectionButton = ({ taskInstance }: Props) =>
-  isRunnableManualGate(taskInstance) ? <RunManualSectionAction taskInstance={taskInstance} /> : null;
+const taskInstanceToManualSectionTarget = (taskInstance: TaskInstanceResponse): ManualSectionTarget => ({
+  dagId: taskInstance.dag_id,
+  dagRunId: taskInstance.dag_run_id,
+  mapIndex: taskInstance.map_index,
+  note: taskInstance.note,
+  operator: taskInstance.operator,
+  operatorName: taskInstance.operator_name,
+  startDate: taskInstance.start_date,
+  state: taskInstance.state,
+  taskDisplayName: taskInstance.task_display_name,
+  taskId: taskInstance.task_id,
+});
+
+const RunManualSectionButton = ({ taskInstance }: Props) => {
+  const target = taskInstanceToManualSectionTarget(taskInstance);
+
+  return isRunnableManualGate(target) ? <RunManualSectionAction target={target} /> : null;
+};
 
 export default RunManualSectionButton;

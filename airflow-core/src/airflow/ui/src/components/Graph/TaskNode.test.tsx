@@ -16,16 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import type { ComponentProps, ReactNode } from "react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-import { Wrapper } from "src/utils/Wrapper";
+import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { TaskNode } from "./TaskNode";
 import { readableTextForFill } from "./nodeColors";
 import type { CustomNodeProps } from "./reactflowUtils";
+
+const RUN_MANUAL_SECTION_LABEL = "dags:runAndTaskActions.manualSection.button";
 
 vi.mock("src/context/groups", () => ({
   useGroups: vi.fn(() => ({ toggleGroupId: vi.fn() })),
@@ -35,6 +38,19 @@ const TestWrapper = ({ children }: { readonly children: ReactNode }) => (
   <Wrapper>
     <ReactFlowProvider>{children}</ReactFlowProvider>
   </Wrapper>
+);
+
+const TestWrapperWithDagRun = ({ children }: { readonly children: ReactNode }) => (
+  <BaseWrapper>
+    <MemoryRouter initialEntries={["/dags/example/runs/manual__2026-07-23T23:01:47/tasks/gate"]}>
+      <Routes>
+        <Route
+          element={<ReactFlowProvider>{children}</ReactFlowProvider>}
+          path="/dags/:dagId/runs/:runId/*"
+        />
+      </Routes>
+    </MemoryRouter>
+  </BaseWrapper>
 );
 
 // Chakra/Panda hashes color props into atomic class names rather than inline styles, so the resolved
@@ -54,6 +70,17 @@ const renderHtml = (data: Partial<CustomNodeProps>): string => {
 
   return container.innerHTML;
 };
+
+const renderNodeWithDagRun = (data: Partial<CustomNodeProps>) =>
+  render(
+    <TaskNode
+      {...({
+        data: { height: 80, id: "gate", label: "gate", type: "task", width: 200, ...data },
+        id: "gate",
+      } as unknown as ComponentProps<typeof TaskNode>)}
+    />,
+    { wrapper: TestWrapperWithDagRun },
+  );
 
 describe("TaskNode operator colors", () => {
   it("tints a leaf task when ui_color is set", () => {
@@ -82,6 +109,59 @@ describe("TaskNode operator colors", () => {
     expect(renderHtml({ depth: 0, isGroup: true, isOpen: true, uiColor: "blue.500" })).not.toBe(
       renderHtml({ depth: 1, isGroup: true, isOpen: true, uiColor: "blue.500" }),
     );
+  });
+});
+
+describe("TaskNode manual gate action", () => {
+  const taskInstance = {
+    child_states: {},
+    dag_version_number: 1,
+    has_note: false,
+    max_end_date: null,
+    min_start_date: "2026-07-23T23:01:47.000Z",
+    state: "success",
+    task_display_name: "gate",
+    task_id: "gate",
+  } as const;
+
+  it("shows a trigger button for successful manual gate tasks", () => {
+    renderNodeWithDagRun({
+      operator: "ManualGateOperator",
+      taskInstance,
+    });
+
+    expect(screen.getByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).not.toBeNull();
+  });
+
+  it("does not show a trigger button for non-manual gate tasks", () => {
+    renderNodeWithDagRun({
+      operator: "BashOperator",
+      taskInstance,
+    });
+
+    expect(screen.queryByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toBeNull();
+  });
+
+  it("does not show a trigger button for unfinished manual gate tasks", () => {
+    renderNodeWithDagRun({
+      operator: "ManualGateOperator",
+      taskInstance: {
+        ...taskInstance,
+        state: "running",
+      },
+    });
+
+    expect(screen.queryByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toBeNull();
+  });
+
+  it("does not show a trigger button for mapped manual gate tasks", () => {
+    renderNodeWithDagRun({
+      isMapped: true,
+      operator: "ManualGateOperator",
+      taskInstance,
+    });
+
+    expect(screen.queryByRole("button", { name: RUN_MANUAL_SECTION_LABEL })).toBeNull();
   });
 });
 

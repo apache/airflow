@@ -20,8 +20,14 @@ import { Box, Button, Flex, HStack, LinkOverlay, Text, useToken } from "@chakra-
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineGroup } from "react-icons/ai";
+import { useParams } from "react-router-dom";
 
 import { TaskIcon } from "src/assets/TaskIcon";
+import {
+  isRunnableManualGate,
+  RunManualSectionAction,
+  type ManualSectionTarget,
+} from "src/components/RunManualSection";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import { useGroups } from "src/context/groups";
@@ -61,6 +67,7 @@ export const TaskNode = ({
   id,
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
   const { t: translate } = useTranslation("components");
+  const { dagId: routeDagId = "", runId = "" } = useParams();
   const { toggleGroupId } = useGroups();
   // Resolve the fill through Chakra so any token (dotted like "blue.500" or bare like "bg") becomes a
   // valid CSS color for the group color-mix; raw hex/CSS names pass through unchanged.
@@ -91,6 +98,20 @@ export const TaskNode = ({
   const { dagId, taskId } = parseDagIdFromLabel(label);
   const displayLabel = dagId === undefined ? label : taskId;
   const displayOperator = operator ?? dagId;
+  const manualSectionTarget: ManualSectionTarget | undefined =
+    !isGroup && !isMapped && routeDagId !== "" && runId !== "" && taskInstance !== undefined
+      ? {
+          dagId: routeDagId,
+          dagRunId: runId,
+          mapIndex: -1,
+          note: null,
+          operator,
+          startDate: taskInstance.min_start_date,
+          state: taskInstance.state,
+          taskDisplayName: taskInstance.task_display_name,
+          taskId: taskInstance.task_id,
+        }
+      : undefined;
 
   const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
     .map(([_state, count]) => count)
@@ -196,6 +217,29 @@ export const TaskNode = ({
                 {isOpen ? "- " : "+ "}
                 {translate("graph.taskCount", { count: childCount ?? 0 })}
               </Button>
+            ) : undefined}
+            {manualSectionTarget !== undefined && isRunnableManualGate(manualSectionTarget) ? (
+              <RunManualSectionAction
+                buttonProps={{
+                  bg: "fg",
+                  borderRadius: "full",
+                  borderWidth: 0,
+                  bottom: 1.5,
+                  boxShadow: "sm",
+                  color: "bg",
+                  height: 6,
+                  minWidth: 6,
+                  padding: 0,
+                  position: "absolute",
+                  right: 1.5,
+                  size: "xs",
+                  variant: "plain",
+                  width: 6,
+                  zIndex: 2,
+                }}
+                onButtonClick={(event) => event.stopPropagation()}
+                target={manualSectionTarget}
+              />
             ) : undefined}
             {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
               <SegmentedStateBar

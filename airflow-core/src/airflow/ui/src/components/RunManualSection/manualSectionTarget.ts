@@ -16,6 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-export { default as RunManualSectionButton, RunManualSectionAction } from "./RunManualSectionButton";
-export { isRunnableManualGate } from "./manualSectionTarget";
-export type { ManualSectionTarget } from "./manualSectionTarget";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+
+const MANUAL_GATE_OPERATOR_NAME = "ManualGateOperator";
+
+export type ManualSectionTarget = {
+  readonly dagId: string;
+  readonly dagRunId: string;
+  readonly mapIndex: number;
+  readonly note: string | null;
+  readonly operator?: string | null;
+  readonly operatorName?: string | null;
+  readonly startDate: string | null;
+  readonly state: TaskInstanceState | null;
+  readonly taskDisplayName: string;
+  readonly taskId: string;
+};
+
+export const isRunnableManualGate = (target: ManualSectionTarget) =>
+  target.state === "success" &&
+  target.mapIndex === -1 &&
+  (target.operatorName === MANUAL_GATE_OPERATOR_NAME || target.operator === MANUAL_GATE_OPERATOR_NAME);
