@@ -115,7 +115,19 @@ def create_app(apps: str = "all") -> FastAPI:
         title="Airflow API",
         description="Airflow API. All endpoints located under ``/api/v2`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
-        "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
+        "depending on the need of the frontend. Users should not rely on those but use the public ones instead."
+        "\n\n"
+        "**Filtering with pattern parameters.** Many list endpoints accept ``*_pattern`` and "
+        "``*_prefix_pattern`` query parameters. Unless a parameter's own description says otherwise, "
+        "``*_pattern`` is a case-insensitive substring match (SQL ``ILIKE '%term%'``) where ``%`` matches "
+        "any sequence and ``_`` matches any single character (e.g. ``%customer_%``) — convenient, but it "
+        "cannot use B-tree indexes, so it is slow on large tables. ``*_prefix_pattern`` matches the start "
+        "of the value, is case-sensitive and index-friendly (prefer it at scale); there ``%`` and ``_`` "
+        "are literal and trailing non-alphanumeric characters are stripped so the range scan stays "
+        "index-compatible under locale-aware collations "
+        "(e.g. ``test_`` matches values starting with ``test``, and ``s3://`` matches ``s3``). In both, "
+        "``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches everything. Regular expressions are not "
+        "supported by these parameters; regex-capable endpoints expose a separate parameter.",
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),
         version="2",
