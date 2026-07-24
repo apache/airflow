@@ -229,6 +229,22 @@ The **Events** tab surfaces structured events related to the Dag, such as Dag tr
 .. image:: img/ui-light/dag_overview_events.png
    :alt: Dag Events Tab (Light Mode)
 
+Backfills Tab
+''''''''
+
+The **Backfills** tab displays historical backfill jobs for a specific DAG, including their date ranges, reprocessing behavior, and execution status.
+
+.. image:: img/ui-dark/dag_overview_backfills.png
+   :alt: Dag Backfills Tab (Dark Mode)
+
+|
+
+.. image:: img/ui-light/dag_overview_backfills.png
+   :alt: Dag Overview Tab (Light Mode)
+
+|
+
+
 Code Tab
 ''''''''
 
