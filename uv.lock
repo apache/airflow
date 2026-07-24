@@ -64,9 +64,9 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-asana = false
 apache-airflow-providers-oracle = false
 apache-airflow-providers-mysql = false
+apache-airflow-providers-teradata = false
 apache-airflow-providers-alibaba = false
 apache-airflow-providers-microsoft-mssql = false
-apache-airflow-providers-teradata = false
 apache-airflow-providers-jdbc = false
 apache-airflow-helm-chart = false
 apache-airflow-providers-anthropic = false
@@ -647,7 +647,7 @@ name = "aiohttp-cors"
 version = "0.8.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "aiohttp" },
+    { name = "aiohttp", marker = "python_full_version < '3.15'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6f/6d/d89e846a5444b3d5eb8985a6ddb0daef3774928e1bfbce8e84ec97b0ffa7/aiohttp_cors-0.8.1.tar.gz", hash = "sha256:ccacf9cb84b64939ea15f859a146af1f662a6b1d68175754a07315e305fb1403", size = 38626, upload-time = "2025-03-31T14:16:20.048Z" }
 wheels = [
@@ -4420,6 +4420,9 @@ common-sql = [
 docx = [
     { name = "python-docx" },
 ]
+gcp = [
+    { name = "apache-airflow-providers-google" },
+]
 git = [
     { name = "apache-airflow-providers-git" },
 ]
@@ -4491,6 +4494,7 @@ requires-dist = [
     { name = "apache-airflow-providers-common-sql", marker = "extra == 'sql'", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-git", marker = "extra == 'git'", editable = "providers/git" },
     { name = "apache-airflow-providers-git", marker = "extra == 'skills'", editable = "providers/git" },
+    { name = "apache-airflow-providers-google", marker = "extra == 'gcp'", editable = "providers/google" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
     { name = "dataclasses-json", marker = "extra == 'llamaindex'", specifier = ">=0.6.7" },
     { name = "fastavro", marker = "python_full_version >= '3.14' and extra == 'avro'", specifier = ">=1.12.1" },
@@ -4514,7 +4518,7 @@ requires-dist = [
     { name = "python-docx", marker = "extra == 'docx'", specifier = ">=1.0.0" },
     { name = "sqlglot", marker = "extra == 'sql'", specifier = ">=30.0.0" },
 ]
-provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "aws", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "amazon"]
+provides-extras = ["anthropic", "bedrock", "google", "openai", "mcp", "code-mode", "shields", "skills", "avro", "parquet", "sql", "aws", "gcp", "common-sql", "langchain", "llamaindex", "pdf", "docx", "git", "amazon"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -11012,7 +11016,7 @@ name = "colorful"
 version = "0.5.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "python_full_version < '3.15' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/82/31/109ef4bedeb32b4202e02ddb133162457adc4eb890a9ed9c05c9dd126ed0/colorful-0.5.8.tar.gz", hash = "sha256:bb16502b198be2f1c42ba3c52c703d5f651d826076817185f0294c1a549a7445", size = 209361, upload-time = "2025-10-29T11:53:21.663Z" }
 wheels = [
@@ -17507,9 +17511,9 @@ name = "opencensus"
 version = "0.11.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "google-api-core" },
-    { name = "opencensus-context" },
-    { name = "six" },
+    { name = "google-api-core", marker = "python_full_version < '3.15'" },
+    { name = "opencensus-context", marker = "python_full_version < '3.15'" },
+    { name = "six", marker = "python_full_version < '3.15'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/15/a7/a46dcffa1b63084f9f17fe3c8cb20724c4c8f91009fd0b2cfdb27d5d2b35/opencensus-0.11.4.tar.gz", hash = "sha256:cbef87d8b8773064ab60e5c2a1ced58bbaa38a6d052c41aec224958ce544eff2", size = 64966, upload-time = "2024-01-03T18:04:07.085Z" }
 wheels = [
@@ -20792,14 +20796,14 @@ name = "ray"
 version = "2.56.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click" },
-    { name = "filelock" },
-    { name = "jsonschema" },
-    { name = "msgpack" },
-    { name = "packaging" },
-    { name = "protobuf" },
-    { name = "pyyaml" },
-    { name = "requests" },
+    { name = "click", marker = "python_full_version < '3.15'" },
+    { name = "filelock", marker = "python_full_version < '3.15'" },
+    { name = "jsonschema", marker = "python_full_version < '3.15'" },
+    { name = "msgpack", marker = "python_full_version < '3.15'" },
+    { name = "packaging", marker = "python_full_version < '3.15'" },
+    { name = "protobuf", marker = "python_full_version < '3.15'" },
+    { name = "pyyaml", marker = "python_full_version < '3.15'" },
+    { name = "requests", marker = "python_full_version < '3.15'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/f5/89dc8571f35355a7f889cd4709b440abf6db2c5fc8b5427b614d5084e9cb/ray-2.56.1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:58b8c037a9f2b7b7866439cb6fe19d452ba3961f2b62d0a247dc3adf2ca45265", size = 66364186, upload-time = "2026-07-17T21:27:58.09Z" },
@@ -20824,20 +20828,20 @@ wheels = [
 
 [package.optional-dependencies]
 default = [
-    { name = "aiohttp" },
-    { name = "aiohttp-cors" },
-    { name = "colorful" },
-    { name = "grpcio" },
-    { name = "opencensus" },
-    { name = "opentelemetry-exporter-prometheus" },
-    { name = "opentelemetry-proto" },
-    { name = "opentelemetry-sdk" },
-    { name = "prometheus-client" },
-    { name = "py-spy" },
-    { name = "pydantic" },
-    { name = "requests" },
-    { name = "smart-open" },
-    { name = "virtualenv" },
+    { name = "aiohttp", marker = "python_full_version < '3.15'" },
+    { name = "aiohttp-cors", marker = "python_full_version < '3.15'" },
+    { name = "colorful", marker = "python_full_version < '3.15'" },
+    { name = "grpcio", marker = "python_full_version < '3.15'" },
+    { name = "opencensus", marker = "python_full_version < '3.15'" },
+    { name = "opentelemetry-exporter-prometheus", marker = "python_full_version < '3.15'" },
+    { name = "opentelemetry-proto", marker = "python_full_version < '3.15'" },
+    { name = "opentelemetry-sdk", marker = "python_full_version < '3.15'" },
+    { name = "prometheus-client", marker = "python_full_version < '3.15'" },
+    { name = "py-spy", marker = "python_full_version < '3.15'" },
+    { name = "pydantic", marker = "python_full_version < '3.15'" },
+    { name = "requests", marker = "python_full_version < '3.15'" },
+    { name = "smart-open", marker = "python_full_version < '3.15'" },
+    { name = "virtualenv", marker = "python_full_version < '3.15'" },
 ]
 
 [[package]]
@@ -22134,7 +22138,7 @@ name = "smart-open"
 version = "8.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "wrapt" },
+    { name = "wrapt", marker = "python_full_version < '3.15'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/53/9c513747547fd595d5c143259129ea8b9c3ea2f6b7bb9dcea2b1966ded3c/smart_open-8.0.1.tar.gz", hash = "sha256:18b1c4496003c6902be17c15f032b5c319f307c89c6ae9e6b028b508bed8b2cf", size = 61882, upload-time = "2026-07-15T13:56:10.492Z" }
 wheels = [
