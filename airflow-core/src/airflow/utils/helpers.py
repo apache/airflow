@@ -176,8 +176,8 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
     """
     merged = dict1.copy()
     for k, v in dict2.items():
-        if k in merged and isinstance(v, dict):
-            merged[k] = merge_dicts(merged.get(k, {}), v)
+        if k in merged and isinstance(v, dict) and isinstance(merged[k], dict):
+            merged[k] = merge_dicts(merged[k], v)
         else:
             merged[k] = v
     return merged

@@ -114,6 +114,14 @@ class TestHelpers:
         merged = merge_dicts(dict1, dict2)
         assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
+    def test_merge_dicts_overwrites_non_dict_with_dict(self):
+        """
+        When dict1 holds a non-dict for a key and dict2 holds a dict, dict2 overwrites
+        (per the documented contract) instead of recursing into the non-dict and raising.
+        """
+        assert merge_dicts({"a": 1}, {"a": {"b": 2}}) == {"a": {"b": 2}}
+        assert merge_dicts({"a": [1, 2]}, {"a": {"b": 2}}) == {"a": {"b": 2}}
+
     def test_build_airflow_dagrun_url(self):
         expected_url = "/dags/somedag/runs/abc123"
         assert build_airflow_dagrun_url(dag_id="somedag", run_id="abc123") == expected_url
