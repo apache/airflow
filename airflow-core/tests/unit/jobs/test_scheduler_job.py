@@ -6065,6 +6065,10 @@ class TestSchedulerJob:
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
         dr = dag_maker.create_dagrun()
 
+        with dag_maker(
+            dag_id=f"consumer_{suffix}", schedule=[asset], bundle_name=bundle_name, session=session
+        ):
+            pass
         asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
         event = AssetEvent(
             asset_id=asset_id,
@@ -6074,12 +6078,8 @@ class TestSchedulerJob:
             source_map_index=-1,
         )
         session.add(event)
-
-        with dag_maker(
-            dag_id=f"consumer_{suffix}", schedule=[asset], bundle_name=bundle_name, session=session
-        ):
-            pass
-
+        # flush here to ensure event timestamp is before the ADRQ created_at timestamp
+        session.flush()
         session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=f"consumer_{suffix}"))
         session.flush()
 
