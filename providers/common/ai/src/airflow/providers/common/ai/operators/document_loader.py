@@ -155,12 +155,15 @@ class DocumentLoaderOperator(BaseOperator):
             raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
         if self.source_bytes is not None and self.file_type is None:
             raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
+
         if self.source_bytes is not None:
-            assert self.file_type is not None  # noqa: S101 -- enforced above
+            if TYPE_CHECKING:
+                assert self.file_type is not None
             documents = self._parse_bytes(self.source_bytes, self.file_type)
             file_count = 1
         else:
-            assert self.source_path is not None  # noqa: S101 -- enforced above
+            if TYPE_CHECKING:
+                assert self.source_path is not None
             files = self._resolve_files(self.source_path)
             if not files:
                 raise FileNotFoundError(f"No files found matching '{self.source_path}'.")
