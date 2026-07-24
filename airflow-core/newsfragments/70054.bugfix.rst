@@ -1,0 +1,1 @@
+Allow customizing the maximum width of the Dag tag filter in the UI.
