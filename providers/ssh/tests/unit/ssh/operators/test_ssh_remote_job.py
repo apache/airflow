@@ -460,3 +460,26 @@ class TestSSHRemoteJobOperator:
             op._cleanup_remote_job("/tmp/airflow-ssh-jobs/test_job_123", "posix")
 
         assert self.mock_hook.exec_ssh_client_command.call_count == 3
+
+    def test_cleanup_with_custom_remote_base_dir(self):
+        """Cleanup validates the job dir against the operator's remote_base_dir, not the default.
+
+        Regression test for https://github.com/apache/airflow/issues/69813: with a custom
+        remote_base_dir the job ran fine but cleanup raised ValueError because the job dir
+        was validated against the default base directory.
+        """
+        self.mock_hook.exec_ssh_client_command.return_value = (0, b"", b"")
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_base_dir="/tmp-data/airflow-ssh-jobs",
+        )
+
+        # Must not raise; before the fix this failed with "Invalid job directory".
+        op._cleanup_remote_job("/tmp-data/airflow-ssh-jobs/test_job_123", "posix")
+
+        assert self.mock_hook.exec_ssh_client_command.call_count == 1
+        cleanup_cmd = self.mock_hook.exec_ssh_client_command.call_args.args[1]
+        assert "rm -rf '/tmp-data/airflow-ssh-jobs/test_job_123'" in cleanup_cmd
