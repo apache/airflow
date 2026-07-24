@@ -129,7 +129,6 @@ class DatabricksReposCreateOperator(BaseOperator):
         :param context: context
         :return: Repo ID
         """
-        # branch/tag are template fields; validate after rendering, not in __init__.
         if self.branch is not None and self.tag is not None:
             raise AirflowException("Only one of branch or tag should be provided, but not both")
         payload = {
@@ -241,7 +240,6 @@ class DatabricksReposUpdateOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        # branch/tag/repo_path are template fields; validate after rendering, not in __init__.
         if self.branch is not None and self.tag is not None:
             raise AirflowException("Only one of branch or tag should be provided, but not both")
         if self.branch is None and self.tag is None:
@@ -312,7 +310,6 @@ class DatabricksReposDeleteOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        # repo_path is a template field; validate after rendering, not in __init__.
         if self.repo_id is not None and self.repo_path is not None:
             raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
         if self.repo_id is None and self.repo_path is None:
