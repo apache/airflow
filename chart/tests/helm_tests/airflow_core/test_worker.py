@@ -671,6 +671,7 @@ class TestWorker:
         livenessprobe_cmd = jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
+        assert "airflow celery check-worker" in livenessprobe_cmd[-1]
         assert "airflow.providers.celery.executors.celery_executor.app" in livenessprobe_cmd[-1]
         assert "socket.gethostname()" in livenessprobe_cmd[-1]
 
