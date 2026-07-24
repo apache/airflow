@@ -38,6 +38,7 @@ import pytest
 import time_machine
 from sqlalchemy import delete, func, inspect, select, update
 from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -2287,6 +2288,33 @@ class TestSchedulerJob:
 
         session.flush()
         session.rollback()
+
+    @pytest.mark.parametrize("dialect", ["postgresql", "cockroachdb"])
+    def test_executable_tis_uses_advisory_lock_for_postgres_family(self, dialect):
+        """Both PostgreSQL and CockroachDB (26.3+) coordinate HA schedulers via xact advisory locks."""
+        job_runner = SchedulerJobRunner(job=Job())
+        session = mock.MagicMock()
+        session.execute.return_value.scalar.return_value = False
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.get_dialect_name", return_value=dialect):
+            with pytest.raises(OperationalError, match="Failed to acquire advisory lock"):
+                job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        executed_sql = str(session.execute.call_args[0][0])
+        assert "pg_try_advisory_xact_lock" in executed_sql
+
+    def test_executable_tis_skips_advisory_lock_for_other_dialects(self):
+        job_runner = SchedulerJobRunner(job=Job())
+        session = mock.MagicMock()
+
+        with (
+            mock.patch("airflow.jobs.scheduler_job_runner.get_dialect_name", return_value="mysql"),
+            mock.patch("airflow.models.pool.Pool.slots_stats", return_value={}),
+        ):
+            assert job_runner._executable_task_instances_to_queued(max_tis=32, session=session) == []
+
+        executed_sql = " ".join(str(call.args[0]) for call in session.execute.call_args_list if call.args)
+        assert "pg_try_advisory_xact_lock" not in executed_sql
 
     def test_find_executable_task_instances_none(self, dag_maker):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_none"
