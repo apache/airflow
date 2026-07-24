@@ -72,8 +72,9 @@ class TestSnowparkContainerJobOperator:
         ),
     )
     def test_invalid_spec_combinations(self, kwargs, match):
+        op = _make_operator(**kwargs)
         with pytest.raises(ValueError, match=match):
-            _make_operator(**kwargs)
+            op.execute(context=None)
 
     def test_build_sql_with_spec_stage(self):
         op = _make_operator()

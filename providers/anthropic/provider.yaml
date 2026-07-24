@@ -27,10 +27,11 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1780426378
+source-date-epoch: 1784746595
 
 # Note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.2.0
   - 0.1.0
 
 integrations:

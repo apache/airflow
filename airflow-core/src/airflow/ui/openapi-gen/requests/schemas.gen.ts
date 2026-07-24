@@ -3904,6 +3904,17 @@ export const $DAGRunResponse = {
                 }
             ],
             title: 'Partition Date'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
@@ -7115,6 +7126,17 @@ export const $TaskInstanceResponse = {
                     type: 'null'
                 }
             ]
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',

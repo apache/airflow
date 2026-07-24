@@ -47,9 +47,7 @@ const {
 
 type BooleanFilterValue = "all" | "false" | "true";
 
-const lastRunStates = ["failed", "queued", "running", "success"] as const;
-// Mirrors the backend limit (see _AnyDagRunStateFilter): only running/queued are indexed on dag_run.
-const anyRunStates = ["queued", "running"] as const;
+const runStates = ["failed", "queued", "running", "success"] as const;
 const booleanFilterValues: ReadonlyArray<BooleanFilterValue> = ["all", "true", "false"];
 
 const toBooleanFilterValue = (
@@ -174,14 +172,14 @@ export const DagsFilters = () => {
         dataTestId="dags-last-run-state-filter"
         label={translate("filters.lastRunState")}
         onChange={handleStateChange}
-        states={lastRunStates}
+        states={runStates}
         value={state ?? undefined}
       />
       <RunStateSelect
         dataTestId="dags-any-run-state-filter"
         label={translate("filters.anyRunState")}
         onChange={handleActiveRunChange}
-        states={anyRunStates}
+        states={runStates}
         value={activeRunState ?? undefined}
       />
       <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
