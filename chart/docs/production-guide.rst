@@ -260,6 +260,77 @@ generated using the secret key has a short expiry time though. Make sure that ti
 that you run Airflow components on is synchronized (for example using ntpd). You might get
 "forbidden" errors when the logs are accessed otherwise.
 
+Fernet Key
+----------
+
+Airflow uses a Fernet key to encrypt sensitive data, such as connection passwords, stored in the metadata database.
+See :doc:`Fernet <apache-airflow:security/secrets/fernet>` for background on how this works. If you do not provide a
+key, the chart generates one and stores it in the ``<RELEASE_NAME>-fernet-key`` Kubernetes Secret the first time you
+run ``helm install``.
+
+.. warning::
+
+   The chart only creates that Secret on ``helm install`` -- it is not re-created or otherwise updated by
+   ``helm upgrade``. This applies both to the auto-generated key and to a key you pass through ``fernetKey`` in the values file. To rotate the Fernet key, you need to manage the Secret yourself, as described below.
+
+To provide your own key, either set ``fernetKey`` in the values file:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   fernetKey: <fernet_key>
+
+.. warning::
+
+   Due to security concerns, it is advised to use a Kubernetes Secret instead of setting the Fernet key directly in
+   the values file. Never commit a ``values.yaml`` containing a plaintext Fernet key to version control.
+
+or create your own Kubernetes Secret containing a ``fernet-key`` key with a base64-encoded value, and point the chart at it with ``fernetKeySecretName``:
+
+.. code-block:: bash
+
+   kubectl create secret generic my-fernet-key --from-literal="fernet-key=<fernet_key>"
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   fernetKeySecretName: my-fernet-key
+
+.. note::
+
+   ``kubectl create secret`` only creates an object in the cluster -- it is not tracked anywhere else. Manage this
+   Secret through your Infrastructure-as-a-Code process (for example, a GitOps repository, a Sealed Secret, or
+   an External Secrets Operator resource) so it is not lost on a cluster migration or a full redeploy.
+
+Rotating the Fernet key
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Once connections, variables and triggers have been encrypted with a Fernet key, changing the key outright makes the
+existing encrypted values unreadable. To rotate the key without losing access to them, follow the same procedure as
+:doc:`Rotating encryption keys <apache-airflow:security/secrets/fernet>`, applied to the Kubernetes Secret that backs
+``AIRFLOW__CORE__FERNET_KEY``:
+
+#. Make sure you are using a self-managed Secret through ``fernetKeySecretName``
+#. Update the ``fernet-key`` value in that Secret to a comma-separated list ``new_fernet_key,old_fernet_key``, using
+   the same ``kubectl create secret`` command as above with ``--dry-run=client -o yaml`` piped into ``kubectl apply``
+   so it updates the existing Secret in place instead of failing because it already exists:
+
+   .. code-block:: bash
+
+      kubectl create secret generic my-fernet-key \
+        --from-literal="fernet-key=new_fernet_key,old_fernet_key" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+   Then restart the Airflow components (for example with ``kubectl rollout restart``) so they pick up the new value
+#. Run ``airflow rotate-fernet-key``, in one of the Airflow components pods, to re-encrypt existing connections, variables and triggers with the new key.
+#. Update the Secret, so it only contains ``new_fernet_key``, and restart the components once more:
+
+   .. code-block:: bash
+
+      kubectl create secret generic my-fernet-key \
+        --from-literal="fernet-key=new_fernet_key" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
 JWT Secret
 ----------
 
