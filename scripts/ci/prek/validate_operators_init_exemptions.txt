@@ -24,7 +24,6 @@ providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::S
 providers/anthropic/src/airflow/providers/anthropic/operators/agent.py::AnthropicAgentSessionOperator
 providers/apache/hive/src/airflow/providers/apache/hive/sensors/hive_partition.py::HivePartitionSensor
 providers/apache/hive/src/airflow/providers/apache/hive/sensors/named_hive_partition.py::NamedHivePartitionSensor
-providers/apache/kafka/src/airflow/providers/apache/kafka/operators/produce.py::ProduceToTopicOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/kueue.py::KubernetesInstallKueueOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
 providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposCreateOperator

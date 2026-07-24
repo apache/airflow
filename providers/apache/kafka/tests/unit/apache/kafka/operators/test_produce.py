@@ -20,10 +20,13 @@ import json
 import logging
 from typing import Any
 
+import pendulum
 import pytest
 
 from airflow.models import Connection
+from airflow.models.dag import DAG
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
+from airflow.providers.common.compat.sdk import AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -85,3 +88,19 @@ class TestProduceToTopic:
         )
 
         operator.execute(context={})
+
+    def test_execute_rejects_empty_rendered_topic(self):
+        # topic is a template field and un-rendered Jinja is truthy, so the check must run in execute.
+        with DAG("kafka_produce", schedule=None, start_date=pendulum.datetime(2020, 1, 1, tz="UTC")):
+            operator = ProduceToTopicOperator(
+                kafka_config_id="kafka_d",
+                topic="{{ params.topic }}",
+                producer_function=_simple_producer,
+                producer_function_args=(b"test", b"test"),
+                task_id="test",
+                synchronous=False,
+            )
+        operator.render_template_fields({"params": {"topic": ""}})
+        assert operator.topic == ""
+        with pytest.raises(AirflowException, match="topic and producer_function must be provided"):
+            operator.execute(context={})

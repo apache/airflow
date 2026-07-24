@@ -100,15 +100,14 @@ class ProduceToTopicOperator(BaseOperator):
         self.synchronous = synchronous
         self.poll_timeout = poll_timeout
 
+    def execute(self, context) -> None:
+        # topic is a template field; validate the rendered value here, not in __init__.
         if not (self.topic and self.producer_function):
             raise AirflowException(
                 "topic and producer_function must be provided. Got topic="
                 f"{self.topic} and producer_function={self.producer_function}"
             )
 
-        return
-
-    def execute(self, context) -> None:
         # Get producer and callable
         producer = KafkaProducerHook(kafka_config_id=self.kafka_config_id).get_producer()
 
