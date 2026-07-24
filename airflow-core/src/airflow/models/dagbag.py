@@ -240,6 +240,24 @@ class DBDagBag:
 
         if not (serdag := SerializedDagModel.get(dag_id, session=session)):
             return None
+
+        with self._lock:
+            cached = self._dags.get(serdag.dag_version_id)
+            if cached is not None:
+                # The latest-row query already loaded dag_hash, so no revalidation query is needed.
+                if cached.dag_hash == serdag.dag_hash:
+                    self._dags[serdag.dag_version_id] = cached._replace(last_validated=time.monotonic())
+                else:
+                    # A serialized Dag can be updated in place without changing its version ID.
+                    self._dags.pop(serdag.dag_version_id, None)
+                    cached = None
+
+        if cached is not None:
+            if self._use_cache:
+                stats.incr("api_server.dag_bag.cache_hit")
+            return cached.dag
+        if self._use_cache:
+            stats.incr("api_server.dag_bag.cache_miss")
         return self._read_dag(serdag)
 
 

@@ -728,8 +728,9 @@ in memory. Configure this in the ``[api]`` section:
     dag_cache_size = 64    ; max cached versions (0 = unbounded, pre-3.2 behavior)
     dag_cache_ttl = 3600   ; seconds before a cached entry expires (0 = LRU only)
 
-The cache is keyed by Dag version ID. After a Dag is updated, the API server may serve the
-previous version until the cached entry expires (controlled by ``dag_cache_ttl``).
+The cache is keyed by Dag version ID. Cached entries are periodically checked against the
+database according to ``[core] min_serialized_dag_update_interval``. The ``dag_cache_ttl`` setting
+controls eviction and memory usage independently of this freshness check.
 
 See :ref:`config:api__dag_cache_size` and :ref:`config:api__dag_cache_ttl` for the full
 configuration reference.
