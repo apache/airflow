@@ -68,8 +68,7 @@ class AzureVirtualMachineStateSensor(BaseSensorOperator):
         self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
-        # target_state is a template field; validate the rendered value here rather than in
-        # __init__, which only sees the un-rendered Jinja expression.
+        # target_state is a template field; validate the rendered value here, not in __init__.
         if self.target_state not in self.VALID_STATES:
             raise ValueError(
                 f"Invalid target_state: {self.target_state}. Must be one of {sorted(self.VALID_STATES)}"

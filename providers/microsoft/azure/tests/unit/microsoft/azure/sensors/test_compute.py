@@ -44,8 +44,6 @@ class TestAzureVirtualMachineStateSensor:
         assert sensor.azure_conn_id == CONN_ID
 
     def test_invalid_target_state_rejected_at_poke(self):
-        # __init__ no longer validates the template field; the ValueError surfaces at poke,
-        # once target_state has been rendered.
         sensor = AzureVirtualMachineStateSensor(
             task_id="sense_vm",
             resource_group_name=RESOURCE_GROUP,
@@ -56,7 +54,6 @@ class TestAzureVirtualMachineStateSensor:
             sensor.poke(context=None)
 
     def test_templated_target_state_constructs(self):
-        # A templated target_state must construct: in __init__ it is still the un-rendered expression.
         sensor = AzureVirtualMachineStateSensor(
             task_id="sense_vm",
             resource_group_name=RESOURCE_GROUP,
