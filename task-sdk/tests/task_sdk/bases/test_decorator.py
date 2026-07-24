@@ -383,29 +383,3 @@ class TestAsyncCallable:
             return 42
 
         assert not is_async_callable(sync_task_fn)
-
-
-class DummyNoExpandDecoratedOperator(DecoratedOperator):
-    custom_operator_name = "@task.dummy_no_expand"
-
-    supports_expand = False
-
-
-class TestSupportsExpandOptOut:
-    """An operator class that sets ``supports_expand = False`` rejects dynamic task mapping at parse time."""
-
-    @pytest.fixture
-    def no_expand_task(self):
-        from airflow.sdk.bases.decorator import task_decorator_factory
-
-        def fn(a): ...
-
-        return task_decorator_factory(fn, decorated_operator_class=DummyNoExpandDecoratedOperator)
-
-    def test_expand_rejected_with_operator_name(self, no_expand_task):
-        with pytest.raises(TypeError, match="@task.dummy_no_expand tasks do not support dynamic task"):
-            no_expand_task.expand(a=[1, 2])
-
-    def test_expand_kwargs_rejected(self, no_expand_task):
-        with pytest.raises(TypeError, match="do not support dynamic task mapping"):
-            no_expand_task.expand_kwargs([{"a": 1}])

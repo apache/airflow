@@ -219,16 +219,6 @@ def _build_arg_bindings(
 class _StubOperator(DecoratedOperator):
     custom_operator_name: str = "@task.stub"
 
-    # A mapped stub's arg *types* are uniform across map indexes (same function), but its
-    # arg *values* only resolve per map index at runtime, while the spec below is captured
-    # at parse time and the wire contract has no mapped-binding kind yet -- so .expand()
-    # is rejected rather than shipped with a wrong or empty spec. The task-sdk decorator
-    # machinery rejects direct .expand() at parse time for operator classes that opt out
-    # on Airflow >= 3.4 (older cores cannot enforce it, and never serialize a spec for the
-    # mapped stub); stubs called with arguments inside a mapped task group are rejected in
-    # __init__ below.
-    supports_expand: bool = False
-
     def __init__(
         self,
         *,
@@ -275,9 +265,10 @@ class _StubOperator(DecoratedOperator):
         # execution API can hand it to the foreign runtime via StartupDetails.
         self._arg_bindings = _build_arg_bindings(python_callable, self.op_args, self.op_kwargs, self.task_id)
 
-        # supports_expand only blocks direct .expand() on the stub itself; a mapped task
-        # group still creates per-map-index instances of every task inside it, whose arg
-        # values resolve per map index at runtime -- after this parse-time capture.
+        # Direct .expand() on the stub needs no parse-time spec (ti_run derives per-map-index
+        # bindings from the serialized expand input), but a mapped task group creates
+        # per-map-index instances of the tasks inside it with no expand input of their own,
+        # so their arg values are unresolvable both here and server-side.
         in_mapped_group = getattr(self, "get_closest_mapped_task_group", lambda: None)() is not None
         if self._arg_bindings is not None and in_mapped_group:
             raise ValueError(

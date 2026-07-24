@@ -151,6 +151,28 @@ class SchedulerDictOfListsExpandInput:
         lengths = self._get_map_lengths(run_id, session=session)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
+    def resolve_expansion_sub_indexes(
+        self, map_index: int, run_id: str, *, session: Session
+    ) -> dict[str, int]:
+        """
+        Decompose a task instance's map index into one index per expanded kwarg.
+
+        Server-side counterpart of the index decomposition in the SDK's
+        ``DictOfListsExpandInput._expand_mapped_field``: the cross-product of the
+        expanded kwargs is ordered with the last kwarg varying fastest. A single
+        expanded kwarg maps one-to-one, skipping the upstream length lookups.
+
+        :raises NotFullyPopulated: if upstream map lengths are not all known yet.
+        """
+        if len(self.value) == 1:
+            return dict.fromkeys(self.value, map_index)
+        lengths = self._get_map_lengths(run_id, session=session)
+        sub_indexes = {}
+        for key in reversed(self.value):
+            sub_indexes[key] = map_index % lengths[key]
+            map_index //= lengths[key]
+        return sub_indexes
+
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         from airflow.models.referencemixin import ReferenceMixin
 

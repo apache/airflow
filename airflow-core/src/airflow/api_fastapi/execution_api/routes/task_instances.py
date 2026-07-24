@@ -76,6 +76,7 @@ from airflow.api_fastapi.execution_api.security import (
     get_team_name_for_ti,
     require_auth,
 )
+from airflow.api_fastapi.execution_api.services.task_instances import STUB_TASK_TYPE, get_arg_bindings
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
@@ -110,25 +111,6 @@ ti_id_router = VersionedAPIRouter(
 
 log = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
-
-# Task type recorded on the TI row (``TaskInstance.operator``) for
-# ``airflow.providers.standard.decorators.stub._StubOperator``. Used to gate the
-# serialized-Dag lookup for ``arg_bindings`` so regular tasks never pay for it.
-# The gate matches the exact class name; a subclass would need its own entry here.
-_STUB_TASK_TYPE = "_StubOperator"
-
-
-def _get_arg_bindings(
-    dag_bag: DagBagDep, dag_version_id: UUID | None, task_id: str, *, session
-) -> list | None:
-    """Extract the stub task's captured TaskFlow arg spec from its Dag version."""
-    if dag_version_id is None:
-        return None
-    if (dag := dag_bag.get_dag(dag_version_id, session=session)) is None:
-        return None
-    if (task := dag.task_dict.get(task_id)) is None:
-        return None
-    return getattr(task, "_arg_bindings", None)
 
 
 @ti_id_router.patch(
@@ -334,9 +316,7 @@ def ti_run(
 
         # Only set for stub (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
-        if ti.operator == _STUB_TASK_TYPE and (
-            arg_bindings := _get_arg_bindings(dag_bag, ti.dag_version_id, ti.task_id, session=session)
-        ):
+        if ti.operator == STUB_TASK_TYPE and (arg_bindings := get_arg_bindings(dag_bag, ti, session=session)):
             try:
                 context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
             except ValidationError:

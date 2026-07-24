@@ -56,6 +56,13 @@ class XComArgBinding(BaseModel):
     task_id: str
     """Upstream task id whose ``return_value`` XCom is pulled."""
 
+    map_index: int = -1
+    """Map index of the upstream XCom row to pull; -1 is the unmapped row."""
+
+    element_index: int | None = None
+    """When set, the pulled value is a sequence and this binding takes the element at
+    this index (the stub was expanded over an unmapped upstream's output)."""
+
 
 class LiteralArgBinding(BaseModel):
     """One positional stub-task argument carrying an inline literal from the Dag file."""
