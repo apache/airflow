@@ -63,6 +63,12 @@ integrations:
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_embedding.rst
       - /docs/apache-airflow-providers-common-ai/operators/llamaindex_retrieval.rst
     tags: [ai]
+  - integration-name: Docker Sandboxes
+    external-doc-url: https://docs.docker.com/ai/sandboxes/
+    tags: [software]
+  - integration-name: Islo
+    external-doc-url: https://docs.islo.dev/
+    tags: [service]
 
 hooks:
   - integration-name: Pydantic AI
@@ -461,6 +467,7 @@ toolsets:
       - airflow.providers.common.ai.toolsets.datafusion
       - airflow.providers.common.ai.toolsets.logging
       - airflow.providers.common.ai.toolsets.mcp
+      - airflow.providers.common.ai.toolsets.sandbox
       - airflow.providers.common.ai.toolsets.skills
       - airflow.providers.common.ai.toolsets.langchain_bridge
 

@@ -65,6 +65,12 @@ def get_provider_info():
                 ],
                 "tags": ["ai"],
             },
+            {
+                "integration-name": "Docker Sandboxes",
+                "external-doc-url": "https://docs.docker.com/ai/sandboxes/",
+                "tags": ["software"],
+            },
+            {"integration-name": "Islo", "external-doc-url": "https://docs.islo.dev/", "tags": ["service"]},
         ],
         "hooks": [
             {
