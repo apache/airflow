@@ -20,6 +20,7 @@ import { VStack } from "@chakra-ui/react";
 
 import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 type DagRunsFiltersProps = {
@@ -27,6 +28,7 @@ type DagRunsFiltersProps = {
 };
 
 export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.RUN_ID_PATTERN,
     SearchParamsKeys.STATE,
@@ -44,6 +46,10 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
     SearchParamsKeys.BUNDLE_VERSION,
     SearchParamsKeys.CONSUMING_ASSET_PATTERN,
   ];
+
+  if (multiTeamEnabled) {
+    searchParamKeys.push(SearchParamsKeys.TEAMS);
+  }
 
   if (dagId === undefined) {
     searchParamKeys.unshift(SearchParamsKeys.DAG_ID_PATTERN);

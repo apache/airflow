@@ -217,7 +217,8 @@ ingress:
 
   # Configs for the Ingress of the flower Service
   flower:
-    # Enable web ingress resource
+    # Enable Flower ingress resource.
+    # Mutually exclusive with `flower.httpRoute.enabled` (Gateway API); enable only one of them.
     enabled: false
 
     # Annotations for the flower Ingress
@@ -444,12 +445,14 @@ data:
   #   connection: base64_encoded_connection_string
   #
   # The 'connection' key is base64-encoded SQLAlchemy connection string, e.g.:
-  #   postgresql+psycopg2://airflow:password@postgres/airflow
+  #   postgresql+psycopg://airflow:password@postgres/airflow   (Airflow >=3.4.0)
+  #   postgresql+psycopg2://airflow:password@postgres/airflow  (Airflow <3.4.0, or with the [psycopg2] extra)
   metadataSecretName: ~
 
   # If not set, falls back to metadataSecretName. The secret must contain 'connection' key which is
   # a base64-encoded connection string, e.g.:
-  #   postgresql+psycopg2://user:password@host/db
+  #   postgresql+psycopg://user:password@host/db   (Airflow >=3.4.0)
+  #   postgresql+psycopg2://user:password@host/db  (Airflow <3.4.0, or with the [psycopg2] extra)
   resultBackendSecretName: ~
 
   brokerUrlSecretName: ~
@@ -1612,8 +1615,6 @@ apiServer:
   # Requires the Gateway API CRDs to be installed in the cluster
   # (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api).
   # The HTTPRoute references an externally managed Gateway via `parentRefs`.
-  # This is an alternative to the API server Ingress (`ingress.apiServer`);
-  # the two are mutually exclusive and enabling both will fail rendering.
   httpRoute:
     # Enable API Server HTTPRoute resource.
     # Mutually exclusive with `ingress.apiServer.enabled`; enable only one of them.
@@ -1626,8 +1627,6 @@ apiServer:
     annotations: {}
 
     # List of parent Gateway references this HTTPRoute attaches to. Required when enabled.
-    # Defaults to `~` (null) so the schema's `minItems: 1` fails fast on an explicitly
-    # empty list (`[]`); a still-null value while enabled is caught by the template guard.
     # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference
     parentRefs: ~
     # - name: my-gateway
@@ -2328,6 +2327,50 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor, will deploy flower app.
   enabled: false
+
+  # Kubernetes Gateway API (HTTPRoute) configuration for Flower.
+  # Requires the Gateway API CRDs to be installed in the cluster
+  # (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api).
+  # The HTTPRoute references an externally managed Gateway via `parentRefs`.
+  httpRoute:
+    # Enable Flower HTTPRoute resource.
+    # Mutually exclusive with `ingress.flower.enabled`; enable only one of them.
+    enabled: false
+
+    # Extra labels for the Flower HTTPRoute
+    labels: {}
+
+    # Annotations for the Flower HTTPRoute
+    annotations: {}
+
+    # List of parent Gateway references this HTTPRoute attaches to. Required when enabled.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference
+    parentRefs: ~
+    # - name: my-gateway
+    #   namespace: gateway-system
+    #   sectionName: https
+
+    # Hostnames this HTTPRoute should match (templated). Empty matches all.
+    hostnames: []
+    # - "flower.example.com"
+
+    # Default routing rule path (used only when `flower.httpRoute.rules` is empty)
+    path: "/"
+
+    # The pathType for the default path. PathPrefix | Exact | RegularExpression
+    pathType: PathPrefix
+
+    # Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`.
+    # Use this for non-standard Flower service port layouts.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteRule
+    rules: []
+    # - matches:
+    #     - path:
+    #         type: PathPrefix
+    #         value: /
+    #   backendRefs:
+    #     - name: my-flower-service
+    #       port: 5555
 
   livenessProbe:
     initialDelaySeconds: 10
