@@ -747,11 +747,11 @@ class DagFileProcessorManager(LoggingMixin):
 
         Returns ``None`` if the bundle has no database record.
         """
-        row = session.scalar(
-            select(DagBundleModel)
-            .where(DagBundleModel.name == bundle_name)
-            .options(load_only(DagBundleModel.last_refreshed, DagBundleModel.version))
-        )
+        row = session.execute(
+            select(DagBundleModel.last_refreshed, DagBundleModel.version).where(
+                DagBundleModel.name == bundle_name
+            )
+        ).one_or_none()
         if row is None:
             return None
         return BundleState(last_refreshed=row.last_refreshed, version=row.version)
@@ -813,7 +813,6 @@ class DagFileProcessorManager(LoggingMixin):
                 except AirflowException as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
-            # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             try:
                 bundle_state = self.get_bundle_state(bundle.name)
             except Exception:
