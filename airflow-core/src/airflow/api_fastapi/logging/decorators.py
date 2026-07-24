@@ -98,7 +98,7 @@ def action_logging(event: str | None = None):
             user_display = ""
         else:
             user_name = user.get_name()
-            user_display = user.get_name()
+            user_display = user_name
 
         has_json_body = "application/json" in request.headers.get("content-type", "") and await request.body()
         request_body = {}

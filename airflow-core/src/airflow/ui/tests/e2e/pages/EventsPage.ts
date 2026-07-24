@@ -27,6 +27,7 @@ export class EventsPage extends BasePage {
   public readonly extraColumn: Locator;
   public readonly filterBar: Locator;
   public readonly ownerColumn: Locator;
+  public readonly ownerDisplayNameColumn: Locator;
   public readonly tableRows: Locator;
   public readonly whenColumn: Locator;
 
@@ -40,7 +41,10 @@ export class EventsPage extends BasePage {
       .locator("div")
       .filter({ has: page.getByTestId("add-filter-button") })
       .first();
-    this.ownerColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "User" });
+    this.ownerColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: /^User$/u });
+    this.ownerDisplayNameColumn = this.eventsTable
+      .getByRole("columnheader")
+      .filter({ hasText: /^User Display Name$/u });
     this.tableRows = this.eventsTable.locator("tbody").getByRole("row");
     this.whenColumn = this.eventsTable.getByRole("columnheader").filter({ hasText: "When" });
   }
@@ -197,6 +201,7 @@ export class EventsPage extends BasePage {
     await expect(this.whenColumn).toBeVisible();
     await expect(this.eventColumn).toBeVisible();
     await expect(this.ownerColumn).toBeVisible();
+    await expect(this.ownerDisplayNameColumn).toBeVisible();
     await expect(this.extraColumn).toBeVisible();
   }
 
