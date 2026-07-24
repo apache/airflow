@@ -23,14 +23,14 @@ from contextlib import contextmanager
 from importlib.metadata import entry_points
 from typing import TYPE_CHECKING
 
-from opentelemetry import context, trace
+from opentelemetry import context, propagate, trace
+from opentelemetry.propagate import get_global_textmap
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
 from opentelemetry.sdk.trace.sampling import Decision
 from opentelemetry.trace import NonRecordingSpan, Span, SpanContext, TraceFlags, TraceState
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 if TYPE_CHECKING:
     from configparser import ConfigParser
@@ -149,18 +149,18 @@ def new_dagrun_trace_carrier(
     )
     ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
     carrier: dict[str, str] = {}
-    TraceContextTextMapPropagator().inject(carrier, context=ctx)
+    get_global_textmap().inject(carrier, context=ctx)
     return carrier
 
 
 def new_task_run_carrier(dag_run_context_carrier):
     parent_context = (
-        TraceContextTextMapPropagator().extract(dag_run_context_carrier) if dag_run_context_carrier else None
+        get_global_textmap().extract(dag_run_context_carrier) if dag_run_context_carrier else None
     )
     span = tracer.start_span("notused", context=parent_context)  # intentionally never closed
     new_ctx = trace.set_span_in_context(span)
     carrier: dict[str, str] = {}
-    TraceContextTextMapPropagator().inject(carrier, context=new_ctx)
+    get_global_textmap().inject(carrier, context=new_ctx)
     return carrier
 
 

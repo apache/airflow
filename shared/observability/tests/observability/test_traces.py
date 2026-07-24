@@ -360,3 +360,37 @@ class TestGetTaskSpanDetailLevel:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 3
+
+
+class TestIdGeneratorEntryPoint:
+    def test_id_generator_entry_point_config(self):
+        import pathlib
+        try:
+            import tomllib
+        except ImportError:
+            import tomli as tomllib
+        pyproject_path = pathlib.Path(__file__).parents[2] / "pyproject.toml"
+        with open(pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+        entry_points = data.get("project", {}).get("entry-points", {}).get("opentelemetry_id_generator", {})
+        assert entry_points.get("airflow_overrideable") == "airflow_shared.observability.traces:OverrideableRandomIdGenerator"
+
+        from airflow_shared.observability.traces import OverrideableRandomIdGenerator
+        from importlib.metadata import EntryPoint
+        ep = EntryPoint(name="airflow_overrideable", value="airflow_shared.observability.traces:OverrideableRandomIdGenerator", group="opentelemetry_id_generator")
+        assert ep.load() is OverrideableRandomIdGenerator
+
+
+class TestGlobalTextMapPropagation:
+    def test_new_dagrun_trace_carrier_uses_global_textmap(self, monkeypatch):
+        class DummyPropagator:
+            def inject(self, carrier, context=None, setter=None):
+                carrier["custom_header"] = "custom_value"
+
+            def extract(self, carrier, context=None, getter=None):
+                return context or {}
+
+        monkeypatch.setattr("airflow_shared.observability.traces.get_global_textmap", lambda: DummyPropagator())
+        carrier = new_dagrun_trace_carrier()
+        assert carrier.get("custom_header") == "custom_value"
+
