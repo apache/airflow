@@ -27,6 +27,7 @@ from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.utils.databricks import (
     extract_failed_task_errors,
     extract_failed_task_errors_async,
+    make_jsonb_safe,
     normalise_json_content,
     validate_trigger_event,
 )
@@ -94,6 +95,18 @@ class TestDatabricksOperatorSharedFunctions:
         event = {}
         with pytest.raises(AirflowException):
             validate_trigger_event(event)
+
+    def test_make_jsonb_safe_strips_nul_bytes(self):
+        assert make_jsonb_safe("PK\x03\x04binary\x00error") == "PK\x03\x04binaryerror"
+
+    def test_make_jsonb_safe_strips_unpaired_surrogates(self):
+        assert make_jsonb_safe("bad\ud800surrogate\udfff") == "badsurrogate"
+
+    def test_make_jsonb_safe_leaves_clean_text_unchanged(self):
+        assert make_jsonb_safe(ERROR_MESSAGE) == ERROR_MESSAGE
+
+    def test_make_jsonb_safe_passes_through_non_strings(self):
+        assert make_jsonb_safe(123) == 123
 
 
 class TestExtractFailedTaskErrors:
@@ -177,6 +190,37 @@ class TestExtractFailedTaskErrors:
         ]
         assert result == expected
         hook.get_run_output.assert_called_once_with(TASK_RUN_ID_1)
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook")
+    def test_extract_failed_task_errors_sanitizes_error_output(self, mock_hook_class):
+        """Error text with jsonb-incompatible characters is sanitized so it can be persisted."""
+        hook = mock_hook_class.return_value
+        hook.get_run_output = mock_dict({"error": "PK\x03\x04\x00broken\ud800"})
+
+        run_state = RunState("TERMINATED", "FAILED", "Job failed")
+        run_info = {
+            "run_id": RUN_ID,
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "Job failed",
+            },
+            "tasks": [
+                {
+                    "run_id": TASK_RUN_ID_1,
+                    "task_key": TASK_KEY_1,
+                    "state": {
+                        "life_cycle_state": "TERMINATED",
+                        "result_state": "FAILED",
+                        "state_message": "Task failed",
+                    },
+                }
+            ],
+        }
+
+        result = extract_failed_task_errors(hook, run_info, run_state)
+
+        assert result == [{"task_key": TASK_KEY_1, "run_id": TASK_RUN_ID_1, "error": "PK\x03\x04broken"}]
 
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook")
     def test_extract_failed_task_errors_single_failed_task_without_error_output(self, mock_hook_class):
@@ -384,6 +428,38 @@ class TestExtractFailedTaskErrorsAsync:
         ]
         assert result == expected
         hook.a_get_run_output.assert_called_once_with(TASK_RUN_ID_1)
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook")
+    @pytest.mark.asyncio
+    async def test_extract_failed_task_errors_async_sanitizes_error_output(self, mock_hook_class):
+        """Error text with jsonb-incompatible characters is sanitized so it can be persisted (async)."""
+        hook = mock_hook_class.return_value
+        hook.a_get_run_output = mock.AsyncMock(return_value={"error": "PK\x03\x04\x00broken\ud800"})
+
+        run_state = RunState("TERMINATED", "FAILED", "Job failed")
+        run_info = {
+            "run_id": RUN_ID,
+            "state": {
+                "life_cycle_state": "TERMINATED",
+                "result_state": "FAILED",
+                "state_message": "Job failed",
+            },
+            "tasks": [
+                {
+                    "run_id": TASK_RUN_ID_1,
+                    "task_key": TASK_KEY_1,
+                    "state": {
+                        "life_cycle_state": "TERMINATED",
+                        "result_state": "FAILED",
+                        "state_message": "Task failed",
+                    },
+                }
+            ],
+        }
+
+        result = await extract_failed_task_errors_async(hook, run_info, run_state)
+
+        assert result == [{"task_key": TASK_KEY_1, "run_id": TASK_RUN_ID_1, "error": "PK\x03\x04broken"}]
 
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook")
     @pytest.mark.asyncio
