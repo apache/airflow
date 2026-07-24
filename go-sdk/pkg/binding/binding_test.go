@@ -371,9 +371,62 @@ func (s *BindingSuite) TestResolveXComArgs() {
 			call.key,
 			"an XCom argument always pulls the return-value key",
 		)
-		s.Nil(call.mapIndex, "v1 always pulls the unmapped upstream instance")
+		s.Nil(call.mapIndex, "an unmapped argument pulls the unmapped upstream instance")
 	}
 	s.ElementsMatch([]string{"extract", "probe"}, taskIDs)
+}
+
+func (s *BindingSuite) TestResolveXComMapIndex() {
+	// A mapped stub's expand over a mapped upstream binds a specific XCom row,
+	// so the argument's map_index must be forwarded to GetXCom.
+	mapIndex := 2
+	fn := func(item string) error { return nil }
+	client := &fakeXComClient{values: map[string]any{"up/return_value": "row-2"}}
+	got, err := s.resolve(fn, []Arg{
+		XComArg{Name: "item", TaskID: "up", MapIndex: &mapIndex},
+	}, client)
+	s.Require().NoError(err)
+	s.Equal("row-2", got[0].Interface())
+	s.Require().Len(client.calls, 1)
+	s.Require().NotNil(client.calls[0].mapIndex)
+	s.Equal(2, *client.calls[0].mapIndex, "the upstream row's map_index is forwarded to GetXCom")
+}
+
+func (s *BindingSuite) TestResolveXComElementIndex() {
+	// A mapped stub's expand over an unmapped upstream's list pulls the whole
+	// list from the unmapped row, then binds the element at element_index.
+	fn := func(item string) error { return nil }
+	client := &fakeXComClient{values: map[string]any{"up/return_value": []any{"a", "b", "c"}}}
+	got, err := s.resolve(fn, []Arg{
+		XComArg{Name: "item", TaskID: "up", ElementIndex: 1},
+	}, client)
+	s.Require().NoError(err)
+	s.Equal("b", got[0].Interface(), "element_index selects the element of the pulled list")
+	s.Require().Len(client.calls, 1)
+	s.Nil(client.calls[0].mapIndex, "element_index still pulls the unmapped upstream row")
+}
+
+func (s *BindingSuite) TestResolveXComElementIndexErrors() {
+	fn := func(item string) error { return nil }
+	cases := map[string]struct {
+		value       any
+		elementIdx  int
+		errContains string
+	}{
+		"not-a-sequence": {"scalar", 0, "requires the xcom from task"},
+		"out-of-range":   {[]any{"a"}, 3, "out of range"},
+	}
+	for name, tt := range cases {
+		s.Run(name, func() {
+			client := &fakeXComClient{values: map[string]any{"up/return_value": tt.value}}
+			_, err := s.resolve(fn, []Arg{
+				XComArg{Name: "item", TaskID: "up", ElementIndex: tt.elementIdx},
+			}, client)
+			if s.Assert().Error(err) {
+				s.Contains(err.Error(), tt.errContains)
+			}
+		})
+	}
 }
 
 func (s *BindingSuite) TestResolveXComStrictStructDecode() {

@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -321,6 +322,40 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	result := RunTask(context.Background(), bundle, details, comm, logger)
 	assertTaskState(t, result, genmodels.TaskStateStateFailed)
 	assert.False(t, ran, "the task body must not run on an arity mismatch")
+}
+
+// TestConvertArgBindingsMappedFields: a mapped (.expand()) stub's XCom bindings
+// carry map_index (over a mapped upstream) or element_index (over an unmapped
+// upstream's list); convertArgBindings must surface both on the binding.XComArg,
+// normalizing the -1 map_index sentinel to nil. The numeric wire values arrive
+// through the generic msgpack decoder as sized int kinds, so an int64 must
+// coerce correctly.
+func TestConvertArgBindingsMappedFields(t *testing.T) {
+	specs := &genmodels.ArgBindings{
+		map[string]any{"name": "a", "kind": "xcom", "task_id": "up", "map_index": int64(2)},
+		map[string]any{"name": "b", "kind": "xcom", "task_id": "up", "element_index": int64(1)},
+		map[string]any{"name": "c", "kind": "xcom", "task_id": "up", "map_index": int64(-1)},
+	}
+	args, err := convertArgBindings(specs)
+	require.NoError(t, err)
+	require.Len(t, args, 3)
+
+	mapped := args[0].(binding.XComArg)
+	require.NotNil(t, mapped.MapIndex)
+	assert.Equal(t, 2, *mapped.MapIndex, "map_index is read onto the binding")
+	assert.Nil(t, mapped.ElementIndex)
+
+	elem := args[1].(binding.XComArg)
+	assert.Nil(t, elem.MapIndex)
+	assert.Equal(t, 1, elem.ElementIndex, "element_index is read onto the binding")
+
+	unmapped := args[2].(binding.XComArg)
+	assert.Nil(
+		t,
+		unmapped.MapIndex,
+		"the -1 map_index sentinel normalizes to the unmapped row (nil)",
+	)
+	assert.Nil(t, unmapped.ElementIndex)
 }
 
 // combineInput is a sole struct parameter whose field claims a named entry
