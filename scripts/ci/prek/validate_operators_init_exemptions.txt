@@ -65,7 +65,6 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/oracle
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator
 providers/oracle/src/airflow/providers/oracle/transfers/oracle_to_oracle.py::OracleToOracleOperator
 providers/papermill/src/airflow/providers/papermill/operators/papermill.py::PapermillOperator
-providers/ssh/src/airflow/providers/ssh/operators/ssh.py::SSHOperator
 providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::SSHRemoteJobOperator
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
 providers/standard/src/airflow/providers/standard/operators/hitl.py::HITLOperator
