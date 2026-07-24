@@ -101,6 +101,12 @@ class AccessView(Enum):
     CLUSTER_ACTIVITY = "CLUSTER_ACTIVITY"
     DOCS = "DOCS"
     IMPORT_ERRORS = "IMPORT_ERRORS"
+    # Visibility of import errors for files that have no registered Dag (parse
+    # failed before any Dag was defined, or all Dags were removed). There is no
+    # per-Dag key to authorize on for such files, so this is a dedicated,
+    # admin-by-default view, scoped per team via the file's bundle where the
+    # auth manager supports it.
+    IMPORT_ERRORS_ALL = "IMPORT_ERRORS_ALL"
     JOBS = "JOBS"
     PLUGINS = "PLUGINS"
     PROVIDERS = "PROVIDERS"
