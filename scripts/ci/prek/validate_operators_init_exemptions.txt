@@ -21,15 +21,8 @@ providers/amazon/src/airflow/providers/amazon/aws/transfers/base.py::AwsToAwsBas
 providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::GCSToS3Operator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::S3ToRedshiftOperator
 providers/anthropic/src/airflow/providers/anthropic/operators/agent.py::AnthropicAgentSessionOperator
-providers/apache/hive/src/airflow/providers/apache/hive/sensors/hive_partition.py::HivePartitionSensor
-providers/apache/hive/src/airflow/providers/apache/hive/sensors/named_hive_partition.py::NamedHivePartitionSensor
 providers/apache/kafka/src/airflow/providers/apache/kafka/operators/produce.py::ProduceToTopicOperator
-providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/kueue.py::KubernetesInstallKueueOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
-providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposCreateOperator
-providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposDeleteOperator
-providers/databricks/src/airflow/providers/databricks/operators/databricks_repos.py::DatabricksReposUpdateOperator
-providers/databricks/src/airflow/providers/databricks/sensors/databricks.py::DatabricksSQLStatementsSensor
 providers/docker/src/airflow/providers/docker/operators/docker.py::DockerOperator
 providers/google/src/airflow/providers/google/cloud/operators/bigquery.py::BigQueryInsertJobOperator
 providers/google/src/airflow/providers/google/cloud/operators/cloud_batch.py::CloudBatchSubmitJobOperator
@@ -69,4 +62,3 @@ providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::SSHRemoteJo
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
 providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::TriggerDagRunOperator
 providers/standard/src/airflow/providers/standard/sensors/date_time.py::DateTimeSensor
-providers/weaviate/src/airflow/providers/weaviate/operators/weaviate.py::WeaviateIngestOperator
