@@ -18,16 +18,33 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
 
+@pytest.mark.parametrize(
+    ("input_text", "expected_input"),
+    [
+        pytest.param(
+            ["On Kernel-Target Alignment. We describe a family of global optimization procedures"],
+            ["On Kernel-Target Alignment. We describe a family of global optimization procedures"],
+            id="input-as-list",
+        ),
+        pytest.param(
+            "On Kernel-Target Alignment. We describe a family of global optimization procedures",
+            ["On Kernel-Target Alignment. We describe a family of global optimization procedures"],
+            id="input-as-string",
+        ),
+    ],
+)
 @patch("airflow.providers.cohere.hooks.cohere.CohereHook.get_connection")
 @patch("cohere.ClientV2")
-def test_cohere_embedding_operator(cohere_client, get_connection):
+def test_cohere_embedding_operator(cohere_client, get_connection, input_text, expected_input):
     """
-    Test Cohere client is getting called with the correct key and that
-    the execute method returns expected response.
+    Test Cohere client is getting called with the correct key, that a string ``input_text`` is
+    normalized to a list at execute time, and that the execute method returns expected response.
     """
     embedded_obj = [[1.0, 2.0, 3.0]]
 
@@ -37,7 +54,6 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
     api_key = "test"
     base_url = "http://some_host.com"
     timeout = 150
-    texts = ["On Kernel-Target Alignment. We describe a family of global optimization procedures"]
     request_options = None
 
     get_connection.return_value = Connection(conn_type="cohere", password=api_key, host=base_url)
@@ -48,13 +64,15 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
     op = CohereEmbeddingOperator(
         task_id="embed",
         conn_id="some_conn",
-        input_text=texts,
+        input_text=input_text,
         timeout=timeout,
         request_options=request_options,
     )
 
     val = op.execute(context={})
     cohere_client.assert_called_once_with(api_key=api_key, base_url=base_url, timeout=timeout)
+    client_obj.embed.assert_called_once()
+    assert client_obj.embed.call_args.kwargs["texts"] == expected_input
     assert val == embedded_obj
 
 
