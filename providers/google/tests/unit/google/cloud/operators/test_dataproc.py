@@ -103,6 +103,7 @@ CONFIG = {
         "tags": ["tags"],
         "service_account": "service_account",
         "service_account_scopes": ["service_account_scopes"],
+        "confidential_instance_config": {"confidential_instance_type": "SEV"},
     },
     "master_config": {
         "num_instances": 2,
@@ -256,6 +257,7 @@ CONFIG_WITH_FLEX_MIG = {
                         "projects/project_id/zones/zone/machineTypes/machine2",
                     ],
                     "rank": 0,
+                    "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 30},
                 },
                 {"machine_types": ["projects/project_id/zones/zone/machineTypes/machine3"], "rank": 1},
             ],
@@ -339,7 +341,6 @@ CONFIG_WITH_MASTER_AND_WORKER_FLEX_MIG = {
     "master_config": {
         "num_instances": 2,
         "machine_type_uri": "projects/project_id/zones/zone/machineTypes/master_machine_type",
-        "disk_config": {"boot_disk_type": "master_disk_type", "boot_disk_size_gb": 128},
         "image_uri": "https://www.googleapis.com/compute/beta/projects/"
         "custom_image_project_id/global/images/custom_image",
         "instance_flexibility_policy": {
@@ -350,6 +351,7 @@ CONFIG_WITH_MASTER_AND_WORKER_FLEX_MIG = {
                         "projects/project_id/zones/zone/machineTypes/machine2",
                     ],
                     "rank": 0,
+                    "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 100},
                 },
                 {"machine_types": ["projects/project_id/zones/zone/machineTypes/machine3"], "rank": 1},
             ],
@@ -358,7 +360,6 @@ CONFIG_WITH_MASTER_AND_WORKER_FLEX_MIG = {
     "worker_config": {
         "num_instances": 3,
         "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
-        "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "image_uri": "https://www.googleapis.com/compute/beta/projects/"
         "custom_image_project_id/global/images/custom_image",
         "instance_flexibility_policy": {
@@ -369,6 +370,7 @@ CONFIG_WITH_MASTER_AND_WORKER_FLEX_MIG = {
                         "projects/project_id/zones/zone/machineTypes/machine2",
                     ],
                     "rank": 0,
+                    "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 30},
                 },
                 {"machine_types": ["projects/project_id/zones/zone/machineTypes/machine3"], "rank": 1},
             ],
@@ -720,6 +722,7 @@ class TestsClusterGenerator:
             cluster_tier="CLUSTER_TIER_STANDARD",
             cluster_type="STANDARD",
             engine="DEFAULT",
+            confidential_instance_config={"confidential_instance_type": "SEV"},
         )
         cluster = generator.make()
         assert cluster == CONFIG
@@ -805,6 +808,7 @@ class TestsClusterGenerator:
                             "projects/project_id/zones/zone/machineTypes/machine2",
                         ],
                         0,
+                        {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 30},
                     ),
                     InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
                 ]
@@ -852,6 +856,7 @@ class TestsClusterGenerator:
                             "projects/project_id/zones/zone/machineTypes/machine2",
                         ],
                         0,
+                        {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 100},
                     ),
                     InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
                 ]
@@ -864,6 +869,7 @@ class TestsClusterGenerator:
                             "projects/project_id/zones/zone/machineTypes/machine2",
                         ],
                         0,
+                        {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 30},
                     ),
                     InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
                 ]
