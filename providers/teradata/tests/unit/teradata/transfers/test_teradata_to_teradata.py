@@ -77,6 +77,25 @@ class TestTeradataToTeradataTransfer:
         assert hook is op.dest_hook
         assert hook.teradata_conn_id == "dest_teradata_conn_id"
 
+    def test_sql_params_default_is_applied_at_execution(self, mocked_src_hook):
+        op = TeradataToTeradataOperator(
+            task_id="transfer_data",
+            dest_teradata_conn_id=self.dest_teradata_conn_id,
+            destination_table=self.destination_table,
+            source_teradata_conn_id=self.source_teradata_conn_id,
+            sql=self.sql,
+        )
+
+        assert op.sql_params is None
+
+        mock_src_conn = mocked_src_hook.get_conn.return_value.__enter__.return_value
+        mock_cursor = mock_src_conn.cursor.return_value
+        mock_cursor.description.__iter__.return_value = []
+
+        op.execute({})
+
+        mock_cursor.execute.assert_called_once_with(self.sql, {})
+
     def test_execution(self, mocked_src_hook, mocked_dest_hook):
         cursor_description = [
             ["user_id", Decimal, None, 8, 10, 0, False],

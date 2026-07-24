@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.10"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -27,12 +27,11 @@ import pathlib
 import sys
 
 from common_prek_utils import (
+    get_provider_base_dir_from_path,
     initialize_breeze_prek,
     run_command_via_breeze_run,
     validate_cmd_result,
 )
-
-initialize_breeze_prek(__name__, __file__)
 
 
 def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
@@ -45,8 +44,12 @@ def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
     conn-fields check runs even when only the hook changes.
 
     All paths are relative to the ``providers/`` directory, as supplied by
-    prek.  The first path segment is the provider package name
-    (e.g. ``samba/src/airflow/...`` → ``samba/provider.yaml``).
+    prek. Rather than guessing how many path segments make up the provider
+    package name, this walks up the real directory tree (via
+    ``get_provider_base_dir_from_path``) until it finds the actual
+    ``provider.yaml`` file, so nested/namespace provider packages
+    (e.g. ``apache/beam``, ``ibm/mq``) resolve correctly without maintaining
+    a list of known namespace prefixes.
     """
     result: set[str] = set()
     for f in raw_files:
@@ -54,20 +57,20 @@ def _resolve_provider_yaml_files(raw_files: list[str]) -> list[str]:
         if p.name == "provider.yaml":
             result.add(f)
         else:
-            # Map any Python file to the provider.yaml of its package root.
-            # Path structure: <provider-pkg>/<rest...>
-            # e.g. samba/src/airflow/providers/samba/hooks/samba.py
-            parts = p.parts
-            if parts:
-                result.add(f"{parts[0]}/provider.yaml")
+            provider_dir = get_provider_base_dir_from_path(pathlib.Path(f))
+            if provider_dir is not None:
+                result.add((provider_dir / "provider.yaml").as_posix())
     return sorted(result)
 
 
-files_to_test = _resolve_provider_yaml_files(sys.argv[1:])
-cmd_result = run_command_via_breeze_run(
-    ["python3", "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py", *files_to_test],
-    backend="sqlite",
-    warn_image_upgrade_needed=True,
-    extra_env={"PYTHONWARNINGS": "default"},
-)
-validate_cmd_result(cmd_result, include_ci_env_check=True)
+if __name__ == "__main__":
+    initialize_breeze_prek(__name__, __file__)
+
+    files_to_test = _resolve_provider_yaml_files(sys.argv[1:])
+    cmd_result = run_command_via_breeze_run(
+        ["python3", "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py", *files_to_test],
+        backend="sqlite",
+        warn_image_upgrade_needed=True,
+        extra_env={"PYTHONWARNINGS": "default"},
+    )
+    validate_cmd_result(cmd_result, include_ci_env_check=True)

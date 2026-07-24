@@ -56,10 +56,10 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
-``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
-``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
 ``psycopg[binary]``                         ``>=3.2.9; python_version < "3.14"``
 ``psycopg[binary]``                         ``>=3.3.3; python_version >= "3.14"``
+``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
+``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
 ``asyncpg``                                 ``>=0.30.0``
 ==========================================  ======================================
 
@@ -96,6 +96,7 @@ Extra                Dependencies
 ``openlineage``      ``apache-airflow-providers-openlineage``
 ``pandas``           ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"``, ``pandas>=2.3.3; python_version >="3.14"``
 ``polars``           ``polars>=1.26.0``
+``psycopg2``         ``psycopg2-binary>=2.9.9; python_version < '3.13'``, ``psycopg2-binary>=2.9.10; python_version >= '3.13'``
 ``sqlalchemy``       ``sqlalchemy>=1.4.54``
 ===================  ============================================================================================================================================================
 

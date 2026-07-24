@@ -18,6 +18,24 @@
 Changelog
 =========
 
+0.3.0
+-----
+
+Features
+~~~~~~~~
+
+* ``Add cloud-based auth (aws_iam, gcp, azure_ad) to Akeyless secrets backend (#69772)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 0.2.0
 -----
 
