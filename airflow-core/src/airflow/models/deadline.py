@@ -147,8 +147,10 @@ class Deadline(Base):
         def _determine_resource() -> tuple[str, str]:
             """Determine the type of resource based on which values are present."""
             if self.dagrun_id:
-                # The deadline is for a Dag run:
-                return "DagRun", f"Dag: {self.dagrun.dag_id} Run: {self.dagrun_id}"
+                # Guard the relationship: the FK can be set while ``dagrun`` resolves to None (e.g.
+                # after a cascade delete). __repr__ must not raise, so fall back to the id-only form.
+                dag_id = self.dagrun.dag_id if self.dagrun is not None else "<unknown>"
+                return "DagRun", f"Dag: {dag_id} Run: {self.dagrun_id}"
 
             return "Unknown", ""
 
@@ -183,9 +185,10 @@ class Deadline(Base):
             return 0
 
         try:
-            # Get deadlines which match the provided conditions and their associated DagRuns.
+            # Exclude deadlines already marked ``missed``: the scheduler owns their (queued)
+            # callbacks, so prune must never cascade-delete them.
             deadline_dagrun_pairs = session.execute(
-                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions))
+                select(Deadline, DagRun).join(DagRun).where(and_(*filter_conditions)).where(~Deadline.missed)
             ).all()
 
         except AttributeError as e:

@@ -166,7 +166,7 @@ def get_dag_deadline_alerts(
         SortParam,
         Depends(
             SortParam(
-                ["id", "created_at", "name", "interval"],
+                ["id", "created_at", "name"],
                 DeadlineAlert,
             ).dynamic_depends(default="created_at")
         ),
