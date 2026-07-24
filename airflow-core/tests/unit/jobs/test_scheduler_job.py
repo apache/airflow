@@ -22,6 +22,7 @@ import datetime
 import logging
 import os
 import re
+import time
 from collections import Counter, deque
 from collections.abc import Callable, Generator, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -5895,9 +5896,6 @@ class TestSchedulerJob:
         asset_event_metadata: list[tuple[int, datetime.datetime]] = []
 
         def create_asset_events(sleep):
-            import time
-
-            from sqlalchemy import inspect
 
             with create_session() as session:
                 # Re-fetch the DagModel in this thread's own session so all ORM access stays
@@ -5924,14 +5922,14 @@ class TestSchedulerJob:
             return asset_event.id, now.isoformat()
 
         with (
-            ThreadPoolExecutor() as executor,
+            ThreadPoolExecutor(max_workers=3) as executor,
             caplog.at_level(
                 "WARNING",
                 logger="airflow.jobs.scheduler_job_runner",
             ),
         ):
             for i in range(ASSET_EVENT_COUNT):
-                # Deterministically alternate between fast (0s) and slow (1s) workers so the
+                # Deterministically alternate between fast (0s) and slow (2s) workers so the
                 # test reliably exercises both code paths without relying on RNG.
                 future = executor.submit(create_asset_events, i % 3)
                 futures.append(future)
