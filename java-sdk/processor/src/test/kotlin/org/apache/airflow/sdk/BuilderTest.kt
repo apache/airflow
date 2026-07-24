@@ -19,10 +19,12 @@
 
 package org.apache.airflow.sdk
 
+import com.google.testing.compile.Compilation
 import com.google.testing.compile.CompilationSubject.assertThat
 import com.google.testing.compile.Compiler
 import com.google.testing.compile.JavaFileObjectSubject
 import com.google.testing.compile.JavaFileObjects
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
@@ -37,6 +39,21 @@ private fun JavaFileObjectSubject.hasSourceEquivalentTo(
 ) = hasSourceEquivalentTo(
   JavaFileObjects.forSourceString(qual, source),
 )
+
+private fun Compilation.serverRejectWarnings(): List<String> =
+  warnings().map { it.getMessage(null) }.filter { "the Airflow server will reject it" in it }
+
+private fun dagCharsetWarning(id: String) =
+  "Dag id \"$id\" must be made of alphanumeric characters, dashes, dots, and underscores; " +
+    "the Airflow server will reject it"
+
+private fun dagTooLongWarning(
+  id: String,
+  length: Int,
+) = "Dag id \"$id\" is longer than 250 characters ($length); the Airflow server will reject it"
+
+private fun dagDoubleDotWarning(id: String) =
+  "Dag id \"$id\" contains '..'; the Airflow server will reject it unless [core] allow_double_dot_in_ids is enabled"
 
 class BuilderTest {
   @Test
@@ -363,5 +380,83 @@ class BuilderTest {
     assertThat(compilation).hadErrorContaining(
       "Cannot create task from vararg function t1",
     )
+  }
+
+  @Test
+  @DisplayName("dag id warnings — exact messages across every branch")
+  fun dagIdWarnings() {
+    val astral = "𠀀"
+    val tooLongAndInvalid = "a".repeat(250) + " b"
+    val cases: List<Pair<String, List<String>>> =
+      listOf(
+        "simple" to emptyList(),
+        "with-dash" to emptyList(),
+        "with.dot" to emptyList(),
+        "with_underscore" to emptyList(),
+        "0numeric" to emptyList(),
+        "café_dag" to emptyList(),
+        "任務" to emptyList(),
+        "a".repeat(250) to emptyList(),
+        astral.repeat(250) to emptyList(),
+        "a".repeat(251) to listOf(dagTooLongWarning("a".repeat(251), 251)),
+        "任".repeat(251) to listOf(dagTooLongWarning("任".repeat(251), 251)),
+        astral.repeat(251) to listOf(dagTooLongWarning(astral.repeat(251), 251)),
+        "with space" to listOf(dagCharsetWarning("with space")),
+        "with/slash" to listOf(dagCharsetWarning("with/slash")),
+        "with:colon" to listOf(dagCharsetWarning("with:colon")),
+        "with\ttab" to listOf(dagCharsetWarning("with\ttab")),
+        "a..b c" to listOf(dagCharsetWarning("a..b c")),
+        "a..b" to listOf(dagDoubleDotWarning("a..b")),
+        tooLongAndInvalid to listOf(dagTooLongWarning(tooLongAndInvalid, 252), dagCharsetWarning(tooLongAndInvalid)),
+      )
+    cases.forEach { (id, expected) ->
+      val compilation =
+        compile(
+          """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag(id = "$id") public class TestExample {}
+        """,
+        )
+      assertThat(compilation).succeeded()
+      assertThat(compilation).generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      assertEquals(expected, compilation.serverRejectWarnings(), "id=$id")
+    }
+  }
+
+  @Test
+  @DisplayName("a task warning names its dag")
+  fun taskWarningNamesItsDag() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag(id = "my_dag")
+        public class TestExample { @Builder.Task(id = "bad task") public void t1() {} }
+        """,
+      )
+    assertThat(compilation).succeeded()
+    assertEquals(
+      listOf(
+        "Task id \"bad task\" in dag \"my_dag\" must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it",
+      ),
+      compilation.serverRejectWarnings(),
+    )
+  }
+
+  @Test
+  @DisplayName("a blank id falls back to the element name and does not warn")
+  fun blankIdFallsBackToElementName() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Builder;
+        @Builder.Dag public class TestExample { @Builder.Task public void t1() {} }
+        """,
+      )
+    assertThat(compilation).succeeded()
+    assertEquals(emptyList<String>(), compilation.serverRejectWarnings())
   }
 }

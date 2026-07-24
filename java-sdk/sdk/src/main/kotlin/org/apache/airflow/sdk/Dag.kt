@@ -30,13 +30,19 @@ import kotlin.Throws
  * where the annotation processor generates the wiring for you. Only use this
  * class directly if you need to do low-level plumbing.
  *
- * @param id Dag identifier. Must contain only ASCII alphanumeric characters,
- *    dashes, dots, or underscores; must be unique within a [Bundle].
+ * Dag and task ids are validated authoritatively by the Airflow server. Ids
+ * declared through [Builder.Dag]/[Builder.Task] that the server would reject
+ * (longer than 250 characters, or containing anything other than letters,
+ * digits, dashes, dots, and underscores) produce a best-effort build-time
+ * warning from the annotation processor; this low-level API does not check
+ * them.
+ *
+ * @param id Dag identifier; must be unique within a [Bundle].
  *
  * @see Builder.Dag
  */
 class Dag(
-  val id: String, // TODO: charset check?
+  val id: String,
 ) {
   internal var tasks = mutableMapOf<String, Class<out Task>>()
 
