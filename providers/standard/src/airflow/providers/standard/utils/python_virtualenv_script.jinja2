@@ -128,12 +128,27 @@ with open(sys.argv[3], "r") as file:
     virtualenv_string_args = list(map(lambda x: x.strip(), list(file)))
 {% endif %}
 
+{% if use_airflow_context | default(false) -%}
+from airflow.sdk.execution_time.context import set_current_context
+from airflow.serialization.serialized_objects import BaseSerialization
+
+with open(sys.argv[5], "rb") as file:
+    airflow_context = BaseSerialization.deserialize({{ pickling_library }}.load(file))
+with set_current_context(airflow_context):
+    try:
+        res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
+    except Exception as e:
+        with open(sys.argv[4], "w") as file:
+            file.write(str(e))
+        raise
+{% else %}
 try:
     res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
 except Exception as e:
     with open(sys.argv[4], "w") as file:
         file.write(str(e))
     raise
+{% endif %}
 
 # Write output
 with open(sys.argv[2], "wb") as file:
