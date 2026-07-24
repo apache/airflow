@@ -414,6 +414,9 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/neptune_analytics.rst
     tags: [aws]
+  - integration-name: Amazon MSK
+    external-doc-url: https://aws.amazon.com/msk/
+    tags: [aws]
   - integration-name: Amazon S3 Vectors
     external-doc-url: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html
     logo: /docs/integration-logos/Amazon-Simple-Storage-Service-S3_light-bg@4x.png
@@ -804,7 +807,9 @@ hooks:
     python-modules:
       - airflow.providers.amazon.aws.hooks.neptune
       - airflow.providers.amazon.aws.hooks.neptune_analytics
-
+  - integration-name: Amazon MSK
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.msk
 
 bundles:
   - integration-name: Amazon Simple Storage Service (S3)
