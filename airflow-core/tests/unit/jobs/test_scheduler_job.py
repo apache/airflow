@@ -414,6 +414,24 @@ class TestSchedulerJob:
             _ = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
             assert scheduler_job.heartrate == heartrate
 
+    @patch("airflow.jobs.scheduler_job_runner.DBDagBag")
+    def test_scheduler_dag_bag_uses_scheduler_cache_config(self, mock_db_dag_bag):
+        with conf_vars(
+            {
+                ("scheduler", "dag_cache_size"): "123",
+                ("scheduler", "dag_cache_ttl"): "456",
+            }
+        ):
+            scheduler_job = Job()
+            SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        mock_db_dag_bag.assert_called_once_with(
+            load_op_links=False,
+            cache_size=123,
+            cache_ttl=456,
+            stats_prefix="scheduler.dag_bag",
+        )
+
     def test_no_orphan_process_will_be_left(self):
         current_process = psutil.Process()
         old_children = current_process.children(recursive=True)
