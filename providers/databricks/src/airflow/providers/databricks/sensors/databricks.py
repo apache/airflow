@@ -107,8 +107,7 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         )
 
     def execute(self, context: Context):
-        # statement/statement_id are template fields; validate their combination here, after
-        # rendering, rather than in __init__ where they are still un-rendered Jinja expressions.
+        # statement/statement_id are template fields; validate their combination after rendering.
         if self.statement and self.statement_id:
             raise AirflowException("Cannot provide both statement and statement_id.")
         if not self.statement and not self.statement_id:
