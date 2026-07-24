@@ -534,8 +534,7 @@ FILEFORMAT = {self._file_format}
         return build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
 
     def execute(self, context: Context) -> Any:
-        # files/table_name/file_location are template fields; validate after rendering here rather
-        # than in __init__, where they are still the un-rendered Jinja expressions.
+        # files/table_name/file_location are template fields; validate after rendering.
         if self.files is not None and self._pattern is not None:
             raise AirflowException("Only one of 'pattern' or 'files' should be specified")
         if self.table_name == "":
