@@ -413,3 +413,28 @@ class TestCleanupCommands:
         """Test Windows cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_windows_cleanup_command("C:\\temp\\other_dir")
+
+    def test_posix_cleanup_accepts_custom_base_dir(self):
+        """A job dir under a custom remote_base_dir should not be rejected as invalid.
+
+        Regression test for a bug where cleanup always validated job_dir against the
+        hardcoded POSIX_DEFAULT_BASE_DIR, even when the operator was configured with a
+        custom remote_base_dir, causing cleanup to fail with a spurious ValueError.
+        """
+        cmd = build_posix_cleanup_command(
+            "/tmp-data/airflow-ssh-jobs/job_123", base_dir="/tmp-data/airflow-ssh-jobs"
+        )
+        assert "rm -rf" in cmd
+        assert "/tmp-data/airflow-ssh-jobs/job_123" in cmd
+
+    def test_posix_cleanup_still_rejects_path_outside_custom_base_dir(self):
+        """A custom base_dir should still reject job dirs outside of it."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_posix_cleanup_command("/tmp/other_dir/job_123", base_dir="/tmp-data/airflow-ssh-jobs")
+
+    def test_windows_cleanup_accepts_custom_base_dir(self):
+        """Windows equivalent of test_posix_cleanup_accepts_custom_base_dir."""
+        cmd = build_windows_cleanup_command(
+            "C:\\custom\\airflow-ssh-jobs\\job_123", base_dir="C:\\custom\\airflow-ssh-jobs"
+        )
+        assert "powershell.exe" in cmd
