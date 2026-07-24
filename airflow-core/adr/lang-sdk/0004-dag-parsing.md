@@ -21,7 +21,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 > **Note:** This ADR describes language-native DAG file parsing, which was removed from the
 > scope of [AIP-108](https://cwiki.apache.org/confluence/x/pY4mGQ). Per AIP-108, Java tasks are
@@ -40,7 +40,7 @@ This ADR details the DAG parsing side of the coordinator architecture described 
 
 ### Extension Point: `BaseCoordinator`
 
-A single abstract base class — `BaseCoordinator` — handles both DAG parsing and task execution. Concrete subclasses ship as standalone distributions (`apache-airflow-coordinators-<lang>`) under the shared `airflow.sdk.coordinators` namespace package; they are **not** Airflow providers and are not registered through `provider.yaml`. For DAG parsing, a subclass must implement two methods:
+A single abstract base class — `BaseCoordinator` — handles both DAG parsing and task execution. Concrete subclasses ship as part of the Task SDK (`apache-airflow-task-sdk`) under the shared `airflow.sdk.coordinators` namespace package (see [ADR-0005](0005-coordinator-packaging.md)); they are **not** Airflow providers and are not registered through `provider.yaml`. For DAG parsing, a subclass must implement two methods:
 
 | Method | Signature | Responsibility |
 |---|---|---|
@@ -279,10 +279,10 @@ For DAG parsing, a new language provider needs:
 
 **JavaCoordinator:**
 
-The Java SDK implements all DAG-parsing contracts in a single `BaseCoordinator` subclass shipped as `apache-airflow-coordinators-java`:
+The Java SDK implements all DAG-parsing contracts in a single `BaseCoordinator` subclass shipped in the Task SDK (`apache-airflow-task-sdk`):
 
 ```python
-# Distribution: apache-airflow-coordinators-java
+# Distribution: apache-airflow-task-sdk
 # Module: airflow.sdk.coordinators.java.coordinator
 class JavaCoordinator(BaseCoordinator):
     def __init__(self, *, name, java_executable="java", jvm_args=None, jdk_home=None):
@@ -408,7 +408,7 @@ Both share test cases defined in `test_dags.yaml`, ensuring the Java SDK produce
 
 ## Consequences
 
-- The DAG file processor can be extended to any language without modifying Airflow Core — only a `BaseCoordinator` subclass distributed as `apache-airflow-coordinators-<lang>` plus an entry in `[sdk] coordinators` is needed.
+- The DAG file processor can be extended to any language without modifying Airflow Core — only a `BaseCoordinator` subclass (packaged per [ADR-0005](0005-coordinator-packaging.md)) plus an entry in `[sdk] coordinators` is needed.
 - The language runtime must produce exact DagSerialization v3 JSON, requiring cross-language validation infrastructure (e.g., `test_dags.yaml` + `compare.py`).
 - The base class absorbs all TCP/process plumbing, so language providers only implement two methods for DAG parsing.
 - The subprocess bridge adds latency and a process boundary; DAG parsing for non-Python files is inherently slower than in-process Python parsing.
