@@ -120,7 +120,7 @@ class TestDateTimeSensor:
         return_value=pendulum.datetime(2020, 1, 2, tz="UTC"),
     )
     def test_poke_with_natively_rendered_datetime(self, mock_utcnow):
-        """poke handles a target_time rendered to a datetime and normalizes it to an ISO string."""
+        """poke handles a target_time that native rendering resolved to a datetime."""
         dag = DAG(
             dag_id="native_poke_dag",
             start_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
@@ -133,18 +133,11 @@ class TestDateTimeSensor:
         )
         assert isinstance(op.target_time, datetime.datetime)
         assert op.poke(None) is True
-        assert op.target_time == "2020-01-01T00:00:00+00:00"
 
-    @patch(
-        "airflow.providers.standard.sensors.date_time.timezone.utcnow",
-        return_value=timezone.datetime(2020, 1, 2, tzinfo=timezone.utc),
-    )
-    def test_poke_normalizes_datetime_target_time(self, mock_utcnow):
-        """A datetime target_time is normalized to its ISO string at poke, as __init__ used to do."""
-        target = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
-        op = DateTimeSensor(task_id="normalize", target_time=target, dag=self.dag)
-        assert op.poke(None) is True
-        assert op.target_time == target.isoformat()
+    def test_moment_localizes_naive_datetime(self):
+        """A naive datetime target_time is localized to UTC via _moment (mirrors old isoformat())."""
+        op = DateTimeSensor(task_id="naive", target_time=datetime.datetime(2020, 1, 1), dag=self.dag)
+        assert op._moment == pendulum.datetime(2020, 1, 1, tz="UTC")
 
     def test_async_start_from_trigger_moment(self):
         op = DateTimeSensorAsync(
@@ -154,3 +147,13 @@ class TestDateTimeSensor:
             dag=self.dag,
         )
         assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse("2020-01-01T00:00:00+00:00")
+
+    def test_async_start_from_trigger_localizes_naive_datetime(self):
+        """DateTimeSensorAsync never pokes, so _moment must still localize a naive datetime."""
+        op = DateTimeSensorAsync(
+            task_id="async_naive",
+            target_time=datetime.datetime(2020, 1, 1),
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.datetime(2020, 1, 1, tz="UTC")
