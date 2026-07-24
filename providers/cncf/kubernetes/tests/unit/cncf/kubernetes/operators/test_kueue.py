@@ -55,8 +55,7 @@ class TestKubernetesInstallKueueOperator:
         assert set(KubernetesInstallKueueOperator.template_fields) == expected_template_fields
 
     def test_kueue_yaml_url_uses_rendered_version(self):
-        # kueue_version is a template field: __init__ sees the un-rendered "{{ ... }}", so the URL
-        # must be built on access, after rendering.
+        # kueue_version is a template field, so the URL must be built on access, after rendering.
         with DAG("kueue", schedule=None, start_date=datetime(2020, 1, 1)):
             op = KubernetesInstallKueueOperator(
                 task_id=TEST_TASK_ID,
