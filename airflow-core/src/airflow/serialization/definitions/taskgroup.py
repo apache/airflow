@@ -173,8 +173,14 @@ class SerializedTaskGroup(DAGNode):
                     yield from recurse_for_first_non_teardown(task)
 
     def get_task_group_dict(self) -> dict[str | None, SerializedTaskGroup]:
-        """Create a flat dict of group_id: TaskGroup."""
+        """Create a flat dict of group_id: TaskGroup. Cached per instance/DAG."""
+        return self._get_task_group_dict_cached()
 
+    # methodtools.lru_cache has no type stubs, so it widens this method's return type to
+    # Any for every caller; kept private behind the explicitly-typed wrapper above so mypy
+    # still trusts get_task_group_dict()'s declared return type.
+    @methodtools.lru_cache(maxsize=None)
+    def _get_task_group_dict_cached(self) -> dict[str | None, SerializedTaskGroup]:
         def build_map(node: DAGNode) -> Generator[tuple[str | None, SerializedTaskGroup]]:
             if not isinstance(node, SerializedTaskGroup):
                 return
@@ -231,11 +237,12 @@ class SerializedTaskGroup(DAGNode):
         nodes = list(children.values())
         n = len(nodes)
         id_to_idx = {nid: i for i, nid in enumerate(children)}
+        group_dict = self.dag.task_group.get_task_group_dict()
 
         projected: list[tuple[int, ...]] = [()] * n
         nodes_with_back_edge = 0
         for i, child in enumerate(nodes):
-            deps = self._project_child_deps(i, child, id_to_idx)
+            deps = self._project_child_deps(i, child, id_to_idx, group_dict)
             if deps:
                 projected[i] = deps
                 if any(d > i for d in deps):
@@ -248,9 +255,24 @@ class SerializedTaskGroup(DAGNode):
         return self._sweep_projection(nodes, projected)
 
     def _project_child_deps(
-        self, child_idx: int, child: DAGNode, id_to_idx: dict[str, int]
+        self,
+        child_idx: int,
+        child: DAGNode,
+        id_to_idx: dict[str, int],
+        group_dict: dict[str | None, SerializedTaskGroup],
     ) -> tuple[int, ...]:
-        upstream_ids = child.upstream_task_ids
+        if isinstance(child, SerializedTaskGroup):
+            # A group's own upstream_task_ids only reflects direct group-to-task edges.
+            # Group-to-group edges (`group_a >> group_b`, list or individual) only populate
+            # upstream_group_ids, and task-level edges crossing into the group (a sibling
+            # task feeding one of this group's entry tasks) never touch the group at all —
+            # both need to be pulled in explicitly here.
+            upstream_ids: set[str] = set(child.upstream_task_ids)
+            upstream_ids.update(gid for gid in child.upstream_group_ids if gid is not None)
+            for root_task in child.get_roots():
+                upstream_ids.update(root_task.upstream_task_ids)
+        else:
+            upstream_ids = child.upstream_task_ids
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
@@ -260,8 +282,10 @@ class SerializedTaskGroup(DAGNode):
                 if j != child_idx:
                     sib_deps.add(j)
                 continue
-            edge = self.dag.get_task(edge_id)
-            tg = edge.task_group
+            tg = group_dict.get(edge_id)
+            if tg is None:
+                edge = self.dag.get_task(edge_id)
+                tg = edge.task_group
             while tg is not None:
                 anc_idx = id_to_idx.get(tg.node_id)
                 if anc_idx is not None:

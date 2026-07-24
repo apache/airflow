@@ -27,6 +27,7 @@ from collections.abc import Generator, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 import attrs
+import methodtools
 
 from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
@@ -499,7 +500,14 @@ class TaskGroup(DAGNode):
         return f"{self.group_id}.downstream_join_id"
 
     def get_task_group_dict(self) -> dict[str, TaskGroup]:
-        """Return a flat dictionary of group_id: TaskGroup."""
+        """Return a flat dictionary of group_id: TaskGroup. Cached per instance/DAG."""
+        return self._get_task_group_dict_cached()
+
+    # methodtools.lru_cache has no type stubs, so it widens this method's return type to
+    # Any for every caller; kept private behind the explicitly-typed wrapper above so mypy
+    # still trusts get_task_group_dict()'s declared return type.
+    @methodtools.lru_cache(maxsize=None)
+    def _get_task_group_dict_cached(self) -> dict[str, TaskGroup]:
         task_group_map = {}
 
         def build_map(task_group):
@@ -569,11 +577,12 @@ class TaskGroup(DAGNode):
         nodes = list(children.values())
         n = len(nodes)
         id_to_idx = {nid: i for i, nid in enumerate(children)}
+        group_dict = self.dag.task_group.get_task_group_dict()
 
         projected: list[tuple[int, ...]] = [()] * n
         nodes_with_back_edge = 0
         for i, child in enumerate(nodes):
-            deps = self._project_child_deps(i, child, id_to_idx)
+            deps = self._project_child_deps(i, child, id_to_idx, group_dict)
             if deps:
                 projected[i] = deps
                 if any(d > i for d in deps):
@@ -586,9 +595,24 @@ class TaskGroup(DAGNode):
         return self._sweep_projection(nodes, projected)
 
     def _project_child_deps(
-        self, child_idx: int, child: DAGNode, id_to_idx: dict[str, int]
+        self,
+        child_idx: int,
+        child: DAGNode,
+        id_to_idx: dict[str, int],
+        group_dict: dict[str, TaskGroup],
     ) -> tuple[int, ...]:
-        upstream_ids = child.upstream_task_ids
+        if isinstance(child, TaskGroup):
+            # A group's own upstream_task_ids only reflects direct group-to-task edges.
+            # Group-to-group edges (`group_a >> group_b`, list or individual) only populate
+            # upstream_group_ids, and task-level edges crossing into the group (a sibling
+            # task feeding one of this group's entry tasks) never touch the group at all —
+            # both need to be pulled in explicitly here.
+            upstream_ids: set[str] = set(child.upstream_task_ids)
+            upstream_ids.update(gid for gid in child.upstream_group_ids if gid is not None)
+            for root_task in child.get_roots():
+                upstream_ids.update(root_task.upstream_task_ids)
+        else:
+            upstream_ids = child.upstream_task_ids
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
@@ -598,8 +622,10 @@ class TaskGroup(DAGNode):
                 if j != child_idx:
                     sib_deps.add(j)
                 continue
-            edge = self.dag.get_task(edge_id)
-            tg = edge.task_group
+            tg = group_dict.get(edge_id)
+            if tg is None:
+                edge = self.dag.get_task(edge_id)
+                tg = edge.task_group
             while tg is not None:
                 anc_idx = id_to_idx.get(tg.node_id)
                 if anc_idx is not None:
