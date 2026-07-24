@@ -16,41 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import socket
 
-from sqlalchemy import select
+import rich
 
-from airflow.cli.utils import deprecated_for_airflowctl
-from airflow.jobs.job import Job, JobState
-from airflow.utils.net import get_hostname
-from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.session import NEW_SESSION, provide_session
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 
 
-@deprecated_for_airflowctl("airflowctl jobs check")
-@providers_configuration_loaded
-@provide_session
-def check(args, *, session: Session = NEW_SESSION) -> None:
+@provide_api_client(kind=ClientKind.CLI)
+def check(args, api_client=NEW_API_CLIENT) -> None:
     """Check if job(s) are still alive."""
-    if args.allow_multiple and args.limit <= 1:
-        raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
+    if args.allow_multiple and args.limit == 1:
+        raise SystemExit(
+            "To use option --allow-multiple, you must set the limit to a value greater than 1 "
+            "or 0 to disable it."
+        )
     if args.hostname and args.local:
         raise SystemExit("You can't use --hostname and --local at the same time")
 
-    query = select(Job).where(Job.state == JobState.RUNNING).order_by(Job.latest_heartbeat.desc())
-    if args.job_type:
-        query = query.where(Job.job_type == args.job_type)
-    if args.hostname:
-        query = query.where(Job.hostname == args.hostname)
-    if args.local:
-        query = query.where(Job.hostname == get_hostname())
+    hostname = socket.getfqdn() if args.local else args.hostname
+    alive_jobs = api_client.jobs.list(job_type=args.job_type, hostname=hostname, is_alive=True).jobs
     if args.limit > 0:
-        query = query.limit(args.limit)
-
-    alive_jobs: list[Job] = [job for job in session.scalars(query) if job.is_alive()]
+        alive_jobs = alive_jobs[: args.limit]
 
     count_alive_jobs = len(alive_jobs)
     if count_alive_jobs == 0:
@@ -58,6 +45,6 @@ def check(args, *, session: Session = NEW_SESSION) -> None:
     if count_alive_jobs > 1 and not args.allow_multiple:
         raise SystemExit(f"Found {count_alive_jobs} alive jobs. Expected only one.")
     if count_alive_jobs == 1:
-        print("Found one alive job.")
+        rich.print("Found one alive job.")
     else:
-        print(f"Found {count_alive_jobs} alive jobs.")
+        rich.print(f"Found {count_alive_jobs} alive jobs.")
