@@ -2679,9 +2679,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ),
                         AssetEvent.timestamp > func.coalesce(*event_window_floor),
                         AssetEvent.timestamp <= triggered_date,
-                        # AssetEvent.timestamp > func.coalesce(cte.c.previous_dag_run_run_after, date.min),
                         ~(
-                        AssetEvent.id.not_in(
                             select(association_table.c.event_id)
                             .join(DagRun, DagRun.id == association_table.c.dag_run_id)
                             .where(
@@ -2690,7 +2688,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             )
                             .exists()
                         ),
-                    ))
+                    )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
             )

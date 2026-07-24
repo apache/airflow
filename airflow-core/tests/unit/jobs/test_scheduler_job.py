@@ -24,6 +24,7 @@ import os
 import re
 from collections import Counter, deque
 from collections.abc import Callable, Generator, Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -2907,17 +2908,15 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
-        dag_id = "SchedulerJobTest.test_find_executable_task_instances_not_enough_task_concurrency_per_dagrun_for_first"
+        dag_id = (
+            "SchedulerJobTest"
+            ".test_find_executable_task_instances_not_enough_task_concurrency_per_dagrun_for_first"
+        )
 
         with dag_maker(dag_id=dag_id):
             op1a = EmptyOperator.partial(
                 task_id="dummy1-a", priority_weight=2, max_active_tis_per_dagrun=1
-            ).expand_kwargs(
-                [
-                    {"inputs": 1},
-                    {"inputs": 2},
-                ]
-            )
+            ).expand_kwargs([{"inputs": 1}, {"inputs": 2}])
             op1b = EmptyOperator(task_id="dummy1-b", priority_weight=1)
         dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
@@ -5876,7 +5875,6 @@ class TestSchedulerJob:
     @pytest.mark.need_serialized_dag
     @pytest.mark.backend("postgres", "mysql")
     def test_create_dag_runs_when_concurrent_asset_events_created(self, session: Session, dag_maker, caplog):
-        from concurrent.futures import ThreadPoolExecutor, as_completed
 
         ASSET_EVENT_COUNT = 30
         asset = Asset(name="test_asset")
@@ -5894,6 +5892,7 @@ class TestSchedulerJob:
         asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
         futures = []
         consumed_asset_events = []
+        asset_event_metadata: list[tuple[int, datetime.datetime]] = []
 
         def create_asset_events(sleep):
             import time
@@ -5922,7 +5921,7 @@ class TestSchedulerJob:
                         asset_id=asset_id, dags_to_queue=[dag], event=asset_event, session=session
                     )
 
-            return asset_event
+            return asset_event.id, now.isoformat()
 
         with (
             ThreadPoolExecutor() as executor,
@@ -5934,14 +5933,13 @@ class TestSchedulerJob:
             for i in range(ASSET_EVENT_COUNT):
                 # Deterministically alternate between fast (0s) and slow (1s) workers so the
                 # test reliably exercises both code paths without relying on RNG.
-                future = executor.submit(create_asset_events, i % 2)
+                future = executor.submit(create_asset_events, i % 3)
                 futures.append(future)
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
             seen_dr_ids: set[int] = set()
             for future in as_completed(futures, timeout=120):
-                future.result()
-
+                asset_event_metadata.append(future.result())
                 self.job_runner._create_dag_runs_asset_triggered(
                     dag_models=[dag_model],
                     session=session,

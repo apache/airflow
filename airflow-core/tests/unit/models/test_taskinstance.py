@@ -2593,7 +2593,8 @@ class TestTaskInstance:
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
         assert {str(c) for c in TI.__table__.columns} == expected_keys, (
-            "Please add all non-foreign values of TaskInstance to this list. This prevents refresh_from_db() from missing a field."
+            "Please add all non-foreign values of TaskInstance to this list. "
+            "This prevents refresh_from_db() from missing a field."
         )
 
         ti = create_task_instance(
@@ -3606,7 +3607,8 @@ def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
         return [
             "SELECT xcom.value",
             "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
+            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
+            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.key = 'xxx'",
         ]
     if backend == "sqlite":
         return [
@@ -3884,7 +3886,7 @@ def test_runtime_partition_key_backfill_does_not_deadlock_on_sqlite(dag_maker, s
     instead of opening a second connection.
     """
     asset = Asset(name="hello")
-    with dag_maker(dag_id="rt_pk_backfill_sqlite", schedule=None) as dag:
+    with dag_maker(dag_id="rt_pk_backfill_sqlite", schedule=PartitionedAtRuntime()) as dag:
         EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(session=session)
     assert dr.partition_key is None
