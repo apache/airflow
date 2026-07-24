@@ -97,9 +97,9 @@ class DatabricksSQLStatementsMixin:
         """Execute a SQL statement in non-deferrable mode."""
         # Determine the time at which the Task will timeout. The statement_state is defined here in the event
         # the while-loop is never entered
-        end_time = time.time() + self.timeout
+        end_time = time.monotonic() + self.timeout
 
-        while end_time > time.time():
+        while end_time > time.monotonic():
             statement_state: SQLStatementState = self._hook.get_sql_statement_state(self.statement_id)
 
             if statement_state.is_terminal:
@@ -118,8 +118,8 @@ class DatabricksSQLStatementsMixin:
             self.log.info("Sleeping for %s seconds.", self.polling_period_seconds)
             time.sleep(self.polling_period_seconds)
 
-        # Once the timeout is exceeded, the query is cancelled. This is an important steps; if a query takes
-        # to log, it needs to be killed. Otherwise, it may be the case that there are "zombie" queries running
+        # Once the timeout is exceeded, the query is cancelled. This is an important step; if a query takes
+        # too long, it needs to be killed. Otherwise, it may be the case that there are "zombie" queries running
         # that are no longer being orchestrated
         self._hook.cancel_sql_statement(self.statement_id)
         raise AirflowException(
@@ -131,7 +131,7 @@ class DatabricksSQLStatementsMixin:
     ) -> None:
         """Execute a SQL statement in deferrable mode."""
         statement_state: SQLStatementState = self._hook.get_sql_statement_state(self.statement_id)
-        end_time: float = time.time() + self.timeout
+        end_time: float = time.monotonic() + self.timeout
 
         if not statement_state.is_terminal:
             # If the query is still running and there is no statement_id, this is somewhat of a "zombie"

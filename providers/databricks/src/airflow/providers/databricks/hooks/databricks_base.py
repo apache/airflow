@@ -1151,7 +1151,7 @@ class BaseDatabricksHook(BaseHook):
 
         https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
         """
-        if self._metadata_cache and time.time() < self._metadata_expiry:
+        if self._metadata_cache and time.monotonic() < self._metadata_expiry:
             return
         try:
             for attempt in self._get_retry_object():
@@ -1167,7 +1167,7 @@ class BaseDatabricksHook(BaseHook):
 
                     self._validate_azure_metadata_service(response_json)
                     self._metadata_cache = response_json
-                    self._metadata_expiry = time.time() + self._metadata_ttl
+                    self._metadata_expiry = time.monotonic() + self._metadata_ttl
                     break
         except RetryError:
             raise ConnectionError(f"Failed to reach Azure Metadata Service after {self.retry_limit} retries.")
@@ -1176,7 +1176,7 @@ class BaseDatabricksHook(BaseHook):
 
     async def _a_check_azure_metadata_service(self):
         """Async version of `_check_azure_metadata_service()`."""
-        if self._metadata_cache and time.time() < self._metadata_expiry:
+        if self._metadata_cache and time.monotonic() < self._metadata_expiry:
             return
         try:
             async for attempt in self._a_get_retry_object():
@@ -1191,7 +1191,7 @@ class BaseDatabricksHook(BaseHook):
                         response_json = await resp.json()
                     self._validate_azure_metadata_service(response_json)
                     self._metadata_cache = response_json
-                    self._metadata_expiry = time.time() + self._metadata_ttl
+                    self._metadata_expiry = time.monotonic() + self._metadata_ttl
                     break
         except RetryError:
             raise ConnectionError(f"Failed to reach Azure Metadata Service after {self.retry_limit} retries.")

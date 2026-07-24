@@ -199,7 +199,7 @@ class DatabricksSQLStatementExecutionTrigger(BaseTrigger):
 
     async def run(self):
         async with self.hook:
-            while self.end_time > time.time():
+            while self.end_time > time.monotonic():
                 statement_state = await self.hook.a_get_sql_statement_state(self.statement_id)
                 if not statement_state.is_terminal:
                     self.log.info(
