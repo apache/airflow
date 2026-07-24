@@ -23,6 +23,7 @@ import warnings
 from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DagModel
 from airflow.providers.common.compat.sdk import (
     AirflowSkipException,
@@ -170,7 +171,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         external_task_id is not None) or check if the DAG to wait for exists (when
         external_task_id is None), and immediately cease waiting if the external task
         or DAG does not exist (default value: False).
-    :param poll_interval: polling period in seconds to check for the status
+    :param poke_interval: polling period in seconds to check for the status
+    :param poll_interval: (DEPRECATED) use ``poke_interval`` instead
     :param deferrable: Run sensor in deferrable mode
     """
 
@@ -191,10 +193,19 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
-        poll_interval: float = 2.0,
+        poll_interval: datetime.timedelta | float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
+        if poll_interval is not None:
+            warnings.warn(
+                "Parameter `poll_interval` is deprecated and will be removed in a future release. "
+                "Use `poke_interval` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["poke_interval"] = poll_interval
+
         super().__init__(**kwargs)
 
         self.allowed_states: list[str] = (
@@ -263,7 +274,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.check_existence = check_existence
         self._has_checked_existence = False
         self.deferrable = deferrable
-        self.poll_interval = poll_interval
         self.external_dates_filter: str | None = None
 
     def _get_dttm_filter(self, context: Context) -> Sequence[datetime.datetime]:
@@ -452,7 +462,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                         allowed_states=self.allowed_states,
                         failed_states=self.failed_states,
                         skipped_states=self.skipped_states,
-                        poke_interval=self.poll_interval,
+                        poke_interval=self.poke_interval,
                         soft_fail=self.soft_fail,
                         logical_dates=list(dttm_filter),
                         run_ids=None,
@@ -477,7 +487,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                         allowed_states=self.allowed_states,
                         failed_states=self.failed_states,
                         skipped_states=self.skipped_states,
-                        poke_interval=self.poll_interval,
+                        poke_interval=self.poke_interval,
                         soft_fail=self.soft_fail,
                         execution_dates=list(dttm_filter),
                         logical_dates=None,
