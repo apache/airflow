@@ -11,7 +11,6 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::DmsModifyTas
 providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::DmsStartReplicationOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::EcsRunTaskOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::EmrAddStepsOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/glue.py::GlueDataQualityOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStartDbClusterOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStopDbClusterOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/s3.py::S3DeleteObjectsOperator
