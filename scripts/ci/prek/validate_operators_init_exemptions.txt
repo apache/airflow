@@ -67,7 +67,6 @@ providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_bigquery.py
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_gcs.py::GCSToGCSOperator
 providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_local.py::GCSToLocalFilesystemOperator
 providers/google/src/airflow/providers/google/marketing_platform/operators/campaign_manager.py::GoogleCampaignManagerDeleteReportOperator
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/compute.py::AzureVirtualMachineStateSensor
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/gcs_to_wasb.py::GCSToAzureBlobStorageOperator
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/oracle_to_azure_data_lake.py::OracleToAzureDataLakeOperator
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator
