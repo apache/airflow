@@ -46,6 +46,7 @@ def get_provider_info():
                 "how-to-guide": [
                     "/docs/apache-airflow-providers-databricks/operators/sql.rst",
                     "/docs/apache-airflow-providers-databricks/operators/sql_statements.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/sql_warehouse.rst",
                     "/docs/apache-airflow-providers-databricks/operators/copy_into.rst",
                 ],
                 "tags": ["service"],
@@ -74,7 +75,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Databricks SQL",
-                "python-modules": ["airflow.providers.databricks.operators.databricks_sql"],
+                "python-modules": [
+                    "airflow.providers.databricks.operators.databricks_sql",
+                    "airflow.providers.databricks.operators.databricks_warehouse",
+                ],
             },
             {
                 "integration-name": "Databricks Repos",
