@@ -17,8 +17,28 @@
 # under the License.
 from __future__ import annotations
 
+import re
+
 from airflow.providers.common.compat.sdk import AirflowException, XComArg
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
+
+_JSONB_INVALID_CHARS = re.compile(r"[\x00\ud800-\udfff]")
+
+
+def make_jsonb_safe(error: str | int) -> str | int:
+    """
+    Strip characters that cannot be stored in a Postgres ``jsonb`` column from error text.
+
+    Databricks run output is arbitrary external text and can contain NUL bytes or
+    unpaired UTF-16 surrogates (for example when a task emits binary data). These are
+    rejected by Postgres ``jsonb``, and since a failed task's error is persisted into
+    the deferred task instance's ``next_kwargs`` via the trigger event, an unsanitised
+    value crashes the triggerer when it writes the event. Non-string values are returned
+    unchanged.
+    """
+    if isinstance(error, str):
+        return _JSONB_INVALID_CHARS.sub("", error)
+    return error
 
 
 def normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict | XComArg:
@@ -75,7 +95,9 @@ def extract_failed_task_errors(
                     error = run_output["error"]
                 else:
                     error = run_state.state_message
-                failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                failed_tasks.append(
+                    {"task_key": task_key, "run_id": task_run_id, "error": make_jsonb_safe(error)}
+                )
     return failed_tasks
 
 
@@ -101,7 +123,9 @@ async def extract_failed_task_errors_async(
                     error = run_output["error"]
                 else:
                     error = run_state.state_message
-                failed_tasks.append({"task_key": task_key, "run_id": task_run_id, "error": error})
+                failed_tasks.append(
+                    {"task_key": task_key, "run_id": task_run_id, "error": make_jsonb_safe(error)}
+                )
     return failed_tasks
 
 
