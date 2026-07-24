@@ -11,7 +11,7 @@
   "requiredAction_few": "Необходимых действия",
   "requiredAction_many": "Необходимых действий",
   "requiredAction_one": "Необходимое действие",
-  "requiredAction_other": "Необходимых действий",
+  "requiredAction_other": "Необходимые действия",
   "requiredActionCount_few": "Необходимых действия ({{count}})",
   "requiredActionCount_many": "Необходимых действий ({{count}})",
   "requiredActionCount_one": "Необходимое действие ({{count}})",

@@ -94,7 +94,7 @@
   "dagRun_few": "Запуска Dag-а",
   "dagRun_many": "Запусков Dag-а",
   "dagRun_one": "Запуск Dag-а",
-  "dagRun_other": "Запусков Dag-а",
+  "dagRun_other": "Запуски Dag-а",
   "dagRunId": "ID запуска Dag-а",
   "dagWarnings": "Предупреждения/ошибки Dag-а",
   "defaultToGraphView": "По умолчанию открывать граф",
@@ -404,7 +404,7 @@
   "taskInstance_few": "Экземпляры задач",
   "taskInstance_many": "Экземпляров задачи",
   "taskInstance_one": "Экземпляр задачи",
-  "taskInstance_other": "Экземпляров задачи",
+  "taskInstance_other": "Экземпляры задачи",
   "timeRange": {
     "last12Hours": "Последние 12 часов",
     "last24Hours": "Последние 24 часа",
