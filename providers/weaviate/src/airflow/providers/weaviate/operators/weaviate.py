@@ -59,7 +59,7 @@ class WeaviateIngestOperator(BaseOperator):
         self,
         conn_id: str,
         collection_name: str,
-        input_data: list[dict[str, Any]] | pd.DataFrame | None = None,
+        input_data: list[dict[str, Any]] | pd.DataFrame,
         vector_col: str = "Vector",
         uuid_column: str = "id",
         tenant: str | None = None,
@@ -81,8 +81,6 @@ class WeaviateIngestOperator(BaseOperator):
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> None:
-        # input_data is a template field; validate it after rendering rather than in __init__,
-        # where the check would run against the un-rendered value.
         if self.input_data is None:
             raise TypeError("input_data is required")
         self.log.debug("Input data: %s", self.input_data)
