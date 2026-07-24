@@ -53,14 +53,85 @@ const GMTWrapper = ({ children }: PropsWithChildren) => (
   </BaseWrapper>
 );
 
+const takeNoObserverRecords = () => [];
+
+type MockDagCardObserver = {
+  callback: IntersectionObserverCallback;
+} & IntersectionObserver;
+
+const dagCardObservers: Array<MockDagCardObserver> = [];
+
+const MockDagCardIntersectionObserver = function MockDagCardIntersectionObserver(
+  nextCallback: IntersectionObserverCallback,
+  options?: IntersectionObserverInit,
+): IntersectionObserver {
+  const observer = {
+    callback: nextCallback,
+    disconnect: vi.fn(),
+    observe: vi.fn(),
+    root: options?.root ?? null,
+    rootMargin: options?.rootMargin ?? "0px",
+    scrollMargin: options?.scrollMargin ?? "0px",
+    takeRecords: vi.fn(takeNoObserverRecords),
+    thresholds: [0],
+    unobserve: vi.fn(),
+  } satisfies MockDagCardObserver;
+
+  dagCardObservers.push(observer);
+
+  return observer;
+};
+
+type CardContentMode = "fallback" | "hydrated" | "pending";
+
 // Render with the run-state-counts row in its loading state so it renders
 // skeletons rather than StateBadges. Without this, every card would emit
 // 4 extra "state-badge" testids and break getByTestId assertions in tests
 // that target the latest-run badge.
-const renderCard = (dag: DAGWithLatestDagRunsResponse) =>
-  render(<DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />, {
-    wrapper: GMTWrapper,
-  });
+const renderCard = (dag: DAGWithLatestDagRunsResponse, contentMode: CardContentMode = "hydrated") => {
+  dagCardObservers.length = 0;
+
+  if (contentMode === "fallback") {
+    vi.stubGlobal("IntersectionObserver", undefined);
+  } else {
+    vi.stubGlobal("IntersectionObserver", MockDagCardIntersectionObserver);
+  }
+
+  const result = render(
+    <DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />,
+    {
+      wrapper: GMTWrapper,
+    },
+  );
+
+  if (contentMode === "hydrated") {
+    const [observer] = dagCardObservers;
+    const card = screen.getByTestId("dag-card");
+
+    if (observer === undefined) {
+      throw new Error("Expected the Dag card to register an IntersectionObserver");
+    }
+
+    act(() => {
+      observer.callback(
+        [
+          {
+            boundingClientRect: card.getBoundingClientRect(),
+            intersectionRatio: 1,
+            intersectionRect: card.getBoundingClientRect(),
+            isIntersecting: true,
+            rootBounds: null,
+            target: card,
+            time: 0,
+          },
+        ],
+        observer,
+      );
+    });
+  }
+
+  return result;
+};
 
 const mockDag = {
   allowed_run_types: null,
@@ -141,9 +212,61 @@ beforeAll(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("DagCard", () => {
+  it("renders its shell before mounting near-viewport controls", () => {
+    dagCardObservers.length = 0;
+    vi.stubGlobal("IntersectionObserver", MockDagCardIntersectionObserver);
+    renderCard(mockDag, "pending");
+
+    const card = screen.getByTestId("dag-card");
+
+    expect(screen.getByTestId("dag-id")).toBeInTheDocument();
+    expect(screen.getByTestId("schedule")).toHaveTextContent(mockDag.timetable_summary);
+    expect(screen.queryByTestId("toggle-pause")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("recent-run")).not.toBeInTheDocument();
+
+    const [observer] = dagCardObservers;
+
+    if (observer === undefined) {
+      throw new Error("Expected the Dag card to register an IntersectionObserver");
+    }
+
+    act(() => {
+      observer.callback(
+        [
+          {
+            boundingClientRect: card.getBoundingClientRect(),
+            intersectionRatio: 1,
+            intersectionRect: card.getBoundingClientRect(),
+            isIntersecting: true,
+            rootBounds: null,
+            target: card,
+            time: 0,
+          },
+        ],
+        observer,
+      );
+    });
+
+    expect(screen.getByTestId("toggle-pause")).toBeInTheDocument();
+    expect(screen.getAllByTestId("recent-run")).toHaveLength(mockDag.latest_dag_runs.length);
+  });
+
+  it("mounts deferred controls when keyboard focus enters the card", () => {
+    dagCardObservers.length = 0;
+    vi.stubGlobal("IntersectionObserver", MockDagCardIntersectionObserver);
+    renderCard(mockDag, "pending");
+
+    expect(screen.queryByTestId("toggle-pause")).not.toBeInTheDocument();
+
+    fireEvent.focus(screen.getByTestId("dag-id"));
+
+    expect(screen.getByTestId("toggle-pause")).toBeInTheDocument();
+  });
+
   it("DagCard should render without tags", () => {
     renderCard(mockDag);
     expect(screen.getByText(mockDag.dag_display_name)).toBeInTheDocument();

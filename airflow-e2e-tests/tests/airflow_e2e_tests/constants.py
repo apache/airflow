@@ -53,6 +53,11 @@ KAFKA_DIR_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "kafka"
 # OpenLineage E2E test paths. The DAGs are sourced from the provider system tests at runtime by
 # openlineage_tests/prepare_dags.py; the overlay carries the OpenLineage-specific env + dag_doc mount.
 OPENLINEAGE_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "openlineage.yml"
+# Pins the metadata-DB driver back to psycopg2 for the compat matrix (--airflow-version), whose
+# released base images predate the psycopg3 default; see openlineage-compat-db.yml for details.
+OPENLINEAGE_COMPAT_DB_COMPOSE_PATH = (
+    AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "openlineage-compat-db.yml"
+)
 
 # CI sets this (the same switch the lang-SDK k8s job uses) to build the lang-SDK
 # artifacts with the host toolchain instead of ephemeral toolchain containers.
@@ -89,6 +94,16 @@ GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
 # bundle is built with CGO_ENABLED=0 (a fully static binary, independent of musl/glibc)
 # and module fetches go through the HTTPS proxy (no git/gcc needed).
 GO_BUILDER_IMAGE = os.environ.get("GO_BUILDER_IMAGE", "golang:1.25-alpine")
+
+# TypeScript SDK E2E test paths
+TS_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "ts-sdk"
+TS_SDK_EXAMPLE_PATH = TS_SDK_ROOT_PATH / "example"
+TS_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "ts.yml"
+# Builds the bundle and provides the worker's node binary (ts.yml), so the
+# bundle runs on the runtime it was built for.
+NODE_IMAGE = os.environ.get("NODE_IMAGE", "node:22-slim")
+# Writable HOME for the containerized pnpm build; gitignored, caches persist.
+TS_SDK_BUILD_HOME_PATH = AIRFLOW_ROOT_PATH / "files" / "pnpm-home"
 
 # Local provider sources are mounted into the airflow containers under this directory so
 # ``_PIP_ADDITIONAL_REQUIREMENTS`` can install the in-tree (latest, possibly unreleased)

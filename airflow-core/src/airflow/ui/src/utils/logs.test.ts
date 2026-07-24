@@ -20,7 +20,26 @@ import { describe, it, expect } from "vitest";
 
 import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
 
-import { parseStreamingLogContent } from "./logs";
+import { isUserCodeFrame, parseStreamingLogContent } from "./logs";
+
+describe("isUserCodeFrame", () => {
+  it.each([
+    "/tmp/airflow/dag_bundles/astro/main/dags/non_alert/enrich_ticket.py",
+    "/opt/airflow/dags/my_dag.py",
+    "/home/user/plugins/my_plugin.py",
+    "C:\\airflow\\dags\\my_dag.py",
+  ])("treats %s as user code", (filename) => {
+    expect(isUserCodeFrame(filename)).toBe(true);
+  });
+
+  it.each([
+    "/usr/local/lib/python3.14/site-packages/airflow/sdk/execution_time/task_runner.py",
+    "/usr/lib/python3/dist-packages/airflow/models/baseoperator.py",
+    "C:\\Python314\\Lib\\site-packages\\airflow\\sdk\\bases\\operator.py",
+  ])("treats %s as library code", (filename) => {
+    expect(isUserCodeFrame(filename)).toBe(false);
+  });
+});
 
 describe("parseStreamingLogContent", () => {
   it("returns content when data has content property", () => {

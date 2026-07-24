@@ -55,6 +55,8 @@ from airflow_e2e_tests.constants import (
     LANG_SDK_NATIVE_TOOLCHAIN,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
+    NODE_IMAGE,
+    OPENLINEAGE_COMPAT_DB_COMPOSE_PATH,
     OPENLINEAGE_COMPOSE_PATH,
     OPENSEARCH_PATH,
     PROVIDERS_MOUNT_CONTAINER_PATH,
@@ -62,6 +64,10 @@ from airflow_e2e_tests.constants import (
     SCALA_SPARK_EXAMPLE_DAGS_PATH,
     SCALA_SPARK_EXAMPLE_LIBS_PATH,
     TEST_REPORT_FILE,
+    TS_COMPOSE_PATH,
+    TS_SDK_BUILD_HOME_PATH,
+    TS_SDK_EXAMPLE_PATH,
+    TS_SDK_ROOT_PATH,
     XCOM_BUCKET,
 )
 
@@ -625,7 +631,7 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
-def _setup_openlineage_integration(dot_env_file, tmp_dir):
+def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):
     """Set up the openlineage E2E test mode.
 
     The OpenLineage system-test DAGs are the single source of truth; ``prepare_dags`` copies them
@@ -638,6 +644,96 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir):
     console.print("[yellow]Preparing OpenLineage DAGs from the provider system tests...")
     prepare_dags(tmp_dir / "dags")
     copyfile(OPENLINEAGE_COMPOSE_PATH, tmp_dir / "openlineage.yml")
+
+    if os.environ.get("E2E_TARGET_AIRFLOW_VERSION", "").strip():
+        copyfile(OPENLINEAGE_COMPAT_DB_COMPOSE_PATH, tmp_dir / "openlineage-compat-db.yml")
+        compose_file_names.append("openlineage-compat-db.yml")
+
+
+def _build_ts_sdk_example_bundle(*, native=False):
+    build_commands = (
+        "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install && pnpm run build"
+    )
+    if native:
+        console.print("[yellow]Building TypeScript SDK example bundle (host toolchain)...")
+        subprocess.run(["bash", "-c", build_commands], cwd=TS_SDK_ROOT_PATH, check=True)
+        return
+    # --user keeps build outputs owned by the current user; HOME is a
+    # writable, gitignored dir so pnpm/corepack caches persist between runs.
+    TS_SDK_BUILD_HOME_PATH.mkdir(parents=True, exist_ok=True)
+    # corepack shims go in $HOME/bin (on PATH) because the container user
+    # cannot write to /usr/local/bin.
+    build_script = (
+        'export PATH="$HOME/bin:$PATH"'
+        ' && mkdir -p "$HOME/bin"'
+        ' && corepack enable --install-directory "$HOME/bin"'
+        " && cd /repo/ts-sdk"
+        f" && {build_commands}"
+    )
+    console.print(f"[yellow]Building TypeScript SDK example bundle ({NODE_IMAGE})...")
+    subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            "HOME=/repo/files/pnpm-home",
+            "-e",
+            "COREPACK_ENABLE_DOWNLOAD_PROMPT=0",
+            "-e",
+            "CI=true",
+            "-v",
+            f"{AIRFLOW_ROOT_PATH}:/repo",
+            NODE_IMAGE,
+            "bash",
+            "-c",
+            build_script,
+        ],
+        check=True,
+    )
+
+
+def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
+    """Set up the ts_sdk E2E test mode."""
+    _build_ts_sdk_example_bundle(native=LANG_SDK_NATIVE_TOOLCHAIN)
+
+    copyfile(TS_COMPOSE_PATH, tmp_dir / "ts.yml")
+
+    # Deliberately no metadata sidecar: the coordinator must resolve the schema
+    # version from the metadata airflow-ts-pack embedded in the bundle.
+    ts_bundles_dir = tmp_dir / "ts-bundles"
+    ts_bundles_dir.mkdir()
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.mjs", ts_bundles_dir / "bundle.mjs")
+
+    copyfile(
+        TS_SDK_EXAMPLE_PATH / "dags" / "typescript_example.py", tmp_dir / "dags" / "typescript_example.py"
+    )
+
+    coordinator_config = json.dumps(
+        {
+            "ts": {
+                "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
+                "kwargs": {
+                    "bundles_root": ["/opt/airflow/ts-bundles"],
+                    "node_executable": "/opt/nodejs/node",
+                },
+            }
+        }
+    )
+    queue_to_coordinator = json.dumps({"typescript": "ts"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        f"NODE_IMAGE={NODE_IMAGE}\n"
+        # single-quoted so Docker Compose reads the JSON literally
+        f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        "AIRFLOW_CONN_TYPESCRIPT_EXAMPLE_HTTP=http://user:pass@example.com/\n"
+        "AIRFLOW_VAR_TYPESCRIPT_EXAMPLE_GREETING=greetings from e2e\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
 
 def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
@@ -693,7 +789,10 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _setup_go_sdk_integration(dot_env_file, tmp_dir)
     elif E2E_TEST_MODE == "openlineage":
         compose_file_names.append("openlineage.yml")
-        _setup_openlineage_integration(dot_env_file, tmp_dir)
+        _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names)
+    elif E2E_TEST_MODE == "ts_sdk":
+        compose_file_names.append("ts.yml")
+        _setup_ts_sdk_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.

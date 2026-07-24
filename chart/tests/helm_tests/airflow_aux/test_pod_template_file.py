@@ -356,6 +356,39 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].imagePullPolicy", docs[0]) == "Always"
         assert jmespath.search("spec.containers[0].name", docs[0]) == "base"
 
+    @pytest.mark.parametrize(
+        ("expected_image", "tag", "digest"),
+        [
+            ("dummy_image:user-tag", "user-tag", None),
+            ("dummy_image@user-digest", None, "user-digest"),
+            ("dummy_image@user-digest", "user-tag", "user-digest"),
+        ],
+    )
+    def test_should_use_correct_pod_template_image(self, expected_image, tag, digest):
+        docs = render_chart(
+            values={
+                "images": {
+                    "pod_template": {"repository": "dummy_image", "tag": tag, "digest": digest},
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].image", docs[0]) == expected_image
+
+    def test_should_use_default_airflow_digest_in_pod_template(self):
+        docs = render_chart(
+            values={
+                "defaultAirflowRepository": "test-repo",
+                "defaultAirflowDigest": "user-digest",
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].image", docs[0]) == "test-repo@user-digest"
+
     def test_mount_airflow_cfg(self):
         docs = render_chart(
             show_only=["templates/pod-template-file.yaml"],
