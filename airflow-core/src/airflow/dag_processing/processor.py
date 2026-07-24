@@ -20,6 +20,7 @@ import contextlib
 import importlib
 import logging
 import os
+import sys
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -125,6 +126,10 @@ class DagFileParseRequest(BaseModel):
 
     bundle_name: str
     """Bundle name for team-specific executor validation."""
+
+    bundle_pythonpath: list[str] = Field(default_factory=list)
+    """Extra ``sys.path`` entries to prepend before parsing this bundle's file (see
+    ``BaseDagBundle.parse_pythonpath``)."""
 
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
@@ -234,6 +239,14 @@ def _parse_file_entrypoint():
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
+
+    if msg.bundle_pythonpath:
+        # Parse this bundle's file against the bundle's own dependencies (e.g. its virtualenv
+        # site-packages), so one DAG processor can serve bundles with differing requirements. This
+        # runs in the per-file parsing subprocess, so the change is scoped to this file's parse.
+        for entry in reversed(msg.bundle_pythonpath):
+            if entry not in sys.path:
+                sys.path.insert(0, entry)
 
     stability_check_result = check_dag_file_stability(os.fspath(msg.file))
 
@@ -582,6 +595,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         bundle_name: str,
         dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
+        bundle_pythonpath: list[str] | None = None,
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
         **kwargs,
@@ -609,7 +623,7 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
+        proc._on_child_started(callbacks, path, bundle_path, bundle_name, bundle_pythonpath or [])
         return proc
 
     def _on_child_started(
@@ -618,11 +632,13 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        bundle_pythonpath: list[str] | None = None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
             bundle_name=bundle_name,
+            bundle_pythonpath=bundle_pythonpath or [],
             callback_requests=callbacks,
         )
         self.send_msg(msg, request_id=0)

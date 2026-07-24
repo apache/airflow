@@ -1383,6 +1383,9 @@ class DagFileProcessorManager(LoggingMixin):
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
 
+        bundle = next((b for b in self._dag_bundles if b.name == dag_file.bundle_name), None)
+        bundle_pythonpath = list(bundle.parse_pythonpath) if bundle is not None else []
+
         return DagFileProcessorProcess.start(
             id=id,
             path=dag_file.absolute_path,
@@ -1390,6 +1393,7 @@ class DagFileProcessorManager(LoggingMixin):
             bundle_name=dag_file.bundle_name,
             dag_file_rel_path=str(dag_file.rel_path),
             callbacks=callback_to_execute_for_file,
+            bundle_pythonpath=bundle_pythonpath,
             selector=self.selector,
             logger=logger,
             logger_filehandle=logger_filehandle,

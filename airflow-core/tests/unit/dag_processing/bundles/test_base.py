@@ -79,6 +79,20 @@ def test_dag_bundle_root_storage_path():
         assert get_bundle_storage_root_path() == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
+def test_parse_pythonpath_defaults_to_empty():
+    bundle = BasicBundle(name="x")
+    assert bundle.parse_pythonpath == []
+
+
+def test_parse_pythonpath_can_be_overridden():
+    class WithPythonpath(BasicBundle):
+        @property
+        def parse_pythonpath(self):
+            return ["/opt/x/site-packages"]
+
+    assert WithPythonpath(name="x").parse_pythonpath == ["/opt/x/site-packages"]
+
+
 def test_lock_acquisition():
     """Test that the lock context manager sets _locked and locks a lock file."""
     bundle = BasicBundle(name="locktest")
