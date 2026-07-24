@@ -475,15 +475,6 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         self.results_folder = results_folder
         self.deferrable = deferrable
 
-        if self.retrieve_result and not (self.wait_until_complete or self.deferrable):
-            raise AirflowException(
-                "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
-            )
-        if self.results_folder and not isinstance(self.input_source, str):
-            raise AirflowException("results_folder works only when input_source is file name")
-        if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
-            raise AirflowException("path to results_folder does not exist, please provide correct path")
-
     def _wait_until_complete(self, job, polling_interval: int = 30):
         try:
             while True:
@@ -542,6 +533,17 @@ class GenAIGeminiCreateBatchJobOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context):
+        if self.retrieve_result and not (self.wait_until_complete or self.deferrable):
+            raise AirflowException(
+                "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
+            )
+
+        if self.results_folder and not isinstance(self.input_source, str):
+            raise AirflowException("results_folder works only when input_source is file name")
+
+        if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
+            raise AirflowException("path to results_folder does not exist, please provide correct path")
+
         if self.deferrable:
             self.defer(
                 trigger=GenAIGeminiCreateBatchJobTrigger(
@@ -918,15 +920,6 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
         self.results_folder = results_folder
         self.deferrable = deferrable
 
-        if self.retrieve_result and not (self.wait_until_complete or self.deferrable):
-            raise AirflowException(
-                "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
-            )
-        if self.results_folder and not isinstance(self.input_source, str):
-            raise AirflowException("results_folder works only when input_source is file name")
-        if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
-            raise AirflowException("path to results_folder does not exist, please provide correct path")
-
     def _wait_until_complete(self, job, polling_interval: int = 30):
         try:
             while True:
@@ -985,6 +978,16 @@ class GenAIGeminiCreateEmbeddingsBatchJobOperator(GoogleCloudBaseOperator):
         )
 
     def execute(self, context: Context):
+        if self.retrieve_result and not (self.wait_until_complete or self.deferrable):
+            raise AirflowException(
+                "Retrieving results is possible only if wait_until_complete set to True or in deferrable mode"
+            )
+
+        if self.results_folder and not isinstance(self.input_source, str):
+            raise AirflowException("results_folder works only when input_source is file name")
+
+        if self.results_folder and not os.path.exists(os.path.abspath(self.results_folder)):
+            raise AirflowException("path to results_folder does not exist, please provide correct path")
         if self.deferrable:
             self.defer(
                 trigger=GenAIGeminiCreateEmbeddingsBatchJobTrigger(
