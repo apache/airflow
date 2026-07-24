@@ -115,8 +115,7 @@ class TestNamedHivePartitionSensor:
         )
 
     def test_native_templated_partition_names(self):
-        # partition_names is a template field: a whole-list native template is a str in __init__
-        # (the un-rendered "{{ ... }}"), so the array-type check must run at poke, after rendering.
+        # A whole-list native template renders from a str, so the array-type check must run at poke.
         self.hook.metastore.__enter__().check_for_named_partition.return_value = True
         partitions = [f"{self.database}.{self.table}/{self.partition_by}={DEFAULT_DATE_DS}"]
         dag = DAG(
