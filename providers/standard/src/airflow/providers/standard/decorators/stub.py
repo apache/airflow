@@ -134,7 +134,7 @@ def _build_arg_bindings(
     ``TaskArgBinding`` union: an ``XComArgBinding`` (``kind="xcom"``) for upstream TaskFlow
     outputs, or a ``LiteralArgBinding`` (``kind="literal"``) for everything else. ``name`` is
     always the stub function's parameter name, so a foreign runtime can bind by name (e.g. the
-    Go SDK's ``sdk.TaskInput`` struct fields) in addition to the existing positional order.
+    Go SDK's name-based struct fields) in addition to the existing positional order.
     Returns ``None`` for argless calls: the binding contract (including the signature checks
     below) applies only once a TaskFlow call actually passes arguments, so pre-TaskFlow stub
     Dags whose call arguments were always ignored keep parsing.

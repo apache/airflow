@@ -114,7 +114,7 @@ the argument count doesn't match the number of data parameters or a declared typ
 type. Data parameters must be JSON-decodable (no func/chan/unsafe-pointer, no non-empty interfaces) —
 checked once at registration. TaskFlow argument binding arrives over the coordinator protocol, so it is
 coordinator-mode only today; on the Edge Worker path a task with data parameters fails with the arity
-error (and a `TaskInput` struct with bindable fields fails the same way, since nothing can fill them).
+error (and a name-bound struct with bindable fields fails the same way, since nothing can fill them).
 
 ```go
 func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
@@ -142,15 +142,14 @@ Asking for the narrowest interface a task needs (e.g. `sdk.VariableClient` inste
 unit testing easier and documents which Airflow features the task touches. `RegisterDags` is the single
 source of truth for which `dag_id`s and `task_id`s a bundle can run.
 
-### TaskInput structs
+### Name-based struct binding
 
-A struct that anonymously embeds `sdk.TaskInput` opts into **per-field, name-based** binding instead
-of a long flat parameter list. At most one such parameter is allowed per function, and it cannot be
-combined with plain flat data parameters — a task function declares one shape or the other, and
-registration fails on a signature that mixes them.
+When a task function's **sole data parameter** is a struct, its fields bind **by name**
+(keyword-argument style) instead of positionally — an ergonomic alternative to a long flat
+parameter list. There is no marker to add: being the only data parameter is the opt-in.
 
 Conceptually, a plain flat parameter list is **positional-argument** binding: order matters, and
-every parameter must be filled or the task fails before its body runs. A `TaskInput` struct is
+every parameter must be filled or the task fails before its body runs. A sole struct parameter is
 closer to **keyword-argument** binding: fields match by name instead of position, and (see the
 `arg:` bullet below) a field whose name has no corresponding TaskFlow call argument is simply left
 at its Go zero value rather than failing the task — the same way an unpassed keyword argument falls
@@ -158,7 +157,6 @@ back to a caller-side default in a kwargs-style call.
 
 ```go
 type CombineInput struct {
-    sdk.TaskInput            // one-line opt-in, zero runtime cost
     Region    string  `arg:"region_code"` // named lookup against the TaskFlow call argument "region_code"
     Threshold float64 `arg:"threshold"`   // tags also bridge Go's UpperCamelCase to a snake_case argument
 }
@@ -182,14 +180,18 @@ instead of silently dropping the value. Stub parameters the author left at their
 are the exception — the Python side captures them into the spec (marked `from_default` on the
 wire), and the struct is free not to mirror them, the same way a Python callee never sees which
 defaulted kwargs went unpassed. And when no argument spec arrives at all (an argless stub call, or
-the Edge Worker path) a `TaskInput` struct with bindable fields fails loudly rather than running
-fully zero-valued.
+the Edge Worker path) a struct with bindable fields fails loudly rather than running fully
+zero-valued.
 
-A plain custom struct type *without* the `sdk.TaskInput` embed is unaffected by any of
-this — it keeps working as a single flat data parameter, JSON-decoded whole from one TaskFlow
-argument (see `Config` in
-[`example/bundle/taskflowbinding/taskflowbinding.go`](./example/bundle/taskflowbinding/taskflowbinding.go)),
-which is a different mechanism from per-field `TaskInput` binding. See
+Two related cases keep whole-value decoding available. A struct that is **not** the sole data
+parameter — one among several flat parameters — is decoded whole from its one positional argument,
+as `Config` is in
+[`example/bundle/taskflowbinding/taskflowbinding.go`](./example/bundle/taskflowbinding/taskflowbinding.go).
+And a sole struct parameter that instead receives exactly one explicitly passed argument no field
+claims falls back to decoding that argument whole into the struct — so a task can still take an
+upstream object as a single argument. Because `arg:` tags only take effect in the name-based path, a
+struct carrying `arg:` tags must be the only data parameter; pairing it with other data parameters
+is a registration error rather than a silent whole-value decode. See
 [`ViaStructNoTags`, `ViaStructArgTag`, and `ViaStructUnmatchedArg`](./example/bundle/taskflowbinding/taskflowbinding.go)
 for a full worked example of each field-binding mode — and the unmatched-field case — in isolation.
 

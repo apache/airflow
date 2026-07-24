@@ -21,7 +21,7 @@ Three Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
 load, below), ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
 timing sequential vs goroutine XCom pulls), and ``taskflow_binding_dag``
 (stressing the TaskFlow argument-binding surface -- the flat, positional
-parameter list ``via_flat_args`` binds onto, plus three ``sdk.TaskInput``
+parameter list ``via_flat_args`` binds onto, plus three name-based
 (keyword-style) struct examples, ``via_struct_no_tags``/``via_struct_arg_tag``/
 ``via_struct_unmatched_arg``, each isolating one field-binding mode; see its
 Dag function below).
@@ -167,11 +167,11 @@ def taskflow_binding_dag():
 
     Conceptually, the flat parameter list is *positional-argument* binding: order
     matters, and every parameter must be filled or the task fails before it runs.
-    ``sdk.TaskInput`` structs are closer to *keyword-argument* binding: fields match
-    by name, and (see ``via_struct_unmatched_arg`` below) a field whose name has no
-    corresponding TaskFlow call argument simply stays at its zero value instead of
-    failing the task -- the same way an unpassed keyword argument falls back to a
-    default in kwargs-style calls.
+    A task whose sole data parameter is a struct is closer to *keyword-argument*
+    binding: fields match by name, and (see ``via_struct_unmatched_arg`` below) a
+    field whose name has no corresponding TaskFlow call argument simply stays at
+    its zero value instead of failing the task -- the same way an unpassed keyword
+    argument falls back to a default in kwargs-style calls.
 
     ``via_flat_args``'s one mixed positional/keyword call carries literals of every
     scalar type plus an array literal, and fans in XComs from *two* upstream Go
@@ -181,8 +181,9 @@ def taskflow_binding_dag():
     ``*string``. The Go ``via_flat_args`` (``go-sdk/example/bundle/taskflowbinding``)
     verifies every bound value and fails the task on any mismatch.
 
-    Three further tasks demonstrate the Go SDK's ``sdk.TaskInput`` struct injection
-    mode. Each call mixes a literal (``threshold``) with an XCom reference: the
+    Three further tasks demonstrate the Go SDK's name-based struct binding, used
+    when a struct is the task's sole data parameter. Each call mixes a literal
+    (``threshold``) with an XCom reference: the
     ``region_code`` argument is ``make_region``'s output, so every struct example
     also proves an XCom-sourced value binds onto a struct field. One field-binding
     mode at a time:

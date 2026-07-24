@@ -323,18 +323,17 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 	assert.False(t, ran, "the task body must not run on an arity mismatch")
 }
 
-// combineInput is a TaskInput struct whose sole field claims a named entry
+// combineInput is a sole struct parameter whose field claims a named entry
 // out of ti_context.arg_bindings.
 type combineInput struct {
-	sdk.TaskInput
 	Region string `arg:"region"`
 }
 
-// TestTaskRunnerBindsTaskInputStructArgs covers the TaskFlow path through
-// RunTask for a TaskInput struct parameter: convertArgBindings must propagate
-// each spec's Name through to binding.Arg so the struct's `arg:"region"` field
-// can claim it by name.
-func TestTaskRunnerBindsTaskInputStructArgs(t *testing.T) {
+// TestTaskRunnerBindsStructArgs covers the TaskFlow path through RunTask for a
+// name-bound struct parameter: convertArgBindings must propagate each spec's
+// Name through to binding.Arg so the struct's `arg:"region"` field can claim it
+// by name.
+func TestTaskRunnerBindsStructArgs(t *testing.T) {
 	var got combineInput
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",
@@ -373,10 +372,10 @@ func TestTaskRunnerBindsTaskInputStructArgs(t *testing.T) {
 	assert.Equal(t, "eu-west-1", got.Region)
 }
 
-// TestTaskRunnerTaskInputIgnoresUnclaimedDefault: convertArgBindings must
+// TestTaskRunnerStructIgnoresUnclaimedDefault: convertArgBindings must
 // propagate from_default so a spec entry the Python side filled from the stub
-// signature's default may go unclaimed by the TaskInput struct.
-func TestTaskRunnerTaskInputIgnoresUnclaimedDefault(t *testing.T) {
+// signature's default may go unclaimed by the name-bound struct.
+func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 	var got combineInput
 	bundle := buildBundle(t, func(r bundlev1.Registry) {
 		r.AddDag("test_dag").AddTaskWithName("transform",

@@ -78,7 +78,7 @@ func TestViaStructNoTagsRejectsWrongBinding(t *testing.T) {
 		RegionCode: "wrong-region",
 		Threshold:  0.75,
 	})
-	assert.ErrorContains(t, err, "TaskInput fields bound incorrectly")
+	assert.ErrorContains(t, err, "struct fields bound incorrectly")
 }
 
 func TestViaStructArgTag(t *testing.T) {
@@ -100,13 +100,13 @@ func TestViaStructArgTagRejectsWrongBinding(t *testing.T) {
 		Region:    "wrong-region",
 		Threshold: 0.75,
 	})
-	assert.ErrorContains(t, err, "TaskInput fields bound incorrectly")
+	assert.ErrorContains(t, err, "struct fields bound incorrectly")
 }
 
 func TestViaStructUnmatchedArg(t *testing.T) {
 	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
 	// Missing is left at its Go zero value, exactly as binding.Resolve leaves an
-	// unmatched TaskInput field -- this task fn is unit-testable independent of
+	// unmatched struct field -- this task fn is unit-testable independent of
 	// the binding package precisely because it declares that expectation itself.
 	got, err := ViaStructUnmatchedArg(ctx, slog.Default(), ViaStructUnmatchedArgInput{
 		Region:  "eu-west-1",
