@@ -9472,6 +9472,15 @@ class TestSchedulerJob:
         # Assert that all deadlines which are both expired and unhandled get processed.
         assert mock_handle_miss.call_count == 2
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.stats")
+    def test_execute_stats_init_failure_does_not_block_run(self, mock_stats, session):
+        """A metrics misconfiguration must not prevent the scheduler from running."""
+        mock_stats.initialize.side_effect = RuntimeError("boom")
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1, executors=[MockExecutor()])
+
+        self.job_runner._execute()
+
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines_no_deadlines_found(self, mock_handle_miss, session):
         """Test handling when there are no deadlines to process."""

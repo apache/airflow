@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import importlib
 import logging
+import sys
 import time
+import types
 from collections.abc import Callable
 from unittest import mock
 from unittest.mock import Mock
@@ -826,3 +828,46 @@ def test_build_dag_metric_tags(tag_names: list[str], expected: dict[str, str]) -
 
 def test_build_dag_metric_tags_accepts_generator() -> None:
     assert build_dag_metric_tags(name for name in ["env:prod"]) == {"env": "prod"}
+
+
+class TestInitializePropagatesToSiblingModules:
+    """
+    This source file is symlinked into both ``airflow-core`` and ``task-sdk``, each importing it
+    under a different module name. ``initialize()`` must configure any such sibling copy already
+    loaded in the process too, or the two singletons drift out of sync.
+    """
+
+    def setup_method(self):
+        self.sibling = types.ModuleType("fake_distribution._shared.observability.metrics.stats")
+        self.sibling.__file__ = airflow_shared.observability.metrics.stats.__file__
+        self.sibling._factory = None
+        self.sibling._backend = "stale"
+        self.sibling._export_legacy_names = True
+        sys.modules[self.sibling.__name__] = self.sibling
+
+    def teardown_method(self):
+        del sys.modules[self.sibling.__name__]
+        importlib.reload(airflow_shared.observability.metrics.stats)
+
+    def test_initialize_configures_sibling_module(self):
+        factory = get_statsd_logger_factory(stats_class=statsd.StatsClient)
+
+        airflow_shared.observability.metrics.stats.initialize(factory=factory, export_legacy_names=False)
+
+        assert self.sibling._factory is factory
+        assert self.sibling._backend is None
+        assert self.sibling._export_legacy_names is False
+
+    def test_initialize_does_not_touch_unrelated_modules(self):
+        unrelated = types.ModuleType("unrelated_module")
+        unrelated.__file__ = "/some/other/path/stats.py"
+        unrelated._factory = "untouched"
+        sys.modules["unrelated_module"] = unrelated
+        try:
+            airflow_shared.observability.metrics.stats.initialize(
+                factory=get_statsd_logger_factory(stats_class=statsd.StatsClient),
+                export_legacy_names=True,
+            )
+            assert unrelated._factory == "untouched"
+        finally:
+            del sys.modules["unrelated_module"]
