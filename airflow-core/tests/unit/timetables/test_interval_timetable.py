@@ -383,6 +383,107 @@ def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expec
     assert info == expected_info
 
 
+@pytest.mark.parametrize(
+    ("timetable", "run_after", "expected_interval"),
+    [
+        pytest.param(
+            CronDataIntervalTimetable("0 2 * * *", pendulum.timezone("America/New_York")),
+            pendulum.DateTime(2024, 3, 10, 7, 30, tzinfo=utc),
+            DataInterval(
+                pendulum.DateTime(2024, 3, 9, 7, tzinfo=utc),
+                pendulum.DateTime(2024, 3, 10, 7, tzinfo=utc),
+            ),
+            id="new-york-dst-gap",
+        ),
+        pytest.param(
+            CronDataIntervalTimetable("0 2 * * *", pendulum.timezone("America/New_York")),
+            pendulum.DateTime(2024, 3, 10, 7, tzinfo=utc),
+            DataInterval(
+                pendulum.DateTime(2024, 3, 9, 7, tzinfo=utc),
+                pendulum.DateTime(2024, 3, 10, 7, tzinfo=utc),
+            ),
+            id="new-york-dst-gap-exact",
+        ),
+        pytest.param(
+            CronDataIntervalTimetable("0 2 * * *", pendulum.timezone("Europe/Zurich")),
+            pendulum.DateTime(2023, 3, 26, 1, 30, tzinfo=utc),
+            DataInterval(
+                pendulum.DateTime(2023, 3, 25, 1, tzinfo=utc),
+                pendulum.DateTime(2023, 3, 26, 1, tzinfo=utc),
+            ),
+            id="zurich-dst-gap",
+        ),
+        pytest.param(
+            CronDataIntervalTimetable("0 2 * * *", pendulum.timezone("Australia/Lord_Howe")),
+            pendulum.DateTime(2024, 10, 5, 15, 30, tzinfo=utc),
+            DataInterval(
+                pendulum.DateTime(2024, 10, 4, 15, 30, tzinfo=utc),
+                pendulum.DateTime(2024, 10, 5, 15, 30, tzinfo=utc),
+            ),
+            id="lord-howe-half-hour-dst-gap",
+        ),
+        pytest.param(
+            # make_aware pins fold=1, so the 1am tick on the fold day is its second
+            # occurrence (06:00Z) and has not happened yet at 05:30Z.
+            CronDataIntervalTimetable("0 1 * * *", pendulum.timezone("America/New_York")),
+            pendulum.DateTime(2024, 11, 3, 5, 30, tzinfo=utc),
+            DataInterval(
+                pendulum.DateTime(2024, 11, 1, 5, tzinfo=utc),
+                pendulum.DateTime(2024, 11, 2, 5, tzinfo=utc),
+            ),
+            id="new-york-fold",
+        ),
+    ],
+)
+def test_cron_infer_manual_data_interval_dst(
+    timetable: CronDataIntervalTimetable,
+    run_after: pendulum.DateTime,
+    expected_interval: DataInterval,
+):
+    """The inferred interval must not be zero-length, nor end after ``run_after``."""
+    interval = timetable.infer_manual_data_interval(run_after=run_after)
+    assert interval == expected_interval
+    assert interval.start < interval.end
+    assert interval.end <= run_after
+
+
+@pytest.mark.parametrize(
+    ("timetable", "run_after", "expected_info"),
+    [
+        pytest.param(
+            CronDataIntervalTimetable("0 2 * * *", pendulum.timezone("America/New_York")),
+            pendulum.DateTime(2024, 3, 10, 7, 30, tzinfo=utc),
+            DagRunInfo.interval(
+                pendulum.DateTime(2024, 3, 10, 7, tzinfo=utc),
+                pendulum.DateTime(2024, 3, 11, 6, tzinfo=utc),
+            ),
+            id="new-york-dst-gap",
+        ),
+        pytest.param(
+            CronDataIntervalTimetable("0 2 * * *", pendulum.timezone("Europe/Zurich")),
+            pendulum.DateTime(2023, 3, 26, 1, 30, tzinfo=utc),
+            DagRunInfo.interval(
+                pendulum.DateTime(2023, 3, 26, 1, tzinfo=utc),
+                pendulum.DateTime(2023, 3, 27, tzinfo=utc),
+            ),
+            id="zurich-dst-gap",
+        ),
+    ],
+)
+def test_cron_next_dagrun_info_after_dst_manual_run(
+    timetable: CronDataIntervalTimetable,
+    run_after: pendulum.DateTime,
+    expected_info: DagRunInfo,
+):
+    """A zero-length interval here would trip the point-in-time guard and skip a period."""
+    manual_interval = timetable.infer_manual_data_interval(run_after=run_after)
+    info = timetable.next_dagrun_info(
+        last_automated_data_interval=manual_interval,
+        restriction=TimeRestriction(None, None, True),
+    )
+    assert info == expected_info
+
+
 class TestCronIntervalDst:
     """
     Test cron interval timetable can correctly enter a DST boundary.
