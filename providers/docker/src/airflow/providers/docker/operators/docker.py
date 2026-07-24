@@ -486,8 +486,11 @@ class DockerOperator(BaseOperator):
             lib = getattr(self, "pickling_library", pickle)
             return lib.load(file)
 
-    def execute(self, context: Context) -> list[str] | str | None:
+    def _normalize_mounts(self) -> None:
         self.mounts = [m if isinstance(m, Mount) else Mount(**m) for m in self.mounts]
+
+    def execute(self, context: Context) -> list[str] | str | None:
+        self._normalize_mounts()
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info("::group::Pulling docker image %s", self.image)
