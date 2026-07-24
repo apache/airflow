@@ -44,6 +44,22 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
     username = <username>
     password = <password>
 
+On Airflow 3.x you can also route remote logging to OpenSearch through the provider
+dispatch mechanism by adding an ``opensearch://`` scheme to
+``[logging] remote_base_log_folder``:
+
+.. code-block:: ini
+
+    [logging]
+    remote_logging = True
+    remote_base_log_folder = opensearch://
+
+    [opensearch]
+    host = <host>
+    port = <port>
+    username = <username>
+    password = <password>
+
 To output task logs to stdout in JSON format, the following config could be used:
 
 .. code-block:: ini
