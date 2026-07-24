@@ -17,12 +17,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat._compat_utils import create_module_getattr
 from airflow.providers.common.compat.version_compat import (
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
 
 _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
@@ -76,6 +77,33 @@ else:
             )
 
 
+if TYPE_CHECKING:
+    from airflow.sdk import ResumableJobMixin
+elif AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk import ResumableJobMixin
+else:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """
+        Stub for Airflow < 3.3, where ``ResumableJobMixin`` does not exist yet.
+
+        It lets an operator keep ``ResumableJobMixin`` in its bases on every supported Airflow
+        version; the durable, crash-safe path the real mixin drives is gated to 3.3+ at the call
+        site, so on older Airflow the operator runs its non-durable path unchanged.
+        """
+
+        external_id_key: str = "remote_job_id"
+
+        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = durable
+
+        def execute_resumable(self, context):
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
+
 __getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
 
-__all__ = sorted(_IMPORT_MAP.keys())
+__all__ = sorted([*_IMPORT_MAP.keys(), "ResumableJobMixin"])

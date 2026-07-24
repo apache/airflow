@@ -221,6 +221,18 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_dagrun_state(dag_id: str, run_id: str) -> str: ...
 
     @staticmethod
+    def trigger_dag_run(
+        dag_id: str,
+        run_id: str,
+        *,
+        conf: dict[str, Any] | None = None,
+        logical_date: AwareDatetime | None = None,
+        run_after: AwareDatetime | None = None,
+        reset_dag_run: bool = False,
+        note: str | None = None,
+    ) -> bool: ...
+
+    @staticmethod
     def get_dag(dag_id: str) -> DagResult: ...
 
 
