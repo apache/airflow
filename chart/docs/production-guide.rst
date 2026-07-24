@@ -88,6 +88,21 @@ After secret creation, configure the chart to use the secret:
    data:
      metadataSecretName: mydatabase
 
+If your secret stores the connection string under a key other than ``connection`` (for
+example, `CloudNativePG <https://cloudnative-pg.io/>`_ generates credential secrets with
+the connection URI under the ``uri`` key), set ``metadataSecretKey`` accordingly:
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   data:
+     metadataSecretName: mydatabase-app
+     metadataSecretKey: uri
+
+Similarly, ``resultBackendSecretKey`` and ``brokerUrlSecretKey`` configure the key names
+used with ``resultBackendSecretName`` and ``brokerUrlSecretName``. All of these default to
+``connection`` and only apply when the corresponding secret name is provided.
+
 .. _production-guide:pgbouncer:
 
 Metadata DB Cleanup

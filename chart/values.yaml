@@ -449,13 +449,24 @@ data:
   #   postgresql+psycopg2://airflow:password@postgres/airflow  (Airflow <3.4.0, or with the [psycopg2] extra)
   metadataSecretName: ~
 
+  # When `metadataSecretName` is set, the key in that secret containing the connection string.
+  # Useful when the secret is managed externally, e.g. CloudNativePG stores the URI under the "uri" key.
+  metadataSecretKey: ~
+
   # If not set, falls back to metadataSecretName. The secret must contain 'connection' key which is
   # a base64-encoded connection string, e.g.:
   #   postgresql+psycopg://user:password@host/db   (Airflow >=3.4.0)
   #   postgresql+psycopg2://user:password@host/db  (Airflow <3.4.0, or with the [psycopg2] extra)
   resultBackendSecretName: ~
 
+  # When `resultBackendSecretName` is set, the key in that secret containing the result backend
+  # connection string.
+  resultBackendSecretKey: ~
+
   brokerUrlSecretName: ~
+
+  # When `brokerUrlSecretName` is set, the key in that secret containing the broker URL.
+  brokerUrlSecretKey: ~
 
   # If `metadataSecretName` is not specified, pass connection values below
   metadataConnection:

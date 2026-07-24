@@ -1323,6 +1323,14 @@
                     ],
                     "default": null
                 },
+                "metadataSecretKey": {
+                    "description": "Key in the metadata connection secret containing the connection string. Only used when `metadataSecretName` is set. Defaults to `connection`.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "resultBackendSecretName": {
                     "description": "Result backend connection string secret.",
                     "type": [
@@ -1331,8 +1339,25 @@
                     ],
                     "default": null
                 },
+                "resultBackendSecretKey": {
+                    "description": "Key in the result backend connection secret containing the connection string. Only used when `resultBackendSecretName` is set. Defaults to `connection`.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "brokerUrlSecretName": {
                     "description": "Redis broker URL secret.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "x-docsSection": "Redis",
+                    "default": null
+                },
+                "brokerUrlSecretKey": {
+                    "description": "Key in the broker URL secret containing the broker URL. Only used when `brokerUrlSecretName` is set. Defaults to `connection`.",
                     "type": [
                         "string",
                         "null"
