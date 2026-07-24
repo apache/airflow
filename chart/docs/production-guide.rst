@@ -704,26 +704,27 @@ This will generate the following scheduler deployment:
            - name: scheduler
          ...
 
-Omitting ``runAsUser`` and ``fsGroup``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Omitting default ``securityContext`` values
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 On OpenShift, the ``restricted`` SCC assigns ``runAsUser`` and ``fsGroup`` automatically and rejects Pods
-that request specific values without the ``anyuid`` SCC in place. To let OpenShift assign these values,
-set ``runAsUser`` and ``fsGroup`` to ``null`` explicitly instead of leaving ``securityContexts`` empty
-(an empty ``securityContexts.pod`` falls back to :ref:`uid <parameters:Airflow>` /
-:ref:`gid <parameters:Airflow>`, as shown above):
+that request specific values without the ``anyuid`` SCC in place. Since an empty ``securityContexts.pod``
+falls back to :ref:`uid <parameters:Airflow>` / :ref:`gid <parameters:Airflow>` (as shown above), leaving
+it empty is not enough to avoid hard-coded values. Set ``securityContexts.disableDefaults`` to stop the
+chart from filling in these defaults wherever ``securityContexts.pod`` / ``securityContexts.containers``
+(or the equivalent per-component overrides) are left empty:
 
 .. code-block:: yaml
    :caption: values.yaml
 
    securityContexts:
-     pod:
-       runAsUser: null
-       fsGroup: null
+     disableDefaults: true
 
-This omits ``runAsUser`` and ``fsGroup`` from the rendered pod ``securityContext`` entirely, allowing the
-SCC to supply its own values. The same can be applied to any workload's local ``securityContexts.pod``
-(e.g. ``scheduler.securityContexts.pod``).
+This omits ``runAsUser`` / ``fsGroup`` (pod) and ``runAsUser`` (container) from the rendered
+``securityContext`` entirely wherever they are not explicitly set, allowing the SCC to supply its own
+values. Explicit values set in ``securityContexts.pod`` / ``securityContexts.containers`` (or a
+component's local override, e.g. ``scheduler.securityContexts.pod``) still take priority over
+``disableDefaults``.
 
 Built-in secrets and environment variables
 ------------------------------------------
