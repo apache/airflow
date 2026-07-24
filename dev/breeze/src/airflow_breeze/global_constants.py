@@ -523,8 +523,9 @@ PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
-ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
-CURRENT_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
+# TODO: remove "14" when it reaches EOL on 2026-11-13 (and shift the default).
+ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18", "19beta1"]
+CURRENT_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18", "19beta1"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 
 USE_MYSQL_INNOVATION_RELEASE = True
