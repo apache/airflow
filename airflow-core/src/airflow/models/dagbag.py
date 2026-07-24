@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import time
-from collections.abc import MutableMapping
+from collections.abc import Collection, MutableMapping
 from contextlib import nullcontext
 from threading import RLock
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -219,6 +219,44 @@ class DBDagBag:
         if version_id := self._version_from_dag_run(dag_run=dag_run, session=session):
             return self._get_dag(version_id=version_id, session=session)
         return None
+
+    def get_dags_for_runs(
+        self,
+        dag_runs: Collection[DagRun],
+        *,
+        session: Session,
+        latest_versions: dict[str, DagVersion] | None = None,
+    ) -> dict[tuple[str, str], SerializedDAG | None]:
+        """
+        Resolve the dag for each given run, batching the latest-version lookups.
+
+        Unlike calling :meth:`get_dag_for_run` per run — which issues one latest-version
+        query per run — this resolves all latest versions in a single query, so loops over
+        many runs (e.g. the scheduler's per-tick scheduling loops) stay O(1) in version
+        lookups instead of O(number of runs).
+
+        :param dag_runs: The Dag runs to resolve dags for.
+        :param session: The database session.
+        :param latest_versions: Optional precomputed mapping of dag_id to its latest
+            ``DagVersion`` (as returned by :meth:`DagVersion.get_latest_versions`); passed
+            by callers that already resolved it so the query is not repeated.
+        :return: Mapping of ``(dag_id, run_id)`` to the resolved dag.
+        """
+        if latest_versions is None:
+            unpinned_dag_ids = {dag_run.dag_id for dag_run in dag_runs if not dag_run.bundle_version}
+            latest_versions = DagVersion.get_latest_versions(dag_ids=unpinned_dag_ids, session=session)
+
+        dags_by_run: dict[tuple[str, str], SerializedDAG | None] = {}
+        for dag_run in dag_runs:
+            version_id: UUID | None
+            if not dag_run.bundle_version and (dag_version := latest_versions.get(dag_run.dag_id)):
+                version_id = dag_version.id
+            else:
+                version_id = dag_run.created_dag_version_id
+            dags_by_run[dag_run.dag_id, dag_run.run_id] = (
+                self._get_dag(version_id=version_id, session=session) if version_id else None
+            )
+        return dags_by_run
 
     def iter_all_latest_version_dags(self, *, session: Session) -> Generator[SerializedDAG, None, None]:
         """

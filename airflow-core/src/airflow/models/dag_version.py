@@ -24,7 +24,7 @@ from uuid import UUID
 
 import sqlalchemy as sa
 import uuid6
-from sqlalchemy import ForeignKey, Integer, UniqueConstraint, select
+from sqlalchemy import ForeignKey, Integer, UniqueConstraint, func, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
@@ -34,6 +34,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 
 if TYPE_CHECKING:
+    from collections.abc import Collection
+
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
@@ -214,6 +216,40 @@ class DagVersion(Base):
                 load_serialized_dag=load_serialized_dag,
             )
         )
+
+    @classmethod
+    @provide_session
+    def get_latest_versions(
+        cls,
+        dag_ids: Collection[str],
+        *,
+        session: Session = NEW_SESSION,
+    ) -> dict[str, DagVersion]:
+        """
+        Get the latest version of each given Dag in a single query.
+
+        :param dag_ids: The Dag IDs to resolve.
+        :param session: The database session.
+        :return: Mapping of dag_id to its latest version; dag_ids without any version are absent.
+        """
+        if not dag_ids:
+            return {}
+        latest_version_numbers = (
+            select(cls.dag_id, func.max(cls.version_number).label("version_number"))
+            .where(cls.dag_id.in_(set(dag_ids)))
+            .group_by(cls.dag_id)
+            .subquery()
+        )
+        latest_versions = session.scalars(
+            select(cls).join(
+                latest_version_numbers,
+                sa.and_(
+                    cls.dag_id == latest_version_numbers.c.dag_id,
+                    cls.version_number == latest_version_numbers.c.version_number,
+                ),
+            )
+        )
+        return {dag_version.dag_id: dag_version for dag_version in latest_versions}
 
     @classmethod
     @provide_session
