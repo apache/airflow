@@ -201,6 +201,7 @@ spec:
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "keda_airflow_environment" (merge (dict "Component" "triggerer") .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.triggerer.env) | nindent 10 }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.triggerer.livenessProbe.initialDelaySeconds }}

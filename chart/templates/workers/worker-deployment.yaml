@@ -326,6 +326,7 @@ spec:
               value: "0"
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" (merge (dict "IncludeJwtSecret" false) .) | indent 10 }}
+            {{- include "keda_airflow_environment" (merge (dict "Component" "worker") .) | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.workers.celery.env) | indent 10 }}
             {{- if .Values.workers.celery.kerberosSidecar.enabled }}
             - name: KRB5_CONFIG
