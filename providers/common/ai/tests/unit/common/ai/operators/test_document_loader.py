@@ -50,20 +50,24 @@ class TestDocumentLoaderInit:
         assert "source_bytes" not in op.template_fields
 
     def test_both_sources_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
         with pytest.raises(ValueError, match="not both"):
-            DocumentLoaderOperator(task_id="test", source_path="/tmp/file.txt", source_bytes=b"hello")
+            op.execute(context={})
 
     def test_neither_source_raises(self):
+        op = DocumentLoaderOperator(task_id="test")
         with pytest.raises(ValueError, match="Provide exactly one"):
-            DocumentLoaderOperator(task_id="test")
+            op.execute(context={})
 
     def test_source_bytes_without_file_type_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
         with pytest.raises(ValueError, match="file_type"):
-            DocumentLoaderOperator(task_id="test", source_bytes=b"hello")
+            op.execute(context={})
 
     def test_empty_bytes_without_file_type_raises(self):
+        op = DocumentLoaderOperator(task_id="test", source_bytes=b"")
         with pytest.raises(ValueError, match="file_type"):
-            DocumentLoaderOperator(task_id="test", source_bytes=b"")
+            op.execute(context={})
 
 
 class TestTextParser:
