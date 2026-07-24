@@ -1784,7 +1784,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             timers.call_regular_interval(
                 conf.getfloat("scheduler", "dagrun_metrics_interval", fallback=30.0),
-                self._emit_running_dags_metric,
+                self._emit_dag_runs_metric,
             )
 
         timers.call_regular_interval(
@@ -3290,10 +3290,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.previous_ti_metrics[state] = ti_metrics
 
     @provide_session
-    def _emit_running_dags_metric(self, *, session: Session = NEW_SESSION) -> None:
-        stmt = select(func.count()).select_from(DagRun).where(DagRun.state == DagRunState.RUNNING)
-        running_dags = float(session.scalar(stmt) or 0)
-        stats.gauge("scheduler.dagruns.running", running_dags)
+    def _emit_dag_runs_metric(self, *, session: Session = NEW_SESSION) -> None:
+        stmt = (
+            select(DagRun.dag_id, DagRun.state, func.count().label("count"))
+            .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
+            .group_by(DagRun.dag_id, DagRun.state)
+        )
+        for dag_id, state, count in session.execute(stmt).all():
+            metric_name = (
+                "scheduler.dagruns.running" if state == DagRunState.RUNNING else "scheduler.dagruns.queued"
+            )
+            stats.gauge(metric_name, float(count), tags={"dag_id": dag_id})
 
     @provide_session
     def _emit_pool_metrics(self, *, session: Session = NEW_SESSION) -> None:
