@@ -19,7 +19,7 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+**Table of Contents** *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Selective CI Checks](#selective-ci-checks)
   - [Why selective checks exist (the optimisation goal)](#why-selective-checks-exist-the-optimisation-goal)
@@ -355,8 +355,8 @@ We have the following Groups of files for CI that determine which tests are run:
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
 * `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder (which contains the chart sources and tests under `chart/tests/`).
-* `Build files` - change in the files indicates that we should run  `upgrade to newer dependencies` -
-  build dependencies in `pyproject.toml` and  generated dependencies files in `generated` folder.
+* `Build files` - change in the files indicates that we should run `upgrade to newer dependencies` -
+  build dependencies in `pyproject.toml` and generated dependencies files in `generated` folder.
   The dependencies are automatically generated from the `provider.yaml` files in provider by
   the `hatch_build.py` build hook. The provider.yaml is a single source of truth for each
   provider and `hatch_build.py` for all regular dependencies.
@@ -480,8 +480,11 @@ when some files are not changed. Those are the rules implemented:
   * if no `Java SDK files` changed - `ktlint` check is skipped (it runs the java-sdk Gradle
     wrapper, which downloads the Gradle distribution, so we avoid that download on PRs that do
     not touch `java-sdk/`)
-  * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
-    `check-provider-yaml-valid` check is skipped
+  * `check-provider-yaml-valid` is skipped unless at least one of these changed:
+    `All Providers Python files`, `All Providers Distribution Config files`
+    (which includes `provider.yaml`, `pyproject.toml`, and `providers/.pre-commit-config.yaml`),
+    or `Prek files` (`scripts/ci/prek/`). The last condition ensures the check runs
+    when the check script itself is modified.
 
 ## Suspended providers
 

@@ -356,6 +356,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES: [
             r"^providers/.*/pyproject\.toml$",
             r"^providers/.*/provider\.yaml$",
+            r"^providers/\.pre-commit-config\.yaml$",
         ],
         FileGroupForCi.ALL_DEV_PYTHON_FILES: [
             r"^dev/.*\.py$",
@@ -1606,9 +1607,12 @@ class SelectiveChecks:
                 FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
             )
             or self._matching_files(FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
+            or self._matching_files(FileGroupForCi.PREK_FILES, CI_FILE_GROUP_MATCHES)
         ):
-            # only skip provider validation if none of the provider.yaml and provider
-            # python files changed because validation also walks through all the provider python files
+            # Skip provider validation only when none of these changed:
+            # - provider.yaml / pyproject.toml / providers/.pre-commit-config.yaml
+            # - provider Python files (validation walks all provider Python files)
+            # - prek scripts (the check script itself may have changed)
             prek_hooks_to_skip.add("check-provider-yaml-valid")
         # Non-provider mypy checks run as prek hooks in static checks.
         # Skip them when their relevant files haven't changed, unless devel-common
