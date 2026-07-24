@@ -85,7 +85,11 @@ def get_provider_info():
             {
                 "name": "hitl_review",
                 "plugin-class": "airflow.providers.common.ai.plugins.hitl_review.HITLReviewPlugin",
-            }
+            },
+            {
+                "name": "ai_trace",
+                "plugin-class": "airflow.providers.common.ai.plugins.ai_trace.AITracePlugin",
+            },
         ],
         "config": {
             "common.ai": {
@@ -111,6 +115,20 @@ def get_provider_info():
                         "type": "boolean",
                         "example": "False",
                         "default": "False",
+                    },
+                    "trace_store_path": {
+                        "description": "ObjectStorage URI for the backend-free trace store -- local dev and\nquick testing without Langfuse or any OTLP backend. When set, GenAI\nspans from ``AgentOperator`` / ``@task.agent`` / ``@task.llm`` are\nwritten as standard OTLP JSON lines (one file per task-instance try)\nunder this path, and the \"AI Trace\" UI reads them back directly.\nRequires neither ``[traces] otel_on`` nor ``otel_export_enabled``.\nAny scheme supported by ``airflow.sdk.ObjectStoragePath`` is accepted\n(``file://``, ``s3://``, ``gs://``, ...); the API server needs read\naccess to the same path. Files are plain OTLP JSON, so a collector's\n``otlpjsonfilereceiver`` can replay them into a real backend later.\nTakes precedence over the Langfuse read path when set. Content\ncapture is still gated by ``capture_content``. Costs shown in the\nUI are read-time estimates from the ``genai-prices`` library's\nbundled price data (no runtime price fetch) -- approximate, not\nbilling data; unknown or self-hosted models show no cost. No\nretention is applied; clean the path yourself.\n\nSpike-status: proof of concept, not a stable layout.\n",
+                        "version_added": "0.5.0",
+                        "type": "string",
+                        "example": "file:///tmp/airflow_ai_traces",
+                        "default": "",
+                    },
+                    "trace_backend_conn_id": {
+                        "description": "Airflow connection used by the \"AI Trace\" task instance panel to read\na trace back from your tracing backend (Langfuse today) once\n``otel_export_enabled`` has emitted it. The panel resolves a task\ninstance's trace_id from its own span context, so no data is written\nanywhere new; this connection is read-only credentials for looking a\ntrace back up. Connection ``host`` is the backend's base URL,\n``login``/``password`` are its API key pair.\n\nSpike-status: this is a proof of concept, not a stable API. The\npanel only supports Langfuse today.\n",
+                        "version_added": "0.5.0",
+                        "type": "string",
+                        "example": "langfuse_default",
+                        "default": "langfuse_default",
                     },
                 },
             }
