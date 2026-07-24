@@ -63,12 +63,20 @@ def access_denied(client):
         request: Request,
         dag_id: str = Path(),
         run_id: str = Path(),
-        task_id: str = Path(),
-        xcom_key: str = Path(alias="key"),
+        task_id: str | None = None,
+        key: str | None = None,
         token=CurrentTIToken,
     ):
         with create_session() as session:
-            has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session, token)
+            has_xcom_access(
+                dag_id=dag_id,
+                run_id=run_id,
+                request=request,
+                session=session,
+                task_id=task_id,
+                key=key,
+                token=token,
+            )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -616,6 +624,111 @@ class TestXComsDeleteEndpoint:
             )
         ).first()
         assert xcom_ti is not None
+
+    @pytest.mark.parametrize(
+        ("task_id", "key", "expected_remaining", "expected_deleted"),
+        [
+            pytest.param(None, None, 0, 4, id="all_xcoms_for_run"),
+            pytest.param("t1", None, 2, 2, id="all_keys_for_task"),
+            pytest.param(None, "xcom_3", 3, 1, id="specific_key_all_tasks"),
+        ],
+    )
+    def test_xcom_bulk_delete_endpoint(
+        self, client, dag_maker, session, task_id, key, expected_remaining, expected_deleted
+    ):
+        """Test XCom bulk deletions."""
+
+        with dag_maker(dag_id="dag"):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+
+        dag_run = dag_maker.create_dagrun(run_id="test")
+
+        ti = dag_run.get_task_instance("t1")
+        ti2 = dag_run.get_task_instance("t2")
+
+        ti.xcom_push(key="xcom_1", value='"value1"', session=session)
+        ti.xcom_push(key="xcom_2", value='"value2"', session=session)
+
+        ti2.xcom_push(key="xcom_1", value='"value1"', session=session)
+        ti2.xcom_push(key="xcom_3", value='"value3"', session=session)
+        session.commit()
+
+        params = {}
+        if task_id is not None:
+            params["task_id"] = task_id
+        if key is not None:
+            params["key"] = key
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}", params=params)
+
+        assert response.status_code == 200
+        assert response.json() == {"count": expected_deleted}
+
+        xcoms = session.scalars(
+            select(XComModel).where(XComModel.dag_id == ti.dag_id, XComModel.run_id == ti.run_id)
+        ).all()
+        assert len(xcoms) == expected_remaining
+
+        if task_id == "t1" and key is None:
+            assert not any(xcom.task_id == "t1" for xcom in xcoms)
+            assert all(xcom.task_id == "t2" for xcom in xcoms)
+
+            remaining_keys = {xcom.key for xcom in xcoms}
+            assert remaining_keys == {"xcom_1", "xcom_3"}
+
+        elif task_id is None and key == "xcom_3":
+            assert not any(xcom.key == "xcom_3" for xcom in xcoms)
+            assert all(xcom.key != "xcom_3" for xcom in xcoms)
+
+            remaining_tasks = {xcom.task_id for xcom in xcoms}
+            assert remaining_tasks == {"t1", "t2"}
+
+            remaining_keys = {xcom.key for xcom in xcoms}
+            assert remaining_keys == {"xcom_1", "xcom_2"}
+
+    def test_xcom_bulk_delete_by_map_index(self, client, dag_maker, session):
+        """Test XCom bulk deletion by map_index."""
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="t1").expand(x=[1, 2])
+            MyOperator.partial(task_id="t2").expand(x=[1])
+
+        dag_run = dag_maker.create_dagrun(run_id="test")
+        tis = {(ti.task_id, ti.map_index): ti for ti in dag_run.task_instances}
+
+        for task_id, map_index in (("t1", 0), ("t1", 1), ("t2", 0)):
+            ti = tis[(task_id, map_index)]
+            session.add(
+                XComModel(
+                    key="xcom_1",
+                    value='"value1"',
+                    dag_run_id=ti.dag_run.id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
+                    map_index=map_index,
+                )
+            )
+        session.commit()
+
+        response = client.delete(
+            f"/execution/xcoms/{dag_run.dag_id}/{dag_run.run_id}", params={"map_index": 0}
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"count": 2}
+
+        remaining = session.scalars(
+            select(XComModel.map_index).where(
+                XComModel.dag_id == dag_run.dag_id, XComModel.run_id == dag_run.run_id
+            )
+        ).all()
+        assert set(remaining) == {1}
 
 
 class TestXComTeamAccess:
