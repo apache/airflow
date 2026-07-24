@@ -34,7 +34,7 @@ from airflow.utils.sqlalchemy import ExtendedJSON
 
 # revision identifiers, used by Alembic.
 revision = "f8c2a1d94e03"
-down_revision = "5a5d3253e946"
+down_revision = "7a98f1b7dbd3"
 branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"
