@@ -32,6 +32,8 @@ from opentelemetry.sdk.trace.sampling import Decision
 from opentelemetry.trace import NonRecordingSpan, Span, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from ..common import _resolve_otlp_protocol
+
 if TYPE_CHECKING:
     from configparser import ConfigParser
 log = logging.getLogger(__name__)
@@ -229,15 +231,32 @@ def _get_backcompat_config(conf: ConfigParser) -> tuple[str | None, Resource | N
 
 def _load_exporter_from_env() -> SpanExporter:
     """
-    Load a span exporter using the OTEL_TRACES_EXPORTER env var.
+    Pick a span exporter per the OTel SDK environment-variable spec.
 
-    Mirrors the entry-point mechanism used by the OTEL SDK auto-instrumentation
-    configurator.  Supported values (from installed packages):
-      - ``otlp`` (default) — OTLP/gRPC
-      - ``otlp_proto_http`` — OTLP/HTTP
-      - ``console`` — stdout (useful for debugging)
+    ``OTEL_TRACES_EXPORTER`` selects the backend (``otlp`` default; ``console``
+    for debugging; ``zipkin`` or custom values are looked up via entry points).
+    For ``otlp``, ``OTEL_EXPORTER_OTLP_TRACES_PROTOCOL`` then
+    ``OTEL_EXPORTER_OTLP_PROTOCOL`` selects the transport: ``http/protobuf``
+    (default) or ``grpc``.
+
+    See:
+      https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#exporter-selection
+      https://opentelemetry.io/docs/specs/otel/protocol/exporter/#specify-protocol
     """
     exporter_name = os.environ.get("OTEL_TRACES_EXPORTER", "otlp")
+    if exporter_name == "otlp":
+        protocol = _resolve_otlp_protocol("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL")
+        if protocol == "http/protobuf":
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+            return OTLPSpanExporter()
+        if protocol == "grpc":
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore[assignment]
+                OTLPSpanExporter,
+            )
+
+            return OTLPSpanExporter()
+        raise ValueError(f"Unsupported OTLP protocol {protocol!r}; expected 'grpc' or 'http/protobuf'.")
     eps = entry_points(group="opentelemetry_traces_exporter", name=exporter_name)
     ep = next(iter(eps), None)
     if ep is None:

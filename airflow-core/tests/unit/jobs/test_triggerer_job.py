@@ -2482,38 +2482,6 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
 
 
 class TestTriggererJobRunner:
-    @patch("airflow.jobs.triggerer_job_runner.stats.initialize")
-    @patch.object(TriggerRunnerSupervisor, "start")
-    def test_stats_initialize_called_on_execute(self, mock_supervisor_start, stats_init_mock, session):
-        """Test that stats.initialize() is called when TriggererJobRunner._execute() is executed."""
-        # Setup mock supervisor to immediately stop
-        mock_supervisor = MagicMock()
-        mock_supervisor.stop = False
-        mock_supervisor._exit_code = None
-        mock_supervisor.is_alive.return_value = True
-        mock_supervisor.run.side_effect = lambda: setattr(mock_supervisor, "stop", True)
-        mock_supervisor_start.return_value = mock_supervisor
-
-        job = Job()
-        session.add(job)
-        session.flush()
-
-        job_runner = TriggererJobRunner(job)
-        job_runner.trigger_runner = mock_supervisor
-        mock_supervisor.stop = True  # Stop immediately
-
-        # We don't need to run the full _execute, just verify stats.initialize is called
-        # before TriggerRunnerSupervisor.start
-        with patch.object(job_runner, "register_signals"):
-            # We expect this to fail since we're mocking
-            with contextlib.suppress(Exception):
-                job_runner._execute()
-
-        # Verify stats.initialize was called with the expected configuration parameters
-        stats_init_mock.assert_called_once()
-        call_kwargs = stats_init_mock.call_args.kwargs
-        assert "factory" in call_kwargs
-
     @patch.object(TriggerRunnerSupervisor, "start")
     def test_execute_sets_server_process_context(self, mock_supervisor_start, session, monkeypatch):
         """_execute marks triggerer as server context for secrets backend detection."""
@@ -2534,10 +2502,7 @@ class TestTriggererJobRunner:
         monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
         job_runner = TriggererJobRunner(job)
 
-        with (
-            patch.object(job_runner, "register_signals"),
-            patch("airflow.jobs.triggerer_job_runner.stats.initialize"),
-        ):
+        with patch.object(job_runner, "register_signals"):
             job_runner._execute()
 
         assert captured_context["value"] == "server"

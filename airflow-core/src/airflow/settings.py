@@ -805,6 +805,25 @@ def import_local_settings():
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
 
 
+def _initialize_stats() -> None:
+    """
+    Initialize the ``Stats`` singleton for this process.
+
+    Initialization is guarded so a metrics misconfiguration can never prevent ``import airflow``
+    from succeeding.
+    """
+    try:
+        from airflow._shared.observability.metrics import stats
+        from airflow.observability.metrics import stats_utils
+
+        stats.initialize(
+            factory=stats_utils.get_stats_factory(),
+            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
+        )
+    except Exception:
+        log.warning("Failed to initialize Stats; metrics will not be recorded.", exc_info=True)
+
+
 def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
@@ -816,6 +835,7 @@ def initialize():
     import_local_settings()
     configure_logging()
     configure_otel(conf)
+    _initialize_stats()
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
 
