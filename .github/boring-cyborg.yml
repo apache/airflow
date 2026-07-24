@@ -369,6 +369,15 @@ labelPRBasedOnFilePath:
   backport-to-v3-3-test:
     paths:
       - scripts/**/*
+      # The exemptions list only ever shrinks as operators are fixed on main, so those
+      # removals must never be backported. Patterns follow gitignore semantics, which
+      # cannot re-include a file whose parent directory is excluded — hence the chain
+      # of directory re-includes leading down to the file.
+      - "!scripts/ci/"
+      - scripts/ci/*
+      - "!scripts/ci/prek/"
+      - scripts/ci/prek/*
+      - "!scripts/ci/prek/validate_operators_init_exemptions.txt"
       - dev/**/*
       - .github/**/*
       - Dockerfile.ci

@@ -55,8 +55,11 @@ for label, rule in cyborg_config[CONFIG_KEY].items():
     else:
         patterns = rule
     for pattern in patterns:
+        # Patterns follow gitignore semantics: `!` re-includes and a trailing `/` restricts
+        # to directories. Both still have to point at something that exists.
+        glob_pattern = pattern.removeprefix("!").rstrip("/")
         try:
-            next(Path(AIRFLOW_ROOT_PATH).glob(pattern))
+            next(Path(AIRFLOW_ROOT_PATH).glob(glob_pattern))
             continue
         except StopIteration:
             yaml_path = f"{CONFIG_KEY}.{label}"
