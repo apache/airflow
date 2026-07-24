@@ -25,7 +25,7 @@ def get_provider_info():
     return {
         "package-name": "apache-airflow-providers-oracle",
         "name": "Oracle",
-        "description": "`Oracle <https://www.oracle.com/database/technologies/>`__\n",
+        "description": "`Oracle Database <https://www.oracle.com/database/technologies/>`__ and\n`Oracle Cloud Infrastructure <https://www.oracle.com/cloud/>`__ integrations.\n",
         "integrations": [
             {
                 "integration-name": "Oracle",
@@ -33,7 +33,13 @@ def get_provider_info():
                 "how-to-guide": ["/docs/apache-airflow-providers-oracle/operators.rst"],
                 "logo": "/docs/integration-logos/Oracle.png",
                 "tags": ["software"],
-            }
+            },
+            {
+                "integration-name": "Oracle Cloud Infrastructure",
+                "external-doc-url": "https://docs.oracle.com/en-us/iaas/Content/home.htm",
+                "logo": "/docs/integration-logos/Oracle.png",
+                "tags": ["generative-ai", "service"],
+            },
         ],
         "operators": [
             {"integration-name": "Oracle", "python-modules": ["airflow.providers.oracle.operators.oracle"]}
@@ -61,7 +67,14 @@ def get_provider_info():
                     "airflow.providers.oracle.hooks.handlers",
                     "airflow.providers.oracle.hooks.oracle",
                 ],
-            }
+            },
+            {
+                "integration-name": "Oracle Cloud Infrastructure",
+                "python-modules": [
+                    "airflow.providers.oracle.hooks.base_oci",
+                    "airflow.providers.oracle.hooks.generative_ai",
+                ],
+            },
         ],
         "transfers": [
             {
@@ -75,6 +88,33 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.oracle.hooks.oracle.OracleHook",
                 "hook-name": "Oracle",
                 "connection-type": "oracle",
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.oracle.hooks.base_oci.OciBaseHook",
+                "hook-name": "Oracle Cloud Infrastructure",
+                "connection-type": "oci",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["host", "schema", "port"],
+                    "relabeling": {"login": "User OCID", "password": "Private Key Passphrase"},
+                    "placeholders": {
+                        "login": "ocid1.user...",
+                        "password": "Optional API key passphrase",
+                        "tenancy": "ocid1.tenancy...",
+                        "fingerprint": "aa:bb:cc:...",
+                        "region": "us-chicago-1",
+                        "compartment_id": "ocid1.compartment...",
+                    },
+                },
+                "conn-fields": {
+                    "tenancy": {"label": "Tenancy OCID", "schema": {"type": ["string", "null"]}},
+                    "fingerprint": {"label": "Key Fingerprint", "schema": {"type": ["string", "null"]}},
+                    "key_content": {
+                        "label": "Private Key Content",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                    },
+                    "region": {"label": "Region", "schema": {"type": ["string", "null"]}},
+                    "compartment_id": {"label": "Compartment OCID", "schema": {"type": ["string", "null"]}},
+                },
+            },
         ],
     }
