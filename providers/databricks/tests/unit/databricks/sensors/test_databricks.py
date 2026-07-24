@@ -76,7 +76,6 @@ class TestDatabricksSQLStatementsSensor:
         ],
     )
     def test_statement_combination_validated_at_execute(self, kwargs, match):
-        # statement/statement_id are template fields; the combination check runs at execute.
         op = DatabricksSQLStatementsSensor(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, **kwargs)
         with pytest.raises(AirflowException, match=match):
             op.execute(None)
