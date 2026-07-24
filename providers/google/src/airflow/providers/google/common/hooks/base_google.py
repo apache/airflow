@@ -303,6 +303,7 @@ class GoogleBaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         *,
+        subject: str | None = None,
         quota_project_id: str | None = None,
         **kwargs,
     ) -> None:
@@ -312,6 +313,8 @@ class GoogleBaseHook(BaseHook):
         :param gcp_conn_id: The connection ID to use when fetching connection info.
         :param impersonation_chain: Optional service account to impersonate using short-term
             credentials.
+        :param subject: Optional Google Workspace user to impersonate using
+            Domain-Wide Delegation.
         :param quota_project_id: Optional Project ID to use for quota/billing purposes.
             If None, no separate quota project is configured and the default behavior of the
             credentials is used.
@@ -320,6 +323,7 @@ class GoogleBaseHook(BaseHook):
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.subject = subject
         if quota_project_id is not None:
             self._validate_quota_project(quota_project_id)
         self.quota_project_id = quota_project_id
@@ -376,6 +380,7 @@ class GoogleBaseHook(BaseHook):
             key_secret_name=key_secret_name,
             key_secret_project_id=key_secret_project_id,
             scopes=self.scopes,
+            subject=self.subject,
             target_principal=target_principal,
             delegates=delegates,
             is_anonymous=is_anonymous,
