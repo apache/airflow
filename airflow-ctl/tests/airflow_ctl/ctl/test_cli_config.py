@@ -34,6 +34,7 @@ from airflowctl.ctl.cli_config import (
     CommandFactory,
     GroupCommand,
     add_auth_token_to_all_commands,
+    iso_datetime_type,
     json_dict_type,
     merge_commands,
     safe_call_command,
@@ -363,6 +364,37 @@ class TestCommandFactory:
         """Valid JSON that is not an object raises an ArgumentTypeError."""
         with pytest.raises(argparse.ArgumentTypeError, match="expected JSON object"):
             json_dict_type(value)
+
+    def test_iso_datetime_type_returns_datetime_input_unchanged(self):
+        """A datetime.datetime input is returned as-is without re-parsing."""
+        import datetime
+
+        value = datetime.datetime(2026, 7, 1, tzinfo=datetime.timezone.utc)
+
+        assert iso_datetime_type(value) is value
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("2026-07-01", "2026-07-01T00:00:00"),
+            ("2026-07-01T00:00:00", "2026-07-01T00:00:00"),
+            ("2026-07-01T12:34:56+00:00", "2026-07-01T12:34:56+00:00"),
+        ],
+    )
+    def test_iso_datetime_type_parses_iso_string(self, value, expected):
+        """An ISO-8601 datetime string (date-only or full) is parsed into a datetime.
+
+        Regression test for https://github.com/apache/airflow/issues/70232: previously the
+        bare ``datetime.datetime`` class was used as the argparse ``type=`` callable, so
+        argparse called ``datetime.datetime(value)`` on the raw string, which always raised
+        a ``TypeError`` regardless of the input.
+        """
+        assert iso_datetime_type(value).isoformat() == expected
+
+    def test_iso_datetime_type_rejects_invalid_value(self):
+        """A non-parseable string raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid datetime value"):
+            iso_datetime_type("not-a-date")
 
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
