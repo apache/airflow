@@ -58,6 +58,7 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
    * ``Rerun flaky SSHRemoteJobOperator kill test on process-group races (#69384)``
+   * ``Fix 'SSHRemoteJobOperator' cleanup rejecting a custom 'remote_base_dir' (#69813)``
 
 5.0.3
 .....

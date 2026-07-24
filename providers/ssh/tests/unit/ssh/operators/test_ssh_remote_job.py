@@ -444,6 +444,25 @@ class TestSSHRemoteJobOperator:
         assert self.mock_hook.exec_ssh_client_command.call_count == 2
         mock_sleep.assert_called_once()
 
+    def test_cleanup_accepts_job_dir_under_custom_remote_base_dir(self):
+        """Cleanup must not reject a job_dir that lives under a custom remote_base_dir.
+
+        Regression test for https://github.com/apache/airflow/issues/69813: the
+        operator accepted any ``remote_base_dir`` at init time, but cleanup validated
+        the job directory against the hardcoded default base dir, so a custom
+        ``remote_base_dir`` always failed cleanup with a ValueError.
+        """
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_base_dir="/tmp-data/airflow-ssh-jobs",
+        )
+
+        op._cleanup_remote_job("/tmp-data/airflow-ssh-jobs/test_job_123", "posix")
+
+        self.mock_hook.exec_ssh_client_command.assert_called_once()
+
     def test_cleanup_gives_up_after_retries_without_raising(self):
         """When every cleanup attempt fails the task is not failed; the dir is left in place."""
         self.mock_hook.exec_ssh_client_command.side_effect = Exception("connection refused")
