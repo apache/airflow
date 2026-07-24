@@ -2002,7 +2002,16 @@ def _run_task_state_change_callbacks(
     callback: Callable[[Context], None]
     for i, callback in enumerate(getattr(task, kind)):
         try:
-            create_executable_runner(callback, context_get_outlet_events(context), logger=log).run(context)
+            with detail_span(
+                f"callback.{kind}",
+                attributes={
+                    "airflow.callback.index": i,
+                    "airflow.callback.name": getattr(callback, "__name__", repr(callback)),
+                },
+            ):
+                create_executable_runner(callback, context_get_outlet_events(context), logger=log).run(
+                    context
+                )
         except Exception:
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
@@ -2166,10 +2175,17 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     outlet_events = context_get_outlet_events(context)
 
+    def _run_hook(span_kind: str, hook: Callable[..., Any], *run_args: Any) -> None:
+        with detail_span(
+            f"callback.{span_kind}",
+            attributes={"airflow.callback.name": getattr(hook, "__name__", repr(hook))},
+        ):
+            create_executable_runner(hook, outlet_events, logger=log).run(*run_args)
+
     if (pre_execute_hook := task._pre_execute_hook) is not None:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        _run_hook("pre_execute_hook", pre_execute_hook, context)
     if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        _run_hook("pre_execute_override", pre_execute_hook, context)
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
@@ -2178,9 +2194,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     result = _run_execute_callable(context, execute, task)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+        _run_hook("post_execute_hook", post_execute_hook, context, result)
     if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
+        _run_hook("post_execute_override", post_execute_hook, context)
 
     return result
 
