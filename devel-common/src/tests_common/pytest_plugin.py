@@ -432,8 +432,6 @@ def initialize_airflow_tests(request):
         AIRFLOW_CONFIG = request.config.option.load_config
         try:
             load_standard_airflow_configuration(conf)
-        except:
-            raise
         finally:
             AIRFLOW_CONFIG = saved_af_conf
         conf.validate()
