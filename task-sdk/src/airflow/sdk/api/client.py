@@ -1105,14 +1105,10 @@ class CallbackOperations:
 
     def run(self, callback_id: uuid.UUID) -> None:
         """
-        Exchange the single-use callback token for a short-lived execution token.
+        Exchange the single-use callback token for an execution token.
 
-        Marks the callback RUNNING on the server and swaps this client's
-        ``callback``-scoped token for an ``execution`` token via the
-        ``Refreshed-API-Token`` response header (adopted automatically by
-        ``_update_auth``). Must be called once, before any context read; a
-        second call raises ``ServerResponseError`` (409) because the callback
-        is no longer QUEUED.
+        Must be called before any context read; a second call raises
+        ``ServerResponseError`` (409).
         """
         self.client.patch(f"callbacks/{callback_id}/run")
 

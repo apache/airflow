@@ -433,8 +433,7 @@ def supervise_callback(
         else:
             logger = structlog.get_logger(logger_name="callback").bind()
 
-        # Swap the single-use callback token for an execution token before any context read.
-        # A duplicate delivery finds the callback already RUNNING and raises, so it runs at most once.
+        # Exchange the single-use callback token before any context read; raises on duplicate delivery.
         client.callbacks.run(UUID(id))
 
         try:
