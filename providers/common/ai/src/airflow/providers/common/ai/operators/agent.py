@@ -417,12 +417,10 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         )
 
     def execute(self, context: Context) -> Any:
-        # message_history is a template field; validate its interaction with enable_hitl_review
-        # here, after rendering, rather than in __init__.
+        # message_history is a template field; validate the combination after rendering.
         if self.message_history is not None and self.enable_hitl_review:
-            # The post-review transcript is not recoverable today (run_hitl_review returns only
-            # the final string), so emitting the pre-review transcript would silently drop the
-            # human-approved turns. Block until HITL can surface the final message history.
+            # run_hitl_review returns only the final string, so the pre-review transcript would drop
+            # the human-approved turns. Block until HITL can surface the final message history.
             raise ValueError("message_history and enable_hitl_review=True cannot be used together.")
 
         if self.enable_hitl_review and not isinstance(self.prompt, str):

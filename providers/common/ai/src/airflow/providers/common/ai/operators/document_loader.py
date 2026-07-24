@@ -148,8 +148,7 @@ class DocumentLoaderOperator(BaseOperator):
         self.json_text_field = json_text_field
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
-        # source_path/file_type are template fields; validate after rendering, not in __init__
-        # where they are still the un-rendered Jinja expressions.
+        # source_path/file_type are template fields; validate after rendering, not in __init__.
         if self.source_path is not None and self.source_bytes is not None:
             raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
         if self.source_path is None and self.source_bytes is None:
