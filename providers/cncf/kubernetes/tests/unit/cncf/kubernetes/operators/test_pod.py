@@ -2777,7 +2777,7 @@ class TestKubernetesPodOperatorDurableExecution:
         assert k.reattach_on_restart is False
 
     def test_supports_durable_execution_marker(self):
-        assert KubernetesPodOperator.__supports_durable_execution is True
+        assert KubernetesPodOperator._KubernetesPodOperator__supports_durable_execution is True
 
 
 class TestSuppress:
