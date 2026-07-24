@@ -132,6 +132,50 @@ class TestS3RemoteLogIOFromConfig:
         assert conn_id == "aws_default"
         legacy_discover.assert_not_called()
 
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control",
+        }
+    )
+    def test_from_config_reads_acl_policy(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy == "bucket-owner-full-control"
+
+    @conf_vars({("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location"})
+    def test_from_config_acl_policy_defaults_to_none(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy is None
+
+    @conf_vars(
+        {
+            ("logging", "remote_base_log_folder"): "s3://bucket/remote/log/location",
+            ("logging", "remote_task_handler_kwargs"): '{"acl_policy": "bucket-owner-full-control"}',
+        }
+    )
+    def test_from_config_acl_policy_via_remote_task_handler_kwargs(self):
+        subject = S3RemoteLogIO.from_config()
+
+        assert subject.acl_policy == "bucket-owner-full-control"
+
+
+class TestS3TaskHandlerInit:
+    @conf_vars({("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control"})
+    def test_init_reads_acl_policy_from_conf(self):
+        handler = S3TaskHandler("/tmp/local", "s3://bucket/remote/log/location")
+
+        assert handler.io.acl_policy == "bucket-owner-full-control"
+
+    @conf_vars({("aws", "s3_task_handler_acl_policy"): "bucket-owner-full-control"})
+    def test_init_acl_policy_kwarg_overrides_conf(self):
+        handler = S3TaskHandler(
+            "/tmp/local", "s3://bucket/remote/log/location", acl_policy="bucket-owner-read"
+        )
+
+        assert handler.io.acl_policy == "bucket-owner-read"
+
 
 @pytest.mark.db_test
 class TestS3RemoteLogIO:
@@ -277,6 +321,15 @@ class TestS3RemoteLogIO:
         self.subject.write("text", self.remote_log_location)
         resp = self.conn.head_object(Bucket="bucket", Key=self.remote_log_key)
         assert resp["ServerSideEncryption"] == "AES256"
+        body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
+        assert body == b"text"
+
+    def test_write_with_acl_policy(self):
+        self.subject.acl_policy = "bucket-owner-full-control"
+        conn = self.subject.hook.get_conn()
+        with mock.patch.object(conn, "put_object", wraps=conn.put_object) as mock_put_object:
+            self.subject.write("text", self.remote_log_location)
+        assert mock_put_object.call_args.kwargs["ACL"] == "bucket-owner-full-control"
         body = boto3.resource("s3").Object("bucket", self.remote_log_key).get()["Body"].read()
         assert body == b"text"
 
