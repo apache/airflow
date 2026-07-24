@@ -724,15 +724,24 @@ def test_celery_executor_with_no_recommended_result_backend(caplog):
         ) in caplog.text
 
 
-@conf_vars({("celery_broker_transport_options", "sentinel_kwargs"): '{"service_name": "mymaster"}'})
-def test_sentinel_kwargs_loaded_from_string():
+@pytest.mark.parametrize(
+    (
+        "option",
+        "value",
+        "expected",
+    ),
+    [
+        ("sentinel_kwargs", '{"service_name": "mymaster"}', {"service_name": "mymaster"}),
+        ("kafka_common_config", '{"compression.type": "zstd"}', {"compression.type": "zstd"}),
+    ],
+)
+def test_dict_options_loaded_from_string(option, value, expected):
     import importlib
 
     # Reload celery conf to apply the new config.
-    importlib.reload(default_celery)
-    assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["sentinel_kwargs"] == {
-        "service_name": "mymaster"
-    }
+    with conf_vars({("celery_broker_transport_options", option): value}):
+        importlib.reload(default_celery)
+        assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"][option] == expected
 
 
 @conf_vars({("celery", "task_acks_late"): "False"})
