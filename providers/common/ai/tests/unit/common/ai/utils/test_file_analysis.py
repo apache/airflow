@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import builtins
+import bz2
 import gzip
+import lzma
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -333,6 +335,8 @@ class TestFileAnalysisHelpers:
         [
             ("events.csv", "csv", None),
             ("events.csv.gz", "csv", "gzip"),
+            ("events.csv.bz2", "csv", "bzip2"),
+            ("events.json.xz", "json", "xz"),
             ("dashboard.jpg", "jpg", None),
             ("report.pdf", "pdf", None),
             ("app", "log", None),
@@ -354,19 +358,29 @@ class TestFileAnalysisHelpers:
         with pytest.raises(LLMFileAnalysisUnsupportedFormatError, match="Compression"):
             detect_file_format(ObjectStoragePath(str(path)))
 
-    @pytest.mark.parametrize("filename", ["sample.parquet.gz", "sample.avro.gz", "sample.png.gz"])
-    def test_detect_file_format_rejects_unsupported_gzip_format_combinations(self, tmp_path, filename):
+    @pytest.mark.parametrize(
+        "filename", ["sample.parquet.gz", "sample.avro.bz2", "sample.png.xz", "sample.pdf.gz"]
+    )
+    def test_detect_file_format_rejects_unsupported_compression_format_combinations(self, tmp_path, filename):
         path = tmp_path / filename
         path.write_bytes(b"content")
 
         with pytest.raises(LLMFileAnalysisUnsupportedFormatError, match="not supported for"):
             detect_file_format(ObjectStoragePath(str(path)))
 
-    def test_read_raw_bytes_decompresses_gzip(self, tmp_path):
-        path = tmp_path / "events.log.gz"
-        path.write_bytes(gzip.compress(b"line one\nline two\n"))
+    @pytest.mark.parametrize(
+        ("suffix", "compression", "compress"),
+        [
+            ("gz", "gzip", gzip.compress),
+            ("bz2", "bzip2", bz2.compress),
+            ("xz", "xz", lzma.compress),
+        ],
+    )
+    def test_read_raw_bytes_decompresses(self, tmp_path, suffix, compression, compress):
+        path = tmp_path / f"events.log.{suffix}"
+        path.write_bytes(compress(b"line one\nline two\n"))
 
-        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression="gzip", max_bytes=1_024)
+        content = _read_raw_bytes(ObjectStoragePath(str(path)), compression=compression, max_bytes=1_024)
 
         assert content == b"line one\nline two\n"
 
