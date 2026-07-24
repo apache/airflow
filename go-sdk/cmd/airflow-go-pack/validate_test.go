@@ -19,6 +19,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,6 +37,13 @@ func warningsFor(dags map[string]airflowmetadata.Dag) string {
 	return buf.String()
 }
 
+func dagCharsetWarning(id string) string {
+	return fmt.Sprintf(
+		"warning: dag id %q must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it\n",
+		id,
+	)
+}
+
 func TestWarnOnSuspiciousIDs_ValidIdsProduceNoWarnings(t *testing.T) {
 	for _, id := range []string{
 		"simple", "with-dash", "with.dot", "with_underscore", "0numeric",
@@ -49,31 +57,60 @@ func TestWarnOnSuspiciousIDs_ValidIdsProduceNoWarnings(t *testing.T) {
 func TestWarnOnSuspiciousIDs_TooLongIDWarns(t *testing.T) {
 	for _, id := range []string{strings.Repeat("a", 251), strings.Repeat("任", 251)} {
 		out := warningsFor(map[string]airflowmetadata.Dag{id: {}})
-		assert.Contains(t, out, "is longer than 250 characters (251)")
+		expected := fmt.Sprintf(
+			"warning: dag id %q is longer than 250 characters (251); the Airflow server will reject it\n",
+			id,
+		)
+		assert.Equal(t, expected, out, "id %q", id)
 	}
 }
 
 func TestWarnOnSuspiciousIDs_InvalidCharsWarn(t *testing.T) {
-	for _, id := range []string{"", "with space", "with/slash", "with:colon", "with\ttab"} {
+	// "a..b c" also locks the else-if: a charset failure suppresses the '..' warning.
+	for _, id := range []string{"", "with space", "with/slash", "with:colon", "with\ttab", "a..b c"} {
 		out := warningsFor(map[string]airflowmetadata.Dag{id: {}})
-		assert.Contains(
-			t, out,
-			"must be made of alphanumeric characters, dashes, dots, and underscores",
-			"id %q should warn", id,
-		)
+		assert.Equal(t, dagCharsetWarning(id), out, "id %q", id)
 	}
 }
 
 func TestWarnOnSuspiciousIDs_DoubleDotWarns(t *testing.T) {
 	out := warningsFor(map[string]airflowmetadata.Dag{"a..b": {}})
-	assert.Contains(t, out, `dag id "a..b" contains '..'`)
-	assert.Contains(t, out, "allow_double_dot_in_ids")
-	assert.NotContains(t, out, "must be made of alphanumeric characters")
+	assert.Equal(
+		t,
+		"warning: dag id \"a..b\" contains '..'; the Airflow server will reject it unless [core] allow_double_dot_in_ids is enabled\n",
+		out,
+	)
+}
+
+func TestWarnOnSuspiciousIDs_TooLongInvalidIDGetsBothWarnings(t *testing.T) {
+	id := strings.Repeat("a", 250) + " b"
+	out := warningsFor(map[string]airflowmetadata.Dag{id: {}})
+	expected := fmt.Sprintf(
+		"warning: dag id %q is longer than 250 characters (252); the Airflow server will reject it\n",
+		id,
+	) + dagCharsetWarning(id)
+	assert.Equal(t, expected, out)
+}
+
+func TestWarnOnSuspiciousIDs_SortsDagIDsForStableOutput(t *testing.T) {
+	out := warningsFor(map[string]airflowmetadata.Dag{
+		"delta d":   {},
+		"alpha d":   {},
+		"charlie d": {},
+		"bravo d":   {},
+	})
+	expected := dagCharsetWarning("alpha d") + dagCharsetWarning("bravo d") +
+		dagCharsetWarning("charlie d") + dagCharsetWarning("delta d")
+	assert.Equal(t, expected, out)
 }
 
 func TestWarnOnSuspiciousIDs_TaskWarningNamesItsDag(t *testing.T) {
 	out := warningsFor(map[string]airflowmetadata.Dag{"my_dag": {Tasks: []string{"bad task"}}})
-	assert.Contains(t, out, `task id "bad task" in dag "my_dag" must be made of`)
+	assert.Equal(
+		t,
+		"warning: task id \"bad task\" in dag \"my_dag\" must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it\n",
+		out,
+	)
 }
 
 // Packing succeeds despite a suspicious dag id: the check is best-effort and

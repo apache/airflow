@@ -41,6 +41,7 @@ func warnOnSuspiciousIDs(stderr io.Writer, meta airflowmetadata.Manifest) {
 	for id := range meta.Dags {
 		dagIDs = append(dagIDs, id)
 	}
+	// Map iteration order is random; sort so warnings print in a stable order.
 	sort.Strings(dagIDs)
 	for _, dagID := range dagIDs {
 		warnOnSuspiciousID(stderr, fmt.Sprintf("dag id %q", dagID), dagID)
