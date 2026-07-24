@@ -271,9 +271,7 @@ run ``helm install``.
 .. warning::
 
    The chart only creates that Secret on ``helm install`` -- it is not re-created or otherwise updated by
-   ``helm upgrade``. This applies both to the auto-generated key and to a key you pass through ``fernetKey`` in the
-   values file, so neither can be changed by re-running ``helm upgrade``. To rotate the Fernet key you need to manage
-   the Secret yourself, as described below.
+   ``helm upgrade``. This applies both to the auto-generated key and to a key you pass through ``fernetKey`` in the values file. To rotate the Fernet key, you need to manage the Secret yourself, as described below.
 
 To provide your own key, either set ``fernetKey`` in the values file:
 
@@ -301,7 +299,7 @@ or create your own Kubernetes Secret containing a ``fernet-key`` key with a base
 .. note::
 
    ``kubectl create secret`` only creates an object in the cluster -- it is not tracked anywhere else. Manage this
-   Secret through your normal Infrastructure-as-Code process (for example a GitOps repository, a Sealed Secret, or
+   Secret through your Infrastructure-as-a-Code process (for example, a GitOps repository, a Sealed Secret, or
    an External Secrets Operator resource) so it is not lost on a cluster migration or a full redeploy.
 
 Rotating the Fernet key
@@ -312,8 +310,7 @@ existing encrypted values unreadable. To rotate the key without losing access to
 :doc:`Rotating encryption keys <apache-airflow:security/secrets/fernet>`, applied to the Kubernetes Secret that backs
 ``AIRFLOW__CORE__FERNET_KEY``:
 
-#. Make sure you are using a self-managed Secret through ``fernetKeySecretName`` -- as noted above, the
-   chart-generated Secret cannot be updated through ``helm upgrade``.
+#. Make sure you are using a self-managed Secret through ``fernetKeySecretName``
 #. Update the ``fernet-key`` value in that Secret to a comma-separated list ``new_fernet_key,old_fernet_key``, using
    the same ``kubectl create secret`` command as above with ``--dry-run=client -o yaml`` piped into ``kubectl apply``
    so it updates the existing Secret in place instead of failing because it already exists:
@@ -324,11 +321,9 @@ existing encrypted values unreadable. To rotate the key without losing access to
         --from-literal="fernet-key=new_fernet_key,old_fernet_key" \
         --dry-run=client -o yaml | kubectl apply -f -
 
-   Then restart the Airflow components (for example with ``kubectl rollout restart``) so they pick up the new value --
-   Kubernetes does not refresh environment variables sourced from a Secret in already-running pods.
-#. Run ``airflow rotate-fernet-key`` to re-encrypt existing connections, variables and triggers with the new key.
-#. Update the Secret again, the same way, so it only contains ``new_fernet_key``, and restart the components once
-   more:
+   Then restart the Airflow components (for example with ``kubectl rollout restart``) so they pick up the new value
+#. Run ``airflow rotate-fernet-key``, in one of the Airflow components pods, to re-encrypt existing connections, variables and triggers with the new key.
+#. Update the Secret, so it only contains ``new_fernet_key``, and restart the components once more:
 
    .. code-block:: bash
 
