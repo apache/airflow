@@ -126,6 +126,12 @@
                             "allowPrivilegeEscalation": false
                         }
                     ]
+                },
+                "disableDefaults": {
+                    "description": "If true, the chart will not set any default `runAsUser`/`fsGroup` (pod) or `runAsUser` (container) values when `securityContexts.pod` / `securityContexts.containers` (or the equivalent per-component overrides) are left empty. Useful on platforms such as OpenShift, where the cluster assigns these values automatically via SCC and rejects pods/containers that hard-code them.",
+                    "type": "boolean",
+                    "default": false,
+                    "x-docsSection": "Kubernetes"
                 }
             }
         },

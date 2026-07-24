@@ -128,7 +128,9 @@ spec:
       restartPolicy: Always
       serviceAccountName: {{ include "triggerer.serviceAccountName" . }}
       enableServiceLinks: {{ .Values.enableServiceLinks }}
+      {{- if $securityContext }}
       securityContext: {{ $securityContext | nindent 8 }}
+      {{- end }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
         {{- if .Values.triggerer.waitForMigrations.enabled }}
@@ -137,7 +139,9 @@ spec:
             {{- toYaml .Values.triggerer.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContextWaitForMigrations }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: "/opt/airflow/logs"
@@ -170,7 +174,9 @@ spec:
         - name: triggerer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContext }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
@@ -225,7 +231,9 @@ spec:
           resources: {{- toYaml .Values.triggerer.logGroomerSidecar.resources | nindent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContextLogGroomer }}
           securityContext: {{ $containerSecurityContextLogGroomer | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooksLogGroomerSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
           {{- end }}

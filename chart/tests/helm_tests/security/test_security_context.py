@@ -422,6 +422,120 @@ class TestSecurityContext:
         for doc in docs[1:]:
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
 
+    def test_disable_defaults_pod_and_container(self):
+        """
+        securityContexts.disableDefaults suppresses the chart's hard-coded runAsUser/fsGroup
+        and allowPrivilegeEscalation/capabilities defaults, e.g. for OpenShift SCC compatibility.
+        """
+        docs = render_chart(
+            values={
+                "securityContexts": {"disableDefaults": True},
+                "executor": "CeleryExecutor,KubernetesExecutor",
+                "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+                "statsd": {"enabled": True},
+            },
+            show_only=[
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/flower/flower-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            ],
+        )
+
+        assert jmespath.search("spec.jobTemplate.spec.template.spec.securityContext", docs[0]) is None
+        assert (
+            jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].securityContext", docs[0])
+            is None
+        )
+
+        for doc in docs[1:]:
+            assert jmespath.search("spec.template.spec.securityContext", doc) is None
+            assert jmespath.search("spec.template.spec.containers[0].securityContext", doc) is None
+
+    def test_disable_defaults_gitsync_containers(self):
+        docs = render_chart(
+            values={
+                "securityContexts": {"disableDefaults": True},
+                "dags": {"gitSync": {"enabled": True}},
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert (
+                jmespath.search(
+                    "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext | [0]",
+                    doc,
+                )
+                is None
+            )
+            assert (
+                jmespath.search(
+                    "spec.template.spec.containers[?name=='git-sync'].securityContext | [0]",
+                    doc,
+                )
+                is None
+            )
+
+    def test_disable_defaults_volume_permissions_init_container_skipped(self):
+        """With no explicit uid/gid override, the volume-permissions init container is omitted entirely."""
+        docs = render_chart(
+            values={
+                "securityContexts": {"disableDefaults": True},
+                "workers": {
+                    "celery": {
+                        "persistence": {"enabled": True, "fixPermissions": True},
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        init_container_names = [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+        ]
+        assert "volume-permissions" not in init_container_names
+
+    def test_disable_defaults_explicit_override_still_applied(self):
+        """Explicit securityContexts overrides take priority over disableDefaults."""
+        ctx_value = {"runAsUser": 7000}
+        docs = render_chart(
+            values={
+                "securityContexts": {"disableDefaults": True, "pod": ctx_value},
+                "workers": {
+                    "celery": {
+                        "persistence": {"enabled": True, "fixPermissions": True},
+                    }
+                },
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
+
+        init_container_names = [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[1])
+        ]
+        assert "volume-permissions" in init_container_names
+
     def test_workers_overwrite_local(self):
         docs = render_chart(
             values={

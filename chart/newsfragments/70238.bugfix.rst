@@ -1,0 +1,1 @@
+Added ``securityContexts.disableDefaults`` to the Helm chart. When set, the chart no longer fills in default ``runAsUser``/``fsGroup`` (pod) or ``runAsUser`` (container) values, letting platforms such as OpenShift assign them automatically via SCC instead of the chart hard-coding them.

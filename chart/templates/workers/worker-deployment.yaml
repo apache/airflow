@@ -40,6 +40,7 @@
 {{- $topologySpreadConstraints := or .Values.workers.celery.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.workers.celery.revisionHistoryLimit .Values.revisionHistoryLimit) }}
 {{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers.celery .Values) }}
+{{- $securityContextsIds := include "airflowPodSecurityContextsIds" (list . .Values.workers.celery) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers.celery .Values) }}
 {{- $containerSecurityContextPersistence := include "containerSecurityContext" (list .Values.workers.celery.persistence .Values) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.workers.celery.waitForMigrations .Values) }}
@@ -155,10 +156,12 @@ spec:
       restartPolicy: Always
       serviceAccountName: {{ include "worker.celery.serviceAccountName" . }}
       enableServiceLinks: {{ .Values.enableServiceLinks }}
+      {{- if $securityContext }}
       securityContext: {{ $securityContext | nindent 8 }}
+      {{- end }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
-        {{- if and $persistence .Values.workers.celery.persistence.fixPermissions }}
+        {{- if and $persistence .Values.workers.celery.persistence.fixPermissions $securityContextsIds }}
         - name: volume-permissions
           resources: {{- toYaml .Values.workers.celery.resources | nindent 12 }}
           image: {{ template "airflow_image" . }}
@@ -166,9 +169,11 @@ spec:
           command:
             - chown
             - -R
-            - "{{ include "airflowPodSecurityContextsIds" (list . .Values.workers.celery) }}"
+            - "{{ $securityContextsIds }}"
             - {{ template "airflow_logs" . }}
+          {{- if $containerSecurityContextPersistence }}
           securityContext: {{ $containerSecurityContextPersistence | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -179,7 +184,9 @@ spec:
         {{- if .Values.workers.celery.kerberosInitContainer.enabled }}
         - name: kerberos-init
           image: {{ template "airflow_image" . }}
+          {{- if $containerSecurityContextKerberosInitContainer }}
           securityContext: {{ $containerSecurityContextKerberosInitContainer | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooksKerberosInitContainer }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 12 }}
           {{- end }}
@@ -224,7 +231,9 @@ spec:
           resources: {{- toYaml .Values.workers.celery.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContextWaitForMigrations }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: "/opt/airflow/logs"
@@ -257,7 +266,9 @@ spec:
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContext }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
@@ -340,7 +351,9 @@ spec:
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContextLogGroomerSidecar }}
           securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooksLogGroomerSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
           {{- end }}
@@ -394,7 +407,9 @@ spec:
         - name: worker-kerberos
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if $containerSecurityContextKerberosSidecar }}
           securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooksKerberosSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 12 }}
           {{- end }}

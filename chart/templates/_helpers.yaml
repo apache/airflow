@@ -209,7 +209,10 @@ If release name contains chart name it will be used as a full name.
 - name: {{ .Values.dags.gitSync.containerName }}{{ if .is_init }}-init{{ end }}
   image: {{ template "git_sync_image" . }}
   imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
-  securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
+  {{- $gitSyncContainerSecurityContext := include "localContainerSecurityContext" (list .Values.dags.gitSync .Values) }}
+  {{- if $gitSyncContainerSecurityContext }}
+  securityContext: {{ $gitSyncContainerSecurityContext | nindent 4 }}
+  {{- end }}
   envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
   env:
     - name: GIT_SYNC_REV
@@ -854,7 +857,7 @@ Priority of values are from left to right, meaning if first value is not empty, 
   {{- end }}
   {{- if $result }}
     {{- toYaml $result | print }}
-  {{- else }}
+  {{- else if not $.securityContexts.disableDefaults }}
 runAsUser: {{ $.uid }}
 fsGroup: {{ $.gid }}
   {{- end }}
@@ -869,15 +872,18 @@ If no value is passed for <node>.securityContexts.pod, defaults to UID in the lo
     +-----------------------------+      +------------+
 
 The template can be called like so:
-  include "localPodSecurityContext" (list . .Values.schedule)
+  include "localPodSecurityContext" (list .Values.redis .Values)
 
+Where `.Values` is the global variables scope and `.Values.redis` the local variables scope for the redis template.
 It is important to pass the local variables scope to this template as it is used to determine the local node value for uid.
 */}}
 {{- define "localPodSecurityContext" -}}
-  {{- if .securityContexts.pod -}}
-    {{ toYaml .securityContexts.pod | print }}
-  {{- else -}}
-runAsUser: {{ .uid }}
+  {{- $ := last . }}
+  {{- $node := first . }}
+  {{- if $node.securityContexts.pod -}}
+    {{ toYaml $node.securityContexts.pod | print }}
+  {{- else if not $.securityContexts.disableDefaults -}}
+runAsUser: {{ $node.uid }}
   {{- end -}}
 {{- end -}}
 
@@ -890,15 +896,18 @@ If no value is passed for <node>.securityContexts.container, defaults to UID in 
     +-----------------------------------+      +------------+
 
 The template can be called like so:
-  include "localContainerSecurityContext" .Values.statsd
+  include "localContainerSecurityContext" (list .Values.dags.gitSync .Values)
 
+Where `.Values` is the global variables scope and `.Values.dags.gitSync` the local variables scope.
 It is important to pass the local variables scope to this template as it is used to determine the local node value for uid.
 */}}
 {{- define "localContainerSecurityContext" -}}
-  {{- if .securityContexts.container -}}
-    {{ toYaml .securityContexts.container | print }}
-  {{- else -}}
-runAsUser: {{ .uid }}
+  {{- $ := last . }}
+  {{- $node := first . }}
+  {{- if $node.securityContexts.container -}}
+    {{ toYaml $node.securityContexts.container | print }}
+  {{- else if not $.securityContexts.disableDefaults -}}
+runAsUser: {{ $node.uid }}
   {{- end -}}
 {{- end -}}
 
@@ -914,6 +923,9 @@ The template looks for `runAsUser` and `fsGroup` specifically, any other paramet
 Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContexts.pod,
 any extra values set to securityContexts or uid+gid will be ignored.
 
+If securityContexts.disableDefaults is true and no explicit runAsUser/fsGroup is set anywhere,
+this template renders an empty string, since there is no meaningful id to chown to.
+
 The template can be called like so:
    include "airflowPodSecurityContextsIds" (list . .Values.webserver)
 
@@ -926,7 +938,7 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
       {{ pluck "runAsUser" .securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContexts.pod | first | default $.Values.gid }}
     {{- else if $.Values.securityContexts.pod -}}
       {{ pluck "runAsUser" $.Values.securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContexts.pod | first | default $.Values.gid }}
-    {{- else -}}
+    {{- else if not $.Values.securityContexts.disableDefaults -}}
 {{ $.Values.uid }}:{{ $.Values.gid }}
     {{- end -}}
   {{- end -}}
@@ -959,7 +971,7 @@ Priority of values are from left to right, meaning if first value is not empty, 
     {{- toYaml $result | print }}
   {{- else if and (hasKey $ "securityContexts") (hasKey $.securityContexts "containers") $.securityContexts.containers }}
     {{- toYaml $.securityContexts.containers | print }}
-  {{- else -}}
+  {{- else if not $.securityContexts.disableDefaults }}
 allowPrivilegeEscalation: false
 capabilities:
   drop:
@@ -976,12 +988,16 @@ If no value is passed for <node>.securityContexts.container, defaults to deny pr
     +-----------------------------------+      +------------------------------------------------------------+
 
 The template can be called like so:
-  include "externalContainerSecurityContext" .Values.statsd
+  include "externalContainerSecurityContext" (list .Values.statsd .Values)
+
+Where `.Values` is the global variables scope and `.Values.statsd` the local variables scope.
 */}}
 {{- define "externalContainerSecurityContext" -}}
-  {{- if .securityContexts.container -}}
-    {{ toYaml .securityContexts.container | print }}
-  {{- else -}}
+  {{- $ := last . }}
+  {{- $node := first . }}
+  {{- if $node.securityContexts.container -}}
+    {{ toYaml $node.securityContexts.container | print }}
+  {{- else if not $.securityContexts.disableDefaults -}}
 allowPrivilegeEscalation: false
 capabilities:
   drop:
