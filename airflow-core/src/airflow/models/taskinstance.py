@@ -248,10 +248,26 @@ def _recalculate_dagrun_queued_at_deadlines(
     if not results:
         return
 
+    # Local imports to avoid a circular import between models and serialization.
+    from airflow.sdk.definitions.deadline import VariableInterval
+    from airflow.serialization.decoders import decode_deadline_alert
+    from airflow.serialization.definitions.deadline import DeadlineAlertFields
+
     for deadline, deadline_alert in results:
-        # We can't use evaluate_with() since the new queued_at is not written to the DB yet.
-        deadline_interval = timedelta(seconds=deadline_alert.interval)
-        new_deadline_time = new_queued_at + deadline_interval
+        # We can't use evaluate_with() since the new queued_at is not written to the DB yet, but
+        # interval is stored as JSON (a serialized timedelta or VariableInterval), so decode it the
+        # same way DagRun creation does instead of passing the raw value to timedelta().
+        deserialized_alert = decode_deadline_alert(
+            {
+                DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+                DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+                DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+            }
+        )
+        interval = deserialized_alert.interval
+        if isinstance(interval, VariableInterval):
+            interval = interval.resolve()
+        new_deadline_time = new_queued_at + interval
 
         log.debug(
             "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
