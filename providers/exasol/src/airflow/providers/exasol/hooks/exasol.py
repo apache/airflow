@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import closing
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 import pyexasol
 from deprecated import deprecated
@@ -145,7 +145,7 @@ class ExasolHook(DbApiHook):
         ``pyexasol.ExaConnection.export_to_pandas``.
         """
         with closing(self.get_conn()) as conn:
-            df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
+            df = conn.export_to_pandas(sql, query_params=cast("dict | None", parameters), **kwargs)
             return df
 
     @deprecated(
@@ -188,7 +188,10 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        with (
+            closing(self.get_conn()) as conn,
+            closing(conn.execute(cast("str", sql), cast("dict | None", parameters))) as cur,
+        ):
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -205,7 +208,10 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        with (
+            closing(self.get_conn()) as conn,
+            closing(conn.execute(cast("str", sql), cast("dict | None", parameters))) as cur,
+        ):
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -334,7 +340,7 @@ class ExasolHook(DbApiHook):
             results = []
             for sql_statement in sql_list:
                 self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                with closing(conn.execute(sql_statement, parameters)) as exa_statement:
+                with closing(conn.execute(sql_statement, cast("dict | None", parameters))) as exa_statement:
                     if handler is not None:
                         result = self._make_common_data_structure(handler(exa_statement))
 
