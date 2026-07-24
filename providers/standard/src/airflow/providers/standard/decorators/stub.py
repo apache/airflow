@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import ast
+import datetime
 import inspect
 import json
+import types
 import typing
 from collections.abc import Callable, Collection, Mapping
 from typing import TYPE_CHECKING, Any
@@ -56,18 +58,39 @@ class _ValueSchemaGenerator(GenerateJsonSchema):
         return {**super().float_schema(schema), "format": "double"}
 
 
+_TEMPORAL_BASES = (datetime.datetime, datetime.date, datetime.time, datetime.timedelta)
+
+
+def _normalize_temporal_annotation(annotation: Any) -> Any:
+    """
+    Map temporal subclasses (e.g. ``pendulum.DateTime``) to their stdlib base.
+
+    Applied recursively through unions and containers, since pydantic only generates
+    schemas for the stdlib temporal types themselves.
+    """
+    if isinstance(annotation, type):
+        return next((base for base in _TEMPORAL_BASES if issubclass(annotation, base)), annotation)
+    origin = typing.get_origin(annotation)
+    args = typing.get_args(annotation)
+    if origin is None or not args:
+        return annotation
+    normalized = tuple(_normalize_temporal_annotation(arg) for arg in args)
+    if normalized == args:
+        return annotation
+    if origin in (typing.Union, types.UnionType):
+        return typing.Union[normalized]  # noqa: UP007 -- runtime construction from a tuple
+    return origin[normalized]
+
+
 def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
     """
     Build the JSON-schema fragment for one stub parameter annotation, via pydantic.
 
-    Whatever ``pydantic.TypeAdapter(annotation).json_schema()`` produces is shipped
-    verbatim (``anyOf`` for unions, ``items``/``additionalProperties`` for parameterized
-    containers, ``enum`` for Literals, ...), so the fragment's exact shape follows the
-    pydantic version active at parse time and runtimes must treat it as open-vocabulary
-    JSON schema. Returns ``None`` when the annotation constrains nothing (missing,
-    ``Any``, bare ``None``) or pydantic cannot generate a schema for it (arbitrary
-    classes, including anywhere inside a union); the binding then omits ``value_schema``
-    and the foreign runtime falls back to a decode-only check.
+    The pydantic-generated schema ships verbatim, so runtimes must treat it as
+    open-vocabulary JSON schema. Returns ``None`` when the annotation constrains nothing
+    (missing, ``Any``, bare ``None``) or pydantic cannot generate a schema for it; the
+    binding then omits ``value_schema`` and the foreign runtime falls back to a
+    decode-only check.
     """
     if annotation is inspect.Parameter.empty or annotation is None or annotation is Any:
         return None
@@ -76,7 +99,9 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
         # that can only ever be None constrains nothing worth shipping.
         return None
     try:
-        schema = TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
+        schema = TypeAdapter(_normalize_temporal_annotation(annotation)).json_schema(
+            schema_generator=_ValueSchemaGenerator
+        )
     except PydanticSchemaGenerationError:
         return None
     return schema or None

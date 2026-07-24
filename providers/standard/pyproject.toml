@@ -61,8 +61,6 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.14.1",  # use next version
-    # The stub decorator generates arg-binding value schemas from parameter annotations
-    "pydantic>=2.11.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file

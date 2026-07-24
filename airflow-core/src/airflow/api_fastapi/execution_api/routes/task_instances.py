@@ -350,10 +350,7 @@ def ti_run(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail={
                         "reason": "invalid_arg_bindings",
-                        "message": (
-                            "The serialized TaskFlow arg spec for this stub task is not valid on "
-                            "this Airflow version; it may come from a newer providers release."
-                        ),
+                        "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
                     },
                 )
 

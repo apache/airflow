@@ -321,10 +321,20 @@ class TestStubTaskflowArgs:
         pytest.param(type(None), None, id="nonetype"),
         pytest.param(
             pendulum.DateTime,
-            None,
+            {"type": "string", "format": "date-time"},
             id="pendulum-datetime",
-            # pydantic has no schema for arbitrary datetime subclasses; decode-only fallback.
         ),
+        pytest.param(
+            pendulum.DateTime | None,
+            {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]},
+            id="optional-pendulum-datetime",
+        ),
+        pytest.param(
+            list[pendulum.DateTime],
+            {"type": "array", "items": {"type": "string", "format": "date-time"}},
+            id="list-pendulum-datetime",
+        ),
+        pytest.param(pendulum.Duration, {"type": "string", "format": "duration"}, id="pendulum-duration"),
         pytest.param(
             typing.Optional[str],  # noqa: UP045 -- legacy form on purpose
             {"anyOf": [{"type": "string"}, {"type": "null"}]},
