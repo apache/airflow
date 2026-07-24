@@ -69,7 +69,9 @@ from airflowctl.api.datamodels.generated import (
     ProviderCollectionResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -777,8 +779,54 @@ class ProvidersOperations(BaseOperations):
         return super().execute_list(path="providers", data_model=ProviderCollectionResponse)
 
 
+def _build_task_instance_path(dag_id: str, dag_run_id: str, task_id: str, map_index: int | None) -> str:
+    """Build the task instance API path, addressing a mapped task instance when map_index is given."""
+    path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+    if map_index is not None and map_index >= 0:
+        path = f"{path}/{map_index}"
+    return path
+
+
 class TaskInstancesOperations(BaseOperations):
     """Task instance operations."""
+
+    def get(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+        *,
+        suppress_error_log: bool = False,
+    ) -> TaskInstanceResponse | ServerResponseError:
+        """Get a task instance for a Dag run."""
+        path = _build_task_instance_path(
+            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+        )
+        self.response = self.client.get(
+            path,
+            extensions={"airflowctl_suppress_error_log": suppress_error_log},
+        )
+        return TaskInstanceResponse.model_validate_json(self.response.content)
+
+    def get_dependencies(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+        *,
+        suppress_error_log: bool = False,
+    ) -> TaskDependencyCollectionResponse | ServerResponseError:
+        """Get unmet scheduler dependencies for a task instance."""
+        path = _build_task_instance_path(
+            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+        )
+        self.response = self.client.get(
+            f"{path}/dependencies",
+            extensions={"airflowctl_suppress_error_log": suppress_error_log},
+        )
+        return TaskDependencyCollectionResponse.model_validate_json(self.response.content)
 
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances for a Dag run."""

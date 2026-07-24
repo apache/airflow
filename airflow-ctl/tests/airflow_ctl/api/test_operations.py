@@ -92,6 +92,8 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskDependencyCollectionResponse,
+    TaskDependencyResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstanceState,
@@ -1596,15 +1598,61 @@ class TestTaskInstancesOperations:
         task_instances=[task_instance_response],
         total_entries=1,
     )
+    task_dependency_collection_response = TaskDependencyCollectionResponse(
+        dependencies=[TaskDependencyResponse(name="Trigger Rule", reason="upstream tasks not done")],
+    )
+
+    def _make_client_asserting_path(self, expected_path: str, response_model) -> Client:
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == expected_path
+            return httpx.Response(200, json=json.loads(response_model.model_dump_json()))
+
+        return make_api_client(transport=httpx.MockTransport(handle_request))
+
+    @pytest.mark.parametrize("map_index", [None, -1])
+    def test_get(self, map_index):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id", self.task_instance_response
+        )
+        response = client.task_instances.get(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=map_index
+        )
+        assert response == self.task_instance_response
+
+    def test_get_with_map_index(self):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/3", self.task_instance_response
+        )
+        response = client.task_instances.get(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=3
+        )
+        assert response == self.task_instance_response
+
+    @pytest.mark.parametrize("map_index", [None, -1])
+    def test_get_dependencies(self, map_index):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/dependencies",
+            self.task_dependency_collection_response,
+        )
+        response = client.task_instances.get_dependencies(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=map_index
+        )
+        assert response == self.task_dependency_collection_response
+
+    def test_get_dependencies_with_map_index(self):
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/3/dependencies",
+            self.task_dependency_collection_response,
+        )
+        response = client.task_instances.get_dependencies(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=3
+        )
+        assert response == self.task_dependency_collection_response
 
     def test_list(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances"
-            return httpx.Response(
-                200, json=json.loads(self.task_instance_collection_response.model_dump_json())
-            )
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client = self._make_client_asserting_path(
+            "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances", self.task_instance_collection_response
+        )
         response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
         assert response == self.task_instance_collection_response
 
