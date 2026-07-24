@@ -46,6 +46,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_TIMEOUT,
     API_TIMEOUT_OFFSET_SERVER_SIDE,
 )
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodNotFoundException
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 from tests_common.test_utils.db import clear_test_connections
@@ -1774,6 +1775,60 @@ class TestAsyncKubernetesHook:
             name=POD_NAME,
             namespace=NAMESPACE,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch(KUBE_API.format("read_namespaced_pod"))
+    async def test_get_pod_raises_pod_not_found_on_404(self, lib_method, mock_sleep, kube_config_loader):
+        """When the K8s API returns 404 (pod preempted/deleted), raise PodNotFoundException after retries."""
+        lib_method.side_effect = async_client.ApiException(status=404, reason="Not Found")
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        with pytest.raises(PodNotFoundException, match="not found"):
+            await hook.get_pod(
+                name=POD_NAME,
+                namespace=NAMESPACE,
+            )
+
+        # Verify 3 retries (4 calls total)
+        assert lib_method.call_count == 4
+        # Verify sleep times: 2s, 4s, 8s
+        mock_sleep.assert_has_calls([mock.call(2), mock.call(4), mock.call(8)])
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch(KUBE_API.format("read_namespaced_pod"))
+    async def test_get_pod_raises_pod_not_found_on_404_no_retry_if_running(
+        self, lib_method, mock_sleep, kube_config_loader
+    ):
+        """When the pod was previously running, raise PodNotFoundException immediately on 404 without retries."""
+        lib_method.side_effect = async_client.ApiException(status=404, reason="Not Found")
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        mock_pod = mock.MagicMock()
+        mock_pod.status.phase = "Running"
+
+        with pytest.raises(PodNotFoundException, match="not found"):
+            await hook.get_pod(
+                name=POD_NAME,
+                namespace=NAMESPACE,
+                pod=mock_pod,
+            )
+
+        assert lib_method.call_count == 1
+        mock_sleep.assert_not_called()
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("delete_namespaced_pod"))

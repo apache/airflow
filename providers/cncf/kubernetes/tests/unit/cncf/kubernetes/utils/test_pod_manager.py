@@ -34,6 +34,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     PodLogsConsumer,
     PodManager,
+    PodNotFoundException,
     PodPhase,
     XComRetrievalError,
     _parse_log_level,
@@ -707,6 +708,40 @@ class TestPodManager:
             BaseHTTPError("Boom"),
         ]
         with pytest.raises(AirflowException):
+            self.pod_manager.read_pod(mock.sentinel)
+
+    @mock.patch("time.sleep")
+    def test_read_pod_raises_pod_not_found_on_404(self, mock_sleep):
+        """When the K8s API returns 404 (pod preempted/deleted), raise PodNotFoundException."""
+        mock.sentinel.metadata = mock.MagicMock()
+        mock.sentinel.status = mock.MagicMock(phase="Pending")
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=404, reason="Not Found")
+        with pytest.raises(PodNotFoundException, match="not found"):
+            self.pod_manager.read_pod(mock.sentinel)
+
+        # Verify 3 retries (4 calls total)
+        assert self.mock_kube_client.read_namespaced_pod.call_count == 4
+        # Verify sleep times: 2s, 4s, 8s
+        mock_sleep.assert_has_calls([mock.call(2), mock.call(4), mock.call(8)])
+
+    @mock.patch("time.sleep")
+    def test_read_pod_raises_pod_not_found_on_404_no_retry_if_running(self, mock_sleep):
+        """When the K8s API returns 404 but pod was previously running, raise PodNotFoundException immediately."""
+        mock.sentinel.metadata = mock.MagicMock()
+        mock.sentinel.status = mock.MagicMock(phase="Running")
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=404, reason="Not Found")
+
+        with pytest.raises(PodNotFoundException, match="not found"):
+            self.pod_manager.read_pod(mock.sentinel)
+
+        assert self.mock_kube_client.read_namespaced_pod.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_read_pod_reraises_non_404_api_exception(self):
+        """Non-404 ApiException errors that are not transient should still propagate."""
+        mock.sentinel.metadata = mock.MagicMock()
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=403, reason="Forbidden")
+        with pytest.raises(ApiException):
             self.pod_manager.read_pod(mock.sentinel)
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
@@ -1450,6 +1485,20 @@ class TestAsyncPodManager:
         self.mock_async_hook.get_pod_events.assert_called_once_with(
             "test-pod", "test-namespace", resource_version=None
         )
+
+    @pytest.mark.asyncio
+    async def test_read_pod_raises_pod_not_found_on_404(self):
+        """When the hook raises PodNotFoundException (404), it propagates from read_pod."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        self.mock_async_hook.get_pod.side_effect = PodNotFoundException(
+            "Pod 'test-pod' not found in namespace 'test-namespace'."
+        )
+
+        with pytest.raises(PodNotFoundException, match="not found"):
+            await self.async_pod_manager.read_pod(mock_pod)
 
     @pytest.mark.asyncio
     async def test_watch_pod_events_uses_hook_watch(self):
