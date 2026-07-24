@@ -586,6 +586,15 @@ ARG_DB_ERROR_ON_CLEANUP_FAILURE = Arg(
     help="Command will exit with a non-zero exit code if any table cleanup failed. By default errors are suppressed and the command exits 0.",
     action="store_true",
 )
+ARG_DB_FALLBACK_CLEANUP_ON_NULL = Arg(
+    ("--fallback-cleanup-on-null",),
+    help=(
+        "When set, records with a NULL recency column (e.g. dag_run.start_date for runs that never "
+        "started) will be included in cleanup using a fallback column (e.g. created_at) to determine "
+        "their age. Without this flag, such records are silently skipped."
+    ),
+    action="store_true",
+)
 ARG_DAG_IDS = Arg(
     ("--dag-ids",),
     default=None,
@@ -1782,6 +1791,7 @@ DB_COMMANDS = (
             ARG_DAG_IDS,
             ARG_EXCLUDE_DAG_IDS,
             ARG_DB_ERROR_ON_CLEANUP_FAILURE,
+            ARG_DB_FALLBACK_CLEANUP_ON_NULL,
         ),
     ),
     ActionCommand(
