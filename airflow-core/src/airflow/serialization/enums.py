@@ -70,8 +70,6 @@ class DagAttributeTypes(str, Enum):
     TIMEDELTA = "timedelta"
     TIMEZONE = "timezone"
     RELATIVEDELTA = "relativedelta"
-    AIRFLOW_EXC_SER = "airflow_exc_ser"
-    BASE_EXC_SER = "base_exc_ser"
     DICT = "dict"
     SET = "set"
     TUPLE = "tuple"

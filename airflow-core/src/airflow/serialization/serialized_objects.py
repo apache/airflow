@@ -41,7 +41,7 @@ import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow._shared.module_loading import import_string, qualname
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
@@ -541,27 +541,6 @@ class BaseSerialization:
                 var._asdict(),
                 type_=DAT.TASK_INSTANCE_KEY,
             )
-        elif isinstance(var, AirflowException) and hasattr(var, "serialize"):
-            exc_cls_name, args, kwargs = var.serialize()
-            return cls._encode(
-                cls.serialize(
-                    {"exc_cls_name": exc_cls_name, "args": args, "kwargs": kwargs},
-                    strict=strict,
-                ),
-                type_=DAT.AIRFLOW_EXC_SER,
-            )
-        elif isinstance(var, (KeyError, AttributeError)):
-            return cls._encode(
-                cls.serialize(
-                    {
-                        "exc_cls_name": var.__class__.__name__,
-                        "args": [var.args],
-                        "kwargs": {},
-                    },
-                    strict=strict,
-                ),
-                type_=DAT.BASE_EXC_SER,
-            )
         elif callable(var):
             return str(get_python_source(var))
         elif isinstance(var, set):
@@ -589,7 +568,7 @@ class BaseSerialization:
         elif isinstance(var, XComArg):
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, LazySelectSequence):
-            return cls.serialize(list(var))
+            return cls.serialize(list(var), strict=strict)
         elif isinstance(var, (BaseAsset, SerializedAssetBase)):
             serialized_asset = encode_asset_like(var)
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
@@ -657,17 +636,6 @@ class BaseSerialization:
             return parse_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
-        elif type_ == DAT.AIRFLOW_EXC_SER or type_ == DAT.BASE_EXC_SER:
-            deser = cls.deserialize(var)
-            exc_cls_name = deser["exc_cls_name"]
-            args = deser["args"]
-            kwargs = deser["kwargs"]
-            del deser
-            if type_ == DAT.AIRFLOW_EXC_SER:
-                exc_cls = import_string(exc_cls_name)
-            else:
-                exc_cls = import_string(f"builtins.{exc_cls_name}")
-            return exc_cls(*args, **kwargs)
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:

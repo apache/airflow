@@ -37,7 +37,6 @@ from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_data
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import (
     AirflowException,
-    AirflowFailException,
     AirflowRescheduleException,
     SerializationError,
 )
@@ -137,7 +136,6 @@ def test_recursive_serialize_calls_must_forward_kwargs():
     import airflow.serialization
 
     valid_recursive_call_count = 0
-    skipped_recursive_calls = 0  # when another serialize method called
     file = Path(airflow.serialization.__path__[0]) / "serialized_objects.py"
     content = file.read_text()
     tree = ast.parse(content)
@@ -156,8 +154,7 @@ def test_recursive_serialize_calls_must_forward_kwargs():
     for elem in ast.walk(method_def):
         if isinstance(elem, ast.Call) and getattr(elem.func, "attr", "") == "serialize":
             if not elem.func.value.id == "cls":
-                skipped_recursive_calls += 1
-                break
+                continue
             kwargs = {y.arg: y.value for y in elem.keywords}
             for name in kwonly_args:
                 if name not in kwargs or getattr(kwargs[name], "id", "") != name:
@@ -170,7 +167,6 @@ def test_recursive_serialize_calls_must_forward_kwargs():
                 valid_recursive_call_count += 1
     print(f"validated calls: {valid_recursive_call_count}")
     assert valid_recursive_call_count > 0
-    assert skipped_recursive_calls == 1
 
 
 def test_strict_mode():
@@ -252,10 +248,6 @@ def equals(a, b) -> bool:
 
 def equal_time(a: datetime, b: datetime) -> bool:
     return a.strftime("%s") == b.strftime("%s")
-
-
-def equal_exception(a: AirflowException, b: AirflowException) -> bool:
-    return a.__class__ == b.__class__ and str(a) == str(b)
 
 
 def equal_outlet_event_accessors(a: OutletEventAccessors, b: OutletEventAccessors) -> bool:
@@ -434,16 +426,6 @@ class MockLazySelectSequence(LazySelectSequence):
             equal_outlet_event_accessors,
         ),
         (
-            AirflowException("test123 wohoo!"),
-            DAT.AIRFLOW_EXC_SER,
-            equal_exception,
-        ),
-        (
-            AirflowFailException("uuups, failed :-("),
-            DAT.AIRFLOW_EXC_SER,
-            equal_exception,
-        ),
-        (
             DAG_WITH_TASKS,
             DAT.DAG,
             lambda _, b: list(b.task_group.children.keys()) == sorted(b.task_group.children.keys()),
@@ -570,14 +552,19 @@ def test_ser_of_asset_event_accessor():
     assert d[Asset(name="yo", uri="test://yo")].extra == {"this": "that", "the": "other"}
 
 
-def test_roundtrip_exceptions():
-    """Non-error AirflowExceptions (e.g. AirflowRescheduleException) round-trip through BaseSerialization."""
-    some_date = pendulum.now()
-    resched_exc = AirflowRescheduleException(reschedule_date=some_date)
-    ser = BaseSerialization.serialize(resched_exc)
-    deser = BaseSerialization.deserialize(ser)
-    assert isinstance(deser, AirflowRescheduleException)
-    assert deser.reschedule_date == some_date
+def test_exceptions_not_serialized_by_general_framework():
+    """Exceptions no longer round-trip through BaseSerialization; they fall back to their string form."""
+    resched_exc = AirflowRescheduleException(reschedule_date=pendulum.now())
+    assert BaseSerialization.serialize(resched_exc) == str(resched_exc)
+
+
+@pytest.mark.parametrize("exc_type", ["airflow_exc_ser", "base_exc_ser"])
+def test_deserialize_rejects_legacy_exception_blob(exc_type):
+    """A crafted exception blob is no longer imported and called; the type is simply unknown now."""
+    inner = BaseSerialization.serialize({"exc_cls_name": "os.system", "args": ["echo gadget"], "kwargs": {}})
+    blob = {Encoding.TYPE: exc_type, Encoding.VAR: inner}
+    with pytest.raises(TypeError, match="Invalid type"):
+        BaseSerialization.deserialize(blob)
 
 
 @pytest.mark.parametrize(
