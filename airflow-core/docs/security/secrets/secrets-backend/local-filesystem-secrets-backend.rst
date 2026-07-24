@@ -35,6 +35,7 @@ Available parameters to ``backend_kwargs``:
 
 * ``variables_file_path``: File location with variables data.
 * ``connections_file_path``: File location with connections data.
+* ``configs_file_path``: File location with configuration data used by ``*_secret`` config options.
 
 Here is a sample configuration:
 
@@ -42,7 +43,7 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.secrets.local_filesystem.LocalFilesystemBackend
-    backend_kwargs = {"variables_file_path": "/files/var.json", "connections_file_path": "/files/conn.json"}
+    backend_kwargs = {"variables_file_path": "/files/var.json", "connections_file_path": "/files/conn.json", "configs_file_path": "/files/config.json"}
 
 ``JSON``, ``YAML`` and ``.env`` files are supported. All parameters are optional. If the file path is not passed,
 the backend returns an empty collection.
@@ -143,3 +144,27 @@ describe the variable value. The following is a sample file.
 
     VAR_A=some_value
     var_B=different_value
+
+Storing and Retrieving Configuration Values
+"""""""""""""""""""""""""""""""""""""""""""
+
+If you have set ``configs_file_path`` as ``/files/my_config.json``, then the backend will read the
+file ``/files/my_config.json`` when a supported Airflow configuration option uses a ``*_secret``
+setting. For example, ``sql_alchemy_conn_secret = sql_alchemy_conn`` looks up ``sql_alchemy_conn``
+in the configuration file, not in the variables or connections files.
+
+The file can be defined in ``JSON``, ``YAML`` or ``env`` format. The JSON file must contain an object
+where the key contains the configuration secret name and the value contains the configuration value.
+The following is a sample JSON file.
+
+  .. code-block:: json
+
+    {
+        "sql_alchemy_conn": "postgresql+psycopg2://airflow_user:airflow_pass@localhost/airflow_db"
+    }
+
+The following is the same configuration in a ``.env`` file.
+
+  .. code-block:: text
+
+    sql_alchemy_conn=postgresql+psycopg2://airflow_user:airflow_pass@localhost/airflow_db
