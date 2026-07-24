@@ -25,6 +25,18 @@
 Changelog
 ---------
 
+1.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Honor async hook subclass overrides in get_async_connection (#69140)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 1.16.0
 ......
 

@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+2.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``OpenLineage: add execute_in_thread to emit task events without forking (#68708)``
+* ``Add team_name tag to OpenLineage metrics (#69109)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``OpenLineage: reuse per-process adapter in dag-state-change pool workers (#69283)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add OpenLineage parent info to EMR Spark steps (#70182)``
+* ``Document GlueJobOperator support for OpenLineage Spark injection (#69652)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add providers E2E tests framework and OpenLineage tests (#69212)``
+
+
 2.19.0
 ......
 

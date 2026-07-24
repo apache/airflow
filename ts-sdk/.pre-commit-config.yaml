@@ -1,0 +1,65 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.3.4'
+default_language_version:
+  python: python3
+  node: 22.19.0
+repos:
+  - repo: local
+    hooks:
+      - id: ts-sdk-lint
+        name: Lint TypeScript SDK
+        entry: ./scripts/ci/prek/ts_sdk_lint.py
+        language: node
+        files: |
+          (?x)
+          \.(js|ts|json)$
+        exclude: |
+          (?x)
+          ^node_modules/.*|
+          ^\.pnpm-store/.*|
+          ^dist/.*
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
+      - id: check-ts-sdk-supervisor-schema
+        name: Check TypeScript SDK supervisor schema is up to date
+        entry: ./scripts/ci/prek/check_supervisor_schema.py
+        language: node
+        files: >
+          (?x)
+          ^src/generated/supervisor\.ts$|
+          ^scripts/generate-supervisor\.mjs$
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
+      - id: compile-ts-sdk
+        name: Compile TypeScript SDK
+        entry: ./scripts/ci/prek/compile_ts_sdk.py
+        language: node
+        stages: [manual]
+        files: |
+          (?x)
+          ^src/.*\.ts$|
+          ^package\.json$|
+          ^pnpm-lock\.yaml$|
+          ^tsconfig(\.build)?\.json$
+        additional_dependencies: ['pnpm@10.28.1']
+        pass_filenames: false
+        require_serial: true
