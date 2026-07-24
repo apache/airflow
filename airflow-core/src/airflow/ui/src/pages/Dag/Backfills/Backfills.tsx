@@ -19,7 +19,7 @@
 import { Box, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
@@ -27,7 +27,24 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getDuration } from "src/utils";
+
+import { BackfillsFilters } from "./BackfillsFilters";
+
+const {
+  COMPLETED_AT_GTE: COMPLETED_AT_GTE_PARAM,
+  COMPLETED_AT_LTE: COMPLETED_AT_LTE_PARAM,
+  CREATED_AT_GTE: CREATED_AT_GTE_PARAM,
+  CREATED_AT_LTE: CREATED_AT_LTE_PARAM,
+  END_DATE_GTE: END_DATE_GTE_PARAM,
+  END_DATE_LTE: END_DATE_LTE_PARAM,
+  MAX_ACTIVE_RUNS_GTE: MAX_ACTIVE_RUNS_GTE_PARAM,
+  MAX_ACTIVE_RUNS_LTE: MAX_ACTIVE_RUNS_LTE_PARAM,
+  REPROCESS_BEHAVIOR: REPROCESS_BEHAVIOR_PARAM,
+  START_DATE_GTE: START_DATE_GTE_PARAM,
+  START_DATE_LTE: START_DATE_LTE_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
   {
@@ -110,17 +127,44 @@ export const Backfills = () => {
   const { pagination } = tableURLState;
 
   const { dagId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+
+  const startDateGte = searchParams.get(START_DATE_GTE_PARAM);
+  const startDateLte = searchParams.get(START_DATE_LTE_PARAM);
+  const endDateGte = searchParams.get(END_DATE_GTE_PARAM);
+  const endDateLte = searchParams.get(END_DATE_LTE_PARAM);
+  const createdAtGte = searchParams.get(CREATED_AT_GTE_PARAM);
+  const createdAtLte = searchParams.get(CREATED_AT_LTE_PARAM);
+  const completedAtGte = searchParams.get(COMPLETED_AT_GTE_PARAM);
+  const completedAtLte = searchParams.get(COMPLETED_AT_LTE_PARAM);
+  const maxActiveRunsGte = searchParams.get(MAX_ACTIVE_RUNS_GTE_PARAM);
+  const maxActiveRunsLte = searchParams.get(MAX_ACTIVE_RUNS_LTE_PARAM);
+  const reprocessBehavior = searchParams.get(REPROCESS_BEHAVIOR_PARAM);
 
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
+    completedAtGte: completedAtGte ?? undefined,
+    completedAtLte: completedAtLte ?? undefined,
+    createdAtGte: createdAtGte ?? undefined,
+    createdAtLte: createdAtLte ?? undefined,
     dagId,
+    fromDateGte: startDateGte ?? undefined,
+    fromDateLte: startDateLte ?? undefined,
     limit: pagination.pageSize,
+    maxActiveRunsGte:
+      maxActiveRunsGte !== null && maxActiveRunsGte !== "" ? Number(maxActiveRunsGte) : undefined,
+    maxActiveRunsLte:
+      maxActiveRunsLte !== null && maxActiveRunsLte !== "" ? Number(maxActiveRunsLte) : undefined,
     offset: pagination.pageIndex * pagination.pageSize,
+    reprocessBehavior: reprocessBehavior ?? undefined,
+    toDateGte: endDateGte ?? undefined,
+    toDateLte: endDateLte ?? undefined,
   });
 
   const columns = getColumns(translate);
 
   return (
     <Box>
+      <BackfillsFilters />
       <ErrorAlert error={error} />
       <Heading my={1} size="md">
         {translate("backfill", { count: data ? data.total_entries : 0 })}

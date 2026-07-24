@@ -117,13 +117,34 @@ export const UseBackfillServiceListBackfillDagRunsKeyFn = ({ backfillId, limit, 
 export type BackfillServiceListBackfillsUiDefaultResponse = Awaited<ReturnType<typeof BackfillService.listBackfillsUi>>;
 export type BackfillServiceListBackfillsUiQueryResult<TData = BackfillServiceListBackfillsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useBackfillServiceListBackfillsUiKey = "BackfillServiceListBackfillsUi";
-export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, dagId, limit, offset, orderBy }: {
+export const UseBackfillServiceListBackfillsUiKeyFn = ({ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }: {
   active?: boolean;
+  completedAtGt?: string;
+  completedAtGte?: string;
+  completedAtLt?: string;
+  completedAtLte?: string;
+  createdAtGt?: string;
+  createdAtGte?: string;
+  createdAtLt?: string;
+  createdAtLte?: string;
   dagId?: string;
+  fromDateGt?: string;
+  fromDateGte?: string;
+  fromDateLt?: string;
+  fromDateLte?: string;
   limit?: number;
+  maxActiveRunsGt?: number;
+  maxActiveRunsGte?: number;
+  maxActiveRunsLt?: number;
+  maxActiveRunsLte?: number;
   offset?: number;
   orderBy?: string[];
-} = {}, queryKey?: Array<unknown>) => [useBackfillServiceListBackfillsUiKey, ...(queryKey ?? [{ active, dagId, limit, offset, orderBy }])];
+  reprocessBehavior?: string;
+  toDateGt?: string;
+  toDateGte?: string;
+  toDateLt?: string;
+  toDateLte?: string;
+} = {}, queryKey?: Array<unknown>) => [useBackfillServiceListBackfillsUiKey, ...(queryKey ?? [{ active, completedAtGt, completedAtGte, completedAtLt, completedAtLte, createdAtGt, createdAtGte, createdAtLt, createdAtLte, dagId, fromDateGt, fromDateGte, fromDateLt, fromDateLte, limit, maxActiveRunsGt, maxActiveRunsGte, maxActiveRunsLt, maxActiveRunsLte, offset, orderBy, reprocessBehavior, toDateGt, toDateGte, toDateLt, toDateLte }])];
 export type ConnectionServiceGetConnectionDefaultResponse = Awaited<ReturnType<typeof ConnectionService.getConnection>>;
 export type ConnectionServiceGetConnectionQueryResult<TData = ConnectionServiceGetConnectionDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConnectionServiceGetConnectionKey = "ConnectionServiceGetConnection";

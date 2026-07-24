@@ -3055,13 +3055,34 @@ export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
 
 export type ListBackfillsUiData = {
     active?: boolean | null;
+    completedAtGt?: string | null;
+    completedAtGte?: string | null;
+    completedAtLt?: string | null;
+    completedAtLte?: string | null;
+    createdAtGt?: string | null;
+    createdAtGte?: string | null;
+    createdAtLt?: string | null;
+    createdAtLte?: string | null;
     dagId?: string | null;
+    fromDateGt?: string | null;
+    fromDateGte?: string | null;
+    fromDateLt?: string | null;
+    fromDateLte?: string | null;
     limit?: number;
+    maxActiveRunsGt?: number | null;
+    maxActiveRunsGte?: number | null;
+    maxActiveRunsLt?: number | null;
+    maxActiveRunsLte?: number | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      */
     orderBy?: Array<(string)>;
+    reprocessBehavior?: string | null;
+    toDateGt?: string | null;
+    toDateGte?: string | null;
+    toDateLt?: string | null;
+    toDateLte?: string | null;
 };
 
 export type ListBackfillsUiResponse = BackfillCollectionResponse;

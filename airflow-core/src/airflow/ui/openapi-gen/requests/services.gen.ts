@@ -647,6 +647,27 @@ export class BackfillService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
+     * @param data.fromDateGte
+     * @param data.fromDateGt
+     * @param data.fromDateLte
+     * @param data.fromDateLt
+     * @param data.toDateGte
+     * @param data.toDateGt
+     * @param data.toDateLte
+     * @param data.toDateLt
+     * @param data.createdAtGte
+     * @param data.createdAtGt
+     * @param data.createdAtLte
+     * @param data.createdAtLt
+     * @param data.completedAtGte
+     * @param data.completedAtGt
+     * @param data.completedAtLte
+     * @param data.completedAtLt
+     * @param data.maxActiveRunsGte
+     * @param data.maxActiveRunsGt
+     * @param data.maxActiveRunsLte
+     * @param data.maxActiveRunsLt
+     * @param data.reprocessBehavior
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      * @param data.dagId
      * @param data.active
@@ -660,6 +681,27 @@ export class BackfillService {
             query: {
                 limit: data.limit,
                 offset: data.offset,
+                from_date_gte: data.fromDateGte,
+                from_date_gt: data.fromDateGt,
+                from_date_lte: data.fromDateLte,
+                from_date_lt: data.fromDateLt,
+                to_date_gte: data.toDateGte,
+                to_date_gt: data.toDateGt,
+                to_date_lte: data.toDateLte,
+                to_date_lt: data.toDateLt,
+                created_at_gte: data.createdAtGte,
+                created_at_gt: data.createdAtGt,
+                created_at_lte: data.createdAtLte,
+                created_at_lt: data.createdAtLt,
+                completed_at_gte: data.completedAtGte,
+                completed_at_gt: data.completedAtGt,
+                completed_at_lte: data.completedAtLte,
+                completed_at_lt: data.completedAtLt,
+                max_active_runs_gte: data.maxActiveRunsGte,
+                max_active_runs_gt: data.maxActiveRunsGt,
+                max_active_runs_lte: data.maxActiveRunsLte,
+                max_active_runs_lt: data.maxActiveRunsLt,
+                reprocess_behavior: data.reprocessBehavior,
                 order_by: data.orderBy,
                 dag_id: data.dagId,
                 active: data.active
