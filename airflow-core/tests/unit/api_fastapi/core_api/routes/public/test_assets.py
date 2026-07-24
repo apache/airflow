@@ -490,6 +490,27 @@ class TestGetAssets(TestAssets):
         response = unauthorized_test_client.get("/assets")
         assert response.status_code == 403
 
+    def test_last_asset_event_resolved_by_max_id(self, test_client, session):
+        """
+        ``last_asset_event`` is resolved by ``max(AssetEvent.id)``, not ``max(timestamp)``.
+
+        Pins the intentional (faster, sort-friendly) behaviour: a later-inserted event wins
+        even if its timestamp is earlier than a prior event's.
+        """
+        asset = AssetModel(id=1, name="s", uri="s3://b/s", group="asset")
+        session.add(asset)
+        session.add(AssetActive.for_asset(asset))
+        session.flush()
+        session.add(AssetEvent(id=1, asset_id=1, timestamp=DEFAULT_DATE + timedelta(days=5)))
+        session.add(AssetEvent(id=2, asset_id=1, timestamp=DEFAULT_DATE))
+        session.commit()
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        last_asset_event = response.json()["assets"][0]["last_asset_event"]
+        assert last_asset_event["id"] == 2
+        assert last_asset_event["timestamp"] == from_datetime_to_zulu_without_ms(DEFAULT_DATE)
+
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
         response = test_client.get("/assets?order_by=fake")
 

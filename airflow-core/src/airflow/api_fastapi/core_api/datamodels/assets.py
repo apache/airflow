@@ -40,6 +40,7 @@ from airflow.models.base import ID_LEN
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    from airflow.models.asset import AssetModel
     from airflow.serialization.definitions.dag import SerializedDAG
 
 
@@ -105,6 +106,34 @@ class AssetResponse(BaseModel):
     @classmethod
     def redact_extra(cls, v: dict):
         return redact(v)
+
+    @classmethod
+    def from_asset_row(
+        cls,
+        asset: AssetModel,
+        last_asset_event_id: int | None,
+        last_asset_event_timestamp: datetime | None,
+    ) -> AssetResponse:
+        """Build a response from an ``AssetModel`` row joined with its last AssetEvent id/timestamp."""
+        watchers_data = [
+            {
+                "name": watcher.name,
+                "trigger_id": watcher.trigger_id,
+                "created_date": watcher.trigger.created_date,
+            }
+            for watcher in asset.watchers
+        ]
+        return cls.model_validate(
+            {
+                **asset.__dict__,
+                "aliases": asset.aliases,
+                "watchers": watchers_data,
+                "last_asset_event": {
+                    "id": last_asset_event_id,
+                    "timestamp": last_asset_event_timestamp,
+                },
+            }
+        )
 
 
 class AssetCollectionResponse(BaseModel):

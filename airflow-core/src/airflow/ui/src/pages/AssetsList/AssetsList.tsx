@@ -16,34 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { Heading, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
-import { useAssetServiceGetAssets } from "openapi/queries";
+import { useAssetServiceGetAssetsUi } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
-import RenderedJsonField from "src/components/RenderedJsonField";
+import { FilterBar } from "src/components/FilterBar";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
+import { useAdvancedSearch, useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
-import { useDocumentTitle } from "src/utils";
+import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
+const assetsFilterKeys: Array<FilterableSearchParamsKeys> = [
+  SearchParamsKeys.GROUP_PATTERN,
+  SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE,
+];
+
 type AssetRow = { row: { original: AssetResponse } };
 
-const createColumns = (
-  translate: (key: string) => string,
-  open?: boolean,
-): Array<ColumnDef<AssetResponse>> => [
+const createColumns = (translate: (key: string) => string): Array<ColumnDef<AssetResponse>> => [
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (
@@ -54,7 +55,7 @@ const createColumns = (
     header: () => translate("name"),
   },
   {
-    accessorKey: "last_asset_event",
+    accessorKey: "last_asset_event_timestamp",
     cell: ({ row: { original } }: AssetRow) => {
       const assetEvent = original.last_asset_event;
       const timestamp = assetEvent?.timestamp;
@@ -65,12 +66,10 @@ const createColumns = (
 
       return <Time datetime={timestamp} />;
     },
-    enableSorting: false,
     header: () => translate("lastAssetEvent"),
   },
   {
     accessorKey: "group",
-    enableSorting: false,
     header: () => translate("group"),
   },
   {
@@ -97,21 +96,6 @@ const createColumns = (
     enableSorting: false,
     header: "",
   },
-  {
-    accessorKey: "extra",
-    cell: ({ row: { original } }) => {
-      if (original.extra !== null) {
-        return <RenderedJsonField collapsed={!open} content={original.extra ?? {}} />;
-      }
-
-      return undefined;
-    },
-    enableSorting: false,
-    header: translate("extra"),
-    meta: {
-      skeletonWidth: 200,
-    },
-  },
 ];
 
 const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
@@ -126,21 +110,36 @@ export const AssetsList = () => {
   const namePattern = searchParams.get(NAME_PATTERN) ?? "";
   const advancedSearch = useAdvancedSearch("assets");
 
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    sorting: [{ desc: true, id: "last_asset_event_timestamp" }],
+  });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : undefined;
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-last_asset_event_timestamp"];
 
-  const { onClose, onOpen, open } = useDisclosure();
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(assetsFilterKeys);
 
-  const { data, error, isLoading } = useAssetServiceGetAssets({
+  const lastAssetEventTimestampGte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_GTE);
+  const lastAssetEventTimestampLte = searchParams.get(SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_LTE);
+  const groupArg = useAdvancedSearchArg({
+    patternApiKey: "groupPattern",
+    prefixApiKey: "groupPrefixPattern",
+    storageKey: SearchParamsKeys.GROUP_PATTERN,
+    value: searchParams.get(SearchParamsKeys.GROUP_PATTERN),
+  });
+
+  const { data, error, isLoading } = useAssetServiceGetAssetsUi({
+    ...groupArg,
+    lastAssetEventTimestampGte: lastAssetEventTimestampGte ?? undefined,
+    lastAssetEventTimestampLte: lastAssetEventTimestampLte ?? undefined,
     limit: pagination.pageSize,
     ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
   });
 
-  const columns = createColumns(translate, open);
+  const columns = createColumns(translate);
+  const totalEntries = data?.total_entries ?? 0;
 
   const handleSearchChange = (value: string) => {
     setTableURLState({
@@ -166,18 +165,15 @@ export const AssetsList = () => {
           placeholder={translate("searchPlaceholder")}
         />
 
-        <Flex alignItems="center" justifyContent="space-between">
-          <Heading py={3} size="md">
-            {data?.total_entries} {translate("common:asset", { count: data?.total_entries })}
-          </Heading>
-          <ExpandCollapseButtons
-            collapseLabel={translate("common:collapseAllExtra")}
-            expandLabel={translate("common:expandAllExtra")}
-            isExpanded={open}
-            onCollapse={onClose}
-            onExpand={onOpen}
-          />
-        </Flex>
+        <FilterBar
+          configs={filterConfigs}
+          initialValues={initialValues}
+          onFiltersChange={handleFiltersChange}
+        />
+
+        <Heading py={3} size="md">
+          {totalEntries} {translate("common:asset", { count: totalEntries })}
+        </Heading>
       </VStack>
       <DataTable
         columns={columns}
@@ -188,7 +184,7 @@ export const AssetsList = () => {
         modelName="common:asset"
         onStateChange={setTableURLState}
         showRowCountHeading={false}
-        total={data?.total_entries}
+        total={totalEntries}
       />
     </>
   );

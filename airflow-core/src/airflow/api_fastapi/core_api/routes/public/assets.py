@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -29,10 +29,11 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.db.assets import generate_assets_with_last_event_query
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
-    BaseParam,
     FilterParam,
+    OnlyActiveFilter,
     OptionalDateTimeQuery,
     QueryAssetAliasNamePatternSearch,
     QueryAssetAliasNamePrefixPatternSearch,
@@ -93,7 +94,6 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Result
-    from sqlalchemy.sql import Select
 
 assets_router = AirflowRouter(tags=["Asset"])
 
@@ -116,19 +116,6 @@ def _generate_queued_event_where_clause(
     if permitted_dag_ids is not None:
         where_clause.append(AssetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
     return where_clause
-
-
-class OnlyActiveFilter(BaseParam[bool]):
-    """Filter on asset activeness."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(AssetModel.active.has())
-        return select
-
-    @classmethod
-    def depends(cls, only_active: bool = True) -> OnlyActiveFilter:
-        return cls().set_value(only_active)
 
 
 @assets_router.get(
@@ -156,40 +143,8 @@ def get_assets(
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
-    # Build a query that will be used to retrieve the ID and timestamp of the latest AssetEvent
-    last_asset_events = (
-        select(AssetEvent.asset_id, func.max(AssetEvent.timestamp).label("last_timestamp"))
-        .group_by(AssetEvent.asset_id)
-        .subquery()
-    )
-
-    # First, we're pulling the Asset ID, AssetEvent ID, and AssetEvent timestamp for the latest (last)
-    # AssetEvent. We'll eventually OUTER JOIN this to the AssetModel
-    asset_event_query = (
-        select(
-            AssetEvent.asset_id,  # The ID of the Asset, which we'll need to JOIN to the AssetModel
-            func.max(AssetEvent.id).label("last_asset_event_id"),  # The ID of the last AssetEvent
-            func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
-        )
-        .join(
-            last_asset_events,
-            and_(
-                AssetEvent.asset_id == last_asset_events.c.asset_id,
-                AssetEvent.timestamp == last_asset_events.c.last_timestamp,
-            ),
-        )
-        .group_by(AssetEvent.asset_id)
-        .subquery()
-    )
-
-    assets_select_statement = select(
-        AssetModel,
-        asset_event_query.c.last_asset_event_id,  # This should be the AssetEvent.id
-        asset_event_query.c.last_asset_event_timestamp,
-    ).outerjoin(asset_event_query, AssetModel.id == asset_event_query.c.asset_id)
-
     assets_select, total_entries = paginated_select(
-        statement=assets_select_statement,
+        statement=generate_assets_with_last_event_query(),
         filters=[
             only_active,
             name_pattern,
@@ -207,39 +162,13 @@ def get_assets(
 
     # The below type annotation is acceptable on SQLA2.1, but not on 2.0
     assets_rows: Result[Unpack[tuple[AssetModel, int, datetime]]] = session.execute(  # type: ignore[type-arg]
-        assets_select.options(
-            subqueryload(AssetModel.scheduled_dags),
-            subqueryload(AssetModel.producing_tasks),
-            subqueryload(AssetModel.consuming_tasks),
-            subqueryload(AssetModel.aliases),
-            subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
-        )
+        assets_select
     )
 
-    assets = []
-
-    for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
-        watchers_data = [
-            {
-                "name": watcher.name,
-                "trigger_id": watcher.trigger_id,
-                "created_date": watcher.trigger.created_date,
-            }
-            for watcher in asset.watchers
-        ]
-
-        asset_response = AssetResponse.model_validate(
-            {
-                **asset.__dict__,
-                "aliases": asset.aliases,
-                "watchers": watchers_data,
-                "last_asset_event": {
-                    "id": last_asset_event_id,
-                    "timestamp": last_asset_event_timestamp,
-                },
-            }
-        )
-        assets.append(asset_response)
+    assets = [
+        AssetResponse.from_asset_row(asset, last_asset_event_id, last_asset_event_timestamp)
+        for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows
+    ]
 
     return AssetCollectionResponse(
         assets=assets,
@@ -595,26 +524,7 @@ def get_asset(
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
-    watchers_data = [
-        {
-            "name": watcher.name,
-            "trigger_id": watcher.trigger_id,
-            "created_date": watcher.trigger.created_date,
-        }
-        for watcher in asset.watchers
-    ]
-
-    return AssetResponse.model_validate(
-        {
-            **asset.__dict__,
-            "aliases": asset.aliases,
-            "watchers": watchers_data,
-            "last_asset_event": {
-                "id": last_asset_event_id,
-                "timestamp": last_asset_event_timestamp,
-            },
-        }
-    )
+    return AssetResponse.from_asset_row(asset, last_asset_event_id, last_asset_event_timestamp)
 
 
 @assets_router.get(
