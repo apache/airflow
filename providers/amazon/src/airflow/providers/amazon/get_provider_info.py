@@ -1001,7 +1001,10 @@ def get_provider_info():
             },
             {
                 "integration-name": "Amazon Simple Queue Service (SQS)",
-                "python-modules": ["airflow.providers.amazon.aws.triggers.sqs"],
+                "python-modules": [
+                    "airflow.providers.amazon.aws.triggers.sqs",
+                    "airflow.providers.amazon.aws.triggers.shared_stream",
+                ],
             },
             {
                 "integration-name": "AWS Glue DataBrew",

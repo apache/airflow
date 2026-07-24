@@ -881,6 +881,7 @@ triggers:
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.triggers.sqs
+      - airflow.providers.amazon.aws.triggers.shared_stream
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue_databrew
