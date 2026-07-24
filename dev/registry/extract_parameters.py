@@ -491,7 +491,7 @@ def discover_classes_from_provider(
         category: str = "",
         transfer_desc: str | None = None,
     ) -> dict:
-        """Build a full module entry dict with all 13 fields."""
+        """Build a full module entry dict with all fields."""
         module_name = module_path.split(".")[-1]
         docstring = _get_first_docstring_line(cls_or_obj)
         short_desc = docstring or transfer_desc or f"{integration} {module_type}".strip()
