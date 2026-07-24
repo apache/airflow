@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
@@ -38,6 +39,14 @@ type BindingSuite struct {
 
 func TestBindingSuite(t *testing.T) {
 	suite.Run(t, &BindingSuite{})
+}
+
+// argSchema builds a minimal JSON-schema fragment declaring only a "type",
+// matching what the Python stub decorator emits for a scalar/container
+// annotation.
+func argSchema(jsonType string) *genmodels.ArgValueSchema {
+	s := genmodels.ArgValueSchema{"type": jsonType}
+	return &s
 }
 
 // fakeXComClient records GetXCom calls and returns preconfigured values.
@@ -192,12 +201,12 @@ func (s *BindingSuite) TestResolveLiterals() {
 		return nil
 	}
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Value: "uk", DataType: DataTypeString},
-		LiteralArg{Value: 3, DataType: DataTypeInteger},
-		LiteralArg{Value: 1.5, DataType: DataTypeNumber},
-		LiteralArg{Value: true, DataType: DataTypeBoolean},
-		LiteralArg{Value: []any{"a", "b"}, DataType: DataTypeArray},
-		LiteralArg{Value: map[string]any{"k": "v"}, DataType: DataTypeObject},
+		LiteralArg{Value: "uk", ValueSchema: argSchema("string")},
+		LiteralArg{Value: 3, ValueSchema: argSchema("integer")},
+		LiteralArg{Value: 1.5, ValueSchema: argSchema("number")},
+		LiteralArg{Value: true, ValueSchema: argSchema("boolean")},
+		LiteralArg{Value: []any{"a", "b"}, ValueSchema: argSchema("array")},
+		LiteralArg{Value: map[string]any{"k": "v"}, ValueSchema: argSchema("object")},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal("uk", got[0].Interface())
@@ -213,8 +222,8 @@ func (s *BindingSuite) TestResolveInterleavedInjectables() {
 		return nil
 	}
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Value: "uk", DataType: DataTypeString},
-		LiteralArg{Value: map[string]any{"k": "v"}, DataType: DataTypeObject},
+		LiteralArg{Value: "uk", ValueSchema: argSchema("string")},
+		LiteralArg{Value: map[string]any{"k": "v"}, ValueSchema: argSchema("object")},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.NotNil(got[0].Interface().(*slog.Logger))
@@ -223,36 +232,41 @@ func (s *BindingSuite) TestResolveInterleavedInjectables() {
 	s.Equal(map[string]any{"k": "v"}, got[3].Interface())
 }
 
-func (s *BindingSuite) TestCheckDataTypeMatrix() {
+func (s *BindingSuite) TestCheckValueTypeMatrix() {
+	unionType := &genmodels.ArgValueSchema{"type": []any{"string", "null"}}
 	cases := map[string]struct {
-		dt          DataType
+		schema      *genmodels.ArgValueSchema
 		target      reflect.Type
 		errContains string
 	}{
-		"string-ok":         {DataTypeString, reflect.TypeFor[string](), ""},
-		"string-ptr-ok":     {DataTypeString, reflect.TypeFor[*string](), ""},
-		"string-vs-int":     {DataTypeString, reflect.TypeFor[int](), "cannot bind"},
-		"integer-ok":        {DataTypeInteger, reflect.TypeFor[int64](), ""},
-		"integer-uint-ok":   {DataTypeInteger, reflect.TypeFor[uint32](), ""},
-		"integer-vs-float":  {DataTypeInteger, reflect.TypeFor[float64](), "cannot bind"},
-		"number-ok":         {DataTypeNumber, reflect.TypeFor[float32](), ""},
-		"number-vs-int":     {DataTypeNumber, reflect.TypeFor[int](), "cannot bind"},
-		"boolean-ok":        {DataTypeBoolean, reflect.TypeFor[bool](), ""},
-		"boolean-vs-string": {DataTypeBoolean, reflect.TypeFor[string](), "cannot bind"},
-		"object-map-ok":     {DataTypeObject, reflect.TypeFor[map[string]int](), ""},
-		"object-struct-ok":  {DataTypeObject, reflect.TypeFor[struct{ A int }](), ""},
-		"object-vs-slice":   {DataTypeObject, reflect.TypeFor[[]int](), "cannot bind"},
-		"array-slice-ok":    {DataTypeArray, reflect.TypeFor[[]string](), ""},
-		"array-array-ok":    {DataTypeArray, reflect.TypeFor[[2]int](), ""},
-		"array-vs-map":      {DataTypeArray, reflect.TypeFor[map[string]any](), "cannot bind"},
-		"any-skips":         {DataTypeAny, reflect.TypeFor[chan int](), ""},
-		"empty-skips":       {DataType(""), reflect.TypeFor[string](), ""},
-		"any-target-skips":  {DataTypeString, reflect.TypeFor[any](), ""},
-		"unknown-dt":        {DataType("uuid"), reflect.TypeFor[string](), "unknown declared type"},
+		"string-ok":         {argSchema("string"), reflect.TypeFor[string](), ""},
+		"string-ptr-ok":     {argSchema("string"), reflect.TypeFor[*string](), ""},
+		"string-vs-int":     {argSchema("string"), reflect.TypeFor[int](), "cannot bind"},
+		"integer-ok":        {argSchema("integer"), reflect.TypeFor[int64](), ""},
+		"integer-uint-ok":   {argSchema("integer"), reflect.TypeFor[uint32](), ""},
+		"integer-vs-float":  {argSchema("integer"), reflect.TypeFor[float64](), "cannot bind"},
+		"number-ok":         {argSchema("number"), reflect.TypeFor[float32](), ""},
+		"number-vs-int":     {argSchema("number"), reflect.TypeFor[int](), "cannot bind"},
+		"boolean-ok":        {argSchema("boolean"), reflect.TypeFor[bool](), ""},
+		"boolean-vs-string": {argSchema("boolean"), reflect.TypeFor[string](), "cannot bind"},
+		"object-map-ok":     {argSchema("object"), reflect.TypeFor[map[string]int](), ""},
+		"object-struct-ok":  {argSchema("object"), reflect.TypeFor[struct{ A int }](), ""},
+		"object-vs-slice":   {argSchema("object"), reflect.TypeFor[[]int](), "cannot bind"},
+		"array-slice-ok":    {argSchema("array"), reflect.TypeFor[[]string](), ""},
+		"array-array-ok":    {argSchema("array"), reflect.TypeFor[[2]int](), ""},
+		"array-vs-map":      {argSchema("array"), reflect.TypeFor[map[string]any](), "cannot bind"},
+		// A nil schema, a fragment without a plain-string "type" (a union or a
+		// keyword-less fragment), an unrecognized type, or an `any` target all
+		// skip the check -- the strict decode still guards the value.
+		"nil-schema-skips":   {nil, reflect.TypeFor[chan int](), ""},
+		"no-type-skips":      {&genmodels.ArgValueSchema{}, reflect.TypeFor[string](), ""},
+		"union-type-skips":   {unionType, reflect.TypeFor[int](), ""},
+		"unknown-type-skips": {argSchema("uuid"), reflect.TypeFor[string](), ""},
+		"any-target-skips":   {argSchema("string"), reflect.TypeFor[any](), ""},
 	}
 	for name, tt := range cases {
 		s.Run(name, func() {
-			err := checkDataType(tt.dt, tt.target)
+			err := checkValueType(tt.schema, tt.target)
 			if tt.errContains == "" {
 				s.NoError(err)
 			} else if s.Assert().Error(err) {
@@ -266,13 +280,13 @@ func (s *BindingSuite) TestResolveTypeMismatchFailsLoudly() {
 	fn := func(count int) error { return nil }
 	_, err := s.resolve(
 		fn,
-		[]Arg{LiteralArg{Value: "uk", DataType: DataTypeString}},
+		[]Arg{LiteralArg{Value: "uk", ValueSchema: argSchema("string")}},
 		&fakeXComClient{},
 	)
 	if s.Assert().Error(err) {
 		s.Contains(
 			err.Error(),
-			`the Dag declares type "string" which cannot bind to Go parameter type int`,
+			`the Dag declares JSON-schema type "string" which cannot bind to Go parameter type int`,
 		)
 	}
 }
@@ -338,8 +352,8 @@ func (s *BindingSuite) TestResolveXComArgs() {
 
 	fn := func(res extractResult, probe string) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		XComArg{TaskID: "extract", DataType: DataTypeObject},
-		XComArg{TaskID: "probe", DataType: DataTypeString},
+		XComArg{TaskID: "extract", ValueSchema: argSchema("object")},
+		XComArg{TaskID: "probe", ValueSchema: argSchema("string")},
 	}, client)
 	s.Require().NoError(err)
 	s.Equal(extractResult{GoVersion: "go1.24", Timestamp: 42}, got[0].Interface())
@@ -398,7 +412,7 @@ func (s *BindingSuite) TestResolveNullHandling() {
 	fn := func(meta map[string]any) error { return nil }
 	got, err := s.resolve(
 		fn,
-		[]Arg{LiteralArg{Value: nil, DataType: DataTypeObject}},
+		[]Arg{LiteralArg{Value: nil, ValueSchema: argSchema("object")}},
 		&fakeXComClient{},
 	)
 	s.Require().NoError(err)
@@ -416,9 +430,9 @@ func (s *BindingSuite) TestResolveNullHandling() {
 // inside it.
 type fakeArg struct{}
 
-func (fakeArg) ArgName() string        { return "fake" }
-func (fakeArg) DeclaredType() DataType { return DataTypeAny }
-func (fakeArg) sealedArg()             {}
+func (fakeArg) ArgName() string                   { return "fake" }
+func (fakeArg) Schema() *genmodels.ArgValueSchema { return nil }
+func (fakeArg) sealedArg()                        {}
 
 func (s *BindingSuite) TestResolveUnsupportedVariant() {
 	fn := func(country string) error { return nil }
@@ -447,7 +461,7 @@ func (s *BindingSuite) TestResolveTIRunContextRebuild() {
 
 	plan := analyze(s, func(rc sdk.TIRunContext, country string) error { return nil })
 	got, err := plan.Resolve(ctx, slog.Default(), &fakeXComClient{}, []Arg{
-		LiteralArg{Value: "uk", DataType: DataTypeString},
+		LiteralArg{Value: "uk", ValueSchema: argSchema("string")},
 	})
 	s.Require().NoError(err)
 	rc := got[0].Interface().(sdk.TIRunContext)
@@ -528,8 +542,8 @@ func (s *BindingSuite) TestAnalyzeStructValidation() {
 func (s *BindingSuite) TestResolveStructAllFields() {
 	fn := func(input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
-		LiteralArg{Name: "count", Value: 7, DataType: DataTypeInteger},
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
+		LiteralArg{Name: "count", Value: 7, ValueSchema: argSchema("integer")},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 
@@ -541,8 +555,8 @@ func (s *BindingSuite) TestResolveStructAllFields() {
 func (s *BindingSuite) TestResolveStructXComArg() {
 	fn := func(log *slog.Logger, input reportInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		XComArg{Name: "region", TaskID: "make_region", DataType: DataTypeString},
-		LiteralArg{Name: "Ratio", Value: 0.5, DataType: DataTypeNumber},
+		XComArg{Name: "region", TaskID: "make_region", ValueSchema: argSchema("string")},
+		LiteralArg{Name: "Ratio", Value: 0.5, ValueSchema: argSchema("number")},
 	}, &fakeXComClient{values: map[string]any{"make_region/return_value": "east"}})
 	s.Require().NoError(err)
 
@@ -556,7 +570,7 @@ func (s *BindingSuite) TestResolveStructSingleClaimedArgBindsByName() {
 	// that keeps a one-field struct name-bound rather than whole-value decoded.
 	fn := func(input simpleInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal("widget", got[0].Interface().(simpleInput).Name)
@@ -565,7 +579,7 @@ func (s *BindingSuite) TestResolveStructSingleClaimedArgBindsByName() {
 func (s *BindingSuite) TestResolveStructPointer() {
 	fn := func(input *simpleInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	input := got[0].Interface().(*simpleInput)
@@ -582,8 +596,8 @@ func (s *BindingSuite) TestResolveLoneStructBothModes() {
 
 	// Struct-based: two arguments named like the fields bind by name.
 	named, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "Environment", Value: "production", DataType: DataTypeString},
-		LiteralArg{Name: "Region", Value: "eu-west-1", DataType: DataTypeString},
+		LiteralArg{Name: "Environment", Value: "production", ValueSchema: argSchema("string")},
+		LiteralArg{Name: "Region", Value: "eu-west-1", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal(want, named[0].Interface(), "argument names matching the fields bind field-by-field")
@@ -591,9 +605,9 @@ func (s *BindingSuite) TestResolveLoneStructBothModes() {
 	// Flat-based: one argument no field claims decodes whole into the struct.
 	whole, err := s.resolve(fn, []Arg{
 		LiteralArg{
-			Name:     "cfg",
-			Value:    map[string]any{"environment": "production", "region": "eu-west-1"},
-			DataType: DataTypeObject,
+			Name:        "cfg",
+			Value:       map[string]any{"environment": "production", "region": "eu-west-1"},
+			ValueSchema: argSchema("object"),
 		},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
@@ -603,8 +617,8 @@ func (s *BindingSuite) TestResolveLoneStructBothModes() {
 func (s *BindingSuite) TestResolveStructUnclaimedArgFailsLoudly() {
 	fn := func(input combineInput) error { return nil }
 	_, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
-		LiteralArg{Name: "typo", Value: "x", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
+		LiteralArg{Name: "typo", Value: "x", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
 	// Name is claimed, so this is name-binding (not the whole-value fallback);
 	// the leftover "typo" argument fails the task rather than being dropped.
@@ -616,10 +630,15 @@ func (s *BindingSuite) TestResolveStructUnclaimedArgFailsLoudly() {
 func (s *BindingSuite) TestResolveStructUnclaimedFromDefaultAllowed() {
 	fn := func(input combineInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 		// The Dag author never passed "threshold"; Python captured it from the
 		// stub signature's default. The struct need not mirror it.
-		LiteralArg{Name: "threshold", Value: 0.75, DataType: DataTypeNumber, FromDefault: true},
+		LiteralArg{
+			Name:        "threshold",
+			Value:       0.75,
+			ValueSchema: argSchema("number"),
+			FromDefault: true,
+		},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	s.Equal("widget", got[0].Interface().(combineInput).Name)
@@ -645,7 +664,12 @@ func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
 	// keep their kwarg-style zero values.
 	fn := func(input twoFieldInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "threshold", Value: 0.75, DataType: DataTypeNumber, FromDefault: true},
+		LiteralArg{
+			Name:        "threshold",
+			Value:       0.75,
+			ValueSchema: argSchema("number"),
+			FromDefault: true,
+		},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	input := got[0].Interface().(twoFieldInput)
@@ -656,7 +680,7 @@ func (s *BindingSuite) TestResolveStructOnlyDefaultsZeroValues() {
 func (s *BindingSuite) TestResolveStructUnmatchedFieldZeroValued() {
 	fn := func(input twoFieldInput) error { return nil }
 	got, err := s.resolve(fn, []Arg{
-		LiteralArg{Name: "Name", Value: "widget", DataType: DataTypeString},
+		LiteralArg{Name: "Name", Value: "widget", ValueSchema: argSchema("string")},
 	}, &fakeXComClient{})
 	s.Require().NoError(err)
 	input := got[0].Interface().(twoFieldInput)

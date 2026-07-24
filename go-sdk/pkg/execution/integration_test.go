@@ -257,16 +257,16 @@ func TestTaskRunnerBindsArgs(t *testing.T) {
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
 				map[string]any{
-					"name":      "country",
-					"kind":      "literal",
-					"data_type": "string",
-					"value":     "uk",
+					"name":         "country",
+					"kind":         "literal",
+					"value_schema": map[string]any{"type": "string"},
+					"value":        "uk",
 				},
 				map[string]any{
-					"name":      "meta",
-					"kind":      "literal",
-					"data_type": "object",
-					"value":     map[string]any{"k": "v"},
+					"name":         "meta",
+					"kind":         "literal",
+					"value_schema": map[string]any{"type": "object"},
+					"value":        map[string]any{"k": "v"},
 				},
 			},
 		},
@@ -306,10 +306,10 @@ func TestTaskRunnerArgBindingsArityMismatch(t *testing.T) {
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
 				map[string]any{
-					"name":      "country",
-					"kind":      "literal",
-					"data_type": "string",
-					"value":     "uk",
+					"name":         "country",
+					"kind":         "literal",
+					"value_schema": map[string]any{"type": "string"},
+					"value":        "uk",
 				},
 			},
 		},
@@ -355,10 +355,10 @@ func TestTaskRunnerBindsStructArgs(t *testing.T) {
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
 				map[string]any{
-					"name":      "region",
-					"kind":      "literal",
-					"data_type": "string",
-					"value":     "eu-west-1",
+					"name":         "region",
+					"kind":         "literal",
+					"value_schema": map[string]any{"type": "string"},
+					"value":        "eu-west-1",
 				},
 			},
 		},
@@ -397,15 +397,15 @@ func TestTaskRunnerStructIgnoresUnclaimedDefault(t *testing.T) {
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
 				map[string]any{
-					"name":      "region",
-					"kind":      "literal",
-					"data_type": "string",
-					"value":     "eu-west-1",
+					"name":         "region",
+					"kind":         "literal",
+					"value_schema": map[string]any{"type": "string"},
+					"value":        "eu-west-1",
 				},
 				map[string]any{
 					"name":         "threshold",
 					"kind":         "literal",
-					"data_type":    "number",
+					"value_schema": map[string]any{"type": "number"},
 					"value":        0.75,
 					"from_default": true,
 				},
@@ -441,10 +441,10 @@ func TestTaskRunnerArgBindingsTypeMismatch(t *testing.T) {
 		TIContext: genmodels.TIRunContext{
 			ArgBindings: &genmodels.ArgBindings{
 				map[string]any{
-					"name":      "count",
-					"kind":      "literal",
-					"data_type": "string",
-					"value":     "uk",
+					"name":         "count",
+					"kind":         "literal",
+					"value_schema": map[string]any{"type": "string"},
+					"value":        "uk",
 				},
 			},
 		},

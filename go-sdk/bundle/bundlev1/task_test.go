@@ -206,11 +206,8 @@ func (s *TaskSuite) TestExecuteArgsBindsDataParameters() {
 	s.Require().True(ok, "taskFunction must implement TaskWithArgs")
 
 	err = tw.ExecuteArgs(context.Background(), slog.New(logging.NewTeeLogger()), []binding.Arg{
-		binding.LiteralArg{Value: "uk", DataType: binding.DataTypeString},
-		binding.LiteralArg{
-			Value:    map[string]any{"k": "v"},
-			DataType: binding.DataTypeObject,
-		},
+		binding.LiteralArg{Value: "uk"},
+		binding.LiteralArg{Value: map[string]any{"k": "v"}},
 	})
 	s.Require().NoError(err)
 	s.Equal("uk", gotCountry)
