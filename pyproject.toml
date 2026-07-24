@@ -308,6 +308,9 @@ apache-airflow = "airflow.__main__:main"
 "openfaas" = [
     "apache-airflow-providers-openfaas>=3.7.0"
 ]
+"openfeature" = [
+    "apache-airflow-providers-openfeature>=1.0.0"
+]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
@@ -483,6 +486,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-odbc>=4.8.0",
     "apache-airflow-providers-openai>=1.5.0",
     "apache-airflow-providers-openfaas>=3.7.0",
+    "apache-airflow-providers-openfeature>=1.0.0",
     "apache-airflow-providers-openlineage>=2.3.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opensearch>=1.9.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-opsgenie>=5.8.0",
@@ -1232,6 +1236,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/openai/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/openfaas/src",
     "$MYPY_CONFIG_FILE_DIR/providers/openfaas/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/openfeature/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/openfeature/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/openlineage/src",
     "$MYPY_CONFIG_FILE_DIR/providers/openlineage/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/opensearch/src",
@@ -1507,6 +1513,7 @@ apache-airflow-providers-neo4j = false
 apache-airflow-providers-odbc = false
 apache-airflow-providers-openai = false
 apache-airflow-providers-openfaas = false
+apache-airflow-providers-openfeature = false
 apache-airflow-providers-openlineage = false
 apache-airflow-providers-opensearch = false
 apache-airflow-providers-opsgenie = false
@@ -1659,6 +1666,7 @@ apache-airflow-providers-neo4j = false
 apache-airflow-providers-odbc = false
 apache-airflow-providers-openai = false
 apache-airflow-providers-openfaas = false
+apache-airflow-providers-openfeature = false
 apache-airflow-providers-openlineage = false
 apache-airflow-providers-opensearch = false
 apache-airflow-providers-opsgenie = false
@@ -1822,6 +1830,7 @@ apache-airflow-providers-neo4j = { workspace = true }
 apache-airflow-providers-odbc = { workspace = true }
 apache-airflow-providers-openai = { workspace = true }
 apache-airflow-providers-openfaas = { workspace = true }
+apache-airflow-providers-openfeature = { workspace = true }
 apache-airflow-providers-openlineage = { workspace = true }
 apache-airflow-providers-opensearch = { workspace = true }
 apache-airflow-providers-opsgenie = { workspace = true }
@@ -1963,6 +1972,7 @@ members = [
     "providers/odbc",
     "providers/openai",
     "providers/openfaas",
+    "providers/openfeature",
     "providers/openlineage",
     "providers/opensearch",
     "providers/opsgenie",
