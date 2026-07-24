@@ -19,7 +19,6 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker.py::SageMa
 providers/amazon/src/airflow/providers/amazon/aws/operators/step_function.py::StepFunctionStartExecutionOperator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/base.py::AwsToAwsBaseOperator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::GCSToS3Operator
-providers/amazon/src/airflow/providers/amazon/aws/transfers/mongo_to_s3.py::MongoToS3Operator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::S3ToRedshiftOperator
 providers/anthropic/src/airflow/providers/anthropic/operators/agent.py::AnthropicAgentSessionOperator
 providers/apache/hive/src/airflow/providers/apache/hive/sensors/hive_partition.py::HivePartitionSensor
@@ -67,8 +66,5 @@ providers/papermill/src/airflow/providers/papermill/operators/papermill.py::Pape
 providers/ssh/src/airflow/providers/ssh/operators/ssh.py::SSHOperator
 providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::SSHRemoteJobOperator
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
-providers/standard/src/airflow/providers/standard/operators/hitl.py::HITLOperator
 providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::TriggerDagRunOperator
 providers/standard/src/airflow/providers/standard/sensors/date_time.py::DateTimeSensor
-providers/teradata/src/airflow/providers/teradata/transfers/teradata_to_teradata.py::TeradataToTeradataOperator
-providers/weaviate/src/airflow/providers/weaviate/operators/weaviate.py::WeaviateIngestOperator
