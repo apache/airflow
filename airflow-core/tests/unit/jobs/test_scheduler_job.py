@@ -6020,6 +6020,60 @@ class TestSchedulerJob:
 
         assert get_last_dagrun(dag.dag_id, session).creating_job_id == scheduler_job.id
 
+    def test_queued_dagrun_with_unresolvable_pinned_version_is_failed(self, dag_maker, session):
+        """
+        A queued run whose pinned dag version can no longer be resolved is failed
+        explicitly instead of being skipped on every scheduler loop.
+
+        Reproduces the state after the pinned dag_version row is deleted: the FK
+        ondelete="set null" clears created_dag_version_id while bundle_version
+        remains set, so the pinned resolver returns None and never falls back to
+        the latest version. The scheduler now marks the run FAILED rather than
+        re-selecting and skipping it forever.
+        """
+        with dag_maker(dag_id="test_stuck_pinned_run"):
+            EmptyOperator(task_id="mytask")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.QUEUED)
+
+        # The run was created pinned to a bundle version...
+        dr.bundle_version = "0123456789abcdef"
+        # ...and the pinned dag_version row has since been deleted -> FK SET NULL
+        dr.created_dag_version_id = None
+        session.merge(dr)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+
+        # Even across repeated loops the run reaches a terminal state instead of being skipped.
+        for _ in range(3):
+            self.job_runner._start_queued_dagruns(session)
+            session.flush()
+
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == "test_stuck_pinned_run")).one()
+        assert dr.state == State.FAILED
+
+    def test_queued_dagrun_without_bundle_version_falls_back_to_latest(self, dag_maker, session):
+        """
+        Contrast case: same NULL created_dag_version_id, but without bundle_version
+        the resolver falls back to the latest serialized version and the run starts.
+        """
+        with dag_maker(dag_id="test_unpinned_run_falls_back"):
+            EmptyOperator(task_id="mytask")
+        dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.QUEUED)
+        dr.bundle_version = None
+        dr.created_dag_version_id = None
+        session.merge(dr)
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == "test_unpinned_run_falls_back")).one()
+        assert dr.state == State.RUNNING
+
     def test_extra_operator_links_not_loaded_in_scheduler_loop(self, dag_maker):
         """
         Test that Operator links are not loaded inside the Scheduling Loop (that does not include
