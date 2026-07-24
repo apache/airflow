@@ -488,11 +488,9 @@ paths:
           anyOf:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
-          description: Filter Dags that have any DagRun in the given state. Only ``queued``
-            and ``running`` are supported.
+          description: Filter Dags that have any DagRun in the given state.
           title: Dag Run State
-        description: Filter Dags that have any DagRun in the given state. Only ``queued``
-          and ``running`` are supported.
+        description: Filter Dags that have any DagRun in the given state.
       - name: bundle_name
         in: query
         required: false
@@ -4092,6 +4090,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id

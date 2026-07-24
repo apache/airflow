@@ -249,32 +249,6 @@ repos:
           ^pyproject\.toml$
         pass_filenames: false
         require_serial: true
-      - id: ts-sdk-lint
-        name: Lint TypeScript SDK
-        entry: ./ts-sdk/scripts/ci/prek/ts_sdk_lint.py
-        language: node
-        files: |
-          (?x)
-          ^ts-sdk/.*\.(js|ts|json)$
-        exclude: |
-          (?x)
-          ^ts-sdk/node_modules/.*|
-          ^ts-sdk/.pnpm-store/.*|
-          ^ts-sdk/dist/.*
-        additional_dependencies: ['pnpm@10.28.1']
-        pass_filenames: false
-        require_serial: true
-      - id: check-ts-sdk-supervisor-schema
-        name: Check TypeScript SDK supervisor schema is up to date
-        entry: ./ts-sdk/scripts/ci/prek/check_supervisor_schema.py
-        language: node
-        files: >
-          (?x)
-          ^ts-sdk/src/generated/supervisor\.ts$|
-          ^ts-sdk/scripts/generate-supervisor\.mjs$
-        additional_dependencies: ['pnpm@10.28.1']
-        pass_filenames: false
-        require_serial: true
       - id: check-ci-workflows-in-sync
         name: Check ci-arm.yml and ci-amd.yml stay in sync
         entry: ./scripts/ci/prek/check_ci_workflows_in_sync.py
@@ -614,7 +588,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.15.21']
+        additional_dependencies: ['ruff==0.15.22']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -950,9 +924,10 @@ repos:
         name: Check that metrics in the codebase are in sync with the metrics registry YAML file.
         entry: ./scripts/ci/prek/check_metrics_synced_with_the_registry.py
         language: python
-        files: \.py$
+        files: \.py$|^shared/observability/src/airflow_shared/observability/metrics/metrics_template\.yaml$
         exclude: ^(tests/|.*/tests/|airflow-core/src/airflow/observability/stats\.py$|task-sdk/src/airflow/sdk/observability/stats\.py$)
         pass_filenames: true
+        require_serial: true
         additional_dependencies: ["PyYAML>=6.0", "rich>=13.6.0"]
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
@@ -1338,7 +1313,7 @@ repos:
         files: ^shared/.*|^scripts/ci/prek/check_shared_mypy_hooks\.py$
         require_serial: true
       - id: check-migration-patterns
-        name: Check migration files for anti-patterns (MIG001/MIG002/MIG003)
+        name: Check migration files for anti-patterns and style (MIG001-MIG004)
         entry: ./scripts/ci/prek/check_migration_patterns.py
         language: python
         pass_filenames: true

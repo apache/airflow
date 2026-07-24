@@ -89,6 +89,9 @@ taskinstances:
   get: "Get a task instance by Dag ID, Dag run ID and task ID, optionally with a map index"
   list: "List all task instances for a given Dag run"
 
+tasks:
+  clear: "Clear task instances of a Dag by its ID"
+
 variables:
   get: "Retrieve a variable by its key"
   list: "List all variables"

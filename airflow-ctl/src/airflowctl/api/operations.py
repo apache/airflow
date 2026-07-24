@@ -39,6 +39,7 @@ from airflowctl.api.datamodels.generated import (
     BulkBodyPoolBody,
     BulkBodyVariableBody,
     BulkResponse,
+    ClearTaskInstancesBody,
     Config,
     ConnectionBody,
     ConnectionCollectionResponse,
@@ -808,6 +809,23 @@ class TaskInstancesOperations(BaseOperations):
             path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
             data_model=TaskInstanceCollectionResponse,
         )
+
+
+class TasksOperations(BaseOperations):
+    """Tasks operations."""
+
+    def clear(
+        self, dag_id: str, clear_task_instances: ClearTaskInstancesBody
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Clear task instances of a Dag; with dry_run (the default) only previews the affected task instances."""
+        try:
+            self.response = self.client.post(
+                f"dags/{dag_id}/clearTaskInstances",
+                json=clear_task_instances.model_dump(mode="json", exclude_none=True),
+            )
+            return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        except ServerResponseError as e:
+            raise e
 
 
 class VariablesOperations(BaseOperations):

@@ -1050,6 +1050,7 @@ export type DAGRunResponse = {
     dag_display_name: string;
     partition_key: string | null;
     partition_date: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1848,6 +1849,7 @@ export type TaskInstanceResponse = {
     trigger: TriggerResponse | null;
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
+    team_name?: string | null;
 };
 
 /**
@@ -3207,9 +3209,17 @@ export type GetDagRunsData = {
     logicalDateLte?: string | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      */
     orderBy?: Array<(string)>;
+    /**
+     * Inclusive lower bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. Runs from the start of this day onwards match.
+     */
+    partitionDateGte?: string | null;
+    /**
+     * Inclusive upper bound of the partition_date window, interpreted as a local calendar day in the Dag's timetable timezone. The whole day is included: runs up to the end of this day match.
+     */
+    partitionDateLte?: string | null;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). The pipe `|` is matched literally, not as an OR separator. Regular expressions are **not** supported.
      *
@@ -3240,6 +3250,7 @@ export type GetDagRunsData = {
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    teams?: Array<(string)>;
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions are **not** supported.
      *
@@ -3542,7 +3553,7 @@ export type GetDagsUiData = {
     dagIds?: Array<(string)> | null;
     dagRunsLimit?: number;
     /**
-     * Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.
+     * Filter Dags that have any DagRun in the given state.
      */
     dagRunState?: DagRunState | null;
     excludeStale?: boolean;
@@ -3956,6 +3967,7 @@ export type GetTaskInstancesData = {
      */
     taskGroupId?: string | null;
     taskId?: string | null;
+    teams?: Array<(string)>;
     tryNumber?: Array<(number)>;
     updatedAtGt?: string | null;
     updatedAtGte?: string | null;

@@ -20,6 +20,26 @@
 Changelog
 ---------
 
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Default the Anthropic batch model from the connection (#69624)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix dead Managed Agents link and incomplete first-party note in Anthropic provider docs (#69709)``
+* ``Add feature-comparison table and toolset links to common.ai provider docs (#69649)``
+* ``Document when to use common.ai vs vendor-specific AI providers (#69551)``
+* ``Add quickstart to Anthropic provider (#69589)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 0.1.0
 .....
 
