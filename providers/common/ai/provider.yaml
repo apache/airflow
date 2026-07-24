@@ -23,10 +23,11 @@ description: |
 
 state: ready
 lifecycle: incubation
-source-date-epoch: 1783356304
+source-date-epoch: 1784746595
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.7.0
   - 0.6.0
   - 0.5.0
   - 0.4.0
@@ -450,6 +451,18 @@ operators:
       - airflow.providers.common.ai.operators.document_loader
       - airflow.providers.common.ai.operators.llamaindex_embedding
       - airflow.providers.common.ai.operators.llamaindex_retrieval
+
+toolsets:
+  - integration-name: Common AI
+    python-modules:
+      - airflow.providers.common.ai.toolsets.aws
+      - airflow.providers.common.ai.toolsets.hook
+      - airflow.providers.common.ai.toolsets.sql
+      - airflow.providers.common.ai.toolsets.datafusion
+      - airflow.providers.common.ai.toolsets.logging
+      - airflow.providers.common.ai.toolsets.mcp
+      - airflow.providers.common.ai.toolsets.skills
+      - airflow.providers.common.ai.toolsets.langchain_bridge
 
 task-decorators:
   - class-name: airflow.providers.common.ai.decorators.agent.agent_task

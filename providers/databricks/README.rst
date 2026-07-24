@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-databricks``
 
-Release: ``7.17.0``
+Release: ``7.18.0``
 
 
 `Databricks <https://databricks.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``databricks`` provider. All classes for this pro
 are in ``airflow.providers.databricks`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.17.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.18.0/>`_.
 
 Installation
 ------------
@@ -78,12 +78,13 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-databricks[google]
+    pip install apache-airflow-providers-databricks[amazon]
 
 
 ==============================================================================================================  ===============
 Dependent package                                                                                               Extra
 ==============================================================================================================  ===============
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_            ``google``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
 ==============================================================================================================  ===============
@@ -95,6 +96,7 @@ Optional dependencies
 Extra               Dependencies
 ==================  ================================================================================================================================================================
 ``avro``            ``fastavro>=1.9.0; python_version<"3.14"``, ``fastavro>=1.10.0; python_version>="3.12" and python_version<"3.14"``, ``fastavro>=1.12.1; python_version>="3.14"``
+``amazon``          ``apache-airflow-providers-amazon>=9.22.0``
 ``azure-identity``  ``azure-identity>=1.3.1``
 ``fab``             ``apache-airflow-providers-fab>=2.2.0``
 ``google``          ``apache-airflow-providers-google>=10.24.0``
@@ -105,4 +107,4 @@ Extra               Dependencies
 ==================  ================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.17.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.18.0/changelog.html>`_.

@@ -25,6 +25,7 @@ from textwrap import dedent
 import httpx
 import pytest
 
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
@@ -779,11 +780,60 @@ class TestCliConfigMethods:
         # Should return params unchanged for other datamodels
         assert result == params, "Params should be unchanged for non-TriggerDAGRunPostBody datamodels"
 
+    def test_tasks_clear_args_follow_datamodel_defaults(self):
+        """Bool flags of ``tasks clear`` keep the ClearTaskInstancesBody defaults so a bare invocation only dry-runs."""
+        command_factory = CommandFactory()
+        tasks_group = next(
+            group_command for group_command in command_factory.group_commands if group_command.name == "tasks"
+        )
+        clear_command = next(
+            sub_command for sub_command in tasks_group.subcommands if sub_command.name == "clear"
+        )
+        args_by_flag = {arg.flags[0]: arg for arg in clear_command.args}
+
+        assert "dag_id" in args_by_flag, "required path parameter should be positional"
+        assert args_by_flag["--dry-run"].kwargs["action"] == BooleanOptionalAction
+        assert args_by_flag["--dry-run"].kwargs["default"] is True
+        assert args_by_flag["--only-failed"].kwargs["default"] is True
+        assert args_by_flag["--reset-dag-runs"].kwargs["default"] is True
+        assert args_by_flag["--only-running"].kwargs["default"] is False
+        assert args_by_flag["--run-on-latest-version"].kwargs["default"] is None
+        assert args_by_flag["--task-ids"].kwargs["type"] is str
+        assert "--output" in args_by_flag
+
+    @pytest.mark.parametrize(
+        ("raw_task_ids", "expected_task_ids"),
+        [
+            ("task_1", ["task_1"]),
+            ("task_1,task_2", ["task_1", "task_2"]),
+            (" task_1 , task_2 ,", ["task_1", "task_2"]),
+            ('["task_1", ["mapped_task", 0]]', ["task_1", ["mapped_task", 0]]),
+            (None, None),
+        ],
+    )
+    def test_apply_datamodel_defaults_clear_task_instances_task_ids(self, raw_task_ids, expected_task_ids):
+        """Test _apply_datamodel_defaults parses --task-ids strings for ClearTaskInstancesBody."""
+        command_factory = CommandFactory()
+        result = command_factory._apply_datamodel_defaults(
+            ClearTaskInstancesBody, {"task_ids": raw_task_ids, "dry_run": True}
+        )
+
+        assert result["task_ids"] == expected_task_ids
+        assert result["dry_run"] is True
+
+    def test_apply_datamodel_defaults_clear_task_instances_invalid_json_task_ids(self):
+        """Test _apply_datamodel_defaults rejects malformed JSON lists passed to --task-ids."""
+        command_factory = CommandFactory()
+        with pytest.raises(SystemExit, match="Invalid JSON list for --task-ids"):
+            command_factory._apply_datamodel_defaults(ClearTaskInstancesBody, {"task_ids": '["oops'})
+
     @pytest.mark.parametrize(
         ("group_name", "subcommand_name", "expected_help"),
         [
             ("assets", "get", "Retrieve an asset by its ID"),
             ("connections", "get", "Retrieve a connection by its ID"),
+            ("taskinstances", "list", "List all task instances for a given Dag run"),
+            ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )
     def test_help_texts_used_for_auto_generated_commands(self, group_name, subcommand_name, expected_help):
@@ -797,3 +847,4 @@ class TestCliConfigMethods:
                             "Help message should match the help_text.yaml"
                         )
                         return
+        pytest.fail(f"Auto-generated command not found: {group_name} {subcommand_name}")

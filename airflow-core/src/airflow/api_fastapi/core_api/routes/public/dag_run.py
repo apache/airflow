@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import datetime
 import textwrap
 from typing import Annotated, Literal, cast
 
@@ -41,6 +42,7 @@ from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
 )
+from airflow.api_fastapi.common.db.dags import attach_team_names
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -57,6 +59,7 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _DagIdTeamsFilter,
     _PrefixSearchParam,
     _SearchParam,
     datetime_range_filter_factory,
@@ -64,6 +67,7 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
     prefix_search_param_factory,
     search_param_factory,
+    teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
@@ -222,13 +226,13 @@ def patch_dag_run(
 
     data = patch_body.model_dump(include=fields_to_update, by_alias=True)
 
-    for attr_name, attr_value_raw in data.items():
-        if attr_name == "state" and patch_body.state is not None:
-            patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
-        elif attr_name == "note":
-            updated_dag_run = session.get(DagRun, dag_run.id)
-            if updated_dag_run is not None:
-                patch_dag_run_note(dag_run=updated_dag_run, note=attr_value_raw, user=user)
+    # Apply "note" before "state" so listeners fired inside patch_dag_run_state() see the updated note.
+    if "note" in data:
+        updated_dag_run = session.get(DagRun, dag_run.id)
+        if updated_dag_run is not None:
+            patch_dag_run_note(dag_run=updated_dag_run, note=data["note"], user=user)
+    if "state" in data and patch_body.state is not None:
+        patch_dag_run_state(dag=dag, dag_run=dag_run, state=patch_body.state, session=session)
 
     final_dag_run = session.get(DagRun, dag_run.id)
     if not final_dag_run:
@@ -499,6 +503,7 @@ def get_dag_runs(
     bundle_version: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
     ],
+    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(DagRun.dag_id))],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -509,6 +514,7 @@ def get_dag_runs(
                     "dag_id",
                     "run_id",
                     "logical_date",
+                    "partition_date",
                     "run_after",
                     "start_date",
                     "end_date",
@@ -547,6 +553,21 @@ def get_dag_runs(
     partition_key_pattern: QueryDagRunPartitionKeySearch,
     partition_key_prefix_pattern: QueryDagRunPartitionKeyPrefixSearch,
     consuming_asset_pattern: QueryConsumingAssetPatternSearch,
+    partition_date_gte: datetime.date | None = Query(
+        None,
+        description=(
+            "Inclusive lower bound of the partition_date window, interpreted as a local calendar "
+            "day in the Dag's timetable timezone. Runs from the start of this day onwards match."
+        ),
+    ),
+    partition_date_lte: datetime.date | None = Query(
+        None,
+        description=(
+            "Inclusive upper bound of the partition_date window, interpreted as a local calendar "
+            "day in the Dag's timetable timezone. The whole day is included: runs up to the end "
+            "of this day match."
+        ),
+    ),
     cursor: str | None = Query(
         None,
         description="Cursor for keyset-based pagination. "
@@ -571,9 +592,46 @@ def get_dag_runs(
     use_cursor = cursor is not None
     query = select(DagRun).options(*eager_load_dag_run_for_list())
 
-    if dag_id != "~":
-        get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
+    has_partition_date_filter = partition_date_gte is not None or partition_date_lte is not None
+
+    if dag_id == "~":
+        if has_partition_date_filter:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "partition_date_gte and partition_date_lte require a specific dag_id.",
+            )
+    else:
+        dag = get_latest_version_of_dag(dag_bag, dag_id, session)  # Check if the Dag exists.
         query = query.filter(DagRun.dag_id == dag_id).options()
+        if has_partition_date_filter:
+            # Runs of a non-partitioned Dag never carry a partition_date (this includes
+            # partitioned-at-runtime Dags, whose runs keep it NULL), so the filter would
+            # silently match nothing; reject it instead.
+            if not dag.timetable.partitioned:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Dag with dag_id: '{dag_id}' is not partitioned; "
+                    "partition_date_gte and partition_date_lte are not supported.",
+                )
+            # The bounds are calendar days, so the whole of partition_date_lte belongs to the
+            # window: widen it to the following local midnight and exclude that edge.
+            query = DagRun.apply_partition_date_window(
+                query,
+                timetable=dag.timetable,
+                start=(
+                    datetime.datetime.combine(partition_date_gte, datetime.time.min)
+                    if partition_date_gte is not None
+                    else None
+                ),
+                end=(
+                    datetime.datetime.combine(
+                        partition_date_lte + datetime.timedelta(days=1), datetime.time.min
+                    )
+                    if partition_date_lte is not None
+                    else None
+                ),
+                end_exclusive=True,
+            )
 
     # Add join with DagVersion if dag_version filter is active
     if dag_version.value:
@@ -601,6 +659,7 @@ def get_dag_runs(
         partition_key_pattern,
         partition_key_prefix_pattern,
         consuming_asset_pattern,
+        teams,
     ]
 
     if use_cursor:
@@ -634,6 +693,7 @@ def get_dag_runs(
             has_next = has_more
 
         attach_dag_versions_to_runs(dag_runs, session=session)
+        attach_team_names(dag_runs, session=session)
 
         return DAGRunCollectionResponse(
             dag_runs=dag_runs,
@@ -653,6 +713,7 @@ def get_dag_runs(
     )
     dag_runs = list(session.scalars(dag_run_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
+    attach_team_names(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,

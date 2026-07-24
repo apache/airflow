@@ -263,7 +263,6 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
         self._deploy_mode = deploy_mode
         self._hook: SparkSubmitHook | None = None
         self.post_submit_commands = post_submit_commands
-        self._post_submit_commands = list(post_submit_commands) if post_submit_commands else []
         self._conn_id = conn_id
         self._use_krb5ccache = use_krb5ccache
         self._yarn_track_via_rm_api = yarn_track_via_rm_api

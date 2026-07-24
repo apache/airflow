@@ -8,6 +8,7 @@
     "Variables": "Variables"
   },
   "allOperators": "All Operators",
+  "allTeams": "All Teams",
   "appearance": {
     "appearance": "Appearance",
     "darkMode": "Dark Mode",
@@ -57,7 +58,8 @@
     "owner": "Owner",
     "params": "Params",
     "schedule": "Schedule",
-    "tags": "Tags"
+    "tags": "Tags",
+    "team": "Team"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -324,6 +326,7 @@
     "from": "From",
     "maxActiveRuns": "Max Active Runs",
     "noTagsFound": "No tags found",
+    "noTeamsFound": "No teams found",
     "tagMode": {
       "all": "All",
       "any": "Any"

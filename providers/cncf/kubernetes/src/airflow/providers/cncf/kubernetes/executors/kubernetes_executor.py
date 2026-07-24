@@ -30,9 +30,11 @@ import logging
 import multiprocessing
 import time
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from itertools import chain
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
 
@@ -68,6 +70,7 @@ if TYPE_CHECKING:
     from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
 
+    from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
@@ -154,6 +157,14 @@ class KubernetesExecutor(BaseExecutor):
         # instead of requeuing. The orphaned task instance itself is still recovered by the
         # scheduler's adopt_or_reset_orphaned_tasks(), which re-queues it with a fresh attempt.
         self.pod_launch_attempts: dict[TaskInstanceKey, _PodLaunchAttempt] = {}
+        self.RUNNING_POD_LOG_LINES = self.conf.getint(
+            "kubernetes_executor", "running_pod_log_lines", fallback=KubernetesExecutor.RUNNING_POD_LOG_LINES
+        )
+        if self.RUNNING_POD_LOG_LINES <= 0:
+            raise ValueError(
+                "The [kubernetes_executor] running_pod_log_lines configuration must be greater than 0, "
+                f"got {self.RUNNING_POD_LOG_LINES}."
+            )
         self.completed: dict[tuple[str, str], KubernetesResults] = {}
         self.create_pods_after: datetime | None = None
 
@@ -728,15 +739,32 @@ class KubernetesExecutor(BaseExecutor):
         return namespace or self.conf.get("kubernetes_executor", "namespace")
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
-        messages = []
-        log = []
+        messages: list[str] = []
+        log: list[str] = []
+        try:
+            messages, log_streams = self.get_streaming_task_log(ti, try_number)
+            log = ["\n".join(stream) for stream in log_streams]
+        except Exception as e:
+            messages.append(f"Reading from k8s pod logs failed: {e}")
+        return messages, log or [""]
+
+    @staticmethod
+    def _create_log_stream(logs: Iterable[bytes]) -> RawLogStream:
+        for line in logs:
+            yield remove_escape_codes(line.decode())
+
+    def get_streaming_task_log(self, ti: TaskInstance, try_number: int) -> StreamingLogResponse:
+        messages: list[str] = []
+        log_streams: list[RawLogStream] = []
+
         try:
             from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
             client = get_kube_client()
 
-            messages.append(f"Attempting to fetch logs from pod {ti.hostname} through kube API")
+            hostname_desc = f" {ti.hostname}" if ti.hostname else ""
+            messages.append(f"Attempting to fetch logs from pod{hostname_desc} through kube API")
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -762,13 +790,16 @@ class KubernetesExecutor(BaseExecutor):
                 tail_lines=self.RUNNING_POD_LOG_LINES,
                 _preload_content=False,
             )
-            for line in res:
-                log.append(remove_escape_codes(line.decode()))
-            if log:
+
+            log_iter = iter(res)
+            first_line = next(log_iter, None)
+            if first_line is not None:
+                log_streams.append(self._create_log_stream(chain([first_line], log_iter)))
                 messages.append("Found logs through kube API")
         except Exception as e:
             messages.append(f"Reading from k8s pod logs failed: {e}")
-        return messages, ["\n".join(log)]
+
+        return messages, log_streams
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         with Stats.timer(
