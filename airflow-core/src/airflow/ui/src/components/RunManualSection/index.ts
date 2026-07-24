@@ -17,5 +17,5 @@
  * under the License.
  */
 export { default as RunManualSectionButton, RunManualSectionAction } from "./RunManualSectionButton";
-export { isRunnableManualGate } from "./manualSectionTarget";
+export { getManualSectionTarget, isRunnableManualGate } from "./manualSectionTarget";
 export type { ManualSectionTarget } from "./manualSectionTarget";

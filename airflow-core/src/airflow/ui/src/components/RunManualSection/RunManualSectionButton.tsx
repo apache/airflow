@@ -30,7 +30,11 @@ import { Checkbox, Dialog, IconButton } from "src/components/ui";
 import { useRunManualSection } from "src/queries/useRunManualSection";
 import { useRunManualSectionDryRun } from "src/queries/useRunManualSectionDryRun";
 
-import { isRunnableManualGate, type ManualSectionTarget } from "./manualSectionTarget";
+import {
+  getManualSectionTarget,
+  isRunnableManualGate,
+  type ManualSectionTarget,
+} from "./manualSectionTarget";
 
 type Props = {
   readonly taskInstance: TaskInstanceResponse;
@@ -153,21 +157,8 @@ export const RunManualSectionAction = ({ buttonProps, onButtonClick, target }: A
   );
 };
 
-const taskInstanceToManualSectionTarget = (taskInstance: TaskInstanceResponse): ManualSectionTarget => ({
-  dagId: taskInstance.dag_id,
-  dagRunId: taskInstance.dag_run_id,
-  mapIndex: taskInstance.map_index,
-  note: taskInstance.note,
-  operator: taskInstance.operator,
-  operatorName: taskInstance.operator_name,
-  startDate: taskInstance.start_date,
-  state: taskInstance.state,
-  taskDisplayName: taskInstance.task_display_name,
-  taskId: taskInstance.task_id,
-});
-
 const RunManualSectionButton = ({ taskInstance }: Props) => {
-  const target = taskInstanceToManualSectionTarget(taskInstance);
+  const target = getManualSectionTarget(taskInstance);
 
   return isRunnableManualGate(target) ? <RunManualSectionAction target={target} /> : null;
 };
