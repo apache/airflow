@@ -498,10 +498,6 @@ class KubernetesExecutor(BaseExecutor):
         if queued_event is not None and queued_event[0] == TaskInstanceState.QUEUED:
             self.event_buffer.pop(task.key, None)
         self.task_publish_retries.pop(task.key, None)
-        Stats.incr(
-            "kubernetes_executor.stale_workload_dropped",
-            tags=prune_dict({"team_name": self.team_name}),
-        )
 
     def sync(self) -> None:
         """Synchronize task state."""
