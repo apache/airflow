@@ -333,6 +333,35 @@ class TestSSHRemoteJobOperator:
         call_args = self.mock_hook.exec_ssh_client_command.call_args
         assert "rm -rf" in call_args[0][1]
 
+    def test_execute_complete_with_cleanup_custom_remote_base_dir(self):
+        """Test execute_complete performs cleanup under a custom remote base directory."""
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            cleanup="on_success",
+            remote_base_dir="/tmp-data/airflow-ssh-jobs",
+        )
+
+        event = {
+            "done": True,
+            "status": "success",
+            "exit_code": 0,
+            "job_id": "test_job_123",
+            "job_dir": "/tmp-data/airflow-ssh-jobs/test_job_123",
+            "log_file": "/tmp-data/airflow-ssh-jobs/test_job_123/stdout.log",
+            "exit_code_file": "/tmp-data/airflow-ssh-jobs/test_job_123/exit_code",
+            "log_chunk": "",
+            "log_offset": 0,
+            "remote_os": "posix",
+        }
+
+        op.execute_complete({}, event)
+
+        self.mock_hook.exec_ssh_client_command.assert_called_once()
+        call_args = self.mock_hook.exec_ssh_client_command.call_args
+        assert call_args[0][1] == "rm -rf '/tmp-data/airflow-ssh-jobs/test_job_123'"
+
     def test_on_kill(self):
         """Test on_kill attempts to kill remote process."""
         op = SSHRemoteJobOperator(
@@ -460,3 +489,17 @@ class TestSSHRemoteJobOperator:
             op._cleanup_remote_job("/tmp/airflow-ssh-jobs/test_job_123", "posix")
 
         assert self.mock_hook.exec_ssh_client_command.call_count == 3
+
+    def test_cleanup_validation_failure_leaves_directory_without_raising(self, caplog):
+        """A cleanup validation failure leaves the remote directory in place."""
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_base_dir="/tmp-data/airflow-ssh-jobs",
+        )
+
+        op._cleanup_remote_job("/tmp/airflow-ssh-jobs/test_job_123", "posix")
+
+        self.mock_hook.exec_ssh_client_command.assert_not_called()
+        assert "Cleanup validation failed" in caplog.text
