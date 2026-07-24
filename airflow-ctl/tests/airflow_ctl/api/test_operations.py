@@ -1157,6 +1157,36 @@ class TestDagOperations:
         response = client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
         assert response == self.dag_run_response
 
+    def test_trigger_excludes_none_fields_from_request_body(self):
+        """Regression test: trigger() must exclude unset (None) fields from the
+        request body. Older API servers reject unrecognized fields (e.g.
+        partition_key, bundle_version, added in a later API version) with a
+        422 extra_forbidden error if they're present at all, even as null.
+        """
+        captured_body = {}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            nonlocal captured_body
+            captured_body = json.loads(request.content)
+            return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client.dags.trigger(dag_id=self.dag_id, trigger_dag_run=self.trigger_dag_run)
+
+        # conf is explicitly defaulted to {} by trigger() when unset, so it's expected.
+        assert captured_body == {"conf": {}}
+        for field in (
+            "dag_run_id",
+            "data_interval_start",
+            "data_interval_end",
+            "logical_date",
+            "run_after",
+            "note",
+            "partition_key",
+            "bundle_version",
+        ):
+            assert field not in captured_body, f"{field} should be excluded when unset"
+
 
 class TestDagRunOperations:
     dag_id = "dag_id"
