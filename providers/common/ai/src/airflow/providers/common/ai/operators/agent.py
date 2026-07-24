@@ -18,14 +18,13 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
@@ -492,16 +491,11 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
                 output,
                 message_history=result.all_messages(),
             )
-            if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
-                return rehydrate_pydantic_output(
-                    self.output_type,
-                    result_str,
-                    serialize_output=self._serialize_model_output,
-                )
-            try:
-                return json.loads(result_str)
-            except (ValueError, TypeError):
-                return result_str
+            return rehydrate_pydantic_output(
+                self.output_type,
+                result_str,
+                serialize_output=self._serialize_model_output,
+            )
 
         if self._serialize_model_output and isinstance(output, BaseModel):
             output = output.model_dump()
@@ -555,4 +549,6 @@ class AgentOperator(BaseOperator, HITLReviewMixin):
         output = result.output
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
-        return str(output), result.all_messages()
+        elif not isinstance(output, str):
+            output = TypeAdapter(type(output)).dump_json(output).decode()
+        return output, result.all_messages()

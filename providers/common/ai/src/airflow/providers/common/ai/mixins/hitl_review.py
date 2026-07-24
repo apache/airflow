@@ -21,7 +21,7 @@ import time
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.utils.hitl_review import (
@@ -271,5 +271,5 @@ class HITLReviewMixin:
         if isinstance(output, BaseModel):
             return output.model_dump_json()
         if not isinstance(output, str):
-            return str(output)
+            return TypeAdapter(type(output)).dump_json(output).decode()
         return output
