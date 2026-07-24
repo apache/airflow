@@ -1044,6 +1044,52 @@ class _TeamsFilter(BaseParam[list[str]]):
         return cls().set_value(teams)
 
 
+class _DagIdTeamsFilter(BaseParam[list[str]]):
+    """Filter rows by team name through their ``dag_id`` (via bundle association)."""
+
+    def __init__(
+        self,
+        dag_id_attribute: ColumnElement | InstrumentedAttribute,
+        value: list[str] | None = None,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(value, skip_none)
+        self.dag_id_attribute = dag_id_attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        from airflow.models.team import Team
+
+        return select.where(
+            self.dag_id_attribute.in_(
+                sql_select(DagModel.dag_id)
+                .join(DagBundleModel, DagModel.bundle_name == DagBundleModel.name)
+                .join(DagBundleModel.teams)
+                .where(Team.name.in_(self.value))
+            )
+        )
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use teams_filter_factory instead, depends is not implemented.")
+
+
+def teams_filter_factory(
+    dag_id_attribute: ColumnElement | InstrumentedAttribute,
+) -> Callable[[list[str]], _DagIdTeamsFilter]:
+    """Build a ``teams`` filter that scopes rows by team through the given ``dag_id`` column."""
+
+    def depends_teams_filter(teams: list[str] = Query(default_factory=list)) -> _DagIdTeamsFilter:
+        return _DagIdTeamsFilter(dag_id_attribute).set_value(teams)
+
+    return depends_teams_filter
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.

@@ -226,6 +226,24 @@ class PlainOperator:
         return None
 
 
+class ManuallyDurableOperator:
+    """Implements durable execution directly (e.g. via task_state_store), without
+    ResumableJobMixin -- mirrors KubernetesPodOperator/AgentOperator."""
+
+    __supports_durable_execution = True
+
+    def execute(self, context):
+        return None
+
+
+class ManuallyDurableSubclass(ManuallyDurableOperator):
+    """Overrides execute() itself -- must NOT inherit the parent's declaration,
+    since nothing here verifies it preserves the reconnect behavior."""
+
+    def execute(self, context):
+        return "something else entirely"
+
+
 class TestIsDurableCapable:
     def test_fully_implemented_and_wired_qualifies(self):
         assert is_durable_capable(FullyImplementedResumableOperator, FakeResumableJobMixin) is True
@@ -241,6 +259,12 @@ class TestIsDurableCapable:
 
     def test_mixin_unavailable_disqualifies(self):
         assert is_durable_capable(FullyImplementedResumableOperator, None) is False
+
+    def test_manual_durable_marker_qualifies_without_mixin(self):
+        assert is_durable_capable(ManuallyDurableOperator, None) is True
+
+    def test_subclass_not_redeclaring_marker_disqualifies(self):
+        assert is_durable_capable(ManuallyDurableSubclass, FakeResumableJobMixin) is False
 
 
 # ---------------------------------------------------------------------------
