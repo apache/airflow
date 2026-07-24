@@ -90,7 +90,7 @@ def _aggregate_detailed_status(jobs: list[Job]) -> str:
 def get_airflow_health() -> dict[str, Any]:
     """Get the health for Airflow metadatabase, scheduler, triggerer, and dag processor."""
     metadatabase_status = HEALTHY
-    
+
     latest_scheduler_heartbeat = None
     latest_triggerer_heartbeat = None
     latest_dag_processor_heartbeat = None
@@ -107,7 +107,6 @@ def get_airflow_health() -> dict[str, Any]:
     triggerer_detailed_status: str | None = UNHEALTHY
     dag_processor_detailed_status: str | None = UNHEALTHY
 
-    # --- Scheduler ---
     try:
         scheduler_jobs = get_jobs_health(SchedulerJobRunner)
         if scheduler_jobs:
@@ -116,24 +115,22 @@ def get_airflow_health() -> dict[str, Any]:
             scheduler_instances = [
                 _job_instance_health(job, "latest_scheduler_heartbeat") for job in scheduler_jobs
             ]
-            
+
             if scheduler_jobs[0].latest_heartbeat:
                 latest_scheduler_heartbeat = scheduler_jobs[0].latest_heartbeat.isoformat()
     except Exception:
         metadatabase_status = UNHEALTHY
 
-    # --- Triggerer ---
     try:
         triggerer_jobs = get_jobs_health(TriggererJobRunner)
         if triggerer_jobs:
             triggerer_status = _legacy_status(triggerer_jobs)
             triggerer_detailed_status = _aggregate_detailed_status(triggerer_jobs)
             triggerer_instances = [_triggerer_instance_health(job) for job in triggerer_jobs]
-            
+
             if triggerer_jobs[0].latest_heartbeat:
                 latest_triggerer_heartbeat = triggerer_jobs[0].latest_heartbeat.isoformat()
         else:
-            # If no active/alive running triggerers exist, report old fallback defaults
             triggerer_status = None
             triggerer_detailed_status = None
     except Exception:
@@ -141,14 +138,13 @@ def get_airflow_health() -> dict[str, Any]:
         triggerer_status = UNHEALTHY
         triggerer_detailed_status = UNHEALTHY
 
-    # --- DAG Processor ---
     try:
         dag_processor_jobs = get_jobs_health(DagProcessorJobRunner)
         if dag_processor_jobs:
             dag_processor_status = _legacy_status(dag_processor_jobs)
             dag_processor_detailed_status = _aggregate_detailed_status(dag_processor_jobs)
             dag_processor_instances = [_dag_processor_instance_health(job) for job in dag_processor_jobs]
-            
+
             if dag_processor_jobs[0].latest_heartbeat:
                 latest_dag_processor_heartbeat = dag_processor_jobs[0].latest_heartbeat.isoformat()
         else:
