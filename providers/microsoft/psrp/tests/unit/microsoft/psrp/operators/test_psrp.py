@@ -41,12 +41,9 @@ class ExecuteParameter(NamedTuple):
 class TestPsrpOperator:
     def test_no_command_or_powershell(self):
         exception_msg = "Must provide exactly one of 'command', 'powershell', or 'cmdlet'"
+        op = PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID)
         with pytest.raises(ValueError, match=exception_msg):
-            PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID)
-
-    def test_cmdlet_task_id_default(self):
-        operator = PsrpOperator(cmdlet="Invoke-Foo", psrp_conn_id=CONNECTION_ID)
-        assert operator.task_id == "Invoke-Foo"
+            op.execute(None)
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize(
@@ -116,14 +113,14 @@ class TestPsrpOperator:
         assert ps.mock_calls == expected_ps_calls
 
     def test_securestring_sandboxed(self):
-        op = PsrpOperator(psrp_conn_id=CONNECTION_ID, cmdlet="test")
+        op = PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, cmdlet="test")
         template = op.get_template_env().from_string("{{ 'foo' | securestring }}")
         with pytest.raises(AirflowException):
             template.render()
 
     @patch.object(BaseOperator, "get_template_env")
     def test_securestring_native(self, get_template_env):
-        op = PsrpOperator(psrp_conn_id=CONNECTION_ID, cmdlet="test")
+        op = PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, cmdlet="test")
         get_template_env.return_value = NativeEnvironment()
         template = op.get_template_env().from_string("{{ 'foo' | securestring }}")
         rendered = template.render()
