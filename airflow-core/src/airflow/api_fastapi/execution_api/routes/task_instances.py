@@ -344,6 +344,7 @@ def ti_run(
                     "Serialized arg_bindings spec failed validation",
                     dag_id=ti.dag_id,
                     task_id=ti.task_id,
+                    dag_version_id=ti.dag_version_id,
                 )
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

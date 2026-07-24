@@ -3425,18 +3425,28 @@ def test_stub_task_args_round_trip():
     assert encoded_tasks["transform"]["_arg_bindings"] == [
         {
             Encoding.TYPE: DAT.DICT,
-            Encoding.VAR: {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
+            Encoding.VAR: {
+                "name": "country",
+                "kind": "literal",
+                "value_schema": {Encoding.TYPE: DAT.DICT, Encoding.VAR: {"type": "string"}},
+                "value": "uk",
+            },
         },
         {
             Encoding.TYPE: DAT.DICT,
-            Encoding.VAR: {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
+            Encoding.VAR: {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {Encoding.TYPE: DAT.DICT, Encoding.VAR: {"type": "object"}},
+                "task_id": "extract",
+            },
         },
     ]
 
     round_tripped = DagSerialization.from_dict(ser_dag)
     assert round_tripped.task_dict["transform"]._arg_bindings == [
-        {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-        {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
+        {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+        {"name": "extracted", "kind": "xcom", "value_schema": {"type": "object"}, "task_id": "extract"},
     ]
     assert not hasattr(round_tripped.task_dict["extract"], "_arg_bindings") or (
         round_tripped.task_dict["extract"]._arg_bindings is None

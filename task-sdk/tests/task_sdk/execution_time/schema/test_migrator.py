@@ -420,12 +420,18 @@ class TestRealBundleArgBindingsDowngrade:
                 ),
                 max_tries=1,
                 arg_bindings=[
-                    {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-                    {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
+                    # No value_schema: the unconstrained ("any") case rides through the migrator too.
+                    {"name": "country", "kind": "literal", "value": "uk"},
+                    {
+                        "name": "extracted",
+                        "kind": "xcom",
+                        "value_schema": {"type": "object"},
+                        "task_id": "extract",
+                    },
                     {
                         "name": "limit",
                         "kind": "literal",
-                        "data_type": "integer",
+                        "value_schema": {"type": "integer", "format": "int64"},
                         "value": 10,
                         "from_default": True,
                     },
@@ -443,17 +449,20 @@ class TestRealBundleArgBindingsDowngrade:
         assert "arg_bindings" not in out["ti_context"]
 
     def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
-        from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
+        from airflow.sdk.api.datamodels._generated import JsonSchemaType, LiteralArgBinding, XComArgBinding
 
-        out = real_migrator.downgrade(startup_details, "2026-07-30")
+        out = real_migrator.downgrade(startup_details, "2026-10-30")
         assert out.ti_context.arg_bindings is not None
         literal, xcom, defaulted = (a.root for a in out.ti_context.arg_bindings)
         assert isinstance(literal, LiteralArgBinding)
         assert literal.value == "uk"
         assert literal.name == "country"
         assert literal.from_default is False
+        assert literal.value_schema is None
         assert isinstance(xcom, XComArgBinding)
         assert xcom.task_id == "extract"
         assert xcom.name == "extracted"
+        assert xcom.value_schema.type == JsonSchemaType.OBJECT
         assert isinstance(defaulted, LiteralArgBinding)
         assert defaulted.from_default is True
+        assert defaulted.value_schema.format == "int64"

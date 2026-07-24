@@ -1,21 +1,44 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "api_version": "2026-07-30",
+  "api_version": "2026-10-30",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
-    "ArgBindingDataType": {
-      "description": "Language-neutral value type a stub-task argument binds to in the foreign runtime.",
-      "enum": [
-        "string",
-        "integer",
-        "number",
-        "boolean",
-        "object",
-        "array",
-        "any"
-      ],
-      "title": "ArgBindingDataType",
-      "type": "string"
+    "ArgValueSchema": {
+      "description": "JSON-schema fragment constraining the value a stub-task argument binds to.\n\nOnly the ``type`` and ``format`` keywords are carried today, with their standard\nJSON-schema semantics: ``type`` is asserted by the runtime, ``format`` is an\nannotation a runtime may additionally check. Unknown keywords from newer providers\nare ignored rather than rejected (as JSON-schema consumers do), so a core on this\nversion keeps serving specs written by a newer provider.",
+      "properties": {
+        "type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/JsonSchemaType"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/JsonSchemaType"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        },
+        "format": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Format"
+        }
+      },
+      "title": "ArgValueSchema",
+      "type": "object"
     },
     "AssetAliasReferenceAssetEventDagRun": {
       "additionalProperties": false,
@@ -3059,6 +3082,19 @@
       "title": "InactiveAssetsResult",
       "type": "object"
     },
+    "JsonSchemaType": {
+      "enum": [
+        "string",
+        "integer",
+        "number",
+        "boolean",
+        "object",
+        "array",
+        "null"
+      ],
+      "title": "JsonSchemaType",
+      "type": "string"
+    },
     "JsonValue": {},
     "LazyDeserializedDAG": {
       "description": "Lazily build information from the serialized DAG structure.\n\nAn object that will present \"enough\" of the DAG like interface to update DAG db models etc, without having\nto deserialize the full DAG and Task hierarchy.",
@@ -4403,6 +4439,42 @@
       "title": "VariableResult",
       "type": "object"
     },
+    "XComArgBinding": {
+      "description": "One positional stub-task argument pulled from an upstream task's XCom.",
+      "properties": {
+        "kind": {
+          "const": "xcom",
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "task_id"
+      ],
+      "title": "XComArgBinding",
+      "type": "object"
+    },
     "XComCountResponse": {
       "properties": {
         "len": {
@@ -4589,9 +4661,16 @@
           "title": "Name",
           "type": "string"
         },
-        "data_type": {
-          "$ref": "#/$defs/ArgBindingDataType",
-          "default": "any"
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "value": {
           "anyOf": [
@@ -4634,35 +4713,6 @@
         }
       ],
       "title": "TaskArgBinding"
-    },
-    "XComArgBinding": {
-      "description": "One positional stub-task argument pulled from an upstream task's XCom.",
-      "properties": {
-        "kind": {
-          "const": "xcom",
-          "title": "Kind",
-          "type": "string"
-        },
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "data_type": {
-          "$ref": "#/$defs/ArgBindingDataType",
-          "default": "any"
-        },
-        "task_id": {
-          "title": "Task Id",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "name",
-        "task_id"
-      ],
-      "title": "XComArgBinding",
-      "type": "object"
     },
     "AssetEventDagRunReference": {
       "additionalProperties": false,

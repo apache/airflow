@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+import datetime
 import inspect
 import json
 import types
@@ -38,43 +39,84 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
-def _infer_data_type(annotation: Any) -> str:
-    """
-    Map a stub function parameter annotation to the language-neutral arg-type vocabulary.
-
-    The returned name is one of the execution API's ``ArgBindingDataType`` values
-    (``string``/``integer``/``number``/``boolean``/``object``/``array``/``any``); the foreign
-    runtime type-checks the bound value against it. Anything we cannot classify confidently
-    maps to ``any`` so binding falls back to a decode-only check.
-    """
-    if annotation is inspect.Parameter.empty or annotation is None or annotation is Any:
-        return "any"
+def _json_schema_fragment(annotation: Any) -> dict[str, Any] | None:
+    """Map one non-union annotation to a JSON-schema fragment; ``None`` = unclassifiable."""
+    if annotation is type(None):
+        return {"type": "null"}
     origin = typing.get_origin(annotation)
     if origin is not None:
-        if origin is Union or origin is types.UnionType:
-            members = [a for a in typing.get_args(annotation) if a is not type(None)]
-            if len(members) == 1:
-                return _infer_data_type(members[0])
-            return "any"
         annotation = origin
     if not isinstance(annotation, type):
-        return "any"
-    # bool subclasses int, and str/bytes are Sequences -- order matters.
+        return None
+    # bool subclasses int, str/bytes are Sequences, and datetime subclasses date -- order matters.
     if issubclass(annotation, bool):
-        return "boolean"
+        return {"type": "boolean"}
     if issubclass(annotation, int):
-        return "integer"
+        return {"type": "integer", "format": "int64"}
     if issubclass(annotation, float):
-        return "number"
+        return {"type": "number", "format": "double"}
     if issubclass(annotation, str):
-        return "string"
+        return {"type": "string"}
     if issubclass(annotation, bytes):
-        return "any"
+        return None
+    if issubclass(annotation, datetime.datetime):
+        return {"type": "string", "format": "date-time"}
+    if issubclass(annotation, datetime.date):
+        return {"type": "string", "format": "date"}
+    if issubclass(annotation, datetime.time):
+        return {"type": "string", "format": "time"}
+    if issubclass(annotation, datetime.timedelta):
+        return {"type": "string", "format": "duration"}
     if issubclass(annotation, (dict, Mapping)):
-        return "object"
+        return {"type": "object"}
     if issubclass(annotation, (list, tuple, set, frozenset, Sequence)):
-        return "array"
-    return "any"
+        return {"type": "array"}
+    return None
+
+
+def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
+    """
+    Map a stub function parameter annotation to a JSON-schema fragment.
+
+    Fragments carry the standard ``type`` keyword -- a single name, or a list for union
+    annotations (set semantics; member order follows the annotation) -- plus a ``format``
+    annotation where the Python type implies a wire representation the type name alone
+    cannot (``int`` -> ``int64``, ``datetime`` -> ``date-time``, ``timedelta`` ->
+    ``duration``, ...). Returns ``None`` when the annotation gives no constraint; the
+    binding then omits ``value_schema`` and the foreign runtime falls back to a
+    decode-only check.
+    """
+    if annotation is inspect.Parameter.empty or annotation is None or annotation is Any:
+        return None
+    if annotation is type(None):
+        # get_type_hints normalizes a bare ``None`` annotation to NoneType; a parameter
+        # that can only ever be None constrains nothing worth shipping.
+        return None
+    origin = typing.get_origin(annotation)
+    if origin is Union or origin is types.UnionType:
+        fragments: list[dict[str, Any]] = []
+        for member in typing.get_args(annotation):
+            fragment = _json_schema_fragment(member)
+            if fragment is None:
+                # One unclassifiable member makes the whole union unconstrained: a
+                # partial schema would wrongly reject that member's values.
+                return None
+            if fragment not in fragments:
+                fragments.append(fragment)
+        data_fragments = [f for f in fragments if f["type"] != "null"]
+        if len(data_fragments) == 1:
+            # A single data type (+ optional null) keeps its format: format only
+            # constrains values of its own type, so null passes it untouched.
+            schema = dict(data_fragments[0])
+            if len(fragments) > len(data_fragments):
+                schema["type"] = [schema["type"], "null"]
+            return schema
+        # Mixed-type union: formats are per-member and inexpressible in one flat
+        # fragment, so carry the type names only.
+        type_names = [f["type"] for f in fragments]
+        deduped = list(dict.fromkeys(type_names))
+        return {"type": deduped if len(deduped) > 1 else deduped[0]}
+    return _json_schema_fragment(annotation)
 
 
 def _build_arg_bindings(
@@ -134,7 +176,7 @@ def _build_arg_bindings(
     spec: list[dict[str, Any]] = []
     for name, param in signature.parameters.items():
         value = bound.arguments[name]
-        data_type = _infer_data_type(get_annotation_for(name, param))
+        value_schema = _infer_value_schema(get_annotation_for(name, param))
         if isinstance(value, PlainXComArg):
             if value.key != "return_value":
                 raise ValueError(
@@ -142,14 +184,10 @@ def _build_arg_bindings(
                     f"{value.key!r}; only an upstream task's return value can cross the language "
                     "boundary -- indexing an output by a custom key is not supported"
                 )
-            spec.append(
-                {
-                    "name": name,
-                    "kind": "xcom",
-                    "data_type": data_type,
-                    "task_id": value.operator.task_id,
-                }
-            )
+            xcom_entry: dict[str, Any] = {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
+            if value_schema is not None:
+                xcom_entry["value_schema"] = value_schema
+            spec.append(xcom_entry)
             continue
         if isinstance(value, XComArg):
             raise ValueError(
@@ -165,7 +203,11 @@ def _build_arg_bindings(
                 f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
                 "to the foreign runtime"
             )
-        entry: dict[str, Any] = {"name": name, "kind": "literal", "data_type": data_type, "value": value}
+        entry: dict[str, Any] = {"name": name, "kind": "literal", "value": value}
+        if value_schema is not None:
+            # Key omission (never ``None``) is the wire contract for "unconstrained":
+            # ti_run responds with ``exclude_unset``, so an absent key stays absent.
+            entry["value_schema"] = value_schema
         if name not in explicitly_bound:
             entry["from_default"] = True
         spec.append(entry)
@@ -175,11 +217,14 @@ def _build_arg_bindings(
 class _StubOperator(DecoratedOperator):
     custom_operator_name: str = "@task.stub"
 
-    # Mapped stubs would need per-map-index arg specs, which the foreign runtime cannot
-    # receive yet. The task-sdk decorator machinery rejects direct .expand() at parse time
-    # for operator classes that opt out on Airflow >= 3.4 (older cores cannot enforce it,
-    # and never serialize a spec for the mapped stub); stubs called with arguments inside
-    # a mapped task group are rejected in __init__ below.
+    # A mapped stub's arg *types* are uniform across map indexes (same function), but its
+    # arg *values* only resolve per map index at runtime, while the spec below is captured
+    # at parse time and the wire contract has no mapped-binding kind yet -- so .expand()
+    # is rejected rather than shipped with a wrong or empty spec. The task-sdk decorator
+    # machinery rejects direct .expand() at parse time for operator classes that opt out
+    # on Airflow >= 3.4 (older cores cannot enforce it, and never serialize a spec for the
+    # mapped stub); stubs called with arguments inside a mapped task group are rejected in
+    # __init__ below.
     supports_expand: bool = False
 
     def __init__(
@@ -229,14 +274,15 @@ class _StubOperator(DecoratedOperator):
         self._arg_bindings = _build_arg_bindings(python_callable, self.op_args, self.op_kwargs, self.task_id)
 
         # supports_expand only blocks direct .expand() on the stub itself; a mapped task
-        # group still creates per-map-index instances of every task inside it, and the
-        # captured spec has no map-index dimension to bind against.
+        # group still creates per-map-index instances of every task inside it, whose arg
+        # values resolve per map index at runtime -- after this parse-time capture.
         in_mapped_group = getattr(self, "get_closest_mapped_task_group", lambda: None)() is not None
         if self._arg_bindings is not None and in_mapped_group:
             raise ValueError(
                 f"@task.stub task {self.task_id!r} passes TaskFlow call arguments inside a mapped "
-                "task group; per-map-index arg specs cannot cross the language boundary yet, so "
-                "stub tasks with arguments are not supported under a task group's .expand()"
+                "task group; the captured spec cannot carry values that resolve per map index at "
+                "runtime, so stub tasks with arguments are not supported under a task group's "
+                ".expand()"
             )
 
     @classmethod
@@ -264,7 +310,7 @@ def stub(
 
     Stub functions may declare parameters and be called TaskFlow-style with upstream task
     outputs or JSON-serializable literals; the resulting argument-binding spec (parameter
-    names, declared types, and values, in declaration order) is delivered to the foreign
+    names, value schemas, and values, in declaration order) is delivered to the foreign
     runtime, which binds the values onto the native task function.
     """
     return task_decorator_factory(

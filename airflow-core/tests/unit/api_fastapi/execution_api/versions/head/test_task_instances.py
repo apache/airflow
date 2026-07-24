@@ -400,9 +400,15 @@ class TestTIRunState:
         response = client.patch(f"/execution/task-instances/{tis['transform'].id}/run", json=payload)
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
-            {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-            {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "extract"},
-            {"name": "limit", "kind": "literal", "data_type": "integer", "value": 10, "from_default": True},
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+            {"name": "extracted", "kind": "xcom", "value_schema": {"type": "object"}, "task_id": "extract"},
+            {
+                "name": "limit",
+                "kind": "literal",
+                "value_schema": {"type": "integer", "format": "int64"},
+                "value": 10,
+                "from_default": True,
+            },
         ]
 
         # An argless stub has no captured spec, so the field stays unset.
@@ -451,6 +457,23 @@ class TestTIRunState:
             get_arg_bindings_adapter().validate_python(
                 [{"name": "country", "kind": "template", "value": "x"}]
             )
+
+    def test_arg_bindings_adapter_tolerates_unknown_value_schema_keyword(self):
+        """A JSON-schema keyword this core version does not know (e.g. from a newer provider)
+        must not fail the spec -- JSON-schema consumers ignore unknown keywords by design."""
+        from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
+
+        (binding,) = get_arg_bindings_adapter().validate_python(
+            [
+                {
+                    "name": "tags",
+                    "kind": "literal",
+                    "value_schema": {"type": "array", "items": {"type": "string"}},
+                    "value": ["a"],
+                }
+            ]
+        )
+        assert binding.value_schema.type == "array"
 
     def test_dynamic_task_mapping_with_parse_time_value(self, client, dag_maker):
         """Test that dynamic task mapping works correctly with parse-time values."""

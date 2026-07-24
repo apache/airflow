@@ -24,7 +24,6 @@ so it can bind the values onto the native task function's parameters.
 
 from __future__ import annotations
 
-from enum import Enum
 from functools import cache
 from typing import Annotated, Literal
 
@@ -33,29 +32,52 @@ from typing_extensions import TypeAliasType
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
+# A named alias (like TaskArgBinding below) so both union branches of ArgValueSchema.type
+# reference one shared schema definition instead of two inlined enum copies; the explicit
+# title lets the supervisor-schema dump merge this def with the task-sdk-generated twin.
+JsonSchemaType = TypeAliasType(
+    "JsonSchemaType",
+    Annotated[
+        Literal["string", "integer", "number", "boolean", "object", "array", "null"],
+        Field(title="JsonSchemaType"),
+    ],
+)
+"""JSON-schema primitive type names a stub-task argument annotation can map to."""
 
-class ArgBindingDataType(str, Enum):
-    """Language-neutral value type a stub-task argument binds to in the foreign runtime."""
 
-    STRING = "string"
-    INTEGER = "integer"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    OBJECT = "object"
-    ARRAY = "array"
-    ANY = "any"
+class ArgValueSchema(BaseModel):
+    """
+    JSON-schema fragment constraining the value a stub-task argument binds to.
+
+    Only the ``type`` and ``format`` keywords are carried today, with their standard
+    JSON-schema semantics: ``type`` is asserted by the runtime, ``format`` is an
+    annotation a runtime may additionally check. Unknown keywords from newer providers
+    are ignored rather than rejected (as JSON-schema consumers do), so a core on this
+    version keeps serving specs written by a newer provider.
+    """
+
+    type: JsonSchemaType | list[JsonSchemaType] | None = None
+    """A single type name, a union of type names, or ``None`` when unconstrained."""
+
+    format: str | None = None
+    """Wire representation the type name alone cannot convey (``int64``, ``date-time``,
+    ``duration``, ...); open vocabulary, per JSON schema."""
 
 
 class XComArgBinding(BaseModel):
     """One positional stub-task argument pulled from an upstream task's XCom."""
 
+    # No default on the discriminator: a default drops ``kind`` from ``required`` in the
+    # OpenAPI schema, and the generated task-sdk client then types it ``Literal | None``,
+    # which pydantic rejects as a tagged-union discriminator.
     kind: Literal["xcom"]
 
     name: str
     """The stub function's parameter name this binding fills, in declaration order."""
 
-    data_type: ArgBindingDataType = ArgBindingDataType.ANY
-    """Declared type from the stub function's annotation; runtimes type-check against it."""
+    value_schema: ArgValueSchema | None = None
+    """JSON-schema fragment from the stub function's annotation; runtimes validate the
+    bound value against it. Omitted when the annotation gives no constraint."""
 
     task_id: str
     """Upstream task id to pull the XCom from; the ``return_value`` XCom is always the one pulled."""
@@ -65,12 +87,14 @@ class LiteralArgBinding(BaseModel):
     """One positional stub-task argument carrying an inline literal from the Dag file."""
 
     kind: Literal["literal"]
+    """No default, for the same generated-client reason as ``XComArgBinding.kind``."""
 
     name: str
     """The stub function's parameter name this binding fills, in declaration order."""
 
-    data_type: ArgBindingDataType = ArgBindingDataType.ANY
-    """Declared type from the stub function's annotation; runtimes type-check against it."""
+    value_schema: ArgValueSchema | None = None
+    """JSON-schema fragment from the stub function's annotation; runtimes validate the
+    bound value against it. Omitted when the annotation gives no constraint."""
 
     value: JsonValue | None = None
     """The literal value from the Dag file."""

@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 import contextlib
+import datetime
 import typing
 from typing import Any
 
+import pendulum
 import pytest
 
 from airflow.providers.common.compat.sdk import DAG, task_group
-from airflow.providers.standard.decorators.stub import _infer_data_type, stub
+from airflow.providers.standard.decorators.stub import _infer_value_schema, stub
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
@@ -102,12 +104,17 @@ class TestStubTaskflowArgs:
 
         op = result.operator
         assert op._arg_bindings == [
-            {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-            {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "fn_extract"},
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object"},
+                "task_id": "fn_extract",
+            },
             {
                 "name": "retries_num",
                 "kind": "literal",
-                "data_type": "integer",
+                "value_schema": {"type": "integer", "format": "int64"},
                 "value": 3,
                 "from_default": True,
             },
@@ -120,9 +127,19 @@ class TestStubTaskflowArgs:
             result = stub(fn_transform)(extracted=extracted, country="fr", retries_num=7)
 
         assert result.operator._arg_bindings == [
-            {"name": "country", "kind": "literal", "data_type": "string", "value": "fr"},
-            {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "fn_extract"},
-            {"name": "retries_num", "kind": "literal", "data_type": "integer", "value": 7},
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "fr"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object"},
+                "task_id": "fn_extract",
+            },
+            {
+                "name": "retries_num",
+                "kind": "literal",
+                "value_schema": {"type": "integer", "format": "int64"},
+                "value": 7,
+            },
         ]
 
     def test_explicitly_passing_the_default_value_is_not_from_default(self):
@@ -135,7 +152,7 @@ class TestStubTaskflowArgs:
         assert result.operator._arg_bindings[2] == {
             "name": "retries_num",
             "kind": "literal",
-            "data_type": "integer",
+            "value_schema": {"type": "integer", "format": "int64"},
             "value": 3,
         }
 
@@ -148,25 +165,24 @@ class TestStubTaskflowArgs:
     def test_zero_param_stub_has_no_spec(self):
         assert stub(fn_pass)().operator._arg_bindings is None
 
-    def test_untyped_params_degrade_to_any(self):
+    def test_untyped_params_omit_value_schema(self):
+        """Key absence (never ``None``) is the wire contract for an unconstrained argument."""
         with DAG(dag_id="d"):
             result = stub(fn_untyped)(1, "x")
 
         assert result.operator._arg_bindings == [
-            {"name": "a", "kind": "literal", "data_type": "any", "value": 1},
-            {"name": "b", "kind": "literal", "data_type": "any", "value": "x"},
+            {"name": "a", "kind": "literal", "value": 1},
+            {"name": "b", "kind": "literal", "value": "x"},
         ]
 
-    def test_unresolvable_annotation_degrades_to_any(self):
+    def test_unresolvable_annotation_omits_value_schema(self):
         def fn(x): ...
 
         fn.__annotations__ = {"x": "NotARealType"}
         with DAG(dag_id="d"):
             result = stub(fn)("v")
 
-        assert result.operator._arg_bindings == [
-            {"name": "x", "kind": "literal", "data_type": "any", "value": "v"}
-        ]
+        assert result.operator._arg_bindings == [{"name": "x", "kind": "literal", "value": "v"}]
 
     def test_varargs_rejected(self):
         with pytest.raises(ValueError, match="fixed number of parameters"):
@@ -217,12 +233,17 @@ class TestStubTaskflowArgs:
 
         round_tripped = DagSerialization.from_dict(DagSerialization.to_dict(dag))
         assert round_tripped.task_dict["fn_transform"]._arg_bindings == [
-            {"name": "country", "kind": "literal", "data_type": "string", "value": "uk"},
-            {"name": "extracted", "kind": "xcom", "data_type": "object", "task_id": "fn_extract"},
+            {"name": "country", "kind": "literal", "value_schema": {"type": "string"}, "value": "uk"},
+            {
+                "name": "extracted",
+                "kind": "xcom",
+                "value_schema": {"type": "object"},
+                "task_id": "fn_extract",
+            },
             {
                 "name": "retries_num",
                 "kind": "literal",
-                "data_type": "integer",
+                "value_schema": {"type": "integer", "format": "int64"},
                 "value": 3,
                 "from_default": True,
             },
@@ -257,35 +278,57 @@ class TestStubTaskflowArgs:
 @pytest.mark.parametrize(
     ("annotation", "expected"),
     [
-        pytest.param(str, "string", id="str"),
-        pytest.param(bool, "boolean", id="bool"),
-        pytest.param(int, "integer", id="int"),
-        pytest.param(float, "number", id="float"),
-        pytest.param(dict, "object", id="dict"),
-        pytest.param(dict[str, int], "object", id="dict-parameterized"),
-        pytest.param(typing.Mapping[str, int], "object", id="mapping"),
-        pytest.param(list, "array", id="list"),
-        pytest.param(list[int], "array", id="list-parameterized"),
-        pytest.param(tuple, "array", id="tuple"),
-        pytest.param(set, "array", id="set"),
-        pytest.param(typing.Sequence[int], "array", id="sequence"),
-        pytest.param(Any, "any", id="any"),
-        pytest.param(None, "any", id="none"),
-        pytest.param(bytes, "any", id="bytes"),
+        pytest.param(str, {"type": "string"}, id="str"),
+        pytest.param(bool, {"type": "boolean"}, id="bool"),
+        pytest.param(int, {"type": "integer", "format": "int64"}, id="int"),
+        pytest.param(float, {"type": "number", "format": "double"}, id="float"),
+        pytest.param(dict, {"type": "object"}, id="dict"),
+        pytest.param(dict[str, int], {"type": "object"}, id="dict-parameterized"),
+        pytest.param(typing.Mapping[str, int], {"type": "object"}, id="mapping"),
+        pytest.param(list, {"type": "array"}, id="list"),
+        pytest.param(list[int], {"type": "array"}, id="list-parameterized"),
+        pytest.param(tuple, {"type": "array"}, id="tuple"),
+        pytest.param(set, {"type": "array"}, id="set"),
+        pytest.param(typing.Sequence[int], {"type": "array"}, id="sequence"),
+        pytest.param(datetime.datetime, {"type": "string", "format": "date-time"}, id="datetime"),
+        pytest.param(pendulum.DateTime, {"type": "string", "format": "date-time"}, id="pendulum-datetime"),
+        pytest.param(datetime.date, {"type": "string", "format": "date"}, id="date"),
+        pytest.param(datetime.time, {"type": "string", "format": "time"}, id="time"),
+        pytest.param(datetime.timedelta, {"type": "string", "format": "duration"}, id="timedelta"),
+        pytest.param(Any, None, id="any"),
+        pytest.param(None, None, id="none"),
+        pytest.param(type(None), None, id="nonetype"),
+        pytest.param(bytes, None, id="bytes"),
         pytest.param(
             typing.Optional[str],  # noqa: UP045 -- legacy form on purpose
-            "string",
+            {"type": ["string", "null"]},
             id="optional-str",
         ),
         pytest.param(
             typing.Union[int, str],  # noqa: UP007 -- legacy form on purpose
-            "any",
+            {"type": ["integer", "string"]},
             id="union",
         ),
-        pytest.param(str | None, "string", id="pep604-optional"),
-        pytest.param(int | str, "any", id="pep604-union"),
-        pytest.param(contextlib.AbstractContextManager, "any", id="custom-class"),
+        pytest.param(str | None, {"type": ["string", "null"]}, id="pep604-optional"),
+        pytest.param(int | None, {"type": ["integer", "null"], "format": "int64"}, id="optional-int"),
+        pytest.param(
+            datetime.datetime | None,
+            {"type": ["string", "null"], "format": "date-time"},
+            id="optional-datetime",
+        ),
+        pytest.param(int | str, {"type": ["integer", "string"]}, id="pep604-union"),
+        pytest.param(dict | bool, {"type": ["object", "boolean"]}, id="union-dict-bool"),
+        pytest.param(bool | int, {"type": ["boolean", "integer"]}, id="union-bool-int-order"),
+        pytest.param(str | int | None, {"type": ["string", "integer", "null"]}, id="union-with-null"),
+        pytest.param(list | tuple, {"type": "array"}, id="union-collapses-to-one-type"),
+        pytest.param(
+            datetime.datetime | str,
+            {"type": "string"},
+            id="mixed-format-union-drops-format",
+        ),
+        pytest.param(str | bytes, None, id="union-unclassifiable-member"),
+        pytest.param(contextlib.AbstractContextManager, None, id="custom-class"),
     ],
 )
-def test_infer_data_type(annotation, expected):
-    assert _infer_data_type(annotation) == expected
+def test_infer_value_schema(annotation, expected):
+    assert _infer_value_schema(annotation) == expected
