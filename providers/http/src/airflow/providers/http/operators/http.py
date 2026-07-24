@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -24,7 +25,13 @@ from aiohttp import BasicAuth
 from requests import Response
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
-from airflow.providers.http.triggers.http import HttpResponseSerializer, HttpTrigger, serialize_auth_type
+from airflow.providers.http.triggers.http import (
+    NON_IDEMPOTENT_METHOD_WARNING_PATTERN,
+    HttpResponseSerializer,
+    HttpTrigger,
+    serialize_auth_type,
+    warn_if_method_not_idempotent,
+)
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -209,18 +216,36 @@ class HttpOperator(BaseOperator):
         return all_responses
 
     def execute_async(self, context: Context) -> None:
+        trigger = self._build_http_trigger(
+            endpoint=self.endpoint,
+            headers=self.headers,
+            data=self.data,
+            extra_options=self.extra_options,
+        )
         self.defer(
-            trigger=HttpTrigger(
+            trigger=trigger,
+            method_name="execute_complete",
+        )
+
+    def _build_http_trigger(self, **trigger_kwargs: Any) -> HttpTrigger:
+        warn_if_method_not_idempotent(
+            self.method,
+            subject="HttpOperator with deferrable=True",
+            execution_context="Deferrable mode executes the request in the Triggerer",
+            alternative="HttpSensor/EventSensor",
+            method_connector="and",
+            stacklevel=3,
+        )
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=UserWarning, message=NON_IDEMPOTENT_METHOD_WARNING_PATTERN
+            )
+            return HttpTrigger(
                 http_conn_id=self.http_conn_id,
                 auth_type=serialize_auth_type(self._resolve_auth_type()),
                 method=self.method,
-                endpoint=self.endpoint,
-                headers=self.headers,
-                data=self.data,
-                extra_options=self.extra_options,
-            ),
-            method_name="execute_complete",
-        )
+                **trigger_kwargs,
+            )
 
     def _resolve_auth_type(self) -> type[AuthBase] | type[BasicAuth] | None:
         """
@@ -300,13 +325,9 @@ class HttpOperator(BaseOperator):
             next_page_params = self.pagination_function(response)
             if not next_page_params:
                 return self.process_response(context=context, response=all_responses)
+            trigger = self._build_http_trigger(**self._merge_next_page_parameters(next_page_params))
             self.defer(
-                trigger=HttpTrigger(
-                    http_conn_id=self.http_conn_id,
-                    auth_type=serialize_auth_type(self._resolve_auth_type()),
-                    method=self.method,
-                    **self._merge_next_page_parameters(next_page_params),
-                ),
+                trigger=trigger,
                 method_name="execute_complete",
                 kwargs={"paginated_responses": all_responses},
             )
