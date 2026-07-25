@@ -44,12 +44,17 @@ in a non-Python implementation.
      - :class:`task-sdk:airflow.sdk.coordinators.executable.ExecutableCoordinator`
      - None (native binary)
      - :doc:`go`
+   * - TypeScript
+     - :class:`task-sdk:airflow.sdk.coordinators.node.NodeCoordinator`
+     - Node.js 22
+     - :doc:`typescript`
 
 .. toctree::
    :hidden:
 
    java
    go
+   typescript
 
 How it works
 ------------
