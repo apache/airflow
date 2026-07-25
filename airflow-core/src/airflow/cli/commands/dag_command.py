@@ -81,6 +81,7 @@ log = logging.getLogger(__name__)
 # Chunk size for bulk delete.
 _RUN_CHUNK_SIZE = 500
 
+
 def _normalize_serialized_dag_for_stability_check(serialized_dag: dict[str, Any]) -> dict[str, Any]:
     normalized = SerializedDagModel._sort_serialized_dag_dict(serialized_dag)
     normalized["dag"].pop("fileloc", None)
