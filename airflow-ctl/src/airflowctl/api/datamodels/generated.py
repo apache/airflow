@@ -935,6 +935,8 @@ class Destination1(str, Enum):
     ASSET = "asset"
     BASE = "base"
     DASHBOARD = "dashboard"
+    DAG_OVERVIEW = "dag_overview"
+    TASK_OVERVIEW = "task_overview"
 
 
 class ReactAppResponse(BaseModel):
@@ -1856,6 +1858,7 @@ class DAGRunResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     partition_date: Annotated[datetime | None, Field(title="Partition Date")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class DAGRunsBatchBody(BaseModel):
@@ -2149,6 +2152,7 @@ class TaskInstanceResponse(BaseModel):
     trigger: TriggerResponse | None = None
     triggerer_job: JobResponse | None = None
     dag_version: DagVersionResponse | None = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class TaskResponse(BaseModel):

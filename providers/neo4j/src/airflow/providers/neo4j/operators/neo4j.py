@@ -44,8 +44,8 @@ class Neo4jOperator(BaseOperator):
     :param parameters: the parameters to send to Neo4j driver session
     """
 
-    template_fields: Sequence[str] = ("cypher", "parameters")
-    template_fields_renderers = {"cypher": "sql", "parameters": "json"}
+    template_fields: Sequence[str] = ("cypher", "sql", "parameters")
+    template_fields_renderers = {"cypher": "sql", "sql": "sql", "parameters": "json"}
 
     def __init__(
         self,
@@ -57,7 +57,14 @@ class Neo4jOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if sql is not None:
+        self.neo4j_conn_id = neo4j_conn_id
+        self.cypher = cypher
+        self.sql = sql
+        self.parameters = parameters
+
+    def execute(self, context: Context) -> None:
+        cypher = self.cypher
+        if self.sql is not None:
             warnings.warn(
                 "`sql` parameter is deprecated, please use `cypher` instead.",
                 AirflowProviderDeprecationWarning,
@@ -65,14 +72,10 @@ class Neo4jOperator(BaseOperator):
             )
             if cypher is not None:
                 raise ValueError("Cannot provide both `sql` and `cypher`. Use `cypher` only.")
-            cypher = sql
+            cypher = self.sql
         if cypher is None:
             raise ValueError("Parameter `cypher` is required.")
-        self.neo4j_conn_id = neo4j_conn_id
-        self.cypher = cypher
-        self.parameters = parameters
 
-    def execute(self, context: Context) -> None:
-        self.log.info("Executing: %s", self.cypher)
+        self.log.info("Executing: %s", cypher)
         hook = Neo4jHook(conn_id=self.neo4j_conn_id)
-        hook.run(self.cypher, self.parameters)
+        hook.run(cypher, self.parameters)

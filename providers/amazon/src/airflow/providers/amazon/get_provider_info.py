@@ -1258,7 +1258,8 @@ def get_provider_info():
             {
                 "classpath": "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudWatchRemoteLogIO",
                 "scheme": "cloudwatch",
-            }
+            },
+            {"classpath": "airflow.providers.amazon.aws.log.s3_task_handler.S3RemoteLogIO", "scheme": "s3"},
         ],
         "config": {
             "aws": {

@@ -19,14 +19,20 @@ from __future__ import annotations
 import ast
 import textwrap
 from pathlib import Path
+from unittest import mock
 
 import pytest
+from ci.prek import check_metrics_synced_with_the_registry
 from ci.prek.check_metrics_synced_with_the_registry import (
     _PREFIX_MATCHED,
     _except_handler_catches_expected_error,
     _is_stats_module_path,
+    compute_unused_registry_entries,
     extract_metric_name_from_ast_node,
+    extract_metric_names_from_ast_node,
+    find_prefix_matched_registry_entries,
     find_registry_match,
+    find_stale_indirectly_emitted_metrics,
     get_stats_obj_name,
     normalize_metric_name,
     scan_file_for_direct_stats_imports,
@@ -183,6 +189,121 @@ def test_extract_metric_name_from_ast_node(code: str, expected_result):
     assert extract_metric_name_from_ast_node(node) == expected_result
 
 
+@pytest.mark.parametrize(
+    "code, expected_result",
+    [
+        pytest.param('"scheduler_heartbeat"', ["scheduler_heartbeat"], id="static_string_single_name"),
+        pytest.param(
+            '"connection_test.success" if success else "connection_test.failed"',
+            ["connection_test.success", "connection_test.failed"],
+            id="conditional_expression_both_branches",
+        ),
+        pytest.param(
+            '"connection_test.success" if success else get_name()',
+            ["connection_test.success"],
+            id="conditional_expression_unresolvable_branch_dropped",
+        ),
+        pytest.param(
+            '"a" if x else ("b" if y else "c")',
+            ["a", "b", "c"],
+            id="nested_conditional_expression",
+        ),
+        pytest.param("some_variable", [], id="unresolvable_name_returns_empty_list"),
+    ],
+)
+def test_extract_metric_names_from_ast_node(code: str, expected_result):
+    node = ast.parse(code, mode="eval").body
+    assert extract_metric_names_from_ast_node(node) == expected_result
+
+
+@pytest.mark.parametrize(
+    "metric_name, expected_result",
+    [
+        pytest.param(
+            "ti.{state}",
+            ["ti.scheduled", "ti.queued", "ti.start.{dag_id}.{task_id}"],
+            id="base_prefix_matches_multiple_entries",
+        ),
+        pytest.param("dagrun.duration.{state}", ["dagrun.duration.success"], id="dotted_base_prefix"),
+        pytest.param("non.existent.{var}", [], id="no_prefix_match_returns_empty_list"),
+    ],
+)
+def test_find_prefix_matched_registry_entries(metric_name, expected_result):
+    assert find_prefix_matched_registry_entries(metric_name, METRICS_REGISTRY) == expected_result
+
+
+# 'executor.open_slots' is in INDIRECTLY_EMITTED_METRICS, so it is never reported as unused.
+@pytest.mark.parametrize(
+    "code_metric_names, expected_unused",
+    [
+        pytest.param(
+            set(),
+            [
+                "dagrun.duration.success",
+                "pool.open_slots",
+                "scheduler.heartbeat",
+                "task.duration",
+                "ti.queued",
+                "ti.scheduled",
+                "ti.start.{dag_id}.{task_id}",
+            ],
+            id="no_code_metrics_reports_all_but_indirectly_emitted",
+        ),
+        pytest.param(
+            {"scheduler.heartbeat", "dag.{x}.{y}.duration", "unknown.metric"},
+            [
+                "dagrun.duration.success",
+                "pool.open_slots",
+                "ti.queued",
+                "ti.scheduled",
+                "ti.start.{dag_id}.{task_id}",
+            ],
+            id="exact_and_legacy_matches_mark_entries_used",
+        ),
+        pytest.param(
+            {"ti.{state}"},
+            ["dagrun.duration.success", "pool.open_slots", "scheduler.heartbeat", "task.duration"],
+            id="prefix_match_marks_all_prefix_entries_used",
+        ),
+        pytest.param(
+            {"pool.open_slots.{my_pool}"},
+            [
+                "dagrun.duration.success",
+                "scheduler.heartbeat",
+                "task.duration",
+                "ti.queued",
+                "ti.scheduled",
+                "ti.start.{dag_id}.{task_id}",
+            ],
+            id="legacy_name_structure_match_marks_entry_used",
+        ),
+    ],
+)
+def test_compute_unused_registry_entries(code_metric_names, expected_unused):
+    assert compute_unused_registry_entries(code_metric_names, METRICS_REGISTRY) == expected_unused
+
+
+@pytest.mark.parametrize(
+    "indirectly_emitted_metrics, expected_stale",
+    [
+        pytest.param({"executor.open_slots"}, [], id="entry_present_in_registry"),
+        pytest.param(set(), [], id="empty_allowlist"),
+        pytest.param(
+            {"executor.open_slots", "executor.renamed_away", "executor.deleted"},
+            ["executor.deleted", "executor.renamed_away"],
+            id="renamed_and_deleted_entries_reported",
+        ),
+    ],
+)
+def test_find_stale_indirectly_emitted_metrics(indirectly_emitted_metrics, expected_stale):
+    with mock.patch.object(
+        check_metrics_synced_with_the_registry,
+        "INDIRECTLY_EMITTED_METRICS",
+        indirectly_emitted_metrics,
+    ):
+        assert find_stale_indirectly_emitted_metrics(METRICS_REGISTRY) == expected_stale
+
+
 @pytest.fixture
 def code_to_py_file(tmp_path):
     """Write python source code to a tmp file and return its path."""
@@ -239,6 +360,14 @@ def code_to_py_file(tmp_path):
             'self.stats.incr("triggerer_heartbeat")',
             [{"stats_obj": "stats"}],
             id="self_stats_attribute",
+        ),
+        pytest.param(
+            'stats.incr("connection_test.success" if success else "connection_test.failed")',
+            [
+                {"metric_name": "connection_test.success", "method": "incr"},
+                {"metric_name": "connection_test.failed", "method": "incr"},
+            ],
+            id="conditional_expression_yields_call_per_branch",
         ),
         pytest.param('metrics.incr("triggerer_heartbeat")', [], id="unknown_stats_object_ignored"),
         pytest.param("Stats.incr(get_metric_name())", [], id="unresolvable_metric_name_skipped"),
