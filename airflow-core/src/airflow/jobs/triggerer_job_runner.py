@@ -1595,7 +1595,10 @@ class TriggerRunner:
                     time_elapsed,
                     self.blocked_main_thread_warning_threshold,
                 )
-                stats.incr("triggers.blocked_main_thread")
+                stats.incr(
+                    "triggers.blocked_main_thread",
+                    tags=prune_dict({"team_name": self.team_name}),
+                )
 
     async def run_trigger(
         self,

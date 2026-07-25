@@ -21,7 +21,6 @@ providers/amazon/src/airflow/providers/amazon/aws/transfers/base.py::AwsToAwsBas
 providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::GCSToS3Operator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::S3ToRedshiftOperator
 providers/anthropic/src/airflow/providers/anthropic/operators/agent.py::AnthropicAgentSessionOperator
-providers/apache/kafka/src/airflow/providers/apache/kafka/operators/produce.py::ProduceToTopicOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
 providers/docker/src/airflow/providers/docker/operators/docker.py::DockerOperator
 providers/google/src/airflow/providers/google/cloud/operators/bigquery.py::BigQueryInsertJobOperator
@@ -57,8 +56,6 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/oracle
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator
 providers/oracle/src/airflow/providers/oracle/transfers/oracle_to_oracle.py::OracleToOracleOperator
 providers/papermill/src/airflow/providers/papermill/operators/papermill.py::PapermillOperator
-providers/ssh/src/airflow/providers/ssh/operators/ssh.py::SSHOperator
-providers/ssh/src/airflow/providers/ssh/operators/ssh_remote_job.py::SSHRemoteJobOperator
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
 providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::TriggerDagRunOperator
 providers/standard/src/airflow/providers/standard/sensors/date_time.py::DateTimeSensor
