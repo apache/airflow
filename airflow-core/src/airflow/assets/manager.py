@@ -711,8 +711,8 @@ class AssetManager(LoggingMixin):
         target_dag: DagModel,
         rollup_fingerprint: dict,
         asset_id: int,
+        allow_reuse: bool,
         session: Session,
-        allow_reuse: bool = True,
     ) -> AssetPartitionDagRun:
         """
         Get or create an APDR.

@@ -439,6 +439,7 @@ class TestAssetManager:
                     target_dag=testing_dag,
                     rollup_fingerprint=rollup_fingerprint,
                     asset_id=asm.id,
+                    allow_reuse=True,
                     session=_session,
                 ).id
             finally:
@@ -477,6 +478,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         assert first.partition_date == timezone.parse("2026-05-20T00:00:00")
@@ -488,6 +490,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         assert second.id == first.id  # same pending APDR
@@ -508,6 +511,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         first = AssetManager._get_or_create_apdr(target_partition_date=source_date, **kwargs)
@@ -536,6 +540,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         # First event carries no date (e.g. producer had no partition_date).
@@ -562,6 +567,7 @@ class TestAssetManager:
             target_dag=testing_dag,
             rollup_fingerprint=fp,
             asset_id=asm.id,
+            allow_reuse=True,
             session=session,
         )
         first = AssetManager._get_or_create_apdr(target_partition_date=date_1, **kwargs)
