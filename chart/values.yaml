@@ -202,6 +202,7 @@ ingress:
   # Configs for the Ingress of the web Service (Airflow <3.0.0)
   web:
     # Enable web ingress resource
+    # Mutually exclusive with `webserver.httpRoute.enabled` (Gateway API); enable only one of them.
     enabled: false
 
     # Annotations for the web Ingress
@@ -2528,6 +2529,52 @@ apiServer:
 # Airflow webserver settings (only Airflow<3.0)
 webserver:
   enabled: true
+
+  # Kubernetes Gateway API (HTTPRoute) configuration for the Webserver.
+  # Only applies to Airflow 2 (`airflowVersion` < 3.0.0), where the Webserver exists.
+  # Requires the Gateway API CRDs to be installed in the cluster
+  # (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api).
+  # The HTTPRoute references an externally managed Gateway via `parentRefs`.
+  httpRoute:
+    # Enable Webserver HTTPRoute resource.
+    # Mutually exclusive with `ingress.web.enabled` and the legacy `ingress.enabled`;
+    # enable only one routing mechanism.
+    enabled: false
+
+    # Extra labels for the Webserver HTTPRoute
+    labels: {}
+
+    # Annotations for the Webserver HTTPRoute
+    annotations: {}
+
+    # List of parent Gateway references this HTTPRoute attaches to. Required when enabled.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.ParentReference
+    parentRefs: ~
+    # - name: my-gateway
+    #   namespace: gateway-system
+    #   sectionName: https
+
+    # Hostnames this HTTPRoute should match (templated). Empty matches all.
+    hostnames: []
+    # - "airflow.example.com"
+
+    # Default routing rule path (used only when `webserver.httpRoute.rules` is empty)
+    path: "/"
+
+    # The pathType for the default path. PathPrefix | Exact | RegularExpression
+    pathType: PathPrefix
+
+    # Custom routing rules. When set, overrides the default rule generated from `path` + `pathType`.
+    # Use this for non-standard Webserver service port layouts.
+    # See https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.HTTPRouteRule
+    rules: []
+    # - matches:
+    #     - path:
+    #         type: PathPrefix
+    #         value: /
+    #   backendRefs:
+    #     - name: my-webserver-service
+    #       port: 8080
 
   # Add custom annotations to the webserver ConfigMap
   configMapAnnotations: {}

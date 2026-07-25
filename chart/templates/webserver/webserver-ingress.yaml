@@ -21,6 +21,9 @@
 ## Airflow Webserver Ingress
 #################################
 {{- if and .Values.webserver.enabled (or .Values.ingress.web.enabled .Values.ingress.enabled) (semverCompare "<3.0.0" .Values.airflowVersion) }}
+{{- if .Values.webserver.httpRoute.enabled }}
+{{- fail "`ingress.web.enabled`/`ingress.enabled` and `webserver.httpRoute.enabled` are both enabled. The Webserver Ingress is an alternative to HTTPRoute (Gateway API); enable only one of them." }}
+{{- end }}
 {{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
