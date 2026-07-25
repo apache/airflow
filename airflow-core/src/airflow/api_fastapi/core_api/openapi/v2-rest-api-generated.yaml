@@ -13251,8 +13251,11 @@ components:
         port:
           anyOf:
           - type: integer
+            maximum: 65535.0
+            minimum: 1.0
           - type: 'null'
           title: Port
+          description: TCP/UDP port number. Must be between 1 and 65535.
         password:
           anyOf:
           - type: string
@@ -13323,8 +13326,11 @@ components:
         port:
           anyOf:
           - type: integer
+            maximum: 65535.0
+            minimum: 1.0
           - type: 'null'
           title: Port
+          description: TCP/UDP port number. Must be between 1 and 65535.
         password:
           anyOf:
           - type: string
@@ -13406,8 +13412,11 @@ components:
         port:
           anyOf:
           - type: integer
+            maximum: 65535.0
+            minimum: 1.0
           - type: 'null'
           title: Port
+          description: TCP/UDP port number. Must be between 1 and 65535.
         password:
           anyOf:
           - type: string
