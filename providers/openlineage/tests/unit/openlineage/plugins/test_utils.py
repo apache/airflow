@@ -54,7 +54,6 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_3_1_PLUS,
-    AIRFLOW_V_3_3_PLUS,
 )
 
 if AIRFLOW_V_3_1_PLUS:
