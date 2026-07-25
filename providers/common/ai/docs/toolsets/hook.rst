@@ -179,6 +179,24 @@ Parameters
   or one that supplies a pinned argument. Default ``None``, the agent's ``retries``. See
   :ref:`toolset-retry-budget`.
 
+Binary data
+-----------
+
+JSON has no binary type, so ``bytes`` travels between the model and the hook as
+base64. A parameter typed ``bytes`` or ``bytes | None``, such as ``bytes_data`` of
+``S3Hook.load_bytes``, is offered to the model as a base64 string: the schema
+declares ``contentEncoding: base64``, and the parameter description says the same,
+because most function-calling APIs drop that keyword. The value is decoded before
+the method is called. A value that is not valid base64 never reaches the hook; the
+model is asked to correct the call. A parameter that also accepts text, such as
+``bytes | str``, receives the string the model sent.
+
+A method that returns ``bytes``, such as ``GCSHook.download``, gives the model the
+text when the bytes are valid UTF-8, and ``{"base64": "..."}`` when they are not, so
+a binary file the model read can be passed to a ``bytes`` parameter unchanged.
+``bytes`` nested in a returned list or dict are rendered as UTF-8 text, with any
+byte that does not decode replaced.
+
 When to choose it
 -----------------
 

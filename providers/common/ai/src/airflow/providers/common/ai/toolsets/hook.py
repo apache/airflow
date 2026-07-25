@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import base64
 import copy
 import inspect
 import re
@@ -54,6 +55,8 @@ _TYPE_MAP: dict[type, dict[str, Any]] = {
     dict: {"type": "object"},
     bytes: {"type": "string"},
 }
+
+_BASE64_PARAM_NOTE = "Provide this value base64-encoded."
 
 
 class HookToolset(AirflowToolset):
@@ -171,6 +174,8 @@ class HookToolset(AirflowToolset):
         if conn_attr is None or not hasattr(hook, conn_attr):
             conn_attr = "conn_id" if hasattr(hook, "conn_id") else None
         self._conn_attr = conn_attr
+        # Names of each method's ``bytes``-typed parameters, filled in by get_tools.
+        self._bytes_params: dict[str, frozenset[str]] = {}
 
     @property
     def conn_id(self) -> str | None:
@@ -200,14 +205,23 @@ class HookToolset(AirflowToolset):
             method = getattr(self._hook, method_name)
             tool_name = f"{self._name_prefix}{method_name}"
 
-            json_schema = _build_json_schema_from_signature(method)
+            json_schema, bytes_params = _introspect_signature(method)
+            self._bytes_params[method_name] = bytes_params
             description = _extract_description(method)
             param_docs = _parse_param_docs(method.__doc__ or "")
+            properties = json_schema["properties"]
 
             # Enrich parameter descriptions from docstring.
             for param_name, param_desc in param_docs.items():
-                if param_name in json_schema.get("properties", {}):
-                    json_schema["properties"][param_name]["description"] = param_desc
+                if param_name in properties:
+                    properties[param_name]["description"] = param_desc
+            # After the loop above, which would otherwise overwrite the note. Most
+            # function-calling APIs drop ``contentEncoding``; the description is what the model sees.
+            for param_name in bytes_params:
+                existing = properties[param_name].get("description")
+                properties[param_name]["description"] = (
+                    f"{existing} {_BASE64_PARAM_NOTE}" if existing else _BASE64_PARAM_NOTE
+                )
             _drop_properties(json_schema, self._pinned)
             # The validator accepts the pinned names, with any value, so a model that sends one
             # anyway is told it is fixed rather than given a generic extra-input or type error.
@@ -260,6 +274,13 @@ class HookToolset(AirflowToolset):
         method: Callable[..., Any] = getattr(self._hook, method_name)
         # The framework bridges validate arguments without args_validator_func, so check again here.
         self._refuse_pinned(ctx, **tool_args)
+        bytes_params = self._bytes_params.get(method_name)
+        if bytes_params is None:
+            bytes_params = self._bytes_params[method_name] = _introspect_signature(method)[1]
+        # Decoded here rather than in the args validator: validated arguments travel the whole
+        # toolset chain, and CachingToolset fingerprints them with a plain json.dumps, so bytes
+        # upstream of this point would make every binary call unverifiable on durable replay.
+        tool_args = _decode_bytes_args(tool_args, bytes_params)
         # A copy per call, so a method that modifies an argument it is given cannot change the pin.
         result = await self.run_blocking(method, **tool_args, **copy.deepcopy(self._pinned))
         return serialize_for_llm(result)
@@ -298,17 +319,70 @@ def _python_type_to_json_schema(annotation: Any) -> dict[str, Any]:
     return dict(schema) if schema else {}
 
 
-def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, Any]:
-    """Build a JSON Schema ``object`` from a method's signature and type hints."""
-    sig = inspect.signature(method)
+def _resolves_to_bytes(annotation: Any) -> bool:
+    """Whether ``annotation`` is ``bytes`` or ``bytes | None``."""
+    if annotation is bytes:
+        return True
+    if get_origin(annotation) in (types.UnionType, Union):
+        non_none = [arg for arg in get_args(annotation) if arg is not type(None)]
+        return len(non_none) == 1 and _resolves_to_bytes(non_none[0])
+    return False
 
-    try:
-        hints = get_type_hints(method)
-    except Exception:
-        hints = {}
+
+def _decode_bytes_args(tool_args: dict[str, Any], bytes_params: frozenset[str]) -> dict[str, Any]:
+    """Decode the base64 strings the model supplied for ``bytes``-typed parameters."""
+    decoded = dict(tool_args)
+    for name in bytes_params & tool_args.keys():
+        value = tool_args[name]
+        if not isinstance(value, str):
+            continue
+        try:
+            # validate=True: the default discards characters outside the alphabet instead of
+            # failing, which would store the wrong bytes without a word.
+            decoded[name] = base64.b64decode(value, validate=True)
+        except ValueError as e:
+            # ModelRetry is the only exception pydantic-ai feeds back to the model; any other
+            # fails the run without giving it the chance to correct the call.
+            raise ModelRetry(f"Parameter {name!r} must be base64-encoded binary data.") from e
+    return decoded
+
+
+def _resolve_annotations(method: Callable[..., Any]) -> dict[str, Any]:
+    """
+    Resolve each of ``method``'s annotations on its own.
+
+    ``get_type_hints`` is all-or-nothing: one annotation that does not resolve discards the
+    hints for every parameter. ``CloudKMSHook.encrypt`` hits this, its ``bytes`` parameters
+    sitting next to ``retry: Retry | _MethodDefault`` with ``Retry`` imported under
+    ``TYPE_CHECKING``. An annotation that does not resolve is left out, so only its own
+    parameter is advertised untyped.
+    """
+    globalns = getattr(inspect.unwrap(method), "__globals__", {})
+    hints: dict[str, Any] = {}
+    for name, annotation in getattr(method, "__annotations__", {}).items():
+        holder = types.SimpleNamespace(__annotations__={name: annotation})
+        try:
+            hints |= get_type_hints(holder, globalns=globalns)
+        except Exception:
+            # Evaluating an annotation runs arbitrary expressions: a TYPE_CHECKING-only name
+            # raises NameError, an attribute of one (``pd.DataFrame``) AttributeError.
+            continue
+    return hints
+
+
+def _introspect_signature(method: Callable[..., Any]) -> tuple[dict[str, Any], frozenset[str]]:
+    """
+    Build ``method``'s JSON Schema and the names of its ``bytes``-typed parameters.
+
+    Both come from one pass, so a parameter is advertised as base64 exactly when its
+    value is decoded on the way back.
+    """
+    sig = inspect.signature(method)
+    hints = _resolve_annotations(method)
 
     properties: dict[str, Any] = {}
     required: list[str] = []
+    bytes_params: set[str] = set()
     allows_additional_properties = False
 
     for name, param in sig.parameters.items():
@@ -323,6 +397,9 @@ def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, A
         annotation = hints.get(name, param.annotation)
         prop = _python_type_to_json_schema(annotation)
         properties[name] = prop
+        if _resolves_to_bytes(annotation):
+            bytes_params.add(name)
+            prop["contentEncoding"] = "base64"
 
         if param.default is inspect.Parameter.empty:
             required.append(name)
@@ -332,7 +409,7 @@ def _build_json_schema_from_signature(method: Callable[..., Any]) -> dict[str, A
         schema["required"] = required
     if allows_additional_properties:
         schema["additionalProperties"] = True
-    return schema
+    return schema, frozenset(bytes_params)
 
 
 def _extract_description(method: Callable[..., Any]) -> str:
