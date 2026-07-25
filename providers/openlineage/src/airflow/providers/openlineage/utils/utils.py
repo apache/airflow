@@ -38,6 +38,7 @@ from openlineage.client.facet_v2 import (
 )
 from openlineage.client.utils import RedactMixin
 from openlineage.client.uuid import generate_static_uuid
+from sqlalchemy.orm import object_session
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow import __version__ as AIRFLOW_VERSION
@@ -1080,7 +1081,15 @@ class DagRunInfo(InfoJsonEncodable):
 
             from airflow.models.dagbundle import DagBundleModel
 
-            return DagBundleModel.get_team_name(bundle_name)
+            # Reuse the existing ORM session associated with the DagRun. Creating a new
+            # session here (via @provide_session) can trigger an unexpected commit within
+            # the scheduler callback, which breaks HA lock semantics.
+            session = object_session(dagrun)
+
+            if session is None:
+                return None
+
+            return DagBundleModel.get_team_name(bundle_name, session=session)
         except Exception as e:
             log.warning(
                 "OpenLineage failed to resolve the team name for dag `%s`: %s.",
@@ -1089,7 +1098,6 @@ class DagRunInfo(InfoJsonEncodable):
             )
             log.debug("Exception details:", exc_info=True)
             return None
-
 
 class TaskInstanceInfo(InfoJsonEncodable):
     """Defines encoding TaskInstance object to JSON."""
