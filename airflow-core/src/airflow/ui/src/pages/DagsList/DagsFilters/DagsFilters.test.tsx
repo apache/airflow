@@ -72,7 +72,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument());
   });
 
-  it("filters and clears dags by timetable type", async () => {
+  it("filters and clears dags by timetable types", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
@@ -91,6 +91,21 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
       expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
     });
 
+    fireEvent.change(timetableTypeFilter, { target: { value: "Null" } });
+    fireEvent.click(await screen.findByText("NullTimetable"));
+
+    await waitFor(() => {
+      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+      expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(timetableTypeFilter, { code: "Backspace", key: "Backspace" });
+
+    await waitFor(() => {
+      expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+      expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    });
+
     fireEvent.keyDown(timetableTypeFilter, { code: "Backspace", key: "Backspace" });
 
     await waitFor(() => {
@@ -99,14 +114,19 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     });
   });
 
-  it("restores a timetable type from the URL", async () => {
-    render(<AppWrapper initialEntries={["/dags?timetable_type=CronTriggerTimetable"]} />);
+  it("restores timetable types from the URL", async () => {
+    render(
+      <AppWrapper
+        initialEntries={["/dags?timetable_type=CronTriggerTimetable&timetable_type=NullTimetable"]}
+      />,
+    );
 
     await waitFor(() => {
-      expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
       expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
     });
     expect(screen.getByText("CronTriggerTimetable")).toBeInTheDocument();
+    expect(screen.getByText("NullTimetable")).toBeInTheDocument();
   });
 
   it("ignores an empty timetable type from the URL", async () => {

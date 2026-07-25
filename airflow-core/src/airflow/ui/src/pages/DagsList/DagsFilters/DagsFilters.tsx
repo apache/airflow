@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Box, HStack } from "@chakra-ui/react";
-import type { MultiValue, SingleValue } from "chakra-react-select";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -71,7 +70,7 @@ export const DagsFilters = () => {
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const activeRunState = searchParams.get(DAG_RUN_STATE_PARAM);
   const selectedTeams = searchParams.getAll(TEAMS_PARAM);
-  const timetableType = searchParams.get(TIMETABLE_TYPE_PARAM) ?? "";
+  const timetableTypes = searchParams.getAll(TIMETABLE_TYPE_PARAM).filter(Boolean);
 
   const [tagPattern, setTagPattern] = useState("");
   const [timetableTypePattern, setTimetableTypePattern] = useState("");
@@ -158,25 +157,17 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
-  const handleTimetableTypeChange = (
-    selectedTimetableType: SingleValue<{ label: string; value: string }>,
-  ) => {
-    if (selectedTimetableType) {
-      searchParams.set(TIMETABLE_TYPE_PARAM, selectedTimetableType.value);
-    } else {
-      searchParams.delete(TIMETABLE_TYPE_PARAM);
+  const handleTimetableTypeChange = (selectedTimetableTypes: Array<string>) => {
+    searchParams.delete(TIMETABLE_TYPE_PARAM);
+    for (const timetableType of selectedTimetableTypes) {
+      searchParams.append(TIMETABLE_TYPE_PARAM, timetableType);
     }
     resetPagination();
     setSearchParams(searchParams);
   };
 
-  const handleSelectTagsChange = (
-    tags: MultiValue<{
-      label: string;
-      value: string;
-    }>,
-  ) => {
-    setSelectedTags(tags.map(({ value }) => value));
+  const handleSelectTagsChange = (tags: Array<string>) => {
+    setSelectedTags(tags);
   };
 
   const handleTagModeChange = ({ checked }: { checked: boolean }) => {
@@ -223,7 +214,7 @@ export const DagsFilters = () => {
           void fetchPreviousTimetableTypePage();
         }}
         timetableTypes={timetableTypeData?.pages.flatMap((response) => response.timetable_types) ?? []}
-        value={timetableType || undefined}
+        values={timetableTypes}
       />
       <TagFilter
         onMenuScrollToBottom={() => {

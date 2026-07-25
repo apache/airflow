@@ -16,22 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field } from "@chakra-ui/react";
-import { Select as ReactSelect, type SingleValue } from "chakra-react-select";
+import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { DagsFilterSelect } from "./DagsFilterSelect";
+
 type Props = {
-  readonly onChange: (timetableType: SingleValue<TimetableTypeOption>) => void;
+  readonly onChange: (timetableTypes: Array<string>) => void;
   readonly onInputChange: (value: string) => void;
   readonly onMenuScrollToBottom: () => void;
   readonly onMenuScrollToTop: () => void;
   readonly timetableTypes: Array<string>;
-  readonly value: string | undefined;
-};
-
-type TimetableTypeOption = {
-  label: string;
-  value: string;
+  readonly values: Array<string>;
 };
 
 export const TimetableTypeFilter = ({
@@ -40,43 +36,23 @@ export const TimetableTypeFilter = ({
   onMenuScrollToBottom,
   onMenuScrollToTop,
   timetableTypes,
-  value,
+  values,
 }: Props) => {
   const { t: translate } = useTranslation("dags");
 
   return (
     <Box flex="0 1 300px" maxWidth="100%" width="300px">
-      <Field.Root>
-        <ReactSelect<TimetableTypeOption>
-          aria-label={translate("filters.timetableType")}
-          chakraStyles={{
-            clearIndicator: (provided) => ({
-              ...provided,
-              color: "gray.fg",
-            }),
-            control: (provided) => ({
-              ...provided,
-              colorPalette: "brand",
-            }),
-            menu: (provided) => ({
-              ...provided,
-              zIndex: 2,
-            }),
-          }}
-          isClearable
-          noOptionsMessage={() => translate("filters.noTimetableTypesFound")}
-          onChange={onChange}
-          onInputChange={onInputChange}
-          onMenuScrollToBottom={onMenuScrollToBottom}
-          onMenuScrollToTop={onMenuScrollToTop}
-          options={timetableTypes.map((timetableType) => ({
-            label: timetableType,
-            value: timetableType,
-          }))}
-          placeholder={translate("filters.timetableType")}
-          value={value === undefined ? null : { label: value, value }}
-        />
-      </Field.Root>
+      <DagsFilterSelect
+        ariaLabel={translate("filters.timetableType")}
+        noOptionsMessage={translate("filters.noTimetableTypesFound")}
+        onChange={onChange}
+        onInputChange={onInputChange}
+        onMenuScrollToBottom={onMenuScrollToBottom}
+        onMenuScrollToTop={onMenuScrollToTop}
+        options={timetableTypes}
+        placeholder={translate("filters.timetableType")}
+        values={values}
+      />
     </Box>
   );
 };
