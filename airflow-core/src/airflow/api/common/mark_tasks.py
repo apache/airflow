@@ -223,7 +223,7 @@ def _set_dag_run_terminal_state(
     ti_state: TaskInstanceState,
     commit: bool,
     session: SASession,
-) -> list[TaskInstance]:
+) -> tuple[list[TaskInstance], list[TaskInstance]]:
     """
     Set the dag run's state to the given terminal state.
 
@@ -237,11 +237,15 @@ def _set_dag_run_terminal_state(
     :param ti_state: state to set on running task instances
     :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
-    :return: If commit is true, list of tasks that have been updated,
-             otherwise list of tasks that will be updated
+    :return: ``(all_updated_tis, killed_tis)`` where ``all_updated_tis`` is the
+        combined list of pending (now SKIPPED) and running (now ``ti_state``) TIs,
+        and ``killed_tis`` contains only the non-teardown TIs that were in an active
+        running state and were forcefully terminated (teardown TIs are intentionally
+        left running so they can finish their own cleanup, and must not receive a
+        terminal listener event here).
     """
     if not dag:
-        return []
+        return [], []
     if not run_id:
         raise ValueError(f"Invalid dag_run_id: {run_id}")
 
@@ -264,9 +268,10 @@ def _set_dag_run_terminal_state(
             )
         ).all()
     )
-
     # Do not kill teardown tasks
     task_ids_of_running_tis = {ti.task_id for ti in running_tis if not dag.task_dict[ti.task_id].is_teardown}
+    # Keep task instances that were killed with no cleanup capability (all running minus teardown ones).
+    killed_tis = [ti for ti in running_tis if ti.task_id in task_ids_of_running_tis]
 
     def _set_running_task(task: Operator) -> Operator:
         task.dag = dag
@@ -302,13 +307,14 @@ def _set_dag_run_terminal_state(
         if not any(dag.task_dict[ti.task_id].is_teardown for ti in (running_tis + pending_tis)):
             _set_dag_run_state(dag.dag_id, run_id, run_state, session)
 
-    return pending_normal_tis + set_state(
+    all_updated = pending_normal_tis + set_state(
         tasks=running_tasks,
         run_id=run_id,
         state=ti_state,
         commit=commit,
         session=session,
     )
+    return all_updated, killed_tis
 
 
 @provide_session
@@ -318,7 +324,7 @@ def set_dag_run_state_to_success(
     run_id: str | None = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-) -> list[TaskInstance]:
+) -> tuple[list[TaskInstance], list[TaskInstance]]:
     """
     Set the dag run's state to success.
 
@@ -328,8 +334,15 @@ def set_dag_run_state_to_success(
     :param run_id: the run_id to start looking from
     :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
-    :return: If commit is true, list of tasks that have been updated,
-             otherwise list of tasks that will be updated
+    :return: A tuple ``(all_updated_tis, killed_tis)``.
+        ``all_updated_tis`` is the combined list of task instances that were updated:
+        previously-running ones (now SUCCESS) and non-finished pending ones (now SKIPPED).
+        If ``commit`` is ``False``, this is the list of task instances *that would be* updated.
+        ``killed_tis`` contains only the non-teardown task instances that were in an active
+        running state (RUNNING, DEFERRED, UP_FOR_RESCHEDULE, AWAITING_INPUT) and were
+        forcefully terminated — teardown tasks are intentionally excluded because they are
+        left running to finish their own cleanup. Use ``killed_tis`` for firing terminal
+        listener hooks.
     :raises: ValueError if dag or logical_date is invalid
     """
     return _set_dag_run_terminal_state(
@@ -349,7 +362,7 @@ def set_dag_run_state_to_failed(
     run_id: str | None = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
-) -> list[TaskInstance]:
+) -> tuple[list[TaskInstance], list[TaskInstance]]:
     """
     Set the dag run's state to failed.
 
@@ -359,8 +372,15 @@ def set_dag_run_state_to_failed(
     :param run_id: the Dag run_id to start looking from
     :param commit: commit Dag and tasks to be altered to the database
     :param session: database session
-    :return: If commit is true, list of tasks that have been updated,
-             otherwise list of tasks that will be updated
+    :return: A tuple ``(all_updated_tis, killed_tis)``.
+        ``all_updated_tis`` is the combined list of task instances that were updated:
+        previously-running ones (now FAILED) and non-finished pending ones (now SKIPPED).
+        If ``commit`` is ``False``, this is the list of task instances *that would be* updated.
+        ``killed_tis`` contains only the non-teardown task instances that were in an active
+        running state (RUNNING, DEFERRED, UP_FOR_RESCHEDULE, AWAITING_INPUT) and were
+        forcefully terminated — teardown tasks are intentionally excluded because they are
+        left running to finish their own cleanup. Use ``killed_tis`` for firing terminal
+        listener hooks.
     """
     return _set_dag_run_terminal_state(
         dag=dag,

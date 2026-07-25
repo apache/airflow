@@ -28,7 +28,6 @@ try:
         resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
-    from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -152,7 +151,7 @@ class LLMSQLQueryOperator(LLMOperator):
         )
         result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
-        sql = self._strip_llm_output(result.output)
+        sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
         if self.validate_sql:
             _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
@@ -172,15 +171,25 @@ class LLMSQLQueryOperator(LLMOperator):
         return output
 
     @staticmethod
-    def _strip_llm_output(raw: str) -> str:
+    def _strip_llm_output(raw: str, *, dialect: str | None = None) -> str:
         """Strip whitespace and markdown code fences from LLM output."""
         text = raw.strip()
         if text.startswith("```"):
             lines = text.split("\n")
-            # Remove opening fence (```sql, ```, etc.) and closing fence
             if len(lines) >= 2:
+                # Remove opening fence (```sql, ```, etc.) and closing fence
                 end = -1 if lines[-1].strip().startswith("```") else len(lines)
                 text = "\n".join(lines[1:end]).strip()
+            elif text.endswith("```") and len(text) > 6:
+                # Whole fenced block on one line, e.g. "```sql SELECT 1```" -> "SELECT 1".
+                # Only drop the leading word if it's a known tag, so a real keyword
+                # like "SELECT" is never mistaken for one.
+                inner = text[3:-3].strip()
+                tags = {"sql", *([dialect.lower()] if dialect else [])}
+                first_word, sep, rest = inner.partition(" ")
+                if sep and first_word.lower() in tags:
+                    inner = rest.strip()
+                text = inner
         return text
 
     def _get_schema_context(self) -> str:
@@ -216,6 +225,17 @@ class LLMSQLQueryOperator(LLMOperator):
 
     def _introspect_object_storage_schema(self):
         """Use DataFusion Engine to get the schema of object stores."""
+        try:
+            from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "Object-storage schema introspection requires the `datafusion` extra of "
+                "apache-airflow-providers-common-sql. Install it with: "
+                'pip install "apache-airflow-providers-common-sql[datafusion]"'
+            ) from e
+
         engine = DataFusionEngine()
         engine.register_datasource(self.datasource_config)
         return engine.get_schema(self.datasource_config.table_name)

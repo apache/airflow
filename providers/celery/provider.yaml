@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1783356304
+source-date-epoch: 1784746595
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.23.0
   - 3.22.0
   - 3.21.0
   - 3.20.0
@@ -248,7 +249,7 @@ config:
         version_added: ~
         type: string
         sensitive: true
-        example: "db+postgresql+psycopg2://postgres:airflow@postgres/airflow"
+        example: "db+postgresql+psycopg://postgres:airflow@postgres/airflow"
         default: ~
       result_backend_sqlalchemy_engine_options:
         description: |

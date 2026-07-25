@@ -56,3 +56,29 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
     val = op.execute(context={})
     cohere_client.assert_called_once_with(api_key=api_key, base_url=base_url, timeout=timeout)
     assert val == embedded_obj
+
+
+@patch("airflow.providers.cohere.operators.embedding.CohereEmbeddingOperator.hook")
+def test_single_string_input_text_normalized_at_execute(mock_hook):
+    """
+    A single-string ``input_text`` is wrapped into a list in ``execute()`` (after templating),
+    not in ``__init__``. ``input_text`` is a template field, so wrapping it in the constructor
+    would operate on the un-rendered Jinja expression.
+    """
+    op = CohereEmbeddingOperator(task_id="embed", conn_id="some_conn", input_text="single text")
+
+    # __init__ keeps the value verbatim; the list normalization is deferred to execute().
+    assert op.input_text == "single text"
+
+    op.execute(context={})
+    mock_hook.create_embeddings.assert_called_once_with(["single text"])
+
+
+@patch("airflow.providers.cohere.operators.embedding.CohereEmbeddingOperator.hook")
+def test_list_input_text_passed_through_at_execute(mock_hook):
+    """A list ``input_text`` is passed to the hook unchanged."""
+    texts = ["first", "second"]
+    op = CohereEmbeddingOperator(task_id="embed", conn_id="some_conn", input_text=texts)
+
+    op.execute(context={})
+    mock_hook.create_embeddings.assert_called_once_with(texts)

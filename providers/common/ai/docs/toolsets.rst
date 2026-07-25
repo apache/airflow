@@ -195,6 +195,11 @@ Parameters
   ``check_query`` as well as discovery -- every table a query references must be
   on it. See :ref:`allowed-tables-enforcement` for what this does and does not
   guarantee.
+- ``allowed_functions``: Names of functions that sqlglot does not recognize as
+  builtins but are safe to run while ``allowed_tables`` is active (e.g.
+  ``["json_build_object"]`` or a project UDF). ``None`` (default) rejects every
+  unrecognized function. Matching is case-insensitive. Only consulted when
+  ``allowed_tables`` is set.
 - ``schema``: Default schema/namespace for unqualified table listing and
   introspection. Schema-qualified ``allowed_tables`` entries override it per table.
 - ``allow_writes``: Allow data-modifying SQL (INSERT, UPDATE, DELETE, etc.).
@@ -672,9 +677,10 @@ No single layer is sufficient — they work together.
        ``get_schema``, ``query``, and ``check_query``. Queries are parsed and
        every referenced table (including via subqueries, CTEs, JOINs, and
        ``DESCRIBE``) is checked against the list before execution.
-     - Cannot police data reached through side-effecting scalar functions
-       (e.g. ``pg_read_file``), and is only as exact as the SQL parser. Pair it
-       with least-privilege database grants. See
+     - Rejects ``COPY`` and every function sqlglot cannot type (the channel for
+       ``pg_read_file`` / ``query_to_xml`` / ``dblink``) unless named in
+       ``allowed_functions``. Fail-closed, but only as exact as the SQL parser. Not a
+       security boundary -- always pair it with least-privilege database grants. See
        :ref:`allowed-tables-enforcement` below.
    * - **SQLToolset: max_rows**
      - Truncates query results to ``max_rows`` (default 50), preventing the
@@ -710,27 +716,48 @@ When ``allowed_tables`` is set it governs every tool, not just discovery:
   cross-database reference like ``otherdb.public.orders`` is refused.
 - Constructs the list cannot describe are rejected outright while it is active:
   table-valued functions (``dblink``), ``TABLE('name')`` row sources, the
-  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), and **inline
-  comments** -- the last because parser-vs-engine differences hide in comments
-  (MySQL executes ``/*! ... */`` while sqlglot and other engines ignore it).
+  ``TABLE <name>`` shorthand, ``SHOW``, dynamic SQL (``EXEC``), ``COPY``
+  (file/program I/O), and **inline comments** -- because parser-vs-engine differences
+  hide in comments (MySQL executes ``/*! ... */`` while sqlglot and other engines
+  ignore it).
+- **Any function sqlglot does not recognize is rejected (fail-closed).** A function
+  whose string argument reaches data outside the table graph --
+  ``pg_read_file('/etc/passwd')`` (a file), ``query_to_xml('SELECT * FROM other_table', ...)``
+  (SQL over another table), a scalar ``dblink`` (a remote database) -- carries no table
+  reference for the parser to catch. Rather than maintain a denylist of such functions
+  (unbounded, engine-specific, and it would fail *open* on anything missed), the toolset
+  rejects every function sqlglot cannot type. Ordinary builtins (``count``, ``lower``,
+  ``sum``) are recognized and pass. A legitimate function sqlglot does not type
+  (``json_build_object``, ``jsonb_agg``) or a project UDF is rejected until you list it
+  in ``allowed_functions``:
+
+  .. code-block:: python
+
+      SQLToolset(
+          db_conn_id="analytics_db",
+          allowed_tables=["orders"],
+          allowed_functions=["json_build_object"],  # opt in per function you trust
+      )
 
 So ``SELECT * FROM secrets`` with ``allowed_tables=["orders"]`` is refused, and
 the rejection is handed back to the agent so it can re-target an allowed table.
 
-This is a strong **application-level guardrail**, but it is not a substitute for
-database permissions. It cannot police data reached through a function whose
-argument is itself SQL or a path: ``pg_read_file('/etc/passwd')`` reads a file,
-and ``query_to_xml('SELECT * FROM other_table', ...)`` or a scalar ``dblink``
-reads a table through a string the parser cannot inspect. Any query the engine
-parses differently from sqlglot is also a residual gap. For a hard boundary, also
-run the connection as a least-privilege role:
+.. warning::
 
-.. code-block:: sql
+    This is a strong **application-level guardrail, not a security boundary.** The
+    fail-closed function check raises the bar, but any query the engine parses
+    differently from sqlglot is a residual gap, and ``allowed_functions`` is a trust
+    decision you own. **Always** point the connection at a least-privilege database
+    role -- that is the boundary that holds even when the parser cannot see through a
+    function, and it is what actually keeps an agent (which may be under prompt
+    injection) away from data and files you have not granted it:
 
-    -- Create a read-only role with access to specific tables only
-    CREATE ROLE airflow_agent_reader;
-    GRANT SELECT ON orders, customers TO airflow_agent_reader;
-    -- Use this role's credentials in the Airflow connection
+    .. code-block:: sql
+
+        -- Create a read-only role with access to specific tables only
+        CREATE ROLE airflow_agent_reader;
+        GRANT SELECT ON orders, customers TO airflow_agent_reader;
+        -- Use this role's credentials in the Airflow connection
 
 Defense in depth: the allow-list contains the agent's *intent* (and gives it a
 correctable error), while the database role is the boundary that holds even if
