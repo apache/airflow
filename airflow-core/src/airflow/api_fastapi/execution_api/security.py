@@ -85,13 +85,6 @@ log = structlog.get_logger(logger_name=__name__)
 
 VALID_TOKEN_TYPES: frozenset[str] = frozenset(get_args(TokenScope))
 
-# Maps each ``*:self`` scope to the path param whose value the JWT ``sub`` must match.
-SELF_SCOPE_PATH_PARAMS: dict[str, str] = {
-    "ti:self": "task_instance_id",
-    "ct:self": "connection_test_id",
-    "callback:self": "callback_id",
-}
-
 _REQUEST_SCOPE_TOKEN_KEY = "ti_token"
 
 
@@ -189,14 +182,27 @@ async def require_auth(
             f"Allowed types: {', '.join(sorted(allowed_token_types))}",
         )
 
-    for scope, path_param in SELF_SCOPE_PATH_PARAMS.items():
-        if scope in security_scopes.scopes:
-            if str(token.id) != str(request.path_params[path_param]):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Token subject does not match {path_param}",
-                )
-            break
+    if "ti:self" in security_scopes.scopes:
+        ti_self_id = str(request.path_params["task_instance_id"])
+        if str(token.id) != ti_self_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token subject does not match task instance ID",
+            )
+    elif "ct:self" in security_scopes.scopes:
+        ct_self_id = str(request.path_params["connection_test_id"])
+        if str(token.id) != ct_self_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token subject does not match connection test ID",
+            )
+    elif "callback:self" in security_scopes.scopes:
+        cb_self_id = str(request.path_params["callback_id"])
+        if str(token.id) != cb_self_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Token subject does not match callback ID",
+            )
 
     return token
 
@@ -205,12 +211,7 @@ CurrentTIToken: TIToken = Depends(require_auth)
 
 
 def issue_execution_token(services: Any, response: Response, sub: str) -> None:
-    """
-    Mint an ``execution``-scoped token and set it on the ``Refreshed-API-Token`` header.
-
-    ``JWTReissueMiddleware`` skips ``workload``/``callback`` tokens, so endpoints that
-    swap them for an execution token must set the header here themselves.
-    """
+    """Mint an ``execution``-scoped token and set it on the ``Refreshed-API-Token`` header."""
     generator: JWTGenerator = services.get(JWTGenerator)
     response.headers["Refreshed-API-Token"] = generator.generate(extras={"sub": sub, "scope": "execution"})
 
