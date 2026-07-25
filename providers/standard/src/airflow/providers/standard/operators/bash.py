@@ -178,7 +178,6 @@ class BashOperator(BaseOperator):
         self.cwd = cwd
         self.append_env = append_env
         self.output_processor = output_processor
-        
     @cached_property
     def subprocess_hook(self):
         """Returns hook for running the bash command."""
