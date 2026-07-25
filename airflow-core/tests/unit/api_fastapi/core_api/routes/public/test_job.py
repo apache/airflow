@@ -157,6 +157,7 @@ class TestGetJobs(TestJobEndpoint):
             assert len(matched) == 1
             expected_job = {
                 "id": matched[0].id,
+                "bundle_names": None,
                 "dag_display_name": None,
                 "dag_id": None,
                 "state": matched[0].state,
@@ -166,6 +167,7 @@ class TestGetJobs(TestJobEndpoint):
                 "latest_heartbeat": from_datetime_to_zulu(matched[0].latest_heartbeat),
                 "executor_class": None,
                 "hostname": matched[0].hostname,
+                "team_name": None,
                 "unixname": matched[0].unixname,
             }
             assert resp_job == expected_job
