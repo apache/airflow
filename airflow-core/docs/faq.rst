@@ -417,7 +417,7 @@ configuration option:
 
 Additionally, you can catch these issues earlier in your development workflow by using the
 `AIR304 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
-dynamic values in Dag and Task constructors as part of static linting. See
+dynamic values in Dag and Task constructors as part of static linting or ``airflow dags stability`` CLI command. See
 :ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules.
 
 .. _faq:duplicate-dag-id-warning:
