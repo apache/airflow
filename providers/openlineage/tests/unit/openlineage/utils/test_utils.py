@@ -2616,7 +2616,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_3_1_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
