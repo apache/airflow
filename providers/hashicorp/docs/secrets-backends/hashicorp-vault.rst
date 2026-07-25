@@ -70,7 +70,7 @@ For example, if you want to set parameter ``connections_path`` to ``"airflow-con
     backend_kwargs = {"connections_path": "airflow-connections", "variables_path": null, "mount_point": "airflow", "url": "http://127.0.0.1:8200"}
 
 Falling back across multiple secret paths
-""""""""""""""""""""""""""""""""""""""""
+"""""""""""""""""""""""""""""""""""""""""
 
 ``connections_path``, ``variables_path``, and ``config_path`` can take a list of paths. Each path is tried in order, and
 the first path where a secret is found returns. This can be used as a fallback mechanism for e.g. teams, environments,
