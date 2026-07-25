@@ -1513,6 +1513,7 @@ option_e2e_test_mode = click.option(
             "java_sdk",
             "go_sdk",
             "openlineage",
+            "ts_sdk",
         ],
         case_sensitive=False,
     ),

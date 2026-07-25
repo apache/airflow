@@ -158,6 +158,13 @@ def get_provider_info():
                         "example": None,
                         "default": "False",
                     },
+                    "running_pod_log_lines": {
+                        "description": "Number of lines read from the end of a running task's pod log when the task log\nis served through the kube API, e.g. when viewing logs of a running task in the UI.\nThe value must be greater than 0.\n",
+                        "version_added": "10.20.0",
+                        "type": "integer",
+                        "example": None,
+                        "default": "100",
+                    },
                     "pod_template_file": {
                         "description": "Path to the YAML pod file that forms the basis for KubernetesExecutor workers.\n",
                         "version_added": None,

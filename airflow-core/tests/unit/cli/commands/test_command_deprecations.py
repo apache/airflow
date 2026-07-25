@@ -37,6 +37,7 @@ from airflow.cli.commands import (
     dag_command,
     pool_command,
     provider_command,
+    task_command,
     variable_command,
 )
 
@@ -56,6 +57,8 @@ MIGRATED_CLI_COMMANDS = [
     (dag_command.dag_pause, "airflowctl dags pause"),
     (dag_command.dag_unpause, "airflowctl dags unpause"),
     (dag_command.dag_list_dag_runs, "airflowctl dagrun list"),
+    (dag_command.dag_state, "airflowctl dags state"),
+    (dag_command.dag_next_execution, "airflowctl dags next-execution"),
     (pool_command.pool_list, "airflowctl pools list"),
     (pool_command.pool_get, "airflowctl pools get"),
     (pool_command.pool_set, "airflowctl pools create"),
@@ -74,6 +77,8 @@ MIGRATED_CLI_COMMANDS = [
     (provider_command.providers_list, "airflowctl providers list"),
     (config_command.get_value, "airflowctl config get"),
     (config_command.show_config, "airflowctl config list"),
+    (task_command.task_states_for_dag_run, "airflowctl tasks states-for-dag-run"),
+    (task_command.task_clear, "airflowctl tasks clear"),
 ]
 
 

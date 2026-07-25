@@ -77,24 +77,26 @@ class TestDatabricksReposUpdateOperator:
         db_mock.update_repo.assert_called_once_with("123", {"tag": "v1.0.0"})
 
     def test_init_exception(self):
-        """
-        Tests handling of incorrect parameters passed to ``__init__``
-        """
+        """Incorrect parameter combinations are rejected at execute, after rendering."""
+        op = DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="abc", repo_path="path", branch="abc")
         with pytest.raises(
             AirflowException, match="Only one of repo_id or repo_path should be provided, but not both"
         ):
-            DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="abc", repo_path="path", branch="abc")
+            op.execute(None)
 
+        op = DatabricksReposUpdateOperator(task_id=TASK_ID, branch="abc")
         with pytest.raises(AirflowException, match="One of repo_id or repo_path should be provided"):
-            DatabricksReposUpdateOperator(task_id=TASK_ID, branch="abc")
+            op.execute(None)
 
+        op = DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="123", branch="123", tag="123")
         with pytest.raises(
             AirflowException, match="Only one of branch or tag should be provided, but not both"
         ):
-            DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="123", branch="123", tag="123")
+            op.execute(None)
 
+        op = DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="123")
         with pytest.raises(AirflowException, match="One of branch or tag should be provided"):
-            DatabricksReposUpdateOperator(task_id=TASK_ID, repo_id="123")
+            op.execute(None)
 
 
 class TestDatabricksReposDeleteOperator:
@@ -140,16 +142,16 @@ class TestDatabricksReposDeleteOperator:
         db_mock.delete_repo.assert_called_once_with("123")
 
     def test_init_exception(self):
-        """
-        Tests handling of incorrect parameters passed to ``__init__``
-        """
+        """Incorrect parameter combinations are rejected at execute, after rendering."""
+        op = DatabricksReposDeleteOperator(task_id=TASK_ID, repo_id="abc", repo_path="path")
         with pytest.raises(
             AirflowException, match="Only one of repo_id or repo_path should be provided, but not both"
         ):
-            DatabricksReposDeleteOperator(task_id=TASK_ID, repo_id="abc", repo_path="path")
+            op.execute(None)
 
+        op = DatabricksReposDeleteOperator(task_id=TASK_ID)
         with pytest.raises(AirflowException, match="One of repo_id repo_path tag should be provided"):
-            DatabricksReposDeleteOperator(task_id=TASK_ID)
+            op.execute(None)
 
 
 class TestDatabricksReposCreateOperator:
@@ -286,7 +288,8 @@ class TestDatabricksReposCreateOperator:
         with pytest.raises(AirflowException, match=exception_message):
             op.execute(None)
 
+        op = DatabricksReposCreateOperator(task_id=TASK_ID, git_url=git_url, branch="123", tag="123")
         with pytest.raises(
             AirflowException, match="Only one of branch or tag should be provided, but not both"
         ):
-            DatabricksReposCreateOperator(task_id=TASK_ID, git_url=git_url, branch="123", tag="123")
+            op.execute(None)

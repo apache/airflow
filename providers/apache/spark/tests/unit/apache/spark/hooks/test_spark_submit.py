@@ -379,6 +379,33 @@ class TestSparkSubmitHook:
         )
 
     @pytest.mark.db_test
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_submit_failure_includes_captured_log_tail(self, mock_popen, sdk_connection_not_found):
+        mock_popen.return_value.stdout = StringIO(
+            "Exception in thread main: SparkException: bad jar\nsome other line"
+        )
+        mock_popen.return_value.stderr = StringIO("")
+        mock_popen.return_value.wait.return_value = 1
+
+        hook = SparkSubmitHook(conn_id="")
+
+        with pytest.raises(AirflowException, match="Last spark-submit output:") as exc_info:
+            hook.submit()
+        assert "Exception in thread main: SparkException: bad jar" in str(exc_info.value)
+
+    @pytest.mark.db_test
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
+    def test_submit_no_driver_id_includes_captured_log_tail(self, mock_popen, sdk_connection_not_found):
+        mock_popen.return_value.stdout = StringIO("some unrelated spark-submit output")
+        mock_popen.return_value.stderr = StringIO("")
+        mock_popen.return_value.wait.return_value = 0
+
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        with pytest.raises(AirflowException, match="No driver id is known") as exc_info:
+            hook.submit()
+        assert "Last spark-submit output:\nsome unrelated spark-submit output" in str(exc_info.value)
+
+    @pytest.mark.db_test
     def test_resolve_should_track_driver_status(self, sdk_connection_not_found):
         # Given
         hook_default = SparkSubmitHook(conn_id="")
@@ -986,6 +1013,24 @@ class TestSparkSubmitHook:
 
         assert hook._driver_id == "driver-20171128111415-0001"
 
+    def test_process_spark_submit_log_populates_last_submit_log_lines(self):
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        log_lines = [
+            "Running Spark using the REST application submission protocol.",
+            "17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request "
+            "to launch an application in spark://spark-standalone-master:6066",
+        ]
+
+        hook._process_spark_submit_log(log_lines)
+
+        assert list(hook._last_submit_log_lines) == log_lines
+
+    def test_process_spark_submit_log_last_submit_log_lines_truncates_to_maxlen(self):
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        log_lines = [f"line {i}" for i in range(25)]
+        hook._process_spark_submit_log(log_lines)
+        assert list(hook._last_submit_log_lines) == log_lines[-20:]
+
     def test_process_spark_driver_status_log(self):
         # Given
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
@@ -1239,6 +1284,26 @@ class TestSparkSubmitHook:
 
         # Then
         assert command_masked == expected
+
+    @pytest.mark.db_test
+    def test_submit_log_tail_empty_when_no_lines_captured(self) -> None:
+        hook = SparkSubmitHook()
+
+        assert hook._submit_log_tail == ""
+
+    @pytest.mark.db_test
+    def test_submit_log_tail_formats_and_masks_captured_lines(self) -> None:
+        hook = SparkSubmitHook()
+        hook._last_submit_log_lines.append("Exception in thread main: SparkException: bad jar")
+        hook._last_submit_log_lines.append("--password='secret'")
+
+        tail = hook._submit_log_tail
+
+        assert tail == (
+            "\nLast spark-submit output:\n"
+            "Exception in thread main: SparkException: bad jar\n"
+            "--password='******'"
+        )
 
     @pytest.mark.db_test
     def test_create_keytab_path_from_base64_keytab_with_decode_exception(self):
@@ -1666,10 +1731,15 @@ class TestSparkSubmitHook:
         return f"{cls._RM_BASE_URL}/ws/v1/cluster/apps/{app_id or cls._RM_APP_ID}/state"
 
     @classmethod
-    def _rm_status_resp(cls, final_status: str, state: str = "FINISHED") -> MagicMock:
+    def _rm_status_resp(
+        cls, final_status: str, state: str = "FINISHED", diagnostics: str | None = None
+    ) -> MagicMock:
         resp = MagicMock(spec=requests.Response)
         resp.status_code = 200
-        resp.json.return_value = {"app": {"id": cls._RM_APP_ID, "state": state, "finalStatus": final_status}}
+        app = {"id": cls._RM_APP_ID, "state": state, "finalStatus": final_status}
+        if diagnostics is not None:
+            app["diagnostics"] = diagnostics
+        resp.json.return_value = {"app": app}
         return resp
 
     @staticmethod
@@ -1775,6 +1845,44 @@ class TestSparkSubmitHook:
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_tracking_includes_diagnostics_on_state_failure(self, mock_get, mock_sleep):
+        """RM state FAILED/KILLED -> raised message includes the RM's diagnostics field."""
+        mock_get.return_value = self._rm_status_resp(
+            "KILLED",
+            state="KILLED",
+            diagnostics="Application application_1700000000000_0001 was killed by user root",
+        )
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match="Diagnostics: Application .* was killed by user root"):
+            hook._start_yarn_application_status_tracking(self._RM_APP_ID)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_tracking_includes_diagnostics_on_final_status_failure(self, mock_get, mock_sleep):
+        """RM finalStatus FAILED (state FINISHED) -> raised message includes diagnostics."""
+        mock_get.return_value = self._rm_status_resp(
+            "FAILED", diagnostics="AM Container exited with exitCode: 1"
+        )
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match="Diagnostics: AM Container exited with exitCode: 1"):
+            hook._start_yarn_application_status_tracking(self._RM_APP_ID)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_tracking_omits_diagnostics_suffix_when_absent(self, mock_get, mock_sleep):
+        """RM response with no diagnostics field -> message has no 'Diagnostics:' suffix."""
+        mock_get.return_value = self._rm_status_resp("KILLED")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError) as exc_info:
+            hook._start_yarn_application_status_tracking(self._RM_APP_ID)
+
+        assert "Diagnostics:" not in str(exc_info.value)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
     def test_yarn_status_tracking_fails_on_unexpected_final_status(self, mock_get, mock_sleep):
         """RM returns a non-standard finalStatus ('BOGUS') -> raise without sleeping."""
         mock_get.return_value = self._rm_status_resp("BOGUS")
@@ -1784,6 +1892,16 @@ class TestSparkSubmitHook:
             hook._start_yarn_application_status_tracking(self._RM_APP_ID)
 
         mock_sleep.assert_not_called()
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.time.sleep")
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.requests.get")
+    def test_yarn_status_tracking_includes_diagnostics_on_unexpected_final_status(self, mock_get, mock_sleep):
+        """RM returns a non-standard finalStatus -> raised message also includes diagnostics."""
+        mock_get.return_value = self._rm_status_resp("ENDED", diagnostics="Application state is ENDED")
+
+        hook = SparkSubmitHook(conn_id="spark_yarn_rm", yarn_track_via_rm_api=True)
+        with pytest.raises(RuntimeError, match="unexpected final status: ENDED\nDiagnostics: .*ENDED"):
+            hook._start_yarn_application_status_tracking(self._RM_APP_ID)
 
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_yarn_submit_captures_app_id_without_submitted_application_log(self, mock_popen):

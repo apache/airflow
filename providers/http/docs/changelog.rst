@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+6.0.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Honor async hook subclass overrides in get_async_connection (#69140)``
+
+Doc-only
+~~~~~~~~
+
+* ``Enhancing docs for 'HttpEventTrigger' (#70073)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 6.0.4
 .....
 
