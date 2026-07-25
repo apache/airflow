@@ -156,12 +156,15 @@ Those users should be highly trusted not to misuse this capability.
 About Sensitive information
 ...........................
 
-Sensitive information consists of connection details, variables, and configuration. In versions later than Airflow 3.0
-sensitive information will not be exposed to users via API, UI, and ``airflowctl``.
-However, ``task-sdk`` still provides access to sensitive information (e.g., Use SDK API Client to get
-Variables with task-specific ``JWT`` token). Local CLI will only return keys except when using ``--show_values``.
-Sensitive information has been masked in logs, UI, and API outputs. In case of Dag author expose sensitive
-information in other way (e.g., via environment variables), those values will not be masked.
+Sensitive information consists of connection details, variables, and configuration. In Airflow 3 and later,
+Airflow masks sensitive information in the UI, API responses, and ``airflowctl`` output by default.
+Some execution-time channels are still able to retrieve sensitive values when the caller is already
+authorized to do so, for example ``task-sdk`` can access variables through the Task Execution API using a
+task-specific ``JWT`` token. The local CLI returns keys by default and only shows values when
+``--show_values`` is used.
+
+If Dag author code exposes sensitive information in another way (for example via environment variables),
+those values will not be masked automatically.
 
 Audit log users
 ...............
