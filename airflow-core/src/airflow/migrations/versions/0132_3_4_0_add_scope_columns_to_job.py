@@ -20,7 +20,7 @@
 Add team_name and bundle_names scope columns to job table.
 
 Revision ID: f8c2a1d94e03
-Revises: 5a5d3253e946
+Revises: c7f0a5d2e9b4
 Create Date: 2026-07-08 02:00:00.000000
 
 """
@@ -34,7 +34,7 @@ from airflow.utils.sqlalchemy import ExtendedJSON
 
 # revision identifiers, used by Alembic.
 revision = "f8c2a1d94e03"
-down_revision = "7a98f1b7dbd3"
+down_revision = "c7f0a5d2e9b4"
 branch_labels = None
 depends_on = None
 airflow_version = "3.4.0"
