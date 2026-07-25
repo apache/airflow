@@ -98,6 +98,9 @@ class DateTimeSensorAsync(DateTimeSensor):
 
     :param target_time: datetime after which the job succeeds. (templated)
     :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
+        This requires a static ``target_time`` (a datetime or ISO-8601 string). A templated
+        ``target_time`` is not supported here because the trigger is created at Dag-parse time,
+        before Jinja templates are rendered.
     :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
         during dynamic task mapping. This argument is not used in standard usage.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
@@ -125,8 +128,14 @@ class DateTimeSensorAsync(DateTimeSensor):
 
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
+            try:
+                moment = timezone.parse(self.target_time)
+            except ValueError as e:
+                raise ValueError(
+                    f"start_from_trigger=True requires a static target_time, not a template: {self.target_time!r}"
+                ) from e
             self.start_trigger_args.trigger_kwargs = dict(
-                moment=timezone.parse(self.target_time),
+                moment=moment,
                 end_from_trigger=self.end_from_trigger,
             )
 
