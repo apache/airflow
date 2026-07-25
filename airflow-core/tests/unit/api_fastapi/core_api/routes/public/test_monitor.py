@@ -94,9 +94,9 @@ class TestGetHealth(TestMonitorEndpoint):
         assert body["scheduler"]["status"] == "unhealthy"
         assert body["scheduler"]["latest_scheduler_heartbeat"] is None
 
-    @mock.patch.object(SchedulerJobRunner, "most_recent_job")
-    def test_unhealthy_metadatabase_status(self, most_recent_job_mock, test_client):
-        most_recent_job_mock.side_effect = Exception
+    @mock.patch("airflow.api.common.airflow_health.get_jobs_health")
+    def test_unhealthy_metadatabase_status(self, mock_get_jobs_health, test_client):
+        mock_get_jobs_health.side_effect = Exception
         response = test_client.get("/monitor/health")
 
         assert response.status_code == 200
@@ -112,14 +112,17 @@ class TestGetHealth(TestMonitorEndpoint):
             "scheduler": {
                 "status": HEALTHY,
                 "latest_scheduler_heartbeat": "2024-11-23T11:09:16.663124+00:00",
+                "detailed_status": HEALTHY,
             },
             "triggerer": {
                 "status": HEALTHY,
                 "latest_triggerer_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+                "detailed_status": HEALTHY,
             },
             "dag_processor": {
                 "status": HEALTHY,
                 "latest_dag_processor_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+                "detailed_status": HEALTHY,
             },
         }
 
@@ -140,10 +143,12 @@ class TestGetHealth(TestMonitorEndpoint):
             "scheduler": {
                 "status": HEALTHY,
                 "latest_scheduler_heartbeat": "2024-11-23T11:09:16.663124+00:00",
+                "detailed_status": HEALTHY,
             },
             "triggerer": {
                 "status": HEALTHY,
                 "latest_triggerer_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+                "detailed_status": HEALTHY,
             },
         }
 
