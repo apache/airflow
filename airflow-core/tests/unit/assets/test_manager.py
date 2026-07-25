@@ -519,19 +519,21 @@ class TestAssetManager:
 
         apdr_1 = AssetManager._get_or_create_apdr(
             target_key="key-1",
+            target_partition_date=None,
             target_dag=testing_dag,
             rollup_fingerprint=rollup_fingerprint,
             asset_id=asm.id,
-            session=session,
             allow_reuse=True,
+            session=session,
         )
         apdr_2 = AssetManager._get_or_create_apdr(
             target_key="key-1",
+            target_partition_date=None,
             target_dag=testing_dag,
             rollup_fingerprint=rollup_fingerprint,
             asset_id=asm.id,
-            session=session,
             allow_reuse=True,
+            session=session,
         )
 
         assert apdr_1.id == apdr_2.id
@@ -559,19 +561,21 @@ class TestAssetManager:
 
         apdr_1 = AssetManager._get_or_create_apdr(
             target_key="key-1",
+            target_partition_date=None,
             target_dag=testing_dag,
             rollup_fingerprint=rollup_fingerprint,
             asset_id=asm.id,
-            session=session,
             allow_reuse=False,
+            session=session,
         )
         apdr_2 = AssetManager._get_or_create_apdr(
             target_key="key-1",
+            target_partition_date=None,
             target_dag=testing_dag,
             rollup_fingerprint=rollup_fingerprint,
             asset_id=asm.id,
-            session=session,
             allow_reuse=False,
+            session=session,
         )
 
         assert apdr_1.id != apdr_2.id
