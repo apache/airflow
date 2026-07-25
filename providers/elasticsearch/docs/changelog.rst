@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+6.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent malformed Elasticsearch log entries from crashing task log fetch (#69306)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 6.8.0
 .....
 

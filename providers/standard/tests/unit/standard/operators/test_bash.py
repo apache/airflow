@@ -57,6 +57,27 @@ class TestBashOperator:
         assert op.skip_on_exit_code == [99]
         assert op.cwd is None
 
+    def test_bash_operator_init_does_not_classify_templated_command(self):
+        """bash_command is a template field; __init__ must not classify it from the raw value."""
+        op = BashOperator(task_id="bash_op", bash_command="{{ params.script_path }}")
+        assert op._is_inline_cmd is None
+
+    def test_bash_operator_execute_classifies_after_templating(self, dag_maker, context):
+        """_is_inline_cmd must be derived from the rendered value, computed at execute() time."""
+        with dag_maker(dag_id="test_bash_execute_classification"):
+            op = BashOperator(task_id="bash_op", bash_command="echo hi")
+
+        with (
+            mock.patch.object(op, "_run_inline_command") as run_inline,
+            mock.patch.object(op, "_run_rendered_script_file") as run_script,
+        ):
+            run_inline.return_value = mock.Mock(exit_code=0, output="hi")
+            op.execute(context=context)
+
+        assert op._is_inline_cmd is True
+        run_inline.assert_called_once()
+        run_script.assert_not_called()
+
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("append_env", "user_defined_env", "expected_airflow_home"),

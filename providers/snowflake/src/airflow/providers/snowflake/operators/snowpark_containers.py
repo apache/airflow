@@ -163,11 +163,6 @@ class SnowparkContainerJobOperator(BaseOperator):
         # Set after the job is submitted, parsed from the job submission response.
         self.job_name: str | None = None
 
-        if self.spec_text and (self.spec or self.spec_stage):
-            raise ValueError("Cannot specify both 'spec_text' and 'spec'/'spec_stage'")
-        if not self.spec_text and not (self.spec and self.spec_stage):
-            raise ValueError("Must provide either 'spec_text' or both 'spec' and 'spec_stage'")
-
     @cached_property
     def _hook(self) -> SnowflakeHook:
         return SnowflakeHook(
@@ -237,6 +232,11 @@ class SnowparkContainerJobOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """Submit and optionally wait for a Snowpark Container Services job."""
+        if self.spec_text and (self.spec or self.spec_stage):
+            raise ValueError("Cannot specify both 'spec_text' and 'spec'/'spec_stage'")
+        if not self.spec_text and not (self.spec and self.spec_stage):
+            raise ValueError("Must provide either 'spec_text' or both 'spec' and 'spec_stage'")
+
         self.job_name = self._submit_job()
         if not self.job_name:
             raise RuntimeError("Job name was not returned")

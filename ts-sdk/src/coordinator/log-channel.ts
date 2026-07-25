@@ -50,9 +50,10 @@ const DEFAULT_LOGGER_NAME = "ts-sdk";
 const CLOSE_FLUSH_TIMEOUT_MS = 3_000;
 
 interface LogChannelState {
-  sock: Socket;
+  sock: Socket | null;
   connected: boolean;
   closed: boolean;
+  buffer: string[];
 }
 
 export class LogChannel {
@@ -66,22 +67,39 @@ export class LogChannel {
     this.isRoot = isRoot;
   }
 
-  static async connect(addr: string, name: string = DEFAULT_LOGGER_NAME): Promise<LogChannel> {
-    const shared: LogChannelState = {
-      sock: await connectTcp(addr),
-      connected: true,
-      closed: false,
-    };
-    shared.sock.on("error", (err) => {
+  /** Create a root channel with no socket yet; records are buffered
+   *  until {@link LogChannel#connect} flushes them. */
+  static createBuffered(name: string = DEFAULT_LOGGER_NAME): LogChannel {
+    return new LogChannel({ sock: null, connected: false, closed: false, buffer: [] }, name, true);
+  }
+
+  /** Connect the socket and flush buffered records, in order. Root only,
+   *  and callable once: a second call would orphan the first socket. */
+  async connect(addr: string): Promise<void> {
+    if (!this.isRoot) {
+      throw new Error(`[${this.name}] connect() is root-only`);
+    }
+    if (this.shared.sock) {
+      throw new Error(`[${this.name}] connect() called more than once`);
+    }
+    const shared = this.shared;
+    const name = this.name;
+    const sock = await connectTcp(addr);
+    shared.sock = sock;
+    shared.connected = true;
+    sock.on("error", (err) => {
       shared.connected = false;
       process.stderr.write(`[${name}] log socket error: ${err.message}\n`);
     });
-    shared.sock.on("close", () => {
+    sock.on("close", () => {
       if (shared.closed || !shared.connected) return;
       shared.connected = false;
       process.stderr.write(`[${name}] log socket closed unexpectedly; further logs go to stderr\n`);
     });
-    return new LogChannel(shared, name, true);
+    for (const line of shared.buffer) {
+      sock.write(Buffer.from(line, "utf8"));
+    }
+    shared.buffer = [];
   }
 
   /** Create a sibling logger that shares the underlying socket but
@@ -117,11 +135,16 @@ export class LogChannel {
       timestamp: record.timestamp ?? new Date().toISOString(),
     });
     const payload = line + "\n";
-    if (!this.shared.connected || !this.shared.sock.writable) {
+    const sock = this.shared.sock;
+    if (!sock) {
+      this.shared.buffer.push(payload);
+      return;
+    }
+    if (!this.shared.connected || !sock.writable) {
       process.stderr.write(payload);
       return;
     }
-    this.shared.sock.write(Buffer.from(payload, "utf8"));
+    sock.write(Buffer.from(payload, "utf8"));
   }
 
   debug(event: string, args: Record<string, unknown> = {}): void {
@@ -143,17 +166,26 @@ export class LogChannel {
   async close(): Promise<void> {
     if (!this.isRoot) return;
     this.shared.closed = true;
+    const sock = this.shared.sock;
+    if (!sock) {
+      // never connected: surface buffered records instead of dropping them
+      for (const line of this.shared.buffer) {
+        process.stderr.write(line);
+      }
+      this.shared.buffer = [];
+      return;
+    }
     if (!this.shared.connected) {
-      this.shared.sock.destroy();
+      sock.destroy();
       return;
     }
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
-        this.shared.sock.destroy();
+        sock.destroy();
         resolve();
       }, CLOSE_FLUSH_TIMEOUT_MS);
       timer.unref();
-      this.shared.sock.end(() => {
+      sock.end(() => {
         clearTimeout(timer);
         resolve();
       });

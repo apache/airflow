@@ -178,9 +178,7 @@ class BashOperator(BaseOperator):
         self.cwd = cwd
         self.append_env = append_env
         self.output_processor = output_processor
-        self._is_inline_cmd = None
-        if isinstance(bash_command, str):
-            self._is_inline_cmd = self._is_inline_command(bash_command=bash_command)
+        self._is_inline_cmd: bool | None = None
 
     @cached_property
     def subprocess_hook(self):
@@ -214,6 +212,12 @@ class BashOperator(BaseOperator):
             if not os.path.isdir(self.cwd):
                 raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
+
+        # bash_command is a template field: it is only safe to inspect its final value
+        # (e.g. to decide inline-vs-script-file mode) here, after Airflow has rendered it.
+        # Deciding this in __init__ would inspect the raw, un-rendered Jinja expression.
+        if isinstance(self.bash_command, str):
+            self._is_inline_cmd = self._is_inline_command(bash_command=self.bash_command)
 
         if self._is_inline_cmd:
             result = self._run_inline_command(bash_path=bash_path, env=env)
