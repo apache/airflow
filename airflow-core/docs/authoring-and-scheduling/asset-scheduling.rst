@@ -424,7 +424,7 @@ For more detailed information on ``AssetOrTimeSchedule``, refer to the correspon
 Controlling DagRun creation per asset event
 ---------------------------------------------
 
-.. versionadded:: 3.3.0
+.. versionadded:: 3.3.1
 
 By default, when multiple asset events arrive for the same Dag between
 scheduler ticks, they are batched into a single DagRun. Set
