@@ -18,24 +18,19 @@ from __future__ import annotations
 
 from uuid import UUID
 
-import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Response, Security, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
-    CurrentTIToken,
     ExecutionAPIRoute,
     issue_execution_token,
     require_auth,
 )
 from airflow.models.callback import Callback
 from airflow.utils.state import CallbackState
-
-log = structlog.get_logger(logger_name=__name__)
 
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -60,14 +55,8 @@ def run_callback(
     response: Response,
     session: SessionDep,
     services=DepContainer,
-    token: TIToken = CurrentTIToken,
 ) -> None:
-    """
-    Exchange a single-use callback token for a short-lived execution token.
-
-    Gated on an atomic ``QUEUED -> RUNNING`` transition, so the exchange
-    succeeds at most once; the new token is returned via ``Refreshed-API-Token``.
-    """
+    """Exchange a single-use callback token for a short-lived execution token."""
     callback = session.get(Callback, callback_id, with_for_update=True)
     if callback is None:
         raise HTTPException(
@@ -87,11 +76,10 @@ def run_callback(
                     f"Callback {callback_id} is in state {callback.state}; its token can only be "
                     "exchanged once while QUEUED."
                 ),
-                "previous_state": str(callback.state) if callback.state is not None else None,
+                "previous_state": callback.state,
             },
         )
 
     callback.state = CallbackState.RUNNING
-    log.info("Callback token exchanged; marked running", callback_id=str(callback_id))
 
     issue_execution_token(services, response, sub=str(callback_id))

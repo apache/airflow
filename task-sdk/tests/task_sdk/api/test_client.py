@@ -2258,7 +2258,6 @@ class TestAssetStateOperations:
 
 class TestCallbackOperations:
     def test_run_exchanges_token(self):
-        """run() PATCHes the exchange endpoint and adopts the refreshed execution token."""
         callback_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -2276,7 +2275,6 @@ class TestCallbackOperations:
         assert client.auth.token == "execution-token"
 
     def test_run_raises_on_conflict(self):
-        """A second exchange (callback no longer QUEUED) surfaces as ServerResponseError."""
         callback_id = uuid7()
 
         def handle_request(request: httpx.Request) -> httpx.Response:

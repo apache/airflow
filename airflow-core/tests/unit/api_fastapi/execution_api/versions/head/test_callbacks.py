@@ -33,11 +33,11 @@ pytestmark = pytest.mark.db_test
 
 
 def sync_callback():
-    """Empty (sync) callable used for unit tests."""
+    """Empty (sync) callable used for unit tests"""
+    pass
 
 
 def _make_queued_callback(session, dag_id="test_dag"):
-    """Create and persist an ExecutorCallback in QUEUED state."""
     callback = ExecutorCallback(
         callback_def=SyncCallback(sync_callback, kwargs={}),
         fetch_method=CallbackFetchMethod.IMPORT_PATH,
@@ -109,7 +109,7 @@ class TestRunCallback:
 
 @pytest.fixture
 def _use_real_jwt_bearer(exec_app):
-    """Remove the mock require_auth override so the real scope validation runs."""
+    """Remove the mock require_auth override so the real JWT validation runs end-to-end."""
     exec_app.dependency_overrides.pop(require_auth, None)
 
 

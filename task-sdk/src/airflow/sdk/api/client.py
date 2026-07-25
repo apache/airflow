@@ -1104,12 +1104,7 @@ class CallbackOperations:
         self.client = client
 
     def run(self, callback_id: uuid.UUID) -> None:
-        """
-        Exchange the single-use callback token for an execution token.
-
-        Must be called before any context read; a second call raises
-        ``ServerResponseError`` (409).
-        """
+        """Exchange the single-use callback token for an execution token."""
         self.client.patch(f"callbacks/{callback_id}/run")
 
 
