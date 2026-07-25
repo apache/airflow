@@ -246,7 +246,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return {
             "asset_condition": encode_asset_like(self.asset_condition),
             "batch_asset_events": self.batch_asset_events,
-        }
+        }  # serialize batch_asset_events flag for the scheduler
 
     def generate_run_id(
         self,
