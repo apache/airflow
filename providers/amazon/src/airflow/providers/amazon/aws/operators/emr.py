@@ -140,8 +140,6 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
         ),
         **kwargs,
     ):
-        if not exactly_one(job_flow_id is None, job_flow_name is None):
-            raise AirflowException("Exactly one of job_flow_id or job_flow_name must be specified.")
         super().__init__(**kwargs)
         cluster_states = cluster_states or []
         steps = steps or []
@@ -186,6 +184,9 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
         return result
 
     def execute(self, context: Context) -> list[str]:
+        if not exactly_one(self.job_flow_id is None, self.job_flow_name is None):
+            raise AirflowException("Exactly one of job_flow_id or job_flow_name must be specified.")
+
         job_flow_id = self.job_flow_id or self.hook.get_cluster_id_by_name(
             str(self.job_flow_name), self.cluster_states
         )

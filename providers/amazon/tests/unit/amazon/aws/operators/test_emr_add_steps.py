@@ -91,14 +91,15 @@ class TestEmrAddStepsOperator:
             pytest.param(None, None, id="both-none"),
         ],
     )
-    def test_validate_mutually_exclusive_args(self, job_flow_id, job_flow_name):
+    def test_validate_mutually_exclusive_args_on_execute(self, job_flow_id, job_flow_name):
+        operator = EmrAddStepsOperator(
+            task_id="test_validate_mutually_exclusive_args",
+            job_flow_id=job_flow_id,
+            job_flow_name=job_flow_name,
+        )
         error_message = r"Exactly one of job_flow_id or job_flow_name must be specified\."
         with pytest.raises(AirflowException, match=error_message):
-            EmrAddStepsOperator(
-                task_id="test_validate_mutually_exclusive_args",
-                job_flow_id=job_flow_id,
-                job_flow_name=job_flow_name,
-            )
+            operator.execute(context=MagicMock())
 
     @pytest.mark.db_test
     def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
