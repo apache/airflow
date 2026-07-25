@@ -57,6 +57,11 @@ ARG_WORKER_NAME_PATTERN = Arg(
     metavar="PATTERN",
     help="Optional glob pattern to filter workers by name, e.g. 'prod-*'. Lists all workers if omitted.",
 )
+ARG_QUEUE = Arg(
+    ("-q", "--queue"),
+    metavar="QUEUE",
+    help="Optional queue name to filter workers by. Only workers serving this exact queue are listed.",
+)
 ARG_REQUIRED_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
@@ -189,6 +194,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
             ARG_OUTPUT,
             ARG_STATE,
             ARG_WORKER_NAME_PATTERN,
+            ARG_QUEUE,
         ),
     ),
     ActionCommand(

@@ -261,7 +261,7 @@ def list_edge_workers(args) -> None:
     from airflow.providers.edge3.models.edge_worker import get_registered_edge_hosts
 
     all_hosts_iter = get_registered_edge_hosts(
-        states=args.state, worker_name_pattern=args.worker_name_pattern
+        states=args.state, worker_name_pattern=args.worker_name_pattern, queue=args.queue
     )
     # Format and print worker info on the screen
     fields = [

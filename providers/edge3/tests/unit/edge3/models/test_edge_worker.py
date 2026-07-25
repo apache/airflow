@@ -97,8 +97,13 @@ class TestGetRegisteredEdgeHosts:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, session: Session):
         session.execute(delete(EdgeWorkerModel))
-        for name in ("prod-worker-1", "prod-worker-2", "dev-worker-1"):
-            session.add(EdgeWorkerModel(worker_name=name, queues=["default"], state=EdgeWorkerState.RUNNING))
+        queues_by_name = {
+            "prod-worker-1": ["default", "gpu"],
+            "prod-worker-2": ["default"],
+            "dev-worker-1": ["gpu"],
+        }
+        for name, queues in queues_by_name.items():
+            session.add(EdgeWorkerModel(worker_name=name, queues=queues, state=EdgeWorkerState.RUNNING))
         session.commit()
 
     def test_no_pattern_returns_all(self, session: Session):
@@ -120,3 +125,15 @@ class TestGetRegisteredEdgeHosts:
     def test_no_match_returns_empty(self, session: Session):
         hosts = get_registered_edge_hosts(worker_name_pattern="nonexistent-*", session=session)
         assert list(hosts) == []
+
+    def test_queue_filters_by_exact_membership(self, session: Session):
+        hosts = get_registered_edge_hosts(queue="gpu", session=session)
+        assert {h.worker_name for h in hosts} == {"prod-worker-1", "dev-worker-1"}
+
+    def test_queue_no_match_returns_empty(self, session: Session):
+        hosts = get_registered_edge_hosts(queue="nonexistent", session=session)
+        assert list(hosts) == []
+
+    def test_queue_combined_with_name_pattern(self, session: Session):
+        hosts = get_registered_edge_hosts(worker_name_pattern="prod-*", queue="gpu", session=session)
+        assert {h.worker_name for h in hosts} == {"prod-worker-1"}

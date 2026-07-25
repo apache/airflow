@@ -250,7 +250,8 @@ instance. The commands are:
 
 - ``airflow edge list-workers``: List all workers in the cluster. Accepts an optional
   ``--worker-name-pattern`` glob (e.g. ``'prod-*'``) to filter workers by name,
-  and ``-s``/``--state`` to filter by worker state.
+  ``-s``/``--state`` to filter by worker state, and ``-q``/``--queue`` to list only
+  workers serving a given queue.
 - ``airflow edge remote-edge-worker-request-maintenance``: Request a remote edge worker to enter maintenance mode
 - ``airflow edge remote-edge-worker-update-maintenance-comment``: Updates the maintenance comment for a remote edge worker
 - ``airflow edge remote-edge-worker-exit-maintenance``: Request a remote edge worker to exit maintenance mode
