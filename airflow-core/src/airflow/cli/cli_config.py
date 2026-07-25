@@ -1254,7 +1254,7 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="stability",
-        help="Check that serialized Dags are stable across repeated parses to prevent dag_version inflection",
+        help="Check that serialized Dags are stable across repeated parses to prevent dag_version inflation",
         description=(
             "Parse Dags twice, serialize each parsed Dag, compare Airflow's serialized Dag "
             "hashes, and report a unified diff for Dags whose serialized output changes."

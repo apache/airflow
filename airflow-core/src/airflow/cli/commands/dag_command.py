@@ -109,7 +109,7 @@ def _format_stability_diff(
     return "\n".join(diff)
 
 def _parse_dags_for_stability_check(dag_folder: str | None) -> DagBag:
-    return DagBag(dag_folder=dag_folder, safe_mode=True, load_op_links=False)
+    return DagBag(dag_folder=dag_folder, load_op_links=False)
 
 @cli_utils.action_cli
 @providers_configuration_loaded
@@ -150,9 +150,7 @@ def dag_stability_check(args) -> None:
         print("Dag stability check failed. The following Dags produced different serialized output:")
         for dag_id in unstable_dag_ids:
             dag_hashes = dag_hashes_by_id[dag_id]
-            print(f"\ndag_id: {dag_id}:")
-            for iteration, dag_hash in enumerate(dag_hashes, start=1):
-                print(f"  Parse {iteration}: {dag_hash}")
+            print(f"\n{dag_id}:")
             print()
             print(
                 _format_stability_diff(
