@@ -24,6 +24,15 @@
       "paused": "Paused"
     },
     "runIdPatternFilter": "Search Dag Runs",
+    "runScope": {
+      "anyTime": "Any time",
+      "in": "in",
+      "last7Days": "Last 7 days",
+      "last24Hours": "Last 24 hours",
+      "last30Days": "Last 30 days",
+      "latestRun": "Latest run"
+    },
+    "runState": "Run state",
     "timetableType": "Timetable type"
   },
   "ownerLink": "Owner link for {{owner}}",

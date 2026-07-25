@@ -197,7 +197,7 @@ test.describe("Dags Status Filtering", () => {
     await dagsPage.navigate();
     await dagsPage.waitForDagList();
 
-    await expect(dagsPage.lastRunStateFilter).toBeVisible();
+    await expect(dagsPage.runStateFilter).toBeVisible();
 
     await dagsPage.filterByStatus("success");
     await dagsPage.waitForDagList();

@@ -26,19 +26,19 @@ import { AppWrapper } from "src/utils/AppWrapper";
 afterEach(() => localStorage.clear());
 
 describe("Dag Filters", () => {
-  it("Filter by selected last run state", async () => {
+  it("Filter by selected run state (latest scope by default)", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    const trigger = within(screen.getByTestId("dags-last-run-state-filter")).getByRole("combobox");
+    const trigger = within(screen.getByTestId("dags-run-state-filter")).getByRole("combobox");
 
     await waitFor(() => trigger.click());
-    await waitFor(() => screen.getByTestId("dags-last-run-state-filter-success").click());
+    await waitFor(() => screen.getByTestId("dags-run-state-filter-success").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
     await waitFor(() => trigger.click());
-    await waitFor(() => screen.getByTestId("dags-last-run-state-filter-failed").click());
+    await waitFor(() => screen.getByTestId("dags-run-state-filter-failed").click());
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
   });
 });
