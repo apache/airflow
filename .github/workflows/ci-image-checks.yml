@@ -130,7 +130,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -183,7 +183,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -266,7 +266,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_new'
-        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -282,7 +282,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_reminder'
-        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -298,7 +298,7 @@ jobs:
           inputs.canary-run == 'true' &&
           matrix.flag == '--docs-only' &&
           steps.inventory-notification.outputs.action == 'notify_recovery'
-        uses: slackapi/slack-github-action@0d95c9a7becc1e6e297d76df9bc735c44f4cbcbc  # v3.0.5
+        uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
           method: chat.postMessage
           token: ${{ env.SLACK_BOT_TOKEN }}
@@ -351,7 +351,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -476,12 +476,12 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 2
           persist-credentials: false
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           repository: "apache/airflow-client-python"
           fetch-depth: 1
