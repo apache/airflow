@@ -13385,6 +13385,7 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
             DagScheduleAssetReference.dag_id == "non-part-batch-true-consumer"
         )
     )
+    assert base is not None
     event_1 = AssetEvent(
         asset_id=asset_model.id,
         source_task_id="task",
@@ -13474,6 +13475,7 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
             DagScheduleAssetReference.dag_id == "non-part-batch-false-consumer"
         )
     )
+    assert base is not None
     event_1 = AssetEvent(
         asset_id=asset_model.id,
         source_task_id="task",
