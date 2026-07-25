@@ -24,9 +24,9 @@ describe("getRunOnLatestVersionState", () => {
   it.each([
     {
       expectedDagVersionsDiffer: true,
-      expectedShouldShowRunOnLatestOption: true,
+      expectedShouldShowRunOnLatestOption: false,
       latestDagVersionNumber: 3,
-      name: "shows and defaults on when DAG version numbers differ",
+      name: "does not show when DAG versions differ but no bundle version is present (non-versioned bundle)",
       selectedDagVersionNumber: 2,
     },
     {

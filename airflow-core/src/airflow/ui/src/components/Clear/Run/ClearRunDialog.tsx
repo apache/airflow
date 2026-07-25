@@ -24,6 +24,7 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
+import { getRunOnLatestVersionState } from "src/components/Clear/TaskInstance/runOnLatestVersion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
@@ -91,14 +92,16 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     onSuccessConfirm: handleClose,
   });
 
-  // Check if DAG versions differ (works for both bundle-versioned and local bundles)
-  const latestDagVersionNumber = dagDetails?.latest_dag_version?.version_number;
-  const dagRunVersionNumber = dagRun.dag_versions.at(-1)?.version_number;
-  const versionsDiffer =
-    latestDagVersionNumber !== undefined &&
-    dagRunVersionNumber !== undefined &&
-    latestDagVersionNumber !== dagRunVersionNumber;
-  const shouldShowBundleVersionOption = versionsDiffer && !onlyNew;
+  // Non-versioned bundles (e.g. LocalDagBundle) always leave bundle_version null and
+  // resolve to the latest serialized Dag at run time, so "run on latest" is a no-op there.
+  // Only offer it when the run is pinned to an older bundle version, where it actually changes the outcome.
+  const { shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
+    latestBundleVersion: dagDetails?.bundle_version,
+    latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
+    selectedBundleVersion: dagRun.dag_versions.at(-1)?.bundle_version,
+    selectedDagVersionNumber: dagRun.dag_versions.at(-1)?.version_number,
+  });
+  const shouldShowBundleVersionOption = shouldShowRunOnLatestOption && !onlyNew;
 
   return (
     <Dialog.Root
