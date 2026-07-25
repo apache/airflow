@@ -100,6 +100,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_3_PLUS,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_1_PLUS,
     AIRFLOW_V_3_3_PLUS,
     AIRFLOW_V_3_4_PLUS,
 )
@@ -2664,7 +2665,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_3_1_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
@@ -2700,7 +2701,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_3_1_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
@@ -2804,7 +2805,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_3_1_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
