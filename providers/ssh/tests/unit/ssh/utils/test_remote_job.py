@@ -191,6 +191,20 @@ class TestWindowsDefaultBaseDirExpansion:
         encoded_script = cmd.split("-EncodedCommand ")[1]
         return base64.b64decode(encoded_script).decode("utf-16-le")
 
+    @staticmethod
+    def _decode_child(outer_script: str) -> str:
+        """Decode the *child* script nested inside a wrapper's outer script.
+
+        ``build_windows_wrapper_command`` launches a second, independently
+        base64-encoded PowerShell process via
+        ``Start-Process ... -ArgumentList @(..., '-EncodedCommand', '<base64>')``.
+        That child script -- not the outer one -- owns ``$env:LOG_FILE``,
+        ``$env:STATUS_FILE``, the ``exit_code.tmp`` write, and the ``Move-Item``
+        rename, so it must be decoded and asserted on separately.
+        """
+        inner = outer_script.split("-EncodedCommand', '")[1].split("'")[0]
+        return base64.b64decode(inner).decode("utf-16-le")
+
     def test_wrapper_expands_default_base_dir(self):
         """The wrapper for a default-base-dir job must expand $env:TEMP via Join-Path,
         not emit it inside a single-quoted literal (which PowerShell cannot expand)."""
@@ -202,6 +216,14 @@ class TestWindowsDefaultBaseDirExpansion:
         # The literal single-quoted form is exactly what breaks on real PowerShell:
         # PowerShell parses the leading "$env" as a (nonexistent) PSDrive name.
         assert "'$env:TEMP\\" not in decoded
+
+        # The outer script only creates the job directory and launches the child
+        # process; the child script is the one that sets $env:LOG_FILE/$env:STATUS_FILE,
+        # writes exit_code.tmp, and moves it into place. All of those paths are under
+        # the same default base dir and must be expanded there too.
+        child_decoded = self._decode_child(decoded)
+        assert "Join-Path $env:TEMP" in child_decoded
+        assert "'$env:TEMP\\" not in child_decoded
 
     def test_cleanup_expands_default_base_dir(self):
         """The cleanup command for a default-base-dir job must likewise expand $env:TEMP."""
@@ -243,6 +265,38 @@ class TestWindowsDefaultBaseDirExpansion:
 
         assert "Join-Path" not in decoded
         assert "jo''bs" in decoded
+
+    @pytest.mark.parametrize(
+        ("builder", "path_attr"),
+        [
+            (lambda path: build_windows_log_tail_command(path, 0, 100), "log_file"),
+            (build_windows_file_size_command, "log_file"),
+            (build_windows_completion_check_command, "exit_code_file"),
+            (build_windows_kill_command, "pid_file"),
+        ],
+    )
+    def test_poll_builders_expand_default_base_dir(self, builder, path_attr):
+        """Each single-path polling builder must also expand the default-base-dir
+        sentinel. These builders were previously only exercised with hard-coded
+        ``C:\\temp\\...`` literals, which never touch the sentinel branch at all."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+        path = getattr(paths, path_attr)
+        cmd = builder(path)
+        decoded = self._decode(cmd)
+
+        assert "Join-Path $env:TEMP" in decoded
+        assert "'$env:TEMP\\" not in decoded
+
+    def test_near_miss_prefix_stays_literal(self):
+        """A base_dir that merely starts with the sentinel string as a substring --
+        ``$env:TEMPORARY`` is not ``$env:TEMP`` -- must NOT be mistaken for the sentinel.
+        It must stay a plain single-quoted literal, not be run through Join-Path."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows", base_dir="$env:TEMPORARY\\jobs")
+        wrapper = build_windows_wrapper_command("C:\\scripts\\test.ps1", paths)
+        decoded = self._decode(wrapper)
+
+        assert "Join-Path" not in decoded
+        assert "$jobDir = '$env:TEMPORARY\\jobs\\test_job'" in decoded
 
 
 class TestLogTailCommands:
