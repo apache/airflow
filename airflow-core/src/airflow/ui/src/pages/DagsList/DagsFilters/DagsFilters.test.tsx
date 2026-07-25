@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -39,6 +39,10 @@ vi.mock("src/queries/useConfig", () => ({
 }));
 
 describe("Paused filter with hide_paused_dags_by_default enabled", () => {
+  afterEach(() => {
+    mockConfig.multi_team = false;
+  });
+
   it("defaults to showing only active dags", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
@@ -68,19 +72,55 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument());
   });
 
-  it("filters dags by timetable type", async () => {
+  it("filters and clears dags by timetable type", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByTestId("dags-timetable-type-filter"), {
-      target: { value: "CronTriggerTimetable" },
-    });
+    const timetableTypeFilter = screen.getByLabelText("filters.timetableType");
+
+    fireEvent.change(timetableTypeFilter, { target: { value: "Cron" } });
+    const cronTriggerTimetable = await screen.findByText("CronTriggerTimetable");
+
+    expect(screen.queryByText("NullTimetable")).not.toBeInTheDocument();
+    fireEvent.click(cronTriggerTimetable);
 
     await waitFor(() => {
       expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
       expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
     });
+
+    fireEvent.keyDown(timetableTypeFilter, { code: "Backspace", key: "Backspace" });
+
+    await waitFor(() => {
+      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+      expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    });
+  });
+
+  it("restores a timetable type from the URL", async () => {
+    render(<AppWrapper initialEntries={["/dags?timetable_type=CronTriggerTimetable"]} />);
+
+    await waitFor(() => {
+      expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+      expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    });
+    expect(screen.getByText("CronTriggerTimetable")).toBeInTheDocument();
+  });
+
+  it("ignores an empty timetable type from the URL", async () => {
+    render(<AppWrapper initialEntries={["/dags?timetable_type="]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+  });
+
+  it("renders the team filter when multi-team is enabled", async () => {
+    mockConfig.multi_team = true;
+
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    expect(await screen.findByLabelText("dagDetails.team")).toBeInTheDocument();
   });
 });

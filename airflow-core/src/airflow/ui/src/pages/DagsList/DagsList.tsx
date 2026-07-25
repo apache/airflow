@@ -260,7 +260,7 @@ export const DagsList = () => {
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS);
   const teams = searchParams.getAll(TEAMS);
-  const timetableType = searchParams.getAll(TIMETABLE_TYPE);
+  const timetableType = searchParams.getAll(TIMETABLE_TYPE).filter((value) => value !== "");
 
   const { setTableURLState, tableURLState } = useTableURLState();
 

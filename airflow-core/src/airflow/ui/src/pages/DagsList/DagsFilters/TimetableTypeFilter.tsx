@@ -16,33 +16,67 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box, Field } from "@chakra-ui/react";
+import { Select as ReactSelect, type SingleValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
-import { FiClock } from "react-icons/fi";
-
-import { SearchBar } from "src/components/SearchBar";
 
 type Props = {
-  readonly onChange: (value: string) => void;
-  readonly value: string;
+  readonly onChange: (timetableType: SingleValue<TimetableTypeOption>) => void;
+  readonly onInputChange: (value: string) => void;
+  readonly onMenuScrollToBottom: () => void;
+  readonly onMenuScrollToTop: () => void;
+  readonly timetableTypes: Array<string>;
+  readonly value: string | undefined;
 };
 
-export const TimetableTypeFilter = ({ onChange, value: initialValue }: Props) => {
+type TimetableTypeOption = {
+  label: string;
+  value: string;
+};
+
+export const TimetableTypeFilter = ({
+  onChange,
+  onInputChange,
+  onMenuScrollToBottom,
+  onMenuScrollToTop,
+  timetableTypes,
+  value,
+}: Props) => {
   const { t: translate } = useTranslation("dags");
 
   return (
-    <SearchBar
-      clearButtonAriaLabel={translate("filters.timetableTypeClear")}
-      clearButtonTestId="clear-timetable-type-filter"
-      defaultValue={initialValue}
-      hotkeyDisabled
-      inputAriaLabel={translate("filters.timetableType")}
-      inputPaddingRight={0}
-      inputTestId="dags-timetable-type-filter"
-      maxWidth="260px"
-      minWidth="220px"
-      onChange={(newValue) => onChange(newValue.trim())}
-      placeholder={translate("filters.timetableType")}
-      startElement={<FiClock />}
-    />
+    <Box flex="0 1 300px" maxWidth="100%" width="300px">
+      <Field.Root>
+        <ReactSelect<TimetableTypeOption>
+          aria-label={translate("filters.timetableType")}
+          chakraStyles={{
+            clearIndicator: (provided) => ({
+              ...provided,
+              color: "gray.fg",
+            }),
+            control: (provided) => ({
+              ...provided,
+              colorPalette: "brand",
+            }),
+            menu: (provided) => ({
+              ...provided,
+              zIndex: 2,
+            }),
+          }}
+          isClearable
+          noOptionsMessage={() => translate("filters.noTimetableTypesFound")}
+          onChange={onChange}
+          onInputChange={onInputChange}
+          onMenuScrollToBottom={onMenuScrollToBottom}
+          onMenuScrollToTop={onMenuScrollToTop}
+          options={timetableTypes.map((timetableType) => ({
+            label: timetableType,
+            value: timetableType,
+          }))}
+          placeholder={translate("filters.timetableType")}
+          value={value === undefined ? null : { label: value, value }}
+        />
+      </Field.Root>
+    </Box>
   );
 };

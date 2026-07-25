@@ -17,14 +17,14 @@
       "unfavorite": "Unfavorite"
     },
     "lastRunState": "Last run",
+    "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Active",
       "all": "All",
       "paused": "Paused"
     },
     "runIdPatternFilter": "Search Dag Runs",
-    "timetableType": "Timetable type",
-    "timetableTypeClear": "Clear timetable type filter"
+    "timetableType": "Timetable type"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {

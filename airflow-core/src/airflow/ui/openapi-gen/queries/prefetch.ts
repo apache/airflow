@@ -674,11 +674,12 @@ export const prefetchUseDagServiceGetDagTags = (queryClient: QueryClient, { limi
 * @param data.isFavorite
 * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
 * @param data.assetDependency Filter Dags by asset dependency (name or URI)
+* @param data.timetableType
 * @param data.hasPendingActions
 * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams }: {
+export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams, timetableType }: {
   assetDependency?: string;
   bundleName?: string;
   bundleVersion?: string;
@@ -703,7 +704,23 @@ export const prefetchUseDagServiceGetDagsUi = (queryClient: QueryClient, { asset
   tags?: string[];
   tagsMatchMode?: "any" | "all";
   teams?: string[];
-} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams }) });
+  timetableType?: string[];
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagsUiKeyFn({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams, timetableType }), queryFn: () => DagService.getDagsUi({ assetDependency, bundleName, bundleVersion, dagDisplayNamePattern, dagDisplayNamePrefixPattern, dagIdPattern, dagIdPrefixPattern, dagIds, dagRunsLimit, dagRunState, excludeStale, hasAssetSchedule, hasImportErrors, hasPendingActions, isFavorite, lastDagRunState, limit, offset, orderBy, owners, paused, tags, tagsMatchMode, teams, timetableType }) });
+/**
+* Get Dag Timetable Types
+* Get timetable types used by readable Dags.
+* @param data The data for the request.
+* @param data.limit
+* @param data.offset
+* @param data.timetableTypePrefixPattern Prefix match — returns items whose value starts with the given string (case-sensitive, index-friendly). Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric characters in the prefix are stripped before matching so the range scan stays index-compatible under locale-aware collations — e.g. `test_` effectively matches items starting with `test`, and `s3://` matches items starting with `s3`.
+* @returns DagTimetableTypeCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDagServiceGetDagTimetableTypesUi = (queryClient: QueryClient, { limit, offset, timetableTypePrefixPattern }: {
+  limit?: number;
+  offset?: number;
+  timetableTypePrefixPattern?: string;
+} = {}) => queryClient.prefetchQuery({ queryKey: Common.UseDagServiceGetDagTimetableTypesUiKeyFn({ limit, offset, timetableTypePrefixPattern }), queryFn: () => DagService.getDagTimetableTypesUi({ limit, offset, timetableTypePrefixPattern }) });
 /**
 * Get Latest Run Info
 * Get latest run.

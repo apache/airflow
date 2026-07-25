@@ -554,6 +554,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/timetable_types:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Timetable Types
+      description: Get timetable types used by readable Dags.
+      operationId: get_dag_timetable_types_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: timetable_type_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Prefix match \u2014 returns items whose value starts with\
+            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
+            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
+            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+            \ characters in the prefix are stripped before matching so the range scan\
+            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+            \ effectively matches items starting with `test`, and `s3://` matches\
+            \ items starting with `s3`."
+          title: Timetable Type Prefix Pattern
+        description: "Prefix match \u2014 returns items whose value starts with the\
+          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
+          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
+          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
+          \ characters in the prefix are stripped before matching so the range scan\
+          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
+          \ effectively matches items starting with `test`, and `s3://` matches items\
+          \ starting with `s3`."
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagTimetableTypeCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dags/{dag_id}/latest_run:
     get:
       tags:
@@ -2757,6 +2821,22 @@ components:
       - dag_display_name
       title: DagTagResponse
       description: Dag Tag serializer for responses.
+    DagTimetableTypeCollectionResponse:
+      properties:
+        timetable_types:
+          items:
+            type: string
+          type: array
+          title: Timetable Types
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - timetable_types
+      - total_entries
+      title: DagTimetableTypeCollectionResponse
+      description: Timetable types used by Dags.
     DagVersionResponse:
       properties:
         id:

@@ -46,7 +46,7 @@ export const TagFilter = ({
   const { t: translate } = useTranslation("common");
 
   return (
-    <Box maxWidth="300px" minWidth="64px">
+    <Box flex="0 1 300px" maxWidth="100%" width="300px">
       <Field.Root>
         <ReactSelect
           aria-label={translate("table.filterByTag")}
@@ -57,8 +57,7 @@ export const TagFilter = ({
             }),
             container: (provided) => ({
               ...provided,
-              maxWidth: 300,
-              minWidth: 64,
+              width: "100%",
             }),
             control: (provided) => ({
               ...provided,

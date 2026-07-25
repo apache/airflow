@@ -16,16 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  CloseButton,
-  HStack,
-  Input,
-  InputGroup,
-  Kbd,
-  type InputGroupProps,
-  type InputProps,
-} from "@chakra-ui/react";
-import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { CloseButton, HStack, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
@@ -41,30 +33,18 @@ type AdvancedSearchProps = Omit<AdvancedSearchToggleProps, "size">;
 
 type Props = {
   readonly advancedSearch?: AdvancedSearchProps;
-  readonly clearButtonAriaLabel?: string;
-  readonly clearButtonTestId?: string;
   readonly defaultValue: string;
   readonly hotkeyDisabled?: boolean;
-  readonly inputAriaLabel?: string;
-  readonly inputPaddingRight?: InputProps["paddingRight"];
-  readonly inputTestId?: string;
   readonly onChange: (value: string) => void;
   readonly placeholder: string;
-  readonly startElement?: ReactNode;
 } & Omit<InputGroupProps, "children" | "onChange">;
 
 export const SearchBar = ({
   advancedSearch,
-  clearButtonAriaLabel,
-  clearButtonTestId = "clear-search",
   defaultValue,
   hotkeyDisabled = false,
-  inputAriaLabel,
-  inputPaddingRight = 150,
-  inputTestId = "search-dags",
   onChange,
   placeholder,
-  startElement,
   ...props
 }: Props) => {
   const lastSentValue = useRef(defaultValue);
@@ -111,8 +91,8 @@ export const SearchBar = ({
         <>
           {Boolean(value) ? (
             <CloseButton
-              aria-label={clearButtonAriaLabel ?? translate("search.clear")}
-              data-testid={clearButtonTestId}
+              aria-label={translate("search.clear")}
+              data-testid="clear-search"
               onClick={clearSearch}
               size="xs"
             />
@@ -125,14 +105,13 @@ export const SearchBar = ({
           )}
         </>
       }
-      startElement={startElement ?? <FiSearch />}
+      startElement={<FiSearch />}
     >
       <Input
-        aria-label={inputAriaLabel}
-        data-testid={inputTestId}
+        data-testid="search-dags"
         onChange={onSearchChange}
-        paddingRight={inputPaddingRight}
         placeholder={placeholder}
+        pr={150}
         ref={searchRef}
         value={value}
       />

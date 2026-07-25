@@ -127,6 +127,18 @@ const filterDags = ({ paused, timetableTypes }: { paused: string | null; timetab
 };
 
 export const handlers: Array<HttpHandler> = [
+  http.get("/ui/dags/timetable_types", ({ request }) => {
+    const url = new URL(request.url);
+    const prefix = url.searchParams.get("timetable_type_prefix_pattern") ?? "";
+    const timetableTypes = ["CronTriggerTimetable", "NullTimetable"].filter((timetableType) =>
+      timetableType.startsWith(prefix),
+    );
+
+    return HttpResponse.json({
+      timetable_types: timetableTypes,
+      total_entries: timetableTypes.length,
+    });
+  }),
   http.get("/ui/dags", ({ request }) => {
     const url = new URL(request.url);
     const lastDagRunState = url.searchParams.get("last_dag_run_state");

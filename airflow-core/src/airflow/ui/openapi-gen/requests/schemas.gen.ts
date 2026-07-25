@@ -9533,6 +9533,26 @@ export const $DagRunStatsResponse = {
     description: 'DAG Run statistics serializer for responses.'
 } as const;
 
+export const $DagTimetableTypeCollectionResponse = {
+    properties: {
+        timetable_types: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Timetable Types'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['timetable_types', 'total_entries'],
+    title: 'DagTimetableTypeCollectionResponse',
+    description: 'Timetable types used by Dags.'
+} as const;
+
 export const $DashboardDagStatsResponse = {
     properties: {
         active_dag_count: {

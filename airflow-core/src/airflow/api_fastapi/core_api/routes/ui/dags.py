@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import func, literal, select, union_all
+from sqlalchemy import false, func, literal, select, union_all
 from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -52,6 +53,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryPendingActionsFilter,
     QueryTagsFilter,
     QueryTeamsFilter,
+    QueryTimetableTypePrefixPatternSearch,
     SortParam,
     filter_param_factory,
 )
@@ -61,6 +63,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightRespo
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGRunStateCountsResponse,
     DAGsRunStateCountsCollectionResponse,
+    DagTimetableTypeCollectionResponse,
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )
@@ -277,6 +280,40 @@ def get_dags(
     return DAGWithLatestDagRunsCollectionResponse(
         total_entries=total_entries,
         dags=list(dag_runs_by_dag_id.values()),
+    )
+
+
+@dags_router.get(
+    "/timetable_types",
+    dependencies=[Depends(requires_access_dag(method="GET"))],
+    operation_id="get_dag_timetable_types_ui",
+)
+def get_dag_timetable_types(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    timetable_type_prefix_pattern: QueryTimetableTypePrefixPatternSearch,
+    readable_dags_filter: ReadableDagsFilterDep,
+    session: SessionDep,
+) -> DagTimetableTypeCollectionResponse:
+    """Get timetable types used by readable Dags."""
+    query = (
+        select(DagModel.timetable_type)
+        .where(DagModel.is_stale == false(), DagModel.timetable_type != "")
+        .group_by(DagModel.timetable_type)
+    )
+    timetable_types_select, total_entries = paginated_select(
+        statement=query,
+        filters=[timetable_type_prefix_pattern, readable_dags_filter],
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+    timetable_types: Sequence[str] = session.scalars(
+        timetable_types_select.order_by(DagModel.timetable_type)
+    ).all()
+    return DagTimetableTypeCollectionResponse(
+        timetable_types=list(timetable_types),
+        total_entries=total_entries,
     )
 
 
