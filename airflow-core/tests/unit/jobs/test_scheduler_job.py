@@ -11026,15 +11026,20 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
     asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
 
-    # Create two asset events with timestamps clearly before the ADRQ's created_at.
-    now = timezone.utcnow()
+    # Events must fall within the event window: after the
+    # DagScheduleAssetReference.created_at floor and before the ADRQ's created_at.
+    base = session.scalar(
+        select(DagScheduleAssetReference.created_at).where(
+            DagScheduleAssetReference.dag_id == "non-part-batch-true-consumer"
+        )
+    )
     event_1 = AssetEvent(
         asset_id=asset_model.id,
         source_task_id="task",
         source_dag_id="non-part-batch-true-consumer",
         source_run_id="test-run",
         source_map_index=-1,
-        timestamp=now - timedelta(minutes=5),
+        timestamp=base + timedelta(seconds=1),
     )
     event_2 = AssetEvent(
         asset_id=asset_model.id,
@@ -11042,13 +11047,19 @@ def test_non_partitioned_batch_asset_events_true_single_dagrun(
         source_dag_id="non-part-batch-true-consumer",
         source_run_id="test-run",
         source_map_index=-1,
-        timestamp=now - timedelta(minutes=4),
+        timestamp=base + timedelta(seconds=2),
     )
     session.add_all([event_1, event_2])
     session.flush()
 
     # Queue an ADRQ for this Dag so the scheduler picks it up.
-    session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id="non-part-batch-true-consumer"))
+    session.add(
+        AssetDagRunQueue(
+            asset_id=asset_model.id,
+            target_dag_id="non-part-batch-true-consumer",
+            created_at=base + timedelta(hours=1),
+        )
+    )
     session.flush()
 
     runner = SchedulerJobRunner(
@@ -11106,14 +11117,18 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
     asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == asset_1.uri))
     assert asset_model is not None
 
-    now = timezone.utcnow()
+    base = session.scalar(
+        select(DagScheduleAssetReference.created_at).where(
+            DagScheduleAssetReference.dag_id == "non-part-batch-false-consumer"
+        )
+    )
     event_1 = AssetEvent(
         asset_id=asset_model.id,
         source_task_id="task",
         source_dag_id="non-part-batch-false-consumer",
         source_run_id="test-run",
         source_map_index=-1,
-        timestamp=now - timedelta(minutes=5),
+        timestamp=base + timedelta(seconds=1),
     )
     event_2 = AssetEvent(
         asset_id=asset_model.id,
@@ -11121,12 +11136,18 @@ def test_non_partitioned_batch_asset_events_false_one_dagrun_per_event(
         source_dag_id="non-part-batch-false-consumer",
         source_run_id="test-run",
         source_map_index=-1,
-        timestamp=now - timedelta(minutes=4),
+        timestamp=base + timedelta(seconds=2),
     )
     session.add_all([event_1, event_2])
     session.flush()
 
-    session.add(AssetDagRunQueue(asset_id=asset_model.id, target_dag_id="non-part-batch-false-consumer"))
+    session.add(
+        AssetDagRunQueue(
+            asset_id=asset_model.id,
+            target_dag_id="non-part-batch-false-consumer",
+            created_at=base + timedelta(hours=1),
+        )
+    )
     session.flush()
 
     runner = SchedulerJobRunner(
