@@ -84,7 +84,7 @@ etc.:
 
 .. note::
     Historically, the ``global_secrets_path`` parameter partially supported the above. The ``global_secrets_path``
-    parameter was deprecated in favour of a more generic approach. It is appended to the list of paths until it is
+    parameter was deprecated in favor of a more generic approach. It is appended to the list of paths until it is
     completely removed.
 
 Storing and Retrieving Connections using connection URI representation
