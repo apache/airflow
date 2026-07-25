@@ -119,14 +119,14 @@ def dag_stability_check(args) -> None:
     seen_dag_ids: set[str] = set()
     nParse = 2 #NOTE: Set parsing number 2, in most of the case twice parse should catch the stability issues. 
 
-    for iteration in range(1, nParse+1):
+    for _iteration in range(1, nParse+1):
         dagbag = _parse_dags_for_stability_check(args.dag_folder)
 
         dags = dagbag.dags
         if args.dag_id is not None:
             dags = {args.dag_id: dagbag.dags[args.dag_id]} if args.dag_id in dagbag.dags else {}
 
-        for dag_id, dag in sorted(dags.items()):
+        for _dag_id, dag in sorted(dags.items()):
             dag_hash, serialized_dag = _serialize_dag_for_stability_check(dag)
             dag_hashes_by_id.setdefault(dag_id, []).append(dag_hash)
             serialized_dags_by_id.setdefault(dag_id, []).append(serialized_dag)
