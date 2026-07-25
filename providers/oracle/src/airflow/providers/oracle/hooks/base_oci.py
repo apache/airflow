@@ -17,10 +17,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
+from airflow.providers.common.compat.sdk import (
+    AirflowNotFoundException,
+    AirflowOptionalProviderFeatureException,
+    BaseHook,
+)
 
 if TYPE_CHECKING:
     from airflow.sdk import Connection
@@ -29,16 +34,14 @@ if TYPE_CHECKING:
 
 OciClient = TypeVar("OciClient")
 
-OCI_AUTH_TYPE_API_KEY = "api_key"
-OCI_AUTH_TYPE_CONFIG_FILE = "config_file"
-OCI_AUTH_TYPE_INSTANCE_PRINCIPAL = "instance_principal"
-OCI_AUTH_TYPE_RESOURCE_PRINCIPAL = "resource_principal"
-OCI_AUTH_TYPES = (
-    OCI_AUTH_TYPE_API_KEY,
-    OCI_AUTH_TYPE_CONFIG_FILE,
-    OCI_AUTH_TYPE_INSTANCE_PRINCIPAL,
-    OCI_AUTH_TYPE_RESOURCE_PRINCIPAL,
-)
+
+class OciAuthType(str, Enum):
+    """Authentication types supported by OCI hooks."""
+
+    API_KEY = "api_key"
+    CONFIG_FILE = "config_file"
+    INSTANCE_PRINCIPAL = "instance_principal"
+    RESOURCE_PRINCIPAL = "resource_principal"
 
 
 def _get_oci_sdk() -> Any:
@@ -61,24 +64,31 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
     authentication is delegated to the OCI SDK.
 
     :param oci_conn_id: The :ref:`OCI connection id <howto/connection:oci>`.
+        Defaults to ``oci_default``.
+        Pass ``None`` to skip connection lookup for authentication methods that do not require it.
     :param auth_type: OCI authentication type selected by the Dag author.
+        Defaults to ``api_key``.
     :param key_file: API signing private key path selected by the Dag author.
+        Defaults to ``None``.
     :param config_file: OCI SDK configuration file selected by the Dag author.
+        If not specified, the OCI SDK default location, ``~/.oci/config``, is used for
+        configuration file authentication.
     :param profile: Profile to load from the OCI SDK configuration file.
+        If not specified, the OCI SDK default profile, ``DEFAULT``, is used.
     :param service_endpoint: Optional service endpoint selected by the Dag author.
+        If not specified, the OCI SDK derives the endpoint from the configured region.
     """
 
     conn_name_attr = "oci_conn_id"
     default_conn_name = "oci_default"
     conn_type = "oci"
     hook_name = "Oracle Cloud Infrastructure"
-    client_class: Callable[..., OciClient] | None = None
 
     def __init__(
         self,
-        oci_conn_id: str = default_conn_name,
+        oci_conn_id: str | None = default_conn_name,
         *,
-        auth_type: str = OCI_AUTH_TYPE_API_KEY,
+        auth_type: str = OciAuthType.API_KEY,
         key_file: str | None = None,
         config_file: str | None = None,
         profile: str | None = None,
@@ -102,7 +112,7 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
         return {
             "tenancy": StringField(lazy_gettext("Tenancy OCID"), widget=BS3TextFieldWidget()),
             "fingerprint": StringField(lazy_gettext("Key Fingerprint"), widget=BS3TextFieldWidget()),
-            "key_content": PasswordField(
+            "private_key_content": PasswordField(
                 lazy_gettext("Private Key Content"), widget=BS3PasswordFieldWidget()
             ),
             "region": StringField(lazy_gettext("Region"), widget=BS3TextFieldWidget()),
@@ -131,16 +141,17 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
     @cached_property
     def connection(self) -> Connection:
         """Return the configured Airflow connection."""
+        if not self.oci_conn_id:
+            raise ValueError("An OCI connection ID is required for API key authentication.")
         return self.get_connection(self.oci_conn_id)
 
     def get_oci_config(self) -> tuple[dict[str, Any], OciSigner | None]:
-        """Build OCI SDK configuration and an optional signer from the Airflow connection."""
+        """Build OCI SDK configuration and an optional signer for the selected authentication type."""
         oci = _get_oci_sdk()
-        conn = self.connection
-        extras = conn.extra_dejson
         auth_type = self.auth_type
 
-        if auth_type == OCI_AUTH_TYPE_CONFIG_FILE:
+        if auth_type == OciAuthType.CONFIG_FILE:
+            extras = self._get_optional_connection_extras()
             config = oci.config.from_file(
                 file_location=self.config_file or oci.config.DEFAULT_LOCATION,
                 profile_name=self.profile or oci.config.DEFAULT_PROFILE,
@@ -149,19 +160,24 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
                 config["region"] = region
             return config, None
 
-        if auth_type == OCI_AUTH_TYPE_INSTANCE_PRINCIPAL:
+        if auth_type == OciAuthType.INSTANCE_PRINCIPAL:
+            extras = self._get_optional_connection_extras()
             signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
             return self._build_principal_config(extras, signer), signer
 
-        if auth_type == OCI_AUTH_TYPE_RESOURCE_PRINCIPAL:
+        if auth_type == OciAuthType.RESOURCE_PRINCIPAL:
+            extras = self._get_optional_connection_extras()
             signer = oci.auth.signers.get_resource_principals_signer()
             return self._build_principal_config(extras, signer), signer
 
-        if auth_type != OCI_AUTH_TYPE_API_KEY:
+        if auth_type != OciAuthType.API_KEY:
             raise ValueError(
-                f"Unsupported OCI authentication type: {auth_type!r}. Expected one of {OCI_AUTH_TYPES}."
+                f"Unsupported OCI authentication type: {auth_type!r}. "
+                f"Expected one of {tuple(auth_type.value for auth_type in OciAuthType)}."
             )
 
+        conn = self.connection
+        extras = conn.extra_dejson
         config = {
             "tenancy": extras.get("tenancy"),
             "user": conn.login,
@@ -170,15 +186,19 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
             "pass_phrase": conn.password,
         }
         key_file = self.key_file
-        key_content = extras.get("key_content")
-        if key_file and key_content:
-            raise ValueError("OCI API key authentication cannot use both 'key_file' and 'key_content'.")
-        if not key_file and not key_content:
-            raise ValueError("OCI API key authentication requires either 'key_file' or 'key_content'.")
+        private_key_content = extras.get("private_key_content")
+        if key_file and private_key_content:
+            raise ValueError(
+                "OCI API key authentication cannot use both 'key_file' and 'private_key_content'."
+            )
+        if not key_file and not private_key_content:
+            raise ValueError(
+                "OCI API key authentication requires either 'key_file' or 'private_key_content'."
+            )
         if key_file:
             config["key_file"] = key_file
         else:
-            config["key_content"] = key_content
+            config["key_content"] = private_key_content
         return config, None
 
     def get_client(self, client_class: Callable[..., OciClient], **client_kwargs: Any) -> OciClient:
@@ -224,10 +244,20 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
         region = extras.get("region") or getattr(signer, "region", None)
         return {"region": region} if region else {}
 
+    def _get_optional_connection_extras(self) -> dict[str, Any]:
+        if not self.oci_conn_id:
+            return {}
+        try:
+            return self.connection.extra_dejson
+        except AirflowNotFoundException:
+            self.log.warning(
+                "Unable to find OCI Connection ID '%s'; continuing without connection defaults.",
+                self.oci_conn_id,
+            )
+            return {}
+
     def _get_service_endpoint(self) -> str | None:
         return self.service_endpoint.rstrip("/") if self.service_endpoint else None
 
     def _get_client_class(self) -> Callable[..., OciClient]:
-        if self.client_class is None:
-            raise ValueError("client_class must be specified by an OCI service hook.")
-        return self.client_class
+        raise NotImplementedError("OCI service hooks must implement _get_client_class().")

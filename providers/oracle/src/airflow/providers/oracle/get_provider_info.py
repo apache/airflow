@@ -38,6 +38,13 @@ def get_provider_info():
                 "integration-name": "Oracle Cloud Infrastructure",
                 "external-doc-url": "https://docs.oracle.com/en-us/iaas/Content/home.htm",
                 "logo": "/docs/integration-logos/Oracle.png",
+                "tags": ["service"],
+            },
+            {
+                "integration-name": "OCI Generative AI",
+                "external-doc-url": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/home.htm",
+                "how-to-guide": ["/docs/apache-airflow-providers-oracle/generative_ai.rst"],
+                "logo": "/docs/integration-logos/Oracle.png",
                 "tags": ["generative-ai", "service"],
             },
         ],
@@ -70,10 +77,11 @@ def get_provider_info():
             },
             {
                 "integration-name": "Oracle Cloud Infrastructure",
-                "python-modules": [
-                    "airflow.providers.oracle.hooks.base_oci",
-                    "airflow.providers.oracle.hooks.generative_ai",
-                ],
+                "python-modules": ["airflow.providers.oracle.hooks.base_oci"],
+            },
+            {
+                "integration-name": "OCI Generative AI",
+                "python-modules": ["airflow.providers.oracle.hooks.generative_ai"],
             },
         ],
         "transfers": [
@@ -108,7 +116,7 @@ def get_provider_info():
                 "conn-fields": {
                     "tenancy": {"label": "Tenancy OCID", "schema": {"type": ["string", "null"]}},
                     "fingerprint": {"label": "Key Fingerprint", "schema": {"type": ["string", "null"]}},
-                    "key_content": {
+                    "private_key_content": {
                         "label": "Private Key Content",
                         "schema": {"type": ["string", "null"], "format": "password"},
                     },

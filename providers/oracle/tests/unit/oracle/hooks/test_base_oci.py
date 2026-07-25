@@ -18,17 +18,19 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from textwrap import dedent
 from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import (
+    AirflowNotFoundException,
+    AirflowOptionalProviderFeatureException,
+)
 from airflow.providers.oracle.get_provider_info import get_provider_info
 from airflow.providers.oracle.hooks.base_oci import (
-    OCI_AUTH_TYPE_CONFIG_FILE,
-    OCI_AUTH_TYPE_INSTANCE_PRINCIPAL,
-    OCI_AUTH_TYPE_RESOURCE_PRINCIPAL,
+    OciAuthType,
     OciBaseHook,
     _get_oci_sdk,
 )
@@ -43,11 +45,22 @@ class TestOciBaseHook:
     def set_connection(self, connection: Connection) -> None:
         self.hook.get_connection = mock.create_autospec(self.hook.get_connection, return_value=connection)
 
+    def set_missing_connection(self) -> None:
+        self.hook.get_connection = mock.create_autospec(
+            self.hook.get_connection,
+            side_effect=AirflowNotFoundException("The conn_id `oci_default` isn't defined"),
+        )
+
     @pytest.mark.parametrize(
         ("hook_kwargs", "connection_extra", "key_field", "key_value"),
         [
             ({"key_file": "/keys/oci.pem"}, {}, "key_file", "/keys/oci.pem"),
-            ({}, {"key_content": "private-key-content"}, "key_content", "private-key-content"),
+            (
+                {},
+                {"private_key_content": "private-key-content"},
+                "key_content",
+                "private-key-content",
+            ),
         ],
     )
     def test_get_oci_config_with_api_key(self, hook_kwargs, connection_extra, key_field, key_value):
@@ -82,7 +95,7 @@ class TestOciBaseHook:
             Connection(
                 login="ocid1.user.test",
                 extra={
-                    "auth_type": OCI_AUTH_TYPE_INSTANCE_PRINCIPAL,
+                    "auth_type": OciAuthType.INSTANCE_PRINCIPAL.value,
                     "key_file": "/etc/hosts",
                     "config_file": "/etc/hosts",
                     "profile": "UNTRUSTED",
@@ -90,7 +103,7 @@ class TestOciBaseHook:
                     "tenancy": "ocid1.tenancy.test",
                     "fingerprint": "fingerprint",
                     "region": "us-chicago-1",
-                    "key_content": "private-key-content",
+                    "private_key_content": "private-key-content",
                 },
             )
         )
@@ -113,12 +126,12 @@ class TestOciBaseHook:
             (
                 {},
                 {},
-                "OCI API key authentication requires either 'key_file' or 'key_content'",
+                "OCI API key authentication requires either 'key_file' or 'private_key_content'",
             ),
             (
                 {"key_file": "/keys/oci.pem"},
-                {"key_content": "private-key-content"},
-                "OCI API key authentication cannot use both 'key_file' and 'key_content'",
+                {"private_key_content": "private-key-content"},
+                "OCI API key authentication cannot use both 'key_file' and 'private_key_content'",
             ),
         ],
         ids=["missing-key", "conflicting-keys"],
@@ -133,7 +146,7 @@ class TestOciBaseHook:
     @mock.patch("oci.config.from_file", autospec=True)
     def test_get_oci_config_from_file_with_region_override(self, mock_from_file):
         self.hook = OciBaseHook(
-            auth_type=OCI_AUTH_TYPE_CONFIG_FILE,
+            auth_type=OciAuthType.CONFIG_FILE,
             config_file="/config/oci",
             profile="AIRFLOW",
         )
@@ -159,12 +172,12 @@ class TestOciBaseHook:
     @mock.patch("oci.config.from_file", autospec=True)
     def test_get_oci_config_from_default_file(self, mock_from_file, config_file, profile):
         self.hook = OciBaseHook(
-            auth_type=OCI_AUTH_TYPE_CONFIG_FILE,
+            auth_type="config_file",
             config_file=config_file,
             profile=profile,
         )
         mock_from_file.return_value = {"region": "us-ashburn-1"}
-        self.set_connection(Connection())
+        self.set_missing_connection()
 
         config, signer = self.hook.get_oci_config()
 
@@ -180,7 +193,7 @@ class TestOciBaseHook:
         autospec=True,
     )
     def test_get_oci_config_with_instance_principal_and_connection_region(self, mock_signer_class):
-        self.hook = OciBaseHook(auth_type=OCI_AUTH_TYPE_INSTANCE_PRINCIPAL)
+        self.hook = OciBaseHook(auth_type=OciAuthType.INSTANCE_PRINCIPAL)
         signer = mock_signer_class.return_value
         signer.region = "us-ashburn-1"
         self.set_connection(Connection(extra={"region": "eu-frankfurt-1"}))
@@ -195,10 +208,10 @@ class TestOciBaseHook:
         autospec=True,
     )
     def test_get_oci_config_with_resource_principal_region(self, mock_get_signer):
-        self.hook = OciBaseHook(auth_type=OCI_AUTH_TYPE_RESOURCE_PRINCIPAL)
+        self.hook = OciBaseHook(auth_type=OciAuthType.RESOURCE_PRINCIPAL)
         signer = mock_get_signer.return_value
         signer.region = "us-phoenix-1"
-        self.set_connection(Connection())
+        self.set_missing_connection()
 
         config, actual_signer = self.hook.get_oci_config()
 
@@ -210,15 +223,25 @@ class TestOciBaseHook:
         autospec=True,
     )
     def test_get_oci_config_with_resource_principal_without_region(self, mock_get_signer):
-        self.hook = OciBaseHook(auth_type=OCI_AUTH_TYPE_RESOURCE_PRINCIPAL)
+        self.hook = OciBaseHook(
+            oci_conn_id=None,
+            auth_type=OciAuthType.RESOURCE_PRINCIPAL,
+        )
+        self.hook.get_connection = mock.create_autospec(self.hook.get_connection)
         signer = mock_get_signer.return_value
         del signer.region
-        self.set_connection(Connection())
 
         config, actual_signer = self.hook.get_oci_config()
 
         assert config == {}
         assert actual_signer is signer
+        self.hook.get_connection.assert_not_called()
+
+    def test_get_oci_config_with_api_key_requires_connection_id(self):
+        self.hook = OciBaseHook(oci_conn_id=None)
+
+        with pytest.raises(ValueError, match="An OCI connection ID is required"):
+            self.hook.get_oci_config()
 
     def test_get_oci_config_rejects_unknown_auth_type(self):
         self.hook = OciBaseHook(auth_type="unknown")
@@ -227,46 +250,40 @@ class TestOciBaseHook:
         with pytest.raises(ValueError, match="Unsupported OCI authentication type: 'unknown'"):
             self.hook.get_oci_config()
 
-    def test_get_client_with_signer_and_explicit_endpoint(self):
-        signer = mock.sentinel.signer
+    @pytest.mark.parametrize(
+        ("signer", "service_endpoint", "client_kwargs", "expected_client_kwargs"),
+        [
+            (
+                mock.sentinel.signer,
+                "https://generativeai.example.test/",
+                {"timeout": 30},
+                {
+                    "signer": mock.sentinel.signer,
+                    "service_endpoint": "https://generativeai.example.test",
+                    "timeout": 30,
+                },
+            ),
+            (None, None, {}, {}),
+        ],
+        ids=["signer-and-explicit-endpoint", "no-signer-or-endpoint"],
+    )
+    def test_get_client(self, signer, service_endpoint, client_kwargs, expected_client_kwargs):
+        config = {"region": "us-chicago-1"}
         client = mock.sentinel.client
         client_class = mock.create_autospec(GenerativeAiClient, return_value=client)
         self.hook.get_oci_config = mock.create_autospec(
-            self.hook.get_oci_config, return_value=({"region": "us-chicago-1"}, signer)
+            self.hook.get_oci_config, return_value=(config, signer)
         )
-        self.hook.service_endpoint = "https://generativeai.example.test/"
+        self.hook.service_endpoint = service_endpoint
 
-        result = self.hook.get_client(client_class, timeout=30)
+        result = self.hook.get_client(client_class, **client_kwargs)
 
         assert result is client
-        client_class.assert_called_once_with(
-            config={"region": "us-chicago-1"},
-            signer=signer,
-            service_endpoint="https://generativeai.example.test",
-            timeout=30,
-        )
-
-    def test_get_client_without_signer_or_endpoint(self):
-        client = mock.sentinel.client
-        client_class = mock.create_autospec(GenerativeAiClient, return_value=client)
-        self.hook.get_oci_config = mock.create_autospec(
-            self.hook.get_oci_config, return_value=({"region": "us-chicago-1"}, None)
-        )
-        self.set_connection(Connection())
-
-        result = self.hook.get_client(client_class)
-
-        assert result is client
-        client_class.assert_called_once_with(config={"region": "us-chicago-1"})
+        client_class.assert_called_once_with(config=config, **expected_client_kwargs)
 
     def test_get_conn_requires_service_client_class(self):
-        with pytest.raises(ValueError, match="client_class must be specified by an OCI service hook"):
+        with pytest.raises(NotImplementedError, match="OCI service hooks must implement _get_client_class"):
             self.hook.get_conn()
-
-    def test_get_client_class_returns_configured_class(self):
-        self.hook.client_class = GenerativeAiClient
-
-        assert self.hook._get_client_class() is GenerativeAiClient
 
     @pytest.mark.parametrize("signer", [None, mock.sentinel.signer])
     @mock.patch("oci.identity.IdentityClient", autospec=True)
@@ -314,15 +331,18 @@ class TestOciBaseHook:
 
         assert self.hook._get_service_endpoint() == expected
 
-    def test_get_compartment_id_prefers_explicit_value(self):
+    @pytest.mark.parametrize(
+        ("compartment_id", "expected"),
+        [
+            ("explicit-compartment", "explicit-compartment"),
+            (None, "connection-compartment"),
+        ],
+        ids=["explicit", "connection"],
+    )
+    def test_get_compartment_id(self, compartment_id, expected):
         self.set_connection(Connection(extra={"compartment_id": "connection-compartment"}))
 
-        assert self.hook.get_compartment_id("explicit-compartment") == "explicit-compartment"
-
-    def test_get_compartment_id_from_connection(self):
-        self.set_connection(Connection(extra={"compartment_id": "connection-compartment"}))
-
-        assert self.hook.get_compartment_id() == "connection-compartment"
+        assert self.hook.get_compartment_id(compartment_id) == expected
 
     def test_get_compartment_id_requires_value(self):
         self.set_connection(Connection())
@@ -340,11 +360,11 @@ class TestOciBaseHook:
         assert set(widgets) == {
             "tenancy",
             "fingerprint",
-            "key_content",
+            "private_key_content",
             "region",
             "compartment_id",
         }
-        assert widgets["key_content"].field_class is password_field
+        assert widgets["private_key_content"].field_class is password_field
 
     def test_ui_field_behaviour(self):
         assert self.hook.get_ui_field_behaviour() == {
@@ -374,7 +394,7 @@ class TestOciBaseHook:
             oci_connection["ui-field-behaviour"]["placeholders"]
             == self.hook.get_ui_field_behaviour()["placeholders"]
         )
-        assert oci_connection["conn-fields"]["key_content"]["schema"]["format"] == "password"
+        assert oci_connection["conn-fields"]["private_key_content"]["schema"]["format"] == "password"
 
 
 def test_get_oci_sdk_requires_optional_extra():
@@ -391,13 +411,15 @@ def test_hook_modules_import_without_optional_oci_sdk():
         [
             sys.executable,
             "-c",
-            """
-import sys
+            dedent(
+                """
+                import sys
 
-sys.modules["oci"] = None
-import airflow.providers.oracle.hooks.base_oci
-import airflow.providers.oracle.hooks.generative_ai
-""",
+                sys.modules["oci"] = None
+                import airflow.providers.oracle.hooks.base_oci
+                import airflow.providers.oracle.hooks.generative_ai
+                """
+            ),
         ],
         check=True,
     )

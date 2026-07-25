@@ -22,8 +22,9 @@ OCI Generative AI Hosted Applications
 `OCI Python SDK <https://docs.oracle.com/en-us/iaas/tools/python/latest/>`__ to manage
 `Hosted Applications and deployments
 <https://docs.oracle.com/en-us/iaas/Content/generative-ai/agents.htm#deployments>`__.
-Install ``apache-airflow-providers-oracle[oci]`` and configure an
-:ref:`OCI connection <howto/connection:oci>` before using the hook.
+Install ``apache-airflow-providers-oracle[oci]`` before using the hook. Configure an
+:ref:`OCI connection <howto/connection:oci>` for API key authentication or optional
+connection-scoped defaults.
 The hook exposes the native :class:`oci.generative_ai.GenerativeAiClient` through ``conn`` and
 ``get_conn()``. Operators can therefore call OCI SDK methods directly without an Airflow wrapper
 for every API operation.
@@ -37,40 +38,8 @@ Oracle exposes separate application APIs for `two inbound authentication variant
   ``hosted_application_iam`` or ``hosted_applications_iam``.
 
 This distinction configures how clients invoke the deployed application. It does not change how
-the Airflow hook authenticates to the OCI management API; both variants use the configured
-:ref:`OCI connection <howto/connection:oci>`.
-
-Management endpoints
---------------------
-
-The OCI SDK derives the management endpoint as
-``https://generativeai.<region>.oci.oraclecloud.com`` and adds the ``20231130`` API base path.
-The hook exposes these operations without changing OCI retry, pagination, or concurrency-control
-arguments.
-
-==========================================================  ===================================================
-OCI SDK client method                                       REST operation
-==========================================================  ===================================================
-``create_hosted_application``                               ``POST /20231130/hostedApplications``
-``get_hosted_application``                                  ``GET /20231130/hostedApplications/{id}``
-``list_hosted_applications``                                ``GET /20231130/hostedApplications``
-``update_hosted_application``                               ``PUT /20231130/hostedApplications/{id}``
-``delete_hosted_application``                               ``DELETE /20231130/hostedApplications/{id}``
-``create_hosted_application_iam``                           ``POST /20231130/hostedApplicationsIam``
-``get_hosted_application_iam``                              ``GET /20231130/hostedApplicationsIam/{id}``
-``list_hosted_applications_iam``                            ``GET /20231130/hostedApplicationsIam``
-``update_hosted_application_iam``                           ``PUT /20231130/hostedApplicationsIam/{id}``
-``delete_hosted_application_iam``                           ``DELETE /20231130/hostedApplicationsIam/{id}``
-``create_hosted_deployment``                                ``POST /20231130/hostedDeployments``
-``get_hosted_deployment``                                   ``GET /20231130/hostedDeployments/{id}``
-``list_hosted_deployments``                                 ``GET /20231130/hostedDeployments``
-``update_hosted_deployment``                                ``PUT /20231130/hostedDeployments/{id}``
-``delete_hosted_deployment``                                ``DELETE /20231130/hostedDeployments/{id}``
-``get_work_request``                                        ``GET /20231130/workRequests/{id}``
-``list_work_request_errors``                                ``GET /20231130/workRequests/{id}/errors``
-``list_work_request_logs``                                  ``GET /20231130/workRequests/{id}/logs``
-``list_work_requests``                                      ``GET /20231130/workRequests``
-==========================================================  ===================================================
+the Airflow hook authenticates to the OCI management API; both variants use the authentication
+type selected on the hook.
 
 All client methods return the native :class:`oci.response.Response`. This preserves response data and
 headers such as ``etag``, ``opc-request-id``, and ``opc-work-request-id``. Create, update, and
@@ -89,30 +58,11 @@ and OAuth settings:
 
 .. code-block:: python
 
-    from oci.generative_ai.models import (
-        CreateHostedApplicationDetails,
-        IdcsAuthConfig,
-        InboundAuthConfig,
-    )
-
     from airflow.providers.oracle.hooks.generative_ai import OciGenerativeAIHook
 
     hook = OciGenerativeAIHook(oci_conn_id="oci_default")
-    response = hook.conn.create_hosted_application(
-        CreateHostedApplicationDetails(
-            display_name="airflow-agent-oauth",
-            compartment_id="ocid1.compartment.oc1..example",
-            inbound_auth_config=InboundAuthConfig(
-                inbound_auth_config_type="IDCS_AUTH_CONFIG",
-                idcs_config=IdcsAuthConfig(
-                    domain_url="https://idcs-example.identity.oraclecloud.com",
-                    scope="agent.invoke",
-                    audience="https://agent.example.com",
-                ),
-            ),
-        )
-    )
-    work_request_id = response.headers.get("opc-work-request-id")
+    response = hook.conn.create_hosted_application(...)
+    work_request_id = response.headers["opc-work-request-id"]
 
 Creating an OCI IAM Hosted Application
 --------------------------------------
@@ -121,19 +71,11 @@ OCI IAM applications do not require an OAuth or identity domain configuration:
 
 .. code-block:: python
 
-    from oci.generative_ai.models import CreateHostedApplicationIamDetails
-
     from airflow.providers.oracle.hooks.generative_ai import OciGenerativeAIHook
 
     hook = OciGenerativeAIHook(oci_conn_id="oci_default")
-    response = hook.conn.create_hosted_application_iam(
-        CreateHostedApplicationIamDetails(
-            display_name="airflow-agent",
-            compartment_id="ocid1.compartment.oc1..example",
-            description="Hosted application managed by Airflow",
-        )
-    )
-    work_request_id = response.headers.get("opc-work-request-id")
+    response = hook.conn.create_hosted_application_iam(...)
+    work_request_id = response.headers["opc-work-request-id"]
 
 Agent invocation
 ----------------

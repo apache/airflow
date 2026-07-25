@@ -34,32 +34,35 @@ this connection or its service hooks:
 
 The default connection ID is ``oci_default``.
 
-Service hooks reuse this connection for credentials and region while selecting their own OCI SDK
-client class. Each SDK client derives its endpoint from the configured region unless the Dag author
-passes a ``service_endpoint`` argument to the hook.
+Service hooks use the selected authentication type and optional connection defaults while
+instantiating the appropriate OCI SDK client. Each SDK client derives its endpoint from the
+configured region unless the Dag author passes a ``service_endpoint`` argument to the hook.
 
 Authentication types
 --------------------
 
 API key
-    This is the default. Configure ``User OCID`` in Login, the optional private key passphrase in
-    Password, and ``tenancy``, ``fingerprint``, ``region``, and ``key_content`` in Extra. A Dag
-    author may pass ``key_file`` to the hook instead of storing ``key_content`` in the connection.
+    This is the default. The connection must provide ``User OCID`` in Login and ``tenancy``,
+    ``fingerprint``, and ``region`` in Extra. It must also provide ``private_key_content`` in Extra
+    unless the Dag author passes ``key_file`` to the hook instead. Password is required when the
+    private key is encrypted and is otherwise optional.
 
 Config file
-    The Dag author passes ``auth_type="config_file"`` to the hook. The optional ``config_file`` and
-    ``profile`` hook arguments default to ``~/.oci/config`` and ``DEFAULT``. A connection ``region``
-    overrides the profile region.
+    The Dag author passes ``auth_type="config_file"`` to load an API key configuration profile.
+    The optional ``config_file`` and ``profile`` hook arguments default to ``~/.oci/config`` and
+    ``DEFAULT``. The profile must contain the fields required by the OCI SDK for API key
+    authentication. An Airflow connection is optional and only provides a ``region`` override for
+    the profile.
 
 Instance principal
     The Dag author passes ``auth_type="instance_principal"`` to the hook. The OCI SDK obtains
-    credentials from the compute instance metadata service. The connection ``region`` is optional
-    because the signer normally discovers it from instance metadata.
+    credentials from the compute instance metadata service, so no Airflow connection is required.
+    When present, the connection can override the ``region`` normally discovered by the signer.
 
 Resource principal
     The Dag author passes ``auth_type="resource_principal"`` to the hook. The OCI SDK obtains
-    credentials from the resource principal environment. The connection ``region`` is optional
-    when the signer provides one.
+    credentials from the resource principal environment, so no Airflow connection is required.
+    When present, the connection can provide a ``region`` if the signer does not.
 
 File paths, principal authentication, and custom endpoints are intentionally hook arguments rather
 than connection fields. This ensures that only Dag authors can make the worker read local files,
@@ -76,20 +79,26 @@ authors can call ``test_connection()`` on a hook configured for another authenti
 Configuring the connection
 --------------------------
 
-Login (optional)
-    User OCID for ``api_key`` authentication.
+Login
+    User OCID. Required for ``api_key`` authentication and not used by the other authentication
+    types.
 
-Password (optional)
-    Private key passphrase for ``api_key`` authentication.
+Password
+    Private key passphrase. Required for ``api_key`` authentication when the private key is
+    encrypted and otherwise optional.
 
 Extra
     A JSON object containing connection-scoped credentials and defaults:
 
-    * ``tenancy``: tenancy OCID for API key authentication.
-    * ``fingerprint``: public key fingerprint for API key authentication.
-    * ``key_content``: API signing private key content; prefer a secrets backend.
-    * ``region``: OCI region identifier, for example ``us-chicago-1``.
-    * ``compartment_id``: default compartment OCID used by service operations.
+    * ``tenancy``: tenancy OCID. Required for ``api_key`` authentication.
+    * ``fingerprint``: public key fingerprint. Required for ``api_key`` authentication.
+    * ``private_key_content``: API signing private key content. Required for ``api_key``
+      authentication unless the Dag author passes ``key_file`` to the hook instead; prefer a
+      secrets backend.
+    * ``region``: OCI region identifier, for example ``us-chicago-1``. Required for ``api_key``
+      authentication, optional as a ``config_file`` profile override, and optional for principal
+      authentication when the signer provides one.
+    * ``compartment_id``: optional default compartment OCID used by service operations.
 
 Dag-controlled hook arguments
 -----------------------------
@@ -97,9 +106,13 @@ Dag-controlled hook arguments
 ``auth_type``
     One of ``api_key``, ``config_file``, ``instance_principal``, or ``resource_principal``.
 
+``oci_conn_id``
+    Defaults to ``oci_default``. Pass ``None`` to skip connection lookup when using
+    ``config_file``, ``instance_principal``, or ``resource_principal`` authentication.
+
 ``key_file``
     API signing private key path for API key authentication. Do not use it together with
-    connection ``key_content``.
+    connection ``private_key_content``.
 
 ``config_file`` and ``profile``
     OCI SDK configuration file and profile for ``config_file`` authentication.
@@ -116,7 +129,7 @@ API key example
     {
       "tenancy": "ocid1.tenancy.oc1..example",
       "fingerprint": "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99",
-      "key_content": "<private key supplied by a secrets backend>",
+      "private_key_content": "<private key supplied by a secrets backend>",
       "region": "us-chicago-1",
       "compartment_id": "ocid1.compartment.oc1..example"
     }
