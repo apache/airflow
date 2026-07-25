@@ -176,6 +176,75 @@ class TestBuildWindowsWrapperCommand:
         assert "-EncodedCommand" in wrapper
 
 
+class TestWindowsDefaultBaseDirExpansion:
+    """Regression tests for #70438.
+
+    ``$env:TEMP\\airflow-ssh-jobs`` is a PowerShell expression used as the default
+    Windows base directory, but every path is interpolated into a *single-quoted*
+    PowerShell string where ``$env:`` is not expanded -- it is emitted literally and
+    PowerShell fails trying to resolve a ``$env`` PSDrive. Only the default-base-dir
+    sentinel should be expanded (via ``Join-Path``); a user-supplied ``remote_base_dir``
+    must stay a literal, unexpanded string.
+    """
+
+    def _decode(self, cmd: str) -> str:
+        encoded_script = cmd.split("-EncodedCommand ")[1]
+        return base64.b64decode(encoded_script).decode("utf-16-le")
+
+    def test_wrapper_expands_default_base_dir(self):
+        """The wrapper for a default-base-dir job must expand $env:TEMP via Join-Path,
+        not emit it inside a single-quoted literal (which PowerShell cannot expand)."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+        wrapper = build_windows_wrapper_command("C:\\scripts\\test.ps1", paths)
+        decoded = self._decode(wrapper)
+
+        assert "Join-Path $env:TEMP" in decoded
+        # The literal single-quoted form is exactly what breaks on real PowerShell:
+        # PowerShell parses the leading "$env" as a (nonexistent) PSDrive name.
+        assert "'$env:TEMP\\" not in decoded
+
+    def test_cleanup_expands_default_base_dir(self):
+        """The cleanup command for a default-base-dir job must likewise expand $env:TEMP."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+        cmd = build_windows_cleanup_command(paths.job_dir)
+        decoded = self._decode(cmd)
+
+        assert "Join-Path $env:TEMP" in decoded
+        assert "'$env:TEMP\\" not in decoded
+
+    def test_custom_base_dir_stays_literal(self):
+        """A custom remote_base_dir is a real path, not a PowerShell expression: it must
+        stay a plain single-quoted literal and must NOT be run through Join-Path. This is
+        the property that keeps a user's own '$' characters safe from expansion."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows", base_dir="D:\\jobs\\airflow-ssh-jobs")
+        wrapper = build_windows_wrapper_command("C:\\scripts\\test.ps1", paths)
+        decoded = self._decode(wrapper)
+
+        assert "Join-Path" not in decoded
+        assert "$jobDir = 'D:\\jobs\\airflow-ssh-jobs\\test_job'" in decoded
+
+    def test_single_quote_escaped_in_expanded_branch(self):
+        """A single quote in the job-id portion of a default-base-dir path must still be
+        escaped as '' inside the Join-Path literal."""
+        job_dir = "$env:TEMP\\airflow-ssh-jobs\\job's"
+        cmd = build_windows_cleanup_command(job_dir)
+        decoded = self._decode(cmd)
+
+        assert "Join-Path $env:TEMP" in decoded
+        assert "job''s" in decoded
+
+    def test_single_quote_escaped_in_literal_branch(self):
+        """A single quote in a custom base dir must still be escaped as '' in the plain
+        single-quoted literal (custom base dirs are real paths, not PowerShell
+        expressions, and must never be run through Join-Path)."""
+        paths = RemoteJobPaths(job_id="job1", remote_os="windows", base_dir="D:\\jo'bs")
+        wrapper = build_windows_wrapper_command("C:\\scripts\\test.ps1", paths)
+        decoded = self._decode(wrapper)
+
+        assert "Join-Path" not in decoded
+        assert "jo''bs" in decoded
+
+
 class TestLogTailCommands:
     def test_posix_log_tail(self):
         """Test POSIX log tail command uses efficient tail+head pipeline."""
