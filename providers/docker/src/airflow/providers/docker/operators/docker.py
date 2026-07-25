@@ -487,7 +487,10 @@ class DockerOperator(BaseOperator):
             return lib.load(file)
 
     def _normalize_mounts(self) -> None:
-        self.mounts = [m if isinstance(m, Mount) else Mount(**m) for m in self.mounts]
+        # A user dict is rebuilt into a Mount, but rendering flattens a Mount into a
+        # plain dict with API-cased keys (Target/Source/Type) that docker-py already
+        # accepts, so leave those (and any real Mount) alone.
+        self.mounts = [m if isinstance(m, Mount) or "Target" in m else Mount(**m) for m in self.mounts]
 
     def execute(self, context: Context) -> list[str] | str | None:
         self._normalize_mounts()

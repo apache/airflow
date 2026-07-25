@@ -898,3 +898,23 @@ class TestDockerOperator:
         )
         rendered = ti.render_templates()
         assert rendered.mounts[0]["target"] == f"/{ti.run_id}"
+
+    @pytest.mark.db_test
+    def test_mount_objects_survive_render_then_execute(self, create_task_instance_of_operator):
+        # A user-supplied Mount is a dict subclass, so the templater flattens it to a
+        # plain API-cased dict during rendering. Drive the real render -> execute path
+        # to prove execute() forwards it to docker-py instead of raising on it.
+        ti = create_task_instance_of_operator(
+            operator_class=DockerOperator,
+            dag_id="test",
+            task_id="test",
+            image="test",
+            mount_tmp_dir=False,
+            mounts=[Mount(source="workspace", target="/{{task_instance.run_id}}", type="volume")],
+        )
+        task = ti.render_templates()
+        task.execute(None)
+
+        passed_mounts = self.client_mock.create_host_config.call_args.kwargs["mounts"]
+        assert passed_mounts[0]["Target"] == f"/{ti.run_id}"
+        assert passed_mounts[0]["Source"] == "workspace"
