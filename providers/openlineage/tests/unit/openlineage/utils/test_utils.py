@@ -94,6 +94,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_3_1_PLUS,
 )
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
@@ -2651,7 +2652,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_3_1_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
@@ -2687,7 +2688,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_3_1_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
@@ -2791,7 +2792,7 @@ class TestDagInfoAirflow3:
             },
             "timetable_summary": "Asset",
         }
-        if AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_3_1_PLUS:
             expected["timetable"]["batch_asset_events"] = True
         assert dict(result) == expected
 
