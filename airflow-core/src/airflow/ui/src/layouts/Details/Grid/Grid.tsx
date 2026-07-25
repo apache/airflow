@@ -190,9 +190,25 @@ export const Grid = ({
 
   const gridHeaderAndBody = (
     <>
-      {/* Grid header, both bgs are needed to hide elements during horizontal and vertical scroll */}
-      <Flex bg="bg" display="flex" position="sticky" pt={`${GRID_HEADER_PADDING_PX}px`} top={0} zIndex={2}>
-        <Box bg="bg" left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
+      {/* Grid header. minWidth stretches the header past the scrollport so its bg covers every run
+        column during horizontal scroll; the padding sits on the children so the sticky task name
+        column's bg spans the full header height and hides bars scrolled behind it. */}
+      <Flex
+        bg="bg"
+        display="flex"
+        minWidth={usesSharedScroll ? undefined : "max-content"}
+        position="sticky"
+        top={0}
+        zIndex={2}
+      >
+        <Box
+          bg="bg"
+          left={0}
+          position="sticky"
+          pt={`${GRID_HEADER_PADDING_PX}px`}
+          zIndex={1}
+          {...taskNameColumnStyles}
+        >
           <Flex flexDirection="column-reverse" height={`${GRID_HEADER_HEIGHT_PX}px`} position="relative">
             {Boolean(gridRuns?.length) && (
               <>
@@ -203,7 +219,7 @@ export const Grid = ({
           </Flex>
         </Box>
         {/* Duration bars */}
-        <Flex flexDirection="row-reverse" flexShrink={0}>
+        <Flex flexDirection="row-reverse" flexShrink={0} pt={`${GRID_HEADER_PADDING_PX}px`}>
           <Flex flexShrink={0} position="relative">
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
             <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
