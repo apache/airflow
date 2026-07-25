@@ -21,7 +21,6 @@ providers/amazon/src/airflow/providers/amazon/aws/transfers/base.py::AwsToAwsBas
 providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::GCSToS3Operator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::S3ToRedshiftOperator
 providers/anthropic/src/airflow/providers/anthropic/operators/agent.py::AnthropicAgentSessionOperator
-providers/apache/kafka/src/airflow/providers/apache/kafka/operators/produce.py::ProduceToTopicOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
 providers/docker/src/airflow/providers/docker/operators/docker.py::DockerOperator
 providers/google/src/airflow/providers/google/cloud/operators/bigquery.py::BigQueryInsertJobOperator
