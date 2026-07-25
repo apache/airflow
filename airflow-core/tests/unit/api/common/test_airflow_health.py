@@ -88,6 +88,7 @@ def test_get_airflow_health_metadatabase_unhealthy(mock_get_jobs_health):
 
     assert health_status == expected_status
 
+
 LATEST_SCHEDULER_JOB_MOCK = MagicMock(spec=Job)
 LATEST_SCHEDULER_JOB_MOCK.hostname = "scheduler-host"
 LATEST_SCHEDULER_JOB_MOCK.latest_heartbeat = datetime(2024, 1, 1)
