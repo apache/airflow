@@ -208,7 +208,7 @@
   "presetFilters": {
     "deleteTitle": "מחק מסנן מוגדר מראש",
     "deleteWarning": "מסננים מוגדרים מראש נשמרים בדפדפן זה בלבד.",
-    "duplicate": "המסנן המוגדר מראש \"{{name}}\" כבר שומר בדיוק את ההגדרה הזו.",
+    "duplicate": "למסנן המוגדר מראש \"{{name}}\" כבר יש הגדרה זהה.",
     "empty": "אין עדיין מסננים מוגדרים מראש",
     "info": {
       "default": "נעץ מסנן מוגדר מראש כברירת מחדל, והוא יוחל אוטומטית בכל כניסה לדף זה ללא מסננים פעילים.",
@@ -279,7 +279,7 @@
       "markTaskSuccess": "סמן $t(task_one) כהצלחה",
       "navigateTasks": "נווט בין $t(task_other)",
       "openGraphFilters": "פתח מסנני גרף",
-      "scrollBottom": "גלול לתחתית",
+      "scrollBottom": "גלול לתחתית הדף",
       "scrollTop": "גלול לראש הדף",
       "searchDags": "חפש $t(dag_other)",
       "showHelp": "הצג $t(shortcuts.title)",
