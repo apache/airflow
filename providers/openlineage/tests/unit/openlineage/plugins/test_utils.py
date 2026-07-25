@@ -50,7 +50,12 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import (
     BashOperator,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dag import get_next_data_interval
@@ -480,7 +485,7 @@ def test_serialize_timetable_complex_with_alias():
             ],
         },
     }
-    if AIRFLOW_V_3_3_PLUS:
+    if AIRFLOW_V_3_3_1_PLUS:
         expected["batch_asset_events"] = True
     assert dag_info.timetable == expected
 
@@ -498,7 +503,7 @@ def test_serialize_timetable_single_asset():
             "extra": {},
         },
     }
-    if AIRFLOW_V_3_3_PLUS:
+    if AIRFLOW_V_3_3_1_PLUS:
         expected["batch_asset_events"] = True
     assert dag_info.timetable == expected
 
@@ -516,7 +521,7 @@ def test_serialize_timetable_list_of_assets():
             ],
         },
     }
-    if AIRFLOW_V_3_3_PLUS:
+    if AIRFLOW_V_3_3_1_PLUS:
         expected["batch_asset_events"] = True
     assert dag_info.timetable == expected
 
@@ -575,7 +580,7 @@ def test_serialize_timetable_with_complex_logical_condition():
             ],
         },
     }
-    if AIRFLOW_V_3_3_PLUS:
+    if AIRFLOW_V_3_3_1_PLUS:
         expected["batch_asset_events"] = True
     assert dag_info.timetable == expected
 
