@@ -50,7 +50,7 @@ def _powershell_path(path: str) -> str:
     if path == WINDOWS_TEMP_PREFIX or path.startswith(WINDOWS_TEMP_PREFIX + "\\"):
         relative = path[len(WINDOWS_TEMP_PREFIX) :].lstrip("\\")
         if not relative:
-            return "$env:TEMP"
+            return WINDOWS_TEMP_PREFIX
         escaped_relative = relative.replace("'", "''")
         return f"(Join-Path $env:TEMP '{escaped_relative}')"
     escaped_path = path.replace("'", "''")
