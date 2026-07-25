@@ -930,7 +930,8 @@ class TestVaultSecrets:
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
 
-        with pytest.warns(AirflowProviderDeprecationWarning):  # Ensure global_secrets_path raises a deprecation warning
+        # Ensure global_secrets_path raises a deprecation warning
+        with pytest.warns(AirflowProviderDeprecationWarning):
             test_client = VaultBackend(**kwargs)
         connection = test_client.get_connection(conn_id="test_postgres")
         mock_client.secrets.kv.v2.read_secret_version.assert_has_calls(
