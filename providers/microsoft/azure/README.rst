@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``13.5.1``
+Release: ``14.0.0``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.5.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/14.0.0/>`_.
 
 Installation
 ------------
@@ -56,7 +56,9 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``adlfs``                                   ``>=2023.10.0``
+``aiohttp``                                 ``>=3.14.0``
 ``azure-batch``                             ``<15.0.0,>=8.0.0``
+``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.6.0``
 ``azure-mgmt-cosmosdb``                     ``>=3.0.0``
 ``azure-datalake-store``                    ``>=0.0.45``
@@ -72,7 +74,7 @@ PIP package                                 Version required
 ``azure-synapse-artifacts``                 ``>=0.17.0``
 ``azure-storage-file-datalake``             ``>=12.9.1``
 ``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
-``azure-mgmt-datafactory``                  ``>=2.0.0``
+``azure-mgmt-datafactory``                  ``>=10.0.0``
 ``azure-mgmt-containerregistry``            ``>=8.0.0``
 ``azure-mgmt-compute``                      ``>=33.0.0``
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
@@ -125,4 +127,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/13.5.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/14.0.0/changelog.html>`_.

@@ -53,5 +53,10 @@
     "id": "decorator",
     "label": "Decorators",
     "icon": "@"
+  },
+  {
+    "id": "toolset",
+    "label": "Toolsets",
+    "icon": "U"
   }
 ]

@@ -113,9 +113,13 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_CTL_ROOT_PATH,
+    AIRFLOW_ROOT_PATH,
+    FILES_PATH,
+    cleanup_python_generated_files,
+)
 from airflow_breeze.utils.run_tests import (
-    PROVIDERS_E2E_TESTS_ROOT_PATH,
     TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
     are_all_test_paths_excluded,
     file_name_from_test_type,
@@ -923,174 +927,6 @@ def task_sdk_integration_tests(
     sys.exit(return_code)
 
 
-def _available_e2e_providers() -> list[str]:
-    if not PROVIDERS_E2E_TESTS_ROOT_PATH.exists():
-        return []
-    return sorted(
-        d.name
-        for d in PROVIDERS_E2E_TESTS_ROOT_PATH.iterdir()
-        if d.is_dir() and (d / "pyproject.toml").exists()
-    )
-
-
-def _build_providers_e2e_compat_image(provider: str, airflow_version: str, python: str) -> str:
-    """Build a lightweight image: released ``apache/airflow:<version>`` + current providers from main.
-
-    Replicates the provider-compatibility approach (current provider code on an older Airflow core)
-    without a full PROD image build — the released image is pulled and the providers are reinstalled
-    from wheels built from main.
-
-    The list of providers to install is read from ``providers-e2e-tests/<provider>/pyproject.toml``
-    under ``[tool.e2e-tests] required-providers``.
-    """
-    import shutil
-    from pathlib import Path
-
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
-
-    from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
-
-    provider_root = PROVIDERS_E2E_TESTS_ROOT_PATH / provider
-    pyproject_path = provider_root / "pyproject.toml"
-    required_providers: list[str] = tomllib.loads(pyproject_path.read_text())["tool"]["e2e-tests"][
-        "required-providers"
-    ]
-    console_print(f"[info]Building provider wheels from main: {required_providers}[/]")
-    run_command(
-        [
-            "breeze",
-            "release-management",
-            "prepare-provider-distributions",
-            *required_providers,
-            "--distribution-format",
-            "wheel",
-            "--skip-tag-check",
-            "--include-not-ready-providers",
-            "--clean-dist",
-        ],
-        check=True,
-        cwd=AIRFLOW_ROOT_PATH,
-    )
-    provider_dist = provider_root / "provider_dist"
-    if provider_dist.exists():
-        shutil.rmtree(provider_dist)
-    provider_dist.mkdir(parents=True)
-    for wheel in (AIRFLOW_ROOT_PATH / "dist").glob("*.whl"):  # With --clean-dist above we can copy all
-        shutil.copy2(wheel, provider_dist / wheel.name)
-
-    base_image = f"apache/airflow:{airflow_version}-python{python}"
-    image_name = f"{provider}-e2e/airflow:{airflow_version}-python{python}"
-    console_print(f"[info]Building {image_name} from {base_image}[/]")
-    run_command(
-        [
-            "docker",
-            "build",
-            "--build-arg",
-            f"AIRFLOW_BASE_IMAGE={base_image}",
-            "-t",
-            image_name,
-            "-f",
-            (provider_root / "Dockerfile").as_posix(),
-            Path(provider_root).as_posix(),
-        ],
-        check=True,
-    )
-    return image_name
-
-
-@testing_group.command(
-    name="providers-e2e-tests",
-    context_settings=dict(
-        ignore_unknown_options=True,
-        allow_extra_args=True,
-    ),
-)
-@click.argument("provider", type=click.Choice(_available_e2e_providers()))
-@option_python
-@option_image_name
-@click.option(
-    "--airflow-version",
-    help="Run against a released Airflow version (e.g. 3.0.6) with current providers from main, "
-    "instead of the default PROD image. Builds a lightweight image from apache/airflow:<version>.",
-    default=None,
-)
-@option_skip_docker_compose_deletion
-@option_skip_mounting_local_volumes
-@click.option(
-    "--down",
-    help="Shuts down the docker-compose setup without running any tests. "
-    "Useful to make sure to free resources.",
-    is_flag=True,
-)
-@option_github_repository
-@option_include_success_outputs
-@option_verbose
-@option_dry_run
-@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def providers_e2e_tests(
-    provider: str,
-    python: str,
-    image_name: str | None,
-    airflow_version: str | None,
-    down: bool,
-    skip_docker_compose_deletion: bool,
-    skip_mounting_local_volumes: bool,
-    github_repository: str,
-    include_success_outputs: bool,
-    extra_pytest_args: tuple,
-):
-    """Run provider end-to-end tests against a deployed Airflow stack.
-
-    Defaults to the PROD image (current Airflow + providers from sources). Pass --airflow-version to
-    run against an older released Airflow version with the current providers installed from main.
-    """
-    perform_environment_checks()
-
-    if airflow_version:
-        # prepare_dags.py reads this to drop DAGs that need a newer Airflow than the target.
-        os.environ["E2E_TARGET_AIRFLOW_VERSION"] = airflow_version
-        if image_name is None:
-            image_name = _build_providers_e2e_compat_image(provider, airflow_version, python)
-    else:
-        image_name = image_name or os.environ.get("DOCKER_IMAGE")
-        if not image_name:
-            build_params = BuildProdParams(python=python, github_repository=github_repository)
-            image_name = build_params.airflow_image_name
-
-    if down:
-        env = {
-            **os.environ,
-            "DOCKER_IMAGE": image_name,
-        }
-        down_cmd = [
-            "docker",
-            "compose",
-            "down",
-            "--remove-orphans",
-            "--volumes",
-        ]
-        console_print("[info]Running docker-compose down[/]")
-        run_command(down_cmd, output=None, check=False, env=env, cwd=PROVIDERS_E2E_TESTS_ROOT_PATH / provider)
-        sys.exit(0)
-
-    console_print(f"[info]Running {provider} e2e tests with image: {image_name}[/]")
-    return_code, info = run_docker_compose_tests(
-        image_name=image_name,
-        python_version=python,
-        include_success_outputs=include_success_outputs,
-        extra_pytest_args=extra_pytest_args,
-        skip_docker_compose_deletion=skip_docker_compose_deletion,
-        skip_mounting_local_volumes=skip_mounting_local_volumes,
-        test_type="providers-e2e-tests",
-        provider=provider,
-        skip_image_check=bool(airflow_version),
-    )
-    sys.exit(return_code)
-
-
 @testing_group.command(
     name="airflow-ctl-integration-tests",
     context_settings=dict(
@@ -1600,6 +1436,66 @@ def python_api_client_tests(
     sys.exit(returncode)
 
 
+# Providers reinstalled from main onto the released Airflow base for the OpenLineage compat image:
+# OpenLineage plus the providers its system-test DAGs import.
+OPENLINEAGE_E2E_COMPAT_PROVIDERS = ["openlineage", "standard", "common.compat", "common.sql", "common.io"]
+
+
+def _build_openlineage_e2e_compat_image(airflow_version: str, python: str) -> str:
+    """Build a lightweight image: released ``apache/airflow:<version>`` + current OL providers from main.
+
+    Replicates the provider-compatibility approach (current provider code on an older Airflow core)
+    without a full PROD image build — the released image is pulled and the providers are reinstalled
+    from wheels built from main.
+    """
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    console_print(f"[info]Building provider wheels from main: {OPENLINEAGE_E2E_COMPAT_PROVIDERS}[/]")
+    run_command(
+        [
+            "breeze",
+            "release-management",
+            "prepare-provider-distributions",
+            *OPENLINEAGE_E2E_COMPAT_PROVIDERS,
+            "--distribution-format",
+            "wheel",
+            "--skip-tag-check",
+            "--include-not-ready-providers",
+            "--clean-dist",
+        ],
+        check=True,
+        cwd=AIRFLOW_ROOT_PATH,
+    )
+    build_context = Path(tempfile.mkdtemp(prefix="ol-e2e-compat-"))
+    provider_dist = build_context / "provider_dist"
+    provider_dist.mkdir()
+    for wheel in (AIRFLOW_ROOT_PATH / "dist").glob("*.whl"):  # --clean-dist above leaves only our wheels
+        shutil.copy2(wheel, provider_dist / wheel.name)
+    shutil.copy2(
+        AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "openlineage-compat.Dockerfile",
+        build_context / "Dockerfile",
+    )
+
+    base_image = f"apache/airflow:{airflow_version}-python{python}"
+    image_name = f"openlineage-e2e/airflow:{airflow_version}-python{python}"
+    console_print(f"[info]Building {image_name} from {base_image}[/]")
+    run_command(
+        [
+            "docker",
+            "build",
+            "--build-arg",
+            f"AIRFLOW_BASE_IMAGE={base_image}",
+            "-t",
+            image_name,
+            build_context.as_posix(),
+        ],
+        check=True,
+    )
+    return image_name
+
+
 option_e2e_test_mode = click.option(
     "--e2e-test-mode",
     help="Specify the mode to use for E2E tests.",
@@ -1616,6 +1512,8 @@ option_e2e_test_mode = click.option(
             "event_driven",
             "java_sdk",
             "go_sdk",
+            "openlineage",
+            "ts_sdk",
         ],
         case_sensitive=False,
     ),
@@ -1637,6 +1535,13 @@ option_e2e_test_mode = click.option(
 @option_verbose
 @option_dry_run
 @option_e2e_test_mode
+@click.option(
+    "--airflow-version",
+    help="Run the openlineage mode against a released Airflow version (e.g. 3.1.8) with current "
+    "providers from main, instead of the default PROD image. Builds a lightweight image from "
+    "apache/airflow:<version>. Only used by the openlineage compat matrix.",
+    default=None,
+)
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def airflow_e2e_tests(
     python: str,
@@ -1645,19 +1550,28 @@ def airflow_e2e_tests(
     github_repository: str,
     include_success_outputs: bool,
     e2e_test_mode: str,
+    airflow_version: str | None,
     extra_pytest_args: tuple,
 ):
     """Run Airflow E2E tests."""
 
     perform_environment_checks()
     image_name = image_name or os.environ.get("DOCKER_IMAGE")
-    if image_name is None or image_name.strip() == "":
+    if image_name and image_name.strip() == "":
+        image_name = None
+    if airflow_version:
+        # prepare_dags.py reads this to drop DAGs that need a newer Airflow than the target.
+        os.environ["E2E_TARGET_AIRFLOW_VERSION"] = airflow_version
+        if not image_name:
+            image_name = _build_openlineage_e2e_compat_image(airflow_version, python)
+    elif not image_name:
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
-    console_print(f"[info]Running Airflow E2E tests with PROD image: {image_name}[/]")
-    # If the image is used from docker hub, test container will pull that part of test.
-    skip_image_check = bool(image_name and image_name.startswith("apache/airflow"))
+    console_print(f"[info]Running Airflow E2E tests with image: {image_name}[/]")
+    # If the image is used from docker hub, test container will pull that part of test. A locally
+    # built compat image (--airflow-version) is present on the host, so skip the check for it too.
+    skip_image_check = bool(image_name and image_name.startswith("apache/airflow")) or bool(airflow_version)
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,

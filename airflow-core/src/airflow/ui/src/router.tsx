@@ -137,6 +137,7 @@ export const routerConfig = [
         children: [
           { element: <AssetEvents />, index: true },
           { element: <AssetStateStore />, path: "asset-state-store" },
+          pluginRoute,
         ],
         element: <Asset />,
         path: "assets/:assetId",

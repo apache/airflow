@@ -3,6 +3,7 @@
     "description": "Descripción",
     "key": "Clave",
     "name": "Nombre",
+    "team": "Equipo",
     "value": "Valor"
   },
   "config": {
@@ -52,6 +53,12 @@
     "searchPlaceholder": "Buscar Conexiones",
     "test": "Prueba de Conexión",
     "testDisabled": "La función de prueba de conexión está desactivada. Por favor, contacta a un administrador para activarla.",
+    "testError": {
+      "title": "Prueba de Conexión Fallida"
+    },
+    "testSuccess": {
+      "title": "Prueba de Conexión Exitosa"
+    },
     "typeMeta": {
       "error": "Error al recuperar la Metadata del Tipo de Conexión",
       "standardFields": {
@@ -77,6 +84,23 @@
   "formActions": {
     "save": "Guardar"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Clase de Executor",
+      "hostname": "Nombre de Host",
+      "id": "ID",
+      "jobType": "Tipo de Trabajo",
+      "latestHeartbeat": "Último Heartbeat",
+      "unixname": "Nombre de Unix"
+    },
+    "filters": {
+      "allStates": "Todos los Estados",
+      "allTypes": "Todos los Tipos",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "Origen"
@@ -100,7 +124,8 @@
       "includeDeferred": "Incluir diferidos",
       "nameMaxLength": "El nombre puede contener un máximo de 256 caracteres",
       "nameRequired": "El nombre es requerido",
-      "slots": "Slots"
+      "slots": "Slots",
+      "slotsHelperText": "Use -1 para slots ilimitados."
     },
     "noPoolsFound": "No se encontraron pools",
     "pool_many": "Pools",

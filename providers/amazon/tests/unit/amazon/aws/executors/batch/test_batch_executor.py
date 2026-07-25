@@ -817,6 +817,8 @@ class TestAwsBatchExecutor:
             task.dag_version = mock.Mock(version_data=None)
             task.dag_run = mock.Mock()
             task.dag_run.bundle_version = "1.0.0"
+            # ExecuteTask.make() sources version_data from the run's pinned version.
+            task.dag_run.created_dag_version = mock.Mock(version_data=None)
             task.dag_run.context_carrier = {}
 
             if not AIRFLOW_V_3_0_PLUS:

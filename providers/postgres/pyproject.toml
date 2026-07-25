@@ -62,12 +62,19 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.12.0",
     "apache-airflow-providers-common-sql>=1.32.0",
-    # psycopg2 remains the sync driver for now; its removal and the sync migration to
-    # psycopg3 are tracked at https://github.com/apache/airflow/issues/68453
-    "psycopg2-binary>=2.9.9; python_version < '3.13'",
-    "psycopg2-binary>=2.9.10; python_version >= '3.13'",
     "psycopg[binary]>=3.2.9; python_version < '3.14'",
     "psycopg[binary]>=3.3.3; python_version >= '3.14'",
+    # psycopg2-binary and asyncpg must stay default dependencies while this provider still
+    # supports Airflow cores older than 3.4.0. Those cores normalize the sync metadata-DB conn
+    # to ``postgresql+psycopg2://`` (see core ``_upgrade_postgres_metastore_conn``) and derive
+    # the async URL as ``postgresql+asyncpg://`` unconditionally, with no psycopg fallback;
+    # Airflow 2.11 additionally ships SQLAlchemy 1.4, which has no native ``psycopg`` (v3)
+    # dialect at all. The psycopg3 defaults only take effect on 3.4.0+, so both drivers become
+    # opt-in-only (via the ``[psycopg2]`` / ``[asyncpg]`` extras) together once the minimum
+    # supported Airflow is >= 3.4.0; tracked at https://github.com/apache/airflow/issues/68453
+    "psycopg2-binary>=2.9.9; python_version < '3.13'",
+    "psycopg2-binary>=2.9.10; python_version >= '3.13'",
+    "asyncpg>=0.30.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -92,6 +99,10 @@ dependencies = [
 ]
 "polars" = [
     "polars>=1.26.0"
+]
+"psycopg2" = [
+    "psycopg2-binary>=2.9.9; python_version < '3.13'",
+    "psycopg2-binary>=2.9.10; python_version >= '3.13'",
 ]
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54"

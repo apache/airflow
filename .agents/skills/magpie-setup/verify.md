@@ -550,6 +550,7 @@ adopter opted into via
   - `mcp__claude_ai_Gmail__search_threads`
   - `mcp__claude_ai_Gmail__list_drafts`
   - `mcp__claude_ai_Gmail__list_labels`
+  - `mcp__gmail-plaintext__create_draft`
   - `mcp__ponymail__search_list`
   - `mcp__ponymail__auth_status`
   - `mcp__ponymail__get_thread`

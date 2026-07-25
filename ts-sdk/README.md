@@ -26,11 +26,9 @@ Public TypeScript interfaces for writing Apache Airflow task handlers.
 This package defines the user-facing task handler contract and the coordinator
 runtime used to execute registered TypeScript handlers from Airflow.
 
-## Install
-
-```bash
-pnpm add @apache-airflow/ts-sdk
-```
+> **Note:** This package is not yet published to a public npm registry. Until an
+> official Apache Airflow release is available, build and use it from source (see
+> [Development](#development)).
 
 ## Task Handlers
 
@@ -90,8 +88,9 @@ coordinators = {
 queue_to_coordinator = {"typescript": "ts"}
 ```
 
-Each configured bundle directory must contain `bundle.mjs` and
-`airflow-metadata.yaml`.
+Each configured bundle directory must contain a `bundle.mjs` built with
+`airflow-ts-pack` (see [Packing bundles](#packing-bundles)), which embeds the
+Airflow metadata in the bundle itself.
 
 TypeScript entrypoint:
 
@@ -147,8 +146,32 @@ Airflow launches the bundled entrypoint with `--comm=host:port` and
 the task startup message, finds the registered handler for the Dag/task pair,
 and reports the terminal task state back to Airflow.
 
-See [`example/`](example/) for a coordinator-runtime example that builds a
-`bundle.mjs` with `esbuild` and uses a Python stub Dag.
+See [`example/`](example/) for a coordinator-runtime example that packs a
+bundle with `airflow-ts-pack` and uses a Python stub Dag.
+
+## Packing bundles
+
+`airflow-ts-pack` produces everything `NodeCoordinator` needs in one command.
+Packing is build-time only, so `esbuild` is an optional peer dependency the
+runtime install skips:
+
+```bash
+npm install --save-dev esbuild
+airflow-ts-pack src/main.ts --outdir dist
+```
+
+It bundles the entrypoint into `dist/bundle.mjs` with esbuild, runs the
+bundle with `--airflow-metadata` so the bundle reports its own registered
+Dag/task pairs and supervisor schema version, and embeds that manifest in the
+bundle as a leading `//# airflowMetadata=<base64>` comment. The result is a
+single deployable file whose metadata cannot drift from its code; no
+hand-written sidecar is needed.
+
+Options:
+
+- `--outdir <dir>` — output directory (default `dist`)
+- `--source <name>` — display name of the primary source file shown in the
+  Airflow UI (default: entry basename)
 
 ## TaskClient
 
@@ -176,4 +199,11 @@ pnpm install
 pnpm test
 pnpm run typecheck
 pnpm run build
+```
+
+Without a local pnpm install, [prek](https://prek.j178.dev) can compile the SDK
+with its own managed node + pnpm toolchain:
+
+```bash
+prek run compile-ts-sdk
 ```

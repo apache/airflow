@@ -52,6 +52,11 @@ ARG_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
 )
+ARG_WORKER_NAME_PATTERN = Arg(
+    ("--worker-name-pattern",),
+    metavar="PATTERN",
+    help="Optional glob pattern to filter workers by name, e.g. 'prod-*'. Lists all workers if omitted.",
+)
 ARG_REQUIRED_EDGE_HOSTNAME = Arg(
     ("-H", "--edge-hostname"),
     help="Set the hostname of worker if you have multiple workers on a single machine",
@@ -183,6 +188,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
         args=(
             ARG_OUTPUT,
             ARG_STATE,
+            ARG_WORKER_NAME_PATTERN,
         ),
     ),
     ActionCommand(

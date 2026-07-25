@@ -155,9 +155,12 @@ EXPECTED_JSON_LEGACY = {
     ],
 }
 
+TASK_COLORS = {"ui_color": "#e8f7e4", "ui_fgcolor": "#000"}
+GROUP_COLORS = {"ui_color": "CornflowerBlue", "ui_fgcolor": "#000"}
+
 EXPECTED_JSON = {
     "children": [
-        {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task"},
+        {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task", **TASK_COLORS},
         {
             "children": [
                 {
@@ -167,12 +170,14 @@ EXPECTED_JSON = {
                             "label": "task3",
                             "operator": "EmptyOperator",
                             "type": "task",
+                            **TASK_COLORS,
                         },
                         {
                             "id": "group234.group34.task4",
                             "label": "task4",
                             "operator": "EmptyOperator",
                             "type": "task",
+                            **TASK_COLORS,
                         },
                         {"id": "group234.group34.downstream_join_id", "label": "", "type": "join"},
                     ],
@@ -181,12 +186,14 @@ EXPECTED_JSON = {
                     "label": "group34",
                     "tooltip": "",
                     "type": "task",
+                    **GROUP_COLORS,
                 },
                 {
                     "id": "group234.task2",
                     "label": "task2",
                     "operator": "EmptyOperator",
                     "type": "task",
+                    **TASK_COLORS,
                 },
                 {"id": "group234.upstream_join_id", "label": "", "type": "join"},
             ],
@@ -195,14 +202,16 @@ EXPECTED_JSON = {
             "label": "group234",
             "tooltip": "",
             "type": "task",
+            **GROUP_COLORS,
         },
-        {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task"},
+        {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task", **TASK_COLORS},
     ],
     "id": None,
     "is_mapped": False,
     "label": "",
     "tooltip": "",
     "type": "task",
+    **GROUP_COLORS,
 }
 
 

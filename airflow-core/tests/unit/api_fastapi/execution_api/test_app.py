@@ -24,11 +24,12 @@ from uuid import UUID
 
 import httpx
 import pytest
-from fastapi import Request
+from fastapi import Request, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
@@ -62,6 +63,21 @@ def test_access_api_contract(client):
     response = client.get("/execution/docs")
     assert response.status_code == 200
     assert response.headers["airflow-api-version"] == bundle.versions[0].value
+
+
+@conf_vars({("api", "expose_stacktrace"): "False"})
+@mock.patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value="test-error-id")
+def test_direct_execution_api_app_handles_sqlalchemy_errors(mock_get_random_string):
+    app = create_task_execution_api_app()
+
+    @app.get("/test-sqlalchemy-error")
+    def trigger_error():
+        raise SQLAlchemyError("boom")
+
+    response = TestClient(app, raise_server_exceptions=False).get("/test-sqlalchemy-error")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json()["detail"]["reason"] == "Database error"
 
 
 def test_ti_self_routes_have_task_instance_id_param(client):

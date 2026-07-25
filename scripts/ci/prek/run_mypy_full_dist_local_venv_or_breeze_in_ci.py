@@ -40,6 +40,7 @@ from pathlib import Path
 from common_prek_utils import (
     AIRFLOW_ROOT_PATH,
     check_uv_version,
+    is_hidden_within_root,
 )
 
 CI = os.environ.get("CI")
@@ -68,7 +69,6 @@ _TOP_LEVEL_ALLOWED_FOLDERS = [
     "chart/tests",
     "airflow-e2e-tests",
     "task-sdk-integration-tests",
-    "providers-e2e-tests/openlineage",
     "docker-tests",
     "kubernetes-tests",
 ]
@@ -128,9 +128,6 @@ exclude_regexps = [
         r"^.*/node_modules/.*",
         r"^.*\\..*",
         r"^.*/src/airflow/__init__.py$",
-        # Generated-at-runtime artifacts of the provider e2e tests (gitignored; not source to check).
-        r"^.*/providers-e2e-tests/[^/]+/dags/.*",
-        r"^.*/providers-e2e-tests/[^/]+/provider_dist/.*",
     ]
 ]
 
@@ -142,7 +139,7 @@ def get_all_files(folder: str) -> list[str]:
         if (
             file.name not in ("conftest.py",)
             and not any(x.match(file.as_posix()) for x in exclude_regexps)
-            and not any(part.startswith(".") for part in file.parts)
+            and not is_hidden_within_root(file, AIRFLOW_ROOT_PATH)
         ):
             files_to_check.append(file.relative_to(AIRFLOW_ROOT_PATH).as_posix())
     return files_to_check

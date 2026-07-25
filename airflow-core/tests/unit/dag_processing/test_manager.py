@@ -295,6 +295,20 @@ class TestDagFileProcessorManager:
             "test_zip.zip/broken_dag.py",
         }
 
+    def test_sync_bundles_deactivates_missing_when_owning_all_bundles(self):
+        """A processor with no bundle filter owns the full config and may deactivate missing bundles."""
+        manager = DagFileProcessorManager(max_runs=1)
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
+        """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
+        manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+
     @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
         bundle_path = tmp_path / "bundleone"
@@ -2711,6 +2725,34 @@ class TestDagFileProcessorManager:
         state = manager.get_bundle_state(bundle_name)
 
         assert state == BundleState(last_refreshed=refreshed_at, version="v1")
+
+    def test_get_bundle_state_reads_latest_database_values(self, session):
+        bundle_name = "test_fresh_state_bundle"
+        initial_refreshed_at = timezone.datetime(2024, 1, 15, 12, 0, 0)
+        refreshed_at = timezone.datetime(2024, 1, 16, 12, 0, 0)
+        model = DagBundleModel(name=bundle_name, version="old")
+        model.last_refreshed = initial_refreshed_at
+        session.add(model)
+        session.commit()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=initial_refreshed_at, version="old")
+
+        with create_session(scoped=False) as update_session:
+            update_model = update_session.get(DagBundleModel, bundle_name)
+            assert update_model is not None
+            update_model.last_refreshed = refreshed_at
+            update_model.version = "fresh"
+
+        # End the read transaction started by the first get_bundle_state() call so we don't keep
+        # reading a stale snapshot on backends like SQLite.
+        session.commit()
+
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=refreshed_at, version="fresh")
 
     def test_get_bundle_state_null_fields(self, session):
         bundle_name = "test_null_state_bundle"

@@ -117,7 +117,7 @@ AnthropicAgentSessionOperator
 -----------------------------
 
 :class:`~airflow.providers.anthropic.operators.agent.AnthropicAgentSessionOperator` runs a
-`Managed Agents <https://docs.claude.com/en/docs/agents-and-tools/managed-agents>`__ session:
+`Managed Agents <https://platform.claude.com/docs/en/managed-agents/overview>`__ session:
 Anthropic runs the agent loop server-side while the worker drives a session and waits for it
 to finish. Unlike the ``common.ai`` provider (a *local* pydantic-ai loop), the loop and its
 tool-execution sandbox run on Anthropic's infrastructure; the worker only orchestrates.

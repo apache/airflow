@@ -22,7 +22,12 @@ from typing import Any
 
 from confluent_kafka.admin import AdminClient
 
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import BaseHook
+
+# librdkafka config options whose values are callables. They can be provided as dotted-path
+# strings on the connection extra and are resolved to callables before the client is built.
+CALLBACK_CONFIG_KEYS = ("error_cb", "throttle_cb", "stats_cb", "log_cb", "oauth_cb", "on_commit")
 
 # Amazon MSK bootstrap servers follow a predictable naming scheme, e.g.
 #   b-1.demo.abcde1.c2.kafka.us-east-1.amazonaws.com:9098            (provisioned)
@@ -85,10 +90,18 @@ class KafkaBaseHook(BaseHook):
     def _get_client(self, config) -> Any:
         return AdminClient(config)
 
+    def _resolve_callbacks(self, config: dict[str, Any]) -> None:
+        """Resolve callback options provided as dotted-path strings into callables."""
+        for key in CALLBACK_CONFIG_KEYS:
+            value = config.get(key)
+            if isinstance(value, str):
+                config[key] = import_string(value)
+
     @cached_property
     def get_conn(self) -> Any:
         """Get the configuration object."""
         config = self.get_connection(self.kafka_config_id).extra_dejson
+        self._resolve_callbacks(config)
 
         if not (config.get("bootstrap.servers", None)):
             raise ValueError("config['bootstrap.servers'] must be provided.")
@@ -160,6 +173,9 @@ class KafkaBaseHook(BaseHook):
         """Test Connectivity from the UI."""
         try:
             config = self.get_connection(self.kafka_config_id).extra_dejson
+            # Resolve callbacks so that configured dotted-path strings
+            # (e.g. oauth_cb) are exercised by the test as well.
+            self._resolve_callbacks(config)
             t = AdminClient(config).list_topics(timeout=10)
             if t:
                 return True, "Connection successful."

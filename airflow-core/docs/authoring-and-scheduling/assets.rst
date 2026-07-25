@@ -247,7 +247,19 @@ Inlet asset events can be read with the ``inlet_events`` accessor in the executi
 
 Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given asset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
 
-The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events where specific ``extra`` keys match given values:
+The accessor also supports chaining methods to filter events before fetching them. For example, to retrieve only events matching a specific partition key regular expression:
+
+.. code-block:: python
+
+    @task(inlets=[regional_sales])
+    def process_us_sales(*, inlet_events):
+        us_events = inlet_events[regional_sales].partition_key_regexp_pattern(r"^us\|")
+        for event in us_events:
+            print(event.extra, event.partition_key)
+
+For an exact partition key match, use ``.partition_key(value)`` instead. Regexp filtering is opt-in: it is enabled only by setting :ref:`[api] regexp_query_timeout <config:api__regexp_query_timeout>` to a positive number of seconds, which also bounds the query runtime; see the config for the security trade-off.
+
+You can also filter events by their ``extra`` key-value pairs:
 
 .. code-block:: python
 
@@ -974,6 +986,45 @@ When a runtime run emits exactly one partition key, the producing
 ``dag_run.partition_key`` is back-filled to that key. Downstream Dags consume
 these events the same way as timetable-produced partitions, through
 ``PartitionedAssetTimetable``.
+
+You can also query asset events filtered by partition key using the REST API.
+Two parameters are available:
+
+- ``partition_key`` for **exact match** — uses the B-tree index for fast lookups:
+
+.. code-block:: bash
+
+    curl -G "http://<airflow-host>/api/v2/assets/events" \
+      --data-urlencode "partition_key=us|2026-03-10"
+
+- ``partition_key_regexp_pattern`` for **regular-expression filtering**:
+
+.. code-block:: bash
+
+    curl -G "http://<airflow-host>/api/v2/assets/events" \
+      --data-urlencode "partition_key_regexp_pattern=^us"
+
+Both parameters can be combined; the conditions are applied with AND logic.
+
+.. note::
+
+    ``partition_key_regexp_pattern`` is evaluated by the database's own regular-expression engine,
+    which is a Regular expression Denial of Service (ReDoS) surface. For that reason it is **disabled
+    by default**: it is enabled only by setting :ref:`[api] regexp_query_timeout <config:api__regexp_query_timeout>`
+    to a positive number of seconds (fractional values allowed), which simultaneously bounds the query
+    runtime (enforced as a ``statement_timeout`` on PostgreSQL and as ``max_execution_time`` on MySQL).
+    Prefer the exact-match ``partition_key`` (which uses the B-tree index and is always enabled)
+    whenever a full key is known.
+
+The same filters are available in the ``InletEventsAccessor``:
+
+.. code-block:: python
+
+    # Exact match
+    events = inlet_events[Asset("my_asset")].partition_key("us|2026-03-10").limit(1)
+
+    # Regular-expression pattern
+    events = inlet_events[Asset("my_asset")].partition_key_regexp_pattern(r"^us\|2026-03-").limit(10)
 
 Fan-out mappers
 ~~~~~~~~~~~~~~~

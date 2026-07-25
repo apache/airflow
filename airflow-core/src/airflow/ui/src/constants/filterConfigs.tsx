@@ -19,7 +19,7 @@
 import { Flex } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
-import { FiBarChart, FiUser, FiDatabase } from "react-icons/fi";
+import { FiBarChart, FiUser, FiUsers, FiDatabase } from "react-icons/fi";
 import { LuBrackets } from "react-icons/lu";
 import {
   MdDateRange,
@@ -34,6 +34,7 @@ import {
 } from "react-icons/md";
 import { PiQueue } from "react-icons/pi";
 
+import { useTeamsServiceListTeams } from "openapi/queries";
 import type { DagRunState, DagRunType, TaskInstanceState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
@@ -47,6 +48,7 @@ import {
   jobTypeOptions,
   taskInstanceStateOptions,
 } from "src/constants/stateOptions";
+import { useConfig } from "src/queries/useConfig";
 
 import { SearchParamsKeys } from "./searchParams";
 
@@ -60,6 +62,10 @@ export enum FilterTypes {
 
 export const useFilterConfigs = () => {
   const { t: translate } = useTranslation(["browse", "common", "components", "admin", "hitl"]);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
+  const { data: teamsData } = useTeamsServiceListTeams({ orderBy: ["name"] }, undefined, {
+    enabled: multiTeamEnabled,
+  });
 
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
@@ -380,6 +386,15 @@ export const useFilterConfigs = () => {
           ),
         value: option.value === "all" ? "" : option.value,
       })),
+      type: FilterTypes.SELECT,
+    },
+    [SearchParamsKeys.TEAMS]: {
+      icon: <FiUsers />,
+      label: translate("common:dagDetails.team"),
+      options: [
+        { label: translate("common:allTeams"), value: "" },
+        ...(teamsData?.teams ?? []).map((team) => ({ label: team.name, value: team.name })),
+      ],
       type: FilterTypes.SELECT,
     },
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
