@@ -57,6 +57,16 @@ class TestPsrpOperator:
         with pytest.raises(ValueError, match=match):
             op.execute(None)
 
+    def test_command_validated_after_rendering(self):
+        # command is a template field: __init__-time validation saw the raw Jinja (truthy),
+        # so an expression that renders to an empty string slipped through. The check must
+        # run on the rendered value in execute().
+        op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, command="{{ '' }}")
+        op.render_template_fields({})
+        assert op.command == ""
+        with pytest.raises(ValueError, match="exactly one"):
+            op.execute(None)
+
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize(
         ("had_errors", "rc"), [(False, 0), (False, None), (True, None), (False, 1), (True, 1)]
