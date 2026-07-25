@@ -23,6 +23,8 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
+import requests
+
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
@@ -33,7 +35,28 @@ from airflow.providers.common.sql.operators.sql import (
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 
+try:
+    from airflow.sdk import ResumableJobMixin
+except ImportError:
+
+    class ResumableJobMixin:  # type: ignore[no-redef]
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
+
+        external_id_key: str = "snowflake_query_ids"
+
+        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
+            super().__init__(**kwargs)
+            self.durable = durable
+
+        def execute_resumable(self, context):
+            external_id = self.submit_job(context)
+            self.poll_until_complete(external_id, context)
+            return self.get_job_result(external_id, context)
+
+
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -284,7 +307,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.query_ids: list[str] = []
 
 
-class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
+class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
     """
     Implemented Snowflake SQL API Operator to support multiple SQL statements sequentially.
 
@@ -357,10 +380,15 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             To set the timeout to the maximum value (604800 seconds), set timeout to 0.
     :param deferrable: Run operator in the deferrable mode.
     :param snowflake_api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
+    :param durable: When ``True`` (the default), the submitted statement handles are persisted to
+        task state before polling begins. A worker crash on retry reconnects to the existing
+        statements instead of resubmitting the SQL. Set to ``False`` to always submit fresh on
+        retry. Requires Airflow 3.3+; ignored silently on earlier versions.
     """
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minutes lifetime
     RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
+    external_id_key = "snowflake_query_ids"
 
     template_fields: Sequence[str] = tuple(
         set(SQLExecuteQueryOperator.template_fields) | {"snowflake_conn_id"}
@@ -428,6 +456,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
 
         By deferring the SnowflakeSqlApiTrigger class passed along with query ids.
         """
+        if not self.deferrable:
+            return self.execute_resumable(context)
+
         self.log.info("Executing: %s", self.sql)
         self.query_ids = self._hook.execute_query(
             self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
@@ -452,27 +483,17 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             self.log.info("%s completed successfully.", self.task_id)
             return
 
-        if self.deferrable:
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=SnowflakeSqlApiTrigger(
-                    poll_interval=self.poll_interval,
-                    query_ids=self.query_ids,
-                    snowflake_conn_id=self.snowflake_conn_id,
-                    token_life_time=self.token_life_time,
-                    token_renewal_delta=self.token_renewal_delta,
-                ),
-                method_name="execute_complete",
-            )
-        else:
-            while True:
-                statement_status = self.poll_on_queries()
-                if statement_status["error"]:
-                    raise RuntimeError(str(statement_status["error"]))
-                if not statement_status["running"]:
-                    break
-
-            self._hook.check_query_output(self.query_ids)
+        self.defer(
+            timeout=self.execution_timeout,
+            trigger=SnowflakeSqlApiTrigger(
+                poll_interval=self.poll_interval,
+                query_ids=self.query_ids,
+                snowflake_conn_id=self.snowflake_conn_id,
+                token_life_time=self.token_life_time,
+                token_renewal_delta=self.token_renewal_delta,
+            ),
+            method_name="execute_complete",
+        )
 
     def poll_on_queries(self):
         """Poll on requested queries."""
@@ -506,6 +527,73 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             "error": statement_error_status,
             "running": statement_running_status,
         }
+
+    def submit_job(self, context: Context) -> JsonValue:
+        """Submit the SQL for execution and return the resulting statement handles."""
+        self.log.info("Executing: %s", self.sql)
+        self.query_ids = self._hook.execute_query(
+            self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
+        )
+        self.log.info("List of query ids %s", self.query_ids)
+        return cast("JsonValue", self.query_ids)
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        """Aggregate the status of every handle into a single verdict for the mixin."""
+        statuses = []
+        for query_id in cast("list[str]", external_id):
+            try:
+                statuses.append(self._hook.get_sql_api_query_status(query_id)["status"])
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 404:
+                    return "not_found"
+                raise
+        if "error" in statuses:
+            return "error"
+        if "running" in statuses:
+            return "running"
+        return "success"
+
+    def is_job_active(self, status: str) -> bool:
+        return status == "running"
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == "success"
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.query_ids = cast("list[str]", external_id)
+        # On reconnect, execute_query (the only thing that normally populates this) never ran
+        # on this hook instance -- sync it so OpenLineage's get_openlineage_database_specific_lineage,
+        # which reads hook.query_ids (not the operator's), doesn't silently produce no lineage.
+        self._hook.query_ids = self.query_ids
+        # Push before polling, not after, so the handles are recorded even if a statement
+        # errors below.
+        if self.do_xcom_push and context is not None:
+            context["ti"].xcom_push(key="query_ids", value=self.query_ids)
+        while True:
+            statement_status = self.poll_on_queries()
+            if statement_status["error"]:
+                raise RuntimeError(str(statement_status["error"]))
+            if not statement_status["running"]:
+                break
+        # On reconnect, the mixin calls poll_until_complete alone -- get_job_result is never
+        # invoked in that case -- so the output must be fetched here too, not left to
+        # get_job_result. Fresh submit calls both; the flag stops get_job_result from
+        # fetching (and pushing xcoms) a second time.
+        self._hook.check_query_output(self.query_ids)
+        self._poll_until_complete_ran = True
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        self.query_ids = cast("list[str]", external_id)
+        # Same reconnect-hook gap as poll_until_complete -- see the comment there. This path
+        # hits it too, since the already-succeeded case never calls poll_until_complete either.
+        self._hook.query_ids = self.query_ids
+        if getattr(self, "_poll_until_complete_ran", False):
+            return
+        # The already-succeeded retry path skips submit_job and poll_until_complete entirely,
+        # so push the query_ids xcom and fetch output here for parity with the normal path.
+        if self.do_xcom_push and context is not None:
+            context["ti"].xcom_push(key="query_ids", value=self.query_ids)
+        self._hook.check_query_output(self.query_ids)
 
     def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
         """

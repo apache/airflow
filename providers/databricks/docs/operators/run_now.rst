@@ -79,9 +79,10 @@ Durable execution
 
 ``DatabricksRunNowOperator`` triggers a run of an existing job and then polls it to completion on
 the worker. By default the operator runs in a *durable* mode that makes this crash-safe: the
-Databricks run id is persisted to Airflow's task state store before polling begins, so if the
-worker crashes or is preempted and the task is retried, the operator reconnects to the run that is
-already executing on Databricks instead of triggering a duplicate run of the same job.
+Databricks run id is persisted to :doc:`task state store
+<apache-airflow:core-concepts/task-state-store>` before polling begins, so if the worker crashes
+or is preempted and the task is retried, the operator reconnects to the run that is already
+executing on Databricks instead of triggering a duplicate run of the same job.
 
 On retry the operator checks the prior run's state:
 

@@ -56,6 +56,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Java SDK e2e tests (true/false)"
         required: true
         type: string
+      java-sdk-version:
+        description: "JDK version used to build the Java SDK bundles natively in the e2e tests"
+        required: true
+        type: string
       run-go-sdk-e2e-tests:
         description: "Whether to run Go SDK e2e tests (true/false)"
         required: true
@@ -66,6 +70,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
       run-openlineage-e2e-compat-tests:
         description: "Whether to run the OpenLineage older-Airflow compat matrix (true/false)"
+        required: true
+        type: string
+      run-ts-sdk-e2e-tests:
+        description: "Whether to run TypeScript SDK e2e tests (true/false)"
         required: true
         type: string
       providers-compatibility-tests-matrix:
@@ -320,6 +328,7 @@ jobs:
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "java_sdk"
+      java-sdk-version: "${{ inputs.java-sdk-version }}"
     if: inputs.canary-run == 'true' || inputs.run-java-sdk-e2e-tests == 'true'
   test-e2e-integration-tests-go-sdk:
     name: "Go SDK e2e tests with PROD image"
@@ -332,6 +341,18 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "go_sdk"
     if: inputs.canary-run == 'true' || inputs.run-go-sdk-e2e-tests == 'true'
+
+  test-e2e-integration-tests-ts-sdk:
+    name: "TypeScript SDK e2e tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "TypeScript SDK e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "ts_sdk"
+    if: inputs.canary-run == 'true' || inputs.run-ts-sdk-e2e-tests == 'true'
 
   test-e2e-integration-tests-openlineage:
     name: "OpenLineage e2e tests with PROD image"

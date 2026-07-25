@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import textwrap
 import time
 from datetime import datetime as dt, timedelta, timezone
@@ -82,6 +83,107 @@ def _cleanup_cloudwatch_handlers():
             with contextlib.suppress(Exception):
                 handler.close()
             logging._removeHandlerRef(handler_ref)
+
+
+class TestCloudWatchRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "remote_base_log_folder"): (
+                "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+            ),
+            ("logging", "delete_local_logs"): "True",
+        }
+    )
+    def test_from_config(self):
+        subject = CloudWatchRemoteLogIO.from_config()
+
+        assert (
+            subject.remote_base == "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+        )
+        assert subject.base_log_folder == Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+        assert subject.log_group_arn == "arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+        assert subject.log_group == "log_group_name"
+        assert subject.region_name == "us-west-2"
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "remote_base_log_folder"): (
+                "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+            ),
+            ("logging", "delete_local_logs"): "False",
+            ("logging", "remote_task_handler_kwargs"): (
+                '{"log_stream_name": "custom-stream", "max_bytes": 1024}'
+            ),
+        }
+    )
+    def test_from_config_applies_io_kwargs_and_filters_file_handler_kwargs(self):
+        subject = CloudWatchRemoteLogIO.from_config()
+
+        assert subject.log_stream_name == "custom-stream"
+        assert subject.delete_local_copy is False
+        assert not hasattr(subject, "max_bytes")
+
+    @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
+    def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
+        with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
+            CloudWatchRemoteLogIO.from_config()
+
+    @conf_vars({("logging", "remote_base_log_folder"): "cloudwatch://"})
+    def test_from_config_rejects_remote_base_without_log_group_arn(self):
+        with pytest.raises(ValueError, match="log group ARN"):
+            CloudWatchRemoteLogIO.from_config()
+
+    def test_provider_registers_cloudwatch_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("cloudwatch")
+
+        assert info is not None
+        assert (
+            info.classpath == "airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudWatchRemoteLogIO"
+        )
+
+    @pytest.mark.parametrize(
+        "manager_classpath",
+        [
+            pytest.param("airflow.providers_manager.ProvidersManager", id="core"),
+            pytest.param(
+                "airflow.sdk.providers_manager_runtime.ProvidersManagerTaskRuntime", id="task-runtime"
+            ),
+        ],
+    )
+    @conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): (
+                "cloudwatch://arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+            ),
+            ("logging", "remote_log_conn_id"): "aws_default",
+        }
+    )
+    def test_resolve_remote_task_log_uses_provider_dispatch_not_local_settings(self, manager_classpath):
+        factory = pytest.importorskip("airflow._shared.logging.factory")
+        from airflow._shared.module_loading import import_string
+        from airflow.configuration import conf
+
+        with mock.patch.object(factory, "discover_remote_log_handler", autospec=True) as legacy_discover:
+            remote_task_log, conn_id = factory.resolve_remote_task_log(
+                conf=conf,
+                providers_manager=import_string(manager_classpath)(),
+                import_string=import_string,
+            )
+
+        assert isinstance(remote_task_log, CloudWatchRemoteLogIO)
+        assert remote_task_log.log_group_arn == "arn:aws:logs:us-west-2:123456789098:log-group:log_group_name"
+        assert conn_id == "aws_default"
+        legacy_discover.assert_not_called()
 
 
 # We only test this directly on Airflow 3

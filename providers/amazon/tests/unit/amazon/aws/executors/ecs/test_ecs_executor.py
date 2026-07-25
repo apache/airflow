@@ -1312,6 +1312,8 @@ class TestAwsEcsExecutor:
             task.dag_version = mock.Mock(version_data=None)
             task.dag_run = mock.Mock()
             task.dag_run.bundle_version = "1.0.0"
+            # ExecuteTask.make() sources version_data from the run's pinned version.
+            task.dag_run.created_dag_version = mock.Mock(version_data=None)
             task.dag_run.context_carrier = {}
 
             # Mock command generation based on Airflow version

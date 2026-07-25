@@ -23,7 +23,7 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1783356304
+source-date-epoch: 1784746595
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
@@ -252,6 +252,12 @@ connection-types:
             - string
             - 'null'
           format: password
+      workload_identity_provider:
+        label: Workload Identity Provider
+        schema:
+          type:
+            - string
+            - 'null'
       insecure_mode:
         label: Insecure Mode
         schema:

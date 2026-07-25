@@ -24,9 +24,9 @@ import sys
 import textwrap
 import typing
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from socket import socketpair
-from typing import TYPE_CHECKING, BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1615,6 +1615,24 @@ class TestExecuteTaskCallbacks:
             _execute_task_callbacks(dagbag, request, log)
 
 
+def _recording_email_backend(
+    to: list[str] | Iterable[str],
+    subject: str,
+    html_content: str,
+    files: list[str] | None = None,
+    dryrun: bool = False,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
+    conn_id: str | None = None,
+    custom_headers: dict[str, Any] | None = None,
+    **kwargs,
+) -> None:
+    """Legacy ``[email] email_backend`` stub, patched with a spec'd mock in tests."""
+    raise AssertionError("should be patched in the test")
+
+
 class TestExecuteEmailCallbacks:
     """Test the email callback execution functionality."""
 
@@ -1966,6 +1984,70 @@ class TestExecuteEmailCallbacks:
             mock_dagbag_class.assert_called_once()
             call_kwargs = mock_dagbag_class.call_args.kwargs
             assert call_kwargs["bundle_name"] == "test_bundle"
+
+    def test_execute_email_callbacks_uses_custom_email_backend(self):
+        """The Dag-processor path honours a custom ``[email] email_backend``, like the worker path."""
+        backend = MagicMock(spec=_recording_email_backend)
+        dagbag = MagicMock(spec=DagBag)
+        with DAG(dag_id="test_dag") as dag:
+            BaseOperator(task_id="test_task", email=["test@example.com"])
+        dagbag.dags = {"test_dag": dag}
+
+        current_time = timezone.utcnow()
+        request = EmailRequest(
+            filepath="/path/to/dag.py",
+            bundle_name="test_bundle",
+            bundle_version="1.0.0",
+            ti=TIDataModel(
+                id=str(uuid.uuid4()),
+                task_id="test_task",
+                dag_id="test_dag",
+                run_id="test_run",
+                logical_date="2023-01-01T00:00:00Z",
+                try_number=1,
+                attempt_number=1,
+                state="failed",
+                dag_version_id=str(uuid.uuid4()),
+            ),
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date="2023-01-01T00:00:00Z",
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="running",
+                    consumed_asset_events=[],
+                    partition_key=None,
+                ),
+                max_tries=2,
+            ),
+            email_type="failure",
+            msg="Task failed",
+        )
+
+        conf_overrides = {
+            ("email", "email_backend"): f"{__name__}._recording_email_backend",
+            ("email", "email_conn_id"): "my_smtp",
+            ("email", "from_email"): "from@airflow",
+        }
+        with conf_vars(conf_overrides):
+            with patch(f"{__name__}._recording_email_backend", backend):
+                with patch(
+                    "airflow.providers.smtp.notifications.smtp.SmtpNotifier", autospec=True
+                ) as mock_smtp_notifier:
+                    _execute_email_callbacks(dagbag, request, MagicMock(spec=FilteringBoundLogger))
+
+        mock_smtp_notifier.assert_not_called()
+        backend.assert_called_once()
+        args, kwargs = backend.call_args
+        assert args[0] == ["test@example.com"]
+        assert kwargs["conn_id"] == "my_smtp"
+        assert kwargs["from_email"] == "from@airflow"
 
 
 class TestDagProcessingMessageTypes:

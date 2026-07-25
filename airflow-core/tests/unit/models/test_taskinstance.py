@@ -2431,7 +2431,7 @@ class TestTaskInstance:
         ti.task = None
         ti.state = State.QUEUED
         session.flush()
-        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+        expected_stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id, "run_type": dr.run_type}
 
         assert ti.task is None, "Check critical pre-condition"
 
@@ -3288,6 +3288,170 @@ class TestMappedTaskInstanceReceiveValue:
             ti.refresh_from_task(show_task)
             dag_maker.run_ti(ti.task_id, dag_run=dag_run, map_index=ti.map_index, session=session)
         assert outputs == expected_outputs
+
+    def test_map_xcom_wide_batched_expand(self, dag_maker, session):
+        """Wide XCom-driven expand goes through the batched add_all()/flush() path.
+
+        Exercises ``TaskMap.expand_mapped_task`` over a 20-element upstream XCom and
+        asserts the batched expansion creates exactly N mapped TIs with contiguous
+        ``map_index`` 0..N-1, the expected ``None`` (schedulable) state, and that the
+        returned instances are usable: they keep their ``.task`` (no merge() that drops
+        it), are attached to the session, and have ``dag_run`` primed so a later
+        ``ti.get_dagrun()`` -- as dependency evaluation makes per index -- is a cache hit
+        rather than an N+1 SELECT. Also pins the expansion call's query count.
+        """
+        from sqlalchemy import event
+        from sqlalchemy.orm.base import NO_VALUE
+
+        width = 20
+        upstream_return = list(range(width))
+
+        with dag_maker(dag_id="xcom_wide", session=session, serialized=True) as dag:
+
+            @dag.task
+            def emit():
+                return upstream_return
+
+            @dag.task
+            def show(value):
+                return value
+
+            show.expand(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag_maker.serialized_dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
+
+        show_task = dag_maker.serialized_dag.get_task("show")
+        # Pins the query count so a regression back to per-index session.merge() -- which
+        # would issue a merge-load + reload SELECT per index -- fails this test, not just
+        # a slower one. Measured at 7 for this fixture; margin allows for minor backend
+        # differences while staying far below what a per-index merge() would cost.
+        with assert_queries_count(7, margin=2):
+            mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+
+        # Correct count + contiguous indexes 0..N-1.
+        assert len(mapped_tis) == width
+        assert max_map_index + 1 == width
+        assert sorted(ti.map_index for ti in mapped_tis) == list(range(width))
+
+        # Freshly-expanded mapped TIs are schedulable (state None) and are attached to
+        # the session. The batched path (indexes >= 1) additionally keeps its ``.task``
+        # because we never merge(); index 0 is the repurposed unmapped TI (loaded from
+        # the DB, so ``.task`` is None) which is stock behaviour untouched by this change.
+        for ti in mapped_tis:
+            assert ti.state is None
+            assert ti in session
+        batched_tis = [ti for ti in mapped_tis if ti.map_index >= 1]
+        assert len(batched_tis) == width - 1
+        for ti in batched_tis:
+            assert ti.task is not None
+            assert sa_inspect(ti).attrs.dag_run.loaded_value is not NO_VALUE
+
+        # And they are actually persisted as rows.
+        persisted = session.scalars(
+            select(TI)
+            .where(TI.task_id == "show", TI.dag_id == dag_run.dag_id, TI.run_id == dag_run.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert [ti.map_index for ti in persisted] == list(range(width))
+
+        # dag_run priming means get_dagrun() is a cache hit: zero SELECTs against dag_run.
+        dag_run_selects = []
+
+        def _on_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            normalized = " ".join(statement.lower().split())
+            if "select" in normalized and "from dag_run" in normalized:
+                dag_run_selects.append(statement)
+
+        event.listen(session.bind, "after_cursor_execute", _on_cursor_execute)
+        try:
+            for ti in batched_tis:
+                returned = ti.get_dagrun(session=session)
+                assert returned.run_id == dag_run.run_id
+        finally:
+            event.remove(session.bind, "after_cursor_execute", _on_cursor_execute)
+        assert dag_run_selects == [], (
+            f"get_dagrun() on primed mapped TIs issued {len(dag_run_selects)} dag_run SELECT(s); "
+            "the relationship priming should make these cache hits"
+        )
+
+    def test_revise_map_indexes_grow_batched(self, dag_maker, session):
+        """``DagRun._revise_map_indexes_if_mapped`` adds the new TIs via the batched path.
+
+        Simulates a mid-run length grow: expand once at a narrow width, then re-run the
+        revise path after the upstream XCom has grown, and assert the additional indexes
+        are created contiguously without losing any existing ones. Also pins the revise
+        call's query count.
+        """
+        from airflow.models.xcom import XComModel
+
+        with dag_maker(dag_id="xcom_revise", session=session, serialized=True) as dag:
+
+            @dag.task
+            def emit():
+                return [1, 2, 3]
+
+            @dag.task
+            def show(value):
+                return value
+
+            show.expand(value=emit())
+
+        dag_run = dag_maker.create_dagrun()
+        emit_ti = dag_run.get_task_instance("emit", session=session)
+        emit_ti.refresh_from_task(dag_maker.serialized_dag.get_task("emit"))
+        dag_maker.run_ti(emit_ti.task_id, dag_run=dag_run, session=session)
+
+        show_task = dag_maker.serialized_dag.get_task("show")
+        mapped_tis, max_map_index = TaskMap.expand_mapped_task(show_task, dag_run.run_id, session=session)
+        assert len(mapped_tis) == 3
+        assert max_map_index == 2
+
+        # Grow the upstream's pushed length 3 -> 5 by rewriting the return-value XCom and
+        # the TaskMap row that records the mapped length.
+        XComModel.set(
+            key="return_value",
+            value=[1, 2, 3, 4, 5],
+            dag_id=dag_run.dag_id,
+            task_id="emit",
+            run_id=dag_run.run_id,
+            session=session,
+        )
+        task_map = session.scalars(
+            select(TaskMap).where(
+                TaskMap.dag_id == dag_run.dag_id,
+                TaskMap.task_id == "emit",
+                TaskMap.run_id == dag_run.run_id,
+            )
+        ).one()
+        task_map.length = 5
+        task_map.keys = None
+        session.flush()
+
+        # Pins the query count so a regression back to per-index session.merge() -- which
+        # would issue a merge-load + reload SELECT per index -- fails this test. Measured
+        # at 3 for this fixture (2 new indexes); margin allows for minor backend
+        # differences while staying below what a per-index merge() would cost.
+        with assert_queries_count(3, margin=1):
+            new_tis = list(
+                dag_run._revise_map_indexes_if_mapped(
+                    show_task, dag_version_id=mapped_tis[0].dag_version_id, session=session
+                )
+            )
+        # Only the two brand-new indexes (3, 4) are created, contiguous and usable.
+        assert sorted(ti.map_index for ti in new_tis) == [3, 4]
+        for ti in new_tis:
+            assert ti.task is not None
+            assert ti in session
+
+        persisted = session.scalars(
+            select(TI)
+            .where(TI.task_id == "show", TI.dag_id == dag_run.dag_id, TI.run_id == dag_run.run_id)
+            .order_by(TI.map_index)
+        ).all()
+        assert [ti.map_index for ti in persisted] == [0, 1, 2, 3, 4]
 
     def test_map_literal_cross_product(self, dag_maker, session):
         """Test a mapped task with literal cross product args expand properly."""
@@ -4210,47 +4374,82 @@ def test_task_instance_repr_does_not_raise_for_deferred_columns(dag_maker, sessi
 
 class TestTaskInstanceStatsTagsTeamName:
     def test_stats_tags_without_team_name(self, dag_maker, session):
-        """stats_tags should not include team_name when _team_name is not set."""
+        """stats_tags should not include team_name when the dag run has no team_name."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instance("my_task", session=session)
         tags = ti.stats_tags
         assert "team_name" not in tags
-        assert tags == {"dag_id": "test_dag", "task_id": "my_task"}
+        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "run_type": dr.run_type}
 
     def test_stats_tags_with_team_name(self, dag_maker, session):
-        """stats_tags should include team_name when _team_name is set."""
+        """stats_tags takes team_name from the dag run's stats_tags."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
+        dr._team_name = "my_team"
         ti = dr.get_task_instance("my_task", session=session)
-        ti._team_name = "my_team"
         tags = ti.stats_tags
         assert tags["team_name"] == "my_team"
-        assert tags == {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team"}
+        assert tags == {
+            "dag_id": "test_dag",
+            "task_id": "my_task",
+            "team_name": "my_team",
+            "run_type": dr.run_type,
+        }
 
     def test_stats_tags_with_none_team_name(self, dag_maker, session):
-        """stats_tags should not include team_name when _team_name is None."""
+        """stats_tags should not include team_name when the dag run's team_name is None."""
         with dag_maker("test_dag"):
             EmptyOperator(task_id="my_task")
         dr = dag_maker.create_dagrun()
+        dr._team_name = None
         ti = dr.get_task_instance("my_task", session=session)
-        ti._team_name = None
         tags = ti.stats_tags
         assert "team_name" not in tags
+
+    @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
+    def test_stats_tags_match_worker_tag_set(self, dag_maker, session):
+        """ti_failures (and other ti.* metrics) are emitted from both the worker
+        (RuntimeTaskInstance.stats_tags) and the scheduler (TaskInstance.stats_tags); both must produce
+        the same tag set. The worker side is asserted in test_task_runner.py
+        (test_stats_tags_with_standalone_and_key_value_tags); this guards the scheduler side against drift:
+        dag tags + dag_id + task_id + run_type.
+        """
+        with dag_maker("parity_dag", tags=["env:prod", "production"], session=session):
+            EmptyOperator(task_id="t1")
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("t1", session=session)
+        tags = ti.stats_tags
+        assert tags == {
+            "dag_id": "parity_dag",
+            "task_id": "t1",
+            "run_type": "manual",
+            "env": "prod",
+            "production": "",
+        }
+        # run_type must be the bare value (not a DagRunType enum) so it serializes identically to
+        # the worker side, e.g. "manual" not "dagruntype.manual".
+        assert type(tags["run_type"]) is str
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tags"),
         [
             pytest.param(
                 "my_team",
-                {"dag_id": "test_dag", "task_id": "my_task", "team_name": "my_team", "queue": "default"},
+                {
+                    "dag_id": "test_dag",
+                    "task_id": "my_task",
+                    "team_name": "my_team",
+                    "queue": "default",
+                    "run_type": "manual",
+                },
                 id="with_team",
             ),
             pytest.param(
                 None,
-                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default"},
+                {"dag_id": "test_dag", "task_id": "my_task", "queue": "default", "run_type": "manual"},
                 id="without_team",
             ),
         ],
@@ -4266,7 +4465,7 @@ class TestTaskInstanceStatsTagsTeamName:
         ti.state = TaskInstanceState.SCHEDULED
         ti.scheduled_dttm = timezone.utcnow()
         if team_name:
-            ti._team_name = team_name
+            dr._team_name = team_name
         session.merge(ti)
         session.flush()
 

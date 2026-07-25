@@ -408,6 +408,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     }
 
 
+@deprecated_for_airflowctl("airflowctl dags state")
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -437,6 +438,7 @@ def dag_state(args, *, session: Session = NEW_SESSION) -> None:
         print(dr.state)
 
 
+@deprecated_for_airflowctl("airflowctl dags next-execution")
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_next_execution(args) -> None:

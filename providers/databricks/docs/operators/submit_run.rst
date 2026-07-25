@@ -165,9 +165,10 @@ Durable execution
 
 ``DatabricksSubmitRunOperator`` submits a run and then polls it to completion on the worker.
 By default the operator runs in a *durable* mode that makes the runs crash-safe: the Databricks
-run id is persisted to task state store before polling begins, so if the worker crashes or is
-preempted and the task is retried, the operator reconnects to the run that is already executing
-on Databricks instead of submitting a duplicate.
+run id is persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
+before polling begins, so if the worker crashes or is preempted and the task is retried, the
+operator reconnects to the run that is already executing on Databricks instead of submitting a
+duplicate.
 
 On retry the operator checks the prior run's state:
 

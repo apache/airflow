@@ -374,9 +374,10 @@ Durable execution
 
 ``BigQueryInsertJobOperator`` submits a job and then polls it to completion on the worker. By
 default the operator runs in a *durable* mode that makes this crash-safe: the submitted BigQuery
-job id is persisted to task state before polling begins, so if the worker crashes or is preempted
-and the task is retried, the operator reconnects to the job that is already running in BigQuery
-instead of submitting a duplicate.
+job id is persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
+before polling begins, so if the worker crashes or is preempted and the task is retried, the
+operator reconnects to the job that is already running in BigQuery instead of submitting a
+duplicate.
 
 On retry the operator checks the prior job's state:
 

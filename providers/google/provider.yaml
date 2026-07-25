@@ -30,12 +30,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1783356304
+source-date-epoch: 1784746595
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 22.3.0
   - 22.2.2
   - 22.2.1
   - 22.2.0
@@ -1202,6 +1203,10 @@ connection-types:
         schema:
           type: ["boolean", "null"]
           default: false
+      quota_project_id:
+        label: "Quota Project ID"
+        schema:
+          type: ["string", "null"]
   - hook-class-name: airflow.providers.google.cloud.hooks.spanner.SpannerHook
     connection-type: gcpspanner
   - hook-class-name: airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
@@ -1281,6 +1286,10 @@ connection-types:
         schema:
           type: ["boolean", "null"]
           default: false
+      quota_project_id:
+        label: "Quota Project ID"
+        schema:
+          type: ["string", "null"]
       use_legacy_sql:
         label: "Use Legacy SQL"
         schema:

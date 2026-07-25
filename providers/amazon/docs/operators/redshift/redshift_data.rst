@@ -71,9 +71,9 @@ Durable execution
 
 ``RedshiftDataOperator`` submits a statement and then polls it to completion on the worker. By
 default the operator runs in a *durable* mode that makes this crash-safe: the Redshift statement
-id is persisted to task state before polling begins, so if the worker crashes or is preempted and
-the task is retried, the operator reconnects to the statement that is already executing in
-Redshift instead of resubmitting the SQL.
+id is persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before
+polling begins, so if the worker crashes or is preempted and the task is retried, the operator
+reconnects to the statement that is already executing in Redshift instead of resubmitting the SQL.
 
 On retry the operator checks the prior statement's state:
 

@@ -747,6 +747,7 @@ class BaseExecutor(LoggingMixin):
                 timeout=workload.timeout,
                 token=workload.token,
                 server=server,
+                team_name=workload.team_name,
             )
         raise ValueError(f"Unknown workload type: {type(workload).__name__}")
 

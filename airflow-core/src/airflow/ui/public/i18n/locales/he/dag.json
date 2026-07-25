@@ -109,11 +109,6 @@
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "ניווט: {{arrow}}",
-    "openGraphFilters": "פילטרים משימות: Ctrl+Shift+F",
-    "toggleGroup": "החלפת קבוצה: רווח"
-  },
   "notFound": {
     "back": "חזור",
     "backToDags": "חזור ל-Dags",
