@@ -17,10 +17,14 @@
 
 from __future__ import annotations
 
+import json
+import uuid
+
 import pytest
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
@@ -31,6 +35,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_deadline,
@@ -513,4 +518,75 @@ class TestGetDagDeadlineAlerts:
 
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
+        assert response.status_code == 403
+
+
+class TestGetCallbackLogs:
+    """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs."""
+
+    @pytest.fixture
+    def missed_callback_id(self, session):
+        deadline = session.scalar(select(Deadline).join(Deadline.dagrun).where(DagRun.run_id == RUN_MISSED))
+        return str(deadline.callback_id)
+
+    @pytest.fixture
+    def log_folder(self, tmp_path):
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            yield tmp_path
+
+    @staticmethod
+    def _write_local_log(log_folder, callback_id, content="callback ran\n", prefix="executor_callbacks"):
+        log_dir = log_folder / prefix / DAG_ID / RUN_MISSED
+        log_dir.mkdir(parents=True)
+        (log_dir / callback_id).write_text(content)
+
+    def test_returns_logs_from_local_storage(self, test_client, missed_callback_id, log_folder):
+        self._write_local_log(log_folder, missed_callback_id)
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{missed_callback_id}/logs")
+        assert response.status_code == 200
+        events = [entry["event"] for entry in response.json()["content"]]
+        assert "callback ran" in events
+
+    def test_ndjson_streaming_response(self, test_client, missed_callback_id, log_folder):
+        self._write_local_log(log_folder, missed_callback_id)
+        response = test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{missed_callback_id}/logs",
+            headers={"Accept": "application/x-ndjson"},
+        )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("application/x-ndjson")
+        lines = [json.loads(line) for line in response.text.splitlines() if line]
+        assert any(line["event"] == "callback ran" for line in lines)
+
+    def test_no_logs_found_message(self, test_client, missed_callback_id, log_folder):
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{missed_callback_id}/logs")
+        assert response.status_code == 200
+        assert response.json()["content"][0]["event"] == "No callback logs found."
+
+    def test_unknown_callback_returns_404(self, test_client):
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{uuid.uuid4()}/logs")
+        assert response.status_code == 404
+
+    def test_callback_of_other_run_returns_404(self, test_client, missed_callback_id):
+        """A callback that exists but belongs to a different dag run is rejected."""
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_SINGLE}/callbacks/{missed_callback_id}/logs")
+        assert response.status_code == 404
+
+    # Note: a literal ".." segment is normalized away by HTTP clients before reaching the
+    # server, so only encoded/otherwise-unsafe variants exercise the endpoint validation.
+    @pytest.mark.parametrize("bad_run_id", ["%2e%2e", "..%5c..%5cetc", "run%20id"])
+    def test_path_traversal_in_dag_run_id_returns_400(self, test_client, missed_callback_id, bad_run_id):
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{bad_run_id}/callbacks/{missed_callback_id}/logs")
+        assert response.status_code == 400
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{uuid.uuid4()}/logs"
+        )
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{uuid.uuid4()}/logs"
+        )
         assert response.status_code == 403

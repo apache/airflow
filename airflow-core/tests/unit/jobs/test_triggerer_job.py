@@ -609,6 +609,58 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     assert factory.log_path == f"/logs/ti.trigger.{jobless_supervisor.id}.log"
 
 
+def test_create_workload_sets_up_logging_for_callback_trigger(jobless_supervisor, mocker):
+    """_create_workload() populates logger_cache for callback triggers so their logs are captured."""
+    callback_id = uuid.uuid4()
+    callback = mocker.Mock()
+    callback.id = callback_id
+    callback.data = {
+        "dag_id": "test_dag",
+        "kwargs": {"context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "manual__2024-01-01"}}},
+    }
+
+    trigger = mocker.Mock()
+    trigger.id = 8
+    trigger.classpath = "airflow.triggers.callback.CallbackTrigger"
+    trigger.encrypted_kwargs = ""
+    trigger.task_instance = None
+    trigger.assets = None
+    trigger.callback = callback
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    factory = jobless_supervisor.logger_cache[trigger.id]
+    assert factory.log_path == f"triggerer_callbacks/test_dag/manual__2024-01-01/{callback_id}"
+    assert factory.ti is None
+
+
+def test_create_workload_no_logging_for_non_callback_trigger(jobless_supervisor, mocker):
+    """_create_workload() leaves logger_cache alone for non-callback triggers without a TI."""
+    trigger = mocker.Mock()
+    trigger.id = 9
+    trigger.classpath = "airflow.triggers.temporal.DateTimeTrigger"
+    trigger.encrypted_kwargs = ""
+    trigger.task_instance = None
+    trigger.assets = None
+    trigger.callback = None
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    assert trigger.id not in jobless_supervisor.logger_cache
+
+
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
     """_create_workload() should populate watched_assets when trigger.task_instance is None and assets exist."""
     asset1 = mocker.Mock(spec=Asset)

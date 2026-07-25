@@ -24,6 +24,7 @@ from uuid import UUID
 from pydantic import AliasPath, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.utils.state import CallbackState
 
 
 class DeadlineResponse(BaseModel):
@@ -37,6 +38,10 @@ class DeadlineResponse(BaseModel):
     dag_run_id: str = Field(validation_alias=AliasPath("dagrun", "run_id"))
     alert_id: UUID | None = Field(validation_alias="deadline_alert_id", default=None)
     alert_name: str | None = Field(validation_alias=AliasPath("deadline_alert", "name"), default=None)
+    callback_id: UUID | None = Field(validation_alias="callback_id", default=None)
+    callback_state: CallbackState | None = Field(
+        validation_alias=AliasPath("callback", "state"), default=None
+    )
 
 
 class DeadlineCollectionResponse(BaseModel):
