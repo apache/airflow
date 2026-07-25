@@ -404,6 +404,7 @@ Other Considerations
 
       from airflow.sdk import get_parsing_context
 
+
       class MyBundle(BaseDagBundle):
           def initialize(self):
               dag_id = get_parsing_context().dag_id
