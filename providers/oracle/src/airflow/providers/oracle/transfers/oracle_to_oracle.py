@@ -56,8 +56,7 @@ class OracleToOracleOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        # if source_sql_params is None:
-        #     source_sql_params = {}
+    
         self.oracle_destination_conn_id = oracle_destination_conn_id
         self.destination_table = destination_table
         self.oracle_source_conn_id = oracle_source_conn_id
