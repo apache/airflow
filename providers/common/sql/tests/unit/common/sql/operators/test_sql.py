@@ -2985,17 +2985,14 @@ class TestSQLBulkLoadOperator:
 
         hook = mock_get_db_hook.return_value
 
-        hook.run.assert_has_calls(
-            [
-                mock.call("CREATE TABLE users (id INT);"),
-                mock.call("DROP TABLE users;"),
-            ]
-        )
-
-        hook.bulk_load.assert_called_once_with(
-            table="users",
-            tmp_file="/tmp/users.tsv",
-        )
+        assert hook.mock_calls == [
+            mock.call.run("CREATE TABLE users (id INT);"),
+            mock.call.bulk_load(
+                table="users",
+                tmp_file="/tmp/users.tsv",
+            ),
+            mock.call.run("DROP TABLE users;"),
+        ]
 
     @mock.patch.object(SQLBulkLoadOperator, "get_db_hook")
     def test_execute_templated_fields(self, mock_get_db_hook):
@@ -3019,17 +3016,14 @@ class TestSQLBulkLoadOperator:
 
         hook = mock_get_db_hook.return_value
 
-        hook.run.assert_has_calls(
-            [
-                mock.call("TRUNCATE TABLE users;"),
-                mock.call("DROP TABLE users;"),
-            ]
-        )
-
-        hook.bulk_load.assert_called_once_with(
-            table="users",
-            tmp_file="/tmp/users.tsv",
-        )
+        assert hook.mock_calls == [
+            mock.call.run("TRUNCATE TABLE users;"),
+            mock.call.bulk_load(
+                table="users",
+                tmp_file="/tmp/users.tsv",
+            ),
+            mock.call.run("DROP TABLE users;"),
+        ]
 
     @mock.patch.object(SQLBulkLoadOperator, "get_db_hook")
     def test_execute_without_pre_or_post_operator(self, mock_get_db_hook):

@@ -1925,7 +1925,11 @@ class SQLBulkLoadOperator(BaseSQLOperator):
     This operator delegates to the underlying hook's ``bulk_load`` implementation,
     allowing each provider to use its native bulk loading mechanism.
 
-    :param table: Name of the target table.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLBulkLoadOperator`
+
+    :param table: Name of the target table (templated).
     :param tmp_file: Path to the tab-delimited file to load (templated).
     :param conn_id: The connection ID used to connect to the database. Defaults to ``None``.
     :param database: Name of the database which overrides the one defined in the connection.
