@@ -48,7 +48,7 @@ The target moment is computed from the current wall-clock date in the Dag's time
 
 ``start_from_trigger`` is not supported on ``TimeSensor``: the target moment can only be computed
 correctly at task-execution time, not at Dag-parse time, so it cannot be handed to the triggerer in
-advance without going stale. Passing ``start_from_trigger=True`` raises a ``ValueError``.
+advance without going stale. Passing ``start_from_trigger=True`` emits a deprecation warning and behaves as if it were not set.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python

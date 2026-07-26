@@ -23,6 +23,7 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.standard.sensors.time import TimeSensor
@@ -136,14 +137,15 @@ class TestTimeSensor:
         except TypeError as e:
             pytest.fail(f"TypeError raised: {e}")
 
-    def test_start_from_trigger_raises_value_error(self):
+    def test_start_from_trigger_is_deprecated_and_ignored(self):
         with DAG(
-            dag_id="test_start_from_trigger_raises",
+            dag_id="test_start_from_trigger_deprecated",
             schedule=None,
             start_date=datetime(2020, 1, 1, 13, 0),
         ):
-            with pytest.raises(ValueError, match="TimeSensor does not support start_from_trigger=True"):
-                TimeSensor(task_id="test", target_time=time(10, 0), start_from_trigger=True)
+            with pytest.warns(AirflowProviderDeprecationWarning, match="start_from_trigger is deprecated"):
+                op = TimeSensor(task_id="test", target_time=time(10, 0), start_from_trigger=True)
+        assert op.start_from_trigger is False
 
     def test_target_datetime_recomputed_on_each_access(self):
         with DAG(

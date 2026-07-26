@@ -63,12 +63,14 @@ class TimeSensor(BaseSensorOperator):
         **kwargs,
     ) -> None:
         if start_from_trigger:
-            raise ValueError(
-                "TimeSensor does not support start_from_trigger=True. The target moment is "
-                "computed fresh from the current wall-clock time on every Dag parse, so baking "
-                "it into the serialized trigger arguments makes the serialized Dag hash change "
-                "on every parse. Use deferrable=True instead, which computes the target moment "
-                "at task execution time and does not have this problem."
+            warnings.warn(
+                "start_from_trigger is deprecated for TimeSensor and is now ignored. The target "
+                "moment is computed fresh from the current wall-clock time on every Dag parse, so "
+                "baking it into the serialized trigger arguments made the serialized Dag hash change "
+                "on every parse. Use deferrable=True instead, which computes the target moment at "
+                "task execution time and does not have this problem.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         super().__init__(**kwargs)
 
