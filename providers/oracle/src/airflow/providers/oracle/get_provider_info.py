@@ -43,7 +43,6 @@ def get_provider_info():
             {
                 "integration-name": "OCI Generative AI",
                 "external-doc-url": "https://docs.oracle.com/en-us/iaas/Content/generative-ai/home.htm",
-                "how-to-guide": ["/docs/apache-airflow-providers-oracle/generative_ai.rst"],
                 "logo": "/docs/integration-logos/Oracle.png",
                 "tags": ["generative-ai", "service"],
             },
