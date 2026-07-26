@@ -266,6 +266,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             "state": None,
             "task_display_name": "sample_task_hitl",
             "task_id": TASK_ID,
+            "team_name": None,
             "trigger": None,
             "triggerer_job": None,
             "try_number": 0,

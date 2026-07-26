@@ -50,6 +50,61 @@
                     "state": "failure"
                 }
             ]
+        },
+        "cluster_deletable": {
+            "operation": "DescribeClusters",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "available",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "paused",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "incompatible-hsm",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "incompatible-restore",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "incompatible-network",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "incompatible-parameters",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAll",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "hardware-failure",
+                    "state": "success"
+                },
+                {
+                    "matcher": "error",
+                    "argument": "Clusters[].ClusterStatus",
+                    "expected": "ClusterNotFound",
+                    "state": "success"
+                }
+            ]
         }
     }
 }

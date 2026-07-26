@@ -291,8 +291,9 @@ class TestFileTaskLogHandler:
         else:
             path_to_executor_class = executors_mapping.get(executor_name)
 
-        with patch(f"{path_to_executor_class}.get_task_log", return_value=([], [])) as mock_get_task_log:
-            mock_get_task_log.return_value = ([], [])
+        with patch(
+            f"{path_to_executor_class}.get_streaming_task_log", return_value=([], [])
+        ) as mock_get_streaming_task_log:
             ti = create_task_instance(
                 dag_id="dag_for_testing_multiple_executors",
                 task_id="task_for_testing_multiple_executors",
@@ -326,7 +327,7 @@ class TestFileTaskLogHandler:
             assert hasattr(file_handler, "read")
             file_handler.read(ti)
             os.remove(log_filename)
-            mock_get_task_log.assert_called_once()
+            mock_get_streaming_task_log.assert_called_once()
 
             if executor_name is None:
                 mock_get_default_executor.assert_called_once()
