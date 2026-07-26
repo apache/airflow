@@ -44,6 +44,13 @@ For example, you can create a Dag schedule to run at 12AM on the first Monday of
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
 
+.. note::
+
+    Cron expressions in Airflow are evaluated in the DAG's timezone, and cron schedules follow daylight saving transitions while ``timedelta`` 
+schedules do not see.
+
+    :doc:`timezone`. An online editor that has no timezone setting cannot show you this, so a schedule that looks unambiguous in a timezone-blind preview may still be skipped or repeated on a transition night. If your DAG uses a timezone that observes daylight saving, check the expression in a timezone-aware tool, or avoid scheduling between 01:00 and 03:00 local time. `CronForge <https://cronforge.dev/cron-timezone-dst>`_ documents the transition behaviour of Airflow and other schedulers side by side.
+
 +----------------+--------------------------------------------------------------------+-----------------+
 | preset         | meaning                                                            | cron            |
 +================+====================================================================+=================+
