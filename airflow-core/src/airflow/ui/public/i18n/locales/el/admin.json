@@ -3,6 +3,7 @@
     "description": "Περιγραφή",
     "key": "Κλειδί",
     "name": "Όνομα",
+    "team": "Ομάδα",
     "value": "Τιμή"
   },
   "config": {
@@ -49,6 +50,12 @@
     "searchPlaceholder": "Αναζήτηση Συνδέσεων",
     "test": "Δοκιμή Σύνδεσης",
     "testDisabled": "Η λειτουργία δοκιμής σύνδεσης είναι απενεργοποιημένη. Επικοινωνήστε με τον διαχειριστή για να την ενεργοποιήσει.",
+    "testError": {
+      "title": "Αποτυχημένη Δοκιμή Σύνδεσης"
+    },
+    "testSuccess": {
+      "title": "Επιτυχής Δοκιμή Σύνδεσης"
+    },
     "typeMeta": {
       "error": "Αποτυχία ανάκτησης μεταδεδομένων τύπου σύνδεσης",
       "standardFields": {
@@ -74,6 +81,23 @@
   "formActions": {
     "save": "Αποθήκευση"
   },
+  "jobs": {
+    "columns": {
+      "executorClass": "Κλάση Εκτελεστή",
+      "hostname": "Όνομα Υπολογιστή",
+      "id": "ID",
+      "jobType": "Τύπος Διεργασίας",
+      "latestHeartbeat": "Πιο Πρόσφατος Παλμός",
+      "unixname": "Όνομα Unix"
+    },
+    "filters": {
+      "allStates": "Όλες οι Καταστάσεις",
+      "allTypes": "Όλοι οι Τύποι",
+      "dagProcessorJob": "DagProcessorJob",
+      "schedulerJob": "SchedulerJob",
+      "triggererJob": "TriggererJob"
+    }
+  },
   "plugins": {
     "columns": {
       "source": "Πηγή"
@@ -84,19 +108,20 @@
   },
   "pools": {
     "add": "Προσθήκη Pool",
-    "deferredSlotsIncluded": "Συμπεριλαμβάνονται Αναβληθέντα Slots",
+    "deferredSlotsIncluded": "Συμπεριλαμβάνονται Αναβληθείσες Θέσεις",
     "delete": {
       "title": "Διαγραφή Pool",
       "warning": "Αυτό θα αφαιρέσει όλα τα μεταδεδομένα που σχετίζονται με το pool και μπορεί να επηρεάσει εργασίες που το χρησιμοποιούν."
     },
     "edit": "Επεξεργασία Pool",
     "form": {
-      "checkbox": "Επιλέξτε για να συμπεριλάβετε αναβληθείσες εργασίες στον υπολογισμό των διαθέσιμων slots του pool",
+      "checkbox": "Επιλέξτε για να συμπεριλάβετε αναβληθείσες εργασίες στον υπολογισμό των διαθέσιμων θέσεων του pool",
       "description": "Περιγραφή",
       "includeDeferred": "Συμπερίληψη Αναβληθέντων",
       "nameMaxLength": "Το όνομα μπορεί να περιέχει έως 256 χαρακτήρες",
       "nameRequired": "Το όνομα είναι υποχρεωτικό",
-      "slots": "Slots"
+      "slots": "Θέσεις",
+      "slotsHelperText": "Χρησιμοποιήστε -1 για απεριόριστες θέσεις."
     },
     "noPoolsFound": "Δεν βρέθηκαν pools",
     "pool_one": "Pool",
@@ -152,6 +177,7 @@
           "title": "Παράλειψη"
         }
       },
+      "parsingFile": "Ανάλυση αρχείου...",
       "title": "Εισαγωγή Μεταβλητών",
       "upload": "Ανέβασμα Αρχείου JSON",
       "uploadPlaceholder": "Ανεβάστε ένα αρχείο JSON που περιέχει μεταβλητές (π.χ., {\"key\": \"value\", ...})"
