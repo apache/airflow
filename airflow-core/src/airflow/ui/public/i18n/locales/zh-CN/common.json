@@ -320,7 +320,7 @@
     "documentation": "任务文档",
     "lastInstance": "最后实例",
     "operator": "任务操作器",
-    "retries": "重试",
+    "retries": "重试次数",
     "triggerRule": "触发规则",
     "waitForDownstream": "等待下游"
   },
