@@ -93,6 +93,7 @@ const isFieldObject = (fieldType: string) => fieldType === "object";
 
 const isFieldPassword = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "password";
+
 const isFieldStringArray = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "array" && (fieldSchema.items?.type === undefined || fieldSchema.items.type === "string");
 
