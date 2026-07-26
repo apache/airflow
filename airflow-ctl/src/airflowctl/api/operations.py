@@ -321,7 +321,7 @@ class AssetsOperations(BaseOperations):
         return dag_id
 
     def delete_queued_event(self, dag_id: str, asset_id: str) -> str | ServerResponseError:
-        """Delete a queued event for a dag."""
+        """Delete a queued event for a Dag."""
         self.client.delete(f"assets/dags/{dag_id}/assets/{asset_id}/queuedEvents/")
         return asset_id
 
