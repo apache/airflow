@@ -97,8 +97,6 @@ class DatabricksReposCreateOperator(BaseOperator):
         else:
             self.git_provider = git_provider
         self.repo_path = repo_path
-        if branch is not None and tag is not None:
-            raise AirflowException("Only one of branch or tag should be provided, but not both")
         self.branch = branch
         self.tag = tag
 
@@ -131,6 +129,8 @@ class DatabricksReposCreateOperator(BaseOperator):
         :param context: context
         :return: Repo ID
         """
+        if self.branch is not None and self.tag is not None:
+            raise AirflowException("Only one of branch or tag should be provided, but not both")
         payload = {
             "url": self.git_url,
             "provider": self.git_provider,
@@ -225,14 +225,6 @@ class DatabricksReposUpdateOperator(BaseOperator):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
-        if branch is not None and tag is not None:
-            raise AirflowException("Only one of branch or tag should be provided, but not both")
-        if branch is None and tag is None:
-            raise AirflowException("One of branch or tag should be provided")
-        if repo_id is not None and repo_path is not None:
-            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
-        if repo_id is None and repo_path is None:
-            raise AirflowException("One of repo_id or repo_path should be provided")
         self.repo_path = repo_path
         self.repo_id = repo_id
         self.branch = branch
@@ -248,6 +240,14 @@ class DatabricksReposUpdateOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
+        if self.branch is not None and self.tag is not None:
+            raise AirflowException("Only one of branch or tag should be provided, but not both")
+        if self.branch is None and self.tag is None:
+            raise AirflowException("One of branch or tag should be provided")
+        if self.repo_id is not None and self.repo_path is not None:
+            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
+        if self.repo_id is None and self.repo_path is None:
+            raise AirflowException("One of repo_id or repo_path should be provided")
         if self.repo_path is not None:
             self.repo_id = self._hook.get_repo_by_path(self.repo_path)
             if self.repo_id is None:
@@ -297,10 +297,6 @@ class DatabricksReposDeleteOperator(BaseOperator):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
-        if repo_id is not None and repo_path is not None:
-            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
-        if repo_id is None and repo_path is None:
-            raise AirflowException("One of repo_id repo_path tag should be provided")
         self.repo_path = repo_path
         self.repo_id = repo_id
 
@@ -314,6 +310,10 @@ class DatabricksReposDeleteOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
+        if self.repo_id is not None and self.repo_path is not None:
+            raise AirflowException("Only one of repo_id or repo_path should be provided, but not both")
+        if self.repo_id is None and self.repo_path is None:
+            raise AirflowException("One of repo_id repo_path tag should be provided")
         if self.repo_path is not None:
             self.repo_id = self._hook.get_repo_by_path(self.repo_path)
             if self.repo_id is None:

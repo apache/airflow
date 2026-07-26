@@ -50,6 +50,12 @@ WORKFLOW_INVOCATION = {
         f"{REPOSITORY_ID}/compilationResults/{COMPILATION_RESULT_ID}"
     ),
 }
+FULL_REFRESH_WORKFLOW_INVOCATION = {
+    **WORKFLOW_INVOCATION,
+    "invocation_config": {
+        "fully_refresh_incremental_tables_enabled": True,
+    },
+}
 WORKFLOW_INVOCATION_ID = "test_workflow_invocation_id"
 PATH_TO_FOLDER = "path/to/folder"
 FILEPATH = "path/to/file.txt"
@@ -113,11 +119,26 @@ class TestDataformHook:
         )
         parent = f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}"
         mock_client.return_value.create_workflow_invocation.assert_called_once_with(
-            request=dict(parent=parent, workflow_invocation=WORKFLOW_INVOCATION),
+            request=dict(parent=parent, workflow_invocation=WorkflowInvocation(WORKFLOW_INVOCATION)),
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
+
+    @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
+    def test_create_workflow_invocation_preserves_invocation_config_from_dict(self, mock_client):
+        self.hook.create_workflow_invocation(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workflow_invocation=FULL_REFRESH_WORKFLOW_INVOCATION,
+        )
+
+        request = mock_client.return_value.create_workflow_invocation.call_args.kwargs["request"]
+        workflow_invocation = request["workflow_invocation"]
+        assert isinstance(workflow_invocation, WorkflowInvocation)
+        assert workflow_invocation.compilation_result == WORKFLOW_INVOCATION["compilation_result"]
+        assert workflow_invocation.invocation_config.fully_refresh_incremental_tables_enabled is True
 
     @mock.patch(DATAFORM_STRING.format("DataformHook.get_dataform_client"))
     def test_get_workflow_invocation(self, mock_client):

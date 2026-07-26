@@ -3904,6 +3904,17 @@ export const $DAGRunResponse = {
                 }
             ],
             title: 'Partition Date'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
@@ -6383,7 +6394,7 @@ export const $ReactAppResponse = {
         },
         destination: {
             type: 'string',
-            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance', 'asset', 'base', 'dashboard'],
+            enum: ['nav', 'dag', 'dag_run', 'task', 'task_instance', 'asset', 'base', 'dashboard', 'dag_overview', 'task_overview'],
             title: 'Destination',
             default: 'nav'
         }
@@ -7115,6 +7126,17 @@ export const $TaskInstanceResponse = {
                     type: 'null'
                 }
             ]
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
@@ -9430,6 +9452,17 @@ export const $DAGWithLatestDagRunsResponse = {
         is_favorite: {
             type: 'boolean',
             title: 'Is Favorite'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         },
         is_backfillable: {
             type: 'boolean',

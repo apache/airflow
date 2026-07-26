@@ -194,8 +194,6 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
-        if cdc_start_time and cdc_start_position:
-            raise ValueError("Only one of cdc_start_time or cdc_start_position can be provided.")
         self.replication_task_arn = replication_task_arn
         self.table_mappings = table_mappings
         self.migration_type = migration_type
@@ -216,6 +214,9 @@ class DmsModifyTaskOperator(AwsBaseOperator[DmsHook]):
         )
 
     def execute(self, context: Context) -> dict:
+        if self.cdc_start_time and self.cdc_start_position:
+            raise ValueError("Only one of cdc_start_time or cdc_start_position can be provided.")
+
         tasks = self.hook.find_replication_tasks_by_arn(
             replication_task_arn=self.replication_task_arn, without_settings=True
         )
@@ -799,10 +800,10 @@ class DmsStartReplicationOperator(AwsBaseOperator[DmsHook]):
         self.waiter_max_attempts = waiter_max_attempts
         self.wait_for_completion = wait_for_completion
 
+    def execute(self, context: Context):
         if self.cdc_start_time and self.cdc_start_pos:
             raise AirflowException("Only one of cdc_start_time or cdc_start_pos should be provided.")
 
-    def execute(self, context: Context):
         result = self.hook.describe_replications(
             filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}]
         )

@@ -60,6 +60,12 @@ The operator uses :class:`~airflow.providers.common.sql.config.DataSourceConfig`
 to register the object storage source as a table so the LLM can include it in
 the schema context.
 
+.. note::
+
+    Object-storage schema introspection requires the ``datafusion`` extra of
+    ``apache-airflow-providers-common-sql``. Install it with
+    ``pip install "apache-airflow-providers-common-sql[datafusion]"``.
+
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
     :language: python
     :start-after: [START howto_operator_llm_sql_with_object_storage]
