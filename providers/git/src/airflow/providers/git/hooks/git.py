@@ -92,6 +92,8 @@ class GitHook(BaseHook):
         extra = connection.extra_dejson
 
         self.repo_url = repo_url or connection.host
+        if isinstance(self.repo_url, str) and not self.repo_url.startswith(("git@", "https://")):
+            self.repo_url = os.path.expanduser(self.repo_url)
         self.user_name = connection.login or "user"
         self.auth_token = connection.password
 
@@ -126,7 +128,6 @@ class GitHook(BaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-        self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
     _SSH_REPO_URL_PATTERN = re.compile(r"^[^/@:]+@[^/:]+:")
@@ -182,20 +183,13 @@ class GitHook(BaseHook):
 
         return " ".join(parts)
 
-    def _process_git_auth_url(self):
-        if not isinstance(self.repo_url, str):
-            return
-
-        if not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
-            self.repo_url = os.path.expanduser(self.repo_url)
-
     @contextlib.contextmanager
     def _token_askpass_env(self):
         if not self.auth_token:
             yield
             return
 
-        raw_username = self.user_name or "git"
+        raw_username = self.user_name
         username = shlex.quote(raw_username)
         password = shlex.quote(self.auth_token)
 
@@ -211,21 +205,36 @@ esac
             askpass_script.flush()
             os.chmod(askpass_script.name, stat.S_IRWXU)
 
+            old_os_git_askpass = os.environ.get("GIT_ASKPASS")
+            old_os_git_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
             old_git_askpass = self.env.get("GIT_ASKPASS")
             old_git_terminal_prompt = self.env.get("GIT_TERMINAL_PROMPT")
             try:
+                os.environ["GIT_ASKPASS"] = askpass_script.name
+                os.environ["GIT_TERMINAL_PROMPT"] = "0"
                 self.env["GIT_ASKPASS"] = askpass_script.name
                 self.env["GIT_TERMINAL_PROMPT"] = "0"
                 yield
             finally:
-                for var, old_val in [
-                    ("GIT_ASKPASS", old_git_askpass),
-                    ("GIT_TERMINAL_PROMPT", old_git_terminal_prompt),
-                ]:
-                    if old_val is None:
-                        self.env.pop(var, None)
-                    else:
-                        self.env[var] = old_val
+                if old_os_git_askpass is None:
+                    os.environ.pop("GIT_ASKPASS", None)
+                else:
+                    os.environ["GIT_ASKPASS"] = old_os_git_askpass
+
+                if old_os_git_terminal_prompt is None:
+                    os.environ.pop("GIT_TERMINAL_PROMPT", None)
+                else:
+                    os.environ["GIT_TERMINAL_PROMPT"] = old_os_git_terminal_prompt
+
+                if old_git_askpass is None:
+                    self.env.pop("GIT_ASKPASS", None)
+                else:
+                    self.env["GIT_ASKPASS"] = old_git_askpass
+
+                if old_git_terminal_prompt is None:
+                    self.env.pop("GIT_TERMINAL_PROMPT", None)
+                else:
+                    self.env["GIT_TERMINAL_PROMPT"] = old_git_terminal_prompt
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)

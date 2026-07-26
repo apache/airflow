@@ -1342,6 +1342,61 @@ class TestGitDagBundle:
             _, kwargs = mock_gitRepo.clone_from.call_args
             assert kwargs["env"] == EXPECTED_ENV
 
+    def test_refresh_propagates_token_askpass_env_to_fetch_and_submodules(self, create_connection_without_db):
+        token = "tok$with'quote"
+        conn_id = "my_git_conn_token_refresh"
+        create_connection_without_db(
+            Connection(
+                conn_id=conn_id,
+                host=AIRFLOW_HTTPS_URL,
+                login="token_user",
+                password=token,
+                conn_type="git",
+            )
+        )
+
+        bundle = GitDagBundle(
+            name="my_repo",
+            git_conn_id=conn_id,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            submodules=True,
+        )
+
+        bundle.bare_repo = mock.MagicMock()
+        bundle.repo = mock.MagicMock()
+
+        origin_ref = mock.MagicMock()
+        origin_ref.name = f"origin/{GIT_DEFAULT_BRANCH}"
+        bundle.repo.remotes.origin.refs = [origin_ref]
+
+        def _assert_token_env(*_, **__):
+            assert os.environ["GIT_ASKPASS"] == bundle.hook.env["GIT_ASKPASS"]
+            assert os.environ["GIT_TERMINAL_PROMPT"] == "0"
+            return mock.MagicMock()
+
+        bundle.bare_repo.remotes.origin.fetch.side_effect = _assert_token_env
+        bundle.repo.remotes.origin.fetch.side_effect = _assert_token_env
+        bundle.repo.git.submodule.side_effect = _assert_token_env
+
+        old_git_askpass = os.environ.get("GIT_ASKPASS")
+        old_git_terminal_prompt = os.environ.get("GIT_TERMINAL_PROMPT")
+        with mock.patch.dict(
+            os.environ,
+            {"GIT_ASKPASS": "sentinel-askpass", "GIT_TERMINAL_PROMPT": "1"},
+            clear=False,
+        ):
+            bundle.refresh()
+
+        if old_git_askpass is None:
+            assert "GIT_ASKPASS" not in os.environ
+        else:
+            assert os.environ["GIT_ASKPASS"] == old_git_askpass
+
+        if old_git_terminal_prompt is None:
+            assert "GIT_TERMINAL_PROMPT" not in os.environ
+        else:
+            assert os.environ["GIT_TERMINAL_PROMPT"] == old_git_terminal_prompt
+
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
     @mock.patch("airflow.providers.git.bundles.git.os.path.exists")

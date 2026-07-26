@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import contextlib
 import os
-import warnings
 import shlex
+import warnings
+from unittest import mock
 
 import pytest
 from git import Repo
@@ -129,25 +130,25 @@ class TestGitHook:
         ("conn_id", "hook_kwargs", "expected_repo_url", "warns_on_default"),
         [
             (CONN_DEFAULT, {}, AIRFLOW_GIT, True),
-                        (CONN_HTTPS, {}, AIRFLOW_HTTPS_URL, False),
-                        (
-                            CONN_HTTPS,
-                            {"repo_url": "https://github.com/apache/zzzairflow"},
-                            "https://github.com/apache/zzzairflow",
-                            False,
-                        ),
-                        (
-                            CONN_HTTPS,
-                            {"repo_url": AIRFLOW_GIT},
-                            AIRFLOW_GIT,
-                            True,
-                        ),
-                        (CONN_HTTP, {}, AIRFLOW_HTTP_URL, False),
-                        (
-                            CONN_HTTP,
-                            {"repo_url": "http://github.com/apache/zzzairflow"},
-                            "http://github.com/apache/zzzairflow",
-                            False,
+            (CONN_HTTPS, {}, AIRFLOW_HTTPS_URL, False),
+            (
+                CONN_HTTPS,
+                {"repo_url": "https://github.com/apache/zzzairflow"},
+                "https://github.com/apache/zzzairflow",
+                False,
+            ),
+            (
+                CONN_HTTPS,
+                {"repo_url": AIRFLOW_GIT},
+                AIRFLOW_GIT,
+                True,
+            ),
+            (CONN_HTTP, {}, AIRFLOW_HTTP_URL, False),
+            (
+                CONN_HTTP,
+                {"repo_url": "http://github.com/apache/zzzairflow"},
+                "http://github.com/apache/zzzairflow",
+                False,
             ),
             (CONN_HTTP_NO_AUTH, {}, AIRFLOW_HTTP_URL, False),
             (
@@ -168,6 +169,18 @@ class TestGitHook:
         with warning_context:
             hook = GitHook(git_conn_id=conn_id, **hook_kwargs)
         assert hook.repo_url == expected_repo_url
+
+    def test_repo_url_is_expanded_during_init(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_tilde_repo",
+                host="~/repo.git",
+                conn_type="git",
+            )
+        )
+
+        hook = GitHook(git_conn_id="git_tilde_repo")
+        assert hook.repo_url == os.path.expanduser("~/repo.git")
 
     def test_env_var_with_configure_hook_env(self, create_connection_without_db):
         with pytest.warns(AirflowProviderDeprecationWarning, match="accept-new"):
@@ -416,19 +429,38 @@ class TestGitHook:
         # Both the askpass script and the temp key file should be cleaned up
         assert not os.path.exists(askpass_path)
 
-    def test_token_askpass_env_and_cleanup(self):
-        hook = GitHook(git_conn_id=CONN_HTTPS)
+    def test_token_askpass_env_and_cleanup(self, create_connection_without_db):
+        token = "tok$with'quote"
+        create_connection_without_db(
+            Connection(
+                conn_id="git_token_askpass",
+                host=AIRFLOW_HTTPS_URL,
+                password=token,
+                conn_type="git",
+            )
+        )
+        hook = GitHook(git_conn_id="git_token_askpass")
         askpass_path = None
 
-        with hook.configure_hook_env():
-            assert "GIT_ASKPASS" in hook.env
-            askpass_path = hook.env["GIT_ASKPASS"]
-            assert os.path.exists(askpass_path)
+        with mock.patch.dict(
+            os.environ,
+            {"GIT_ASKPASS": "sentinel-askpass", "GIT_TERMINAL_PROMPT": "1"},
+            clear=False,
+        ):
+            with hook.configure_hook_env():
+                assert os.environ["GIT_ASKPASS"] == hook.env["GIT_ASKPASS"]
+                assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
+                askpass_path = hook.env["GIT_ASKPASS"]
+                assert os.path.exists(askpass_path)
 
-            with open(askpass_path) as f:
-                content = f.read()
-                assert f"echo {shlex.quote(ACCESS_TOKEN)}" in content
-                assert "#!/bin/sh" in content
+                with open(askpass_path) as f:
+                    content = f.read()
+                    assert f"echo {shlex.quote(token)}" in content
+                    assert "#!/bin/sh" in content
+
+            assert os.environ["GIT_ASKPASS"] == "sentinel-askpass"
+            assert os.environ["GIT_TERMINAL_PROMPT"] == "1"
+
         # The askpass script should be cleaned up after exiting the context
         assert not os.path.exists(askpass_path)
 
