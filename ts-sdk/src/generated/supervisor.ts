@@ -259,6 +259,7 @@ export type ElementIndex = number | null;
 export type Kind1 = "literal";
 export type Name9 = string;
 export type FromDefault = boolean;
+export type HasMappedDependants = boolean;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
 export type BundleName3 = string;
@@ -1018,6 +1019,7 @@ export interface TIRunContext {
   should_retry?: ShouldRetry;
   start_date?: StartDate2;
   arg_bindings?: ArgBindings;
+  has_mapped_dependants?: HasMappedDependants;
 }
 /**
  * Variable schema for responses with fields that are needed for Runtime.

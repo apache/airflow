@@ -1621,6 +1621,10 @@ type TIRunContext struct {
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
 
+	// HasMappedDependants corresponds to the JSON schema field
+	// "has_mapped_dependants".
+	HasMappedDependants bool `msgpack:"has_mapped_dependants,omitempty"`
+
 	// MaxTries corresponds to the JSON schema field "max_tries".
 	MaxTries int `msgpack:"max_tries"`
 
