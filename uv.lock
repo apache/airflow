@@ -5435,6 +5435,7 @@ dev = [
     { name = "apache-airflow-devel-common" },
     { name = "apache-airflow-providers-common-compat" },
     { name = "apache-airflow-task-sdk" },
+    { name = "pygithub" },
 ]
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
@@ -5455,6 +5456,7 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+    { name = "pygithub" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 
