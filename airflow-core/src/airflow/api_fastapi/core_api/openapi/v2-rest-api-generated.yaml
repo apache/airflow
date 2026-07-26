@@ -447,6 +447,26 @@ paths:
           - type: integer
           - type: 'null'
           title: Source Map Index
+      - name: partition_key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+      - name: partition_key_regexp_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter results by matching this regular expression against
+            the field value.
+          title: Partition Key Regexp Pattern
+        description: Filter results by matching this regular expression against the
+          field value.
       - name: name_pattern
         in: query
         required: false
@@ -2351,6 +2371,36 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: partition_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          description: Inclusive lower bound of the partition_date window, interpreted
+            as a local calendar day in the Dag's timetable timezone. Runs from the
+            start of this day onwards match.
+          title: Partition Date Gte
+        description: Inclusive lower bound of the partition_date window, interpreted
+          as a local calendar day in the Dag's timetable timezone. Runs from the start
+          of this day onwards match.
+      - name: partition_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          description: 'Inclusive upper bound of the partition_date window, interpreted
+            as a local calendar day in the Dag''s timetable timezone. The whole day
+            is included: runs up to the end of this day match.'
+          title: Partition Date Lte
+        description: 'Inclusive upper bound of the partition_date window, interpreted
+          as a local calendar day in the Dag''s timetable timezone. The whole day
+          is included: runs up to the end of this day match.'
       - name: cursor
         in: query
         required: false
@@ -2631,6 +2681,14 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: order_by
         in: query
         required: false
@@ -2640,15 +2698,15 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
-            dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at,
-            conf, duration, dag_run_id`'
+            dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date,
+            updated_at, conf, duration, dag_run_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, dag_id,
-          run_id, logical_date, run_after, start_date, end_date, updated_at, conf,
-          duration, dag_run_id`'
+          run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at,
+          conf, duration, dag_run_id`'
       - name: run_id_pattern
         in: query
         required: false
@@ -5384,6 +5442,14 @@ paths:
           - type: string
           - type: 'null'
           title: Job State
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: job_type
         in: query
         required: false
@@ -9111,6 +9177,14 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: try_number
         in: query
         required: false
@@ -14172,6 +14246,11 @@ components:
             format: date-time
           - type: 'null'
           title: Partition Date
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - dag_run_id
@@ -14916,6 +14995,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - asset
           - base
           title: Destination
           default: nav
@@ -15877,8 +15957,11 @@ components:
           - dag_run
           - task
           - task_instance
+          - asset
           - base
           - dashboard
+          - dag_overview
+          - task_overview
           title: Destination
           default: nav
       additionalProperties: true
@@ -16352,6 +16435,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id

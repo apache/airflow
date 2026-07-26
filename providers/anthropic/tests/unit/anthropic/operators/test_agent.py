@@ -38,28 +38,46 @@ def _context():
 
 
 def test_requires_exactly_one_of_message_or_outcome():
+    op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env")
     with pytest.raises(ValueError, match="exactly one"):
-        AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env")
+        op.execute(_context())
+
+    op = AnthropicAgentSessionOperator(
+        task_id="a", agent_id="ag", environment_id="env", message="hi", outcome={"description": "x"}
+    )
     with pytest.raises(ValueError, match="exactly one"):
-        AnthropicAgentSessionOperator(
-            task_id="a", agent_id="ag", environment_id="env", message="hi", outcome={"description": "x"}
-        )
+        op.execute(_context())
 
 
 def test_outcome_requires_description_and_rubric():
     # missing rubric
+    op = AnthropicAgentSessionOperator(
+        task_id="a", agent_id="ag", environment_id="env", outcome={"description": "x"}
+    )
     with pytest.raises(ValueError, match="description.*rubric"):
-        AnthropicAgentSessionOperator(
-            task_id="a", agent_id="ag", environment_id="env", outcome={"description": "x"}
-        )
+        op.execute(_context())
+
     # missing description
+    op = AnthropicAgentSessionOperator(
+        task_id="a",
+        agent_id="ag",
+        environment_id="env",
+        outcome={"rubric": {"type": "text", "content": "c"}},
+    )
     with pytest.raises(ValueError, match="description.*rubric"):
-        AnthropicAgentSessionOperator(
-            task_id="a",
-            agent_id="ag",
-            environment_id="env",
-            outcome={"rubric": {"type": "text", "content": "c"}},
-        )
+        op.execute(_context())
+
+
+def test_init_does_not_validate_message_or_outcome():
+    """Regression test: __init__ must not read template-field values (see #70296)."""
+    op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env")
+    assert op.message is None
+    assert op.outcome is None
+
+    op = AnthropicAgentSessionOperator(
+        task_id="a", agent_id="ag", environment_id="env", outcome={"description": "x"}
+    )
+    assert op.outcome == {"description": "x"}
 
 
 class TestExecute:

@@ -100,7 +100,7 @@ If you use ``breeze`` to run the integration tests and you do not have the image
 if you do not answer ``no``.
 
 This will build the right image ``ghcr.io/apache/airflow/main/prod/python3.10.latest`` (with the right
-Python version) that will be used to run the tests. The ``breeze prod image build`` command by default -
+Python version) that will be used to run the tests. The ``breeze prod-image build`` command by default -
 when run from sources of airflow - will use the local sources and build the image using ``uv``
 to speed up the build process. Also, when building from sources it will check if the assets are built
 and will error if they are not. However it will not check if the assets are up to date - so make sure
@@ -113,7 +113,7 @@ and did not build your assets after that.
     because the docker-compose setup we use in tests will automatically mount the local Python sources into the
     container, so you can iterate quickly without rebuilding the image. However, if you want to test changes
     that require new image (like modifying dependencies, system packages, rebuilding UI etc.) you will need
-    to rebuild the image with the ``breeze prod image build`` command.
+    to rebuild the image with the ``breeze prod-image build`` command.
 
 After you build the image, there are several ways to run Task SDK Integration Tests,
 depending based on your preferences. The ways are listed below.

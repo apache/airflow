@@ -3065,6 +3065,7 @@ main {
 .tab-icon.executor { background: rgb(from var(--color-executor) r g b / 0.2); color: var(--color-executor); }
 .tab-icon.bundle { background: rgb(from var(--color-bundle) r g b / 0.2); color: var(--color-bundle); }
 .tab-icon.decorator { background: rgb(from var(--color-decorator) r g b / 0.2); color: var(--color-decorator); }
+.tab-icon.toolset { background: rgb(from var(--color-toolset) r g b / 0.2); color: var(--color-toolset); }
 
 /* Modules Layout (sidebar + content) */
 .modules-layout {

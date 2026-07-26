@@ -102,9 +102,6 @@
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F"
-  },
   "notFound": {
     "back": "返回",
     "backToDags": "返回 Dag 列表",
