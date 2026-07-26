@@ -3737,16 +3737,19 @@ class TestDataprocCreateWorkflowTemplateOperator:
 
 
 class TestDataprocCreateBatchOperator:
-    def test_batch_id_and_batch_id_prefix_are_mutually_exclusive(self):
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_batch_id_and_batch_id_prefix_are_mutually_exclusive(self, mock_hook):
+        operator = DataprocCreateBatchOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            batch=BATCH,
+            batch_id=BATCH_ID,
+            batch_id_prefix="batch-prefix",
+        )
         with pytest.raises(ValueError, match="mutually exclusive"):
-            DataprocCreateBatchOperator(
-                task_id=TASK_ID,
-                region=GCP_REGION,
-                project_id=GCP_PROJECT,
-                batch=BATCH,
-                batch_id=BATCH_ID,
-                batch_id_prefix="batch-prefix",
-            )
+            operator.execute(context=MagicMock())
+        mock_hook.return_value.create_batch.assert_not_called()
 
     @mock.patch(DATAPROC_PATH.format("uuid.uuid4"))
     def test_build_unique_batch_id_from_prefix_preserves_prefix_verbatim(self, mock_uuid):

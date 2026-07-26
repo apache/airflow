@@ -2493,8 +2493,6 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         if deferrable and polling_interval_seconds <= 0:
             raise ValueError("Invalid value for polling_interval_seconds. Expected value greater than 0")
-        if batch_id and batch_id_prefix:
-            raise ValueError("batch_id and batch_id_prefix are mutually exclusive")
         self.region = region
         self.project_id = project_id
         self.batch = batch
@@ -2623,6 +2621,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         return Batch.to_dict(batch)
 
     def _resolve_requested_batch_id(self) -> str | None:
+        if self.batch_id and self.batch_id_prefix:
+            raise ValueError("batch_id and batch_id_prefix are mutually exclusive")
         if self.batch_id:
             return self.batch_id
         if self.batch_id_prefix:
