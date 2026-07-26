@@ -24,7 +24,7 @@ import pytest
 
 from airflow import macros
 from airflow.models.dag import DAG
-from airflow.providers.standard.sensors.date_time import DateTimeSensor
+from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTimeSensorAsync
 
 from tests_common.test_utils.version_compat import timezone
 
@@ -124,3 +124,35 @@ class TestDateTimeSensor:
         sensor.render_template_fields(ctx)
 
         assert isinstance(sensor._moment, expected_type)
+
+
+class TestDateTimeSensorAsync:
+    @classmethod
+    def setup_class(cls):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        cls.dag = DAG("test_dag_async", schedule=None, default_args=args)
+
+    def test_start_from_trigger_with_static_target_time(self):
+        """A static, already-resolvable target_time should keep working with start_from_trigger=True."""
+        op = DateTimeSensorAsync(
+            task_id="static_target_time",
+            target_time="2020-07-06T13:00:00+00:00",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.datetime(2020, 7, 6, 13, tz="UTC")
+
+    def test_start_from_trigger_with_templated_target_time_raises_value_error(self):
+        """
+        start_from_trigger=True resolves trigger_kwargs once, at Dag-parse time, before template
+        rendering happens. A templated target_time can't be resolved yet at that point, so this
+        must raise a clear ValueError instead of letting the Jinja string reach ``pendulum.parse``
+        and crash the entire Dag-file parse with an opaque ParserError.
+        """
+        with pytest.raises(ValueError, match="does not support start_from_trigger=True"):
+            DateTimeSensorAsync(
+                task_id="templated_target_time",
+                target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
+                start_from_trigger=True,
+                dag=self.dag,
+            )

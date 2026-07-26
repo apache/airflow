@@ -21,6 +21,8 @@ import datetime
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from pendulum.parsing.exceptions import ParserError
+
 from airflow.providers.common.compat.sdk import BaseSensorOperator, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
@@ -125,8 +127,18 @@ class DateTimeSensorAsync(DateTimeSensor):
 
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
+            try:
+                moment = timezone.parse(self.target_time)
+            except ParserError as e:
+                raise ValueError(
+                    "DateTimeSensorAsync does not support start_from_trigger=True with a templated "
+                    f"target_time (got {self.target_time!r}). The trigger arguments are resolved once "
+                    "at Dag-parse time, before template rendering happens, so a Jinja template cannot "
+                    "be evaluated yet. Use a static datetime/ISO string for target_time, or set "
+                    "start_from_trigger=False and use deferrable=True instead."
+                ) from e
             self.start_trigger_args.trigger_kwargs = dict(
-                moment=timezone.parse(self.target_time),
+                moment=moment,
                 end_from_trigger=self.end_from_trigger,
             )
 
