@@ -93,7 +93,7 @@ class TimeSensor(BaseSensorOperator):
         if self.deferrable:
             self.defer(
                 trigger=DateTimeTrigger(
-                    moment=self.target_datetime,
+                    moment=self.target_datetime,  # This needs to be an aware timestamp
                     end_from_trigger=self.end_from_trigger,
                 ),
                 method_name="execute_complete",
