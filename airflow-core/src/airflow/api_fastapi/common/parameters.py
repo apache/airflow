@@ -62,6 +62,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.errors import ParseImportError
 from airflow.models.hitl import HITLDetail
@@ -1020,6 +1021,75 @@ class _OwnersFilter(BaseParam[list[str]]):
         return cls().set_value(owners)
 
 
+class _TeamsFilter(BaseParam[list[str]]):
+    """Filter Dags by team name (via bundle association)."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        from airflow.models.team import Team
+
+        return select.where(
+            DagModel.bundle_name.in_(
+                sql_select(DagBundleModel.name).join(DagBundleModel.teams).where(Team.name.in_(self.value))
+            )
+        )
+
+    @classmethod
+    def depends(cls, teams: list[str] = Query(default_factory=list)) -> _TeamsFilter:
+        return cls().set_value(teams)
+
+
+class _DagIdTeamsFilter(BaseParam[list[str]]):
+    """Filter rows by team name through their ``dag_id`` (via bundle association)."""
+
+    def __init__(
+        self,
+        dag_id_attribute: ColumnElement | InstrumentedAttribute,
+        value: list[str] | None = None,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(value, skip_none)
+        self.dag_id_attribute = dag_id_attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        from airflow.models.team import Team
+
+        return select.where(
+            self.dag_id_attribute.in_(
+                sql_select(DagModel.dag_id)
+                .join(DagBundleModel, DagModel.bundle_name == DagBundleModel.name)
+                .join(DagBundleModel.teams)
+                .where(Team.name.in_(self.value))
+            )
+        )
+
+    @classmethod
+    def depends(cls, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use teams_filter_factory instead, depends is not implemented.")
+
+
+def teams_filter_factory(
+    dag_id_attribute: ColumnElement | InstrumentedAttribute,
+) -> Callable[[list[str]], _DagIdTeamsFilter]:
+    """Build a ``teams`` filter that scopes rows by team through the given ``dag_id`` column."""
+
+    def depends_teams_filter(teams: list[str] = Query(default_factory=list)) -> _DagIdTeamsFilter:
+        return _DagIdTeamsFilter(dag_id_attribute).set_value(teams)
+
+    return depends_teams_filter
+
+
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -1268,6 +1338,7 @@ QueryDagIdPrefixPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
+QueryTeamsFilter = Annotated[_TeamsFilter, Depends(_TeamsFilter.depends)]
 
 
 class _HasAssetScheduleFilter(BaseParam[bool]):
@@ -1413,29 +1484,26 @@ QueryPendingActionsFilter = Annotated[_PendingActionsFilter, Depends(_PendingAct
 class _AnyDagRunStateFilter(BaseParam[DagRunState | None]):
     """Filter Dags that have any DagRun in the given state, not only the latest one."""
 
-    # Only these states have a partial index on dag_run; others would force a full table scan.
-    SUPPORTED_STATES = (DagRunState.QUEUED, DagRunState.RUNNING)
-
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
 
-        run_subquery = sql_select(DagRun.dag_id).where(DagRun.state == self.value).distinct()
-        return select.where(DagModel.dag_id.in_(run_subquery))
+        # EXISTS resolves each Dag via the (dag_id, state) index instead of scanning every run in the state.
+        has_run_in_state = (
+            sql_select(DagRun.dag_id)
+            .where(DagRun.dag_id == DagModel.dag_id, DagRun.state == self.value)
+            .exists()
+        )
+        return select.where(has_run_in_state)
 
     @classmethod
     def depends(
         cls,
         dag_run_state: DagRunState | None = Query(
             None,
-            description="Filter Dags that have any DagRun in the given state. Only ``queued`` and ``running`` are supported.",
+            description="Filter Dags that have any DagRun in the given state.",
         ),
     ) -> _AnyDagRunStateFilter:
-        if dag_run_state is not None and dag_run_state not in cls.SUPPORTED_STATES:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                detail=f"dag_run_state only supports {[state.value for state in cls.SUPPORTED_STATES]}.",
-            )
         return cls().set_value(dag_run_state)
 
 

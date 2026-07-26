@@ -22,17 +22,17 @@
 //
 // Re-run with: pnpm run generate:supervisor
 
+/**
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "JsonValue".
+ */
+export type JsonValue = unknown;
 export type Name = string;
 export type Id = number;
 export type Timestamp = string;
 export type Extra = {
   [k: string]: JsonValue;
 } | null;
-/**
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "JsonValue".
- */
-export type JsonValue = unknown;
 export type Name1 = string;
 export type Uri = string;
 export type Group = string;
@@ -640,6 +640,13 @@ export type Type89 = "XComSequenceSliceResult";
 
 export interface SupervisorWireSchema {}
 /**
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "ArgValueSchema".
+ */
+export interface ArgValueSchema {
+  [k: string]: JsonValue;
+}
+/**
  * Schema for AssetAliasModel used in AssetEventDagRunReference.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1060,13 +1067,6 @@ export interface XComArgBinding {
   task_id: TaskId1;
   map_index?: MapIndex1;
   element_index?: ElementIndex;
-}
-/**
- * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "ArgValueSchema".
- */
-export interface ArgValueSchema {
-  [k: string]: JsonValue;
 }
 /**
  * One positional stub-task argument carrying an inline literal from the Dag file.

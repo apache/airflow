@@ -3,6 +3,13 @@
   "api_version": "2026-10-30",
   "description": "Apache Airflow SDK Supervisor Schema",
   "$defs": {
+    "ArgValueSchema": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "ArgValueSchema",
+      "type": "object"
+    },
     "AssetAliasReferenceAssetEventDagRun": {
       "additionalProperties": false,
       "description": "Schema for AssetAliasModel used in AssetEventDagRunReference.",
@@ -4561,13 +4568,6 @@
         "extra"
       ],
       "title": "ConnectionResponse",
-      "type": "object"
-    },
-    "ArgValueSchema": {
-      "additionalProperties": {
-        "$ref": "#/$defs/JsonValue"
-      },
-      "title": "ArgValueSchema",
       "type": "object"
     },
     "LiteralArgBinding": {

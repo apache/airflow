@@ -17,12 +17,8 @@
  * under the License.
  */
 import { useDagServiceGetDagsUi } from "openapi/queries";
-import type { DagRunState, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type { DagRunState } from "openapi/requests/types.gen";
 import { isStatePending, useAutoRefresh } from "src/utils";
-
-export type DagWithLatest = {
-  last_run_start_date: string;
-} & DAGWithLatestDagRunsResponse;
 
 export const useDags = ({
   advancedSearch = false,
@@ -41,6 +37,7 @@ export const useDags = ({
   pendingHitl,
   tags,
   tagsMatchMode,
+  teams,
 }: {
   advancedSearch?: boolean;
   dagDisplayNamePattern?: string;
@@ -58,6 +55,7 @@ export const useDags = ({
   pendingHitl?: boolean;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
+  teams?: Array<string>;
 }) => {
   const refetchInterval = useAutoRefresh({});
 
@@ -79,6 +77,7 @@ export const useDags = ({
       paused,
       tags,
       tagsMatchMode,
+      teams,
     },
     undefined,
     {

@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.mappedoperator import Operator
-    from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
     from airflow.typing_compat import Unpack
@@ -152,7 +152,7 @@ class TriggerRuleDep(BaseTIDep):
 
             return get_mapped_ti_count(task, ti.run_id, session=session)
 
-        def _iter_expansion_dependencies(task_group: SerializedMappedTaskGroup | None) -> Iterator[str]:
+        def _iter_expansion_dependencies(task_group: SerializedTaskGroup | None) -> Iterator[str]:
             if is_mapped(task):
                 for op in task.iter_mapped_dependencies():
                     yield op.task_id
@@ -177,14 +177,22 @@ class TriggerRuleDep(BaseTIDep):
                 assert task.task_group
 
             # Only the not-yet-expanded summary ti (map_index < 0) needs the broad
-            # "depend on every upstream ti" behavior, so a fast-triggered rule
-            # (ONE_SUCCESS / ONE_FAILED / ONE_DONE) does not skip it before the
-            # mapped task group has expanded (see #34023). Once the ti is expanded,
-            # each instance must depend on the upstream instance(s) that share its
-            # map index, otherwise a single upstream failure would wrongly trigger
-            # every expanded instance (see #50210).
-            if is_mapped(task.task_group) and ti.map_index < 0:
-                is_fast_triggered = task.trigger_rule in (TR.ONE_SUCCESS, TR.ONE_FAILED, TR.ONE_DONE)
+            # "depend on every upstream ti" behavior, so a rule that can be satisfied
+            # by a subset of upstreams (ONE_SUCCESS / ONE_FAILED / ONE_DONE /
+            # NONE_FAILED_MIN_ONE_SUCCESS) does not skip it before the mapped task
+            # group has expanded (see #34023, #39801). Once the ti is expanded, each
+            # instance must depend on the upstream instance(s) that share its map
+            # index, otherwise a single upstream failure would wrongly trigger every
+            # expanded instance (see #50210). The task may be nested in plain task
+            # groups inside the mapped one (see #39801), so check the closest mapped
+            # ancestor rather than only the immediate parent group.
+            if ti.map_index < 0 and task.get_closest_mapped_task_group() is not None:
+                is_fast_triggered = task.trigger_rule in (
+                    TR.ONE_SUCCESS,
+                    TR.ONE_FAILED,
+                    TR.ONE_DONE,
+                    TR.NONE_FAILED_MIN_ONE_SUCCESS,
+                )
                 if is_fast_triggered and upstream_id not in set(
                     _iter_expansion_dependencies(task_group=task.task_group)
                 ):

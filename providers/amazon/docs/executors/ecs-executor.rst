@@ -332,7 +332,7 @@ Create Task Definition
 
 .. code-block:: bash
 
-   postgresql+psycopg2://<username>:<password>@<endpoint>/<database_name>
+   postgresql+psycopg://<username>:<password>@<endpoint>/<database_name>
 
 
 - ``AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS``, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.

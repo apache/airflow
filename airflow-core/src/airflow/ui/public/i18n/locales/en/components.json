@@ -65,6 +65,7 @@
     "lastDagRun_other": "Last {{count}} Dag Runs",
     "lastTaskInstance_one": "Last Task Instance",
     "lastTaskInstance_other": "Last {{count}} Task Instances",
+    "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Queued Duration",
     "runAfter": "Run After",
     "runDuration": "Run Duration"

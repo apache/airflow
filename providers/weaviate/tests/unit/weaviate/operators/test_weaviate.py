@@ -81,6 +81,21 @@ class TestWeaviateIngestOperator:
             tenant="tenant-a",
         )
 
+    def test_missing_input_data_raises_at_execute_not_init(self):
+        """
+        input_data is a template field, so the required-value check runs in execute()
+        (after rendering), not in __init__. Constructing with input_data=None must not raise.
+        """
+        operator = WeaviateIngestOperator(
+            task_id="weaviate_task",
+            conn_id="weaviate_conn",
+            collection_name="my_collection",
+            input_data=None,
+        )
+
+        with pytest.raises(TypeError, match="input_data is required"):
+            operator.execute(context=None)
+
     @pytest.mark.db_test
     def test_templates(self, create_task_instance_of_operator):
         dag_id = "TestWeaviateIngestOperator"

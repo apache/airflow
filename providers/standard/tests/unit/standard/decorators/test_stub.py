@@ -253,7 +253,13 @@ class TestStubTaskflowArgs:
     def test_expand_builds_mapped_stub_without_parse_time_bindings(self):
         with DAG(dag_id="d"):
             result = stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
-        assert result.operator.is_mapped
+        # op_kwargs_expand_input/partial_kwargs (not is_mapped) so the assertions also
+        # hold on the Airflow 2.x MappedOperator, which the provider still supports.
+        assert result.operator.op_kwargs_expand_input.value == {
+            "country": ["uk", "fr"],
+            "extracted": [{}, {}],
+        }
+        assert "_arg_bindings" not in result.operator.partial_kwargs
 
     def test_stub_with_args_inside_mapped_task_group_rejected(self):
         @task_group
