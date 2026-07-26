@@ -486,6 +486,32 @@ class TestS3TaskHandler:
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
 
+    def test_upload_delete_local_copy_is_idempotent_and_keeps_shared_parent(self):
+        # The triggerer runs many trigger log handlers concurrently and close() is not
+        # atomic, so upload() can run twice for the same path. Deleting the whole parent
+        # dir (shutil.rmtree) made the second call raise FileNotFoundError, killing the
+        # logging listener thread. Deleting the file and pruning empty parents must be
+        # idempotent and must not remove a parent that still holds a sibling's log.
+        log_io = S3RemoteLogIO(
+            remote_base=self.remote_log_base,
+            base_log_folder=self.local_log_location,
+            delete_local_copy=True,
+        )
+        ti_dir = pathlib.Path(self.local_log_location) / "dag_id=d" / "run_id=r" / "task_id=t"
+        ti_dir.mkdir(parents=True, exist_ok=True)
+        local_loc = ti_dir / "attempt=1.log"
+        local_loc.write_text("log content")
+        sibling = ti_dir / "attempt=1.log.trigger.99.log"
+        sibling.write_text("sibling still open")
+
+        log_io.upload(local_loc, ti=None)
+        assert not local_loc.exists(), "uploaded log file should be deleted"
+        assert ti_dir.is_dir(), "parent must survive while a sibling log remains"
+        assert sibling.exists(), "sibling log must be untouched"
+
+        # Second upload of the already-removed file must not raise (idempotent).
+        log_io.upload(local_loc, ti=None)
+
     def test_filename_template_for_backward_compatibility(self):
         # filename_template arg support for running the latest provider on airflow 2
         S3TaskHandler(self.local_log_location, self.remote_log_base, filename_template=None)

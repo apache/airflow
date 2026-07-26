@@ -1,0 +1,1 @@
+Fix remote log handler crashing the triggerer's logging thread when delete_local_copy is set: delete the uploaded log file and prune empty parent dirs instead of shutil.rmtree of the shared directory, which raced concurrent handler closes and raised FileNotFoundError
