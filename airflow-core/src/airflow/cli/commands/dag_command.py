@@ -88,9 +88,13 @@ def _normalize_serialized_dag_for_stability_check(serialized_dag: dict[str, Any]
     normalized["dag"].pop("bundle_name", None)
     return normalized
 
+
 def _serialize_dag_for_stability_check(dag: DAG) -> tuple[str, dict[str, Any]]:
     serialized_dag = DagSerialization.to_dict(dag)
-    return SerializedDagModel.hash(serialized_dag), _normalize_serialized_dag_for_stability_check(serialized_dag)
+    return SerializedDagModel.hash(serialized_dag), _normalize_serialized_dag_for_stability_check(
+        serialized_dag
+    )
+
 
 def _format_stability_diff(
     dag_id: str,
@@ -108,8 +112,10 @@ def _format_stability_diff(
     )
     return "\n".join(diff)
 
+
 def _parse_dags_for_stability_check(dag_folder: str | None) -> DagBag:
     return DagBag(dag_folder=dag_folder, load_op_links=False)
+
 
 @cli_utils.action_cli
 @providers_configuration_loaded
@@ -117,9 +123,11 @@ def dag_stability_check(args) -> None:
     dag_hashes_by_id: dict[str, list[str]] = {}
     serialized_dags_by_id: dict[str, list[dict[str, Any]]] = {}
     seen_dag_ids: set[str] = set()
-    nParse = 2 #NOTE: Set parsing number 2, in most of the case twice parse should catch the stability issues. 
+    nParse = (
+        2  # NOTE: Set parsing number 2, in most of the case twice parse should catch the stability issues.
+    )
 
-    for _iteration in range(1, nParse+1):
+    for _iteration in range(1, nParse + 1):
         dagbag = _parse_dags_for_stability_check(args.dag_folder)
 
         dags = dagbag.dags
@@ -128,12 +136,12 @@ def dag_stability_check(args) -> None:
 
         for _dag_id, dag in sorted(dags.items()):
             dag_hash, serialized_dag = _serialize_dag_for_stability_check(dag)
-            dag_hashes_by_id.setdefault(dag_id, []).append(dag_hash)
-            serialized_dags_by_id.setdefault(dag_id, []).append(serialized_dag)
-            seen_dag_ids.add(dag_id)
+            dag_hashes_by_id.setdefault(_dag_id, []).append(dag_hash)
+            serialized_dags_by_id.setdefault(_dag_id, []).append(serialized_dag)
+            seen_dag_ids.add(_dag_id)
 
         if args.fail_fast:
-            for dag_id, dag_hashes in dag_hashes_by_id.items():
+            for _dag_id, dag_hashes in dag_hashes_by_id.items():
                 if len(set(dag_hashes)) > 1:
                     break
             else:

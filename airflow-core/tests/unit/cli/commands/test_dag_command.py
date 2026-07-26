@@ -1198,9 +1198,7 @@ class TestCliDags:
 
         with pytest.raises(SystemExit, match="Dag 'missing_dag' was not found."):
             dag_command.dag_stability_check(
-                self.parser.parse_args(
-                    ["dags", "stability", os.fspath(tmp_path), "--dag-id", "missing_dag"]
-                )
+                self.parser.parse_args(["dags", "stability", os.fspath(tmp_path), "--dag-id", "missing_dag"])
             )
 
 class TestCliDagsReserialize:
