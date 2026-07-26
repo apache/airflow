@@ -164,3 +164,23 @@ func TestViaStructMapRejectsWrongBinding(t *testing.T) {
 	})
 	assert.ErrorContains(t, err, "map field bound incorrectly")
 }
+
+func TestMakeItems(t *testing.T) {
+	got, err := MakeItems(slog.Default())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"alpha", "beta", "gamma"}, got)
+}
+
+func TestViaExpand(t *testing.T) {
+	mapIndex := 1
+	ctx := sdk.NewTIRunContext(
+		context.Background(), sdk.TaskInstance{MapIndex: &mapIndex}, sdk.DagRun{},
+	)
+	got, err := ViaExpand(ctx, slog.Default(), "beta")
+	require.NoError(t, err)
+
+	summary, ok := got.(map[string]any)
+	require.True(t, ok, "ViaExpand should return a map summary, got %T", got)
+	assert.Equal(t, "beta", summary["item"])
+	assert.Equal(t, 1, summary["map_index"], "the mapped instance echoes its own map_index")
+}

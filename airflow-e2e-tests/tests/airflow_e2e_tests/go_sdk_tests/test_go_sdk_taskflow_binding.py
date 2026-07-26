@@ -22,6 +22,10 @@ two upstream Go tasks (an object bound onto a strict Go struct and an array
 bound onto ``[]int``). The Go ``via_flat_args`` task verifies every bound
 value and errors on any mismatch, so a green run *is* the binding assertion;
 the tests here check the run outcome and the summary XCom it pushes.
+
+The Dag also exercises the struct- and map-injection shapes and a mapped
+(``.expand()``) stub (``via_expand``), whose per-map-index bindings prove
+dynamic task mapping over TaskFlow arguments reaches the Go runtime correctly.
 """
 
 from __future__ import annotations
@@ -48,10 +52,10 @@ class _CompletedRun:
     state: str
     ti_states: dict[str, str]
 
-    def xcom(self, task_id: str, key: str = "return_value"):
-        return self.client.get_xcom_value(dag_id=_DAG_ID, task_id=task_id, run_id=self.run_id, key=key).get(
-            "value"
-        )
+    def xcom(self, task_id: str, key: str = "return_value", map_index: int = -1):
+        return self.client.get_xcom_value(
+            dag_id=_DAG_ID, task_id=task_id, run_id=self.run_id, key=key, map_index=map_index
+        ).get("value")
 
 
 @pytest.fixture(scope="module")
@@ -82,6 +86,7 @@ def test_all_tasks_succeeded(completed_run: _CompletedRun):
         "via_struct_unmatched_arg",
         "via_flat_map",
         "via_struct_map",
+        "make_items",
     ):
         assert completed_run.ti_states.get(task_id) == "success", completed_run.ti_states
 
@@ -160,3 +165,25 @@ def test_via_struct_map_binds_single_dict_onto_map_field(completed_run: _Complet
     assert completed_run.xcom("via_struct_map") == {
         "payload": {"region": "eu-west-1", "count": 3},
     }
+
+
+# make_items' list output; via_expand is .expand()-ed over it, one instance each.
+_EXPAND_ITEMS = ["alpha", "beta", "gamma"]
+
+
+def test_make_items_produces_the_expand_source_list(completed_run: _CompletedRun):
+    """``make_items`` pushes the list ``via_expand`` fans out over."""
+    assert completed_run.xcom("make_items") == _EXPAND_ITEMS
+
+
+def test_via_expand_binds_each_element_to_its_map_index(completed_run: _CompletedRun):
+    """``via_expand`` is a mapped (``.expand()``) stub over ``make_items``' unmapped
+    list output: the execution API tags each instance with an ``element_index``,
+    and the Go runtime pulls the whole list then binds element ``map_index``. Each
+    mapped instance must receive its own element -- proving element_index binding
+    and map_index line up end to end."""
+    for map_index, item in enumerate(_EXPAND_ITEMS):
+        assert completed_run.xcom("via_expand", map_index=map_index) == {
+            "item": item,
+            "map_index": map_index,
+        }
