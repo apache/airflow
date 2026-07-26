@@ -480,6 +480,33 @@ class TestBeamAsyncHook:
             await BeamAsyncHook._beam_version("python1")
 
     @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.apache.beam.hooks.beam.asyncio.create_subprocess_shell",
+        new_callable=AsyncMock,
+    )
+    async def test_run_beam_command_async_does_not_pass_shell_keyword(self, mock_create_subprocess_shell):
+        mock_process = MagicMock()
+        mock_process.wait = AsyncMock(return_value=0)
+        mock_create_subprocess_shell.return_value = mock_process
+
+        hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
+        with mock.patch.object(hook, "read_logs", new_callable=AsyncMock):
+            result = await hook.run_beam_command_async(
+                cmd=["echo", "hello"],
+                log=hook.log,
+                working_directory=WORKING_DIRECTORY,
+            )
+
+        assert result == 0
+        mock_create_subprocess_shell.assert_awaited_once_with(
+            "echo hello",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            close_fds=True,
+            cwd=WORKING_DIRECTORY,
+        )
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
     async def test_start_pipline_async(self, mock_runner):
         expected_cmd = [

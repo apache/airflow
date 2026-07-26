@@ -633,7 +633,6 @@ class BeamAsyncHook(BeamHook):
         # Creating a separate asynchronous process
         process = await asyncio.create_subprocess_shell(
             cmd_str_representation,
-            shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             close_fds=True,
