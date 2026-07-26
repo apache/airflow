@@ -24,7 +24,7 @@ import pytest
 
 from airflow import macros
 from airflow.models.dag import DAG
-from airflow.providers.standard.sensors.date_time import DateTimeSensor
+from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTimeSensorAsync
 
 from tests_common.test_utils.version_compat import timezone
 
@@ -124,3 +124,38 @@ class TestDateTimeSensor:
         sensor.render_template_fields(ctx)
 
         assert isinstance(sensor._moment, expected_type)
+
+
+class TestDateTimeSensorAsync:
+    @classmethod
+    def setup_class(cls):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        cls.dag = DAG("test_dag_async", schedule=None, default_args=args)
+
+    def test_start_from_trigger_with_templated_target_time_raises(self):
+        with pytest.raises(ValueError, match="must be a static datetime"):
+            DateTimeSensorAsync(
+                task_id="templated_target_time",
+                target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
+                start_from_trigger=True,
+                dag=self.dag,
+            )
+
+    def test_start_from_trigger_with_static_datetime(self):
+        moment = timezone.datetime(2020, 7, 6, 13, tzinfo=timezone.utc)
+        op = DateTimeSensorAsync(
+            task_id="static_target_time",
+            target_time=moment,
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        assert op.start_trigger_args.trigger_kwargs["moment"] == moment
+
+    def test_templated_target_time_without_start_from_trigger(self):
+        """A templated target_time is fine as long as start_from_trigger is not used."""
+        op = DateTimeSensorAsync(
+            task_id="templated_no_start_from_trigger",
+            target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
+            dag=self.dag,
+        )
+        assert op.target_time == "{{ data_interval_end.tomorrow().replace(hour=1) }}"

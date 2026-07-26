@@ -43,6 +43,11 @@ Features
 
 * ``Propagate 'partition_date' to consumers of partitioned assets (#67285)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DateTimeSensorAsync' crashing Dag parsing with templated 'target_time' and 'start_from_trigger=True' (#70284)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Document each provider's optional extras in its docs index (#69478)``
