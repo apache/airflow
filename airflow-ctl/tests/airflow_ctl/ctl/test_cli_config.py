@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import argparse
-from argparse import BooleanOptionalAction
 import datetime
+from argparse import BooleanOptionalAction
 from pathlib import Path
 from textwrap import dedent
 
