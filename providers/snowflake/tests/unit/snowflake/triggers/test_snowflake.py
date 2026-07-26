@@ -110,6 +110,25 @@ class TestSnowflakeSqlApiTrigger:
         mock_hook.return_value.cancel_queries.assert_called_once_with(QUERY_IDS)
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiHook")
+    async def test_on_kill_cancels_remaining_after_one_fails(self, mock_hook):
+        """A failure cancelling one query id does not abort cancelling the remaining ids."""
+        trigger = SnowflakeSqlApiTrigger(
+            poll_interval=POLL_INTERVAL,
+            query_ids=["q1", "q2", "q3"],
+            snowflake_conn_id="test_conn",
+            token_life_time=LIFETIME,
+            token_renewal_delta=RENEWAL_DELTA,
+        )
+        mock_hook.return_value.cancel_queries.side_effect = [RuntimeError("404 not found"), None, None]
+        await trigger.on_kill()
+        assert mock_hook.return_value.cancel_queries.call_args_list == [
+            mock.call(["q1"]),
+            mock.call(["q2"]),
+            mock.call(["q3"]),
+        ]
+
+    @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiTrigger.get_query_status")
     @mock.patch(f"{MODULE}.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
     async def test_snowflake_sql_trigger_running(
