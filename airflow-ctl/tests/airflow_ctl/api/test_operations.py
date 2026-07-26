@@ -287,6 +287,7 @@ class TestBaseOperations:
 
 class TestAssetsOperations:
     asset_id: int = 1
+    asset_alias_id: int = 2
     dag_id: str = "dag_id"
     before: str = "2024-12-31T23:59:59+00:00"
     asset_response = AssetResponse(
@@ -304,7 +305,7 @@ class TestAssetsOperations:
         group="group",
     )
     asset_alias_response = AssetAliasResponse(
-        id=asset_id,
+        id=asset_alias_id,
         name="asset",
         group="group",
     )
@@ -395,13 +396,13 @@ class TestAssetsOperations:
         response = client.assets.get(self.asset_id)
         assert response == self.asset_response
 
-    def test_get_by_alias(self):
+    def test_get_alias(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.url.path == f"/api/v2/assets/aliases/{self.asset_id}"
+            assert request.url.path == f"/api/v2/assets/aliases/{self.asset_alias_id}"
             return httpx.Response(200, json=json.loads(self.asset_alias_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.assets.get_by_alias(self.asset_id)
+        response = client.assets.get_alias(self.asset_alias_id)
         assert response == self.asset_alias_response
 
     def test_list(self):
