@@ -157,7 +157,6 @@ def dag_stability_check(args) -> None:
     if unstable_dag_ids:
         print("Dag stability check failed. The following Dags produced different serialized output:")
         for dag_id in unstable_dag_ids:
-            dag_hashes = dag_hashes_by_id[dag_id]
             print(f"\n{dag_id}:")
             print()
             print(
