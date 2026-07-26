@@ -471,6 +471,14 @@
                         },
                         "additionalProperties": false
                     },
+                    "external-integrations": {
+                        "description": "List of upstream provider/service names this connection type reaches (e.g. 'Anthropic', 'AWS Bedrock', 'Ollama')",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1
+                    },
                     "conn-fields": {
                         "description": "Custom connection fields stored in Connection.extra JSON",
                         "type": "object",

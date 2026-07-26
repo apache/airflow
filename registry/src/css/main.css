@@ -3761,6 +3761,27 @@ main {
   border-color: var(--color-green-400);
 }
 
+/* Per-connection upstream integration matrix */
+.provider-detail-page .connections-card .conn-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.provider-detail-page .connections-card .conn-integrations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding-left: var(--space-2);
+}
+
+.provider-detail-page .connections-card .conn-integration-badge {
+  color: var(--text-secondary);
+  background: rgb(from var(--color-gray-500) r g b / 0.08);
+  border-color: var(--border-primary);
+}
+
 /* Shared builder panel */
 .provider-detail-page .connections-card .conn-builder-panel {
   margin-top: var(--space-3);

@@ -52,6 +52,7 @@ class ConnectionTypeContract(BaseModel):
     conn_type: str
     hook_class: str = ""
     docs_url: str | None = None
+    external_integrations: list[str] = Field(default_factory=list)
 
 
 class ProviderContract(BaseModel):
