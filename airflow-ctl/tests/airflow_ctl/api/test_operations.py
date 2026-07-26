@@ -431,6 +431,37 @@ class TestAssetsOperations:
         response = client.assets.get_dag_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
         assert response == self.asset_queued_event_response
 
+    def test_delete_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_queued_events(asset_id=self.asset_id)
+        assert response == self.asset_id
+
+    def test_delete_dag_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/assets/queuedEvents"
+            assert request.url.params["before"] == self.before
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_dag_queued_events(dag_id=self.dag_id, before=self.before)
+        assert response == self.dag_id
+
+    def test_delete_queued_event(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
+        assert response == self.asset_id
+
 
 class TestBackfillOperations:
     backfill_id: NonNegativeInt = 1
