@@ -35,6 +35,19 @@
 Changelog
 ---------
 
+1.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Propagate 'partition_date' to consumers of partitioned assets (#67285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 1.15.0
 ......
 

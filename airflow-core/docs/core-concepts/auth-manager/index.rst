@@ -257,8 +257,8 @@ Other optional methods
   Override this method if you need to make any action (e.g. create resources, API call) that the auth manager needs.
 * ``get_extra_menu_items``: Provide additional links to be added to the menu in the UI.
 * ``get_db_manager``: If your auth manager requires one or several database managers (see :class:`~airflow.utils.db_manager.BaseDBManager`),
-  their class paths need to be returned as part of this method. By doing so, they will be automatically added to the
-  config ``[database] external_db_managers``.
+  their class paths need to be returned as part of this method. By doing so, Airflow automatically loads the
+  respective database managers.
 
 
 Additional Caveats

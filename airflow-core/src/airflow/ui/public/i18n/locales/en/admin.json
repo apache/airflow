@@ -177,6 +177,7 @@
           "title": "Skip"
         }
       },
+      "parsingFile": "Parsing file...",
       "title": "Import Variables",
       "upload": "Upload a JSON File",
       "uploadPlaceholder": "Upload a JSON file containing variables (e.g., {\"key\": \"value\", ...})"

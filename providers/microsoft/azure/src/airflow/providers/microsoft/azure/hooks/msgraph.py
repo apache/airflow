@@ -27,10 +27,12 @@ from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
+from types import TracebackType
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
+from azure.core.credentials_async import AsyncTokenCredential
 from azure.identity.aio import CertificateCredential, ClientSecretCredential
 from httpx import AsyncHTTPTransport, Response, Timeout
 from kiota_abstractions.api_error import APIError
@@ -53,10 +55,14 @@ from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, redact
 
 if TYPE_CHECKING:
-    from azure.core.credentials_async import AsyncTokenCredential
+    from azure.core.pipeline.transport._requests_basic import RequestsTransport
+    from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
+    from kiota_authentication_azure.azure_identity_access_token_provider import (
+        AzureIdentityAccessTokenProvider,
+    )
 
     from airflow.providers.common.compat.sdk import Connection
 
@@ -84,6 +90,57 @@ def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
         ) from err
 
     return func(*args, **filtered_kwargs)
+
+
+class CachedAsyncTokenCredential(AsyncTokenCredential):  # type: ignore[misc]
+    """
+    Wraps an async Azure credential to prevent ``kiota`` from closing it after each token request.
+
+    ``kiota_authentication_azure`` calls ``await credential.close()`` after every successful
+    ``get_token`` call (see ``AzureIdentityAccessTokenProvider.get_authorization_token``).  That
+    tears down the underlying ``AioHttpTransport`` session so the next request fails with
+    "HTTP transport has already been closed".  Suppressing ``close()`` keeps the session alive
+    for the lifetime of the cached ``RequestAdapter``.
+    """
+
+    def __init__(self, credential: ClientSecretCredential | CertificateCredential):
+        self._credential = credential
+
+    @property
+    def _transport(self) -> RequestsTransport:
+        return self._credential._client._pipeline._transport
+
+    @property
+    def closed(self) -> bool:
+        # _closed is set to True by AioHttpTransport.close(); check it first as it
+        # is authoritative even when _has_been_opened is still False.
+        if getattr(self._transport, "_closed", False):
+            return True
+        if not self._transport._has_been_opened and self._transport.session is None:
+            return False
+        if self._transport.session is not None:
+            return self._transport.session.closed
+        return True
+
+    async def __aenter__(self) -> AsyncTokenCredential:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
+        await self.close()
+
+    async def get_token(self, *args: Any, **kwargs: Any) -> Any:
+        return await self._credential.get_token(*args, **kwargs)
+
+    async def get_token_info(self, *args: Any, **kwargs: Any) -> Any:
+        return await self._credential.get_token_info(*args, **kwargs)  # type: ignore[union-attr]
+
+    async def close(self) -> None:
+        """Intentionally a no-op — the credential session is closed when the adapter is evicted."""
 
 
 class DefaultResponseHandler(ResponseHandler):
@@ -164,6 +221,7 @@ class KiotaRequestAdapterHook(BaseHook):
         else:
             self.scopes = scopes or [self.DEFAULT_SCOPE]
         self.api_version = self.resolve_api_version_from_value(api_version)
+        self.allowed_netloc: str | None = None
 
     def _ensure_protocol(self, host: str | None, schema: str = "https") -> str | None:
         """Ensure URL has http:// or https:// protocol prefix."""
@@ -401,7 +459,16 @@ class KiotaRequestAdapterHook(BaseHook):
     @staticmethod
     def _is_http_client_closed(request_adapter: RequestAdapter) -> bool:
         """Return True when the underlying httpx AsyncClient has been closed."""
-        return cast("HttpxRequestAdapter", request_adapter)._http_client.is_closed
+        adapter = cast("HttpxRequestAdapter", request_adapter)
+
+        if adapter._http_client.is_closed:
+            return True
+
+        provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+        access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+        credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
+
+        return credential.closed
 
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
@@ -424,6 +491,12 @@ class KiotaRequestAdapterHook(BaseHook):
             self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
 
         self.api_version = api_version
+        # The pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is
+        # re-fetched with the connection's bearer token attached. Kiota only scopes that token to
+        # ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered
+        # response could redirect the token off-host. Pin follow-up requests to the configured
+        # endpoint's host (CWE-918).
+        self.allowed_netloc = urlparse(request_adapter.base_url).netloc
         return request_adapter
 
     def get_proxies(self, config: dict) -> dict | None:
@@ -466,25 +539,29 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Disable instance discovery: %s", disable_instance_discovery)
         self.log.info("MSAL Proxies: %s", redact(msal_proxies, name="proxies"))
         if certificate_path or certificate_data:
-            return CertificateCredential(
+            return CachedAsyncTokenCredential(
+                CertificateCredential(
+                    tenant_id=tenant_id,
+                    client_id=login,  # type: ignore
+                    password=password,
+                    certificate_path=certificate_path,
+                    certificate_data=certificate_data.encode() if certificate_data else None,
+                    authority=authority,
+                    proxies=msal_proxies,
+                    disable_instance_discovery=disable_instance_discovery,
+                    connection_verify=verify,
+                )
+            )
+        return CachedAsyncTokenCredential(
+            ClientSecretCredential(
                 tenant_id=tenant_id,
                 client_id=login,  # type: ignore
-                password=password,
-                certificate_path=certificate_path,
-                certificate_data=certificate_data.encode() if certificate_data else None,
+                client_secret=password,  # type: ignore
                 authority=authority,
                 proxies=msal_proxies,
                 disable_instance_discovery=disable_instance_discovery,
                 connection_verify=verify,
             )
-        return ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=login,  # type: ignore
-            client_secret=password,  # type: ignore
-            authority=authority,
-            proxies=msal_proxies,
-            disable_instance_discovery=disable_instance_discovery,
-            connection_verify=verify,
         )
 
     def test_connection(self):
@@ -526,8 +603,6 @@ class KiotaRequestAdapterHook(BaseHook):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
     ):
-        self.log.info("Executing url '%s' as '%s'", url, method)
-
         response = await self.send_request(
             request_info=self.request_information(
                 url=url,
@@ -580,7 +655,7 @@ class KiotaRequestAdapterHook(BaseHook):
                     responses.append(response)
 
                     if pagination_function:
-                        url, query_parameters = execute_callable(
+                        next_url, query_parameters = execute_callable(
                             pagination_function,
                             response=response,
                             url=url,
@@ -592,6 +667,16 @@ class KiotaRequestAdapterHook(BaseHook):
                             data=data,
                             responses=lambda: responses,
                         )
+                        if (
+                            next_url
+                            and next_url.startswith("http")
+                            and urlparse(next_url).netloc != self.allowed_netloc
+                        ):
+                            raise ValueError(
+                                f"Refusing to follow pagination link {next_url!r}: its host differs "
+                                f"from the configured Microsoft Graph endpoint {self.allowed_netloc!r}."
+                            )
+                        url = next_url
                 else:
                     break
 
@@ -603,6 +688,8 @@ class KiotaRequestAdapterHook(BaseHook):
         conn = await self.get_async_conn()
 
         try:
+            self.log.info("Executing url '%s' as '%s'", request_info.url, request_info.http_method)
+
             if response_type:
                 return await conn.send_primitive_async(
                     request_info=request_info,
@@ -613,7 +700,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 request_info=request_info,
                 error_map=self.error_mapping(),
             )
-        except Exception as e:
+        except (RuntimeError, ValueError) as e:
             self.log.warning(
                 "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
                 self.conn_id,

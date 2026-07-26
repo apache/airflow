@@ -37,6 +37,7 @@ import { parseStreamingLogContent } from "src/utils/logs";
 export type ParsedLogEntry = {
   element: JSX.Element | string | undefined;
   group?: { id: number; level: number; parentId?: number; type: "header" | "line" };
+  lineNumber?: number;
 };
 
 type Props = {
@@ -103,19 +104,22 @@ const parseLogs = ({
           }
         }
 
-        return renderStructuredLog({
-          index: lineNumbers[index] ?? index,
-          logLevelFilters,
-          logLink,
-          logMessage: datum,
-          renderingMode: "jsx",
-          showSource,
-          showTimestamp,
-          sourceFilters,
-          translate,
-        });
+        return {
+          element: renderStructuredLog({
+            index: lineNumbers[index] ?? index,
+            logLevelFilters,
+            logLink,
+            logMessage: datum,
+            renderingMode: "jsx",
+            showSource,
+            showTimestamp,
+            sourceFilters,
+            translate,
+          }),
+          lineNumber: lineNumbers[index],
+        };
       })
-      .filter((parsedLine) => parsedLine !== "");
+      .filter(({ element }) => element !== "");
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "An error occurred.";
 
@@ -132,8 +136,8 @@ const parseLogs = ({
     const result: Array<ParsedLogEntry> = [];
     let nextGroupId = 0;
 
-    parsedLines.forEach((line) => {
-      const text = innerText(line);
+    parsedLines.forEach(({ element, lineNumber }) => {
+      const text = innerText(element);
 
       if (text.includes("::group::")) {
         const groupName = text.split("::group::")[1] as string;
@@ -162,11 +166,12 @@ const parseLogs = ({
 
       if (groupStack.length > 0 && currentGroup) {
         result.push({
-          element: line,
+          element,
           group: { id: currentGroup.id, level: currentGroup.level, type: "line" },
+          lineNumber,
         });
       } else {
-        result.push({ element: line });
+        result.push({ element, lineNumber });
       }
     });
 

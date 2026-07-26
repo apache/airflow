@@ -54,6 +54,15 @@ class TestLLMBranchOperator:
         # the real output_type is built dynamically from downstream_task_ids
         assert op.output_type is str
 
+    def test_require_approval_rejected(self):
+        with pytest.raises(ValueError, match="require_approval=True is not supported"):
+            LLMBranchOperator(
+                task_id="test",
+                prompt="pick a branch",
+                llm_conn_id="my_llm",
+                require_approval=True,
+            )
+
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_single_branch(self, mock_hook_cls, mock_do_branch):

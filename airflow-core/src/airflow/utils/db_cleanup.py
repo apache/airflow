@@ -27,7 +27,7 @@ import csv
 import logging
 import os
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
@@ -286,6 +286,10 @@ def _do_delete(
         target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}"
         print(f"Moving data to table {target_table_name}")
         target_table = None
+        # Lets the ``finally`` cleanup below tell the failure path (don't let a
+        # cleanup error mask the original) from the success path (a cleanup error
+        # is a real problem and must propagate).
+        error_raised = False
 
         try:
             if dialect_name == "mysql":
@@ -323,13 +327,41 @@ def _do_delete(
             session.execute(delete)
             session.commit()
 
-        except BaseException as e:
-            raise e
+        except BaseException:
+            error_raised = True
+            # Roll back the failed transaction so its locks are released before
+            # the archive table is dropped in the ``finally`` block below.
+            # ``rollback()`` itself can raise (e.g. the connection died); suppress
+            # it so it does not shadow the original error being re-raised.
+            with suppress(Exception):
+                session.rollback()
+            raise
         finally:
             if target_table is not None and skip_archive:
-                bind = session.get_bind()
-                target_table.drop(bind=bind)
-                session.commit()
+                # Drop the archive table on the session's own connection. Binding
+                # the drop to ``session.get_bind()`` (the Engine) would check out a
+                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
+                # indefinitely on the metadata lock still held by this session's
+                # open transaction when the DELETE above failed -- the ``db clean``
+                # hang reported in #66177.
+                try:
+                    target_table.drop(bind=session.connection())
+                    session.commit()
+                except Exception:
+                    # If we are already unwinding from a delete failure, a cleanup
+                    # error here must not replace the original exception (Python
+                    # makes a ``finally``-raised error the top-level one). Log and
+                    # let the original delete error keep propagating. On the success
+                    # path (no delete error), a drop/commit failure is a real
+                    # problem, so re-raise it.
+                    if not error_raised:
+                        raise
+                    logger.warning(
+                        "Failed to drop archive table %s while cleaning up after a "
+                        "delete failure; propagating the original delete error instead.",
+                        target_table_name,
+                        exc_info=True,
+                    )
 
     print("Finished Performing Delete")
 

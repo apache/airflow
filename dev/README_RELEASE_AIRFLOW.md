@@ -1372,6 +1372,16 @@ breeze release-management start-release \
 
 Note: The `--task-sdk-version` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
 
+Note: When it reaches the constraints step, `start-release` asks whether to base the final
+`constraints-${VERSION}` tag on the latest `constraints-X-Y` branch tip instead of the RC
+constraints tag. The RC constraints are frozen when the RC is cut, so if any providers were
+released (or constraints were otherwise refreshed - see
+[MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md](MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md))
+after the last RC and you want the released constraints to reflect that, answer **yes** to tag the
+`constraints-X-Y` branch tip. Otherwise (the default) the final tag matches the RC exactly. If you
+do refresh, run the `Update constraints` workflow from `main` with `ref` set to the ref you are
+releasing (typically `v3-*-stable`) **before** running `start-release`.
+
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
    ``airflow/__init__.py``
@@ -1621,9 +1631,12 @@ Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in t
 will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
 `chart/Chart.yaml`.
 
-Add or adjust significant `chart/newsfragments` to express that the default version of Airflow has changed.
+Add or adjust already existing significant `chart/newsfragments` to express that the default version of Airflow
+has changed.
 
 In `chart/Chart.yaml`, make sure the screenshot annotations are still all valid URLs.
+
+Add `backport-to-chart/v1-2x-test` for automatic backport PR creation for Helm Chart 1.2x release line. Manual backport is required when automatic one will fail.
 
 ## Update airflow/config_templates/config.yml file
 

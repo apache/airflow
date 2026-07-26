@@ -118,11 +118,6 @@
     "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})",
     "warning": "تحذير"
   },
-  "navigation": {
-    "navigation": "التنقل: {{arrow}}",
-    "openGraphFilters": "مرشحات المهام: Ctrl+Shift+F",
-    "toggleGroup": "تبديل المجموعة: المسافة"
-  },
   "notFound": {
     "back": "رجوع",
     "backToDags": "العودة إلى Dags",

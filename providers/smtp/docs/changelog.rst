@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix "AttributeError: 'NoneType' object has no attribute 'close'" for SmtpHook (#62409)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 3.0.1
 .....
 

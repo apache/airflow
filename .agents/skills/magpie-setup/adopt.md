@@ -279,6 +279,13 @@ Per the chosen method (FRESH) or per the committed lock
   verify, `unzip` to `.apache-magpie/`. Re-fetch
   verification details into `<committed-lock>` (FRESH only).
 
+**Sandboxed agents:** for the `git-branch` / `git-tag` methods
+the clone writes the snapshot's nested `.apache-magpie/.git/`,
+which is in Claude Code's git-internals write-deny set, so the
+clone fails with `operation not permitted`. Only the local
+`.git/` write is blocked (the fetch host is allowlisted) —
+propose a sandbox bypass to the operator before cloning.
+
 If `<snapshot-dir>/` already exists with content, skip the
 fetch — the recipe ran first and left the snapshot in place.
 
@@ -502,12 +509,27 @@ idempotent — re-add them if they're missing.
 ```text
 /.apache-magpie/
 /.apache-magpie.local.lock
+/.apache-magpie-sources/
+/.apache-magpie.sources.local.lock
 /.claude/settings.local.json
 /.claude/hooks/agent-guard.py
 /.claude/hooks/guards.d/
 __pycache__/
 *.pyc
 ```
+
+The `/.apache-magpie-sources/` and
+`/.apache-magpie.sources.local.lock` lines keep the gitignored
+fetch of every [trusted external skill
+source](../../docs/skill-sources/README.md) and its per-machine
+fetch fingerprint out of the tree — the source counterpart of
+`/.apache-magpie/` + `/.apache-magpie.local.lock`. The committed
+per-source pins (`.apache-magpie.sources.lock`) are **not** ignored;
+they travel with the repo like `<committed-lock>`. These two lines
+are harmless when the adopter trusts no source (the paths simply
+never appear); [`skill-sources.md`](skill-sources.md) also adds
+them idempotently the first time a source is pinned on an older
+adoption.
 
 The `__pycache__/` and `*.pyc` lines (non-anchored — they match at
 any depth) keep the byte-compiled artefacts that framework skill
@@ -642,6 +664,25 @@ Show the symlinks the skill is about to create, grouped by
 confirm, then create them. Always-on entries are surfaced
 read-only — the prompt is "confirm this list" not "edit this
 list".
+
+## Step 8b — Wire up trusted external-source skills
+
+If `<project-config>/skill-sources.md` (the adopter trust list)
+exists and lists any source, run the
+[`skill-sources`](skill-sources.md) sub-action now as a content
+pass: fetch + verify each trusted source into
+`.apache-magpie-sources/<id>/`, write both source locks, and
+create the canonical + relay `magpie-<name>` symlinks for the
+skills each source `provides` — the same wiring Step 8 does for
+framework skills, just targeting the source snapshots. Nothing is
+fetched if the trust list is absent or empty (the common case);
+this step is then a no-op.
+
+Source skills are `magpie-`-prefixed and gitignored exactly like
+framework skills, so the `.gitignore` block from
+[Step 7](#step-7--gitignore-entries-fresh-only) already covers
+their symlinks; the `.apache-magpie-sources/` snapshot dir and
+`.apache-magpie.sources.local.lock` were added there too.
 
 ## Step 9 — Scaffold `.apache-magpie-overrides/` (FRESH only)
 
@@ -919,6 +960,50 @@ through it:
 Add `mcp__apache-projects__*` to the per-family permission
 allow-list recommendation exactly as the `mcp__ponymail__*` tools
 are handled — both are read-only and scoped.
+
+## Step 9d — gmail-plaintext MCP (optional, Gmail drafters)
+
+**Run this step only for operators who draft mail from an agent**
+(the `security` family's mailing-list replies, release announcements,
+etc.). It is **optional** and not ASF-gated — unlike the comdev
+servers in 9c, this one ships **in-repo** as part of the
+[`oauth-draft`](../../tools/gmail/oauth-draft/README.md#mcp-server)
+tool, so there is nothing to clone.
+
+`gmail-plaintext` exposes one tool, `create_draft`, that POSTs a raw
+`text/plain` message straight to Gmail's `drafts.create` — links go
+out verbatim. Prefer it over the claude.ai Gmail connector's
+`create_draft`, which rewrites embedded URLs into Google tracking
+redirects (see
+[`tools/gmail/draft-backends.md`](../../tools/gmail/draft-backends.md#privacy-warning--the-claudeai-gmail-mcp-rewrites-embedded-urls-into-google-tracking-redirects)).
+
+Same hands-off contract as 9c — **surface, do not run**:
+
+1. **Prerequisite — auth:** a Gmail OAuth credential at
+   `~/.config/apache-magpie/gmail-oauth.json`. The operator can create it
+   either with the
+   [`oauth-draft-setup`](../../tools/gmail/oauth-draft/README.md#setup--one-time)
+   CLI **or** by calling the server's own `setup_credentials` tool once —
+   both run the same consent flow and write the same file, which also backs
+   the CLI `oauth-draft-*` scripts.
+2. **Surface the registration** (user scope; the `--extra mcp` pulls
+   the optional `mcp` SDK):
+
+   ```bash
+   claude mcp add gmail-plaintext -s user -- \
+     uv run --project <framework>/tools/gmail/oauth-draft --extra mcp oauth-draft-mcp
+   ```
+
+   The tools then appear under the `mcp__gmail-plaintext__*` prefix
+   (`create_draft`, `setup_credentials`, `check_auth`). Registering at
+   **user scope** installs it for the operator, not a single project — it
+   is then usable by **any** agent session on the machine, Magpie-related
+   or not (see [`tools/gmail/oauth-draft/README.md` → MCP server](../../tools/gmail/oauth-draft/README.md#mcp-server)).
+3. **Reflect the outcome** in the recommended permission allow-list
+   (add `mcp__gmail-plaintext__create_draft` alongside the Gmail read
+   tools — see [`verify.md`](verify.md) check 8d). It only ever creates
+   **unsent** drafts the human reviews and sends, so allow-listing it
+   avoids a prompt on every draft.
 
 ## Step 10 — Worktree-aware post-checkout hook (FRESH only)
 
@@ -1207,9 +1292,16 @@ Four passes, in this order:
 
      ```json
      { "matcher": "Bash", "hooks": [ { "type": "command",
-       "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/agent-guard.py\"",
+       "command": "[ -f \"$CLAUDE_PROJECT_DIR/.claude/hooks/agent-guard.py\" ] && python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/agent-guard.py\" || true",
        "timeout": 30 } ] }
      ```
+
+     The `[ -f … ] && … || true` guard makes the hook a **no-op on a
+     fresh clone** — before `/magpie-setup` has synced `agent-guard.py`
+     in (the script is gitignored framework code, not committed), so
+     without the guard the committed hook would exec a missing file on
+     every Bash call and a `PreToolUse` error can block the tool. Once
+     the script is present the guard passes and the hook runs normally.
 
      Wiring happens **only once**; thereafter guards are
      added/removed purely by syncing `guards.d` — no settings.json

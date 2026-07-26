@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import sys
 import warnings
 
-from airflow.cli.utils import deprecated_for_airflowctl
+import pytest
+
+from airflow.cli.utils import deprecated_for_airflowctl, redirect_stdout_log_handlers_to_stderr
 
 
 class TestDeprecatedForAirflowctl:
@@ -48,3 +52,48 @@ class TestDeprecatedForAirflowctl:
         assert command.__name__ == "command"
         assert command.__doc__ == "Original docstring."
         assert command._migrated_to_airflowctl == "airflowctl pools create"
+
+
+class TestRedirectStdoutLogHandlersToStderr:
+    """Tests for the CLI helper that keeps logs off stdout for ``-o``-style commands."""
+
+    @pytest.fixture
+    def isolated_root_logger(self):
+        """Snapshot and restore root logger handlers so tests don't leak state."""
+        root = logging.getLogger()
+        original_handlers = root.handlers[:]
+        root.handlers = []
+        try:
+            yield root
+        finally:
+            root.handlers = original_handlers
+
+    @pytest.mark.parametrize(
+        ("make_handler", "expected_stream"),
+        [
+            pytest.param(
+                lambda _tmp_path: logging.StreamHandler(stream=sys.stdout),
+                lambda _original: sys.stderr,
+                id="stdout-stream-handler-redirected",
+            ),
+            pytest.param(
+                lambda _tmp_path: logging.StreamHandler(stream=sys.stderr),
+                lambda _original: sys.stderr,
+                id="stderr-stream-handler-untouched",
+            ),
+            pytest.param(
+                lambda tmp_path: logging.FileHandler(tmp_path / "airflow.log"),
+                lambda original: original,
+                id="file-handler-untouched",
+            ),
+        ],
+    )
+    def test_redirect(self, isolated_root_logger, tmp_path, make_handler, expected_stream):
+        handler = make_handler(tmp_path)
+        isolated_root_logger.addHandler(handler)
+        original_stream = handler.stream
+        try:
+            redirect_stdout_log_handlers_to_stderr()
+            assert handler.stream is expected_stream(original_stream)
+        finally:
+            handler.close()

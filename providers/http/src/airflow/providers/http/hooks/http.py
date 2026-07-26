@@ -615,7 +615,7 @@ class HttpAsyncHook(BaseHook):
             extra_options: dict[str, Any] = {}
 
             if self.http_conn_id:
-                conn = await get_async_connection(conn_id=self.http_conn_id)
+                conn = await get_async_connection(conn_id=self.http_conn_id, hook=self)
 
                 if conn.host and "://" in conn.host:
                     base_url = conn.host

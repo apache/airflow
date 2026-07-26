@@ -672,6 +672,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.operators.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.operators.vertex_ai.feature_store",
                     "airflow.providers.google.cloud.operators.vertex_ai.ray",
+                    "airflow.providers.google.cloud.operators.vertex_ai.agent_engine",
                 ],
             },
             {
@@ -1043,6 +1044,7 @@ def get_provider_info():
                     "airflow.providers.google.cloud.hooks.vertex_ai.generative_model",
                     "airflow.providers.google.cloud.hooks.vertex_ai.prediction_service",
                     "airflow.providers.google.cloud.hooks.vertex_ai.feature_store",
+                    "airflow.providers.google.cloud.hooks.vertex_ai.agent_engine",
                     "airflow.providers.google.cloud.hooks.vertex_ai.ray",
                 ],
             },
@@ -1432,6 +1434,7 @@ def get_provider_info():
                         "label": "Anonymous credentials (ignores all other settings)",
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
+                    "quota_project_id": {"label": "Quota Project ID", "schema": {"type": ["string", "null"]}},
                 },
             },
             {
@@ -1510,6 +1513,7 @@ def get_provider_info():
                         "label": "Anonymous credentials (ignores all other settings)",
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
+                    "quota_project_id": {"label": "Quota Project ID", "schema": {"type": ["string", "null"]}},
                     "use_legacy_sql": {"label": "Use Legacy SQL", "schema": {"type": ["boolean", "null"]}},
                     "location": {"label": "Location", "schema": {"type": ["string", "null"]}},
                     "priority": {

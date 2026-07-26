@@ -25,6 +25,8 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // CoordinatorComm manages bidirectional communication with the Airflow
@@ -100,8 +102,9 @@ func (c *CoordinatorComm) ReadMessage() (IncomingFrame, error) {
 }
 
 // SendRequest writes a request frame (2-element [id, body]) to the supervisor.
-// Concurrent calls are serialised so frames are never interleaved on the wire.
-func (c *CoordinatorComm) SendRequest(id int64, body map[string]any) error {
+// body is any msgpack-encodable value, normally a genmodels message struct.
+// Concurrent calls are serialised so frames never interleave on the wire.
+func (c *CoordinatorComm) SendRequest(id int64, body any) error {
 	payload, err := encodeRequest(id, body)
 	if err != nil {
 		return fmt.Errorf("encoding request: %w", err)
@@ -120,10 +123,13 @@ func (c *CoordinatorComm) SendRequest(id int64, body map[string]any) error {
 // frame or as a body whose "type" is "ErrorResponse") it is returned as an
 // *ApiError. If the dispatcher's read loop has terminated, the underlying read
 // error is returned wrapped in ErrDispatcherClosed.
+//
+// On success it returns the response body's raw msgpack bytes; the caller
+// decodes them into its expected genmodels result via decodeBody.
 func (c *CoordinatorComm) Communicate(
 	ctx context.Context,
-	body map[string]any,
-) (map[string]any, error) {
+	body any,
+) (msgpack.RawMessage, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -196,32 +202,12 @@ func (c *CoordinatorComm) Communicate(
 
 	// An error reply can arrive in two shapes: the third element of a 3-tuple
 	// response frame, or the body of a 2-tuple frame whose "type" is
-	// "ErrorResponse". Pick whichever the supervisor used and decode once.
-	if errMap := errMapFromFrame(frame); errMap != nil {
-		errResp := decodeErrorResponse(errMap)
-		return nil, &ApiError{
-			Err:    errResp.Error,
-			Detail: errResp.Detail,
-		}
+	// "ErrorResponse". apiErrorFromFrame picks whichever the supervisor used.
+	if apiErr := apiErrorFromFrame(frame); apiErr != nil {
+		return nil, apiErr
 	}
 
 	return frame.Body, nil
-}
-
-// errMapFromFrame returns the error-shaped map carried by a response frame, or
-// nil if the frame is not an error reply. The supervisor may surface an error
-// either as the dedicated third element of a 3-tuple frame (frame.Err) or as
-// the body of a 2-tuple frame whose "type" is "ErrorResponse".
-func errMapFromFrame(f IncomingFrame) map[string]any {
-	if f.Err != nil {
-		return f.Err
-	}
-	if f.Body != nil {
-		if typ, _ := f.Body["type"].(string); typ == "ErrorResponse" {
-			return f.Body
-		}
-	}
-	return nil
 }
 
 // readLoop is the dispatcher: it reads frames from the comm socket and routes

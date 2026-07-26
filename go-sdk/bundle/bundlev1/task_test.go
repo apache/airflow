@@ -20,6 +20,7 @@ package bundlev1
 import (
 	"context"
 	"log/slog"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -122,6 +123,80 @@ func (s *TaskSuite) TestArgumentBinding() {
 			ctx := context.WithValue(context.Background(), "abc", "def")
 			logger := slog.New(logging.NewTeeLogger())
 			task.Execute(ctx, logger)
+		})
+	}
+}
+
+// TestClientSubsetInjection checks any subset of sdk.Client is injected, even
+// an unnamed one.
+func (s *TaskSuite) TestClientSubsetInjection() {
+	task, err := NewTaskFunction(func(client interface {
+		GetVariable(ctx context.Context, key string) (string, error)
+	},
+	) error {
+		s.NotNil(client)
+		return nil
+	})
+	s.Require().NoError(err)
+	s.Require().NoError(task.Execute(context.Background(), slog.New(logging.NewTeeLogger())))
+}
+
+// TestNamedClientInterfacesAreInjectable guards against sdk.Client dropping an
+// embedded interface, which would break tasks declaring it.
+func (s *TaskSuite) TestNamedClientInterfacesAreInjectable() {
+	for name, typ := range map[string]reflect.Type{
+		"Client":           reflect.TypeFor[sdk.Client](),
+		"VariableClient":   reflect.TypeFor[sdk.VariableClient](),
+		"ConnectionClient": reflect.TypeFor[sdk.ConnectionClient](),
+		"XComClient":       reflect.TypeFor[sdk.XComClient](),
+	} {
+		s.True(isClient(typ), "sdk.%s must stay injectable", name)
+	}
+}
+
+// TestNonInjectableParamsAreRejected checks registration fails fast on
+// interface parameters Execute cannot inject.
+func (s *TaskSuite) TestNonInjectableParamsAreRejected() {
+	cases := map[string]struct {
+		fn          any
+		errContains string
+	}{
+		"non-client-method": {
+			func(x interface{ NotAClientMethod() }) error { return nil },
+			"sdk.Client has no method NotAClientMethod",
+		},
+		"wrong-signature": {
+			func(x interface {
+				GetVariable(key string) (string, error)
+			},
+			) error {
+				return nil
+			},
+			"method GetVariable is func(context.Context, string) (string, error) on sdk.Client",
+		},
+		"empty-interface": {
+			func(x any) error { return nil },
+			"empty interfaces cannot be injected",
+		},
+		"context-with-extra-methods": {
+			func(x interface {
+				context.Context
+				TaskInstance() sdk.TaskInstance
+			},
+			) error {
+				return nil
+			},
+			"adds methods on top of context.Context",
+		},
+	}
+
+	for name, tt := range cases {
+		s.Run(name, func() {
+			_, err := NewTaskFunction(tt.fn)
+			if s.Assert().Error(err) {
+				s.Assert().Contains(err.Error(), "parameter 0")
+				s.Assert().Contains(err.Error(), tt.errContains)
+			}
 		})
 	}
 }

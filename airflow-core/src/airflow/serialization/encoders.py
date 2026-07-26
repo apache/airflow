@@ -481,7 +481,10 @@ class _Serializer:
 
     @serialize_partition_mapper.register
     def _(self, partition_mapper: FixedKeyMapper) -> dict[str, Any]:
-        return {"downstream_key": partition_mapper.downstream_key}
+        data: dict[str, Any] = {"downstream_key": partition_mapper.downstream_key}
+        if partition_mapper.max_downstream_keys is not None:
+            data["max_downstream_keys"] = partition_mapper.max_downstream_keys
+        return data
 
     @serialize_partition_mapper.register(StartOfHourMapper)
     @serialize_partition_mapper.register(StartOfDayMapper)

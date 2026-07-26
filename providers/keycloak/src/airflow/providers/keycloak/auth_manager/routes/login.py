@@ -57,15 +57,31 @@ COOKIE_NAME_ID_TOKEN = "_id_token"
 COOKIE_NAME_OAUTH_STATE = "_oauth_state"
 
 
+def _login_callback_url(request: Request) -> str:
+    """
+    Build the OAuth ``redirect_uri`` for the login callback.
+
+    Prefer the configured public base URL (as ``logout`` and the post-login redirect
+    already do) so the value handed to Keycloak does not depend on the request
+    ``Host``/``X-Forwarded-Host`` headers, which are attacker-controlled when the API
+    server runs with ``--proxy-headers``. Fall back to the request URL when
+    ``base_url`` is not configured.
+    """
+    base_url = conf.get("api", "base_url", fallback=None)
+    if base_url:
+        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login_callback")
+    return str(request.url_for("login_callback"))
+
+
 @login_router.get("/login")
 def login(request: Request) -> RedirectResponse:
     """Initiate the authentication."""
     client = KeycloakAuthManager.get_keycloak_client()
-    redirect_uri = request.url_for("login_callback")
+    redirect_uri = _login_callback_url(request)
     state = secrets.token_urlsafe(32)
     auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid", state=state)
     response = RedirectResponse(auth_url)
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     cookie_path = get_cookie_path()
     response.set_cookie(
         COOKIE_NAME_OAUTH_STATE, state, max_age=300, path=cookie_path, httponly=True, secure=secure
@@ -85,7 +101,7 @@ def login_callback(request: Request):
         return HTMLResponse("Invalid OAuth state parameter", status_code=403)
 
     client = KeycloakAuthManager.get_keycloak_client()
-    redirect_uri = request.url_for("login_callback")
+    redirect_uri = _login_callback_url(request)
 
     tokens = client.token(
         grant_type="authorization_code",
@@ -105,7 +121,7 @@ def login_callback(request: Request):
     token = get_auth_manager().generate_jwt(user)
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
     # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
     # See https://github.com/apache/airflow/pull/55506
     cookie_path = get_cookie_path()

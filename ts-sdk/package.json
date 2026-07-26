@@ -2,11 +2,14 @@
   "name": "@apache-airflow/ts-sdk",
   "version": "0.1.0-alpha.0",
   "packageManager": "pnpm@10.28.1",
-  "description": "Public TypeScript Task SDK interfaces for Apache Airflow task handlers",
+  "description": "TypeScript Task SDK for Apache Airflow task handlers",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "airflow-ts-pack": "./dist/cli/main.js"
+  },
   "homepage": "https://airflow.apache.org",
   "repository": {
     "type": "git",
@@ -20,6 +23,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./coordinator": {
+      "types": "./dist/coordinator/index.d.ts",
+      "import": "./dist/coordinator/index.js"
     }
   },
   "files": [
@@ -38,7 +45,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "pnpm run clean && tsc -p tsconfig.build.json",
-    "prepack": "pnpm run build"
+    "prepack": "pnpm run build",
+    "generate:supervisor": "node scripts/generate-supervisor.mjs"
   },
   "keywords": [
     "airflow",
@@ -51,10 +59,23 @@
   "engines": {
     "node": ">=22"
   },
+  "dependencies": {
+    "@msgpack/msgpack": "^3.1.2"
+  },
+  "peerDependencies": {
+    "esbuild": "^0.28.1"
+  },
+  "peerDependenciesMeta": {
+    "esbuild": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "esbuild": "^0.28.1",
     "@types/node": "^22.19.17",
     "eslint": "^10.4.0",
+    "json-schema-to-typescript": "^15.0.4",
     "prettier": "^3.8.3",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",

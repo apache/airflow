@@ -89,6 +89,22 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 {{ CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST | safe }}
 {%- endif %}
 
+{%- if OPTIONAL_DEPENDENCIES %}
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install {{ PACKAGE_PIP_NAME }}[{{ (OPTIONAL_DEPENDENCIES | list)[0] }}]
+
+
+{{ OPTIONAL_DEPENDENCIES_TABLE_RST | safe }}
+{%- endif %}
+
 Downloading official packages
 -----------------------------
 

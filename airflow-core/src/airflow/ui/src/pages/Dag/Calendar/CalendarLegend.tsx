@@ -18,60 +18,23 @@
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { Tooltip } from "src/components/ui";
 
+import { LegendIcon } from "./LegendIcon";
 import { PLANNED_COLOR } from "./calendarUtils";
 import type { CalendarScale, CalendarColorMode } from "./types";
 
 type Props = {
+  readonly hasDeadlines?: boolean;
   readonly scale: CalendarScale;
   readonly vertical?: boolean;
   readonly viewMode: CalendarColorMode;
 };
 
-type LegendColorType =
-  | Record<string, string>
-  | string
-  | { primary: Record<string, string> | string; secondary: Record<string, string> | string };
-
-const LegendIcon = ({ color, cursor }: { readonly color: LegendColorType; readonly cursor?: string }) => {
-  const isMixedState = typeof color === "object" && "primary" in color && "secondary" in color;
-
-  if (isMixedState) {
-    return (
-      <Box
-        borderRadius="2px"
-        boxShadow="sm"
-        cursor={cursor}
-        height="14px"
-        overflow="hidden"
-        position="relative"
-        width="14px"
-      >
-        <Box
-          bg={color.secondary}
-          clipPath="polygon(0 100%, 100% 100%, 0 0)"
-          height="100%"
-          position="absolute"
-          width="100%"
-        />
-        <Box
-          bg={color.primary}
-          clipPath="polygon(100% 0, 100% 100%, 0 0)"
-          height="100%"
-          position="absolute"
-          width="100%"
-        />
-      </Box>
-    );
-  }
-
-  return <Box bg={color} borderRadius="2px" boxShadow="sm" cursor={cursor} height="14px" width="14px" />;
-};
-
-export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => {
-  const { t: translate } = useTranslation(["dag", "common"]);
+export const CalendarLegend = ({ hasDeadlines = false, scale, vertical = false, viewMode }: Props) => {
+  const { t: translate } = useTranslation("dag");
 
   const legendTitle =
     viewMode === "failed" ? translate("overview.buttons.failedRun_other") : translate("calendar.totalRuns");
@@ -174,6 +137,32 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
           </HStack>
         </HStack>
       </Box>
+
+      {Boolean(hasDeadlines) && (
+        <Box mt={4}>
+          <Text color="fg.muted" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+            {translate("overview.deadlines.title")}
+          </Text>
+          <HStack gap={4} justify="center" wrap="wrap">
+            <HStack gap={2}>
+              <Box fontSize="sm" lineHeight={1}>
+                <FiClock />
+              </Box>
+              <Text color="fg.muted" fontSize="xs">
+                {translate("deadlineStatus.upcoming")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box fontSize="sm" lineHeight={1}>
+                <FiAlertTriangle />
+              </Box>
+              <Text color="fg.muted" fontSize="xs">
+                {translate("deadlineStatus.missed")}
+              </Text>
+            </HStack>
+          </HStack>
+        </Box>
+      )}
     </Box>
   );
 };

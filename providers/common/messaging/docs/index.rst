@@ -103,6 +103,24 @@ PIP package         Version required
 ``apache-airflow``  ``>=3.0.1``
 ==================  ==================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-common-messaging[amazon]
+
+
+================  ================================================
+Extra             Dependencies
+================  ================================================
+``amazon``        ``apache-airflow-providers-amazon>=9.7.0``
+``apache.kafka``  ``apache-airflow-providers-apache-kafka>=1.9.0``
+================  ================================================
+
 Downloading official packages
 -----------------------------
 
