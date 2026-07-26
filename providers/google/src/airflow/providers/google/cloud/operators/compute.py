@@ -1233,7 +1233,6 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         self.body_patch = body_patch
         self.request_id = request_id
         self.validate_body = validate_body
-        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             project_id=project_id,
             zone="global",

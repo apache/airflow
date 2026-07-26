@@ -243,7 +243,6 @@ class TestGceInstanceInsert:
         self,
         mock_hook,
         create_task_instance_of_operator,
-        session,
     ):
         dag_id = "templated-instance-name"
 
@@ -254,14 +253,14 @@ class TestGceInstanceInsert:
             get_instance_obj_mock,
         ]
 
-        body = deepcopy(GCE_INSTANCE_BODY_API_CALL)
-        body["name"] = "{{ dag.dag_id }}"
+        body_with_templated_name = deepcopy(GCE_INSTANCE_BODY_API_CALL)
+        body_with_templated_name["name"] = "{{ dag.dag_id }}"
 
         ti = create_task_instance_of_operator(
             ComputeEngineInsertInstanceOperator,
             dag_id=dag_id,
             project_id=GCP_PROJECT_ID,
-            body=body,
+            body=body_with_templated_name,
             zone=GCE_ZONE,
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -276,6 +275,22 @@ class TestGceInstanceInsert:
         rendered.execute(context=mock.MagicMock())
 
         assert rendered.resource_id == dag_id
+
+        mock_hook.assert_called_once_with(
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        expected_body = deepcopy(GCE_INSTANCE_BODY_API_CALL)
+        expected_body["name"] = dag_id
+
+        mock_hook.return_value.insert_instance.assert_called_once_with(
+            project_id=GCP_PROJECT_ID,
+            body=expected_body,
+            zone=GCE_ZONE,
+            request_id=None,
+        )
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_recreate_on_drift(self, mock_hook):
@@ -499,7 +514,7 @@ class TestGceInstanceInsertFromTemplate:
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_not_throw_ex_when_name_is_templated(
-        self, mock_hook, create_task_instance_of_operator, session
+        self, mock_hook, create_task_instance_of_operator
     ):
         dag_id = "templated-instance-name"
 
@@ -612,7 +627,7 @@ class TestGceInstanceDelete:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
-            op.execute(context=mock_hook.MagicMock())
+            op.execute(context=mock.MagicMock())
 
         mock_hook.assert_not_called()
 
@@ -649,7 +664,7 @@ class TestGceInstanceStart:
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_start_instance_with_templates(self, _, create_task_instance_of_operator, session):
+    def test_start_instance_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_instance_start_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineStartInstanceOperator,
@@ -777,7 +792,11 @@ class TestGceInstanceStop:
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_instance_stop_with_templates(self, _, create_task_instance_of_operator, session):
+    def test_instance_stop_with_templates(
+        self,
+        _,
+        create_task_instance_of_operator,
+    ):
         dag_id = "test_instance_stop_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineStopInstanceOperator,
@@ -901,7 +920,7 @@ class TestGceInstanceSetMachineType:
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator, session):
+    def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_set_machine_type_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineSetMachineTypeOperator,
