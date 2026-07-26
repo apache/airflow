@@ -45,6 +45,13 @@ class TestPsrpOperator:
         with pytest.raises(ValueError, match=exception_msg):
             op.execute(None)
 
+    def test_rejects_duplicate_command_options(self):
+        # Equal values are still two options: exactly_one receives them
+        # positionally so it does not dedupe them into one.
+        op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, command="x", powershell="x")
+        with pytest.raises(ValueError, match="exactly one"):
+            op.execute(None)
+
     @pytest.mark.parametrize(
         ("kwargs", "match"),
         [
