@@ -350,13 +350,13 @@
     "scheduledWhen": "开始调度时间",
     "trigger": "触发器",
     "triggerer": {
-      "assigned": "指派的触发器",
+      "assigned": "指派的触发者",
       "class": "触发器类别",
       "createdAt": "触发器创建时间",
       "id": "触发器 ID",
-      "job": "触发器作业",
-      "latestHeartbeat": "最新触发器心跳时间",
-      "title": "触发器信息"
+      "job": "触发者作业",
+      "latestHeartbeat": "最新触发者心跳时间",
+      "title": "触发者信息"
     },
     "unixname": "Unix 名称"
   },
