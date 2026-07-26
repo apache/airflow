@@ -76,18 +76,21 @@ def _normalize_temporal_annotation(annotation: Any) -> Any:
     Applied recursively through unions and containers, and only as a retry when direct
     schema generation fails, so temporal types carrying their own pydantic schema keep it.
     """
-    if isinstance(annotation, type):
-        return next((base for base in _TEMPORAL_BASES if issubclass(annotation, base)), annotation)
+    # Parametrized generics must be detected before the plain-class branch: on Python
+    # 3.10, isinstance(list[X], type) is True and issubclass silently consults the
+    # origin, so the class branch would return list[X] unnormalized.
     origin = typing.get_origin(annotation)
     args = typing.get_args(annotation)
-    if origin is None or not args:
-        return annotation
-    normalized = tuple(_normalize_temporal_annotation(arg) for arg in args)
-    if normalized == args:
-        return annotation
-    if origin in (typing.Union, types.UnionType):
-        return typing.Union[normalized]  # noqa: UP007 -- runtime construction from a tuple
-    return origin[normalized]
+    if origin is not None and args:
+        normalized = tuple(_normalize_temporal_annotation(arg) for arg in args)
+        if normalized == args:
+            return annotation
+        if origin in (typing.Union, types.UnionType):
+            return typing.Union[normalized]  # noqa: UP007 -- runtime construction from a tuple
+        return origin[normalized]
+    if isinstance(annotation, type):
+        return next((base for base in _TEMPORAL_BASES if issubclass(annotation, base)), annotation)
+    return annotation
 
 
 def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
