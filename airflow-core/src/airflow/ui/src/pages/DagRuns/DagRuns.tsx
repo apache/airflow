@@ -48,6 +48,7 @@ import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useConfig } from "src/queries/useConfig";
 import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
@@ -82,6 +83,7 @@ const {
   START_DATE_GTE: START_DATE_GTE_PARAM,
   START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
+  TEAMS: TEAMS_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
@@ -91,7 +93,7 @@ type ColumnProps = {
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({ dagId, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
@@ -154,6 +156,21 @@ const runColumns = ({ dagId, open, translate }: ColumnProps): Array<ColumnDef<DA
     enableSorting: false,
     header: translate("dagRun.runType"),
   },
+  ...(multiTeam
+    ? [
+        {
+          accessorKey: "team_name",
+          cell: ({ row: { original } }: DagRunRow) =>
+            original.team_name !== undefined && original.team_name !== null ? (
+              <RouterLink to={`/dags?teams=${encodeURIComponent(original.team_name)}`}>
+                {original.team_name}
+              </RouterLink>
+            ) : undefined,
+          enableSorting: false,
+          header: translate("dagDetails.team"),
+        },
+      ]
+    : []),
   {
     accessorKey: "triggering_user_name",
     cell: ({ row: { original } }) => <Text>{original.triggering_user_name ?? ""}</Text>,
@@ -229,6 +246,7 @@ export const DagRuns = () => {
 
   const [searchParams] = useSearchParams();
   const { onClose, onOpen, open } = useDisclosure();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
@@ -262,6 +280,7 @@ export const DagRuns = () => {
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
+  const teams = searchParams.getAll(TEAMS_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
@@ -316,6 +335,7 @@ export const DagRuns = () => {
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
+      teams: teams.length > 0 ? teams : undefined,
       ...triggeringUserArg,
     },
     undefined,
@@ -339,7 +359,7 @@ export const DagRuns = () => {
 
   const columns = runColumns({
     dagId,
-    multiTeam: false,
+    multiTeam: multiTeamEnabled,
     open,
     translate,
   });

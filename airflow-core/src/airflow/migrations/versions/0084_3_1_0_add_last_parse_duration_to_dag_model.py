@@ -17,7 +17,7 @@
 # under the License.
 
 """
-add last_parse_duration to dag model.
+Add last_parse_duration to dag model.
 
 Revision ID: eaf332f43c7c
 Revises: a3c7f2b18d4e

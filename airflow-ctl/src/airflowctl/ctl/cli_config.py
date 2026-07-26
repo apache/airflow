@@ -291,10 +291,16 @@ ARG_DAG_ID = Arg(
     type=str,
     help="The Dag ID",
 )
-ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
-    flags=("logical_date_or_run_id",),
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
     type=str,
-    help="The logical date with a timezone offset or run ID of the Dag run",
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 
 # Task Commands Args
@@ -436,7 +442,21 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "clear",
+        ]
+        # Datamodels whose generated bool flags follow the datamodel field defaults instead of
+        # defaulting to False, so the CLI keeps the API semantics (e.g. a bare ``tasks clear``
+        # must keep ``dry_run=True`` and preview instead of clearing).
+        self.field_bool_default_datamodels = ["ClearTaskInstancesBody"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -603,6 +623,14 @@ class CommandFactory:
             help=arg_help,
         )
 
+    def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
+        """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
+        if parameter_type in self.field_bool_default_datamodels and (
+            field_default is None or isinstance(field_default, bool)
+        ):
+            return field_default
+        return False
+
     def _create_arg_for_non_primitive_type(
         self,
         parameter_type: str,
@@ -618,30 +646,24 @@ class CommandFactory:
                 continue
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
-                    )
-                )
+                annotation = field_type.annotation
             else:
                 try:
                     annotation = field_type.annotation.__args__[0]
                 except AttributeError:
                     annotation = field_type.annotation
 
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
-                    )
+            commands.append(
+                self._create_arg(
+                    arg_flags=(f"--{self._sanitize_arg_parameter_key(field)}",),
+                    arg_type=self._python_type_from_string(annotation),
+                    arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                    arg_help=f"{field} for {parameter_key} operation",
+                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
+                    if annotation is bool
+                    else None,
                 )
+            )
         return commands
 
     def _create_args_map_from_operation(self):
@@ -720,6 +742,20 @@ class CommandFactory:
             and params["logical_date"] is None
         ):
             params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+
+        # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
+        # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list
+        if datamodel.__name__ == "ClearTaskInstancesBody" and isinstance(params.get("task_ids"), str):
+            raw_task_ids = params["task_ids"]
+            if raw_task_ids.lstrip().startswith("["):
+                try:
+                    params["task_ids"] = json.loads(raw_task_ids)
+                except json.JSONDecodeError as e:
+                    raise SystemExit(f"Invalid JSON list for --task-ids {raw_task_ids!r}: {e}")
+            else:
+                params["task_ids"] = [
+                    task_id.strip() for task_id in raw_task_ids.split(",") if task_id.strip()
+                ]
 
         return params
 
@@ -1025,7 +1061,8 @@ DAG_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
         args=(
             ARG_DAG_ID,
-            ARG_LOGICAL_DATE_OR_RUN_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
         ),
     ),
     ActionCommand(
