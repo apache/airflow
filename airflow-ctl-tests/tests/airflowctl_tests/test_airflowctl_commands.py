@@ -102,6 +102,8 @@ TEST_COMMANDS = [
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
     'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
     'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
+    "tasks list example_bash_operator",
+    "tasks list example_bash_operator --order-by=-task_id",
     # Task Instances commands
     'taskinstances get example_bash_operator "manual__{date_param}" runme_0',
     'taskinstances get-dependencies example_bash_operator "manual__{date_param}" runme_0',
