@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Bump minimum paramiko to 4.0.0; DSA/DSS keys are no longer supported (#69669)``
+
+  This provider depends on paramiko 4.0+, which dropped ``DSS``/``DSA`` keys; see `paramiko changelog <https://www.paramiko.org/changelog.html>`__. To migrate: create a key pair that does not use ``DSA`` (Ed25519 or RSA are typical, e.g. ``ssh-keygen -t ed25519``), add the public key to the SFTP server, then update your Airflow SFTP (or shared SSH) connection so ``key_file`` or the ``private_key`` extra uses the new key, and ensure any ``host_key`` extra is not in ``ssh-dss`` form. If you are not ready to migrate keys, stay on a provider release that still pins ``paramiko<4`` until you can switch.
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 5.8.2
 .....
 

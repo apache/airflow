@@ -133,6 +133,28 @@ Dependent package                                                               
 `apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_          ``vertica``
 ==============================================================================================================  ===============
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-mysql[mysql-connector-python]
+
+
+==========================  ========================================
+Extra                       Dependencies
+==========================  ========================================
+``mysql-connector-python``
+``amazon``                  ``apache-airflow-providers-amazon``
+``openlineage``             ``apache-airflow-providers-openlineage``
+``presto``                  ``apache-airflow-providers-presto``
+``trino``                   ``apache-airflow-providers-trino``
+``vertica``                 ``apache-airflow-providers-vertica``
+==========================  ========================================
+
 Downloading official packages
 -----------------------------
 

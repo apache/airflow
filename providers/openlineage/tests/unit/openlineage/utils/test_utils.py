@@ -92,6 +92,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_3_PLUS,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
 )
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
@@ -276,6 +277,7 @@ def test_get_airflow_dag_run_facet():
                 "dag_bundle_version": "bundle_version",
                 "dag_version_id": "version_id",
                 "dag_version_number": "version_number",
+                "dag_team_name": None,
                 "triggering_user_name": "user1",
                 "partition_key": "some_partition_key",
                 "partition_date": "2024-06-01T02:03:34+00:00",
@@ -329,6 +331,58 @@ def test_dag_run_version(key):
     ]
     result = DagRunInfo.dag_version_info(dagrun_mock, key)
     assert result == key
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
+@patch("airflow.models.dagbundle.DagBundleModel.get_team_name")
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
+def test_dag_run_team_name(
+    mock_getboolean,
+    mock_get_team_name,
+):
+
+    dagrun_mock = MagicMock(DagRun)
+    dagrun_mock.dag_versions = [
+        MagicMock(
+            bundle_name="bundle_name",
+            bundle_version="bundle_version",
+            id="version_id",
+            version_number="version_number",
+        )
+    ]
+
+    mock_get_team_name.return_value = "team_a"
+
+    assert DagRunInfo.team_name(dagrun_mock) == "team_a"
+
+    mock_get_team_name.assert_called_once_with("bundle_name")
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
+@patch("airflow.models.dagbundle.DagBundleModel.get_team_name")
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=True)
+def test_dag_run_team_name_no_bundle(mock_getboolean, mock_get_team_name):
+    dagrun_mock = MagicMock(DagRun)
+    del dagrun_mock.dag_versions
+
+    assert DagRunInfo.team_name(dagrun_mock) is None
+
+    mock_get_team_name.assert_not_called()
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="multi-team requires Airflow 3.3+")
+@patch("airflow.models.dagbundle.DagBundleModel.get_team_name")
+@patch("airflow.providers.openlineage.utils.utils.airflow_conf.getboolean", return_value=False)
+def test_dag_run_team_name_multi_team_disabled(mock_getboolean, mock_get_team_name):
+
+    dagrun_mock = MagicMock(DagRun)
+
+    assert DagRunInfo.team_name(dagrun_mock) is None
+
+    mock_get_team_name.assert_not_called()
 
 
 def test_get_fully_qualified_class_name_serialized_operator():
@@ -2965,6 +3019,7 @@ def test_dagrun_info_af3(mocked_dag_versions):
         "conf": {"a": 1},
         "clear_number": 0,
         "dag_id": "dag_id",
+        "dag_team_name": None,
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
         "duration": 74.000546,
@@ -3011,6 +3066,7 @@ def test_dagrun_info_af2():
         "conf": {"a": 1},
         "clear_number": 0,
         "dag_id": "dag_id",
+        "dag_team_name": None,
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
         "duration": 74.000546,

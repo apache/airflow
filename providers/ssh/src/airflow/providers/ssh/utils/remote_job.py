@@ -184,11 +184,22 @@ def build_posix_wrapper_command(
     escaped_command = command.replace("'", "'\"'\"'")
 
     # Launch detached under ``setsid`` so the job is its own session/process-group
-    # leader. ``$!`` is then the leader PID *and* the PGID (verified: setsid does not
-    # fork when started as a background job), recorded synchronously just like before,
-    # so cancellation can signal the whole job tree instead of orphaning the user
-    # command. Without ``setsid`` (some macOS/BSD hosts) ``$!`` is just the wrapper PID
-    # and cancellation degrades to the previous single-process behaviour.
+    # leader, letting cancellation signal the whole job tree instead of orphaning the
+    # user command. We do NOT rely on the launcher's ``$!`` to identify that group:
+    # ``setsid(1)`` forks internally when the process about to exec into it is already
+    # a process-group leader (``setsid(2)`` cannot create a new session from a group
+    # leader), which happens whenever job control is on in the launching shell. When
+    # it forks, ``$!`` is the short-lived setsid parent, not the job's real PGID, and
+    # cancellation signals a dead group. Instead the job script reports its OWN pid:
+    # immediately after ``setsid(2)`` POSIX guarantees ``pid == pgid == sid`` for the
+    # caller, and that identity survives the following exec, so ``$$`` inside the job
+    # script is always the true PGID regardless of whether setsid forked to get there.
+    # The pid file is read only when cancelling (:func:`build_posix_kill_command`),
+    # which happens long after submission, so the job's asynchronous write lands well
+    # before any reader and the launcher does not wait for it (recording the launcher's
+    # ``$!`` would just reintroduce the wrong-pid bug on the fork path). Without
+    # ``setsid`` (some macOS/BSD hosts) ``$$`` is just the job's own PID and
+    # cancellation degrades to the previous single-process behaviour.
     wrapper = f"""set -euo pipefail
 job_dir='{paths.job_dir}'
 log_file='{paths.log_file}'
@@ -202,6 +213,7 @@ mkdir -p "$job_dir"
 
 job_script='
 set +e
+echo -n "$$" > "'"$pid_file"'"
 export LOG_FILE="'"$log_file"'"
 export STATUS_FILE="'"$status_file"'"
 {env_exports}{escaped_command} >>"'"$log_file"'" 2>&1
@@ -216,7 +228,6 @@ if command -v setsid >/dev/null 2>&1; then
 else
   nohup bash -c "$job_script" >/dev/null 2>&1 &
 fi
-echo -n $! > "$pid_file"
 echo "{paths.job_id}"
 """
     return wrapper

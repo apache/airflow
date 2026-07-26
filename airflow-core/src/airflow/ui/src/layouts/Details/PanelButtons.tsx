@@ -24,14 +24,13 @@ import {
   Portal,
   Select,
   type SelectValueChangeDetails,
-  Text,
   VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiGrid } from "react-icons/fi";
-import { LuChartGantt, LuKeyboard } from "react-icons/lu";
+import { LuChartGantt } from "react-icons/lu";
 import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
@@ -40,7 +39,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { DirectionDropdown } from "src/components/Graph/DirectionDropdown";
 import { GraphTaskFilters } from "src/components/GraphTaskFilters";
-import { IconButton, Tooltip } from "src/components/ui";
+import { IconButton } from "src/components/ui";
 import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import type { DagView } from "src/constants/dagView";
 import { dependenciesKey } from "src/constants/localStorage";
@@ -309,15 +308,7 @@ export const PanelButtons = ({
         </Flex>
       </Flex>
 
-      {dagView === "graph" ? (
-        <Flex justifyContent="flex-end" mt={1}>
-          <Flex color="fg.muted" gap={2}>
-            <Tooltip content={<Text>{translate("dag:navigation.openGraphFilters")}</Text>} portalled>
-              <LuKeyboard />
-            </Tooltip>
-          </Flex>
-        </Flex>
-      ) : (
+      {dagView !== "graph" && (
         <Flex justifyContent="space-between" mt={1}>
           <GridFilters />
           <Flex color="fg.muted" gap={2} justifyContent="flex-end" mt={1}>

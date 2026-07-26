@@ -42,13 +42,20 @@ class TestNoteBook:
 class TestPapermillOperator:
     """Test PapermillOperator."""
 
+    def test_init_does_not_validate_notebooks(self):
+        """__init__ must not validate template fields; input_nb/output_nb are rendered after construction."""
+        op = PapermillOperator(task_id="missing_input_nb", output_nb="foo-bar")
+        assert op.input_nb is None
+        op = PapermillOperator(task_id="missing_output_nb", input_nb="foo-bar")
+        assert op.output_nb is None
+
     def test_mandatory_attributes(self):
-        """Test missing Input or Output notebooks."""
+        """Test missing Input or Output notebooks are validated at execute() time, after templating."""
         with pytest.raises(ValueError, match="Input notebook is not specified"):
-            PapermillOperator(task_id="missing_input_nb", output_nb="foo-bar")
+            PapermillOperator(task_id="missing_input_nb", output_nb="foo-bar").execute(context={})
 
         with pytest.raises(ValueError, match="Output notebook is not specified"):
-            PapermillOperator(task_id="missing_input_nb", input_nb="foo-bar")
+            PapermillOperator(task_id="missing_output_nb", input_nb="foo-bar").execute(context={})
 
     @pytest.mark.parametrize(
         ("output_nb_url", "output_as_object"),

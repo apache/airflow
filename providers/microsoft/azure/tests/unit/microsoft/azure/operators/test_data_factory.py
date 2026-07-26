@@ -235,6 +235,32 @@ class TestAzureDataFactoryRunPipelineOperator:
             # Checking the pipeline run status should _not_ be called when ``wait_for_termination`` is False.
             mock_get_pipeline_run.assert_not_called()
 
+    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    def test_run_id_extracted_from_hybrid_model_response(self, mock_run_pipeline):
+        """Regression test: azure-mgmt-datafactory v10 hybrid models don't expose attributes via vars().
+
+        Hybrid models use property descriptors, so vars(response)["run_id"] raises KeyError.
+        The operator must use attribute access (response.run_id) which works with both old and new models.
+        """
+
+        class HybridModelResponse(dict):
+            """Simulates an azure-mgmt-datafactory v10 hybrid model response."""
+
+            def __init__(self):
+                super().__init__({"runId": "hybrid-run-id-123"})
+
+            @property
+            def run_id(self):
+                return self["runId"]
+
+        mock_run_pipeline.return_value = HybridModelResponse()
+
+        operator = AzureDataFactoryRunPipelineOperator(wait_for_termination=False, **self.config)
+        operator.execute(context=self.mock_context)
+
+        assert operator.run_id == "hybrid-run-id-123"
+        self.mock_ti.xcom_push.assert_called_once_with(key="run_id", value="hybrid-run-id-123")
+
     @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("resource_group", "factory"),

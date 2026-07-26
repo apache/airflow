@@ -37,6 +37,13 @@ def get_task_group_children_getter() -> Callable:
     return methodcaller("hierarchical_alphabetical_sort")
 
 
+def _ui_colors(node) -> dict[str, str]:
+    """Return the node's ``ui_color``/``ui_fgcolor`` values (hex or Chakra token) for the graph."""
+    return {
+        key: value for key in ("ui_color", "ui_fgcolor") if (value := getattr(node, key, None)) is not None
+    }
+
+
 def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     if isinstance(task := task_item_or_group, (SerializedBaseOperator, SerializedMappedOperator)):
@@ -47,6 +54,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
             "label": task_display_name,
             "operator": task.operator_name,
             "type": "task",
+            **_ui_colors(task),
         }
         if task.is_setup:
             node_operator["setup_teardown_type"] = "setup"
@@ -78,6 +86,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
         "is_mapped": mapped,
         "children": children,
         "type": "task",
+        **_ui_colors(task_group),
     }
     return node
 

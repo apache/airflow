@@ -248,6 +248,8 @@ describe("coordinator runtime integration", () => {
       taskId: "say_hello",
       dagId: "test_dag",
       runId: "r1",
+      tryNumber: 1,
+      mapIndex: -1,
     });
     expect(result.logRecords.some((r) => r["event"] === "[ts-sdk.runtime] Task succeeded")).toBe(
       true,

@@ -125,6 +125,29 @@ describe("client is bound to TaskContext", () => {
     });
   });
 
+  it("defaults getXCom locator fields from ctx with snake_case wire names", async () => {
+    const sent: Record<string, unknown>[] = [];
+    const recordingComm = {
+      request: async (b: Record<string, unknown>) => {
+        sent.push(b);
+        return { body: { type: "XComResult", key: b.key, value: null } };
+      },
+    } as unknown as CommChannel;
+    const c = createCoordinatorClient(recordingComm, FAKE_CTX);
+
+    await c.getXCom({ key: "k" });
+
+    expect(sent[0]).toEqual({
+      type: "GetXCom",
+      key: "k",
+      dag_id: "d",
+      task_id: "t",
+      run_id: "r",
+      map_index: null,
+      include_prior_dates: false,
+    });
+  });
+
   it("maps camelCase public XCom options to snake_case supervisor fields", async () => {
     const sent: Record<string, unknown>[] = [];
     const recordingComm = {
@@ -194,6 +217,23 @@ describe("getConnection", () => {
       password: "secret",
       port: 5432,
       extra: "{}",
+    });
+  });
+
+  it("coerces absent optional wire fields to null public fields", async () => {
+    const c = client([
+      { body: { type: "ConnectionResult", conn_id: "bare", conn_type: "generic" } },
+    ]);
+
+    await expect(c.getConnection("bare")).resolves.toEqual({
+      id: "bare",
+      type: "generic",
+      host: null,
+      schema: null,
+      login: null,
+      password: null,
+      port: null,
+      extra: null,
     });
   });
 

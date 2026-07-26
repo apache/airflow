@@ -26,7 +26,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Generator
 from functools import cache, partial
-from multiprocessing import Pool
+from multiprocessing import get_context
 from pathlib import Path
 from threading import Lock
 from typing import NamedTuple
@@ -276,7 +276,12 @@ def get_all_constraint_files_and_airflow_releases(
         airflow_release_dates_path.write_text(json.dumps(airflow_release_dates, indent=2))
         console_print(f"[info]Airflow release dates saved in: {airflow_release_dates_path}[/]")
         with ci_group("Downloading constraints for all Airflow versions for all historical Python versions"):
-            with Pool() as pool:
+            # Use the "spawn" start method rather than the platform default: GitPython
+            # (used in the workers via get_tag_date) opens persistent `git cat-file --batch`
+            # subprocesses and is not fork-safe, and the parent already holds open network
+            # sockets from the version/constraints downloads. Forking that state into workers
+            # deadlocks; spawn gives each worker a clean interpreter.
+            with get_context("spawn").Pool() as pool:
                 # We use partial to pass the common parameters to the function
                 get_constraints_for_python_version_partial = partial(
                     get_constraints_for_python_version,

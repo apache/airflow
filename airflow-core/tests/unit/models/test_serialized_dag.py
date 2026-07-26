@@ -1042,3 +1042,116 @@ class TestSerializedDagModel:
 
         # The name must have been updated in the DB.
         assert updated_alert.name == "updated name"
+
+    def test_non_deadline_edit_creates_deadline_alert_for_new_serdag(self, testing_dag_bundle, session):
+        """Non-deadline Dag edit must create deadline_alert rows for the new serialized_dag row."""
+        dag_id = "test_deadline_orphan"
+
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        # Create a dagrun so the existing dag_version has task instances,
+        # forcing write_dag into the INSERT branch (new serialized_dag row).
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        orig_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        orig_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        assert orig_alert is not None
+
+        # Add a second task (non-deadline change) — deadline definition is untouched.
+        EmptyOperator(task_id="task2", dag=dag)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        new_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id).order_by(SDM.created_at.desc()))
+        assert new_serdag.id != orig_serdag.id, "A new serialized_dag row should have been created"
+
+        new_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == new_serdag.id))
+        assert new_alert is not None, (
+            f"serialized_dag {new_serdag.id} has deadline UUIDs in JSON but no deadline_alert row links to it"
+        )
+
+        # The old alert should still be intact for the old serialized_dag.
+        old_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        assert old_alert is not None
+
+    def test_non_deadline_edit_preserves_alert_in_update_branch(self, testing_dag_bundle, session):
+        """UPDATE branch (no task instances): existing deadline_alert stays linked after non-deadline edit."""
+        dag_id = "test_deadline_update_branch"
+
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        # No dagrun created — dag_version has no task instances, so write_dag
+        # takes the UPDATE branch (in-place update of the existing serialized_dag row).
+        orig_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        orig_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        assert orig_alert is not None
+
+        EmptyOperator(task_id="task2", dag=dag)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        # Same row was updated in place — only one serialized_dag should exist.
+        serdag_count = session.scalar(select(func.count()).select_from(SDM).where(SDM.dag_id == dag_id))
+        assert serdag_count == 1
+
+        updated_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == updated_serdag.id))
+        assert alert is not None, "deadline_alert must still be linked after UPDATE-branch re-serialization"
+
+    def test_deadline_reuse_skips_write_when_hash_matches(self, testing_dag_bundle, session):
+        """When nothing changed, write_dag short-circuits and existing alerts remain valid."""
+        dag_id = "test_deadline_noop"
+
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        orig_serdag = session.scalar(select(SDM).where(SDM.dag_id == dag_id))
+        orig_alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        assert orig_alert is not None
+
+        # Re-serialize the exact same Dag — nothing changed.
+        did_write = SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        assert did_write is False
+
+        alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
+        assert alert is not None
+        assert alert.id == orig_alert.id

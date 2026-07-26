@@ -23,7 +23,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
-from airflow.providers.anthropic.hooks.anthropic import AnthropicHook, BatchStatus, evaluate_batch_counts
+from airflow.providers.anthropic.hooks.anthropic import (
+    AnthropicHook,
+    BatchStatus,
+    evaluate_batch_counts,
+    validate_execute_complete_event,
+)
 from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
 from airflow.providers.common.compat.sdk import BaseSensorOperator, conf
 
@@ -107,6 +112,7 @@ class AnthropicBatchSensor(BaseSensorOperator):
         super().execute(context)
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
+        event = validate_execute_complete_event(event)
         status = event["status"]
         if status == "timeout":
             raise AnthropicBatchTimeout(event["message"])

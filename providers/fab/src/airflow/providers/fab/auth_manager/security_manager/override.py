@@ -2424,7 +2424,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return requests.get(MICROSOFT_KEY_SET_URL, timeout=30).json()
 
     def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
-        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
+        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", True)
         if verify_signature:
             from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
@@ -2433,6 +2433,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             claims.validate()
             return claims
 
+        log.warning("JWT token is not validated!")
         _parts = id_token.split(".")
         _payload = _parts[1] + "=" * (-len(_parts[1]) % 4)
         return json.loads(base64.urlsafe_b64decode(_payload))

@@ -20,7 +20,7 @@ import { Box, Flex } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type { RefObject } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -141,7 +141,12 @@ export const Grid = ({
     showVersionIndicatorMode,
   });
 
-  const { flatNodes } = flattenNodes(dagStructure, openGroupIds);
+  // React Compiler skips optimizing this whole component: `useVirtualizer` (@tanstack/react-virtual) is
+  // on the compiler's known-incompatible list — its return value exposes functions that can't be
+  // memoized safely — so it declines to memoize anything in Grid. Without the manual memoization here
+  // and on the click handlers below, `flatNodes` and the handlers get fresh references every render, so
+  // each TI-summaries stream line re-renders every column instead of only the run whose summary changed.
+  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   const taskNameColumnWidthPx = showGantt ? estimateTaskNameColumnWidthPx(flatNodes) : undefined;
 
@@ -166,9 +171,9 @@ export const Grid = ({
     tasks: flatNodes,
   });
 
-  const handleRowClick = () => setMode(NavigationModes.TASK);
-  const handleCellClick = () => setMode(NavigationModes.TI);
-  const handleColumnClick = () => setMode(NavigationModes.RUN);
+  const handleRowClick = useCallback(() => setMode(NavigationModes.TASK), [setMode]);
+  const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
+  const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,

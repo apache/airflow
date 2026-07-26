@@ -7,6 +7,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "airflow-ts-pack": "./dist/cli/main.js"
+  },
   "homepage": "https://airflow.apache.org",
   "repository": {
     "type": "git",
@@ -59,8 +62,17 @@
   "dependencies": {
     "@msgpack/msgpack": "^3.1.2"
   },
+  "peerDependencies": {
+    "esbuild": "^0.28.1"
+  },
+  "peerDependenciesMeta": {
+    "esbuild": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "esbuild": "^0.28.1",
     "@types/node": "^22.19.17",
     "eslint": "^10.4.0",
     "json-schema-to-typescript": "^15.0.4",

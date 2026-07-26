@@ -21,7 +21,11 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.anthropic.exceptions import AnthropicAgentSessionError, AnthropicAgentSessionTimeout
+from airflow.providers.anthropic.exceptions import (
+    AnthropicAgentSessionError,
+    AnthropicAgentSessionTimeout,
+    AnthropicTriggerEventError,
+)
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
 from airflow.providers.anthropic.operators.agent import AnthropicAgentSessionOperator
 from airflow.providers.anthropic.triggers.agent import AnthropicAgentSessionTrigger
@@ -34,28 +38,46 @@ def _context():
 
 
 def test_requires_exactly_one_of_message_or_outcome():
+    op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env")
     with pytest.raises(ValueError, match="exactly one"):
-        AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env")
+        op.execute(_context())
+
+    op = AnthropicAgentSessionOperator(
+        task_id="a", agent_id="ag", environment_id="env", message="hi", outcome={"description": "x"}
+    )
     with pytest.raises(ValueError, match="exactly one"):
-        AnthropicAgentSessionOperator(
-            task_id="a", agent_id="ag", environment_id="env", message="hi", outcome={"description": "x"}
-        )
+        op.execute(_context())
 
 
 def test_outcome_requires_description_and_rubric():
     # missing rubric
+    op = AnthropicAgentSessionOperator(
+        task_id="a", agent_id="ag", environment_id="env", outcome={"description": "x"}
+    )
     with pytest.raises(ValueError, match="description.*rubric"):
-        AnthropicAgentSessionOperator(
-            task_id="a", agent_id="ag", environment_id="env", outcome={"description": "x"}
-        )
+        op.execute(_context())
+
     # missing description
+    op = AnthropicAgentSessionOperator(
+        task_id="a",
+        agent_id="ag",
+        environment_id="env",
+        outcome={"rubric": {"type": "text", "content": "c"}},
+    )
     with pytest.raises(ValueError, match="description.*rubric"):
-        AnthropicAgentSessionOperator(
-            task_id="a",
-            agent_id="ag",
-            environment_id="env",
-            outcome={"rubric": {"type": "text", "content": "c"}},
-        )
+        op.execute(_context())
+
+
+def test_init_does_not_validate_message_or_outcome():
+    """Regression test: __init__ must not read template-field values (see #70296)."""
+    op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env")
+    assert op.message is None
+    assert op.outcome is None
+
+    op = AnthropicAgentSessionOperator(
+        task_id="a", agent_id="ag", environment_id="env", outcome={"description": "x"}
+    )
+    assert op.outcome == {"description": "x"}
 
 
 class TestExecute:
@@ -201,10 +223,21 @@ class TestExecuteComplete:
             op.execute_complete({}, {"status": "timeout", "session_id": "s", "message": "slow"})
         hook.archive_session.assert_called_once_with("s")
 
-    def test_none_event_raises(self):
+    @pytest.mark.parametrize(
+        ("event", "match"),
+        [
+            pytest.param(None, "event is None", id="none"),
+            pytest.param(
+                {"status": "rescheduling", "session_id": "s"},
+                "Unexpected trigger event status",
+                id="unknown-status",
+            ),
+        ],
+    )
+    def test_invalid_event_raises(self, event, match):
         op = AnthropicAgentSessionOperator(task_id="a", agent_id="ag", environment_id="env", message="hi")
-        with pytest.raises(AnthropicAgentSessionError, match="without an event"):
-            op.execute_complete({}, None)
+        with pytest.raises(AnthropicTriggerEventError, match=match):
+            op.execute_complete({}, event)
 
 
 class TestOnKill:

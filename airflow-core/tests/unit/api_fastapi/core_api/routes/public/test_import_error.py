@@ -102,7 +102,6 @@ def not_permitted_dag_model(testing_dag_bundle, *, session: Session = NEW_SESSIO
 def clear_db():
     clear_db_import_errors()
     clear_db_dags()
-    clear_db_dag_bundles()
 
     yield
 

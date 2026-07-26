@@ -38,9 +38,11 @@ class PartitionMapper(ABC):
 
     is_rollup: ClassVar[bool] = False
 
-    # Class-level default so the attribute resolves even on subclasses whose
-    # __init__ (e.g. attrs-generated in plugins) never calls this base __init__.
     max_downstream_keys: int | None = None
+
+    # Declared result type of decode_downstream; RollupMapper rejects windows
+    # whose expected_decoded_type does not match. Temporal mappers use datetime.
+    expected_decoded_type: ClassVar[type] = str
 
     def __init__(self, *, max_downstream_keys: int | None = None) -> None:
         if max_downstream_keys is not None and (
@@ -168,16 +170,13 @@ class RollupMapper(PartitionMapper):
         wait_policy: WaitPolicy | None = None,
         max_downstream_keys: int | None = None,
     ) -> None:
-        decode_overridden = type(upstream_mapper).decode_downstream is not PartitionMapper.decode_downstream
-        if not decode_overridden and window.expected_decoded_type is not str:
+        if upstream_mapper.expected_decoded_type is not window.expected_decoded_type:
             raise TypeError(
                 f"{type(window).__name__} expects decoded values of type "
                 f"{window.expected_decoded_type.__name__!r}, but "
-                f"{type(upstream_mapper).__name__} does not override "
-                f"'decode_downstream' (base default returns str). Pair the window "
-                f"with an upstream mapper that decodes to "
-                f"{window.expected_decoded_type.__name__}, or use a window whose "
-                f"'expected_decoded_type' accepts str."
+                f"{type(upstream_mapper).__name__} decodes to "
+                f"{upstream_mapper.expected_decoded_type.__name__!r}. Pair a window and an "
+                f"upstream mapper whose 'expected_decoded_type' match."
             )
         if wait_policy is None:
             wait_policy = WaitForAll()

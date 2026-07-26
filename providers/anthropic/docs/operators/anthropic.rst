@@ -52,6 +52,10 @@ Parameters
 
 * ``requests`` — a list of ``{"custom_id": str, "params": {...}}`` dicts, where ``params`` is a
   ``messages.create`` payload (``model``, ``max_tokens``, ``messages``, ...).
+* ``model`` — default model id applied to any request whose ``params`` omits ``model``. When
+  unset, those requests fall back to the connection's ``default_model`` (``extra['model']``). Set
+  it to choose the batch's model once instead of repeating it in every request; a request that
+  sets its own ``model`` always wins, so a batch can still mix models.
 * ``conn_id`` — the Anthropic connection ID (default ``anthropic_default``).
 * ``deferrable`` — run in deferrable mode (defaults to the ``operators.default_deferrable`` config).
 * ``poll_interval`` — seconds between status checks, in both the synchronous and deferrable paths.
@@ -113,7 +117,7 @@ AnthropicAgentSessionOperator
 -----------------------------
 
 :class:`~airflow.providers.anthropic.operators.agent.AnthropicAgentSessionOperator` runs a
-`Managed Agents <https://docs.claude.com/en/docs/agents-and-tools/managed-agents>`__ session:
+`Managed Agents <https://platform.claude.com/docs/en/managed-agents/overview>`__ session:
 Anthropic runs the agent loop server-side while the worker drives a session and waits for it
 to finish. Unlike the ``common.ai`` provider (a *local* pydantic-ai loop), the loop and its
 tool-execution sandbox run on Anthropic's infrastructure; the worker only orchestrates.

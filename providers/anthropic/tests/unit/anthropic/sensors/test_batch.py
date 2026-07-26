@@ -21,7 +21,11 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.anthropic.exceptions import AnthropicBatchJobError, AnthropicBatchTimeout
+from airflow.providers.anthropic.exceptions import (
+    AnthropicBatchJobError,
+    AnthropicBatchTimeout,
+    AnthropicTriggerEventError,
+)
 from airflow.providers.anthropic.hooks.anthropic import AnthropicHook
 from airflow.providers.anthropic.sensors.batch import AnthropicBatchSensor
 from airflow.providers.anthropic.triggers.batch import AnthropicBatchTrigger
@@ -102,3 +106,15 @@ class TestAnthropicBatchSensorDeferrable:
         sensor = AnthropicBatchSensor(task_id="s", batch_id="b1")
         event = {"status": "success", "batch_id": "b1", "request_counts": {"succeeded": 2}}
         assert sensor.execute_complete({}, event) is None
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param(None, id="none"),
+            pytest.param({"status": "ended", "batch_id": "b1"}, id="unknown-status"),
+        ],
+    )
+    def test_execute_complete_invalid_event_raises_instead_of_succeeding(self, event):
+        sensor = AnthropicBatchSensor(task_id="s", batch_id="b1")
+        with pytest.raises(AnthropicTriggerEventError):
+            sensor.execute_complete({}, event)
