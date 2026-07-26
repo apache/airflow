@@ -5135,7 +5135,20 @@ class TestDagRunTaskGroupRetries:
         assert self._state(dr, "outside", session) == TaskInstanceState.SUCCESS
         assert dr.task_group_retries == {"g": 1}
 
-    def test_running_sibling_is_restarted(self, dag_maker, session):
+    @pytest.mark.parametrize(
+        ("sibling_state", "expected_state"),
+        [
+            (TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING),
+            (TaskInstanceState.DEFERRED, None),
+            (TaskInstanceState.UP_FOR_RETRY, None),
+            (TaskInstanceState.UP_FOR_RESCHEDULE, None),
+            (TaskInstanceState.AWAITING_INPUT, None),
+            # Not-yet-started members are left alone; they run as part of the new attempt.
+            (TaskInstanceState.SCHEDULED, TaskInstanceState.SCHEDULED),
+            (TaskInstanceState.QUEUED, TaskInstanceState.QUEUED),
+        ],
+    )
+    def test_sibling_states_on_group_retry(self, dag_maker, session, sibling_state, expected_state):
         with dag_maker(dag_id="tg_retry_sibling", serialized=True, session=session):
             with TaskGroup("g", retries=2):
                 EmptyOperator(task_id="a")
@@ -5143,13 +5156,13 @@ class TestDagRunTaskGroupRetries:
 
         dr = dag_maker.create_dagrun()
         dr.get_task_instance("g.a", session=session).set_state(TaskInstanceState.FAILED, session=session)
-        dr.get_task_instance("g.b", session=session).set_state(TaskInstanceState.RUNNING, session=session)
+        dr.get_task_instance("g.b", session=session).set_state(sibling_state, session=session)
         session.flush()
 
         dr.update_state(session=session)
 
         assert self._state(dr, "g.a", session) is None
-        assert self._state(dr, "g.b", session) == TaskInstanceState.RESTARTING
+        assert self._state(dr, "g.b", session) == expected_state
         assert dr.task_group_retries == {"g": 1}
 
     def test_nested_groups_charge_only_innermost(self, dag_maker, session):

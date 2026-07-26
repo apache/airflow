@@ -1272,8 +1272,16 @@ class DagRun(Base, LoggingMixin):
         if not retryable_groups:
             return
 
-        # Not-yet-started members are skipped, since clearing them records spurious history rows.
-        clearable_states = State.finished | {TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING}
+        # Not-yet-started members (none/scheduled/queued) are skipped: clearing them records spurious
+        # history rows, and they run as part of the new attempt anyway.
+        clearable_states = State.finished | {
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.RESTARTING,
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.UP_FOR_RETRY,
+            TaskInstanceState.UP_FOR_RESCHEDULE,
+            TaskInstanceState.AWAITING_INPUT,
+        }
 
         def _group_depth(group: Any) -> int:
             depth = 0
