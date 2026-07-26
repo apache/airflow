@@ -1121,7 +1121,7 @@ class TestDagRun:
 
         session.flush()
 
-        dagruns = list(DagRun.get_running_dag_runs_to_examine(session=session))
+        dagruns = list(DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=False))
 
         assert len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is None]) == 10
 
@@ -1154,7 +1154,7 @@ class TestDagRun:
 
         session.flush()
 
-        dagruns = list(DagRun.get_running_dag_runs_to_examine(session=session))
+        dagruns = list(DagRun.get_running_dag_runs_to_examine(session=session, eagerly_load_dag_tags=False))
 
         assert (
             len([dagrun for dagrun in dagruns if dagrun.last_scheduling_decision is None])
@@ -1300,7 +1300,7 @@ class TestDagRun:
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
-                dag_run.update_state(session)
+                dag_run.update_state(session=session)
 
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
 
@@ -1389,7 +1389,7 @@ class TestDagRun:
             session.flush()
 
             with mock.patch("airflow._shared.observability.metrics.stats.timing") as stats_mock:
-                dag_run.update_state(session)
+                dag_run.update_state(session=session)
 
             start_delay_call = call("dagrun.first_task_start_delay", mock.ANY, tags=expected_stat_tags)
             if expected:
