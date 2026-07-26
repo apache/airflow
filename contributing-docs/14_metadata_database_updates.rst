@@ -141,7 +141,7 @@ Replace the content of your application's ``alembic.ini`` file with Airflow's ``
 If the above is not clear, you might want to look at the FAB implementation of this migration.
 
 After setting up those, and you want Airflow to run the migration for you when running ``airflow db migrate`` then you need to
-add your DBManager to the ``[core] external_db_managers`` configuration.
+add your DBManager to the ``[database] external_db_managers`` configuration.
 
 --------
 
