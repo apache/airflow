@@ -133,10 +133,6 @@ def deadline_orm(dagrun, session):
 @pytest.mark.db_test
 class TestDeadline:
     @staticmethod
-    def setup_method():
-        _clean_db()
-
-    @staticmethod
     def teardown_method():
         _clean_db()
 
@@ -252,17 +248,76 @@ class TestDeadline:
         context = callback_kwargs.pop("context")
         assert callback_kwargs == TEST_CALLBACK_KWARGS
 
-        assert context["deadline"]["id"] == deadline_orm.id
+        assert context["deadline"]["id"] == str(deadline_orm.id)
         assert context["deadline"]["deadline_time"].timestamp() == deadline_orm.deadline_time.timestamp()
         assert context["dag_run"] == DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+
+    @pytest.mark.db_test
+    def test_handle_miss_persists_triggerer_callback_context(self, dagrun, session):
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=AsyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        callback_id = deadline_orm.callback.id
+        deadline_id = deadline_orm.id
+        deadline_time = deadline_orm.deadline_time
+        expected_dag_run = DAGRunResponse.model_validate(dagrun).model_dump(mode="json")
+
+        deadline_orm.handle_miss(session)
+        session.commit()
+        session.expunge_all()
+
+        callback = session.scalar(select(Deadline).where(Deadline.id == deadline_id)).callback
+        assert callback.id == callback_id
+
+        callback_kwargs = callback.data["kwargs"]
+        context = callback_kwargs["context"]
+        assert {
+            key: value for key, value in callback_kwargs.items() if key != "context"
+        } == TEST_CALLBACK_KWARGS
+        assert context["deadline"]["id"] == str(deadline_id)
+        assert context["deadline"]["deadline_time"].timestamp() == deadline_time.timestamp()
+        assert context["dag_run"] == expected_dag_run
+
+        callback.trigger = None
+        session.commit()
+
+    @pytest.mark.db_test
+    def test_handle_miss_persists_executor_callback_routing_data(self, dagrun, session):
+        deadline_orm = Deadline(
+            deadline_time=DEFAULT_DATE,
+            callback=SyncCallback(TEST_CALLBACK_PATH, TEST_CALLBACK_KWARGS),
+            dagrun_id=dagrun.id,
+            dag_id=dagrun.dag_id,
+            deadline_alert_id=None,
+        )
+        session.add(deadline_orm)
+        session.flush()
+
+        callback_id = deadline_orm.callback.id
+        deadline_id = deadline_orm.id
+        dagrun_id = dagrun.id
+        dag_id = dagrun.dag_id
+
+        deadline_orm.handle_miss(session)
+        session.commit()
+        session.expunge_all()
+
+        callback = session.scalar(select(Deadline).where(Deadline.id == deadline_id)).callback
+        assert callback.id == callback_id
+        assert callback.data["dag_run_id"] == str(dagrun_id)
+        assert callback.data["dag_id"] == dag_id
+        assert callback.data["deadline_id"] == str(deadline_id)
 
 
 @pytest.mark.db_test
 class TestCalculatedDeadlineDatabaseCalls:
-    @staticmethod
-    def setup_method():
-        _clean_db()
-
     @staticmethod
     def teardown_method():
         _clean_db()

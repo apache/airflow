@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@11ty/eleventy": "^3.1.6",
-    "swagger-ui-dist": "^5.32.7"
+    "swagger-ui-dist": "^5.32.8"
   },
   "devDependencies": {
     "clean-css-cli": "^5.6.3",

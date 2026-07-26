@@ -39,7 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout, conf
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
@@ -215,6 +215,64 @@ class TestCeleryExecutor:
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @pytest.mark.backend("mysql", "postgres")
+    @pytest.mark.parametrize(
+        ("team_name", "tags"),
+        [
+            pytest.param(
+                None,
+                {},
+                id="without_team",
+            ),
+            pytest.param(
+                "team_a",
+                {"team_name": "team_a"},
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS,
+                    reason="team_name metrics require Airflow 3.1+",
+                ),
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.celery.executors.celery_executor.Stats")
+    def test_send_workloads_emits_task_timeout_metric(
+        self,
+        mock_stats,
+        team_name,
+        tags,
+    ):
+        with _prepare_app():
+            executor = celery_executor.CeleryExecutor()
+            executor.team_name = team_name
+
+            key = TaskInstanceKey(
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                try_number=1,
+            )
+            timeout = AirflowTaskTimeout()
+            exception = celery_executor_utils.ExceptionWithTraceback(timeout, "traceback")
+
+            executor.workload_publish_max_retries = 3
+            executor.workload_publish_retries[key] = 0
+            executor.queued_tasks[key] = mock.Mock()
+
+            with mock.patch.object(
+                executor,
+                "_send_workloads_to_celery",
+                return_value=[(key, None, exception)],
+            ):
+                executor._send_workloads([mock.Mock()])
+
+            mock_stats.incr.assert_called_once_with(
+                "celery.task_timeout_error",
+                tags=tags,
+            )
+
+            assert executor.workload_publish_retries[key] == 1
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have execute_command anymore")
     @pytest.mark.parametrize(
@@ -787,6 +845,32 @@ def test_result_backend_transport_options_with_multiple_options():
     result_backend_opts = default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]
     assert result_backend_opts["sentinel_kwargs"] == {"password": "redis_password"}
     assert result_backend_opts["master_name"] == "mymaster"
+
+
+@conf_vars(
+    {
+        ("celery", "result_backend"): None,
+        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+    }
+)
+def test_result_backend_derived_from_sql_alchemy_conn_uses_psycopg(monkeypatch):
+    """A driverless sql_alchemy_conn must derive a psycopg (v3) result_backend, not psycopg2."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", True)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg://user:pass@host/db"
+
+
+@conf_vars(
+    {
+        ("celery", "result_backend"): None,
+        ("database", "sql_alchemy_conn"): "postgresql://user:pass@host/db",
+    }
+)
+def test_result_backend_falls_back_to_psycopg2_without_psycopg3(monkeypatch):
+    """Without psycopg/SQLAlchemy 2.0 available, the derivation must fall back to psycopg2."""
+    monkeypatch.setattr(default_celery, "_USE_PSYCOPG3", False)
+    config = default_celery.get_default_celery_config(conf)
+    assert config["result_backend"] == "db+postgresql+psycopg2://user:pass@host/db"
 
 
 @conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): "invalid_json"})

@@ -41,6 +41,7 @@ from airflow.api_fastapi.common.dagbag import (
     resolve_run_on_latest_version,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select, paginated_select
+from airflow.api_fastapi.common.db.dags import attach_team_names
 from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
@@ -71,6 +72,7 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _DagIdTeamsFilter,
     _PrefixSearchParam,
     _SearchParam,
     datetime_range_filter_factory,
@@ -78,6 +80,7 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
     prefix_search_param_factory,
     search_param_factory,
+    teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.base import OrmClause
@@ -481,6 +484,7 @@ def get_task_instances(
     queue_name_prefix_pattern: QueryTIQueueNamePrefixPatternSearch,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
+    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(TI.dag_id))],
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
     operator_name_pattern: QueryTIOperatorNamePatternSearch,
@@ -599,6 +603,7 @@ def get_task_instances(
         map_index,
         rendered_map_index_pattern,
         rendered_map_index_prefix_pattern,
+        teams,
     ]
 
     if use_cursor:
@@ -607,9 +612,8 @@ def get_task_instances(
             "int", limit.value
         )  # LimitFilter value is guaranteed to be set to the default value of QueryLimit
         cursor_limit = LimitFilter().set_value(page_limit + 1)
-        task_instance_select = apply_filters_to_select(
-            statement=query, filters=[*filters, order_by, cursor_limit]
-        )
+        task_instance_select = apply_filters_to_select(statement=query, filters=[*filters, cursor_limit])
+        task_instance_select = order_by.to_orm(task_instance_select)
 
         is_backward = False
         if cursor:
@@ -617,7 +621,11 @@ def get_task_instances(
             if is_backward:
                 task_instance_select = order_by.to_orm(task_instance_select, reversed=True)
             task_instance_select = apply_cursor_filter(
-                task_instance_select, token, order_by, is_backward=is_backward
+                task_instance_select,
+                token,
+                order_by,
+                session.get_bind().dialect.name,
+                is_backward=is_backward,
             )
 
         fetched = list(session.scalars(task_instance_select))
@@ -631,6 +639,8 @@ def get_task_instances(
         else:
             has_prev = bool(cursor)
             has_next = has_more
+
+        attach_team_names(task_instances, session=session)
 
         return TaskInstanceCollectionResponse(
             task_instances=task_instances,
@@ -653,6 +663,7 @@ def get_task_instances(
         session=session,
     )
     task_instances = list(session.scalars(task_instance_select))
+    attach_team_names(task_instances, session=session)
     return TaskInstanceCollectionResponse(
         task_instances=task_instances,
         total_entries=total_entries,
@@ -970,16 +981,12 @@ def post_clear_task_instances(
     # dag.clear() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if task_instances:
-        task_instances = (
-            session.scalars(
-                select(TI)
-                .options(joinedload(TI.rendered_task_instance_fields))
-                .where(TI.id.in_([ti.id for ti in task_instances]))
-                .execution_options(populate_existing=True)
-            )
-            .unique()
-            .all()
-        )
+        task_instances = session.scalars(
+            select(TI)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .where(TI.id.in_([ti.id for ti in task_instances]))
+            .execution_options(populate_existing=True)
+        ).all()
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
@@ -1014,6 +1021,14 @@ def patch_task_group_instances(
     )
 
     response_tis = tis
+    # Apply "note" before "state" so listeners fired inside _patch_task_group_state() see the updated note.
+    if "note" in data:
+        _patch_task_instance_note(
+            task_instance_body=body,
+            tis=response_tis,
+            user=user,
+            update_mask=update_mask,
+        )
     if "new_state" in data:
         response_tis = _patch_task_group_state(
             group_id=group_id,
@@ -1022,13 +1037,6 @@ def patch_task_group_instances(
             body=body,
             data=data,
             session=session,
-        )
-    if "note" in data:
-        _patch_task_instance_note(
-            task_instance_body=body,
-            tis=response_tis,
-            user=user,
-            update_mask=update_mask,
         )
 
     response_tis = _reload_tis_with_rendered_fields(response_tis, session)
@@ -1136,16 +1144,12 @@ def patch_task_instance_dry_run(
     # set_task_instance_state() returns TIs without this relationship loaded; re-query with joinedload.
     # populate_existing=True ensures the joinedload updates TIs already in the identity map.
     if tis:
-        tis = (
-            session.scalars(
-                select(TI)
-                .options(joinedload(TI.rendered_task_instance_fields))
-                .where(TI.id.in_([ti.id for ti in tis]))
-                .execution_options(populate_existing=True)
-            )
-            .unique()
-            .all()
-        )
+        tis = session.scalars(
+            select(TI)
+            .options(joinedload(TI.rendered_task_instance_fields))
+            .where(TI.id.in_([ti.id for ti in tis]))
+            .execution_options(populate_existing=True)
+        ).all()
 
     return TaskInstanceCollectionResponse(
         task_instances=[
@@ -1214,36 +1218,34 @@ def patch_task_instance(
         dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
     )
 
-    for key, _ in data.items():
-        if key == "new_state":
-            # Create BulkTaskInstanceBody object with map_index field
-            bulk_ti_body = BulkTaskInstanceBody(
-                task_id=task_id,
-                map_index=map_index,
-                new_state=body.new_state,
-                note=body.note,
-                include_upstream=body.include_upstream,
-                include_downstream=body.include_downstream,
-                include_future=body.include_future,
-                include_past=body.include_past,
-            )
-
-            _patch_task_instance_state(
-                task_id=task_id,
-                dag_run_id=dag_run_id,
-                dag=dag,
-                task_instance_body=bulk_ti_body,
-                data=data,
-                session=session,
-            )
-
-        elif key == "note":
-            _patch_task_instance_note(
-                task_instance_body=body,
-                tis=tis,
-                user=user,
-                update_mask=update_mask,
-            )
+    # Apply "note" before "state" so listeners fired inside _patch_task_instance_state() see the updated note.
+    if "note" in data:
+        _patch_task_instance_note(
+            task_instance_body=body,
+            tis=tis,
+            user=user,
+            update_mask=update_mask,
+        )
+    if "new_state" in data:
+        # Create BulkTaskInstanceBody object with map_index field
+        bulk_ti_body = BulkTaskInstanceBody(
+            task_id=task_id,
+            map_index=map_index,
+            new_state=body.new_state,
+            note=body.note,
+            include_upstream=body.include_upstream,
+            include_downstream=body.include_downstream,
+            include_future=body.include_future,
+            include_past=body.include_past,
+        )
+        _patch_task_instance_state(
+            task_id=task_id,
+            dag_run_id=dag_run_id,
+            dag=dag,
+            task_instance_body=bulk_ti_body,
+            data=data,
+            session=session,
+        )
 
     return TaskInstanceCollectionResponse(
         task_instances=[

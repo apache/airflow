@@ -122,7 +122,7 @@ class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
                 item_attribute_value = response["Item"][self.attribute_name]
                 self.log.info("Response: %s", response)
                 self.log.info("Want: %s = %s", self.attribute_name, self.attribute_value)
-                self.log.info("Got: {response['Item'][self.attribute_name]} = %s", item_attribute_value)
+                self.log.info("Got: %s = %s", self.attribute_name, item_attribute_value)
                 return item_attribute_value in (
                     [self.attribute_value] if isinstance(self.attribute_value, str) else self.attribute_value
                 )

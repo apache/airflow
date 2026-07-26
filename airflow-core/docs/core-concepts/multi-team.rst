@@ -486,7 +486,7 @@ is uppercase.
     export AIRFLOW__TEAM_B___CELERY__BROKER_URL="redis://team-b-redis:6379/0"
 
     # team_b's Celery result backend
-    export AIRFLOW__TEAM_B___CELERY__RESULT_BACKEND="db+postgresql://team-b-db/celery_results"
+    export AIRFLOW__TEAM_B___CELERY__RESULT_BACKEND="db+postgresql+psycopg://team-b-db/celery_results"
 
 Via Config File
 """""""""""""""
@@ -499,17 +499,17 @@ name followed by an equals sign:
     # Global celery settings (used by the global executor, NOT as a fallback for teams)
     [celery]
     broker_url = redis://default-redis:6379/0
-    result_backend = db+postgresql://default-db/celery_results
+    result_backend = db+postgresql+psycopg://default-db/celery_results
 
     # team_a overrides
     [team_a=celery]
     broker_url = redis://team-a-redis:6379/0
-    result_backend = db+postgresql://team-a-db/celery_results
+    result_backend = db+postgresql+psycopg://team-a-db/celery_results
 
     # team_b overrides
     [team_b=celery]
     broker_url = redis://team-b-redis:6379/0
-    result_backend = db+postgresql://team-b-db/celery_results
+    result_backend = db+postgresql+psycopg://team-b-db/celery_results
 
 Dag Bundle to Team Association
 ------------------------------
@@ -1060,9 +1060,11 @@ Dags, and global components emit the same metrics without a ``team_name`` tag.
 
 The ``team_name`` tag is applied to metrics across the following components:
 
-- **Triggerer**: heartbeat, capacity, and trigger-outcome metrics (for example, ``triggerer_heartbeat``,
-  ``triggers.running``, ``triggers.succeeded``).
-- **Executors**: executor slot gauges (for example, ``executor.open_slots``, ``executor.queued_tasks``).
+- **Triggerer**: heartbeat, capacity, blocked-main-thread, and trigger-outcome metrics (for example,
+  ``triggerer_heartbeat``, ``triggers.running``, ``triggers.succeeded``,
+  ``triggers.blocked_main_thread``).
+- **Executors**: executor slot gauges and scheduler-observed executor heartbeat timing (for example,
+  ``executor.open_slots``, ``executor.queued_tasks``, ``scheduler.executor_heartbeat_duration``).
 - **Scheduler**: pool slot gauges for team-scoped pools plus task- and asset-scheduling counters (for
   example, ``pool.open_slots``, ``scheduler.tasks.killed_externally``, ``asset.triggered_dagruns``).
 - **Dag runs**: dag run timing and lifecycle metrics (for example, ``dagrun.duration.<state>``,
@@ -1073,6 +1075,9 @@ The ``team_name`` tag is applied to metrics across the following components:
   ``dag_processing.processor_timeouts``, ``dag_processing.callback_only_count``).
 - **Callbacks**: callback execution counters (``callback_success`` / ``callback_failure``, optionally
   prefixed).
+- **Connection tests**: per-request worker and reaper metrics for team-owned connection tests (for
+  example, ``connection_test.success``, ``connection_test.failed``, ``connection_test.hook_duration``,
+  ``connection_test.reaped``). Instance-wide connection-test queue gauges remain untagged.
 
 .. note::
 

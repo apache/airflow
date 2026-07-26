@@ -89,4 +89,16 @@ class ClientTest {
 
     Assertions.assertNull(connection.port)
   }
+
+  @Test
+  @DisplayName("MissingXComException builds the full message naming the task and parameter")
+  fun missingXComExceptionBuildsFullMessage() {
+    val ex = MissingXComException("produce", "value")
+    Assertions.assertEquals(
+      "Task parameter 'value' requires an XCom from task 'produce', but none was pushed. " +
+        "This parameter has a primitive type that cannot be null; declare it with a boxed type " +
+        "(e.g. Integer instead of int) to receive null.",
+      ex.message,
+    )
+  }
 }

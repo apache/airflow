@@ -1273,3 +1273,9 @@ def test_add_user_uses_configured_hash_method(mock_hash, app, security_manager):
                 mock_hash.assert_called_with("plaintext", method="pbkdf2:sha256")
             finally:
                 delete_user(app, "hash_method_add_test")
+
+
+def test_resource_name_does_not_collide_with_reserved_resource_names():
+    # Regression: a Dag literally named "DAGs" (the global resource name, and a valid
+    # dag_id) must resolve to its own per-DAG resource, never the global one.
+    assert permissions.resource_name(permissions.RESOURCE_DAG, permissions.RESOURCE_DAG) == "DAG:DAGs"

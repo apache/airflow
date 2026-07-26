@@ -1392,6 +1392,26 @@ class TestGetDag(TestDagEndpoint):
         assert response.status_code == 403
 
 
+class TestDagWithoutFileloc(TestDagEndpoint):
+    def _make_dag_without_fileloc(self, dag_maker, session, dag_id="test_dag_no_fileloc"):
+        with dag_maker(dag_id=dag_id, schedule=None):
+            EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+        dag_maker.sync_dagbag_to_db()
+        dag_model = session.get(DagModel, dag_id)
+        dag_model.fileloc = None
+        dag_model.relative_fileloc = None
+        session.commit()
+        return dag_id
+
+    @pytest.mark.parametrize("path_suffix", ["", "/details"])
+    def test_detail_endpoints_serve_dag_with_null_fileloc(self, session, test_client, dag_maker, path_suffix):
+        dag_id = self._make_dag_without_fileloc(dag_maker, session)
+        response = test_client.get(f"/dags/{dag_id}{path_suffix}")
+        assert response.status_code == 200
+        assert response.json()["fileloc"] is None
+
+
 class TestDeleteDAG(TestDagEndpoint):
     """Unit tests for Delete DAG."""
 

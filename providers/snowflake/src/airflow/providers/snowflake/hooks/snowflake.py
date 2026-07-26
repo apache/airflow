@@ -893,7 +893,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple | None] | None: ...
 
     def run(
         self,
@@ -904,7 +904,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = True,
         return_last: bool = True,
         return_dictionaries: bool = False,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple | None] | None:
         """
         Run a command or list of commands.
 

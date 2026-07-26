@@ -22,7 +22,7 @@ import pytest
 
 from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
-from airflow.serialization.serde import deserialize, serialize
+from airflow.sdk.serde import deserialize, serialize
 
 
 async def empty_async_callback_for_deadline_tests():

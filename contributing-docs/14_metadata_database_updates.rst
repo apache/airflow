@@ -30,11 +30,11 @@ database schema that you have made. To generate a new migration file, run the fo
 
     # starting at the root of the project
     # Use breeze:
-    $ breeze generate-migration-file -m "add new field to db"
+    $ breeze generate-migration-file -m "Add new field to db."
     # Or, go to the airflow directory and use alembic directly:
     $ breeze --backend postgres
     $ cd airflow-core/src/airflow
-    $ alembic revision -m "add new field to db" --autogenerate
+    $ alembic revision -m "Add new field to db." --autogenerate
 
        Generating
     ~/airflow-core/src/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
@@ -66,8 +66,8 @@ When rebasing your branch onto the latest ``main``, you may encounter conflicts 
 
 The affected files may include:
 
-- ``docs/apache-airflow/migrations-ref.rst``
-- ``airflow/migrations/versions/1234_A_B_C_<your_migration_name>.py``
+- ``airflow-core/docs/migrations-ref.rst``
+- ``airflow-core/src/airflow/migrations/versions/1234_A_B_C_<your_migration_name>.py``
 
     There should be another file, ``1234_A_B_C_<other_migration_name>.py``, with the same ``1234_A_B_C`` prefix.
 

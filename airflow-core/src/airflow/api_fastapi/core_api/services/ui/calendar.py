@@ -30,10 +30,13 @@ from sqlalchemy.orm import InstrumentedAttribute, Session
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.parameters import RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
+    CalendarDeadlineCollectionResponse,
+    CalendarDeadlineResponse,
     CalendarTimeRangeCollectionResponse,
     CalendarTimeRangeResponse,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
@@ -357,3 +360,55 @@ class CalendarService:
             return False
 
         return True
+
+    def get_deadline_calendar_data(
+        self,
+        dag_id: str,
+        deadline_time: RangeFilter,
+        granularity: Literal["hourly", "daily"] = "daily",
+        *,
+        session: Session,
+    ) -> CalendarDeadlineCollectionResponse:
+        """
+        Get deadline calendar data for a Dag, aggregated by time bucket and missed status.
+
+        Args:
+            dag_id: The Dag ID
+            session: Database session
+            deadline_time: Date range filter for deadline_time
+            granularity: Time granularity ("hourly" or "daily")
+
+        Returns:
+            Aggregated deadline counts per time bucket, split by missed/pending status
+        """
+        dialect = get_dialect_name(session)
+        time_expression = self._get_time_truncation_expression(Deadline.deadline_time, granularity, dialect)
+
+        select_stmt = (
+            sa.select(
+                time_expression.label("datetime"),
+                Deadline.missed,
+                sa.func.count("*").label("count"),
+            )
+            .join(Deadline.dagrun)
+            .where(DagRun.dag_id == dag_id)
+            .group_by(time_expression, Deadline.missed)
+            .order_by(time_expression.asc(), Deadline.missed.asc())
+        )
+
+        select_stmt = deadline_time.to_orm(select_stmt)
+        rows = session.execute(select_stmt).all()
+
+        results = [
+            CalendarDeadlineResponse(
+                date=row.datetime,
+                missed=row.missed,
+                count=int(row._mapping["count"]),
+            )
+            for row in rows
+        ]
+
+        return CalendarDeadlineCollectionResponse(
+            total_entries=len(results),
+            deadlines=results,
+        )

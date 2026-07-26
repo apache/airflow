@@ -106,6 +106,16 @@ spec:
       env:
         - name: AIRFLOW__CORE__EXECUTOR
           value: {{ .Values.executor | quote }}
+        # Deliver pod-termination signals only to the task supervisor (dumb-init's
+        # direct child) instead of broadcasting them to the whole process group.
+        # On graceful pod shutdown the supervisor's warm-shutdown handler then lets
+        # the running task finish -- the same mechanism Celery workers use -- rather
+        # than the task subprocess being killed directly by dumb-init's group-wide
+        # SIGTERM (which could also reach the subprocess before it installs its own
+        # signal handler). Hard kills (heartbeat loss / overtime / the post-grace
+        # SIGKILL) are unaffected.
+        - name: DUMB_INIT_SETSID
+          value: "0"
         {{- if or .Values.workers.kubernetes.kerberosSidecar.enabled .Values.workers.kubernetes.kerberosInitContainer.enabled }}
         - name: KRB5_CONFIG
           value:  {{ .Values.kerberos.configPath | quote }}

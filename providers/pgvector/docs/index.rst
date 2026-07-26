@@ -79,7 +79,7 @@ apache-airflow-providers-pgvector package
 `pgvector <https://github.com/pgvector/pgvector>`__
 
 
-Release: 1.7.2
+Release: 1.7.3
 
 Provider package
 ----------------
@@ -127,11 +127,28 @@ Dependent package                                                               
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
 ============================================================================================================  ==============
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-pgvector[common.sql]
+
+
+==============  =======================================
+Extra           Dependencies
+==============  =======================================
+``common.sql``  ``apache-airflow-providers-common-sql``
+==============  =======================================
+
 Downloading official packages
 -----------------------------
 
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-pgvector 1.7.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-pgvector 1.7.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-pgvector 1.7.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-pgvector 1.7.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_pgvector-1.7.3-py3-none-any.whl.sha512>`__)

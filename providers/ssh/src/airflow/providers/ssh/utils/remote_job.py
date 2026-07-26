@@ -158,11 +158,13 @@ def build_posix_wrapper_command(
     environment: dict[str, str] | None = None,
 ) -> str:
     """
-    Build a POSIX shell wrapper that runs the command detached via nohup.
+    Build a POSIX shell wrapper that runs the command detached.
 
     The wrapper:
+
     - Creates the job directory
-    - Starts the command in the background with nohup
+    - Starts the command detached in its own session via ``setsid`` (falling back to
+      ``nohup`` when ``setsid`` is unavailable)
     - Redirects stdout/stderr to the log file
     - Writes the exit code atomically on completion
     - Writes the PID for potential cancellation
@@ -181,6 +183,23 @@ def build_posix_wrapper_command(
 
     escaped_command = command.replace("'", "'\"'\"'")
 
+    # Launch detached under ``setsid`` so the job is its own session/process-group
+    # leader, letting cancellation signal the whole job tree instead of orphaning the
+    # user command. We do NOT rely on the launcher's ``$!`` to identify that group:
+    # ``setsid(1)`` forks internally when the process about to exec into it is already
+    # a process-group leader (``setsid(2)`` cannot create a new session from a group
+    # leader), which happens whenever job control is on in the launching shell. When
+    # it forks, ``$!`` is the short-lived setsid parent, not the job's real PGID, and
+    # cancellation signals a dead group. Instead the job script reports its OWN pid:
+    # immediately after ``setsid(2)`` POSIX guarantees ``pid == pgid == sid`` for the
+    # caller, and that identity survives the following exec, so ``$$`` inside the job
+    # script is always the true PGID regardless of whether setsid forked to get there.
+    # The pid file is read only when cancelling (:func:`build_posix_kill_command`),
+    # which happens long after submission, so the job's asynchronous write lands well
+    # before any reader and the launcher does not wait for it (recording the launcher's
+    # ``$!`` would just reintroduce the wrong-pid bug on the fork path). Without
+    # ``setsid`` (some macOS/BSD hosts) ``$$`` is just the job's own PID and
+    # cancellation degrades to the previous single-process behaviour.
     wrapper = f"""set -euo pipefail
 job_dir='{paths.job_dir}'
 log_file='{paths.log_file}'
@@ -192,8 +211,9 @@ status_file='{paths.status_file}'
 mkdir -p "$job_dir"
 : > "$log_file"
 
-nohup bash -c '
+job_script='
 set +e
+echo -n "$$" > "'"$pid_file"'"
 export LOG_FILE="'"$log_file"'"
 export STATUS_FILE="'"$status_file"'"
 {env_exports}{escaped_command} >>"'"$log_file"'" 2>&1
@@ -201,9 +221,13 @@ ec=$?
 echo -n "$ec" > "'"$exit_code_tmp"'"
 mv "'"$exit_code_tmp"'" "'"$exit_code_file"'"
 exit 0
-' >/dev/null 2>&1 &
+'
 
-echo -n $! > "$pid_file"
+if command -v setsid >/dev/null 2>&1; then
+  setsid bash -c "$job_script" >/dev/null 2>&1 &
+else
+  nohup bash -c "$job_script" >/dev/null 2>&1 &
+fi
 echo "{paths.job_id}"
 """
     return wrapper
@@ -218,6 +242,7 @@ def build_windows_wrapper_command(
     Build a PowerShell wrapper that runs the command detached via Start-Process.
 
     The wrapper:
+
     - Creates the job directory
     - Starts the command in a new detached PowerShell process
     - Redirects stdout/stderr to the log file
@@ -379,15 +404,39 @@ def build_posix_kill_command(pid_file: str) -> str:
     """
     Build a POSIX command to kill the remote process.
 
+    Signals the whole process group first (the negative-PID form ``kill -<pgid>``) so
+    the user command and anything it spawned are terminated together, not just the
+    wrapper. The recorded PID is the job's session/group leader when it was launched
+    under ``setsid`` (see :func:`build_posix_wrapper_command`); if the job is not a
+    group leader (host without ``setsid``), the group signal is a no-op and we fall
+    back to killing the single PID, matching the previous behaviour.
+
+    The pid value is validated as an integer ``> 1`` before being negated: a corrupt
+    or partial pid of ``0``/``1`` would otherwise turn ``kill -<pid>`` into a broadcast
+    to every process the SSH account can signal. Best-effort: the command never fails
+    the SSH call.
+
     :param pid_file: Path to the PID file
     :return: Shell command to kill the process
     """
-    return f"test -f '{pid_file}' && kill $(cat '{pid_file}') 2>/dev/null || true"
+    return (
+        f"if test -f '{pid_file}'; then "
+        f"p=\"$(cat '{pid_file}')\"; "
+        f'if [ "$p" -gt 1 ] 2>/dev/null; then '
+        f'kill -TERM -"$p" 2>/dev/null || kill -TERM "$p" 2>/dev/null || true; '
+        "fi; fi"
+    )
 
 
 def build_windows_kill_command(pid_file: str) -> str:
     """
     Build a PowerShell command to kill the remote process.
+
+    Uses ``taskkill /T`` to terminate the recorded process *and its child
+    processes* (the Windows equivalent of a process-group kill), so the user
+    command launched by the detached wrapper is not left orphaned. ``$procId`` is
+    used instead of ``$pid`` because ``$PID`` is a read-only automatic variable in
+    PowerShell.
 
     :param pid_file: Path to the PID file
     :return: PowerShell command to kill the process
@@ -395,8 +444,8 @@ def build_windows_kill_command(pid_file: str) -> str:
     escaped_path = pid_file.replace("'", "''")
     script = f"""$path = '{escaped_path}'
 if (Test-Path $path) {{
-  $pid = Get-Content $path
-  Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+  $procId = Get-Content $path
+  & taskkill.exe /PID $procId /T /F 2>$null
 }}"""
     script_bytes = script.encode("utf-16-le")
     encoded_script = base64.b64encode(script_bytes).decode("ascii")

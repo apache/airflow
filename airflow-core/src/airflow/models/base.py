@@ -28,7 +28,7 @@ SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
 # For more information about what the tokens in the naming convention
 # below mean, see:
-# https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData.params.naming_convention
+# https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.params.naming_convention
 naming_convention = {
     "ix": "idx_%(column_0_N_label)s",
     "uq": "%(table_name)s_%(column_0_N_name)s_uq",

@@ -39,7 +39,7 @@ class SqliteHook(DbApiHook):
         """Return SQLite connection object."""
         sqlalchemy_uri = self.get_uri()
         # The sqlite3 connection does not use the sqlite scheme.
-        # See https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#uri-connections for details.
+        # See https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#uri-connections for details.
         sqlite_uri = sqlalchemy_uri.replace("sqlite:///", "file:")
         conn = sqlite3.connect(sqlite_uri, uri=True)
         return conn
@@ -51,6 +51,6 @@ class SqliteHook(DbApiHook):
         # For sqlite, there is no schema in the connection URI. So we need to drop the trailing slash.
         airflow_sqlite_uri = airflow_uri.replace("/?", "?")
         # The sqlite connection has one more slash for path specification.
-        # See https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#connect-strings for details.
+        # See https://docs.sqlalchemy.org/en/20/dialects/sqlite.html#connect-strings for details.
         sqlalchemy_uri = airflow_sqlite_uri.replace("sqlite://", "sqlite:///")
         return sqlalchemy_uri

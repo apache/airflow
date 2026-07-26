@@ -106,11 +106,6 @@
     "viewInExternal": "Günlükleri {{name}} içinde görüntüle (deneme {{attempt}})",
     "warning": "UYARI"
   },
-  "navigation": {
-    "navigation": "Gezin: {{arrow}}",
-    "openGraphFilters": "Görev Filtreleri: Ctrl+Shift+F",
-    "toggleGroup": "Grubu aç/kapat: Space"
-  },
   "notFound": {
     "back": "Geri Dön",
     "backToDags": "Dag'lere Geri Dön",

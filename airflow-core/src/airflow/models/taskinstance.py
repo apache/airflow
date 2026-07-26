@@ -100,13 +100,11 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import ExecutorConfigType, ExtendedJSON, UtcDateTime
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -201,6 +199,27 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
             log.info("Not skipping teardown task '%s'", ti.task_id)
+
+
+def _add_and_prime_mapped_ti(
+    ti: TaskInstance,
+    task: Operator,
+    dag_run: DagRun,
+    *,
+    session: Session,
+    context_carrier: dict | None = None,
+) -> None:
+    """
+    Attach a newly-created mapped TI to the session and prime its ``dag_run`` cache.
+
+    :meta private:
+    """
+    task_instance_mutation_hook(ti, dag_run=dag_run)
+    session.add(ti)
+    if context_carrier is not None:
+        ti.context_carrier = context_carrier
+    ti.refresh_from_task(task, dag_run=dag_run)
+    set_committed_value(ti, "dag_run", dag_run)
 
 
 def _recalculate_dagrun_queued_at_deadlines(
@@ -410,6 +429,7 @@ def clear_task_instances(
         from airflow.models.dagrun import (  # Avoid circular import
             DagRun,
             dagrun_trace_attributes,
+            parent_trace_context,
             trace_sampled_override,
         )
 
@@ -436,6 +456,7 @@ def clear_task_instances(
                 task_span_detail_level=dr.conf.get(TASK_SPAN_DETAIL_LEVEL_KEY) if dr.conf else None,
                 attributes=dagrun_trace_attributes(dr),
                 force_sampled=trace_sampled_override(dr.conf),
+                parent_context=parent_trace_context(dr.conf),
             )
 
             _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
@@ -599,9 +620,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     )
     _rendered_map_index: Mapped[str | None] = mapped_column("rendered_map_index", String(250), nullable=True)
     context_carrier: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
-    span_status: Mapped[str] = mapped_column(
-        String(250), server_default=SpanStatus.NOT_STARTED, nullable=False
-    )
 
     external_executor_id: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
@@ -738,9 +756,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return prune_dict(
-            {"dag_id": self.dag_id, "task_id": self.task_id, "team_name": getattr(self, "_team_name", None)}
-        )
+        # Reuse the dag run's tags and add the task-level ones.
+        return {**self.dag_run.stats_tags, "task_id": self.task_id}
 
     @staticmethod
     def insert_mapping(

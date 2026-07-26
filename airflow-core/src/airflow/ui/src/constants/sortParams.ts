@@ -47,12 +47,12 @@ export const createDagSortOptions = (translate: TFunction) =>
         value: "-last_run_state",
       },
       {
-        label: translate("sort.lastRunStartDate.asc"),
-        value: "last_run_start_date",
+        label: translate("sort.lastRunAfter.asc"),
+        value: "last_run_run_after",
       },
       {
-        label: translate("sort.lastRunStartDate.desc"),
-        value: "-last_run_start_date",
+        label: translate("sort.lastRunAfter.desc"),
+        value: "-last_run_run_after",
       },
     ],
   });

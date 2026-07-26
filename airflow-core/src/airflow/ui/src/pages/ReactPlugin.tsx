@@ -20,15 +20,33 @@ import { Spinner } from "@chakra-ui/react";
 import { type FC, lazy, Suspense } from "react";
 import { useParams } from "react-router-dom";
 
-import type { ReactAppResponse } from "openapi/requests/types.gen";
+import {
+  useAssetServiceGetAsset,
+  useDagRunServiceGetDagRun,
+  useDagServiceGetDagDetails,
+  useTaskInstanceServiceGetMappedTaskInstance,
+} from "openapi/queries";
+import type {
+  AssetResponse,
+  DAGDetailsResponse,
+  DAGRunResponse,
+  ReactAppResponse,
+  TaskInstanceResponse,
+} from "openapi/requests/types.gen";
 
 import { ErrorPage } from "./Error";
 
 export type PluginProps = {
+  asset?: AssetResponse;
+  assetId?: string;
+  assetUri?: string;
+  dag?: DAGDetailsResponse;
   dagId?: string;
+  dagRun?: DAGRunResponse;
   mapIndex?: string;
   runId?: string;
   taskId?: string;
+  taskInstance?: TaskInstanceResponse;
 };
 
 type PluginComponentType = FC<PluginProps>;
@@ -40,8 +58,7 @@ const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginCompon
       // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
       // global variable.
       let pluginComponent = (globalThis as Record<string, unknown>)[reactApp.name] as
-        | PluginComponentType
-        | undefined;
+        PluginComponentType | undefined;
 
       if (pluginComponent === undefined) {
         pluginComponent = (globalThis as Record<string, unknown>).AirflowPlugin as PluginComponentType;
@@ -63,7 +80,51 @@ const loadPlugin = (reactApp: ReactAppResponse): Promise<{ default: PluginCompon
     });
 
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
-  const { dagId, mapIndex, runId, taskId } = useParams();
+  const { assetId, dagId, mapIndex, runId, taskId } = useParams();
+
+  // Context objects are not part of the route, so resolve them from the query cache. Each query
+  // is gated on the route params it needs, so it stays disabled where those params are absent
+  // (e.g. base/dashboard mounts) and is a cache hit where the parent details page already fetched.
+  const { data: asset } = useAssetServiceGetAsset(
+    { assetId: assetId === undefined ? 0 : parseInt(assetId, 10) },
+    undefined,
+    { enabled: Boolean(assetId) },
+  );
+  const assetUri = asset?.uri;
+
+  const { data: dag } = useDagServiceGetDagDetails({ dagId: dagId ?? "" }, undefined, {
+    enabled: Boolean(dagId),
+  });
+
+  const { data: dagRun } = useDagRunServiceGetDagRun(
+    { dagId: dagId ?? "", dagRunId: runId ?? "" },
+    undefined,
+    { enabled: Boolean(dagId) && Boolean(runId) },
+  );
+
+  const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance(
+    {
+      dagId: dagId ?? "",
+      dagRunId: runId ?? "",
+      mapIndex: mapIndex === undefined ? -1 : parseInt(mapIndex, 10),
+      taskId: taskId ?? "",
+    },
+    undefined,
+    { enabled: Boolean(dagId) && Boolean(runId) && Boolean(taskId) },
+  );
+
+  const pluginProps: PluginProps = {
+    asset,
+    assetId,
+    assetUri,
+    dag,
+    dagId,
+    dagRun,
+    mapIndex,
+    runId,
+    taskId,
+    taskInstance,
+  };
 
   // If the plugin component was already registered on the global object by a previous load,
   // render it directly without going through Suspense/lazy (avoids flashing the spinner).
@@ -72,7 +133,7 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
   if (typeof existing === "function") {
     const Plugin = existing as PluginComponentType;
 
-    return <Plugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />;
+    return <Plugin {...pluginProps} />;
   }
 
   // Otherwise, lazy-load the bundle once. When it resolves, it must set a function component
@@ -81,7 +142,7 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
 
   return (
     <Suspense fallback={<Spinner />}>
-      <LazyPlugin dagId={dagId} mapIndex={mapIndex} runId={runId} taskId={taskId} />
+      <LazyPlugin {...pluginProps} />
     </Suspense>
   );
 };

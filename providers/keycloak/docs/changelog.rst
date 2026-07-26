@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+0.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Derive keycloak oauth redirect_uri from configured base url (#69801)``
+* ``Set 'secure' flag on keycloak login cookies behind a tls proxy (#69594)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Hide non-user-facing entries from ad-hoc provider release notes``
+   * ``Prepare ad-hoc providers release 2026-07-01 (cncf.kubernetes, common.io, keycloak) (#69223)``
+   * ``Prepare ad-hoc providers release 2026-07-01``
+
+
 0.8.1
 .....
 
@@ -38,15 +54,19 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix keycloak missing resource error check (#69028)``
 * ``Handle missing Keycloak resources as access denied (#68951)``
 
 Misc
 ~~~~
 
+* ``Parallelize per-dag auth checks in KeycloakAuthManager (#69107)``
 * ``Revert airflowctl dependency from airflow-core (#68856)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
 
 0.8.0
 .....

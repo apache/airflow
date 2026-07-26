@@ -113,6 +113,24 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ==========================================  ==================
 
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-impala[kerberos]
+
+
+==============  ======================
+Extra           Dependencies
+==============  ======================
+``kerberos``    ``kerberos>=1.3.0``
+``sqlalchemy``  ``sqlalchemy>=1.4.54``
+==============  ======================
+
 Downloading official packages
 -----------------------------
 

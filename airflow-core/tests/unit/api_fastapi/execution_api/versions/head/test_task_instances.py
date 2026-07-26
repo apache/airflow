@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import UUID, uuid4
@@ -1497,7 +1498,64 @@ class TestTIUpdateState:
             mock_register_asset_changes_in_db.return_value = None
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
-            assert response.json()["detail"] == "Database error occurred"
+            detail = response.json()["detail"]
+            assert isinstance(detail, dict)
+            assert detail.get("reason") == "Database error"
+
+    def test_ti_run_database_error(self, client, session, create_task_instance):
+        """
+        Test that a database error is handled correctly when starting the Task Instance.
+        """
+        ti = create_task_instance(
+            task_id="test_ti_run_database_error",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        payload = {
+            "state": "running",
+            "hostname": "hostname",
+            "unixname": "unixname",
+            "pid": 123,
+            "start_date": "2024-10-31T12:00:00Z",
+        }
+
+        with mock.patch(
+            "airflow.api_fastapi.common.db.common.Session.execute",
+            side_effect=[
+                mock.Mock(
+                    one=mock.Mock(
+                        return_value=SimpleNamespace(
+                            state="queued",
+                            dag_id="dag",
+                            run_id="run",
+                            task_id="task",
+                            map_index=-1,
+                            try_number=1,
+                            max_tries=0,
+                            start_date=None,
+                            next_method=None,
+                            hostname=None,
+                            unixname=None,
+                            pid=None,
+                            next_kwargs=None,
+                            logical_date=timezone.utcnow(),
+                            owners="test_owner",
+                        )
+                    )
+                ),
+                SQLAlchemyError("Database error"),
+            ],
+        ):
+            response = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+
+        assert response.status_code == 500
+        detail = response.json()["detail"]
+        assert isinstance(detail, dict)
+        assert detail.get("reason") == "Database error"
 
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_ti_update_state_to_deferred(
@@ -1888,6 +1946,91 @@ class TestTIUpdateState:
         assert ti.retry_delay_override == 42.5
         assert ti.retry_reason == "Rate limit: backing off"
 
+    def test_ti_update_state_retry_policy_overrides_persisted_in_history(
+        self, client, session, create_task_instance
+    ):
+        """The finished try's values must be archived to task_instance_history.
+
+        record_ti() snapshots columns off the TI object, so the overrides, end_date,
+        and rendered_map_index must be set on the TI before prepare_db_for_next_try()
+        archives it; the live-row UPDATE is not visible to it.
+        """
+        ti = create_task_instance(
+            task_id="test_retry_policy_override_history",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "rendered_map_index": DEFAULT_RENDERED_MAP_INDEX,
+                "retry_delay_seconds": 42.5,
+                "retry_reason": "Rate limit: backing off",
+            },
+        )
+
+        assert response.status_code == 204
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.retry_delay_override == 42.5
+        assert tih.retry_reason == "Rate limit: backing off"
+        assert tih.end_date == DEFAULT_END_DATE
+        assert tih.duration == (DEFAULT_END_DATE - DEFAULT_START_DATE).total_seconds()
+        assert tih.rendered_map_index == DEFAULT_RENDERED_MAP_INDEX
+
+    def test_ti_update_state_retry_clears_rendered_map_index_in_history(
+        self, client, session, create_task_instance
+    ):
+        """An explicit ``rendered_map_index: null`` must clear the value archived to history too.
+
+        The worker sends ``rendered_map_index`` on every retry, even when this try never
+        (re-)computed it (e.g. it failed before rendering). That must null out the archived
+        row along with the live one, not leave the history row snapshotting a stale value
+        left over from an earlier try.
+        """
+        ti = create_task_instance(
+            task_id="test_retry_clears_rendered_map_index_history",
+            state=State.RUNNING,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        ti._rendered_map_index = DEFAULT_RENDERED_MAP_INDEX
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": State.UP_FOR_RETRY,
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "rendered_map_index": None,
+            },
+        )
+
+        assert response.status_code == 204
+
+        ti = session.scalars(
+            select(TaskInstance).filter_by(task_id=ti.task_id, run_id=ti.run_id, dag_id=ti.dag_id)
+        ).one()
+        assert ti.rendered_map_index is None
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.rendered_map_index is None
+
     def test_ti_update_state_retry_without_policy_overrides(self, client, session, create_task_instance):
         """Without retry policy fields, the columns remain NULL."""
         ti = create_task_instance(
@@ -1912,6 +2055,16 @@ class TestTIUpdateState:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.retry_delay_override is None
         assert ti.retry_reason is None
+
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+            )
+        ).one()
+        assert tih.retry_delay_override is None
+        assert tih.retry_reason is None
 
     def test_ti_run_clears_retry_policy_overrides(self, client, session, create_task_instance):
         """When a task enters RUNNING, retry policy overrides from the previous attempt are cleared."""
@@ -2826,7 +2979,37 @@ class TestTIPutRTIF:
         random_id = uuid6.uuid7()
         response = client.put(f"/execution/task-instances/{random_id}/rtif", json=payload)
         assert response.status_code == 404
-        assert response.json()["detail"] == "Not Found"
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "Task Instance not found",
+        }
+
+    def test_ti_put_rtif_archived_ti_returns_410(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_put_rtif_archived",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+        old_ti_id = ti.id
+
+        # Archive the current try to TIH and assign a new UUID, mirroring prepare_db_for_next_try().
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+
+        assert session.get(TaskInstance, old_ti_id) is None
+        assert session.get(TaskInstanceHistory, old_ti_id) is not None
+
+        response = client.put(
+            f"/execution/task-instances/{old_ti_id}/rtif",
+            json={"field1": "rendered_value1"},
+        )
+
+        assert response.status_code == 410
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+        }
 
 
 class TestPreviousDagRun:

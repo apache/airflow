@@ -57,6 +57,16 @@ class AgentSkillsToolset(AbstractToolset):
     :param sources: Skill sources -- local directory paths and/or ``GitSkills``.
     :param exclude_tools: Optional set of skill tool names to hide from the agent
         (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
+    :param exclude_resources: Optional glob patterns to exclude from resource
+        discovery, added on top of the built-in defaults (``__pycache__``,
+        ``*.pyc``, ``*.pyo``, ``.DS_Store``, ``.git``). A skill exposes every
+        readable text file it contains as a resource; these patterns keep matched
+        files out of the resource list and the ``read_skill_resource`` tool
+        (e.g. ``["*.env", "secrets/*"]``). Patterns match the full skill-relative
+        path or any single path component. This hides files from resource
+        discovery only -- it does not stop a skill's ``run_skill_script`` from
+        reading them off disk, so pair it with ``exclude_tools={"run_skill_script"}``
+        when the files are genuinely sensitive. Requires ``pydantic-ai-skills>=1.2.0``.
 
     Requires the ``skills`` extra: ``pip install "apache-airflow-providers-common-ai[skills]"``.
     """
@@ -66,9 +76,11 @@ class AgentSkillsToolset(AbstractToolset):
         sources: list[SkillSource],
         *,
         exclude_tools: set[str] | None = None,
+        exclude_resources: list[str] | None = None,
     ) -> None:
         self._sources = list(sources)
         self._exclude_tools = exclude_tools
+        self._exclude_resources = exclude_resources
         self._inner: Any = None
         self._cleanup: Callable[[], None] | None = None
 
@@ -80,7 +92,11 @@ class AgentSkillsToolset(AbstractToolset):
         # Per-run isolation: pydantic-ai shares one toolset instance across runs,
         # but we hold per-run clone/cleanup state on __aenter__/__aexit__. Hand
         # each run its own instance so concurrent runs never clobber each other.
-        return AgentSkillsToolset(self._sources, exclude_tools=self._exclude_tools)
+        return AgentSkillsToolset(
+            self._sources,
+            exclude_tools=self._exclude_tools,
+            exclude_resources=self._exclude_resources,
+        )
 
     async def __aenter__(self) -> AgentSkillsToolset:
         # Resolve + clone at run time, on the worker -- not at DAG-parse time.
@@ -98,6 +114,8 @@ class AgentSkillsToolset(AbstractToolset):
             kwargs: dict[str, Any] = {"directories": directories}
             if self._exclude_tools:
                 kwargs["exclude_tools"] = self._exclude_tools
+            if self._exclude_resources:
+                kwargs["exclude_resources"] = self._exclude_resources
             self._inner = SkillsToolset(**kwargs)
             await self._inner.__aenter__()
         except BaseException:

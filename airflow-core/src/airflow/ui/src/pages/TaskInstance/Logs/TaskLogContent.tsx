@@ -62,12 +62,14 @@ export const TaskLogContent = ({
 
   const {
     expandedGroups,
-    originalToVisibleIndex,
+    lineNumberToVisibleIndex,
     toggleGroup,
     visibleCurrentMatchIndex,
     visibleItems,
     visibleSearchMatchIndices,
   } = useLogGroups({ currentMatchLineIndex, expanded, parsedLogs, searchMatchIndices });
+
+  const hashVisibleIndex = hash === "" ? undefined : lineNumberToVisibleIndex.get(Number(hash));
 
   const isAtBottomRef = useRef<boolean>(true);
   const prevVisibleCountRef = useRef<number>(0);
@@ -114,15 +116,11 @@ export const TaskLogContent = ({
   }, [visibleItems.length, rowVirtualizer]);
 
   useLayoutEffect(() => {
-    if (location.hash && !isLoading) {
-      const hashVisibleIndex = originalToVisibleIndex.get(Number(hash) - 1);
-
-      if (hashVisibleIndex !== undefined) {
-        rowVirtualizer.scrollToIndex(Math.min(hashVisibleIndex + 5, visibleItems.length - 1));
-      }
+    if (location.hash && !isLoading && hashVisibleIndex !== undefined) {
+      rowVirtualizer.scrollToIndex(Math.min(hashVisibleIndex + 5, visibleItems.length - 1));
     }
     // React Compiler auto-memoizes; safe to include in deps
-  }, [isLoading, rowVirtualizer, hash, visibleItems, originalToVisibleIndex]);
+  }, [isLoading, rowVirtualizer, visibleItems, hashVisibleIndex]);
 
   useLayoutEffect(() => {
     if (visibleCurrentMatchIndex !== undefined && !isLoading) {
@@ -209,7 +207,7 @@ export const TaskLogContent = ({
                     _rtl={{ left: "auto", right: 0 }}
                     bgColor={getHighlightColor({
                       currentMatchLineIndex: visibleCurrentMatchIndex,
-                      hash,
+                      hashIndex: hashVisibleIndex,
                       index: virtualRow.index,
                       searchMatchIndices: visibleSearchMatchIndices,
                     })}
@@ -257,7 +255,7 @@ export const TaskLogContent = ({
                   _rtl={{ left: "auto", right: 0 }}
                   bgColor={getHighlightColor({
                     currentMatchLineIndex: visibleCurrentMatchIndex,
-                    hash,
+                    hashIndex: hashVisibleIndex,
                     index: virtualRow.index,
                     searchMatchIndices: visibleSearchMatchIndices,
                   })}

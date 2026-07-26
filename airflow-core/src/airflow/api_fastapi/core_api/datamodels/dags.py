@@ -91,7 +91,7 @@ class DAGResponse(BaseModel):
     bundle_name: str | None
     bundle_version: str | None
     relative_fileloc: str | None
-    fileloc: str
+    fileloc: str | None
     description: str | None
     timetable_summary: str | None
     timetable_description: str | None

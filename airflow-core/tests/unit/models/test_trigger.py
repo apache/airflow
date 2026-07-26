@@ -50,6 +50,7 @@ from airflow.triggers.base import (
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 
 if TYPE_CHECKING:
@@ -234,6 +235,27 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     mock_callback_handle_event.assert_called_once_with(event, session)
 
 
+@pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 6), (5, 6)])
+@patch("airflow.models.trigger.AssetManager.register_asset_change")
+def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected_query_count):
+    """Ensure asset notifications do not trigger per-asset lazy-load queries."""
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    trigger_id = trigger.id
+
+    for i in range(asset_count):
+        asset = AssetModel(name=f"asset_{asset_count}_{i}")
+        asset.add_trigger(trigger, f"watcher_{i}")
+        session.add(asset)
+
+    session.commit()
+    session.expire_all()
+
+    with assert_queries_count(expected_query_count, session=session):
+        Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+
+
 def test_submit_failure(session, create_task_instance):
     """
     Tests that failures submitted to a trigger fail their dependent
@@ -311,6 +333,33 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     for k, v in {"return_value": "xcomret", "a": "b", "c": "d"}.items():
         expected_xcoms[k] = json.dumps(v)
     assert actual_xcoms == expected_xcoms
+
+
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_callback_includes_version_data(mock_send, session, create_task_instance):
+    """A finished deferred task's callback carries version_data for a pinned run, and its
+    bundle_version is derived from the same dag_version so the two cannot diverge."""
+    version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    # Pin the run and attach a manifest to the TI's dag_version.
+    task_instance.dag_run.bundle_version = "some_hash"
+    task_instance.dag_version.bundle_version = "some_hash"
+    task_instance.dag_version.version_data = version_data
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskSuccessEvent(), session=session)
+    session.flush()
+
+    mock_send.assert_called_once()
+    request = mock_send.call_args.kwargs["callback"]
+    assert request.bundle_version == "some_hash"
+    assert request.version_data == version_data
 
 
 @pytest.fixture

@@ -481,5 +481,4 @@ def delete_xcom(
         XComModel.map_index == map_index,
     )
     session.execute(query)
-    session.commit()
     return {"message": f"XCom with key: {key} successfully deleted."}

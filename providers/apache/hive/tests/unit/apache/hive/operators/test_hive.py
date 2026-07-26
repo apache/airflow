@@ -31,6 +31,12 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.apache.hive import DEFAULT_DATE, MockSubProcess, TestHiveEnvironment
 
 
+def get_hive_cli_connection():
+    connection = mock.MagicMock()
+    connection.extra_dejson = {"use_beeline": True}
+    return connection
+
+
 class HiveOperatorConfigTest(TestHiveEnvironment):
     def test_hive_airflow_default_config_queue(self):
         op = HiveOperator(
@@ -57,6 +63,22 @@ class HiveOperatorConfigTest(TestHiveEnvironment):
         )
 
         assert op.hook.mapred_queue == specific_mapred_queue
+
+
+class TestHiveOperatorJdbcParams(TestHiveEnvironment):
+    @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.get_connection")
+    def test_hive_operator_passes_jdbc_params_to_hook(self, mock_get_connection):
+        mock_get_connection.return_value = get_hive_cli_connection()
+        jdbc_params = {"transportMode": "http", "sslTrustStore": "/opt/hive/truststore.jks"}
+
+        op = HiveOperator(
+            task_id="test_jdbc_params",
+            hql="SELECT 1",
+            jdbc_params=jdbc_params,
+            dag=self.dag,
+        )
+
+        assert op.hook.jdbc_params == jdbc_params
 
 
 class HiveOperatorTest(TestHiveEnvironment):

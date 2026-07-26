@@ -711,6 +711,15 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
         assert dag.fileloc == __file__
 
+    def test_bundle_name_defaults_to_none(self):
+        dag = DAG("test_dag", schedule=None)
+        assert dag.bundle_name is None
+
+    def test_bundle_name_can_be_set(self):
+        dag = DAG("test_dag", schedule=None)
+        dag.bundle_name = "my_bundle"
+        assert dag.bundle_name == "my_bundle"
+
     def test_set_dag_id(self):
         """Test that checks you can set dag_id from decorator."""
 

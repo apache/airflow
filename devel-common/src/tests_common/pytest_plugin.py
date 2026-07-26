@@ -878,6 +878,23 @@ class DagMaker(Generic[Dag], Protocol):
     def serialized_dag(self) -> SerializedDAG: ...
 
 
+def _delete_bundle_if_unreferenced(session, bundle_name):
+    """Delete a DagBundleModel row, but only once no DagModel still references it.
+
+    ``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action, and the bundle is
+    shared across tests, so it can only be dropped after the last referencing Dag is gone.
+    """
+    from sqlalchemy import delete, func, select
+
+    from airflow.models.dag import DagModel
+    from airflow.models.dagbundle import DagBundleModel
+
+    if not session.scalar(
+        select(func.count()).select_from(DagModel).where(DagModel.bundle_name == bundle_name)
+    ):
+        session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
+
+
 @pytest.fixture
 def dag_maker(request) -> Generator[DagMaker, None, None]:
     """
@@ -946,6 +963,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 self.dagbag = DagBag(os.devnull)
             else:
                 self.dagbag = DagBag(os.devnull, include_examples=False)  # type: ignore[call-arg]
+            self.created_bundle_names: set[str] = set()
 
         def __enter__(self):
             self.serialized_model = None
@@ -1380,6 +1398,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 ):
                     self.session.add(DagBundleModel(name=self.bundle_name))
                     self.session.commit()
+                    self.created_bundle_names.add(self.bundle_name)
 
             return self
 
@@ -1424,6 +1443,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
                     self.session.execute(delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)))
                     self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
+                    if AIRFLOW_V_3_0_PLUS:
+                        for bundle_name in self.created_bundle_names:
+                            _delete_bundle_if_unreferenced(self.session, bundle_name)
                     self.session.commit()
                     if self._own_session:
                         self.session.expunge_all()
@@ -1743,6 +1765,8 @@ def session():
 
 @pytest.fixture
 def get_test_dag():
+    created = {"bundle": False, "import_error_files": set()}
+
     def _get(dag_id: str):
         from airflow import settings
         from airflow.models.serialized_dag import SerializedDagModel
@@ -1784,6 +1808,7 @@ def get_test_dag():
                         stacktrace=stacktrace,
                     )
                 )
+            created["import_error_files"].add(str(dag_file))
 
             return
 
@@ -1798,6 +1823,7 @@ def get_test_dag():
             session = settings.Session()
             if not session.scalar(select(func.count()).where(DagBundleModel.name == "testing")):
                 session.add(DagBundleModel(name="testing"))
+                created["bundle"] = True
                 session.flush()
             SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
             session.commit()
@@ -1808,7 +1834,25 @@ def get_test_dag():
 
         return dag
 
-    return _get
+    yield _get
+
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if not AIRFLOW_V_3_0_PLUS:
+        return
+
+    from sqlalchemy import delete
+
+    from airflow.models.errors import ParseImportError
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if created["import_error_files"]:
+            session.execute(
+                delete(ParseImportError).where(ParseImportError.filename.in_(created["import_error_files"]))
+            )
+        if created["bundle"]:
+            _delete_bundle_if_unreferenced(session, "testing")
 
 
 @pytest.fixture
@@ -2918,40 +2962,60 @@ def mock_xcom_backend():
 def testing_dag_bundle():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    if AIRFLOW_V_3_0_PLUS:
-        from sqlalchemy import func, select
+    if not AIRFLOW_V_3_0_PLUS:
+        yield
+        return
 
-        from airflow.models.dagbundle import DagBundleModel
-        from airflow.utils.session import create_session
+    from sqlalchemy import func, select
 
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    created = False
+    with create_session() as session:
+        if (
+            session.scalar(
+                select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
+            )
+            == 0
+        ):
+            session.add(DagBundleModel(name="testing"))
+            created = True
+
+    yield
+
+    if created:
         with create_session() as session:
-            if (
-                session.scalar(
-                    select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
-                )
-                == 0
-            ):
-                testing = DagBundleModel(name="testing")
-                session.add(testing)
+            _delete_bundle_if_unreferenced(session, "testing")
 
 
 @pytest.fixture
 def testing_team():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    if AIRFLOW_V_3_0_PLUS:
-        from sqlalchemy import select
+    if not AIRFLOW_V_3_0_PLUS:
+        yield None
+        return
 
-        from airflow.models.team import Team
-        from airflow.utils.session import create_session
+    from sqlalchemy import delete, select
 
+    from airflow.models.team import Team
+    from airflow.utils.session import create_session
+
+    created = False
+    with create_session() as session:
+        team = session.scalar(select(Team).where(Team.name == "testing"))
+        if not team:
+            team = Team(name="testing")
+            session.add(team)
+            session.commit()
+            created = True
+        yield team
+
+    if created:
+        # FKs to team.name are CASCADE / SET NULL, so deleting the row is safe.
         with create_session() as session:
-            team = session.scalar(select(Team).where(Team.name == "testing"))
-            if not team:
-                team = Team(name="testing")
-                session.add(team)
-                session.flush()
-            yield team
+            session.execute(delete(Team).where(Team.name == "testing"))
 
 
 @pytest.fixture

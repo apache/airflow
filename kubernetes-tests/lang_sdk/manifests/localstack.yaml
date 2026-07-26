@@ -1,0 +1,77 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# LocalStack (S3 only) used as the object store backing the lang-SDK system test:
+# the Go binary, Java jar, and Python stub Dag are uploaded to separate S3
+# buckets and pulled into pods via S3DagBundle. Deployed into the ``airflow``
+# namespace so the api-server / dag-processor / worker pods reach it at
+# ``http://localstack.airflow.svc.cluster.local:4566``.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: localstack
+  namespace: airflow
+  labels:
+    app: localstack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: localstack
+  template:
+    metadata:
+      labels:
+        app: localstack
+    spec:
+      containers:
+        - name: localstack
+          image: localstack/localstack:4.7
+          ports:
+            - containerPort: 4566
+          env:
+            - name: SERVICES
+              value: s3
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+          readinessProbe:
+            httpGet:
+              path: /_localstack/health
+              port: 4566
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /_localstack/health
+              port: 4566
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: localstack
+  namespace: airflow
+  labels:
+    app: localstack
+spec:
+  selector:
+    app: localstack
+  ports:
+    - name: edge
+      port: 4566
+      targetPort: 4566
