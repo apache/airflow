@@ -93,4 +93,23 @@ describe("FieldPassword", () => {
     expect(mockParamsDict.private_key.value).toBeNull();
     expect(onUpdate).toHaveBeenLastCalledWith("");
   });
+  it("toggles between masked and plain text when the button is clicked", () => {
+    mockParamsDict.private_key = {
+      schema: { format: "password", type: "string" },
+      value: "s3cret",
+    };
+
+    render(<FieldPassword name="private_key" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    const input = getInputByName("private_key");
+    const toggle = document.querySelector("button") as HTMLButtonElement;
+
+    expect(input.type).toBe("password");
+
+    fireEvent.click(toggle);
+    expect(input.type).toBe("text");
+
+    fireEvent.click(toggle);
+    expect(input.type).toBe("password");
+  });
 });
