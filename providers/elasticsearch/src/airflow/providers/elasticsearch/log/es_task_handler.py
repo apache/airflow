@@ -22,7 +22,6 @@ import inspect
 import json
 import logging
 import os
-import shutil
 import sys
 import time
 import warnings
@@ -753,7 +752,16 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
             success = self._write_to_es(log_lines)
             if success and self.delete_local_copy:
-                shutil.rmtree(os.path.dirname(local_loc))
+                # Delete the file and prune empty parents (idempotent); a bare
+                # rmtree of the dir races concurrent handler closes in the triggerer.
+                local_loc.unlink(missing_ok=True)
+                parent = local_loc.parent
+                while parent != self.base_log_folder and parent.is_dir():
+                    if any(parent.iterdir()):
+                        break
+                    with contextlib.suppress(OSError):
+                        parent.rmdir()
+                    parent = parent.parent
 
     def _parse_raw_log(self, log: str, log_id: str) -> list[dict[str, Any]]:
         logs = log.split("\n")

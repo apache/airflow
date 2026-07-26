@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import inspect
 import logging
 import os
 import pathlib
-import shutil
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -87,7 +87,16 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
             log = local_loc.read_text()
             has_uploaded = self.write(log, remote_loc)
             if has_uploaded and self.delete_local_copy:
-                shutil.rmtree(os.path.dirname(local_loc))
+                # Delete the file and prune empty parents (idempotent); a bare
+                # rmtree of the dir races concurrent handler closes in the triggerer.
+                local_loc.unlink(missing_ok=True)
+                parent = local_loc.parent
+                while parent != self.base_log_folder and parent.is_dir():
+                    if any(parent.iterdir()):
+                        break
+                    with contextlib.suppress(OSError):
+                        parent.rmdir()
+                    parent = parent.parent
             elif has_uploaded:
                 local_loc.write_text("")
 
