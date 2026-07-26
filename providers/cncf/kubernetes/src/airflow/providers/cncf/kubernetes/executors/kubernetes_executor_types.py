@@ -99,6 +99,7 @@ class KubernetesJob(NamedTuple):
     command: WorkloadCommand
     kube_executor_config: Any
     pod_template_file: str | None
+    kube_image: str | None = None
 
 
 ALL_NAMESPACES = "ALL_NAMESPACES"

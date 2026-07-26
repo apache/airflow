@@ -243,8 +243,6 @@ def update_hitl_detail(
             task_instance=locked_ti,
             session=session,
         )
-
-    session.commit()
     return HITLDetailResponse.model_validate(hitl_detail_model)
 
 

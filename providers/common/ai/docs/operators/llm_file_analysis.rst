@@ -80,12 +80,12 @@ back from the LLM instead of a plain string. The model instance is pushed to
 XCom unchanged so downstream tasks can type-hint the class directly. The
 declared ``output_type`` (and any ``BaseModel`` reachable from
 ``Union``/``Optional``/``list`` shapes) is registered for deserialization by the
-worker when it loads the DAG. Define the class at **module scope** and bind it to
+worker when it loads the Dag. Define the class at **module scope** and bind it to
 an attribute matching its ``__name__``: nested-in-function and dynamically-built
 classes cannot be re-imported, so they are skipped at worker startup and fail to
-deserialize at the consumer. Same-DAG downstream tasks need no configuration; the
+deserialize at the consumer. Same-Dag downstream tasks need no configuration; the
 UI XCom viewer renders the value
-via the ``stringify`` path (no configuration needed). Cross-DAG ``xcom_pull``
+via the ``stringify`` path (no configuration needed). Cross-Dag ``xcom_pull``
 consumers still need the class ``qualname`` added to
 ``[core] allowed_deserialization_classes`` (see the ``LLMOperator`` guide for
 details).
@@ -140,6 +140,15 @@ Parameters
   ``BaseModel`` for structured output.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
+- ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
+  ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
+  ``model_dump()`` before being pushed to XCom. Default ``False`` -- the
+  Pydantic instance flows through XCom unchanged. Set to ``True`` when a
+  downstream consumer needs the dict shape.
+
+This operator also inherits ``LLMOperator``'s HITL review parameters --
+``require_approval``, ``approval_timeout``, and ``allow_modifications`` -- see
+:doc:`llm` for details.
 
 Supported Formats
 -----------------

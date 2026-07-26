@@ -21,6 +21,7 @@ export { capitalize } from "./capitalize";
 export { getDuration, renderDuration } from "./datetimeUtils";
 export { createErrorToaster, getErrorStatus } from "./errorHandling";
 export { getMetaKey } from "./getMetaKey";
+export { toNullablePartitionKey } from "./partitionKey";
 export { useContainerWidth } from "./useContainerWidth";
 export { useDocumentTitle } from "./useDocumentTitle";
 export { DocumentTitleProvider } from "./useDocumentTitleProvider";

@@ -103,6 +103,24 @@ The sensor executes the SQL statement supplied by the user. The only required pa
 
 Other parameters are optional and could be found in the class documentation.
 
+Attaching query tags
+^^^^^^^^^^^^^^^^^^^^
+
+Both ``DatabricksSqlSensor`` and ``DatabricksPartitionSensor`` support ``query_tags`` and
+``include_airflow_query_tags`` to attach metadata to every query sent to Databricks.
+
+.. code-block:: python
+
+    sensor = DatabricksSqlSensor(
+        task_id="sensor_with_tags",
+        sql_warehouse_name="my_warehouse",
+        sql="SELECT 1 FROM my_table WHERE status = 'ready'",
+        query_tags={"team": "data-eng", "env": "prod"},  # merged with Airflow context tags
+        include_airflow_query_tags=True,  # adds dag_id, task_id, run_id, try_number, map_index
+    )
+
+Set ``include_airflow_query_tags=False`` to suppress the automatic Airflow context tags.
+
 Examples
 --------
 Configuring Databricks connection to be used with the Sensor.

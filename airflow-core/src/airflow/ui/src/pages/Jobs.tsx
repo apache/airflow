@@ -31,7 +31,7 @@ import { FilterBar } from "src/components/FilterBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
+import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 const createColumns = (translate: TFunction): Array<ColumnDef<JobResponse>> => [
   {
@@ -95,6 +95,9 @@ const jobsFilterKeys: Array<FilterableSearchParamsKeys> = [
 
 export const Jobs = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
+
+  useDocumentTitle(translate("common:browse.jobs"));
+
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams] = useSearchParams();
 

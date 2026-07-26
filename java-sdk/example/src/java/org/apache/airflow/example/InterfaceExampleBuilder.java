@@ -19,45 +19,46 @@
 
 package org.apache.airflow.example;
 
+import static java.lang.System.Logger.Level.INFO;
+
 import java.util.Date;
 import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("DuplicatedCode")
 public class InterfaceExampleBuilder {
-  private static final Logger logger = LoggerFactory.getLogger(InterfaceExampleBuilder.class);
+  private static final System.Logger log =
+      System.getLogger(InterfaceExampleBuilder.class.getName());
 
   public static class Extract implements Task {
     public void execute(@NotNull Context context, Client client) throws Exception {
-      logger.info("Hello from task");
+      log.log(INFO, "Hello from task");
 
       var pythonInput = client.getXCom("python_task_1");
-      logger.info("Got XCom from Python Task 'python_task_1' {}", pythonInput);
+      log.log(INFO, "Got XCom from python_task_1: {0}", pythonInput);
 
       var connection = client.getConnection("test_http");
-      logger.info("Got con {}", connection);
+      log.log(INFO, "Got connection: {0}", connection);
 
       for (var i = 0; i < 3; i++) {
-        logger.info("Beep {}, next time will be {}", i, new Date());
+        log.log(INFO, "Beep {0}, next time will be {1}", i, new Date());
         Thread.sleep(2 * 1000);
       }
 
       client.setXCom(new Date().getTime());
-      logger.info("Goodbye from task");
+      log.log(INFO, "Goodbye from task");
     }
   }
 
   public static class Transform implements Task {
     public void execute(@NotNull Context context, Client client) {
       var extracted = client.getXCom("extract");
-      logger.info("Got XCom from 'extract' {}", extracted);
+      log.log(INFO, "Got XCom from extract: {0}", extracted);
 
       var variable = client.getVariable("my_variable");
-      logger.info("Got variable {}", variable);
+      log.log(INFO, "Got variable: {0}", variable);
 
-      logger.info("Push XCom to python task 2");
+      log.log(INFO, "Push XCom to python task 2");
       client.setXCom(new Date().getTime());
     }
   }
@@ -65,7 +66,7 @@ public class InterfaceExampleBuilder {
   public static class Load implements Task {
     public void execute(@NotNull Context context, Client client) {
       var transformed = client.getXCom("transform");
-      logger.info("Got XCom from 'transform' {}", transformed);
+      log.log(INFO, "Got XCom from transform: {0}", transformed);
       throw new RuntimeException("I failed");
     }
   }

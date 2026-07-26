@@ -34,6 +34,7 @@ from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics import datadog_logger, statsd_logger
 from airflow_shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow_shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
+from airflow_shared.observability.metrics.stats import build_dag_metric_tags
 from airflow_shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow_shared.observability.metrics.validators import (
     PatternAllowListValidator,
@@ -62,6 +63,13 @@ def get_statsd_logger_factory(
         metrics_block_list=metrics_block_list,
         stat_name_handler=stat_name_handler,
     )
+
+
+class TestGetStatsdLogger:
+    @mock.patch("statsd.StatsClient")
+    def test_passes_ipv6_as_keyword(self, mock_stats_client):
+        statsd_logger.get_statsd_logger(stats_class=mock_stats_client, ipv6=True)
+        assert mock_stats_client.call_args.kwargs["ipv6"] is True
 
 
 class TestStats:
@@ -258,6 +266,20 @@ class TestDogStats:
         self.dogstatsd_client.decrement.assert_called_once_with(
             metric="empty", sample_rate=1, value=1, tags=[]
         )
+
+    @pytest.mark.parametrize(
+        ("tags", "expected"),
+        [
+            ({"env": "prod"}, {"env:prod"}),
+            ({"production": ""}, {"production"}),
+            ({"production": "", "env": "staging"}, {"production", "env:staging"}),
+        ],
+    )
+    def test_key_value_and_standalone_tags(self, tags, expected):
+        dogstatsd = SafeDogStatsdLogger(self.dogstatsd_client, metrics_tags=True)
+        dogstatsd.incr("my_metric", tags=tags)
+        call_kwargs = self.dogstatsd_client.increment.call_args
+        assert set(call_kwargs.kwargs["tags"]) == expected
 
 
 class TestStatsAllowAndBlockLists:
@@ -457,23 +479,35 @@ class TestStatsWithInfluxDBEnabled:
         )
         self.statsd_client.incr.assert_called_once_with("test_stats_run.delay", 1, 1)
 
-    def test_increment_counter_with_tags(self):
-        self.stats.incr(
-            "test_stats_run.delay",
-            tags={"key0": 0, "key1": "val1", "key2": "val2"},
-        )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key0=0,key1=val1", 1, 1)
-
-    def test_increment_counter_with_tags_and_forward_slash(self):
-        self.stats.incr("test_stats_run.dag", tags={"path": "/some/path/dag.py"})
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.dag,path=/some/path/dag.py", 1, 1)
-
-    def test_does_not_increment_counter_drops_invalid_tags(self):
-        self.stats.incr(
-            "test_stats_run.delay",
-            tags={"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
-        )
-        self.statsd_client.incr.assert_called_once_with("test_stats_run.delay,key1=val1", 1, 1)
+    @pytest.mark.parametrize(
+        ("stat", "tags", "expected"),
+        [
+            (
+                "test_stats_run.delay",
+                {"key0": 0, "key1": "val1", "key2": "val2"},
+                "test_stats_run.delay,key0=0,key1=val1",
+            ),
+            (
+                "test_stats_run.dag",
+                {"path": "/some/path/dag.py"},
+                "test_stats_run.dag,path=/some/path/dag.py",
+            ),
+            (
+                "test_stats_run.delay",
+                {"key0,": "val0", "key1": "val1", "key2": "val2", "key3": "val3"},
+                "test_stats_run.delay,key1=val1",
+            ),
+            # Empty value renders as `=true` in influxdb line protocol.
+            (
+                "test_stats_run.delay",
+                {"production": "", "key1": "val1"},
+                "test_stats_run.delay,production=true,key1=val1",
+            ),
+        ],
+    )
+    def test_increment_counter_with_tags(self, stat, tags, expected):
+        self.stats.incr(stat, tags=tags)
+        self.statsd_client.incr.assert_called_once_with(expected, 1, 1)
 
 
 def always_invalid(stat_name):
@@ -769,3 +803,26 @@ class TestCustomStatsName:
     def teardown_method(self) -> None:
         # To avoid side-effect
         importlib.reload(airflow_shared.observability.metrics.stats)
+
+
+@pytest.mark.parametrize(
+    ("tag_names", "expected"),
+    [
+        pytest.param([], {}, id="empty"),
+        pytest.param(["production"], {"production": ""}, id="standalone"),
+        pytest.param(["env:prod"], {"env": "prod"}, id="key-value"),
+        pytest.param(
+            ["production", "env:prod", "team:data"],
+            {"production": "", "env": "prod", "team": "data"},
+            id="mixed",
+        ),
+        pytest.param(["a:b:c"], {"a": "b:c"}, id="value-with-colon"),
+        pytest.param(["env:"], {"env": ""}, id="trailing-colon-is-standalone"),
+    ],
+)
+def test_build_dag_metric_tags(tag_names: list[str], expected: dict[str, str]) -> None:
+    assert build_dag_metric_tags(tag_names) == expected
+
+
+def test_build_dag_metric_tags_accepts_generator() -> None:
+    assert build_dag_metric_tags(name for name in ["env:prod"]) == {"env": "prod"}

@@ -65,6 +65,7 @@
     "lastDagRun_other": "Last {{count}} Dag Runs",
     "lastTaskInstance_one": "Last Task Instance",
     "lastTaskInstance_other": "Last {{count}} Task Instances",
+    "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Queued Duration",
     "runAfter": "Run After",
     "runDuration": "Run Duration"
@@ -136,6 +137,7 @@
     "loading": "Loading Dag information...",
     "loadingFailed": "Failed to load Dag information. Please try again.",
     "manualRunDenied": "Manual runs are not allowed for this Dag",
+    "partitionKeyHelp": "Optional - only applies to partitioned Dags",
     "runIdHelp": "Optional - will be generated if not provided",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",

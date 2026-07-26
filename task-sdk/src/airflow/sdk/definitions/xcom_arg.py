@@ -30,7 +30,7 @@ from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
+from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
 from airflow.sdk.exceptions import AirflowException, XComNotFound
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import BaseXCom
@@ -338,7 +338,7 @@ class PlainXComArg(XComArg):
         tg = self.operator.get_closest_mapped_task_group()
         if tg is None:
             # No mapped task group - pull from unmapped instance
-            map_indexes: int | range | None | ArgNotSet = None
+            map_indexes: int | range | None = None
         else:
             # Check for pre-computed value from server (backward compatibility)
             upstream_map_indexes = getattr(ti, "_upstream_map_indexes", None)
@@ -354,8 +354,12 @@ class PlainXComArg(XComArg):
                     ti_count=ti_count,
                     session=None,  # Not used in SDK implementation
                 )
-                # None means "no filtering needed" -> use NOTSET to pull all values
-                map_indexes = NOTSET if computed is None else computed
+                if computed is None:
+                    # Resolve the mapped task group as a list, even for a single expansion (#69036)
+                    # or all-None values (#48005). Stay lazy: serde materialises the sequence only if
+                    # the value is actually returned and pushed to XCom (see airflow.sdk.serde.serialize).
+                    return LazyXComSequence(xcom_arg=self, ti=ti)
+                map_indexes = computed
         result = ti.xcom_pull(
             task_ids=task_id,
             key=self.key,
@@ -420,8 +424,10 @@ class MapXComArg(XComArg):
     callables: MapCallables
 
     def __attrs_post_init__(self) -> None:
+        from airflow.sdk.bases.decorator import is_decorated_task
+
         for c in self.callables:
-            if getattr(c, "_airflow_is_task_decorator", False):
+            if is_decorated_task(c):
                 raise ValueError("map() argument must be a plain function, not a @task operator")
 
     def __repr__(self) -> str:

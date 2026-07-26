@@ -19,10 +19,11 @@
 import { Box, Code, VStack } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef, useCallback, useEffect } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 import type { ParsedLogEntry } from "src/queries/useLogs";
 
 import { HighlightedText } from "./HighlightedText";
@@ -61,12 +62,14 @@ export const TaskLogContent = ({
 
   const {
     expandedGroups,
-    originalToVisibleIndex,
+    lineNumberToVisibleIndex,
     toggleGroup,
     visibleCurrentMatchIndex,
     visibleItems,
     visibleSearchMatchIndices,
   } = useLogGroups({ currentMatchLineIndex, expanded, parsedLogs, searchMatchIndices });
+
+  const hashVisibleIndex = hash === "" ? undefined : lineNumberToVisibleIndex.get(Number(hash));
 
   const isAtBottomRef = useRef<boolean>(true);
   const prevVisibleCountRef = useRef<number>(0);
@@ -113,15 +116,11 @@ export const TaskLogContent = ({
   }, [visibleItems.length, rowVirtualizer]);
 
   useLayoutEffect(() => {
-    if (location.hash && !isLoading) {
-      const hashVisibleIndex = originalToVisibleIndex.get(Number(hash) - 1);
-
-      if (hashVisibleIndex !== undefined) {
-        rowVirtualizer.scrollToIndex(Math.min(hashVisibleIndex + 5, visibleItems.length - 1));
-      }
+    if (location.hash && !isLoading && hashVisibleIndex !== undefined) {
+      rowVirtualizer.scrollToIndex(Math.min(hashVisibleIndex + 5, visibleItems.length - 1));
     }
     // React Compiler auto-memoizes; safe to include in deps
-  }, [isLoading, rowVirtualizer, hash, visibleItems, originalToVisibleIndex]);
+  }, [isLoading, rowVirtualizer, visibleItems, hashVisibleIndex]);
 
   useLayoutEffect(() => {
     if (visibleCurrentMatchIndex !== undefined && !isLoading) {
@@ -148,8 +147,16 @@ export const TaskLogContent = ({
     }
   };
 
-  useHotkeys("mod+ArrowDown", () => handleScrollTo("bottom"), { enabled: !isLoading });
-  useHotkeys("mod+ArrowUp", () => handleScrollTo("top"), { enabled: !isLoading });
+  useShortcut({
+    ...SHORTCUTS.logs.scrollBottom,
+    callback: () => handleScrollTo("bottom"),
+    options: { enabled: !isLoading },
+  });
+  useShortcut({
+    ...SHORTCUTS.logs.scrollTop,
+    callback: () => handleScrollTo("top"),
+    options: { enabled: !isLoading },
+  });
 
   return (
     <Box display="flex" flexDirection="column" flexGrow={1} h="100%" minHeight={0} position="relative">
@@ -200,7 +207,7 @@ export const TaskLogContent = ({
                     _rtl={{ left: "auto", right: 0 }}
                     bgColor={getHighlightColor({
                       currentMatchLineIndex: visibleCurrentMatchIndex,
-                      hash,
+                      hashIndex: hashVisibleIndex,
                       index: virtualRow.index,
                       searchMatchIndices: visibleSearchMatchIndices,
                     })}
@@ -248,7 +255,7 @@ export const TaskLogContent = ({
                   _rtl={{ left: "auto", right: 0 }}
                   bgColor={getHighlightColor({
                     currentMatchLineIndex: visibleCurrentMatchIndex,
-                    hash,
+                    hashIndex: hashVisibleIndex,
                     index: virtualRow.index,
                     searchMatchIndices: visibleSearchMatchIndices,
                   })}

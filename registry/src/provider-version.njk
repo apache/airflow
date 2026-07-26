@@ -355,7 +355,12 @@ eleventyComputed:
             <span>{{ module.type[0] | upper }}</span>
           </div>
           <div class="content">
-            <h3>{{ module.name }}</h3>
+            <h3>
+              {{ module.name }}
+              {% if module.supports_durable_execution %}
+              <span class="durable-badge" title="Reconnects to an already-running job on retry instead of resubmitting. Requires durable=True (default) and depends on operator configuration.">Durable</span>
+              {% endif %}
+            </h3>
             <p>{{ module.short_description }}</p>
             <div class="import-row">
               <code class="path">{{ module.import_path }}</code>

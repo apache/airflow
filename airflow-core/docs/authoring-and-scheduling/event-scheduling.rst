@@ -410,6 +410,18 @@ only if the subscriber needs to run cleanup before failing.
 triggerer restart, the broker redelivers messages that were never
 advanced. Subscribers must therefore be idempotent.
 
+When multiple triggers sharing the same key restart together, the first
+to re-subscribe creates a fresh group and polling starts immediately.
+Triggers that re-subscribe later join as late subscribers (outside the
+snapshot of any already-broadcast event), so they may miss events
+committed in the window between the first subscription and their own.
+Set ``[triggerer] shared_stream_cohort_grace_period`` to a positive
+number of seconds (e.g. ``2.0``) to delay the start of polling after a
+new group is created, giving concurrent re-subscriptions time to join
+before any event is broadcast. This is a best-effort window — it reduces
+but does not eliminate the risk of a slow-rejoining trigger missing
+events.
+
 **Durability**: the broker advance is gated on persistence. A subscriber's
 resolution completes only after every ``TriggerEvent`` it derived from the
 event has been stored in the metadata database; the confirmation reaches

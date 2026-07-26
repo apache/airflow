@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 
-pytest.importorskip("snowflake-snowpark-python")
+pytest.importorskip("snowflake.snowpark")
 
 
 from airflow.providers.common.compat.sdk import task
@@ -72,12 +72,12 @@ class TestSnowparkDecorator:
         def func2():
             return number
 
-        with dag_maker(dag_id=TEST_DAG_ID):
+        with dag_maker(dag_id=TEST_DAG_ID) as dag:
             _ = [func1(), func2()]
 
         dr = dag_maker.create_dagrun()
-        for ti in dr.get_task_instances():
-            ti.run()
+        for task_obj in dag.tasks:
+            ti = dag_maker.run_ti(task_obj.task_id, dr)
             assert ti.xcom_pull() == number
         assert mock_snowflake_hook.call_count == 2
         assert mock_snowflake_hook.return_value.get_snowpark_session.call_count == 2
@@ -124,12 +124,12 @@ class TestSnowparkDecorator:
         def func3(number: int):
             return number
 
-        with dag_maker(dag_id=TEST_DAG_ID):
+        with dag_maker(dag_id=TEST_DAG_ID) as dag:
             _ = [func1(number=number), func2(number=number), func3(number=number)]
 
         dr = dag_maker.create_dagrun()
-        for ti in dr.get_task_instances():
-            ti.run()
+        for task_obj in dag.tasks:
+            ti = dag_maker.run_ti(task_obj.task_id, dr)
             assert ti.xcom_pull() == number
         assert mock_snowflake_hook.call_count == 3
         assert mock_snowflake_hook.return_value.get_snowpark_session.call_count == 3
@@ -148,12 +148,12 @@ class TestSnowparkDecorator:
         def func(session: Session):
             assert session == mock_snowflake_hook.return_value.get_snowpark_session.return_value
 
-        with dag_maker(dag_id=TEST_DAG_ID):
+        with dag_maker(dag_id=TEST_DAG_ID) as dag:
             func()
 
         dr = dag_maker.create_dagrun()
-        for ti in dr.get_task_instances():
-            ti.run()
+        for task_obj in dag.tasks:
+            ti = dag_maker.run_ti(task_obj.task_id, dr)
             assert ti.xcom_pull() is None
         mock_snowflake_hook.assert_called_once()
         mock_snowflake_hook.return_value.get_snowpark_session.assert_called_once()
@@ -182,12 +182,12 @@ class TestSnowparkDecorator:
             assert run_task.xcom.get(key="b") == "2"
             assert run_task.xcom.get(key="return_value") == {"a": 1, "b": "2"}
         else:
-            with dag_maker(dag_id=TEST_DAG_ID):
+            with dag_maker(dag_id=TEST_DAG_ID) as dag:
                 func()
 
             dr = dag_maker.create_dagrun()
-            ti = dr.get_task_instances()[0]
-            ti.run()
+            task_obj = dag.tasks[0]
+            ti = dag_maker.run_ti(task_obj.task_id, dr)
             assert ti.xcom_pull(key="a") == 1
             assert ti.xcom_pull(key="b") == "2"
             assert ti.xcom_pull() == {"a": 1, "b": "2"}
@@ -217,12 +217,12 @@ class TestSnowparkDecorator:
         def func(session: Session):
             return session.query_tag
 
-        with dag_maker(dag_id=TEST_DAG_ID):
+        with dag_maker(dag_id=TEST_DAG_ID) as dag:
             func()
 
         dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instances()[0]
-        ti.run()
+        task_obj = dag.tasks[0]
+        ti = dag_maker.run_ti(task_obj.task_id, dr)
         query_tag = ti.xcom_pull()
         assert query_tag == {
             "dag_id": TEST_DAG_ID,

@@ -354,9 +354,9 @@ class TestBundleFind:
                 _Bundle.find([tmp_path], "tutorial_dag")
 
         mock_log.debug.assert_any_call(
-            "Bundle metadata is not a mapping; skipping",
+            "Cannot decode bundle metadata; skipping",
             path=str(bundle_path),
-            type=mock.ANY,
+            error=mock.ANY,
         )
 
 

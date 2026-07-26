@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-livy``
 
-Release: ``4.5.6``
+Release: ``4.5.7``
 
 
 `Apache Livy <https://livy.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.livy`` provider. All classes for this pr
 are in ``airflow.providers.apache.livy`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.6/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.7/>`_.
 
 Installation
 ------------
@@ -59,25 +59,5 @@ PIP package                                 Version required
 ``aiohttp``                                 ``>=3.14.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-apache-livy[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.6/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.7/changelog.html>`_.

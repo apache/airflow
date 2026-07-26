@@ -226,7 +226,12 @@ for **any** Dag in the installation. The ``ti:self`` token scope restricts cross
 mutation only; it is not a per-Dag access control.
 
 There is an **experimental** multi-team feature in Airflow (``[core] multi_team``) that provides UI-level and
-REST API-level RBAC isolation between teams. However, this feature **does not yet guarantee task-level isolation**.
+REST API-level RBAC isolation between teams. In multi-team mode, the team-scoped resources reachable through
+the Task Execution API are also isolated by team: a task may only access **Variables** and **Connections**
+belonging to its own team (falling back to global values), and may only access **XComs** of Dags in its own
+team (reads may additionally reach global Dags, but writes and deletes may not).
+
+However, this feature **does not yet guarantee task-level isolation**.
 At the task execution level, workloads from different teams still share the same Execution API, signing keys,
 connections, and variables. A task from one team can access the same shared resources as a task from another team.
 The multi-team feature is a work in progress — task-level isolation and Execution API enforcement of team

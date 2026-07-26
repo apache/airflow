@@ -295,6 +295,20 @@ class TestDagFileProcessorManager:
             "test_zip.zip/broken_dag.py",
         }
 
+    def test_sync_bundles_deactivates_missing_when_owning_all_bundles(self):
+        """A processor with no bundle filter owns the full config and may deactivate missing bundles."""
+        manager = DagFileProcessorManager(max_runs=1)
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
+        """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
+        manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+
     @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
         bundle_path = tmp_path / "bundleone"
@@ -496,6 +510,23 @@ class TestDagFileProcessorManager:
             tags={"file_path": "callbacks_with_spaces.py", "action": "stop"},
         )
         processor.kill.assert_called_once_with(signal.SIGKILL)
+
+    def test_terminate_orphan_processes_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("callbacks.py")
+        processor, _ = self.mock_processor()
+        processor.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+
+        manager._processors[versioned_file] = processor
+
+        with (
+            mock.patch.object(type(processor), "kill"),
+            mock.patch("airflow.dag_processing.manager.stats.decr"),
+        ):
+            manager.terminate_orphan_processes(present=set())
+
+        assert manager._processors == {}
 
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
@@ -1184,6 +1215,26 @@ class TestDagFileProcessorManager:
         assert len(manager._processors) == 0
         processor.logger_filehandle.close.assert_called()
 
+    def test_kill_timed_out_processors_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
+        start_time = time.monotonic() - manager.processor_timeout - 1
+        processor, _ = self.mock_processor(start_time=start_time)
+        processor.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+        manager._processors = {
+            DagFileInfo(
+                bundle_name="testing", rel_path=Path("abc.py"), bundle_path=TEST_DAGS_FOLDER
+            ): processor
+        }
+        with (
+            mock.patch.object(type(processor), "kill"),
+            mock.patch("airflow.dag_processing.manager.stats.decr"),
+            mock.patch("airflow.dag_processing.manager.stats.incr"),
+        ):
+            manager._kill_timed_out_processors()
+
+        assert len(manager._processors) == 0
+
     def test_kill_timed_out_processors_no_kill(self):
         manager = DagFileProcessorManager(
             max_runs=1,
@@ -1338,6 +1389,24 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file_b].run_count == 2
         assert len(manager._processors) == 0
 
+    def test_collect_results_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_stats[file] = DagFileStat()
+        manager._bundle_versions["testing"] = "v1"
+
+        proc, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        proc.had_callbacks = False
+        proc.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+        proc.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+        manager._processors = {file: proc}
+
+        with mock.patch.object(manager, "persist_parsing_result"):
+            manager._collect_results()
+
+        assert len(manager._processors) == 0
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
         ("callbacks", "path", "expected_body"),
@@ -1375,6 +1444,7 @@ class TestDagFileProcessorManager:
                             "filepath": "dag_callback_dag.py",
                             "bundle_name": "testing",
                             "bundle_version": None,
+                            "version_data": None,
                             "msg": None,
                             "dag_id": "dag_id",
                             "run_id": "run_id",
@@ -1965,6 +2035,30 @@ class TestDagFileProcessorManager:
 
         assert manager.prepare_callback_bundle(request) is bundle
         bundle.initialize.assert_called_once()
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_prepare_callback_bundle_forwards_version_data(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.supports_versioning = True
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            version_data=version_data,
+            msg=None,
+        )
+
+        manager.prepare_callback_bundle(request)
+        mock_bundle_manager.return_value.get_bundle.assert_called_once_with(
+            name="testing", version="some_commit_hash", version_data=version_data
+        )
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_prepare_callback_bundle_skips_initialize_for_unversioned_request(self, mock_bundle_manager):
@@ -2632,6 +2726,34 @@ class TestDagFileProcessorManager:
 
         assert state == BundleState(last_refreshed=refreshed_at, version="v1")
 
+    def test_get_bundle_state_reads_latest_database_values(self, session):
+        bundle_name = "test_fresh_state_bundle"
+        initial_refreshed_at = timezone.datetime(2024, 1, 15, 12, 0, 0)
+        refreshed_at = timezone.datetime(2024, 1, 16, 12, 0, 0)
+        model = DagBundleModel(name=bundle_name, version="old")
+        model.last_refreshed = initial_refreshed_at
+        session.add(model)
+        session.commit()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=initial_refreshed_at, version="old")
+
+        with create_session(scoped=False) as update_session:
+            update_model = update_session.get(DagBundleModel, bundle_name)
+            assert update_model is not None
+            update_model.last_refreshed = refreshed_at
+            update_model.version = "fresh"
+
+        # End the read transaction started by the first get_bundle_state() call so we don't keep
+        # reading a stale snapshot on backends like SQLite.
+        session.commit()
+
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=refreshed_at, version="fresh")
+
     def test_get_bundle_state_null_fields(self, session):
         bundle_name = "test_null_state_bundle"
         session.add(DagBundleModel(name=bundle_name))
@@ -2731,6 +2853,15 @@ class TestDagFileProcessorManager:
         mock_get.assert_called_once_with("mock_bundle")
         mock_update.assert_called_once_with("mock_bundle", last_refreshed=mock.ANY, version=None)
         assert manager._bundle_versions["mock_bundle"] is None
+
+    def test_refresh_dag_bundles_clears_team_name_cache(self):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._bundle_name_to_team_name = {"stale_bundle": "old_team"}
+        bundle = self._make_refresh_bundle(supports_versioning=False)
+
+        self._refresh_with_mocked_state(manager, bundle, BundleState(last_refreshed=None, version=None))
+
+        assert manager._bundle_name_to_team_name == {}
 
     def test_refresh_dag_bundles_versioned_version_changed_calls_update_bundle_state(self):
         """Versioned bundle with new version: update_bundle_state called with the new version."""
@@ -2948,7 +3079,9 @@ class TestMultiTeamMetrics:
         return ret
 
     @conf_vars({("core", "multi_team"): "true"})
-    @mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value="team_alpha")
+    @mock.patch(
+        "airflow.dag_processing.manager.DagBundleModel.get_team_names", return_value={"testing": "team_alpha"}
+    )
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_log_file_processing_stats_includes_team_name(self, mock_gauge, mock_get_team_name):
         manager = DagFileProcessorManager(max_runs=1)
@@ -2975,7 +3108,7 @@ class TestMultiTeamMetrics:
         )
 
     @conf_vars({("core", "multi_team"): "false"})
-    @mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name")
+    @mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_names")
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_log_file_processing_stats_omits_team_name_when_not_multi_team(
         self, mock_gauge, mock_get_team_name
@@ -3004,7 +3137,9 @@ class TestMultiTeamMetrics:
         )
 
     @conf_vars({("core", "multi_team"): "true"})
-    @mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value="team_alpha")
+    @mock.patch(
+        "airflow.dag_processing.manager.DagBundleModel.get_team_names", return_value={"testing": "team_alpha"}
+    )
     @mock.patch("airflow.dag_processing.manager.stats.incr")
     def test_start_new_processes_includes_team_name(self, mock_incr, mock_get_team_name):
         manager = DagFileProcessorManager(max_runs=1)
@@ -3024,7 +3159,9 @@ class TestMultiTeamMetrics:
         )
 
     @conf_vars({("core", "multi_team"): "true"})
-    @mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value="team_alpha")
+    @mock.patch(
+        "airflow.dag_processing.manager.DagBundleModel.get_team_names", return_value={"testing": "team_alpha"}
+    )
     @mock.patch("airflow.dag_processing.manager.stats.incr")
     @mock.patch("airflow.dag_processing.manager.stats.decr")
     def test_kill_timed_out_processors_includes_team_name(self, mock_decr, mock_incr, mock_get_team_name):
@@ -3049,7 +3186,9 @@ class TestMultiTeamMetrics:
         )
 
     @conf_vars({("core", "multi_team"): "true"})
-    @mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value="team_alpha")
+    @mock.patch(
+        "airflow.dag_processing.manager.DagBundleModel.get_team_names", return_value={"testing": "team_alpha"}
+    )
     @mock.patch("airflow.dag_processing.manager.stats.timing")
     def test_process_parse_results_includes_team_name(self, mock_timing, mock_get_team_name):
         from airflow.dag_processing.manager import process_parse_results
@@ -3097,13 +3236,13 @@ class TestMultiTeamMetrics:
         ("multi_team", "team_name", "expected_tags"),
         [
             pytest.param(
-                "true",
+                True,
                 "team_alpha",
                 {"file_path": "dag_file.py", "action": "stop", "team_name": "team_alpha"},
                 id="with_team",
             ),
             pytest.param(
-                "false",
+                False,
                 None,
                 {"file_path": "dag_file.py", "action": "stop"},
                 id="without_team",
@@ -3115,6 +3254,7 @@ class TestMultiTeamMetrics:
         self, mock_decr, multi_team, team_name, expected_tags
     ):
         manager = DagFileProcessorManager(max_runs=1)
+        manager._multi_team = multi_team
         dag_file = DagFileInfo(
             bundle_name="testing", rel_path=Path("dag_file.py"), bundle_path=TEST_DAGS_FOLDER
         )
@@ -3122,8 +3262,10 @@ class TestMultiTeamMetrics:
         manager._processors = {dag_file: processor}
 
         with (
-            conf_vars({("core", "multi_team"): multi_team}),
-            mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value=team_name),
+            mock.patch(
+                "airflow.dag_processing.manager.DagBundleModel.get_team_names",
+                return_value={"testing": team_name},
+            ),
             mock.patch.object(type(processor), "kill"),
         ):
             # Empty "present" set means the file is orphaned, so its processor is stopped.
@@ -3135,13 +3277,13 @@ class TestMultiTeamMetrics:
         ("multi_team", "team_name", "expected_tags"),
         [
             pytest.param(
-                "true",
+                True,
                 "team_alpha",
                 {"file_path": "dag_file.py", "action": "terminate", "team_name": "team_alpha"},
                 id="with_team",
             ),
             pytest.param(
-                "false",
+                False,
                 None,
                 {"file_path": "dag_file.py", "action": "terminate"},
                 id="without_team",
@@ -3151,6 +3293,7 @@ class TestMultiTeamMetrics:
     @mock.patch("airflow.dag_processing.manager.stats.decr")
     def test_terminate_includes_team_name(self, mock_decr, multi_team, team_name, expected_tags):
         manager = DagFileProcessorManager(max_runs=1)
+        manager._multi_team = multi_team
         dag_file = DagFileInfo(
             bundle_name="testing", rel_path=Path("dag_file.py"), bundle_path=TEST_DAGS_FOLDER
         )
@@ -3158,8 +3301,10 @@ class TestMultiTeamMetrics:
         manager._processors = {dag_file: processor}
 
         with (
-            conf_vars({("core", "multi_team"): multi_team}),
-            mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value=team_name),
+            mock.patch(
+                "airflow.dag_processing.manager.DagBundleModel.get_team_names",
+                return_value={"testing": team_name},
+            ),
             mock.patch.object(type(processor), "kill"),
         ):
             manager.terminate()
@@ -3195,22 +3340,54 @@ class TestMultiTeamMetrics:
     @pytest.mark.parametrize(
         ("multi_team", "team_name", "expected_tags"),
         [
-            pytest.param("true", "team_alpha", {"team_name": "team_alpha"}, id="with_team"),
-            pytest.param("false", None, {}, id="without_team"),
+            pytest.param(True, "team_alpha", {"team_name": "team_alpha"}, id="with_team"),
+            pytest.param(False, None, {}, id="without_team"),
         ],
     )
     @mock.patch("airflow.dag_processing.manager.stats.incr")
     def test_add_callback_to_queue_includes_team_name(self, mock_incr, multi_team, team_name, expected_tags):
         manager = DagFileProcessorManager(max_runs=1)
+        manager._multi_team = multi_team
         request = MagicMock(filepath="test_dag.py", bundle_name="testing", bundle_version=None)
         bundle = MagicMock(path=TEST_DAGS_FOLDER)
 
         with (
-            conf_vars({("core", "multi_team"): multi_team}),
             mock.patch.object(manager, "prepare_callback_bundle", return_value=bundle),
             mock.patch.object(manager, "_add_files_to_queue"),
-            mock.patch("airflow.dag_processing.manager.DagBundleModel.get_team_name", return_value=team_name),
+            mock.patch(
+                "airflow.dag_processing.manager.DagBundleModel.get_team_names",
+                return_value={"testing": team_name},
+            ),
         ):
             manager._add_callback_to_queue(request)
 
         mock_incr.assert_called_once_with("dag_processing.other_callback_count", tags=expected_tags)
+
+    @mock.patch(
+        "airflow.dag_processing.manager.DagBundleModel.get_team_names",
+        return_value={"bundle_a": "team_alpha"},
+    )
+    def test_get_team_name_caches_lookup(self, mock_get_team_names):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._multi_team = True
+
+        assert manager._get_team_name("bundle_a") == "team_alpha"
+        assert manager._get_team_name("bundle_a") == "team_alpha"
+        assert manager._get_team_name("bundle_a") == "team_alpha"
+
+        mock_get_team_names.assert_called_once()
+
+    @mock.patch(
+        "airflow.dag_processing.manager.DagBundleModel.get_team_names",
+        return_value={"bundle_a": "team_alpha", "bundle_b": "team_alpha"},
+    )
+    def test_get_team_names_batches_and_caches(self, mock_get_team_names):
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._multi_team = True
+
+        manager._get_team_names({"bundle_a", "bundle_b"})
+        manager._get_team_names({"bundle_a", "bundle_b"})
+
+        # Two bundles resolved in a single batched query; the repeat call is served from cache.
+        mock_get_team_names.assert_called_once()
+        assert manager._bundle_name_to_team_name == {"bundle_a": "team_alpha", "bundle_b": "team_alpha"}

@@ -43,7 +43,6 @@ prek hooks.
 
 We have integrated the `prek <https://github.com/j178/prek>`__ framework
 in our development workflow. It can be installed in various ways and does not even need ``pip`` or
-
 ``python`` to be installed. It is a drop-in replacement for the legacy ``pre-commit`` tool, but it is
 much faster and more feature-rich. It is written in Rust and it is designed to install environments in parallel,
 so it is much faster than the ``pre-commit`` tool.
@@ -237,7 +236,7 @@ To check other usage types of the pre-commit framework, see `Pre-commit website 
      - "- **Run regular (fast) static checks:** `prek run --from-ref <target_branch> --stage pre-commit`"
      - "- **Run manual (slower) checks:** `prek run --from-ref <target_branch> --stage manual`"
      - "- **Build docs:** `breeze build-docs`"
-     - "- **Determine which tests to run based on changed files:** `breeze selective-checks --commit-ref <commit_with_squashed_changes>`"
+     - "- **Determine which tests to run based on changed files:** `breeze ci selective-check --commit-ref <commit_with_squashed_changes>`"
 .. AGENT-SKILL-END
 
 Disabling particular checks

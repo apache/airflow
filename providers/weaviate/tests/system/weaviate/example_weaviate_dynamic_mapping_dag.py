@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pendulum
-from weaviate.collections.classes.config import Configure
+from weaviate.classes.config import Configure
 
 try:
     from airflow.sdk import dag, setup, task, teardown
@@ -58,7 +58,7 @@ def example_weaviate_dynamic_mapping_dag():
 
         weaviate_hook = WeaviateHook()
         # collection definition object. Weaviate's autoschema feature will infer properties when importing.
-        weaviate_hook.create_collection(data[0], vectorizer_config=data[1])
+        weaviate_hook.create_collection(data[0], vector_config=data[1])
 
     @setup
     @task
@@ -96,7 +96,10 @@ def example_weaviate_dynamic_mapping_dag():
 
     (
         create_weaviate_collection.expand(
-            data=[[COLLECTION_NAMES[0], None], [COLLECTION_NAMES[1], Configure.Vectorizer.text2vec_openai()]]
+            data=[
+                [COLLECTION_NAMES[0], Configure.Vectors.self_provided()],
+                [COLLECTION_NAMES[1], Configure.Vectors.text2vec_openai(vectorize_collection_name=True)],
+            ]
         )
         >> perform_ingestion
         >> delete_weaviate_collection.expand(collection_name=COLLECTION_NAMES)

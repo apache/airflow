@@ -41,6 +41,8 @@ export type CustomNodeProps = {
   team?: string | null;
   tooltip?: string | null;
   type: string;
+  uiColor?: string | null;
+  uiFgcolor?: string | null;
   width?: number;
 };
 

@@ -52,6 +52,14 @@ How it works
   names, and finish reason are recorded. Prompt and completion text is never
   emitted unless you opt in (see below).
 
+.. note::
+
+    On pydantic-ai 2.x the agent-run span reports token usage under
+    ``gen_ai.aggregated_usage.*`` while the per-model-call span keeps
+    ``gen_ai.usage.*``. This avoids double-counting in backends that sum a
+    parent span and its children. Dashboards or alerts that read run-level token
+    usage from ``gen_ai.usage.*`` should switch to ``gen_ai.aggregated_usage.*``.
+
 Enabling it
 -----------
 

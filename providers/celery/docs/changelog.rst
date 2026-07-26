@@ -27,6 +27,83 @@
 Changelog
 ---------
 
+3.23.0
+......
+
+.. note::
+    When ``[celery] result_backend`` is not set and Airflow derives it from ``sql_alchemy_conn``, a
+    driverless ``postgresql://`` connection string now produces ``db+postgresql+psycopg://...`` instead
+    of ``db+postgresql+psycopg2://...``, matching the sync Postgres driver default change in
+    ``apache-airflow`` and ``apache-airflow-providers-postgres``. An explicit ``[celery] result_backend``
+    or an explicit driver in ``sql_alchemy_conn`` is unaffected.
+
+Features
+~~~~~~~~
+
+* ``Add streaming task log support to KubernetesExecutor (#69300)``
+* ``Add the team_name tag to the Celery executor task_timeout_error (#69092)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery worker crash on Airflow 3.0 with json_logs (#69919)``
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+3.22.0
+......
+
+Features
+~~~~~~~~
+
+* ``Honor json_logs config in Celery worker startup (#68916)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Celery worker JSON logging config for teams (#69139)``
+
+Misc
+~~~~
+
+* ``Make PostgreSQL SQLAlchemy driver explicit (postgresql+psycopg2://) (#68314)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify Redis maintenance for CeleryExecutor in docs (#67393)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Test fix in main Celery worker tests leaking logging handler onto captured stdout (#69163)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+
+3.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Celery worker mp_start_method config to curb Python 3.14 memory (#69015)``
+
+Misc
+~~~~
+
+* ``Cache Celery apps when publishing workloads (#67127)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.20.0
 ......
 

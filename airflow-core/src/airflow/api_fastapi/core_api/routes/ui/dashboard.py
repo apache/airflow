@@ -129,16 +129,6 @@ def dag_stats(
     """Return basic Dag stats with counts of Dags in various states."""
     permitted_dag_ids = cast("set[str]", readable_dags_filter.value)
 
-    # Active Dags need another query from DagModel, as a Dag may not have any runs but still be active
-    active_count_query = (
-        select(func.count())
-        .select_from(DagModel)
-        .where(DagModel.is_stale == false())
-        .where(DagModel.is_paused == false())
-        .where(DagModel.dag_id.in_(permitted_dag_ids))
-    )
-    active_count = session.execute(active_count_query).scalar_one()
-
     latest_state = (
         select(DagRun.state)
         .where(DagRun.dag_id == DagModel.dag_id, DagRun.logical_date.is_not(None))
@@ -147,26 +137,30 @@ def dag_stats(
         .correlate(DagModel)
         .scalar_subquery()
     )
-    latest_runs_subq = (
-        select(latest_state.label("state"))
+    dag_counts_query = (
+        select(
+            func.coalesce(func.sum(case((DagModel.is_paused == false(), 1))), 0).label("active"),
+            func.coalesce(func.sum(case((latest_state == DagRunState.FAILED, 1))), 0).label("failed"),
+        )
         .select_from(DagModel)
         .where(DagModel.is_stale == false())
         .where(DagModel.dag_id.in_(permitted_dag_ids))
-        .subquery()
     )
-    combined_runs_query = select(
-        func.coalesce(func.sum(case((latest_runs_subq.c.state == DagRunState.FAILED, 1))), 0).label("failed"),
-        func.coalesce(func.sum(case((latest_runs_subq.c.state == DagRunState.RUNNING, 1))), 0).label(
-            "running"
-        ),
-        func.coalesce(func.sum(case((latest_runs_subq.c.state == DagRunState.QUEUED, 1))), 0).label("queued"),
-    ).select_from(latest_runs_subq)
+    dag_counts = session.execute(dag_counts_query).one()
 
-    counts = session.execute(combined_runs_query).one()
+    active_states_query = (
+        select(DagRun.state, func.count(func.distinct(DagRun.dag_id)))
+        .join(DagModel, DagModel.dag_id == DagRun.dag_id)
+        .where(DagModel.is_stale == false())
+        .where(DagRun.dag_id.in_(permitted_dag_ids))
+        .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
+        .group_by(DagRun.state)
+    )
+    active_counts = {state: count for state, count in session.execute(active_states_query)}
 
     return DashboardDagStatsResponse(
-        active_dag_count=active_count,
-        failed_dag_count=counts.failed,
-        running_dag_count=counts.running,
-        queued_dag_count=counts.queued,
+        active_dag_count=dag_counts.active,
+        failed_dag_count=dag_counts.failed,
+        running_dag_count=active_counts.get(DagRunState.RUNNING, 0),
+        queued_dag_count=active_counts.get(DagRunState.QUEUED, 0),
     )

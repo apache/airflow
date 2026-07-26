@@ -22,6 +22,7 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils import validate_destination_path
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook
 
@@ -85,6 +86,7 @@ class S3ToFTPOperator(BaseOperator):
         self.fail_on_file_not_exist = fail_on_file_not_exist
 
     def _download_from_s3(self, s3_hook: S3Hook, ftp_hook: FTPHook, s3_key: str, ftp_path: str) -> None:
+        validate_destination_path(ftp_path, self.ftp_path, base_name="ftp_path")
         if not s3_hook.check_for_key(s3_key, self.s3_bucket):
             if self.fail_on_file_not_exist:
                 raise FileNotFoundError(f"Key {s3_key!r} not found in S3 bucket {self.s3_bucket!r}")

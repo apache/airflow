@@ -9,3 +9,16 @@
 
 # Binary files should be left untouched
 *.jar           binary
+
+# Keep the Gradle wrapper jar and scripts out of source releases.
+# See: https://issues.apache.org/jira/browse/LEGAL-570
+# This intentionally does not exclude the entire gradle/wrapper directory so
+# gradle-wrapper.properties is kept. This file carries the pinned Gradle version
+# and distribution checksum for a verifier to use when regenerating the wrapper.
+/gradlew export-ignore
+/gradlew.bat export-ignore
+/gradle/wrapper/gradle-wrapper.jar export-ignore
+
+# ktlint reads .editorconfig for its formatting rules at build time, and the
+# build task requires the lint to pass, so the source release must ship it.
+/.editorconfig -export-ignore

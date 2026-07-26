@@ -22,12 +22,14 @@ from unittest.mock import call
 
 import pytest
 
+from airflow_breeze.global_constants import ALLOWED_POSTGRES_VERSIONS, CURRENT_POSTGRES_VERSIONS
 from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
     bring_all_compose_projects_down,
     check_docker_compose_version,
     check_docker_version,
     discover_running_compose_projects,
+    enter_shell,
     is_known_breeze_compose_project,
 )
 
@@ -389,3 +391,83 @@ def test_bring_all_compose_projects_down_preserve_volumes(mock_discover, mock_ru
     down_call = next(c for c in mock_run_command.call_args_list if c.args[0][:2] == ["docker", "compose"])
     assert "--volumes" not in down_call.args[0]
     assert "--remove-orphans" in down_call.args[0]
+
+
+def _shell_params_for_openlineage(
+    backend: str, postgres_version: str, integration: tuple[str, ...] = ("openlineage",)
+) -> mock.MagicMock:
+    shell_params = mock.MagicMock()
+    shell_params.use_airflow_version = None
+    shell_params.restart = False
+    shell_params.include_mypy_volume = False
+    shell_params.quiet = True
+    shell_params.project_name = None
+    shell_params.tty = "disabled"
+    shell_params.command_passed = None
+    shell_params.integration = integration
+    shell_params.backend = backend
+    shell_params.postgres_version = postgres_version
+    return shell_params
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.fix_ownership_using_docker")
+@mock.patch("airflow_breeze.utils.docker_command_utils.cleanup_python_generated_files")
+@mock.patch("airflow_breeze.utils.docker_command_utils.read_from_cache_file", return_value="1")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@pytest.mark.parametrize("integration", [("openlineage",), ("all",)])
+@pytest.mark.parametrize("postgres_version", CURRENT_POSTGRES_VERSIONS)
+def test_enter_shell_openlineage_allows_current_postgres_versions(
+    mock_run_command,
+    mock_console_print,
+    _mock_read_cache,
+    _mock_cleanup,
+    _mock_fix_ownership,
+    postgres_version,
+    integration,
+):
+    mock_run_command.return_value.returncode = 0
+    shell_params = _shell_params_for_openlineage("postgres", postgres_version, integration)
+    enter_shell(shell_params)
+    mock_run_command.assert_called_once()
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.fix_ownership_using_docker")
+@mock.patch("airflow_breeze.utils.docker_command_utils.cleanup_python_generated_files")
+@mock.patch("airflow_breeze.utils.docker_command_utils.read_from_cache_file", return_value="1")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@pytest.mark.parametrize("integration", [("openlineage",), ("all",)])
+@pytest.mark.parametrize("postgres_version", set(ALLOWED_POSTGRES_VERSIONS) - set(CURRENT_POSTGRES_VERSIONS))
+def test_enter_shell_openlineage_rejects_stale_postgres_versions(
+    mock_run_command,
+    mock_console_print,
+    _mock_read_cache,
+    _mock_cleanup,
+    _mock_fix_ownership,
+    postgres_version,
+    integration,
+):
+    shell_params = _shell_params_for_openlineage("postgres", postgres_version, integration)
+    with pytest.raises(SystemExit) as exc_info:
+        enter_shell(shell_params)
+    assert exc_info.value.code == 1
+    error_message = mock_console_print.call_args[0][0]
+    assert all(version in error_message for version in CURRENT_POSTGRES_VERSIONS)
+    mock_run_command.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.fix_ownership_using_docker")
+@mock.patch("airflow_breeze.utils.docker_command_utils.cleanup_python_generated_files")
+@mock.patch("airflow_breeze.utils.docker_command_utils.read_from_cache_file", return_value="1")
+@mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+@pytest.mark.parametrize("integration", [("openlineage",), ("all",)])
+def test_enter_shell_openlineage_rejects_non_postgres_backend(
+    mock_run_command, mock_console_print, _mock_read_cache, _mock_cleanup, _mock_fix_ownership, integration
+):
+    shell_params = _shell_params_for_openlineage("mysql", CURRENT_POSTGRES_VERSIONS[0], integration)
+    with pytest.raises(SystemExit) as exc_info:
+        enter_shell(shell_params)
+    assert exc_info.value.code == 1
+    mock_run_command.assert_not_called()

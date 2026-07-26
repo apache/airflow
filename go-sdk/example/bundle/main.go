@@ -26,6 +26,7 @@ import (
 
 	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1server"
+	"github.com/apache/airflow/go-sdk/example/bundle/concurrentxcom"
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
@@ -49,6 +50,10 @@ func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
 	simpleDag.AddTask(extract)
 	simpleDag.AddTask(transform)
 	simpleDag.AddTask(load)
+
+	// Tasks defined in other packages register through the same dagbag.
+	concurrentDag := dagbag.AddDag("concurrent_xcom_dag")
+	concurrentDag.AddTaskWithName("pull_xcoms_concurrently", concurrentxcom.PullXComsConcurrently)
 
 	return nil
 }

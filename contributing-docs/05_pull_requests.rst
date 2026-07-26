@@ -102,7 +102,7 @@ these guidelines:
     programmatically (either because they are too hard or just not yet done).
 
 -   Maintainers will not merge a PR that regresses linting or does not pass CI tests (unless you have good
-    justification that it a transient error or something that is being fixed in other PR).
+    justification that it is a transient error or something that is being fixed in other PR).
 
 -   Maintainers will not merge PRs that have unresolved conversation.
 

@@ -48,6 +48,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -492,6 +493,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         result_queue: Queue[KubernetesResults],
         kube_client: client.CoreV1Api,
         scheduler_job_id: str,
+        team_name: str | None = None,
     ):
         super().__init__()
         self.log.debug("Creating Kubernetes executor")
@@ -504,6 +506,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.watcher_queue = self._manager.Queue()
         self.scheduler_job_id = scheduler_job_id
         self.kube_watchers = self._make_kube_watchers()
+        self.team_name = team_name
 
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
         """Run POD asynchronously."""
@@ -512,18 +515,29 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
         self.log.debug("Pod Creation Request: \n%s", json_pod)
         try:
-            with Stats.timer("kubernetes_executor.pod_creation"):
+            with Stats.timer(
+                "kubernetes_executor.pod_creation", tags=prune_dict({"team_name": self.team_name})
+            ):
                 resp = self.kube_client.create_namespaced_pod(
                     body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
                 )
-            Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "200"})
+            Stats.incr(
+                "kubernetes_executor.pod_creation_status",
+                tags=prune_dict({"status": "200", "team_name": self.team_name}),
+            )
             self.log.debug("Pod Creation Response: %s", resp)
         except ApiException as e:
-            Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": str(e.status)})
+            Stats.incr(
+                "kubernetes_executor.pod_creation_status",
+                tags=prune_dict({"status": str(e.status), "team_name": self.team_name}),
+            )
             self.log.exception("Exception when attempting to create Namespaced Pod: %s", json_pod)
             raise
         except Exception as e:
-            Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "error"})
+            Stats.incr(
+                "kubernetes_executor.pod_creation_status",
+                tags=prune_dict({"status": "error", "team_name": self.team_name}),
+            )
             self.log.exception("Exception when attempting to create Namespaced Pod: %s", json_pod)
             raise e
         return resp
@@ -585,6 +599,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         command = next_job.command
         kube_executor_config = next_job.kube_executor_config
         pod_template_file = next_job.pod_template_file
+        kube_image = next_job.kube_image or self.kube_config.kube_image
 
         # Callback workloads follow a separate pod-construction path.
         if AIRFLOW_V_3_3_PLUS and len(command) == 1:
@@ -625,7 +640,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             pod_id=create_unique_id(dag_id, task_id),
             dag_id=dag_id,
             task_id=task_id,
-            kube_image=self.kube_config.kube_image,
+            kube_image=kube_image,
             try_number=try_number,
             map_index=map_index,
             date=None,
@@ -690,16 +705,24 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """Delete Pod from a namespace; does not raise if it does not exist."""
         try:
             self.log.info("Deleting pod %s in namespace %s", pod_name, namespace)
-            with Stats.timer("kubernetes_executor.pod_deletion"):
+            with Stats.timer(
+                "kubernetes_executor.pod_deletion", tags=prune_dict({"team_name": self.team_name})
+            ):
                 self.kube_client.delete_namespaced_pod(
                     pod_name,
                     namespace,
                     body=client.V1DeleteOptions(**self.kube_config.delete_option_kwargs),
                     **self.kube_config.kube_client_request_args,
                 )
-            Stats.incr("kubernetes_executor.pod_deletion_status", tags={"status": "200"})
+            Stats.incr(
+                "kubernetes_executor.pod_deletion_status",
+                tags=prune_dict({"status": "200", "team_name": self.team_name}),
+            )
         except ApiException as e:
-            Stats.incr("kubernetes_executor.pod_deletion_status", tags={"status": str(e.status)})
+            Stats.incr(
+                "kubernetes_executor.pod_deletion_status",
+                tags=prune_dict({"status": str(e.status), "team_name": self.team_name}),
+            )
             # If the pod is already deleted
             if str(e.status) != "404":
                 raise
@@ -716,30 +739,46 @@ class AirflowKubernetesScheduler(LoggingMixin):
             namespace,
         )
         try:
-            with Stats.timer("kubernetes_executor.pod_patching"):
+            with Stats.timer(
+                "kubernetes_executor.pod_patching", tags=prune_dict({"team_name": self.team_name})
+            ):
                 self.kube_client.patch_namespaced_pod(
                     name=pod_name,
                     namespace=namespace,
                     body={"metadata": {"labels": {POD_REVOKED_KEY: "True"}}},
                 )
-            Stats.incr("kubernetes_executor.pod_patching_status", tags={"status": "200"})
+            Stats.incr(
+                "kubernetes_executor.pod_patching_status",
+                tags=prune_dict({"status": "200", "team_name": self.team_name}),
+            )
         except ApiException as e:
-            Stats.incr("kubernetes_executor.pod_patching_status", tags={"status": str(e.status)})
+            Stats.incr(
+                "kubernetes_executor.pod_patching_status",
+                tags=prune_dict({"status": str(e.status), "team_name": self.team_name}),
+            )
             self.log.warning("Failed to patch pod %s with pod revoked key.", pod_name, exc_info=True)
 
     def patch_pod_executor_done(self, *, pod_name: str, namespace: str):
         """Add a "done" annotation to ensure we don't continually adopt pods."""
         self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_name, namespace)
         try:
-            with Stats.timer("kubernetes_executor.pod_patching"):
+            with Stats.timer(
+                "kubernetes_executor.pod_patching", tags=prune_dict({"team_name": self.team_name})
+            ):
                 self.kube_client.patch_namespaced_pod(
                     name=pod_name,
                     namespace=namespace,
                     body={"metadata": {"labels": {POD_EXECUTOR_DONE_KEY: "True"}}},
                 )
-            Stats.incr("kubernetes_executor.pod_patching_status", tags={"status": "200"})
+            Stats.incr(
+                "kubernetes_executor.pod_patching_status",
+                tags=prune_dict({"status": "200", "team_name": self.team_name}),
+            )
         except ApiException as e:
-            Stats.incr("kubernetes_executor.pod_patching_status", tags={"status": str(e.status)})
+            Stats.incr(
+                "kubernetes_executor.pod_patching_status",
+                tags=prune_dict({"status": str(e.status), "team_name": self.team_name}),
+            )
             self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_name, e)
 
     def sync(self) -> None:

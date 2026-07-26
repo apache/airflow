@@ -185,7 +185,7 @@ class TestAkeylessBackend:
 
     def test_unsupported_access_type_raises(self):
         with pytest.raises(ValueError, match="Unsupported access_type"):
-            _backend(access_type="aws_iam")
+            _backend(access_type="ldap")
 
     @patch(f"{BACKEND_MODULE}.akeyless")
     def test_token_caching(self, mock_sdk):
@@ -277,3 +277,118 @@ class TestAkeylessBackend:
         val = backend.get_variable("my_var", team_name="analytics")
         assert val == "plain"
         mock_sdk.GetSecretValue.assert_called_with(names=["/airflow/variables/my_var"], token="t")
+
+    # ------------------------------------------------------------------
+    # Cloud-based authentication tests
+    # ------------------------------------------------------------------
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_aws_iam_auth(self, mock_sdk):
+        """aws_iam auth generates a cloud ID and authenticates."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="aws-token")
+        api.get_secret_value.return_value = {"/airflow/variables/v": "aws-val"}
+
+        mock_cloud_id = MagicMock()
+        mock_cloud_id.generate.return_value = "fake-aws-cloud-id"
+
+        with patch(f"{BACKEND_MODULE}.AkeylessBackend._get_cloud_id", return_value="fake-aws-cloud-id"):
+            backend = _backend(access_type="aws_iam", access_key=None)
+            val = backend.get_variable("v")
+
+        assert val == "aws-val"
+        mock_sdk.Auth.assert_called_once_with(
+            access_id="p-test123", access_type="aws_iam", cloud_id="fake-aws-cloud-id"
+        )
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_gcp_auth(self, mock_sdk):
+        """gcp auth generates a GCP cloud ID and authenticates."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="gcp-token")
+        api.get_secret_value.return_value = {"/airflow/variables/v": "gcp-val"}
+
+        with patch(f"{BACKEND_MODULE}.AkeylessBackend._get_cloud_id", return_value="fake-gcp-cloud-id"):
+            backend = _backend(access_type="gcp", access_key=None, gcp_audience="my-audience")
+            val = backend.get_variable("v")
+
+        assert val == "gcp-val"
+        mock_sdk.Auth.assert_called_once_with(
+            access_id="p-test123", access_type="gcp", cloud_id="fake-gcp-cloud-id"
+        )
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_azure_ad_auth(self, mock_sdk):
+        """azure_ad auth generates an Azure cloud ID and authenticates."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="azure-token")
+        api.get_secret_value.return_value = {"/airflow/variables/v": "azure-val"}
+
+        with patch(f"{BACKEND_MODULE}.AkeylessBackend._get_cloud_id", return_value="fake-azure-id"):
+            backend = _backend(access_type="azure_ad", access_key=None, azure_object_id="obj-123")
+            val = backend.get_variable("v")
+
+        assert val == "azure-val"
+        mock_sdk.Auth.assert_called_once_with(
+            access_id="p-test123", access_type="azure_ad", cloud_id="fake-azure-id"
+        )
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_aws_iam_cloud_id_integration(self, mock_sdk):
+        """aws_iam calls CloudId.generate() to produce the cloud identity."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/v": "val"}
+
+        mock_cid_instance = MagicMock()
+        mock_cid_instance.generate.return_value = "real-aws-cloud-id"
+        mock_cloud_id_cls = MagicMock(return_value=mock_cid_instance)
+
+        with patch.dict("sys.modules", {"akeyless_cloud_id": MagicMock(CloudId=mock_cloud_id_cls)}):
+            backend = _backend(access_type="aws_iam", access_key=None)
+            backend.get_variable("v")
+
+        mock_cid_instance.generate.assert_called_once()
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_gcp_cloud_id_passes_audience(self, mock_sdk):
+        """gcp auth passes gcp_audience to CloudId.generateGcp()."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/v": "val"}
+
+        mock_cid_instance = MagicMock()
+        mock_cid_instance.generateGcp.return_value = "gcp-id"
+        mock_cloud_id_cls = MagicMock(return_value=mock_cid_instance)
+
+        with patch.dict("sys.modules", {"akeyless_cloud_id": MagicMock(CloudId=mock_cloud_id_cls)}):
+            backend = _backend(access_type="gcp", access_key=None, gcp_audience="my-aud")
+            backend.get_variable("v")
+
+        mock_cid_instance.generateGcp.assert_called_once_with("my-aud")
+
+    @patch(f"{BACKEND_MODULE}.akeyless")
+    def test_azure_cloud_id_passes_object_id(self, mock_sdk):
+        """azure_ad auth passes azure_object_id to CloudId.generateAzure()."""
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        api.get_secret_value.return_value = {"/airflow/variables/v": "val"}
+
+        mock_cid_instance = MagicMock()
+        mock_cid_instance.generateAzure.return_value = "azure-id"
+        mock_cloud_id_cls = MagicMock(return_value=mock_cid_instance)
+
+        with patch.dict("sys.modules", {"akeyless_cloud_id": MagicMock(CloudId=mock_cloud_id_cls)}):
+            backend = _backend(access_type="azure_ad", access_key=None, azure_object_id="obj-456")
+            backend.get_variable("v")
+
+        mock_cid_instance.generateAzure.assert_called_once_with("obj-456")
+
+    def test_cloud_auth_missing_package_raises(self):
+        """Cloud auth raises ImportError when akeyless_cloud_id is not installed."""
+        import sys
+
+        backend = _backend(access_type="aws_iam", access_key=None)
+        with patch.dict(sys.modules, {"akeyless_cloud_id": None}):
+            with pytest.raises(ImportError, match="akeyless_cloud_id"):
+                backend._get_cloud_id()

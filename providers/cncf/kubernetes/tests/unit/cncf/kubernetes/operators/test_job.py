@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pickle
 import random
 import re
 import string
@@ -24,7 +25,7 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, models as k8s
+from kubernetes.client import ApiClient, Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -199,6 +200,42 @@ class TestKubernetesJobOperator:
         )
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.backoff_limit == 6
+
+    def test_deserialize_job_template_file_is_picklable_in_cluster(self, tmp_path, monkeypatch):
+        """A job deserialized from a template file must not capture the in-cluster Configuration.
+
+        In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
+        ``refresh_api_key_hook`` is an unpicklable local closure. ``deserialize_job_template_file`` must
+        deserialize through a fresh ``Configuration`` so the job (and every nested model) stays picklable.
+        """
+
+        def _refresh_api_key(config):
+            return None
+
+        dirty = Configuration()
+        dirty.refresh_api_key_hook = _refresh_api_key
+        monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
+
+        template = tmp_path / "job.yaml"
+        template.write_text(
+            "apiVersion: batch/v1\n"
+            "kind: Job\n"
+            "metadata:\n"
+            "  name: test-job\n"
+            "spec:\n"
+            "  template:\n"
+            "    spec:\n"
+            "      containers:\n"
+            "        - name: base\n"
+            "          image: airflow:3\n"
+        )
+
+        job = KubernetesJobOperator.deserialize_job_template_file(template.as_posix())
+
+        assert isinstance(job, k8s.V1Job)
+        pickle.dumps(job)
+        assert job.local_vars_configuration.refresh_api_key_hook is None
+        assert job.spec.template.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
 
     def test_completion_mode_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(

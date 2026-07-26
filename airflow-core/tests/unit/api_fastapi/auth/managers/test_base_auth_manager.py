@@ -161,10 +161,11 @@ class TestBaseAuthManager:
     @pytest.mark.parametrize(
         ("auth_manager_teams", "db_teams", "expected"),
         [
-            ({"teamA", "teamB"}, {"teamA", "teamB"}, True),
-            ({"teamA", "teamB"}, {"teamA", "teamB", "teamC"}, True),
-            (set(), set(), True),
-            ({"teamA", "teamB"}, {"teamA", "teamC"}, False),
+            pytest.param({"teamA", "teamB"}, {"teamA", "teamB"}, "same", id="same teams"),
+            pytest.param({"teamA", "teamB"}, {"teamA", "teamB", "teamC"}, "extra_db", id="extra teams db"),
+            pytest.param(set(), set(), "same", id="no teams"),
+            pytest.param({"teamA", "teamB"}, {"teamA"}, "extra_auth", id="extra teams auth"),
+            pytest.param({"teamA", "teamB"}, {"teamA", "teamC"}, "extra_both", id="extra teams both"),
         ],
     )
     @patch.object(Team, "get_all_team_names")
@@ -175,10 +176,19 @@ class TestBaseAuthManager:
         mock_get_teams.return_value = auth_manager_teams
         mock_get_all_team_names.return_value = db_teams
 
-        if expected:
+        if expected == "same":
             assert auth_manager.init() is None
+        elif expected == "extra_auth":
+            with pytest.warns(UserWarning, match="Teams defined in the auth manager"):
+                auth_manager.init()
+        elif expected == "extra_db":
+            with pytest.warns(UserWarning, match="Teams defined in the database"):
+                auth_manager.init()
         else:
-            with pytest.raises(ValueError, match="Teams defined in the auth manager"):
+            with (
+                pytest.warns(UserWarning, match="Teams defined in the database"),
+                pytest.warns(UserWarning, match="Teams defined in the auth manager"),
+            ):
                 auth_manager.init()
 
     def test_get_cli_commands_return_empty_list(self, auth_manager):
