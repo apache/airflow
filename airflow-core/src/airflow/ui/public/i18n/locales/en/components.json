@@ -75,10 +75,12 @@
   },
   "flexibleForm": {
     "durationPlaceholder": "Enter Duration in ISO 8601 format",
+    "hidePassword": "Hide value",
     "placeholder": "Select Value",
     "placeholderArray": "Enter each string on a new line",
     "placeholderExamples": "Start typing to see options",
     "placeholderMulti": "Select one or multiple values",
+    "showPassword": "Show value",
     "validationErrorArrayNotArray": "Value must be an array.",
     "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
     "validationErrorArrayNotObject": "All elements in the array must be objects.",
