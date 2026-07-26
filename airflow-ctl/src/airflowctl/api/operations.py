@@ -458,7 +458,7 @@ class DagsOperations(BaseOperations):
         return DAGDetailsResponse.model_validate_json(self.response.content)
 
     def get_tags(self) -> DAGTagCollectionResponse | ServerResponseError:
-        """Get all DAG tags."""
+        """Get all Dag tags."""
         return super().execute_list(path="dagTags", data_model=DAGTagCollectionResponse)
 
     def list(self) -> DAGCollectionResponse | ServerResponseError:
