@@ -26,6 +26,10 @@
 {{- $tolerations := or .Values.otelCollector.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.otelCollector.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.otelCollector.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $podLabels := .Values.otelCollector.labels }}
+{{- if ne .Values.otelCollector.podLabels nil }}
+  {{- $podLabels = .Values.otelCollector.podLabels }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -58,8 +62,8 @@ spec:
         tier: airflow
         component: otel-collector
         release: {{ .Release.Name }}
-        {{- if or .Values.labels .Values.otelCollector.labels }}
-          {{- mustMerge .Values.otelCollector.labels .Values.labels | toYaml | nindent 8 }}
+        {{- if or .Values.labels $podLabels }}
+          {{- mustMerge (deepCopy $podLabels) .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/otel-collector-config: {{ include (print $.Template.BasePath "/configmaps/otel-collector-configmap.yaml") . | sha256sum }}
