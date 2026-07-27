@@ -133,6 +133,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     RescheduleTask,
+    RetryTask,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
     SetRenderedFields,
@@ -5188,6 +5189,72 @@ class TestTriggerDagRunOperator:
         # The original error must surface, not UnboundLocalError on ``state``.
         with pytest.raises(_TriggerSendError):
             run(ti, ti.get_template_context(), log)
+
+    @pytest.mark.parametrize(
+        ("should_retry", "expected_state"),
+        [
+            (False, TaskInstanceState.FAILED),
+            (True, TaskInstanceState.UP_FOR_RETRY),
+        ],
+    )
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_api_error_fails_task(
+        self, should_retry, expected_state, create_runtime_ti, mock_supervisor_comms
+    ):
+        """API errors (e.g. 404 target DAG not found) must route through the failure path.
+
+        Regression test: the AirflowRuntimeError used to escape run() entirely, so
+        finalize() never ran and on_task_instance_failed listeners were never called.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="missing_dag",
+            trigger_run_id="test_run_id",
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_api_error_fails_task",
+            run_id="test_run",
+            task=task,
+            should_retry=should_retry,
+        )
+
+        api_error = AirflowRuntimeError(
+            error=ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR,
+                detail={
+                    "status_code": 404,
+                    "detail": {"reason": "not_found", "message": "Dag with dag_id: 'missing_dag' not found"},
+                },
+            )
+        )
+
+        def _send(msg=None, **kwargs):
+            # Fail only the TriggerDagRun comms (the call that 404s for a missing DAG).
+            if isinstance(msg, TriggerDagRun):
+                raise api_error
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = _send
+
+        log = mock.MagicMock()
+
+        state, _, error = run(ti, ti.get_template_context(), log)
+
+        assert state == expected_state
+        assert error is api_error
+        # The success-path xcom must not be pushed; a terminal state must reach the supervisor
+        sent_msgs = [
+            call.args[0] if call.args else call.kwargs["msg"]
+            for call in mock_supervisor_comms.send.call_args_list
+        ]
+        assert not any(isinstance(sent, SetXCom) and sent.key == "trigger_run_id" for sent in sent_msgs)
+        if should_retry:
+            assert isinstance(sent_msgs[-1], RetryTask)
+        else:
+            assert isinstance(sent_msgs[-1], TaskState)
+            assert sent_msgs[-1].state == TaskInstanceState.FAILED
 
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),

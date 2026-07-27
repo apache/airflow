@@ -1623,7 +1623,16 @@ def run(
         msg, state = _handle_current_task_success(context, ti)
     except DagRunTriggerException as drte:
         log.info("::group::Post Execute")
-        msg, state = _handle_trigger_dag_run(drte, context, ti, log)
+        try:
+            msg, state = _handle_trigger_dag_run(drte, context, ti, log)
+        except AirflowRuntimeError as e:
+            # The supervisor reports API-server errors (target DAG not found, permission
+            # denied, ...) by raising here. Route through the normal failure path so
+            # finalize() fires failure listeners; re-raising would escape run() entirely
+            # and skip finalize().
+            log.exception("Triggering Dag Run failed")
+            msg, state = _handle_current_task_failed(ti, e, log, context)
+            error = e
     except TaskDeferred as defer:
         log.info("::group::Post Execute")
         msg, state = _defer_task(defer, ti, log)
