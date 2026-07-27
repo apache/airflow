@@ -224,7 +224,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
                 raise e
             finally:
                 if err is None:
-                    _upload_file_to_s3(f, self.s3_bucket_name, self.s3_key_prefix, self.dest_aws_conn_id)
+                    _upload_file_to_s3(
+                        f, self.s3_bucket_name, self.s3_key_prefix, self.resolved_dest_aws_conn_id
+                    )
 
     def _scan_dynamodb_and_upload_to_s3(self, temp_file: IO, scan_kwargs: dict, table: Any) -> IO:
         while True:
@@ -242,7 +244,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
             # Upload the file to S3 if reach file size limit
             if os.path.getsize(temp_file.name) >= self.file_size:
-                _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix, self.dest_aws_conn_id)
+                _upload_file_to_s3(
+                    temp_file, self.s3_bucket_name, self.s3_key_prefix, self.resolved_dest_aws_conn_id
+                )
                 temp_file.close()
 
                 temp_file = NamedTemporaryFile()

@@ -73,3 +73,20 @@ class TestAwsToAwsBaseOperator:
         render_template_fields(ti, operator)
         assert getattr(operator, "source_aws_conn_id") == "2020-01-01"
         assert getattr(operator, "dest_aws_conn_id") == "2020-01-01"
+
+    @pytest.mark.parametrize(
+        ("dest_kwargs", "expected"),
+        [
+            pytest.param({}, "source-conn", id="fallback-to-source"),
+            pytest.param({"dest_aws_conn_id": "dest-conn"}, "dest-conn", id="explicit-dest"),
+            pytest.param({"dest_aws_conn_id": None}, None, id="explicit-none"),
+        ],
+    )
+    def test_resolved_dest_aws_conn_id(self, dest_kwargs, expected):
+        operator = AwsToAwsBaseOperator(
+            task_id="test_resolved_dest",
+            dag=self.dag,
+            source_aws_conn_id="source-conn",
+            **dest_kwargs,
+        )
+        assert operator.resolved_dest_aws_conn_id == expected
