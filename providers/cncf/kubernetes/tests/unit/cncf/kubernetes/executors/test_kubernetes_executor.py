@@ -2253,6 +2253,43 @@ class TestKubernetesExecutor:
 
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_adopt_completed_callback_pod(self, mock_kube_client, mock_kube_dynamic_client):
+        """Completed callback pods should be adopted without task annotation parsing."""
+        from airflow.models.callback import CallbackKey
+
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        executor.kube_client = mock_kube_client
+        executor.kube_config.kube_namespace = "somens"
+
+        callback_id = "12345678-1234-5678-1234-567812345678"
+        callback_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                name="callback-pod",
+                labels={"airflow-worker": "other-scheduler", "airflow-workload-type": "callback"},
+                annotations={
+                    "callback_id": callback_id,
+                    "dag_id": "example_deadline_callback",
+                    "run_id": "manual__2026-07-27T00:00:00+00:00",
+                },
+                namespace="somens",
+                resource_version="123",
+            )
+        )
+
+        mock_kube_dynamic_client.return_value.get.return_value.items = [callback_pod]
+
+        executor._adopt_completed_pods(mock_kube_client)
+
+        mock_kube_client.patch_namespaced_pod.assert_called_once_with(
+            body={"metadata": {"labels": {"airflow-worker": "modified"}}},
+            name="callback-pod",
+            namespace="somens",
+        )
+        assert executor.completed[("somens", "callback-pod")].key == CallbackKey(id=callback_id)
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_adopt_completed_pods_api_exception(self, mock_kube_client, mock_kube_dynamic_client):
         """We should gracefully handle exceptions when adopting completed pods from other schedulers"""
         executor = self.kubernetes_executor
