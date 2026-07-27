@@ -649,9 +649,8 @@ class SerializedDagModel(Base):
             # The deadline handling below rewrites data["dag"]["deadline"] from a list of
             # encoded dicts into a list of UUID references. Work on a copy so we never mutate
             # the caller's LazyDeserializedDAG in place.
-            from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
-            dag = LazyDeserializedDAG(data=copy.deepcopy(dag.data), last_loaded=dag.last_loaded)
+            dag = dag.model_copy(update={"data": copy.deepcopy(dag.data)})
             # Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
             # This preserves the hash and avoids unnecessary SerializedDagModel recreations.
             existing_serialized_dag = session.scalar(
