@@ -24,11 +24,14 @@ from unittest import mock
 import pandas as pd
 import polars as pl
 import pytest
+from packaging.version import Version
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 from airflow.providers.common.compat.sdk import AirflowException
+
+PANDAS_3_PLUS = Version(pd.__version__).major >= 3
 
 
 class TestSqlToS3Operator:
@@ -156,7 +159,12 @@ class TestSqlToS3Operator:
         )
         dirty_df = pd.DataFrame({"strings": ["a", "b", None], "ints": [1, 2, None]})
         op._fix_dtypes(df=dirty_df, file_format=op.file_format)
-        assert dirty_df["strings"].values[2] == params["null_string_result"]
+        if PANDAS_3_PLUS:
+            # pandas 3 infers a str column rather than object, and keeps its missing values as NA
+            # instead of the object None (csv) or the "None" it used to be stringified to (parquet)
+            assert pd.isna(dirty_df["strings"].values[2])
+        else:
+            assert dirty_df["strings"].values[2] == params["null_string_result"]
         assert dirty_df["ints"].dtype.kind == "i"
 
     @mock.patch("airflow.providers.amazon.aws.transfers.sql_to_s3.S3Hook")

@@ -289,12 +289,18 @@ class TestSerializers:
     @pytest.mark.parametrize(
         ("klass", "version", "data", "msg"),
         [
-            (pd.DataFrame, 999, "", r"serialized 999 of pandas.core.frame.DataFrame > 1"),  # version too new
+            # pandas 3 qualifies the class as pandas.DataFrame, pandas 2 as pandas.core.frame.DataFrame
+            (
+                pd.DataFrame,
+                999,
+                "",
+                r"serialized 999 of pandas(\.core\.frame)?\.DataFrame > 1",
+            ),  # version too new
             (
                 pd.DataFrame,
                 1,
                 123,
-                r"serialized pandas.core.frame.DataFrame has wrong data type .*<class 'int'>",
+                r"serialized pandas(\.core\.frame)?\.DataFrame has wrong data type .*<class 'int'>",
             ),  # bad payload type
             (str, 1, "", r"do not know how to deserialize builtins.str"),  # bad class
         ],
