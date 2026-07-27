@@ -337,7 +337,12 @@ class DagFileProcessorManager(LoggingMixin):
         # bundle configuration and must not deactivate bundles owned by other processors.
         dag_bundle_manager = DagBundlesManager()
         dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
-        dag_bundle_manager.reassign_dags_with_unconfigured_bundles()
+        # Best-effort legacy repair: a failure here must not crash DFP startup.
+        # Affected Dags self-heal on the next successful parse.
+        try:
+            dag_bundle_manager.reassign_dags_with_unconfigured_bundles()
+        except Exception:
+            self.log.exception("Failed to reassign Dags with unconfigured bundles during startup")
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""

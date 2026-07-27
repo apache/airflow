@@ -563,7 +563,7 @@ class DagBundlesManager(LoggingMixin):
 
         for (prev, target), n in movements.items():
             self.log.info(
-                "Reassigning %d Dag(s) from unconfigured bundle '%s' to '%s'",
+                "Reassigning %d Dag(s) from bundle '%s' to '%s'",
                 n,
                 prev,
                 target,

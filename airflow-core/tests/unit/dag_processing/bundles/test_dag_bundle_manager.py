@@ -991,9 +991,11 @@ class TestBackfillRelativeFileloc:
             # immediately and the helper drives the chunking we are testing.
             manager.reassign_dags_with_unconfigured_bundles()
 
-        # 1 session for the active-bundle read + 5 backfill rows / batch size 2
-        # = chunks of 2, 2, 1, then an empty chunk that terminates the loop.
-        assert session_open_count[0] >= 4
+        # 1 initial session (DagVersion probe + active-bundle read), then per loop:
+        # 5 rows / batch size 2 => SELECT chunks of 2, 2, 1, plus one empty chunk that
+        # terminates the loop (4 SELECT sessions), and one UPDATE session per non-empty
+        # chunk (3). Total: 1 + 4 + 3 = 8.
+        assert session_open_count[0] == 8
 
         session.expire_all()
         for i in range(5):

@@ -2354,6 +2354,22 @@ class TestDagFileProcessorManager:
         manager._refresh_dag_bundles(known_files={})
         mock_bundle_manager.return_value.reassign_dags_with_unconfigured_bundles.assert_called_once()
 
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_reassign_failure_during_startup_is_logged_and_swallowed(self, mock_bundle_manager):
+        """A reassignment failure must not crash DFP startup; it is logged and execution continues."""
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = []
+        manager._log = mock.MagicMock()
+        mock_bundle_manager.return_value.reassign_dags_with_unconfigured_bundles.side_effect = RuntimeError(
+            "boom"
+        )
+
+        manager.sync_bundles()
+
+        manager._log.exception.assert_called_once_with(
+            "Failed to reassign Dags with unconfigured bundles during startup"
+        )
+
     @pytest.mark.parametrize(
         "apply_patch",
         [False, True],
