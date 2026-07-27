@@ -555,6 +555,8 @@ class AssetManager(LoggingMixin):
         # a nested transaction per row. Either way the rows are added in the same
         # transaction where `ti.state` is changed.
         dialect_name = get_dialect_name(session)
+        if TYPE_CHECKING:
+            assert dialect_name is not None
         if dialect_name == "mysql":
             return cls._queue_dagruns_nonpartitioned_mysql(asset_id, non_partitioned_dags, event, session)
         # PostgreSQL and SQLite both support ON CONFLICT DO UPDATE.
@@ -874,7 +876,7 @@ class AssetManager(LoggingMixin):
         dags_to_queue: set[DagModel],
         event: AssetEvent,
         session: Session,
-        dialect_name: str | None,
+        dialect_name: str,
     ) -> None:
         """Handle ON CONFLICT DO UPDATE upsert for dialects that support it (postgresql, sqlite)."""
         if dialect_name == "postgresql":

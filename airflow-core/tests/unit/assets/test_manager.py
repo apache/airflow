@@ -241,8 +241,10 @@ class TestAssetManager:
             )
         if expected_helper == "_queue_dagruns_nonpartitioned_conflict_update":
             mock_helper.assert_called_once_with(1, {dag}, event, session, dialect_name)
-        else:
+        elif expected_helper == "_queue_dagruns_nonpartitioned_mysql":
             mock_helper.assert_called_once_with(1, {dag}, event, session)
+        else:
+            raise AssertionError(f"Unexpected expected_helper: {expected_helper}")
 
     def test_queue_dagruns_nonpartitioned_mysql_builds_upsert(self):
         """Test that the MySQL queue path emits an INSERT ... ON DUPLICATE KEY UPDATE."""
