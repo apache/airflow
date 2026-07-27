@@ -22,12 +22,19 @@ import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { useTimezone } from "src/context/timezone";
 import { getComputedCSSVariableValue } from "src/theme";
-import { getDurationTickStep, renderCompactDuration, renderDuration } from "src/utils/datetimeUtils";
+import {
+  formatDate,
+  getDurationTickStep,
+  renderCompactDuration,
+  renderDuration,
+} from "src/utils/datetimeUtils";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
 const CHART_HEIGHT = "340px";
+const RUN_LABEL_FORMAT = "MMM DD HH:mm";
 
 export const SlowestTaskInstancesChart = ({
   taskInstances,
@@ -35,6 +42,7 @@ export const SlowestTaskInstancesChart = ({
   readonly taskInstances: Array<TaskInstanceResponse>;
 }) => {
   const { t: translate } = useTranslation(["components", "common"]);
+  const { selectedTimezone } = useTimezone();
   const [labelColorToken, fallbackColorToken] = useToken("colors", ["fg.muted", "gray.solid"]);
 
   const states = taskInstances.map((taskInstance) => taskInstance.state).filter(Boolean);
@@ -107,7 +115,10 @@ export const SlowestTaskInstancesChart = ({
                 data: durations,
               },
             ],
-            labels: taskInstances.map((taskInstance) => taskInstance.task_display_name),
+            labels: taskInstances.map((taskInstance) => [
+              taskInstance.task_display_name,
+              formatDate(taskInstance.run_after, selectedTimezone, RUN_LABEL_FORMAT),
+            ]),
           }}
           options={{
             indexAxis: "y",
@@ -118,6 +129,13 @@ export const SlowestTaskInstancesChart = ({
               tooltip: {
                 callbacks: {
                   label: (context) => renderDuration(context.parsed.x, false) ?? "0",
+                  title: ([context]) => {
+                    const taskInstance = context === undefined ? undefined : taskInstances[context.dataIndex];
+
+                    return taskInstance === undefined
+                      ? ""
+                      : `${taskInstance.task_display_name} · ${formatDate(taskInstance.run_after, selectedTimezone, RUN_LABEL_FORMAT)}`;
+                  },
                 },
               },
             },
