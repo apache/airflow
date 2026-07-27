@@ -1,1 +1,0 @@
-Added ``last_asset_event_timestamp`` to the sortable attributes for the ``GET /assets`` endpoint, so the Assets list UI can sort by the latest asset event.
