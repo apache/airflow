@@ -163,14 +163,19 @@ class SchedulerDictOfListsExpandInput:
         expanded kwarg maps one-to-one, skipping the upstream length lookups.
 
         :raises NotFullyPopulated: if upstream map lengths are not all known yet.
+        :raises ValueError: if an expanded kwarg's recorded length is zero, e.g. an
+            upstream was cleared and re-ran to an empty list after this task instance
+            was expanded (the SDK twin guards the same case).
         """
         if len(self.value) == 1:
             return dict.fromkeys(self.value, map_index)
         lengths = self._get_map_lengths(run_id, session=session)
         sub_indexes = {}
         for key in reversed(self.value):
-            sub_indexes[key] = map_index % lengths[key]
-            map_index //= lengths[key]
+            if (length := lengths[key]) < 1:
+                raise ValueError(f"cannot decompose map index over expanded kwarg {key!r} of length 0")
+            sub_indexes[key] = map_index % length
+            map_index //= length
         return sub_indexes
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:

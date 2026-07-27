@@ -634,6 +634,41 @@ class TestTIRunState:
         assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
         assert "aggregated output" in response.json()["detail"]["message"]
 
+    def test_ti_run_rejects_zero_length_expansion_on_stub(self, client, dag_maker, session):
+        """An upstream re-run to an empty list after expansion fails structurally, not with a crash."""
+        from airflow.models.taskmap import TaskMap
+
+        with dag_maker("test_mapped_stub_zero_length", serialized=True, session=session):
+
+            @task
+            def seed():
+                return [0, 1]
+
+            @task.stub
+            def combine(a: int, b: int): ...
+
+            combine.expand(a=seed(), b=[1, 2])
+
+        dr = dag_maker.create_dagrun()
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        (seed_ti,) = decision.schedulable_tis
+        seed_ti.state = TaskInstanceState.SUCCESS
+        session.add(TaskMap.from_task_instance_xcom(seed_ti, [0, 1]))
+        session.flush()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        ti = next(t for t in decision.schedulable_tis if t.map_index == 0)
+        ti.set_state(State.QUEUED, session=session)
+        # Simulate the upstream being cleared and re-run to an empty list while this
+        # expanded TI is still queued.
+        session.execute(update(TaskMap).where(TaskMap.task_id == "seed").values(length=0, keys=None))
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 500
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        assert "length 0" in response.json()["detail"]["message"]
+
     def test_ti_run_rejects_expand_kwargs_on_stub(self, client, dag_maker):
         """expand_kwargs() has no per-parameter spec to derive, so delivery fails structurally."""
         with dag_maker("test_mapped_stub_expand_kwargs", serialized=True):

@@ -91,9 +91,11 @@ def _resolve_mapped_stub_arg_bindings(
     try:
         sub_indexes = expand_input.resolve_expansion_sub_indexes(ti.map_index, ti.run_id, session=session)
     except NotFullyPopulated as e:
-        # In the happy path this shouldn't happen at all, unless someone clears upstream
-        # TIs or XComs themselves during the DagRun.
+        # Neither this nor the ValueError below can happen on the happy path: both take
+        # someone clearing upstream TIs or XComs themselves during the DagRun.
         _unsupported_arg_bindings(f"upstream map lengths are not yet known for {sorted(e.missing)}")
+    except ValueError as e:
+        _unsupported_arg_bindings(str(e))
 
     # partial() kwargs. XComArgs inside partial() op_kwargs deserialize to _XComRef and
     # are never dereferenced (set_task_dag_references only derefs the expand inputs), so
