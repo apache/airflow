@@ -25,6 +25,7 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
+from airflow.providers.common.compat.sdk import AirflowException
 
 TASK_ID = "test-gcs-list-operator"
 GCS_BUCKET = "test-bucket"
@@ -74,6 +75,19 @@ class TestGCSToS3Operator:
                 prefix=PREFIX,
                 user_project=None,
             )
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
+    def test_execute_match_glob_fails_on_unsupported_google_provider(self, mock_hook):
+        operator = GCSToS3Operator(
+            task_id=TASK_ID,
+            gcs_bucket=GCS_BUCKET,
+            dest_s3_key=S3_BUCKET,
+            match_glob=f"**/*{DELIMITER}",
+        )
+        operator._GCSToS3Operator__is_match_glob_supported = False
+        with pytest.raises(AirflowException, match=r"requires 'apache-airflow-providers-google>=10\.3\.0'"):
+            operator.execute(None)
+        mock_hook.return_value.list.assert_not_called()
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_incremental(self, mock_hook):

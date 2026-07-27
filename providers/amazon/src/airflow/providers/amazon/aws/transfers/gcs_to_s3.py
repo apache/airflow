@@ -146,10 +146,6 @@ class GCSToS3Operator(BaseOperator):
                 self.__is_match_glob_supported = False
         except ImportError:  # __version__ was added in 10.1.0, so this means it's < 10.3.0
             self.__is_match_glob_supported = False
-        if not self.__is_match_glob_supported and match_glob:
-            raise AirflowException(
-                "The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'."
-            )
         self.match_glob = match_glob
         self.gcp_user_project = gcp_user_project
 
@@ -165,6 +161,10 @@ class GCSToS3Operator(BaseOperator):
         return file_path
 
     def execute(self, context: Context) -> list[str]:
+        if not self.__is_match_glob_supported and self.match_glob:
+            raise AirflowException(
+                "The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'."
+            )
         # list all files in an Google Cloud Storage bucket
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
