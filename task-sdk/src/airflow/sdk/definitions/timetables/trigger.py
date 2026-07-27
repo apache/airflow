@@ -100,9 +100,9 @@ class JitteredCronTimetable(CronTriggerTimetable):
 
     The offset is deterministic: the same ``seed`` always maps to the same offset, so runs stay
     stable and predictable across scheduler restarts and timetable serialization. Different seeds
-    land in different slots; collisions are possible but harmless. ``data_interval`` and
-    ``logical_date`` semantics are inherited from ``CronTriggerTimetable`` -- only the wall-clock
-    fire time is shifted.
+    land in different slots; collisions are possible but harmless. The offset shifts every fire
+    time, and because a run's ``logical_date`` and ``data_interval`` derive from the fire time (as
+    in ``CronTriggerTimetable``), they shift by the same offset.
 
     :param seed: stable, unique-per-DAG string that determines the offset. The DAG id is a
         natural choice.
@@ -116,6 +116,11 @@ class JitteredCronTimetable(CronTriggerTimetable):
 
     seed: str = attrs.field(kw_only=True, default="")
     max_jitter: datetime.timedelta = attrs.field(kw_only=True, default=datetime.timedelta())
+
+    def __attrs_post_init__(self) -> None:
+        super().__attrs_post_init__()
+        if self.max_jitter > datetime.timedelta(0) and not self.seed:
+            raise ValueError("seed must be a non-empty, unique-per-DAG string when max_jitter > 0")
 
 
 @attrs.define(init=False)

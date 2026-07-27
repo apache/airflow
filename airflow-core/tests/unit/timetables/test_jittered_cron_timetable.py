@@ -134,3 +134,23 @@ def test_encode_decode_round_trip_across_layers():
     assert restored._max_jitter == MAX_JITTER
     expected_offset = JitteredCronTimetable(CRON, timezone=utc, seed=SEED, max_jitter=MAX_JITTER)._offset
     assert restored._offset == expected_offset
+
+
+def test_sub_second_max_jitter_is_bounded_and_does_not_divide_by_zero():
+    """A sub-second window keeps full precision (microsecond math) instead of truncating to a 0s divisor."""
+    window = timedelta(milliseconds=500)
+    offset = JitteredCronTimetable(CRON, timezone=utc, seed=SEED, max_jitter=window)._offset
+    assert timedelta(0) <= offset < window
+
+
+@pytest.mark.parametrize(
+    "timetable_cls",
+    [pytest.param(JitteredCronTimetable, id="core"), pytest.param(SdkJitteredCronTimetable, id="sdk")],
+)
+def test_empty_seed_requires_zero_jitter(timetable_cls):
+    """An empty seed with a real window would give every DAG the same offset -> reject in both layers."""
+    with pytest.raises(ValueError, match="seed"):
+        timetable_cls(CRON, timezone="UTC", seed="", max_jitter=MAX_JITTER)
+
+    # ...but an empty seed is fine when jitter is off (degrades to a plain CronTriggerTimetable).
+    timetable_cls(CRON, timezone="UTC", seed="", max_jitter=timedelta(0))

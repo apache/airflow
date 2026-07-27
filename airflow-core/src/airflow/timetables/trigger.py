@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+from airflow.utils.hashlib_wrapper import md5
 
 import datetime
 import functools
-import hashlib
 import math
 import operator
 import time
@@ -615,8 +615,10 @@ class JitteredCronTimetable(CronTriggerTimetable):
     different seeds land in different slots; collisions are possible but harmless (two DAGs
     sharing one minute still beats every DAG firing at once).
 
-    All ``data_interval`` and ``logical_date`` semantics are inherited from
-    ``CronTriggerTimetable`` -- only the wall-clock fire time is shifted.
+    The offset shifts every fire time, and because a run's ``logical_date`` and ``data_interval``
+    derive from the fire time (exactly as in ``CronTriggerTimetable``), they shift by the same
+    offset. Keep ``max_jitter`` well within the gap to the next cron boundary so a run's
+    ``logical_date`` cannot cross a day or period boundary.
 
     :param cron: cron string that defines the base schedule.
     :param timezone: timezone used to interpret the cron string.
@@ -636,14 +638,17 @@ class JitteredCronTimetable(CronTriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
         run_immediately: bool | datetime.timedelta = False,
-        seed: str,
+        seed: str = "",
         max_jitter: datetime.timedelta,
     ) -> None:
         super().__init__(cron, timezone=timezone, interval=interval, run_immediately=run_immediately)
-        h = int(hashlib.md5(seed.encode()).hexdigest(), 16)
+        if max_jitter > datetime.timedelta(0) and not seed:
+            raise ValueError("seed must be a non-empty, unique-per-DAG string when max_jitter > 0")
+        h = int(md5(seed.encode()).hexdigest(), 16)
+        max_jitter_us = max_jitter // datetime.timedelta(microseconds=1)
         self._offset = (
-            datetime.timedelta(seconds=h % int(max_jitter.total_seconds()))
-            if max_jitter > datetime.timedelta(0)
+            datetime.timedelta(microseconds=h % max_jitter_us)
+            if max_jitter_us > 0
             else datetime.timedelta(0)
         )
         self._seed = seed
