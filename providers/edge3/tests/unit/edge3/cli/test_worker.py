@@ -1130,7 +1130,25 @@ class TestEdgeWorker:
                 ) as mock_get_hosts,
             ):
                 edge_command.list_edge_workers(args)
-        mock_get_hosts.assert_called_once_with(states=None, worker_name_pattern="prod-*")
+        mock_get_hosts.assert_called_once_with(states=None, worker_name_pattern="prod-*", queues=None)
+
+    @pytest.mark.db_test
+    def test_list_edge_workers_passes_queues(self, mock_edgeworker: EdgeWorkerModel):
+        args = self.parser.parse_args(["edge", "list-workers", "--output", "json", "--queues", "gpu,default"])
+        with contextlib.redirect_stdout(StringIO()):
+            with (
+                patch(
+                    "airflow.providers.edge3.cli.edge_command._check_valid_db_connection",
+                ),
+                patch(
+                    "airflow.providers.edge3.models.edge_worker.get_registered_edge_hosts",
+                    return_value=[mock_edgeworker],
+                ) as mock_get_hosts,
+            ):
+                edge_command.list_edge_workers(args)
+        mock_get_hosts.assert_called_once_with(
+            states=None, worker_name_pattern=None, queues=["gpu", "default"]
+        )
 
 
 class TestSignalHandling:
