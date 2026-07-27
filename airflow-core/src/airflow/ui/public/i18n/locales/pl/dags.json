@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "Wszystkie Typy Wykonań Dagów",
     "allStates": "Wszystkie Stany",
+    "anyRunState": "Dowolne wykonanie",
     "favorite": {
       "all": "Wszystkie",
       "favorite": "Ulubione",
       "unfavorite": "Nieulubione"
     },
+    "lastRunState": "Ostatnie wykonanie",
     "paused": {
       "active": "Aktywne",
       "all": "Wszystkie",
@@ -89,8 +91,8 @@
       "desc": "Sortuj według Nazwy Wyświetlanej (Z-A)"
     },
     "lastRunStartDate": {
-      "asc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najwcześniejsze-Najnowsze)",
-      "desc": "Sortuj według Daty Rozpoczęcia Ostatniego Wykonania (Najnowsze-Najwcześniejsze)"
+      "asc": "Sortuj według Daty Ostatniego Wykonania (Najwcześniejsze-Najnowsze)",
+      "desc": "Sortuj według Daty Ostatniego Wykonania (Najnowsze-Najwcześniejsze)"
     },
     "lastRunState": {
       "asc": "Sortuj według Stanu Ostatniego Wykonania (A-Z)",
