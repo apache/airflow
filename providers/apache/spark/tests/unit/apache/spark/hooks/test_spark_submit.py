@@ -395,10 +395,7 @@ class TestSparkSubmitHook:
 
     @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
-    def test_submit_no_driver_id_omits_log_tail_without_exception_marker(
-        self, mock_popen, sdk_connection_not_found
-    ):
-        """spark-submit output with no uncaught-exception marker contributes no log tail."""
+    def test_submit_no_driver_id_includes_captured_log_tail(self, mock_popen, sdk_connection_not_found):
         mock_popen.return_value.stdout = StringIO("some unrelated spark-submit output")
         mock_popen.return_value.stderr = StringIO("")
         mock_popen.return_value.wait.return_value = 0
@@ -406,7 +403,7 @@ class TestSparkSubmitHook:
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
         with pytest.raises(AirflowException, match="No driver id is known") as exc_info:
             hook.submit()
-        assert "Last spark-submit output:" not in str(exc_info.value)
+        assert "Last spark-submit output:\nsome unrelated spark-submit output" in str(exc_info.value)
 
     @pytest.mark.db_test
     def test_resolve_should_track_driver_status(self, sdk_connection_not_found):
@@ -1030,15 +1027,14 @@ class TestSparkSubmitHook:
 
         assert list(hook._last_submit_log_lines) == [line.strip() for line in log_lines[2:]]
 
-    def test_process_spark_submit_log_stays_empty_without_exception_marker(self):
-        """No 'Exception in thread' anywhere -> nothing captured, no log tail at all."""
+    def test_process_spark_submit_log_without_exception_marker_uses_rolling_tail(self):
+        """No 'Exception in thread' anywhere -> falls back to the plain last-20 tail."""
         hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
         log_lines = [f"plain output line {i}" for i in range(25)]
 
         hook._process_spark_submit_log(log_lines)
 
-        assert list(hook._last_submit_log_lines) == []
-        assert hook._submit_log_tail == ""
+        assert list(hook._last_submit_log_lines) == log_lines[-20:]
 
     def test_process_spark_submit_log_exception_message_survives_long_stack_trace(self):
         """A message preceding 30+ stack frames must not roll off the buffer."""
@@ -1053,6 +1049,17 @@ class TestSparkSubmitHook:
 
         assert next(iter(hook._last_submit_log_lines)) == message_line
         assert "exceeded quota" in hook._submit_log_tail
+
+    def test_process_spark_submit_log_anchor_buffer_truncates_at_500(self):
+        """The widened post-anchor buffer still enforces its own maxlen."""
+        hook = SparkSubmitHook(conn_id="spark_standalone_cluster")
+        marker_line = 'Exception in thread "main" java.lang.RuntimeException: boom'
+        log_lines = [marker_line] + [f"line {i}" for i in range(505)]
+
+        hook._process_spark_submit_log(log_lines)
+
+        assert len(hook._last_submit_log_lines) == 500
+        assert list(hook._last_submit_log_lines) == [f"line {i}" for i in range(5, 505)]
 
     def test_process_spark_driver_status_log(self):
         # Given
