@@ -33,7 +33,7 @@ class QuickSightIngestionCompletedTrigger(AwsBaseWaiterTrigger):
     :param ingestion_id: ID for the ingestion.
     :param aws_account_id: The ID of the AWS account that owns the dataset.
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 30)
-    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 60)
+    :param waiter_max_attempts: The maximum number of attempts to be made. (default: 4320)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates.
@@ -47,7 +47,7 @@ class QuickSightIngestionCompletedTrigger(AwsBaseWaiterTrigger):
         ingestion_id: str,
         aws_account_id: str,
         waiter_delay: int = 30,
-        waiter_max_attempts: int = 60,
+        waiter_max_attempts: int = 4320,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         verify: bool | str | None = None,

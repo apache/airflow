@@ -84,7 +84,7 @@ class TestQuickSightSensor:
         assert sensor.hook._region_name is None
         assert sensor.hook._verify is None
         assert sensor.hook._config is None
-        assert sensor.max_retries == 75
+        assert sensor.max_retries == 2160
         assert sensor.deferrable is False
 
     @pytest.mark.parametrize("status", ["COMPLETED"])

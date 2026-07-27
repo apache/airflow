@@ -56,7 +56,7 @@ class QuickSightHook(AwsBaseHook):
         wait_for_completion: bool = True,
         check_interval: int = 30,
         aws_account_id: str | None = None,
-        waiter_max_attempts: int = 60,
+        waiter_max_attempts: int = 4320,
     ) -> dict:
         """
         Create and start a new SPICE ingestion for a dataset; refresh the SPICE datasets.
@@ -100,7 +100,7 @@ class QuickSightHook(AwsBaseHook):
         ingestion_id: str,
         aws_account_id: str | None = None,
         waiter_delay: int = 30,
-        waiter_max_attempts: int = 60,
+        waiter_max_attempts: int = 4320,
     ) -> None:
         """
         Poll a SPICE ingestion until it completes.

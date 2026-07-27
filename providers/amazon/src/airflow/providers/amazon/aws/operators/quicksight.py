@@ -47,7 +47,7 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
         Default FULL_REFRESH.
     :param wait_for_completion: If True, wait for the ingestion to reach a terminal state. (default: True)
     :param waiter_delay: Time in seconds to wait between status checks. (default: 30)
-    :param waiter_max_attempts: Maximum number of attempts to check for completion. (default: 60)
+    :param waiter_max_attempts: Maximum number of attempts to check for completion. (default: 4320)
     :param check_interval: Deprecated, use ``waiter_delay`` instead.
     :param deferrable: If True, the operator will wait asynchronously for the ingestion to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
@@ -83,7 +83,7 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
         ingestion_type: str = "FULL_REFRESH",
         wait_for_completion: bool = True,
         waiter_delay: int = 30,
-        waiter_max_attempts: int = 60,
+        waiter_max_attempts: int = 4320,
         check_interval: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,

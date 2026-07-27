@@ -86,7 +86,7 @@ class TestQuickSightCreateIngestionOperator:
         assert op.hook._config is None
         assert op.wait_for_completion is True
         assert op.waiter_delay == 30
-        assert op.waiter_max_attempts == 60
+        assert op.waiter_max_attempts == 4320
         assert op.deferrable is False
 
     @pytest.mark.parametrize(
@@ -171,7 +171,7 @@ class TestQuickSightCreateIngestionOperator:
             data_set_id=DATA_SET_ID,
             ingestion_id=INGESTION_ID,
             waiter_delay=10,
-            waiter_max_attempts=60,
+            waiter_max_attempts=4320,
         )
 
     def test_template_fields(self):
