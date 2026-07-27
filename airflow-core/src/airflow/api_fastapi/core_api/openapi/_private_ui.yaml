@@ -1223,6 +1223,32 @@ paths:
           title: Triggering User Prefix
         description: Case-sensitive, index-friendly prefix match. See "Filtering with
           pattern parameters".
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
+          title: Run Id Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Run Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -1376,6 +1402,32 @@ paths:
           description: Case-sensitive, index-friendly prefix match. See "Filtering
             with pattern parameters".
           title: Triggering User Prefix
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
+          title: Run Id Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Run Id Prefix Pattern
         description: Case-sensitive, index-friendly prefix match. See "Filtering with
           pattern parameters".
       responses:
