@@ -302,6 +302,7 @@ def test_get_package_version_possibly_from_stable_txt_for_java_sdk(
         # reference at the very end of the body (e.g. "Fixes #53843" as the last line)
         ("Generated-by: some agent Fixes #53843", [53843]),
         ("related: #111, also see #222", [111, 222]),
+        ("adjacent references see #111 #222", [111, 222]),
         ("no references here", []),
         ("PR#123 without space is not a reference", []),
     ],
