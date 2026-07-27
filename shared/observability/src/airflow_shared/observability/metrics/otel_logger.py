@@ -450,14 +450,25 @@ def _get_backcompat_config(
         resource = Resource.create(attributes={SERVICE_NAME: service})
 
     endpoint = None
-    if (
-        host
-        and port
-        and not os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
-        and not os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
-    ):
-        scheme = "https" if ssl_active else "http"
-        endpoint = f"{scheme}://{_format_url_host(host)}:{port}/v1/metrics"
+    env_endpoint_set = bool(
+        os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") or os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT")
+    )
+    if host and port:
+        if env_endpoint_set:
+            log.warning(
+                "Both the standard OpenTelemetry environment variables and "
+                "the Airflow OpenTelemetry configs have been provided. "
+                "Using the OpenTelemetry environment variables. "
+                "The Airflow configs have been deprecated and will be removed in the future."
+            )
+        else:
+            log.warning(
+                "The Airflow OpenTelemetry configs have been deprecated and will be removed in the future. "
+                "OpenTelemetry is advised to be configured using the standard environment variables. "
+                "For more info, check the docs."
+            )
+            scheme = "https" if ssl_active else "http"
+            endpoint = f"{scheme}://{_format_url_host(host)}:{port}/v1/metrics"
 
     parsed_interval_ms: float | None = None
     if interval_ms and not os.environ.get("OTEL_METRIC_EXPORT_INTERVAL"):

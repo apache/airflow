@@ -445,6 +445,45 @@ class TestOtelMetrics:
             )
             assert endpoint == expected_endpoint
 
+    @pytest.mark.parametrize(
+        ("provided_env_vars", "airflow_conf_host", "expected_warning"),
+        [
+            pytest.param(
+                {"OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:1234"},
+                "breeze-otel-collector",
+                "Both the standard OpenTelemetry environment variables",
+                id="conf_ignored_when_env_endpoint_set",
+            ),
+            pytest.param(
+                {},
+                "breeze-otel-collector",
+                "The Airflow OpenTelemetry configs have been deprecated",
+                id="conf_bridged_without_env_endpoint",
+            ),
+            pytest.param(
+                {},
+                None,
+                None,
+                id="no_deprecated_conf_no_warning",
+            ),
+        ],
+    )
+    def test_backcompat_bridging_warns_about_deprecated_configs(
+        self, provided_env_vars, airflow_conf_host, expected_warning, caplog
+    ):
+        with env_vars(provided_env_vars), caplog.at_level(logging.WARNING):
+            _get_backcompat_config(
+                host=airflow_conf_host,
+                port="4318" if airflow_conf_host else None,
+                ssl_active=False,
+                service=None,
+                interval_ms=None,
+            )
+        if expected_warning is None:
+            assert not caplog.messages
+        else:
+            assert any(expected_warning in message for message in caplog.messages)
+
     @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
     @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")
     def test_configure_otel_uses_exponential_histogram_view(self, mock_provider, mock_metrics):
