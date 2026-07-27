@@ -41,7 +41,7 @@ class QuickSightSensor(AwsBaseSensor[QuickSightHook]):
 
     :param data_set_id:  ID of the dataset used in the ingestion.
     :param ingestion_id: ID for the ingestion.
-    :param max_retries: Number of times before returning the current state. (default: 75)
+    :param max_retries: Number of times before returning the current state. (default: 2160)
     :param deferrable: If True, the sensor will operate in deferrable mode. This mode requires
         aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -65,7 +65,7 @@ class QuickSightSensor(AwsBaseSensor[QuickSightHook]):
         *,
         data_set_id: str,
         ingestion_id: str,
-        max_retries: int = 75,
+        max_retries: int = 2160,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
