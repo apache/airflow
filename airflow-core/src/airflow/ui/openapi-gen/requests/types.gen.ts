@@ -4512,6 +4512,14 @@ export type GetDagStructureData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    runIdPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
@@ -4538,6 +4546,14 @@ export type GetGridRunsData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    runIdPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**

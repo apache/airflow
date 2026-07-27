@@ -4878,6 +4878,8 @@ export class GridService {
      * @param data.state
      * @param data.triggeringUser Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user` on large tables — see "Filtering with pattern parameters".
      * @param data.triggeringUserPrefix Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
      */
@@ -4903,7 +4905,9 @@ export class GridService {
                 run_type: data.runType,
                 state: data.state,
                 triggering_user: data.triggeringUser,
-                triggering_user_prefix: data.triggeringUserPrefix
+                triggering_user_prefix: data.triggeringUserPrefix,
+                run_id_pattern: data.runIdPattern,
+                run_id_prefix_pattern: data.runIdPrefixPattern
             },
             errors: {
                 400: 'Bad Request',
@@ -4929,6 +4933,8 @@ export class GridService {
      * @param data.state
      * @param data.triggeringUser Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user` on large tables — see "Filtering with pattern parameters".
      * @param data.triggeringUserPrefix Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
      */
@@ -4950,7 +4956,9 @@ export class GridService {
                 run_type: data.runType,
                 state: data.state,
                 triggering_user: data.triggeringUser,
-                triggering_user_prefix: data.triggeringUserPrefix
+                triggering_user_prefix: data.triggeringUserPrefix,
+                run_id_pattern: data.runIdPattern,
+                run_id_prefix_pattern: data.runIdPrefixPattern
             },
             errors: {
                 400: 'Bad Request',
