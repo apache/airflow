@@ -712,6 +712,28 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
+    @classmethod
+    def from_config(cls) -> ElasticsearchRemoteLogIO:
+        """
+        Build the remote log IO from Airflow logging and ``[elasticsearch]`` configuration.
+
+        Mirrors the legacy branch in ``airflow_local_settings.py``. Unlike the object-storage
+        backends, this does not merge ``[logging] remote_task_handler_kwargs`` IO-kwargs, matching
+        the legacy behavior for Elasticsearch.
+        """
+        return cls(
+            base_log_folder=os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+            delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+            host=conf.get("elasticsearch", "host", fallback=""),
+            target_index=conf.get_mandatory_value("elasticsearch", "target_index"),
+            write_stdout=conf.getboolean("elasticsearch", "write_stdout"),
+            write_to_es=conf.getboolean("elasticsearch", "write_to_es"),
+            json_format=conf.getboolean("elasticsearch", "json_format"),
+            host_field=conf.get_mandatory_value("elasticsearch", "host_field"),
+            offset_field=conf.get_mandatory_value("elasticsearch", "offset_field"),
+            log_id_template=conf.get_mandatory_value("elasticsearch", "log_id_template"),
+        )
+
     def __attrs_post_init__(self):
         es_kwargs = get_es_kwargs_from_config()
         self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))

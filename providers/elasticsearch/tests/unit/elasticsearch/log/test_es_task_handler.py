@@ -20,6 +20,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import logging
+import os
 import re
 from io import StringIO
 from pathlib import Path
@@ -1016,3 +1017,47 @@ class TestSafeBuildStructuredLogMessage:
         assert result.event == str(["a", "b"])
         assert result.timestamp is not None
         mock_logger.debug.assert_called_once()
+
+
+class TestElasticsearchRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "delete_local_logs"): "True",
+            ("elasticsearch", "host"): "http://elasticsearch.example.com:9200",
+            ("elasticsearch", "target_index"): "my-logs",
+            ("elasticsearch", "write_stdout"): "True",
+            ("elasticsearch", "write_to_es"): "True",
+            ("elasticsearch", "json_format"): "True",
+            ("elasticsearch", "host_field"): "host.name",
+            ("elasticsearch", "offset_field"): "log.offset",
+            ("elasticsearch", "log_id_template"): "{dag_id}-{task_id}-{run_id}",
+        }
+    )
+    def test_from_config(self):
+        subject = ElasticsearchRemoteLogIO.from_config()
+
+        assert subject.base_log_folder == Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+        assert subject.host == "http://elasticsearch.example.com:9200"
+        assert subject.target_index == "my-logs"
+        assert subject.write_stdout is True
+        assert subject.write_to_es is True
+        assert subject.json_format is True
+        assert subject.host_field == "host.name"
+        assert subject.offset_field == "log.offset"
+        assert subject.log_id_template == "{dag_id}-{task_id}-{run_id}"
+
+    def test_provider_registers_elasticsearch_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("elasticsearch")
+
+        assert info is not None
+        assert (
+            info.classpath == "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchRemoteLogIO"
+        )
