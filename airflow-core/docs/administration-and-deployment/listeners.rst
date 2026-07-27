@@ -103,6 +103,28 @@ of a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` instan
     :start-after: [START howto_listen_ti_skipped_task]
     :end-before: [END howto_listen_ti_skipped_task]
 
+Failure cause
+"""""""""""""
+
+``on_task_instance_failed`` accepts an optional ``failure_kind`` argument, a
+:class:`~airflow_shared.state.TaskFailureKind` — ``INFRA`` (an infrastructure disruption),
+``APPLICATION`` (the task's own code), ``TIMEOUT``, or ``MANUAL`` (an operator set it failed). It is
+``None`` when the cause was not classified. It is a ``str`` enum, so it compares equal to
+``"infra"`` / ``"application"`` / ``"timeout"`` / ``"manual"``. For an ``INFRA`` failure the
+executor's reason token (``Evicted`` / ...) arrives as the transient ``reason`` argument. A listener that
+wants the cause declares the arguments:
+
+.. code-block:: python
+
+    @hookimpl
+    def on_task_instance_failed(self, previous_state, task_instance, error, failure_kind, reason):
+        if failure_kind == "infra":
+            # an infrastructure disruption, not the task's own code
+            alert(reason)
+
+A listener that does not declare the argument keeps working — the parameter is dispatched by name, so
+existing listeners need no migration.
+
 Asset Events
 --------------
 

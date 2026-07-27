@@ -47,6 +47,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.observability.metrics.stats import build_dag_metric_tags
 from airflow.sdk._shared.observability.traces import get_task_span_detail_level
+from airflow.sdk._shared.state import TaskFailureKind
 from airflow.sdk._shared.template_rendering import truncate_rendered_value
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -2298,7 +2299,12 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                failure_kind=TaskFailureKind.TIMEOUT
+                if isinstance(error, AirflowTaskTimeout)
+                else TaskFailureKind.APPLICATION,
             )
         except Exception:
             log.exception("error calling listener")
@@ -2308,7 +2314,12 @@ def finalize(
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
-                previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error
+                previous_state=TaskInstanceState.RUNNING,
+                task_instance=ti,
+                error=error,
+                failure_kind=TaskFailureKind.TIMEOUT
+                if isinstance(error, AirflowTaskTimeout)
+                else TaskFailureKind.APPLICATION,
             )
         except Exception:
             log.exception("error calling listener")

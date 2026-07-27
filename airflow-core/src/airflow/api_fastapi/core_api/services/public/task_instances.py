@@ -28,7 +28,7 @@ from sqlalchemy import select, tuple_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
-from airflow._shared.state import TaskScope
+from airflow._shared.state import TaskFailureKind, TaskScope
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
@@ -113,10 +113,13 @@ def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInsta
             if new_state == TaskInstanceState.SUCCESS:
                 get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
             elif new_state == TaskInstanceState.FAILED:
+                # An operator set this failed — a manual action, never refunded.
                 get_listener_manager().hook.on_task_instance_failed(
                     previous_state=None,
                     task_instance=ti,
                     error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
+                    failure_kind=TaskFailureKind.MANUAL,
+                    reason=None,
                 )
             elif new_state == TaskInstanceState.SKIPPED:
                 get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
