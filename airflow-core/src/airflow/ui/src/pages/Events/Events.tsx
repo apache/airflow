@@ -66,6 +66,7 @@ const eventsColumn = (
   },
   {
     accessorKey: "owner",
+    cell: ({ row: { original } }) => original.owner_display_name ?? original.owner,
     enableSorting: true,
     header: translate("auditLog.columns.user"),
     meta: {
