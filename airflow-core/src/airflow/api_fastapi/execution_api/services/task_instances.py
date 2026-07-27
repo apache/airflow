@@ -24,12 +24,14 @@ from typing import TYPE_CHECKING, Any, NoReturn
 from fastapi import HTTPException, status
 
 from airflow.models.expandinput import NotFullyPopulated, SchedulerDictOfListsExpandInput
+from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg, SchedulerXComArg
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagbag import DBDagBag
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
 # Task type recorded on the TI row (``TaskInstance.operator``) for
 # ``airflow.providers.standard.decorators.stub._StubOperator``. Used to gate the
@@ -46,7 +48,7 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
         return None
     if (task := dag.task_dict.get(ti.task_id)) is None:
         return None
-    if task.is_mapped:
+    if is_mapped(task):
         return _resolve_mapped_stub_arg_bindings(task, ti, session=session)
     return getattr(task, "_arg_bindings", None)
 
@@ -61,7 +63,9 @@ def _unsupported_arg_bindings(detail: str) -> NoReturn:
     )
 
 
-def _resolve_mapped_stub_arg_bindings(task: Any, ti: Any, *, session: Session) -> list[dict[str, Any]]:
+def _resolve_mapped_stub_arg_bindings(
+    task: SerializedMappedOperator, ti: Any, *, session: Session
+) -> list[dict[str, Any]]:
     """
     Build the per-map-index arg spec for a mapped (``.expand()``) stub task.
 
@@ -70,9 +74,12 @@ def _resolve_mapped_stub_arg_bindings(task: Any, ti: Any, *, session: Session) -
     the map-index decomposition delegated to
     ``SchedulerDictOfListsExpandInput.resolve_expansion_sub_indexes``.
     Value schemas come from the stub function's annotations, which are not available
-    server-side, so mapped bindings omit them (runtimes fall back to decode-only checks).
+    server-side, so mapped bindings omit them (runtimes fall back to decode-only checks);
+    delivering them is tracked at https://github.com/apache/airflow/issues/70523.
     """
     expand_input = task._get_specified_expand_input()
+    # TODO: Support the `expand_kwargs` path once https://github.com/apache/airflow/pull/69757
+    # is merged and all the Lang-SDKs adapt it.
     if not isinstance(expand_input, SchedulerDictOfListsExpandInput):
         _unsupported_arg_bindings("expand_kwargs() is not supported on stub tasks")
     if ti.map_index < 0:
@@ -82,12 +89,16 @@ def _resolve_mapped_stub_arg_bindings(task: Any, ti: Any, *, session: Session) -
     try:
         sub_indexes = expand_input.resolve_expansion_sub_indexes(ti.map_index, ti.run_id, session=session)
     except NotFullyPopulated as e:
+        # In the happy path this shouldn't happen at all, unless someone clears upstream
+        # TIs or XComs themselves during the DagRun.
         _unsupported_arg_bindings(f"upstream map lengths are not yet known for {sorted(e.missing)}")
 
+    # partial() kwargs
     spec = [
         _bind_mapped_stub_arg(name, value, sub_index=None)
         for name, value in (task.partial_kwargs.get("op_kwargs") or {}).items()
     ]
+    # expand() kwargs
     spec += [
         _bind_mapped_stub_arg(name, value, sub_index=sub_indexes[name])
         for name, value in expand_value.items()
@@ -113,6 +124,7 @@ def _bind_mapped_stub_arg(name: str, value: Any, *, sub_index: int | None) -> di
             " task outputs and literals are supported"
         )
     if sub_index is not None:
+        # This kwarg was expanded over a literal collection written in the Dag file.
         items = list(value.items()) if isinstance(value, dict) else value
         try:
             value = items[sub_index]

@@ -61,7 +61,9 @@ class XComArgBinding(BaseModel):
 
     element_index: int | None = None
     """When set, the pulled value is a sequence and this binding takes the element at
-    this index (the stub was expanded over an unmapped upstream's output)."""
+    this index (the stub was expanded over an unmapped upstream's output). The lang-SDK
+    side will GET the single row ``(task_id, map_index=-1)``, decode it, and take
+    ``value[element_index]``."""
 
 
 class LiteralArgBinding(BaseModel):
