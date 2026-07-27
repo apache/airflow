@@ -1,1 +1,0 @@
-Fix DAG details 'active runs' count to only include running runs, not queued ones, matching scheduler enforcement of max_active_runs
