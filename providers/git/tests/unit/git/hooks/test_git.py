@@ -484,3 +484,33 @@ class TestGitHook:
 
         assert f"*Username*) echo {shlex.quote(username)} ;;" in content
         assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param({"key_file": "/files/pkey.pem"}, id="key_file"),
+            pytest.param({"private_key": "inline_key"}, id="private_key"),
+            pytest.param({"known_hosts_file": "/files/known_hosts"}, id="known_hosts_file"),
+            pytest.param({"ssh_config_file": "/files/ssh_config"}, id="ssh_config_file"),
+            pytest.param({"host_proxy_cmd": "nc %h %p"}, id="host_proxy_cmd"),
+            pytest.param({"ssh_port": "2222"}, id="ssh_port"),
+        ],
+    )
+    def test_token_askpass_env_is_set_alongside_ssh_options(self, extra, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_token_with_ssh_options",
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"strict_host_key_checking": "accept-new", **extra},
+            )
+        )
+        hook = GitHook(git_conn_id="git_token_with_ssh_options")
+
+        with hook.configure_hook_env():
+            with open(hook.env["GIT_ASKPASS"]) as file:
+                content = file.read()
+            assert hook.env["GIT_TERMINAL_PROMPT"] == "0"
+
+        assert f"*Password*) echo {shlex.quote(ACCESS_TOKEN)} ;;" in content
