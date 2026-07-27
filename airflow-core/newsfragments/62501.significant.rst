@@ -1,15 +1,16 @@
-Fix asset event scheduling race condition where the scheduler could miss asset events by committing ``AssetEvent`` in an independent Postgres/MySQL session before ``AssetDagRunQueue`` and TI-state commit, with a documented tradeoff that failures before caller commit can leave orphaned or duplicate events on retry.
+Fix a race condition that could cause asset-triggered Dags to be skipped
 
-Asset events are now committed in a short-lived independent session (on Postgres/MySQL) so the
-event is visible to the scheduler before the producing task's transaction commits the
-``AssetDagRunQueue`` rows and task instance state change. This closes a race where the scheduler
-could miss newly created asset events.
+Under concurrent asset updates, the scheduler could occasionally miss a newly
+produced asset event and fail to create the asset-triggered Dag run it should
+have. Asset-triggered Dags now run reliably when their upstream assets are
+updated.
 
-Operators should be aware of a durability tradeoff introduced by this change: because the asset
-event is committed before the caller's transaction completes, a failure after the event is
-persisted but before the caller commits can leave an orphaned asset event with no corresponding
-``AssetDagRunQueue`` row for the scheduler to consume, or produce a duplicate asset event if the
-producing task retries ``register_asset_change``.
+As part of this fix the asset event is made visible to the scheduler slightly
+earlier than the rest of the producing task's bookkeeping. In the rare case
+that the producing task fails at exactly that moment, you may observe a
+duplicate asset event (if the task retries) or an asset event that does not
+trigger a run. Neither leaves the system in an inconsistent state, but operators
+investigating missing or duplicated asset-triggered runs should be aware of it.
 
 * Types of change
 

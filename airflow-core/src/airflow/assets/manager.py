@@ -120,6 +120,38 @@ def _lock_asset_model(
         yield
 
 
+def _create_asset_event(*, session: Session, **event_kwargs) -> AssetEvent:
+    """
+    Persist an :class:`AssetEvent` row and return it, bound to *session*.
+
+    On SQLite the event is added directly to the caller's *session* and
+    flushed. SQLite serialises writes at the database-file level: opening
+    a second connection here would compete with any write locks the
+    caller's transaction already holds (for example, an UPDATE on
+    ``dag_run`` flushed earlier in ``register_asset_changes_in_db``) and
+    deadlock with ``database is locked``.
+
+    On Postgres/MySQL a short-lived independent session is used so the
+    row is committed — and therefore visible to the scheduler's session
+    via MVCC — before the caller continues. The committed row is then
+    re-loaded into the caller's *session* so subsequent relationship
+    operations work correctly.
+    """
+    if get_dialect_name(session) == "sqlite":
+        asset_event = AssetEvent(**event_kwargs)
+        session.add(asset_event)
+        session.flush()
+        return asset_event
+
+    with create_session(scoped=False) as ae_session:
+        asset_event = AssetEvent(**event_kwargs)
+        ae_session.add(asset_event)
+        ae_session.flush()
+        asset_event_id = asset_event.id
+
+    return session.get_one(AssetEvent, asset_event_id)
+
+
 class AssetManager(LoggingMixin):
     """
     A pluggable class that manages operations for assets.
@@ -139,44 +171,6 @@ class AssetManager(LoggingMixin):
             return model
 
         return [_add_one(a) for a in assets]
-
-    @classmethod
-    def create_asset_event(cls, *, session: Session, **event_kwargs) -> AssetEvent:
-        """
-        Persist an :class:`AssetEvent` row and return it, bound to *session*.
-
-        On SQLite the event is added directly to the caller's *session* and
-        flushed. SQLite serialises writes at the database-file level: opening
-        a second connection here would compete with any write locks the
-        caller's transaction already holds (for example, an UPDATE on
-        ``dag_run`` flushed earlier in ``register_asset_changes_in_db``) and
-        deadlock with ``database is locked``.
-
-        On Postgres/MySQL a short-lived independent session is used so the
-        row is committed — and therefore visible to the scheduler's session
-        via MVCC — before the caller continues. The committed row is then
-        re-loaded into the caller's *session* so subsequent relationship
-        operations work correctly.
-        """
-        if get_dialect_name(session) == "sqlite":
-            asset_event = AssetEvent(**event_kwargs)
-            session.add(asset_event)
-            session.flush()
-            return asset_event
-
-        # Create a short-lived session to populate the asset event in db.
-        # This is to ensure the asset event is committed and visible to other sessions
-        # (e.g. Scheduler's session when it looks for new asset events to trigger dags via ADRQ).
-        # Use ``scoped=False`` to get a truly independent session with its own connection/transaction.
-        with create_session(scoped=False) as ae_session:
-            _asset_event = AssetEvent(**event_kwargs)
-            ae_session.add(_asset_event)
-            ae_session.flush()
-            asset_event_id = _asset_event.id
-
-        # Re-load the now-committed AssetEvent into the caller's session so that
-        # subsequent relationship operations work correctly.
-        return session.get_one(AssetEvent, asset_event_id)
 
     @classmethod
     def create_asset_aliases(
@@ -380,7 +374,7 @@ class AssetManager(LoggingMixin):
                 source_run_id=task_instance.run_id,
                 source_map_index=task_instance.map_index,
             )
-        asset_event = cls.create_asset_event(session=session, **event_kwargs)
+        asset_event = _create_asset_event(session=session, **event_kwargs)
 
         dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
 
@@ -561,13 +555,12 @@ class AssetManager(LoggingMixin):
         # a nested transaction per row. Either way the rows are added in the same
         # transaction where `ti.state` is changed.
         dialect_name = get_dialect_name(session)
-        if dialect_name in ("postgresql", "sqlite"):
-            return cls._queue_dagruns_nonpartitioned_conflict_update(
-                asset_id, non_partitioned_dags, event, session, dialect_name
-            )
         if dialect_name == "mysql":
             return cls._queue_dagruns_nonpartitioned_mysql(asset_id, non_partitioned_dags, event, session)
-        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, event, session)
+        # PostgreSQL and SQLite both support ON CONFLICT DO UPDATE.
+        return cls._queue_dagruns_nonpartitioned_conflict_update(
+            asset_id, non_partitioned_dags, event, session, dialect_name
+        )
 
     @classmethod
     def _queue_partitioned_dags(
@@ -881,7 +874,7 @@ class AssetManager(LoggingMixin):
         dags_to_queue: set[DagModel],
         event: AssetEvent,
         session: Session,
-        dialect_name: str,
+        dialect_name: str | None,
     ) -> None:
         """Handle ON CONFLICT DO UPDATE upsert for dialects that support it (postgresql, sqlite)."""
         if dialect_name == "postgresql":
