@@ -201,6 +201,23 @@ class TestGetGcpCredentialsAndProjectId:
         mock_auth_default.assert_called_once_with(scopes=None)
         mock_credentials.with_subject.assert_called_once_with("USER")
         assert (mock_credentials.with_subject.return_value, self.test_project_id) == result
+    @mock.patch("google.auth.default")
+    def test_get_credentials_and_project_id_with_default_auth_and_subject(
+        self, mock_auth_default
+        ):
+        mock_credentials = mock.MagicMock()
+        mock_auth_default.return_value = (mock_credentials, self.test_project_id)
+
+        result = get_credentials_and_project_id(subject="USER")
+
+        mock_auth_default.assert_called_once_with(scopes=None)
+        mock_credentials.with_subject.assert_called_once_with("USER")
+
+        assert (
+            mock_credentials.with_subject.return_value,
+            self.test_project_id,
+        ) == result
+
 
     @pytest.mark.parametrize("scopes", [["scope1"], ["scope1", "scope2"]])
     @mock.patch("google.auth.default")
@@ -233,6 +250,35 @@ class TestGetGcpCredentialsAndProjectId:
             target_scopes=None,
         )
         assert (mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID) == result
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials"
+    )
+    @mock.patch("google.auth.default")
+    def test_get_credentials_and_project_id_with_default_auth_subject_and_target_principal(
+        self, mock_auth_default, mock_impersonated_credentials
+    ):
+        mock_credentials = mock.MagicMock()
+        mock_auth_default.return_value = (mock_credentials, self.test_project_id)
+
+        result = get_credentials_and_project_id(
+            subject="USER",
+            target_principal=ACCOUNT_3_ANOTHER_PROJECT,
+        )
+
+        mock_auth_default.assert_called_once_with(scopes=None)
+        mock_credentials.with_subject.assert_called_once_with("USER")
+
+        mock_impersonated_credentials.assert_called_once_with(
+            source_credentials=mock_credentials.with_subject.return_value,
+            target_principal=ACCOUNT_3_ANOTHER_PROJECT,
+            delegates=None,
+            target_scopes=None,
+        )
+
+        assert (
+            mock_impersonated_credentials.return_value,
+            ANOTHER_PROJECT_ID,
+        ) == result
 
     @mock.patch(
         "airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials"
