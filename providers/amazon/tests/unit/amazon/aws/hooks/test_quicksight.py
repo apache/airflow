@@ -23,7 +23,6 @@ import pytest
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.common.compat.sdk import AirflowException
 
@@ -299,7 +298,7 @@ class TestQuicksight:
     @mock.patch.object(QuickSightHook, "get_waiter")
     def test_wait_for_ingestion_failure(self, mocked_get_waiter, mocked_wait):
         hook = QuickSightHook(aws_conn_id=None, region_name="us-east-1")
-        with pytest.raises(QuickSightIngestionFailedError, match="max attempts reached"):
+        with pytest.raises(RuntimeError, match="max attempts reached"):
             hook.wait_for_ingestion(
                 data_set_id="DemoDataSet",
                 ingestion_id="DemoDataSet_Ingestion",

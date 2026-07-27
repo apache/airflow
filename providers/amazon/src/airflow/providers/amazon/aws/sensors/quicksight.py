@@ -20,7 +20,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.quicksight import QuickSightIngestionCompletedTrigger
@@ -99,9 +98,7 @@ class QuickSightSensor(AwsBaseSensor[QuickSightHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         validated_event = validate_execute_complete_event(event)
         if validated_event["status"] != "success":
-            raise QuickSightIngestionFailedError(
-                f"Error while waiting for the Amazon QuickSight ingestion: {validated_event}"
-            )
+            raise RuntimeError(f"Error while waiting for the Amazon QuickSight ingestion: {validated_event}")
         self.log.info("Amazon QuickSight SPICE ingestion `%s` completed.", validated_event["ingestion_id"])
 
     def poke(self, context: Context) -> bool:
@@ -116,5 +113,5 @@ class QuickSightSensor(AwsBaseSensor[QuickSightHook]):
         self.log.info("QuickSight Status: %s", quicksight_ingestion_state)
         if quicksight_ingestion_state in self.errored_statuses:
             error = self.hook.get_error_info(None, self.data_set_id, self.ingestion_id)
-            raise QuickSightIngestionFailedError(f"The QuickSight Ingestion failed. Error info: {error}")
+            raise RuntimeError(f"The QuickSight Ingestion failed. Error info: {error}")
         return quicksight_ingestion_state == self.success_status

@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.sensors.quicksight import QuickSightSensor
 from airflow.providers.amazon.aws.triggers.quicksight import QuickSightIngestionCompletedTrigger
@@ -103,7 +102,7 @@ class TestQuickSightSensor:
     def test_poke_terminated_status(self, status, mocked_get_status, mocked_get_error_info):
         mocked_get_status.return_value = status
         mocked_get_error_info.return_value = "something bad happen"
-        with pytest.raises(QuickSightIngestionFailedError, match="Error info: something bad happen"):
+        with pytest.raises(RuntimeError, match="Error info: something bad happen"):
             QuickSightSensor(**self.default_op_kwargs).poke({})
         mocked_get_status.assert_called_once_with(None, DATA_SET_ID, INGESTION_ID)
         mocked_get_error_info.assert_called_once_with(None, DATA_SET_ID, INGESTION_ID)
@@ -136,5 +135,5 @@ class TestQuickSightSensor:
         sensor = QuickSightSensor(**self.default_op_kwargs)
         event = {"status": "error", "message": "Waiter error: max attempts reached"}
 
-        with pytest.raises(QuickSightIngestionFailedError, match="Error while waiting"):
+        with pytest.raises(RuntimeError, match="Error while waiting"):
             sensor.execute_complete({}, event)
