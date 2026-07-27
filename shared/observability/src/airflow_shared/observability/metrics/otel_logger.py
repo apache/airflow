@@ -526,7 +526,7 @@ def configure_otel(
     service: str | None = None,
     interval_ms: str | None = None,
     debug: bool = False,
-    prefix: str = DEFAULT_METRIC_NAME_PREFIX,
+    prefix: str | None = None,
     allow_list: str | None = None,
     block_list: str | None = None,
     stat_name_handler: Callable[[str], str] | None = None,
@@ -602,7 +602,7 @@ def configure_otel(
 
     return SafeOtelLogger(
         metrics.get_meter_provider(),
-        prefix,
+        prefix or DEFAULT_METRIC_NAME_PREFIX,
         get_validator(allow_list, block_list),
         stat_name_handler,
         statsd_influxdb_enabled,

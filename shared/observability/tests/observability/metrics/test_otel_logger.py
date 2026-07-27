@@ -28,6 +28,7 @@ from opentelemetry.metrics import MeterProvider
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 
 from airflow_shared.observability.metrics.otel_logger import (
+    DEFAULT_METRIC_NAME_PREFIX,
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
     MetricsMap,
@@ -483,6 +484,14 @@ class TestOtelMetrics:
             assert not caplog.messages
         else:
             assert any(expected_warning in message for message in caplog.messages)
+
+    @pytest.mark.parametrize("prefix", [None, ""], ids=["unset", "empty_string"])
+    @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
+    @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")
+    def test_configure_otel_prefix_falls_back_to_default(self, mock_provider, mock_metrics, prefix):
+        logger = configure_otel(host="localhost", port="4318", prefix=prefix)
+
+        assert logger.prefix == DEFAULT_METRIC_NAME_PREFIX
 
     @mock.patch("airflow_shared.observability.metrics.otel_logger.metrics")
     @mock.patch("airflow_shared.observability.metrics.otel_logger.MeterProvider")

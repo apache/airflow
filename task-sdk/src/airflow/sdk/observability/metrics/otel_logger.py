@@ -33,7 +33,7 @@ def get_otel_logger() -> SafeOtelLogger:
         service=conf.get("metrics", "otel_service", fallback=None),
         interval_ms=conf.get("metrics", "otel_interval_milliseconds", fallback=None),
         debug=conf.getboolean("metrics", "otel_debugging_on", fallback=False),
-        prefix=conf.get("metrics", "otel_prefix", fallback="airflow"),
+        prefix=conf.get("metrics", "otel_prefix", fallback=None),
         allow_list=conf.get("metrics", "metrics_allow_list", fallback=None),
         block_list=conf.get("metrics", "metrics_block_list", fallback=None),
         stat_name_handler=conf.getimport("metrics", "stat_name_handler", fallback=None),
