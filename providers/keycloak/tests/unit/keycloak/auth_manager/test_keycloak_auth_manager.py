@@ -122,19 +122,33 @@ def _clear_filter_cache():
 
 
 class TestKeycloakAuthManager:
-    def test_deserialize_user(self, auth_manager):
-        result = auth_manager.deserialize_user(
-            {
-                "user_id": "user_id",
-                "name": "name",
-                "access_token": "access_token",
-                "refresh_token": "refresh_token",
-            }
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager._get_keycloak_jwt")
+    def test_deserialize_user(self, mock_get_keycloak_jwt, auth_manager):
+        mock_get_keycloak_jwt.return_value = KeycloakAuthManagerUser(
+            user_id="user_id", name="name", access_token="access_token", refresh_token="refresh_token"
         )
+        result = auth_manager.deserialize_user({"user_id": "user_id", "name": "name"})
         assert result.user_id == "user_id"
         assert result.name == "name"
         assert result.access_token == "access_token"
         assert result.refresh_token == "refresh_token"
+
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager._get_keycloak_jwt")
+    def test_deserialize_user_missing(self, mock_get_keycloak_jwt, auth_manager):
+        mock_get_keycloak_jwt.return_value = None
+        with pytest.raises(ValueError, match="Couldn't deserialise user from Cookies."):
+            auth_manager.deserialize_user({"user_id": "user_id", "name": "name"})
+
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager._get_keycloak_jwt")
+    def test_deserialize_user_doesnt_match(self, mock_get_keycloak_jwt, auth_manager):
+        mock_get_keycloak_jwt.return_value = KeycloakAuthManagerUser(
+            user_id="user_2",
+            name="name",
+            access_token="access_token",
+            refresh_token="refresh_token",
+        )
+        with pytest.raises(ValueError, match="Keycloak user in Cookies does not match Airflow JWT."):
+            auth_manager.deserialize_user({"user_id": "user_id", "name": "name"})
 
     def test_serialize_user(self, auth_manager):
         result = auth_manager.serialize_user(
@@ -145,8 +159,6 @@ class TestKeycloakAuthManager:
         assert result == {
             "user_id": "user_id",
             "name": "name",
-            "access_token": "access_token",
-            "refresh_token": "refresh_token",
         }
 
     def test_get_url_login(self, auth_manager):
