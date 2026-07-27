@@ -2901,43 +2901,42 @@ class TestSchedulerJob:
 
         session.rollback()
 
-    def test_find_executable_task_instances_fills_batch_after_task_concurrency_rejection(
-        self, dag_maker, session
-    ):
+    def test_find_executable_task_instances_uses_full_sized_refill_queries(self, dag_maker, session):
         job_runner = SchedulerJobRunner(job=Job())
-        dag_id = (
-            "SchedulerJobTest"
-            ".test_find_executable_task_instances_fills_batch_after_task_concurrency_rejection"
-        )
+        dag_id = "SchedulerJobTest.test_find_executable_task_instances_uses_full_sized_refill_queries"
         with dag_maker(dag_id=dag_id, session=session):
-            blocked = EmptyOperator(
-                task_id="blocked",
-                priority_weight=3,
-                max_active_tis_per_dag=1,
-            )
-            first_runnable = EmptyOperator(task_id="first_runnable", priority_weight=2)
-            second_runnable = EmptyOperator(task_id="second_runnable", priority_weight=1)
+            blocked_tasks = [
+                EmptyOperator(
+                    task_id=f"blocked_{index}",
+                    priority_weight=priority_weight,
+                    max_active_tis_per_dag=1,
+                )
+                for index, priority_weight in enumerate((6, 3, 2))
+            ]
+            runnable_tasks = [
+                EmptyOperator(task_id=f"runnable_{index}", priority_weight=priority_weight)
+                for index, priority_weight in enumerate((5, 4, 1))
+            ]
 
         first_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         second_run = dag_maker.create_dagrun_after(first_run, run_type=DagRunType.SCHEDULED)
 
-        running_ti = first_run.get_task_instance(blocked.task_id, session=session)
-        first_runnable_ti = first_run.get_task_instance(first_runnable.task_id, session=session)
-        second_runnable_ti = first_run.get_task_instance(second_runnable.task_id, session=session)
-        blocked_ti = second_run.get_task_instance(blocked.task_id, session=session)
-
-        running_ti.state = State.RUNNING
-        first_runnable_ti.state = State.SCHEDULED
-        second_runnable_ti.state = State.SCHEDULED
-        blocked_ti.state = State.SCHEDULED
+        for blocked_task in blocked_tasks:
+            first_run.get_task_instance(blocked_task.task_id, session=session).state = State.RUNNING
+            second_run.get_task_instance(blocked_task.task_id, session=session).state = State.SCHEDULED
+        runnable_tis = [
+            first_run.get_task_instance(runnable_task.task_id, session=session)
+            for runnable_task in runnable_tasks
+        ]
+        for runnable_ti in runnable_tis:
+            runnable_ti.state = State.SCHEDULED
         session.flush()
 
-        queued_tis = job_runner._executable_task_instances_to_queued(max_tis=2, session=session)
+        with mock.patch.object(session, "scalars", wraps=session.scalars) as scalars:
+            queued_tis = job_runner._executable_task_instances_to_queued(max_tis=3, session=session)
 
-        assert {ti.key for ti in queued_tis} == {
-            first_runnable_ti.key,
-            second_runnable_ti.key,
-        }
+        assert {ti.key for ti in queued_tis} == {ti.key for ti in runnable_tis}
+        assert scalars.call_count == 2
 
     def test_find_executable_task_instances_task_concurrency_per_dagrun_for_first(self, dag_maker):
         scheduler_job = Job()
