@@ -572,11 +572,27 @@ class TestInitializeStats:
 
         mock_logger.warning.assert_called_once()
 
-    @mock.patch("airflow.settings.prepare_syspath_for_config_and_plugins")
-    @mock.patch("airflow.settings.import_local_settings")
-    @mock.patch("airflow.settings._initialize_stats")
-    def test_stats_initialized_during_initialize(self, mock_initialize_stats, _, __):
+    def test_stats_initialized_during_initialize(self):
         """settings.initialize() must call _initialize_stats, not just define it."""
-        settings.initialize()
+        other_initialize_steps = [
+            "configure_vars",
+            "prepare_syspath_for_config_and_plugins",
+            "get_policy_plugin_manager",
+            "load_policy_plugins",
+            "import_local_settings",
+            "configure_logging",
+            "configure_otel",
+            "configure_adapters",
+            "_configure_secrets_masker",
+            "configure_orm",
+            "configure_action_logging",
+            "run_providers_custom_runtime_checks",
+        ]
+        with contextlib.ExitStack() as stack:
+            for name in other_initialize_steps:
+                stack.enter_context(mock.patch(f"airflow.settings.{name}"))
+            mock_initialize_stats = stack.enter_context(mock.patch("airflow.settings._initialize_stats"))
+
+            settings.initialize()
 
         mock_initialize_stats.assert_called_once()
