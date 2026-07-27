@@ -766,7 +766,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 starved_dags,
                 starved_tasks,
                 starved_tasks_task_dagrun_concurrency,
-                max_tis - len(executable_tis),
+                max_tis,
                 excluded_ti_ids=[ti.id for ti in executable_tis],
             )
 
@@ -958,6 +958,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ] += 1
 
                 pool_stats["open"] = open_slots
+
+                if len(executable_tis) >= max_tis:
+                    break
 
             # Check this to avoid accidental infinite loops
             found_new_filters = (
