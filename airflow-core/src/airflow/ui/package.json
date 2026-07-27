@@ -78,7 +78,7 @@
     "@7nohe/openapi-react-query-codegen": "^1.6.2",
     "@eslint/compat": "^2.1.0",
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.0",
     "@rolldown/plugin-babel": "^0.2.3",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@tanstack/eslint-plugin-query": "^5.101.4",
