@@ -412,10 +412,6 @@ class DagBundlesManager(LoggingMixin):
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
-        # Airflow sets autoflush=False, so subsequent reads in the same session
-        # need an explicit flush to see ORM-side bundle state changes.
-        session.flush()
-
     def reassign_dags_with_unconfigured_bundles(self) -> int:
         """
         Reassign Dags pointing at unconfigured bundles to a configured one.
