@@ -189,6 +189,13 @@ def _build_arg_bindings(
                     f"{value.key!r}; only an upstream task's return value can cross the language "
                     "boundary -- indexing an output by a custom key is not supported"
                 )
+            if value.operator.is_mapped:
+                raise ValueError(
+                    f"@task.stub task {task_id!r} parameter {name!r} references the aggregated "
+                    f"output of the mapped task {value.operator.task_id!r}; a foreign runtime "
+                    "pulls single XCom rows, so a mapped upstream's combined output is not "
+                    "supported -- use .expand() on the stub to consume it per element"
+                )
             xcom_entry: dict[str, Any] = {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
             if value_schema is not None:
                 xcom_entry["value_schema"] = value_schema

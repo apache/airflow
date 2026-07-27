@@ -221,6 +221,14 @@ class TestStubTaskflowArgs:
             with pytest.raises(ValueError, match="only direct upstream task outputs"):
                 stub(fn_transform)("uk", extracted.map(lambda v: v))
 
+    def test_mapped_upstream_aggregated_output_rejected(self):
+        def fn_produce(n: int): ...
+
+        with DAG(dag_id="d"):
+            vals = stub(fn_produce).expand(n=[1, 2])
+            with pytest.raises(ValueError, match="aggregated output of the mapped task"):
+                stub(fn_transform)("uk", vals)
+
     def test_arg_bindings_survive_dag_serialization_round_trip(self):
         """The captured spec must survive whichever core serializer the provider runs against."""
         try:

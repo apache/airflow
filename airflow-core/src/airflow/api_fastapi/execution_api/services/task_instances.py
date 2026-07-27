@@ -26,11 +26,13 @@ from fastapi import HTTPException, status
 from airflow.models.expandinput import NotFullyPopulated, SchedulerDictOfListsExpandInput
 from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg, SchedulerXComArg
+from airflow.serialization.serialized_objects import _XComRef
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagbag import DBDagBag
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
 # Task type recorded on the TI row (``TaskInstance.operator``) for
@@ -49,7 +51,7 @@ def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | 
     if (task := dag.task_dict.get(ti.task_id)) is None:
         return None
     if is_mapped(task):
-        return _resolve_mapped_stub_arg_bindings(task, ti, session=session)
+        return _resolve_mapped_stub_arg_bindings(task, ti, dag=dag, session=session)
     return getattr(task, "_arg_bindings", None)
 
 
@@ -64,7 +66,7 @@ def _unsupported_arg_bindings(detail: str) -> NoReturn:
 
 
 def _resolve_mapped_stub_arg_bindings(
-    task: SerializedMappedOperator, ti: Any, *, session: Session
+    task: SerializedMappedOperator, ti: Any, *, dag: SerializedDAG, session: Session
 ) -> list[dict[str, Any]]:
     """
     Build the per-map-index arg spec for a mapped (``.expand()``) stub task.
@@ -93,9 +95,13 @@ def _resolve_mapped_stub_arg_bindings(
         # TIs or XComs themselves during the DagRun.
         _unsupported_arg_bindings(f"upstream map lengths are not yet known for {sorted(e.missing)}")
 
-    # partial() kwargs
+    # partial() kwargs. XComArgs inside partial() op_kwargs deserialize to _XComRef and
+    # are never dereferenced (set_task_dag_references only derefs the expand inputs), so
+    # resolve them here before binding.
     spec = [
-        _bind_mapped_stub_arg(name, value, sub_index=None)
+        _bind_mapped_stub_arg(
+            name, value.deref(dag) if isinstance(value, _XComRef) else value, sub_index=None
+        )
         for name, value in (task.partial_kwargs.get("op_kwargs") or {}).items()
     ]
     # expand() kwargs
@@ -111,6 +117,13 @@ def _bind_mapped_stub_arg(name: str, value: Any, *, sub_index: int | None) -> di
     if isinstance(value, SchedulerPlainXComArg):
         if value.key != "return_value":
             _unsupported_arg_bindings(f"parameter {name!r} references the XCom key {value.key!r}")
+        if sub_index is None and value.operator.is_mapped:
+            # A partial() kwarg over a mapped upstream would bind the unmapped XCom row
+            # (map_index=-1), which never exists; the aggregated output is inexpressible.
+            _unsupported_arg_bindings(
+                f"parameter {name!r} references the aggregated output of the mapped task"
+                f" {value.operator.task_id!r}"
+            )
         entry: dict[str, Any] = {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
         if sub_index is not None:
             if value.operator.is_mapped:

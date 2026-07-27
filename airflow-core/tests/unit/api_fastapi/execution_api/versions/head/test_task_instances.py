@@ -588,6 +588,52 @@ class TestTIRunState:
                 {"name": "extracted", "kind": "literal", "value": extracted},
             ]
 
+    def test_ti_run_binds_partial_xcom_kwarg_over_unmapped_upstream(self, client, dag_maker):
+        """A partial() kwarg carrying an unmapped upstream's output binds that XCom for every index."""
+        with dag_maker("test_mapped_stub_partial_xcom", serialized=True):
+
+            @task.stub
+            def extract(): ...
+
+            @task.stub
+            def transform(extracted: dict, country: str): ...
+
+            transform.partial(extracted=extract()).expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(ti for ti in dr.get_task_instances() if ti.task_id == "transform" and ti.map_index == 1)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["arg_bindings"] == [
+            {"name": "extracted", "kind": "xcom", "task_id": "extract"},
+            {"name": "country", "kind": "literal", "value": "fr"},
+        ]
+
+    def test_ti_run_rejects_partial_kwarg_over_mapped_upstream(self, client, dag_maker):
+        """A partial() kwarg over a mapped upstream would bind the nonexistent unmapped XCom row."""
+        with dag_maker("test_mapped_stub_partial_mapped_upstream", serialized=True):
+
+            @task.stub
+            def seed(n: int): ...
+
+            @task.stub
+            def transform(extracted: dict, country: str): ...
+
+            transform.partial(extracted=seed.expand(n=[1, 2])).expand(country=["uk", "fr"])
+
+        dr = dag_maker.create_dagrun()
+        ti = next(ti for ti in dr.get_task_instances() if ti.task_id == "transform" and ti.map_index == 0)
+        ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 500
+        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
+        assert "aggregated output" in response.json()["detail"]["message"]
+
     def test_ti_run_rejects_expand_kwargs_on_stub(self, client, dag_maker):
         """expand_kwargs() has no per-parameter spec to derive, so delivery fails structurally."""
         with dag_maker("test_mapped_stub_expand_kwargs", serialized=True):
