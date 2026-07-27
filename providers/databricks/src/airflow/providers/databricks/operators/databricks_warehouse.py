@@ -67,18 +67,15 @@ class _DatabricksWarehouseBaseOperator(BaseOperator):
 
     @cached_property
     def _hook(self) -> DatabricksHook:
-        return self._get_hook(caller=self.__class__.__name__)
-
-    def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
             retry_args=self.databricks_retry_args,
-            caller=caller,
+            caller=self.__class__.__name__,
         )
 
-    def _wait_for_state(self, target: str, failure_states: set[str]) -> None:
+    def _wait_for_state(self, target: str) -> None:
         deadline = time.monotonic() + self.timeout
         last_state = "unknown"
         while time.monotonic() < deadline:
@@ -87,7 +84,7 @@ class _DatabricksWarehouseBaseOperator(BaseOperator):
             now = time.monotonic()
             if state.state == target:
                 return
-            if state.state in failure_states:
+            if state.is_deleted:
                 raise DatabricksWarehouseError(
                     f"Databricks SQL warehouse {self.warehouse_id} entered {state.state} "
                     f"while waiting for {target}."
@@ -130,7 +127,7 @@ class DatabricksStartWarehouseOperator(_DatabricksWarehouseBaseOperator):
         if state.state != "STARTING":
             self._hook.start_warehouse(self.warehouse_id)
         if self.wait_for_termination:
-            self._wait_for_state("RUNNING", {"STOPPED", "DELETING", "DELETED"})
+            self._wait_for_state("RUNNING")
 
 
 class DatabricksStopWarehouseOperator(_DatabricksWarehouseBaseOperator):
@@ -156,4 +153,4 @@ class DatabricksStopWarehouseOperator(_DatabricksWarehouseBaseOperator):
         if state.state != "STOPPING":
             self._hook.stop_warehouse(self.warehouse_id)
         if self.wait_for_termination:
-            self._wait_for_state("STOPPED", {"DELETING", "DELETED"})
+            self._wait_for_state("STOPPED")

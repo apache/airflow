@@ -27,7 +27,6 @@ from airflow.providers.databricks.operators.databricks_warehouse import (
     DatabricksStopWarehouseOperator,
 )
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_databricks_sql_warehouse"
 WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "your-warehouse-id")
 

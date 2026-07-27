@@ -32,14 +32,19 @@ WAREHOUSE_ID = "wh-1"
 
 
 class TestDatabricksStartWarehouseOperator:
+    @pytest.mark.parametrize(
+        "first_polled_state",
+        ["STARTING", "STOPPED"],
+        ids=["transitioning", "stale-stopped"],
+    )
     @mock.patch("airflow.providers.databricks.operators.databricks_warehouse.time.sleep")
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
-    def test_starts_then_waits_until_running(self, mock_hook_property, mock_sleep):
+    def test_starts_then_waits_until_running(self, mock_hook_property, mock_sleep, first_polled_state):
         hook = mock.MagicMock(spec=DatabricksHook)
         mock_hook_property.return_value = hook
         hook.get_warehouse_state.side_effect = [
             WarehouseState("STOPPED"),
-            WarehouseState("STARTING"),
+            WarehouseState(first_polled_state),
             WarehouseState("RUNNING"),
         ]
         operator = DatabricksStartWarehouseOperator(
@@ -161,7 +166,7 @@ class TestDatabricksWarehouseOperatorBase:
     @pytest.mark.parametrize(
         ("operator_class", "initial_state", "failure_state", "transition_method", "target_state"),
         [
-            (DatabricksStartWarehouseOperator, "STOPPED", "STOPPED", "start_warehouse", "RUNNING"),
+            (DatabricksStartWarehouseOperator, "STOPPED", "DELETING", "start_warehouse", "RUNNING"),
             (DatabricksStopWarehouseOperator, "RUNNING", "DELETED", "stop_warehouse", "STOPPED"),
         ],
     )
@@ -294,7 +299,7 @@ class TestDatabricksWarehouseOperatorBase:
             DatabricksWarehouseError,
             match="did not reach RUNNING within 10s; last state: STARTING",
         ):
-            operator._wait_for_state("RUNNING", {"STOPPED"})
+            operator._wait_for_state("RUNNING")
 
         hook.get_warehouse_state.assert_called_once_with(WAREHOUSE_ID)
         mock_sleep.assert_called_once_with(10)
@@ -322,7 +327,7 @@ class TestDatabricksWarehouseOperatorBase:
             timeout=10,
         )
 
-        operator._wait_for_state("RUNNING", {"STOPPED"})
+        operator._wait_for_state("RUNNING")
 
         hook.get_warehouse_state.assert_called_once_with(WAREHOUSE_ID)
         mock_sleep.assert_not_called()
@@ -333,7 +338,7 @@ class TestDatabricksWarehouseOperatorBase:
         return_value=0,
     )
     @mock.patch.object(DatabricksStartWarehouseOperator, "_hook", new_callable=mock.PropertyMock)
-    def test_wait_rejects_failure_state_received_after_deadline(
+    def test_wait_rejects_deleted_state_received_after_deadline(
         self, mock_hook_property, mock_monotonic, mock_sleep
     ):
         hook = mock.MagicMock(spec=DatabricksHook)
@@ -341,7 +346,7 @@ class TestDatabricksWarehouseOperatorBase:
 
         def get_state_after_deadline(_):
             mock_monotonic.return_value = 11
-            return WarehouseState("STOPPED")
+            return WarehouseState("DELETED")
 
         hook.get_warehouse_state.side_effect = get_state_after_deadline
         operator = DatabricksStartWarehouseOperator(
@@ -352,9 +357,9 @@ class TestDatabricksWarehouseOperatorBase:
 
         with pytest.raises(
             DatabricksWarehouseError,
-            match="entered STOPPED while waiting for RUNNING",
+            match="entered DELETED while waiting for RUNNING",
         ):
-            operator._wait_for_state("RUNNING", {"STOPPED"})
+            operator._wait_for_state("RUNNING")
 
         hook.get_warehouse_state.assert_called_once_with(WAREHOUSE_ID)
         mock_sleep.assert_not_called()
