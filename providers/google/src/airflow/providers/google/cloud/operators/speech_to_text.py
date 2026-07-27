@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.protobuf.json_format import MessageToDict
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
@@ -99,17 +98,17 @@ class CloudSpeechToTextRecognizeSpeechOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.retry = retry
         self.timeout = timeout
-        self._validate_inputs()
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
         if self.audio == "":
-            raise AirflowException("The required parameter 'audio' is empty")
+            raise ValueError("The required parameter 'audio' is empty")
         if self.config == "":
-            raise AirflowException("The required parameter 'config' is empty")
+            raise ValueError("The required parameter 'config' is empty")
 
     def execute(self, context: Context):
+        self._validate_inputs()
         hook = CloudSpeechToTextHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
