@@ -55,6 +55,11 @@ ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
 
+# JVM's default uncaught exception handler always prints this exact shape, regardless of
+# which library raised the exception and that makes it a reliable anchor for where the real error starts,
+# unlike guessing at stack frame formatting.
+_EXCEPTION_START_RE = re.compile(r'Exception in thread "[^"]*"')
+
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
@@ -319,9 +324,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._driver_id: str | None = None
         self._driver_status: str | None = None
         self._spark_exit_code: int | None = None
-        # Last few lines of the spark-submit process's own stdout/stderr, so failure
-        # exceptions can include the actual root cause instead of just an exit code.
-        self._last_submit_log_lines: deque[str] = deque(maxlen=20)
+        self._last_submit_log_lines: deque[str] = deque(maxlen=500)
+        self._exception_anchor_seen: bool = False
         self._env: dict[str, Any] | None = None
         self._post_submit_commands: list[str] = list(post_submit_commands) if post_submit_commands else []
         self._post_submit_commands_done: bool = False
@@ -885,7 +889,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self._driver_id = match_driver_id.group(0)
                     self.log.info("identified spark driver id: %s", self._driver_id)
 
-            self._last_submit_log_lines.append(line)
+            if self._exception_anchor_seen:
+                self._last_submit_log_lines.append(line)
+            elif _EXCEPTION_START_RE.search(line):
+                self._exception_anchor_seen = True
+                self._last_submit_log_lines.append(line)
             self.log.info(line)
 
     def _start_yarn_application_status_tracking(self, application_id: str) -> None:
