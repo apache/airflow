@@ -1223,7 +1223,7 @@ class TestSerializedDagModel:
         assert lazy_dag.data["dag"]["deadline"] == original_deadline
 
     def test_sync_dag_to_db_returns_db_normalized_deadline_ids(self, testing_dag_bundle, session):
-        """sync_dag_to_db must return a SerializedDAG with the DB-normalized deadline UUIDs. Basically just verify that the UUIDs returned by sync_dag_to_db match the persisted deadline_alert rows in the DB."""
+        """sync_dag_to_db must return a SerializedDAG with the DB-normalized deadline UUIDs. Verify that the UUIDs returned by sync_dag_to_db match the persisted deadline_alert rows in the DB."""
         dag_id = "test_sync_dag_to_db_deadline_ids"
         dag = DAG(
             dag_id=dag_id,
