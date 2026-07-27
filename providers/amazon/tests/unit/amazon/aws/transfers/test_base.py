@@ -38,6 +38,23 @@ class TestAwsToAwsBaseOperator:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
+    def test_dest_aws_conn_id_defaults_to_source_aws_conn_id(self):
+        operator = AwsToAwsBaseOperator(
+            task_id="dynamodb_to_s3_test_default_dest",
+            source_aws_conn_id="source_conn",
+        )
+
+        assert operator.dest_aws_conn_id == "source_conn"
+
+    def test_dest_aws_conn_id_allows_explicit_none(self):
+        operator = AwsToAwsBaseOperator(
+            task_id="dynamodb_to_s3_test_dest_none",
+            source_aws_conn_id="source_conn",
+            dest_aws_conn_id=None,
+        )
+
+        assert operator.dest_aws_conn_id is None
+
     @pytest.mark.db_test
     def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         operator = AwsToAwsBaseOperator(
