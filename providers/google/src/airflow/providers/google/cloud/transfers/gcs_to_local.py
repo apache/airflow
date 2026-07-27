@@ -88,8 +88,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         file_encoding: str = "utf-8",
         **kwargs,
     ) -> None:
-        if filename is not None and store_to_xcom_key is not None:
-            raise ValueError("Either filename or store_to_xcom_key can be set")
         super().__init__(**kwargs)
         self.bucket = bucket
         self.filename = filename
@@ -100,6 +98,8 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self.file_encoding = file_encoding
 
     def execute(self, context: Context):
+        if self.filename is not None and self.store_to_xcom_key is not None:
+            raise ValueError("Either filename or store_to_xcom_key can be set")
         self.log.info("Executing download: %s, %s, %s", self.bucket, self.object_name, self.filename)
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,

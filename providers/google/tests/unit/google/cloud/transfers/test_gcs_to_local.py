@@ -56,6 +56,19 @@ class TestGoogleCloudStorageDownloadOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_local.GCSHook")
+    def test_filename_and_xcom_key_fails_at_execute_time(self, mock_hook):
+        operator = GCSToLocalFilesystemOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            object_name=TEST_OBJECT,
+            filename=LOCAL_FILE_PATH,
+            store_to_xcom_key=XCOM_KEY,
+        )
+        with pytest.raises(ValueError, match="Either filename or store_to_xcom_key can be set"):
+            operator.execute(None)
+        mock_hook.return_value.download.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_local.GCSHook")
     def test_size_lt_max_xcom_size(self, mock_hook):
         operator = GCSToLocalFilesystemOperator(
             task_id=TASK_ID,
