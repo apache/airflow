@@ -632,6 +632,14 @@ class TestFastApiSecurity:
             ("\\\\some_netlock.com/prefix", False),
             # encoded url
             ("%5C%5C%5C%5Csome_netlock.com/prefix", False),
+            # \ after the scheme, which a browser reads as the start of the authority
+            ("https:\\\\some_netlock.com", False),
+            ("https:/\\some_netlock.com", False),
+            ("https:\\/some_netlock.com", False),
+            ("https%3A%5C%5Csome_netlock.com", False),
+            # a single leading \ still resolves to a same-origin path
+            ("\\some_page", True),
+            ("/some_page", True),
         ],
     )
     def test_is_safe_url_without_prefix(self, url, expected_is_safe):
