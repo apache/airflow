@@ -189,6 +189,25 @@ class TestGetJobs(TestJobEndpoint):
         assert response_json["total_entries"] == 1
         assert response_json["jobs"][0]["dag_id"] == "target_dag"
 
+    def test_get_jobs_includes_team_name_and_bundle_names(self, test_client, session: Session, testing_team):
+        clear_db_jobs()
+        job = Job(
+            state=JobState.RUNNING,
+            job_type="TriggererJob",
+            team_name=testing_team.name,
+            bundle_names=["bundle-a", "bundle-b"],
+        )
+        session.add(job)
+        session.commit()
+
+        response = test_client.get("/jobs")
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == 1
+        assert response_json["jobs"][0]["team_name"] == testing_team.name
+        assert response_json["jobs"][0]["bundle_names"] == ["bundle-a", "bundle-b"]
+
     def test_should_raises_401_unauthenticated(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/jobs")
         assert response.status_code == 401
