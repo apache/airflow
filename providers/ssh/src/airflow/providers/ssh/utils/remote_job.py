@@ -40,12 +40,11 @@ WINDOWS_TEMP_PREFIX = "$env:TEMP"
 
 def _powershell_path(path: str) -> str:
     """
-    Render a remote path as a PowerShell expression.
+    Render a path as a PowerShell expression.
 
-    Paths are emitted as single-quoted literals so that nothing in them is interpreted.
-    The one exception is the default Windows base directory, which is a PowerShell
-    expression (``$env:TEMP``) rather than a real path: its prefix is expanded with
-    ``Join-Path`` while the rest stays literal.
+    Most paths are emitted as literals. Paths under the built-in
+    ``$env:TEMP`` base directory are emitted as expressions so the
+    environment variable is expanded at runtime.
     """
     if path == WINDOWS_TEMP_PREFIX or path.startswith(WINDOWS_TEMP_PREFIX + "\\"):
         relative = path[len(WINDOWS_TEMP_PREFIX) :].lstrip("\\")

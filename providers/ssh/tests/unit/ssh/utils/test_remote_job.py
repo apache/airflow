@@ -177,15 +177,7 @@ class TestBuildWindowsWrapperCommand:
 
 
 class TestWindowsDefaultBaseDirExpansion:
-    """Regression tests for #70438.
-
-    ``$env:TEMP\\airflow-ssh-jobs`` is a PowerShell expression used as the default
-    Windows base directory, but every path is interpolated into a *single-quoted*
-    PowerShell string where ``$env:`` is not expanded -- it is emitted literally and
-    PowerShell fails trying to resolve a ``$env`` PSDrive. Only the default-base-dir
-    sentinel should be expanded (via ``Join-Path``); a user-supplied ``remote_base_dir``
-    must stay a literal, unexpanded string.
-    """
+    """Regression tests for Windows default base directory expansion (#70438)."""
 
     def _decode(self, cmd: str) -> str:
         encoded_script = cmd.split("-EncodedCommand ")[1]
@@ -193,21 +185,16 @@ class TestWindowsDefaultBaseDirExpansion:
 
     @staticmethod
     def _decode_child(outer_script: str) -> str:
-        """Decode the *child* script nested inside a wrapper's outer script.
-
-        ``build_windows_wrapper_command`` launches a second, independently
-        base64-encoded PowerShell process via
-        ``Start-Process ... -ArgumentList @(..., '-EncodedCommand', '<base64>')``.
-        That child script -- not the outer one -- owns ``$env:LOG_FILE``,
-        ``$env:STATUS_FILE``, the ``exit_code.tmp`` write, and the ``Move-Item``
-        rename, so it must be decoded and asserted on separately.
-        """
+        """Decode the *child* script nested inside a wrapper's outer script."""
+        # build_windows_wrapper_command launches a second, independently base64-encoded
+        # PowerShell process. That child script -- not the outer one -- owns
+        # $env:LOG_FILE, $env:STATUS_FILE, the exit_code.tmp write and the Move-Item
+        # rename, so it has to be decoded and asserted on separately.
         inner = outer_script.split("-EncodedCommand', '")[1].split("'")[0]
         return base64.b64decode(inner).decode("utf-16-le")
 
     def test_wrapper_expands_default_base_dir(self):
-        """The wrapper for a default-base-dir job must expand $env:TEMP via Join-Path,
-        not emit it inside a single-quoted literal (which PowerShell cannot expand)."""
+        """The default base dir is expanded via Join-Path, not emitted as a literal."""
         paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
         wrapper = build_windows_wrapper_command("C:\\scripts\\test.ps1", paths)
         decoded = self._decode(wrapper)
@@ -226,7 +213,7 @@ class TestWindowsDefaultBaseDirExpansion:
         assert "'$env:TEMP\\" not in child_decoded
 
     def test_cleanup_expands_default_base_dir(self):
-        """The cleanup command for a default-base-dir job must likewise expand $env:TEMP."""
+        """The cleanup command expands the default base dir too."""
         paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
         cmd = build_windows_cleanup_command(paths.job_dir)
         decoded = self._decode(cmd)
@@ -234,20 +221,34 @@ class TestWindowsDefaultBaseDirExpansion:
         assert "Join-Path $env:TEMP" in decoded
         assert "'$env:TEMP\\" not in decoded
 
-    def test_custom_base_dir_stays_literal(self):
-        """A custom remote_base_dir is a real path, not a PowerShell expression: it must
-        stay a plain single-quoted literal and must NOT be run through Join-Path. This is
-        the property that keeps a user's own '$' characters safe from expansion."""
-        paths = RemoteJobPaths(job_id="test_job", remote_os="windows", base_dir="D:\\jobs\\airflow-ssh-jobs")
+    @pytest.mark.parametrize(
+        ("base_dir", "expected_literal"),
+        [
+            pytest.param(
+                "D:\\jobs\\airflow-ssh-jobs",
+                "$jobDir = 'D:\\jobs\\airflow-ssh-jobs\\test_job'",
+                id="custom-base-dir",
+            ),
+            # $env:TEMPORARY starts with the sentinel as a substring but is a different
+            # variable, so it must not be mistaken for it.
+            pytest.param(
+                "$env:TEMPORARY\\jobs",
+                "$jobDir = '$env:TEMPORARY\\jobs\\test_job'",
+                id="near-miss-prefix",
+            ),
+        ],
+    )
+    def test_custom_base_dir_stays_literal(self, base_dir, expected_literal):
+        """Only the built-in sentinel is expanded; any other base dir stays literal."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows", base_dir=base_dir)
         wrapper = build_windows_wrapper_command("C:\\scripts\\test.ps1", paths)
         decoded = self._decode(wrapper)
 
         assert "Join-Path" not in decoded
-        assert "$jobDir = 'D:\\jobs\\airflow-ssh-jobs\\test_job'" in decoded
+        assert expected_literal in decoded
 
     def test_single_quote_escaped_in_expanded_branch(self):
-        """A single quote in the job-id portion of a default-base-dir path must still be
-        escaped as '' inside the Join-Path literal."""
+        """A quote in the expanded branch is still escaped as ''."""
         job_dir = "$env:TEMP\\airflow-ssh-jobs\\job's"
         cmd = build_windows_cleanup_command(job_dir)
         decoded = self._decode(cmd)
@@ -256,9 +257,7 @@ class TestWindowsDefaultBaseDirExpansion:
         assert "job''s" in decoded
 
     def test_single_quote_escaped_in_literal_branch(self):
-        """A single quote in a custom base dir must still be escaped as '' in the plain
-        single-quoted literal (custom base dirs are real paths, not PowerShell
-        expressions, and must never be run through Join-Path)."""
+        """A quote in the literal branch is still escaped as ''."""
         paths = RemoteJobPaths(job_id="job1", remote_os="windows", base_dir="D:\\jo'bs")
         wrapper = build_windows_wrapper_command("C:\\scripts\\test.ps1", paths)
         decoded = self._decode(wrapper)
@@ -276,9 +275,7 @@ class TestWindowsDefaultBaseDirExpansion:
         ],
     )
     def test_poll_builders_expand_default_base_dir(self, builder, path_attr):
-        """Each single-path polling builder must also expand the default-base-dir
-        sentinel. These builders were previously only exercised with hard-coded
-        ``C:\\temp\\...`` literals, which never touch the sentinel branch at all."""
+        """Every polling builder expands the default base dir, not just the wrapper."""
         paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
         path = getattr(paths, path_attr)
         cmd = builder(path)
@@ -286,17 +283,6 @@ class TestWindowsDefaultBaseDirExpansion:
 
         assert "Join-Path $env:TEMP" in decoded
         assert "'$env:TEMP\\" not in decoded
-
-    def test_near_miss_prefix_stays_literal(self):
-        """A base_dir that merely starts with the sentinel string as a substring --
-        ``$env:TEMPORARY`` is not ``$env:TEMP`` -- must NOT be mistaken for the sentinel.
-        It must stay a plain single-quoted literal, not be run through Join-Path."""
-        paths = RemoteJobPaths(job_id="test_job", remote_os="windows", base_dir="$env:TEMPORARY\\jobs")
-        wrapper = build_windows_wrapper_command("C:\\scripts\\test.ps1", paths)
-        decoded = self._decode(wrapper)
-
-        assert "Join-Path" not in decoded
-        assert "$jobDir = '$env:TEMPORARY\\jobs\\test_job'" in decoded
 
 
 class TestLogTailCommands:
