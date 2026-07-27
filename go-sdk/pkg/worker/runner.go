@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	"github.com/apache/airflow/go-sdk/pkg/logging"
@@ -111,6 +112,20 @@ func (w *worker) WithServer(server string) (Worker, error) {
 	return &newWorker, nil
 }
 
+func extractTraceContext(ctx context.Context, contextCarrier *map[string]any) context.Context {
+	if contextCarrier == nil {
+		return ctx
+	}
+
+	carrier := make(propagation.MapCarrier, len(*contextCarrier))
+	for key, value := range *contextCarrier {
+		if stringValue, ok := value.(string); ok {
+			carrier[key] = stringValue
+		}
+	}
+	return propagation.TraceContext{}.Extract(ctx, carrier)
+}
+
 type heartbeater struct {
 	heartbeatInterval time.Duration
 	logger            *slog.Logger
@@ -184,6 +199,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 	}
 
 	// Store the workload in the context so we can get at task id, etc, variables
+	ctx = extractTraceContext(ctx, workload.TI.ContextCarrier)
 	taskContext, cancelTaskCtx := context.WithCancelCause(
 		context.WithValue(ctx, sdkcontext.WorkloadContextKey, workload),
 	)
