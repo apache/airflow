@@ -6,7 +6,6 @@
 # Fixing a class (moving template-field validation/transformation out of __init__ into
 # execute()) MUST remove its entry in the same PR — the hook fails on stale entries.
 # Burn-down tracked at https://github.com/apache/airflow/issues/70296
-providers/amazon/src/airflow/providers/amazon/aws/operators/appflow.py::AppflowBaseOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/emr.py::EmrAddStepsOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStartDbClusterOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStopDbClusterOperator
@@ -41,4 +40,3 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/oracle
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator
 providers/oracle/src/airflow/providers/oracle/transfers/oracle_to_oracle.py::OracleToOracleOperator
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
-providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::TriggerDagRunOperator
