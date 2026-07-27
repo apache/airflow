@@ -67,6 +67,8 @@ MOCK_CREATE_RESPONSE: dict[str, Any] = {"ReplicationTask": MOCK_TASK_RESPONSE_DA
 MOCK_START_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "starting"}}
 MOCK_STOP_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "stopping"}}
 MOCK_DELETE_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "deleting"}}
+MOCK_TABLES_TO_RELOAD = [{"SchemaName": "public", "TableName": "test_table"}]
+MOCK_RELOAD_RESPONSE = {"ReplicationTaskArn": MOCK_TASK_ARN}
 
 MOCK_CONFIG_RESPONSE: dict[str, Any] = {
     "Marker": "xxxxx",
@@ -371,6 +373,32 @@ class TestDmsHook:
 
         expected_call_params = {"ReplicationTaskArn": MOCK_TASK_ARN}
         mock_conn.return_value.stop_replication_task.assert_called_with(**expected_call_params)
+
+    @pytest.mark.parametrize(
+        ("hook_kwargs", "expected_reload_option"),
+        [
+            pytest.param({}, "data-reload", id="default"),
+            pytest.param({"reload_option": "validate-only"}, "validate-only", id="validate-only"),
+        ],
+    )
+    @mock.patch.object(DmsHook, "get_conn", autospec=True)
+    def test_reload_tables(self, mock_conn, hook_kwargs, expected_reload_option):
+        mock_client = mock.MagicMock(spec=["reload_tables"])
+        mock_client.reload_tables.return_value = MOCK_RELOAD_RESPONSE
+        mock_conn.return_value = mock_client
+
+        result = self.dms.reload_tables(
+            replication_task_arn=MOCK_TASK_ARN,
+            tables_to_reload=MOCK_TABLES_TO_RELOAD,
+            **hook_kwargs,
+        )
+
+        mock_client.reload_tables.assert_called_once_with(
+            ReplicationTaskArn=MOCK_TASK_ARN,
+            TablesToReload=MOCK_TABLES_TO_RELOAD,
+            ReloadOption=expected_reload_option,
+        )
+        assert result == MOCK_TASK_ARN
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_delete_replication_task(self, mock_conn):

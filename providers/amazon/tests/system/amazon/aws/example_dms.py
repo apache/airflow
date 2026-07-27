@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.operators.dms import (
     DmsDeleteTaskOperator,
     DmsDescribeTasksOperator,
     DmsModifyTaskOperator,
+    DmsReloadTablesOperator,
     DmsStartTaskOperator,
     DmsStopTaskOperator,
 )
@@ -368,6 +369,16 @@ with DAG(
         poke_interval=10,
     )
 
+    # [START howto_operator_dms_reload_tables]
+    reload_tables = DmsReloadTablesOperator(
+        task_id="reload_tables",
+        replication_task_arn=task_arn,
+        tables_to_reload=[{"SchemaName": "public", "TableName": rds_table_name}],
+        wait_for_completion=True,
+        deferrable=True,
+    )
+    # [END howto_operator_dms_reload_tables]
+
     # [START howto_operator_dms_stop_task]
     stop_task = DmsStopTaskOperator(
         task_id="stop_task",
@@ -449,6 +460,7 @@ with DAG(
         start_task,
         describe_tasks,
         await_task_start,
+        reload_tables,
         stop_task,
         await_task_stop,
         modify_task,

@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationDeprovisionedTrigger,
     DmsReplicationStoppedTrigger,
     DmsReplicationTerminalStatusTrigger,
+    DmsTableReloadCompleteTrigger,
     DmsTaskModifyCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
@@ -417,6 +418,134 @@ class DmsStartTaskOperator(AwsBaseOperator[DmsHook]):
             **self.start_task_kwargs,
         )
         self.log.info("DMS replication task(%s) is starting.", self.replication_task_arn)
+
+
+class DmsReloadTablesOperator(AwsBaseOperator[DmsHook]):
+    """
+    Reload target tables for a running AWS DMS replication task.
+
+    AWS DMS supports up to 10 unique tables per request. The replication task must be running
+    and use either the ``full-load`` or ``full-load-and-cdc`` migration type.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsReloadTablesOperator`
+
+    :param replication_task_arn: Replication task ARN. (required)
+    :param tables_to_reload: Tables to reload. Each item must contain ``SchemaName`` and ``TableName``.
+        (required)
+    :param reload_option: Use ``data-reload`` to reload data and revalidate it when validation is
+        enabled. Use ``validate-only`` to revalidate without reloading data; this option only applies
+        when validation is enabled. Defaults to ``data-reload``.
+    :param wait_for_completion: If True, wait until every data reload completes. Waiting is supported
+        only with ``data-reload`` because the waiter monitors full-load table states.
+        Defaults to True.
+    :param deferrable: Run the operator in deferrable mode when waiting for completion.
+        Defaults to the ``operators.default_deferrable`` configuration.
+    :param waiter_delay: Seconds between table statistics polls (default: 30).
+    :param waiter_max_attempts: Maximum table statistics poll attempts per table (default: 60).
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    """
+
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "replication_task_arn",
+        "tables_to_reload",
+        "reload_option",
+    )
+    template_fields_renderers: ClassVar[dict[str, str]] = {"tables_to_reload": "json"}
+
+    def __init__(
+        self,
+        *,
+        replication_task_arn: str,
+        tables_to_reload: list[dict[str, str]],
+        reload_option: str = "data-reload",
+        wait_for_completion: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        self.replication_task_arn = replication_task_arn
+        self.tables_to_reload = tables_to_reload
+        self.reload_option = reload_option
+        self.wait_for_completion = wait_for_completion
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+
+    def _wait_for_reload_completion(self) -> None:
+        for table in self.tables_to_reload:
+            self.hook.get_waiter("table_reload_complete").wait(
+                ReplicationTaskArn=self.replication_task_arn,
+                Filters=[
+                    {"Name": "schema-name", "Values": [table["SchemaName"]]},
+                    {"Name": "table-name", "Values": [table["TableName"]]},
+                ],
+                WaiterConfig={
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                },
+            )
+
+    def execute(self, context: Context) -> str:
+        """Start reloading target tables for an AWS DMS replication task."""
+        if self.wait_for_completion and self.reload_option != "data-reload":
+            raise ValueError("wait_for_completion is only supported when reload_option is 'data-reload'.")
+
+        self.log.info(
+            "Reloading %s table(s) for DMS replication task(%s).",
+            len(self.tables_to_reload),
+            self.replication_task_arn,
+        )
+        replication_task_arn = self.hook.reload_tables(
+            replication_task_arn=self.replication_task_arn,
+            tables_to_reload=self.tables_to_reload,
+            reload_option=self.reload_option,
+        )
+        self.log.info("DMS table reload started for replication task(%s).", replication_task_arn)
+
+        if self.wait_for_completion:
+            if self.deferrable:
+                self.defer(
+                    trigger=DmsTableReloadCompleteTrigger(
+                        replication_task_arn=self.replication_task_arn,
+                        tables_to_reload=self.tables_to_reload,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                        region_name=self.region_name,
+                        verify=self.verify,
+                        botocore_config=self.botocore_config,
+                    ),
+                    method_name="execute_complete",
+                )
+            else:
+                self._wait_for_reload_completion()
+                self.log.info("DMS table reloads completed for replication task(%s).", replication_task_arn)
+
+        return replication_task_arn
+
+    def execute_complete(self, context: Context, event: dict | None = None) -> str:
+        """Resume after the table reload trigger completes."""
+        validated_event = validate_execute_complete_event(event)
+        if validated_event["status"] != "success":
+            raise RuntimeError(f"Error waiting for DMS table reloads to complete: {validated_event}")
+        replication_task_arn = validated_event["replication_task_arn"]
+        self.log.info("DMS table reloads completed for replication task(%s).", replication_task_arn)
+        return replication_task_arn
 
 
 class DmsStopTaskOperator(AwsBaseOperator[DmsHook]):

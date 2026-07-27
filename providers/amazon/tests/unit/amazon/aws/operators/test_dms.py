@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.operators.dms import (
     DmsDescribeReplicationsOperator,
     DmsDescribeTasksOperator,
     DmsModifyTaskOperator,
+    DmsReloadTablesOperator,
     DmsStartReplicationOperator,
     DmsStartTaskOperator,
     DmsStopReplicationOperator,
@@ -45,6 +46,7 @@ from airflow.providers.amazon.aws.operators.dms import (
 from airflow.providers.amazon.aws.triggers.dms import (
     DmsReplicationDeprovisionedTrigger,
     DmsReplicationTerminalStatusTrigger,
+    DmsTableReloadCompleteTrigger,
     DmsTaskModifyCompleteTrigger,
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
@@ -715,6 +717,214 @@ class TestDmsStartTaskOperator:
             region_name="us-west-1",
             verify=False,
             botocore_config={"read_timeout": 42},
+        )
+
+        validate_template_fields(op)
+
+
+class TestDmsReloadTablesOperator:
+    TABLES_TO_RELOAD = [{"SchemaName": "public", "TableName": "test_table"}]
+
+    def test_init(self):
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
+            aws_conn_id="fake-conn-id",
+            region_name="us-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        assert op.replication_task_arn == TASK_ARN
+        assert op.tables_to_reload == self.TABLES_TO_RELOAD
+        assert op.reload_option == "data-reload"
+        assert op.wait_for_completion is True
+        assert op.deferrable is False
+        assert op.waiter_delay == 30
+        assert op.waiter_max_attempts == 60
+        assert op.hook.client_type == "dms"
+        assert op.hook.resource_type is None
+        assert op.hook.aws_conn_id == "fake-conn-id"
+        assert op.hook._region_name == "us-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+    @pytest.mark.parametrize("reload_option", ["data-reload", "validate-only"])
+    @mock.patch.object(DmsHook, "reload_tables", autospec=True, return_value=TASK_ARN)
+    def test_execute(self, mock_reload_tables, reload_option):
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
+            reload_option=reload_option,
+            wait_for_completion=False,
+        )
+
+        result = op.execute(None)
+
+        mock_reload_tables.assert_called_once_with(
+            op.hook,
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
+            reload_option=reload_option,
+        )
+        assert result == TASK_ARN
+
+    @mock.patch.object(DmsHook, "reload_tables", autospec=True, return_value=TASK_ARN)
+    def test_execute_defers_for_completion(self, mock_reload_tables):
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
+            wait_for_completion=True,
+            deferrable=True,
+            waiter_delay=5,
+            waiter_max_attempts=10,
+            aws_conn_id="test_conn",
+            region_name="us-east-2",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            op.execute(None)
+
+        trigger = exc_info.value.trigger
+        assert isinstance(trigger, DmsTableReloadCompleteTrigger)
+        assert trigger.replication_task_arn == TASK_ARN
+        assert trigger.tables_to_reload == self.TABLES_TO_RELOAD
+        assert trigger.waiter_delay == 5
+        assert trigger.waiter_max_attempts == 10
+        assert trigger.aws_conn_id == "test_conn"
+        assert trigger.region_name == "us-east-2"
+        assert trigger.verify is False
+        assert trigger.botocore_config == {"read_timeout": 42}
+        assert exc_info.value.method_name == "execute_complete"
+        mock_reload_tables.assert_called_once()
+
+    @mock.patch.object(DmsHook, "get_waiter", autospec=True)
+    @mock.patch.object(DmsHook, "reload_tables", autospec=True, return_value=TASK_ARN)
+    def test_execute_waits_for_completion(
+        self,
+        mock_reload_tables,
+        mock_get_waiter,
+    ):
+        tables_to_reload = [
+            {"SchemaName": "public", "TableName": "first_table"},
+            {"SchemaName": "archive", "TableName": "second_table"},
+        ]
+        mock_waiter = mock.MagicMock(spec=["wait"])
+        mock_get_waiter.return_value = mock_waiter
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=tables_to_reload,
+            waiter_delay=5,
+            waiter_max_attempts=10,
+        )
+
+        result = op.execute(None)
+
+        assert result == TASK_ARN
+        mock_reload_tables.assert_called_once()
+        assert mock_get_waiter.call_args_list == [
+            mock.call(op.hook, "table_reload_complete"),
+            mock.call(op.hook, "table_reload_complete"),
+        ]
+        assert mock_waiter.wait.call_args_list == [
+            mock.call(
+                ReplicationTaskArn=TASK_ARN,
+                Filters=[
+                    {"Name": "schema-name", "Values": ["public"]},
+                    {"Name": "table-name", "Values": ["first_table"]},
+                ],
+                WaiterConfig={"Delay": 5, "MaxAttempts": 10},
+            ),
+            mock.call(
+                ReplicationTaskArn=TASK_ARN,
+                Filters=[
+                    {"Name": "schema-name", "Values": ["archive"]},
+                    {"Name": "table-name", "Values": ["second_table"]},
+                ],
+                WaiterConfig={"Delay": 5, "MaxAttempts": 10},
+            ),
+        ]
+
+    @mock.patch.object(DmsHook, "get_waiter", autospec=True)
+    @mock.patch.object(DmsHook, "reload_tables", autospec=True, return_value=TASK_ARN)
+    def test_execute_propagates_waiter_error(
+        self,
+        mock_reload_tables,
+        mock_get_waiter,
+    ):
+        mock_get_waiter.return_value.wait.side_effect = WaiterError(
+            name="table_reload_complete",
+            reason="Max attempts exceeded",
+            last_response={},
+        )
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
+            wait_for_completion=True,
+            waiter_max_attempts=1,
+        )
+
+        with pytest.raises(WaiterError, match="Max attempts exceeded"):
+            op.execute(None)
+
+        mock_reload_tables.assert_called_once()
+
+    @mock.patch.object(DmsHook, "reload_tables", autospec=True)
+    def test_wait_for_completion_rejects_validate_only(self, mock_reload_tables):
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
+            reload_option="validate-only",
+            wait_for_completion=True,
+        )
+
+        with pytest.raises(ValueError, match="only supported.*data-reload"):
+            op.execute(None)
+
+        mock_reload_tables.assert_not_called()
+
+    def test_execute_complete(self):
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
+        )
+
+        assert (
+            op.execute_complete(
+                None,
+                event={"status": "success", "replication_task_arn": TASK_ARN},
+            )
+            == TASK_ARN
+        )
+
+    def test_execute_complete_raises_for_error(self):
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
+        )
+
+        with pytest.raises(RuntimeError, match="Error waiting for DMS table reloads"):
+            op.execute_complete(
+                None,
+                event={"status": "error", "message": "reload failed"},
+            )
+
+    def test_template_fields(self):
+        op = DmsReloadTablesOperator(
+            task_id="reload_tables",
+            replication_task_arn=TASK_ARN,
+            tables_to_reload=self.TABLES_TO_RELOAD,
         )
 
         validate_template_fields(op)

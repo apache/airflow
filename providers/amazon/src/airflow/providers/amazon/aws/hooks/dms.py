@@ -212,6 +212,32 @@ class DmsHook(AwsBaseHook):
         dms_client = self.get_conn()
         dms_client.stop_replication_task(ReplicationTaskArn=replication_task_arn)
 
+    def reload_tables(
+        self,
+        replication_task_arn: str,
+        tables_to_reload: list[dict[str, str]],
+        reload_option: str = "data-reload",
+    ) -> str:
+        """
+        Reload target tables for a running replication task.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.reload_tables`
+
+        :param replication_task_arn: Replication task ARN
+        :param tables_to_reload: Tables to reload, including schema and table names
+        :param reload_option: Use ``data-reload`` to reload data and revalidate it when validation is
+            enabled. Use ``validate-only`` to revalidate without reloading data; this option only applies
+            when validation is enabled.
+        :return: Replication task ARN
+        """
+        response = self.get_conn().reload_tables(
+            ReplicationTaskArn=replication_task_arn,
+            TablesToReload=tables_to_reload,
+            ReloadOption=reload_option,
+        )
+        return response["ReplicationTaskArn"]
+
     def delete_replication_task(self, replication_task_arn):
         """
         Start replication task deletion and waits for it to be deleted.
