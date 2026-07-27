@@ -124,6 +124,77 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
     return schema or None
 
 
+def _validate_stub_signature(signature: inspect.Signature, task_id: str) -> None:
+    for param in signature.parameters.values():
+        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            raise ValueError(
+                f"@task.stub task {task_id!r} must declare a fixed number of parameters for the "
+                f"foreign runtime to bind against; *{param.name} is not supported"
+            )
+        if param.name in KNOWN_CONTEXT_KEYS:
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {param.name!r} is an Airflow context key; "
+                "stub signatures declare only data parameters -- the lang-SDK runtime injects its "
+                "own task context natively (e.g. the Go SDK's sdk.TIRunContext parameter)"
+            )
+
+
+def _resolve_param_annotations(python_callable: Callable, signature: inspect.Signature) -> dict[str, Any]:
+    """Map each parameter to its parse-time-resolvable annotation (``Parameter.empty`` when not)."""
+    try:
+        hints = typing.get_type_hints(python_callable)
+    except (NameError, TypeError):
+        # Annotations that cannot be resolved at parse time (e.g. names behind
+        # TYPE_CHECKING with ``from __future__ import annotations``) degrade to "any".
+        hints = {}
+
+    def resolve(name: str, param: inspect.Parameter) -> Any:
+        if name in hints:
+            return hints[name]
+        if isinstance(param.annotation, str):
+            return inspect.Parameter.empty
+        return param.annotation
+
+    return {name: resolve(name, param) for name, param in signature.parameters.items()}
+
+
+def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} received a literal of type "
+            f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
+            "to the foreign runtime"
+        )
+
+
+def _validate_xcom_value(value: Any, task_id: str, name: str, *, allow_mapped_upstream: bool = False) -> bool:
+    """Validate an XComArg argument, returning True when it is a bindable direct upstream output."""
+    if isinstance(value, PlainXComArg):
+        if value.key != "return_value":
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {name!r} references the XCom key "
+                f"{value.key!r}; only an upstream task's return value can cross the language "
+                "boundary -- indexing an output by a custom key is not supported"
+            )
+        if value.operator.is_mapped and not allow_mapped_upstream:
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {name!r} references the aggregated "
+                f"output of the mapped task {value.operator.task_id!r}; a foreign runtime "
+                "pulls single XCom rows, so a mapped upstream's combined output is not "
+                "supported -- use .expand() on the stub to consume it per element"
+            )
+        return True
+    if isinstance(value, XComArg):
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} received a "
+            f"{type(value).__name__}; only direct upstream task outputs can cross the "
+            "language boundary -- .map()/.zip()/.concat() results are not supported"
+        )
+    return False
+
+
 def _build_arg_bindings(
     python_callable: Callable,
     op_args: Collection[Any],
@@ -146,75 +217,25 @@ def _build_arg_bindings(
         return None
 
     signature = inspect.signature(python_callable)
-
-    for param in signature.parameters.values():
-        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
-            raise ValueError(
-                f"@task.stub task {task_id!r} must declare a fixed number of parameters for the "
-                f"foreign runtime to bind against; *{param.name} is not supported"
-            )
-        if param.name in KNOWN_CONTEXT_KEYS:
-            raise ValueError(
-                f"@task.stub task {task_id!r} parameter {param.name!r} is an Airflow context key; "
-                "stub signatures declare only data parameters -- the lang-SDK runtime injects its "
-                "own task context natively (e.g. the Go SDK's sdk.TIRunContext parameter)"
-            )
+    _validate_stub_signature(signature, task_id)
 
     bound = signature.bind(*op_args, **op_kwargs)
     explicitly_bound = set(bound.arguments)
     bound.apply_defaults()
 
-    try:
-        hints = typing.get_type_hints(python_callable)
-    except (NameError, TypeError):
-        # Annotations that cannot be resolved at parse time (e.g. names behind
-        # TYPE_CHECKING with ``from __future__ import annotations``) degrade to "any".
-        hints = {}
-
-    def get_annotation_for(name: str, param: inspect.Parameter) -> Any:
-        if name in hints:
-            return hints[name]
-        if isinstance(param.annotation, str):
-            return inspect.Parameter.empty
-        return param.annotation
+    annotations = _resolve_param_annotations(python_callable, signature)
 
     spec: list[dict[str, Any]] = []
-    for name, param in signature.parameters.items():
+    for name in signature.parameters:
         value = bound.arguments[name]
-        value_schema = _infer_value_schema(get_annotation_for(name, param))
-        if isinstance(value, PlainXComArg):
-            if value.key != "return_value":
-                raise ValueError(
-                    f"@task.stub task {task_id!r} parameter {name!r} references the XCom key "
-                    f"{value.key!r}; only an upstream task's return value can cross the language "
-                    "boundary -- indexing an output by a custom key is not supported"
-                )
-            if value.operator.is_mapped:
-                raise ValueError(
-                    f"@task.stub task {task_id!r} parameter {name!r} references the aggregated "
-                    f"output of the mapped task {value.operator.task_id!r}; a foreign runtime "
-                    "pulls single XCom rows, so a mapped upstream's combined output is not "
-                    "supported -- use .expand() on the stub to consume it per element"
-                )
+        value_schema = _infer_value_schema(annotations[name])
+        if _validate_xcom_value(value, task_id, name):
             xcom_entry: dict[str, Any] = {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
             if value_schema is not None:
                 xcom_entry["value_schema"] = value_schema
             spec.append(xcom_entry)
             continue
-        if isinstance(value, XComArg):
-            raise ValueError(
-                f"@task.stub task {task_id!r} parameter {name!r} received a "
-                f"{type(value).__name__}; only direct upstream task outputs can cross the "
-                "language boundary -- .map()/.zip()/.concat() results are not supported"
-            )
-        try:
-            json.dumps(value, allow_nan=False)
-        except (TypeError, ValueError):
-            raise ValueError(
-                f"@task.stub task {task_id!r} parameter {name!r} received a literal of type "
-                f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
-                "to the foreign runtime"
-            )
+        _ensure_json_literal(value, task_id, name)
         entry: dict[str, Any] = {"name": name, "kind": "literal", "value": value}
         if value_schema is not None:
             # Key omission (never ``None``) is the wire contract for "unconstrained":
@@ -224,6 +245,64 @@ def _build_arg_bindings(
             entry["from_default"] = True
         spec.append(entry)
     return spec
+
+
+def _build_mapped_arg_binding_params(
+    python_callable: Callable,
+    *,
+    partial_op_kwargs: Mapping[str, Any],
+    expand_input: Any,
+    task_id: str,
+) -> list[dict[str, Any]] | None:
+    """
+    Build the ordered per-parameter metadata for a mapped (``.expand()``) stub task.
+
+    Per-map-index values only resolve at run time, so unlike ``_build_arg_bindings`` this
+    captures what the server-side derivation cannot recover from the serialized Dag alone:
+    the declaration order the wire contract promises, defaults for parameters no kwarg
+    covers, and each parameter's value schema. Returns ``None`` for parameterless stubs
+    (the legacy fan-out shape whose call args were always ignored keeps parsing).
+    """
+    signature = inspect.signature(python_callable)
+    if not signature.parameters:
+        return None
+    _validate_stub_signature(signature, task_id)
+    if not isinstance(expand_input.value, Mapping):
+        # expand_kwargs() carries a list (or upstream XCom) of kwarg dicts whose
+        # parameter names are unknowable at parse time.
+        raise ValueError(
+            f"@task.stub task {task_id!r} does not support expand_kwargs(); the parameter "
+            "binding must be derivable at parse time, so use .expand() with explicit kwargs"
+        )
+    expand_kwargs = expand_input.value
+
+    try:
+        bound = signature.bind(**{**partial_op_kwargs, **expand_kwargs})
+    except TypeError as e:
+        raise ValueError(f"@task.stub task {task_id!r} TaskFlow mapping does not bind to its signature: {e}")
+    bound.apply_defaults()
+
+    annotations = _resolve_param_annotations(python_callable, signature)
+
+    params: list[dict[str, Any]] = []
+    for name in signature.parameters:
+        entry: dict[str, Any] = {"name": name}
+        if (value_schema := _infer_value_schema(annotations[name])) is not None:
+            entry["value_schema"] = value_schema
+        if name in expand_kwargs:
+            # The whole expanded collection ships through XCom/serialization; an upstream
+            # output is consumed per element, so a mapped upstream is fine here.
+            if not _validate_xcom_value(expand_kwargs[name], task_id, name, allow_mapped_upstream=True):
+                _ensure_json_literal(expand_kwargs[name], task_id, name)
+        elif name in partial_op_kwargs:
+            if not _validate_xcom_value(partial_op_kwargs[name], task_id, name):
+                _ensure_json_literal(partial_op_kwargs[name], task_id, name)
+        else:
+            default = bound.arguments[name]
+            _ensure_json_literal(default, task_id, name)
+            entry["default"] = default
+        params.append(entry)
+    return params
 
 
 class _StubOperator(DecoratedOperator):
@@ -291,6 +370,25 @@ class _StubOperator(DecoratedOperator):
     @classmethod
     def get_serialized_fields(cls):
         return super().get_serialized_fields() | {"_arg_bindings"}
+
+    @classmethod
+    def get_mapped_serialized_fields(cls, mapped_op: Any) -> dict[str, Any]:
+        """
+        Extra serialized fields for the mapped (``.expand()``) form of this operator.
+
+        Called by the core Dag serializer (Airflow 3.4+) while ``python_callable`` is
+        still the real function; older cores never call it, so mapped stubs there keep
+        the legacy ignored-args behavior.
+        """
+        params = _build_mapped_arg_binding_params(
+            mapped_op.python_callable,
+            partial_op_kwargs=mapped_op.partial_kwargs.get("op_kwargs") or {},
+            expand_input=mapped_op._get_specified_expand_input(),
+            task_id=mapped_op.task_id,
+        )
+        if params is None:
+            return {}
+        return {"_mapped_arg_binding_params": params}
 
     def execute(self, context: Context) -> Any:
         raise RuntimeError(
