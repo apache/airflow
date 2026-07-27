@@ -87,6 +87,26 @@ class TestGoogleCampaignManagerDeleteReportOperator:
             profile_id=PROFILE_ID, report_id=REPORT_ID
         )
 
+    @pytest.mark.parametrize(
+        ("report_name", "report_id"),
+        [
+            pytest.param(None, None, id="both-missing"),
+            pytest.param(REPORT_NAME, REPORT_ID, id="both-provided"),
+        ],
+    )
+    def test_missing_or_conflicting_report_params_fail_at_construction(self, report_name, report_id):
+        # Provision checks on templated fields stay in `__init__` (rewritten with
+        # `is not None` polarity) so static authoring mistakes surface at Dag parse
+        # time — see https://github.com/apache/airflow/issues/70296.
+        with pytest.raises(ValueError, match="Please provide exactly one of `report_name` or `report_id`"):
+            GoogleCampaignManagerDeleteReportOperator(
+                profile_id=PROFILE_ID,
+                report_name=report_name,
+                report_id=report_id,
+                api_version=API_VERSION,
+                task_id="test_task",
+            )
+
 
 @pytest.mark.db_test
 class TestGoogleCampaignManagerDownloadReportOperator:
