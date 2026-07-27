@@ -45,6 +45,7 @@ from sqlalchemy.orm import joinedload
 from airflow import settings
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow._shared.state import TaskFailureKind
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.assets.manager import AssetManager
@@ -556,6 +557,42 @@ class TestSchedulerJob:
             ],
             any_order=True,
         )
+
+    @conf_vars({("core", "infra_failure_refund_retries"): "True", ("core", "max_infra_refunds"): "3"})
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
+    def test_process_executor_events_infra_classification(self, mock_task_callback, dag_maker):
+        """Only a positively-classified infra failure refunds; an unclassified
+        state-mismatch death (no executor bridge) spends the retry, and a bridge 'user'
+        classification (e.g. an app OOM) does not refund."""
+        session = settings.Session()
+
+        def _run(dag_id, stashed):
+            with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}/"):
+                task = EmptyOperator(task_id="t", retries=1)
+            ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
+            ti.state = State.QUEUED
+            session.merge(ti)
+            session.commit()
+            executor = MockExecutor(do_update=False)
+            job_runner = SchedulerJobRunner(job=Job(), executors=[executor])
+            executor.event_buffer[ti.key] = State.FAILED, None
+            if stashed is not None:
+                executor.task_failure_info[ti.key] = stashed
+            job_runner._process_executor_events(executor=executor, session=session)
+            ti.refresh_from_db(session=session)
+            return ti
+
+        # Unclassified (executor only reports a state) → no refund, exactly as today.
+        ti = _run("aip97_unclassified", stashed=None)
+        assert ti.max_tries == 1
+
+        # Bridge classified it infra (e.g. a pod Evicted) → refunded.
+        ti = _run("aip97_infra", stashed=(TaskFailureKind.INFRA, "Evicted"))
+        assert ti.max_tries == 2
+
+        # Bridge classified it user (e.g. an app OOM against its own limit) → no refund.
+        ti = _run("aip97_app_oom", stashed=(TaskFailureKind.APPLICATION, "OOMKilled"))
+        assert ti.max_tries == 1
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
     def test_process_executor_events_restarting_cleared_task(self, mock_task_callback, dag_maker):
@@ -9725,6 +9762,7 @@ class TestSchedulerJob:
         # Mock the executor to simulate a task failure
         mock_executor = MagicMock(spec=BaseExecutor)
         mock_executor.has_task = mock.MagicMock(return_value=False)
+        mock_executor.get_task_failure_info.return_value = None
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
 

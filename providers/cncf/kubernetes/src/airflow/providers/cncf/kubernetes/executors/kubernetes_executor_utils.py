@@ -47,6 +47,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -333,10 +334,13 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info(
-                    "Event: Pod %s deleted before it could complete, annotations: %s",
+                    "Event: Pod %s deleted while running, annotations: %s",
                     pod_name,
                     annotations_string,
                 )
+                # A running task's pod removed by the platform (drain, preemption, spot
+                # reclaim, force-delete) is an infra disruption. An Airflow-initiated stop
+                # sets the TI terminal first, so the scheduler skips that case by state.
                 self.watcher_queue.put(
                     KubernetesWatch(
                         pod_name,
@@ -344,7 +348,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                         TaskInstanceState.FAILED,
                         annotations,
                         resource_version,
-                        None,
+                        {"pod_status": "Running", "pod_reason": POD_DELETED_REASON},
                     )
                 )
             else:
@@ -411,6 +415,54 @@ def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None
             "pod_reason": getattr(pod.status, "reason", None),
             "pod_message": getattr(pod.status, "message", None),
         }
+
+
+# Reason token for a pod removed by the platform while its task was still running
+# (node drain, preemption, spot reclaim, or a force-delete) — an infra disruption,
+# not the task's own code. Distinct from a container that ran and exited on its own.
+POD_DELETED_REASON = "PodDeleted"
+
+# Pod/node-level reasons that mean the platform ended the pod (an infrastructure
+# disruption), as opposed to the container terminating on its own.
+_INFRA_FAILURE_REASONS = frozenset(
+    {
+        "Evicted",
+        "Preempting",
+        "NodeShutdown",
+        "Shutdown",
+        "NodeLost",
+        "TerminationByKubelet",
+        "DeletionByTaintManager",
+        "DisruptionTarget",
+        POD_DELETED_REASON,
+    }
+)
+
+
+def classify_pod_failure(failure_details: FailureDetails | None):
+    """
+    Classify a pod failure into a ``(TaskFailureKind, reason)`` pair.
+
+    A node-level disruption (eviction, preemption, node shutdown) is ``INFRA``;
+    a container that ended on its own, an app crash or an ``OOMKilled`` against
+    its own limit, is ``APPLICATION``, so it earns no infra refund. Returns None
+    when there is nothing to classify, or when running against an Airflow that
+    predates the ``TaskFailureKind`` failure-context API (3.4).
+    """
+    if not failure_details or not AIRFLOW_V_3_4_PLUS:
+        return None
+
+    from airflow._shared.state import TaskFailureKind
+
+    pod_reason = failure_details.get("pod_reason")
+    container_reason = failure_details.get("container_reason")
+
+    if pod_reason in _INFRA_FAILURE_REASONS or container_reason in _INFRA_FAILURE_REASONS:
+        failure_kind = TaskFailureKind.INFRA
+    else:
+        failure_kind = TaskFailureKind.APPLICATION
+
+    return failure_kind, (pod_reason or container_reason)
 
 
 def _analyze_containers(
