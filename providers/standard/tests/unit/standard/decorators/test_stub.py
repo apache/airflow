@@ -516,3 +516,15 @@ def test_infer_value_schema(annotation, expected):
 @mock.patch("airflow.providers.standard.decorators.stub.TypeAdapter", None)
 def test_infer_value_schema_without_pydantic():
     assert _infer_value_schema(str) is None
+
+
+def test_infer_value_schema_cache_returns_isolated_copies():
+    first = _infer_value_schema(dict)
+    second = _infer_value_schema(dict)
+    assert first == second
+    assert first is not second, "callers embed and serialize the fragment, so it must not alias the cache"
+
+
+def test_infer_value_schema_unhashable_annotation_generates_uncached():
+    annotation = typing.Annotated[int, {"unhashable": True}]
+    assert _infer_value_schema(annotation) == {"type": "integer", "format": "int64"}

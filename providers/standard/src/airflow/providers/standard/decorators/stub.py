@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import ast
+import copy
 import datetime
 import inspect
 import json
 import types
 import typing
 from collections.abc import Callable, Collection, Mapping
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -112,16 +114,32 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
         # that can only ever be None constrains nothing worth shipping.
         return None
     try:
-        schema = TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
+        schema = _generate_value_schema(annotation)
+    except TypeError:
+        # Unhashable annotations cannot key the cache; generate directly.
+        schema = _generate_value_schema.__wrapped__(annotation)
+    # Deep-copy so callers embedding the fragment never alias the cached dict.
+    return copy.deepcopy(schema) if schema else None
+
+
+@cache
+def _generate_value_schema(annotation: Any) -> dict[str, Any] | None:
+    """
+    Generate the schema for one annotation, cached for the process lifetime.
+
+    TypeAdapter construction is one of pydantic's most expensive operations and
+    annotations are static, so re-parses of the same Dag file must not re-pay it.
+    """
+    try:
+        return TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
     except (PydanticSchemaGenerationError, PydanticInvalidForJsonSchema):
         normalized = _normalize_temporal_annotation(annotation)
         if normalized is annotation:
             return None
         try:
-            schema = TypeAdapter(normalized).json_schema(schema_generator=_ValueSchemaGenerator)
+            return TypeAdapter(normalized).json_schema(schema_generator=_ValueSchemaGenerator)
         except (PydanticSchemaGenerationError, PydanticInvalidForJsonSchema):
             return None
-    return schema or None
 
 
 def _validate_stub_signature(signature: inspect.Signature, task_id: str) -> None:
