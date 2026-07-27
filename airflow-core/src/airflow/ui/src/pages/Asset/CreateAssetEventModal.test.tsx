@@ -45,6 +45,7 @@ vi.mock("src/components/ui", async (importOriginal) => {
   // Must stay inside the factory: vitest hoists vi.mock above module scope, so an outer-scope
   // component cannot be referenced here.
 
+  // eslint-disable-next-line unicorn/consistent-function-scoping -- must stay in the vi.mock factory (hoisting)
   const DialogPart = ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>;
 
   return {
