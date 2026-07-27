@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.sdk._shared.observability.metrics import datadog_logger
+from airflow.sdk._shared.observability.metrics.statsd_logger import resolve_statsd_connection
 from airflow.sdk.configuration import conf
 
 if TYPE_CHECKING:
@@ -26,10 +27,12 @@ if TYPE_CHECKING:
 
 
 def get_dogstatsd_logger() -> SafeDogStatsdLogger:
+    host, port, socket_path = resolve_statsd_connection(conf)
     return datadog_logger.get_dogstatsd_logger(
         tags_in_string=conf.get("metrics", "statsd_datadog_tags"),
-        host=conf.get("metrics", "statsd_host"),
-        port=conf.getint("metrics", "statsd_port"),
+        host=host,
+        port=port,
+        socket_path=socket_path,
         namespace=conf.get("metrics", "statsd_prefix"),
         datadog_metrics_tags=conf.getboolean("metrics", "statsd_datadog_metrics_tags", fallback=True),
         statsd_disabled_tags=conf.get("metrics", "statsd_disabled_tags", fallback=None),
