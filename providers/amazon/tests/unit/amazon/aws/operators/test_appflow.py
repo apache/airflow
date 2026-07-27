@@ -135,6 +135,20 @@ def test_unsupported_source_fails_at_execute_time():
 
 
 @pytest.mark.db_test
+def test_templated_source_passes_validation_after_rendering(appflow_conn, ctx, waiter_mock):
+    operator = AppflowRunOperator(
+        task_id=TASK_ID,
+        source="{{ var.value.appflow_source }}",
+        flow_name=FLOW_NAME,
+        poll_interval=0,
+    )
+    # Template rendering replaces the Jinja expression with the resolved value before execute.
+    operator.source = SOURCE
+    operator.execute(ctx)
+    appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
+
+
+@pytest.mark.db_test
 def test_run_full(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunFullOperator(**DUMP_COMMON_ARGS)
     operator.execute(ctx)
