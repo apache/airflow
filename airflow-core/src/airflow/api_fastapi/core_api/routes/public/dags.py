@@ -250,7 +250,7 @@ def get_dag_details(
         session.scalar(
             select(func.count())
             .select_from(DagRun)
-            .where(DagRun.dag_id == dag_id, DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
+            .where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.RUNNING)
         )
         or 0
     )
