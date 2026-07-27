@@ -215,15 +215,16 @@ class TestAssetManager:
     @pytest.mark.parametrize(
         ("dialect_name", "expected_helper"),
         [
-            ("postgresql", "_queue_dagruns_nonpartitioned_postgres"),
+            ("postgresql", "_queue_dagruns_nonpartitioned_conflict_update"),
             ("mysql", "_queue_dagruns_nonpartitioned_mysql"),
-            ("sqlite", "_queue_dagruns_nonpartitioned_slow_path"),
+            ("sqlite", "_queue_dagruns_nonpartitioned_conflict_update"),
         ],
     )
     def test_queue_dagruns_routes_by_dialect(self, dialect_name, expected_helper):
         """Test that _queue_dagruns routes to the dialect-appropriate queue helper."""
         dag = DagModel(dag_id="dag1")
         session = mock.MagicMock(spec=Session)
+        event = mock.MagicMock()
         with (
             mock.patch("airflow.assets.manager.get_dialect_name", return_value=dialect_name),
             mock.patch.object(AssetManager, "_queue_partitioned_dags"),
@@ -234,18 +235,23 @@ class TestAssetManager:
                 dags_to_queue={dag},
                 partition_key=None,
                 partition_date=None,
-                event=mock.MagicMock(),
+                event=event,
                 task_instance=None,
                 session=session,
             )
-        mock_helper.assert_called_once_with(1, {dag}, session)
+        if expected_helper == "_queue_dagruns_nonpartitioned_conflict_update":
+            mock_helper.assert_called_once_with(1, {dag}, event, session, dialect_name)
+        else:
+            mock_helper.assert_called_once_with(1, {dag}, event, session)
 
     def test_queue_dagruns_nonpartitioned_mysql_builds_upsert(self):
         """Test that the MySQL queue path emits an INSERT ... ON DUPLICATE KEY UPDATE."""
         dag = DagModel(dag_id="dag1")
         session = mock.MagicMock(spec=Session)
-
-        AssetManager._queue_dagruns_nonpartitioned_mysql(asset_id=1, dags_to_queue={dag}, session=session)
+        event = AssetEvent(asset_id=1)
+        AssetManager._queue_dagruns_nonpartitioned_mysql(
+            asset_id=1, dags_to_queue={dag}, event=event, session=session
+        )
 
         stmt, values = session.execute.call_args.args
         compiled = str(stmt.compile(dialect=mysql.dialect())).upper()
