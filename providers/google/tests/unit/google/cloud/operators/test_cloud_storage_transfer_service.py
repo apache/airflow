@@ -285,6 +285,18 @@ class TestGcpStorageTransferJobCreateOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
+    def test_templated_body_validated_at_execute_time(self, mock_hook):
+        op = CloudDataTransferServiceCreateJobOperator(body="{{ var.value.body }}", task_id=TASK_ID)
+        # Template rendering replaces the Jinja expression with the resolved value before execute.
+        op.body = {"transferSpec": {"awsS3DataSource": {"awsAccessKey": TEST_AWS_ACCESS_KEY}}}
+
+        with pytest.raises(AirflowException, match="AWS credentials detected inside the body parameter"):
+            op.execute(context=mock.MagicMock())
+        mock_hook.return_value.create_transfer_job.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
     def test_job_create_gcs(self, mock_hook):
         mock_hook.return_value.create_transfer_job.return_value = VALID_TRANSFER_JOB_GCS
         body = deepcopy(VALID_TRANSFER_JOB_GCS)
