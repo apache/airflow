@@ -1201,6 +1201,7 @@ class TestCliDags:
                 self.parser.parse_args(["dags", "stability", os.fspath(tmp_path), "--dag-id", "missing_dag"])
             )
 
+
 class TestCliDagsReserialize:
     parser = cli_parser.get_parser()
 
