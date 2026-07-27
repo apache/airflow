@@ -106,7 +106,3 @@ class DataSyncTaskCreationError(AirflowException):
 
 class DataSyncTaskExecutionFailedError(AirflowException):
     """Raised when a DataSync task execution could not be started or did not complete successfully."""
-
-
-class QuickSightIngestionFailedError(AirflowException):
-    """Raised when an Amazon QuickSight SPICE ingestion fails or is cancelled."""

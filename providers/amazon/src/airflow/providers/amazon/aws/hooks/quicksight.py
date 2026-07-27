@@ -23,7 +23,6 @@ import warnings
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.common.compat.sdk import AirflowException
@@ -110,7 +109,7 @@ class QuickSightHook(AwsBaseHook):
         :param aws_account_id: An AWS Account ID, if set to ``None`` then use associated AWS Account ID.
         :param waiter_delay: The amount of time in seconds to wait between attempts.
         :param waiter_max_attempts: The maximum number of attempts to be made.
-        :raises QuickSightIngestionFailedError: If the ingestion fails, is cancelled or times out.
+        :raises RuntimeError: If the ingestion fails, is cancelled or times out.
         """
         try:
             wait(
@@ -127,7 +126,7 @@ class QuickSightHook(AwsBaseHook):
                 status_args=["Ingestion.IngestionStatus", "Ingestion.ErrorInfo"],
             )
         except AirflowException as e:
-            raise QuickSightIngestionFailedError(str(e)) from e
+            raise RuntimeError(str(e)) from e
 
     def get_status(self, aws_account_id: str | None, data_set_id: str, ingestion_id: str) -> str:
         """

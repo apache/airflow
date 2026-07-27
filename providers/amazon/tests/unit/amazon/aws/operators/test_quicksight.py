@@ -22,7 +22,6 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIngestionOperator
 from airflow.providers.amazon.aws.triggers.quicksight import QuickSightIngestionCompletedTrigger
@@ -155,7 +154,7 @@ class TestQuickSightCreateIngestionOperator:
         op = QuickSightCreateIngestionOperator(**self.default_op_kwargs)
         event = {"status": "error", "message": "test failure", "ingestion_id": INGESTION_ID}
 
-        with pytest.raises(QuickSightIngestionFailedError, match="Error while running"):
+        with pytest.raises(RuntimeError, match="Error while running"):
             op.execute_complete({}, event)
 
     @pytest.mark.parametrize("check_interval", [10, "10"], ids=["int", "templated_str"])

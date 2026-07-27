@@ -21,7 +21,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import QuickSightIngestionFailedError
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.quicksight import QuickSightIngestionCompletedTrigger
@@ -147,8 +146,6 @@ class QuickSightCreateIngestionOperator(AwsBaseOperator[QuickSightHook]):
     ) -> dict[str, Any] | None:
         validated_event = validate_execute_complete_event(event)
         if validated_event["status"] != "success":
-            raise QuickSightIngestionFailedError(
-                f"Error while running Amazon QuickSight SPICE ingestion: {validated_event}"
-            )
+            raise RuntimeError(f"Error while running Amazon QuickSight SPICE ingestion: {validated_event}")
         self.log.info("Amazon QuickSight SPICE ingestion `%s` completed.", validated_event["ingestion_id"])
         return ingestion
