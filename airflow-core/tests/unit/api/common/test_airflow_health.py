@@ -237,7 +237,7 @@ def test_get_airflow_health_degraded_when_some_instances_unhealthy(mock_get_jobs
 
 
 @provide_session
-def test_get_jobs_health_returns_running_jobs_ordered_by_heartbeat(session):
+def test_get_jobs_health_returns_running_jobs_ordered_by_heartbeat(*, session):
     clear_db_jobs()
     try:
         older = timezone.utcnow() - timedelta(minutes=5)
