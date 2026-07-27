@@ -179,8 +179,6 @@ class BashOperator(BaseOperator):
         self.append_env = append_env
         self.output_processor = output_processor
         self._is_inline_cmd = None
-        if isinstance(bash_command, str):
-            self._is_inline_cmd = self._is_inline_command(bash_command=bash_command)
 
     @cached_property
     def subprocess_hook(self):
@@ -215,7 +213,7 @@ class BashOperator(BaseOperator):
                 raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
 
-        if self._is_inline_cmd:
+        if self._is_inline_command(self.bash_command):
             result = self._run_inline_command(bash_path=bash_path, env=env)
         else:
             result = self._run_rendered_script_file(bash_path=bash_path, env=env)
@@ -258,9 +256,9 @@ class BashOperator(BaseOperator):
                 )
 
     @classmethod
-    def _is_inline_command(cls, bash_command: str) -> bool:
+    def _is_inline_command(cls, bash_command: Any) -> bool:
         """Return True if the bash command is an inline string. False if it's a bash script file."""
-        return not bash_command.endswith(tuple(cls.template_ext))
+         return isinstance(bash_command, str) and not bash_command.endswith(tuple(cls.template_ext))
 
     def on_kill(self) -> None:
         self.subprocess_hook.send_sigterm()

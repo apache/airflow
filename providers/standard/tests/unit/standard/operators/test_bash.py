@@ -303,3 +303,17 @@ class TestBashOperator:
         task = ti.render_templates(context=context)
         result = task.execute(context=context)
         assert result == "test_templated_fields_task"
+
+    @pytest.mark.db_test
+    def test_script_file_classification_uses_rendered_value(self, create_task_instance_of_operator):
+        """A templated bash_command that renders to a .sh path must run as a script file, not inline."""
+        ti = create_task_instance_of_operator(
+            BashOperator,
+            dag_id="test_bash_script_classification",
+            task_id="bash_script_test",
+            bash_command="{{ params.script_name }}",
+            params={"script_name": "sample.sh"},
+        )
+        task = ti.render_templates()
+        assert task.bash_command == "sample.sh"
+        assert BashOperator._is_inline_command(bash_command=task.bash_command) is False
