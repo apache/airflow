@@ -8,7 +8,6 @@
     "Variables": "Zmienne"
   },
   "allOperators": "Wszystkie operatory",
-  "allTeams": "Wszystkie zespoły",
   "appearance": {
     "appearance": "Wygląd",
     "darkMode": "Tryb ciemny",
@@ -68,8 +67,7 @@
     "owner": "Właściciel",
     "params": "Parametry",
     "schedule": "Harmonogram",
-    "tags": "Etykiety",
-    "team": "Zespół"
+    "tags": "Etykiety"
   },
   "dagId": "Identyfikator Daga",
   "dagRun": {
@@ -213,23 +211,6 @@
   "pendingDagRun_many": "{{count}} oczekujących wykonań Dagów",
   "pendingDagRun_one": "{{count}} oczekujące wykonanie Daga",
   "pendingDagRun_other": "{{count}} oczekujących wykonań Dagów",
-  "presetFilters": {
-    "deleteTitle": "Usuń zapisany filtr",
-    "deleteWarning": "Zapisane filtry są przechowywane wyłącznie w tej przeglądarce.",
-    "duplicate": "Zapisany filtr \"{{name}}\" zawiera już dokładnie taką konfigurację.",
-    "empty": "Brak zapisanych filtrów",
-    "info": {
-      "default": "Przypnij zapisany filtr jako domyślny, a zostanie zastosowany automatycznie, gdy wejdziesz na tę stronę bez żadnych filtrów.",
-      "save": "Zapisz bieżące filtry i sortowanie jako nazwany filtr, aby móc do niego wrócić w dowolnej chwili.",
-      "storage": "Zapisane filtry są przechowywane w tej przeglądarce."
-    },
-    "namePlaceholder": "Nazwa zapisanego filtra",
-    "nothingToSave": "Nie ma czego zapisać. Zastosuj filtry lub sortowanie, aby zapisać filtr.",
-    "save": "Zapisz",
-    "setDefault": "Ustaw jako domyślny",
-    "title": "Zapisane filtry",
-    "unsetDefault": "Usuń ustawienie domyślne"
-  },
   "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
@@ -346,7 +327,6 @@
     "from": "Od",
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "noTagsFound": "Nie znaleziono etykiet",
-    "noTeamsFound": "Nie znaleziono zespołów",
     "tagMode": {
       "all": "Wszystkie",
       "any": "Dowolne"

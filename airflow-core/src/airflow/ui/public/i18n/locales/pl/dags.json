@@ -78,11 +78,6 @@
       "upstream": "Taski nadrzędne"
     }
   },
-  "runStateCounts": {
-    "label": "Stany wykonań",
-    "loading": "Ładowanie liczby wykonań według stanu",
-    "tooltip": "{{state}}: {{formattedCount}} — kliknij, aby filtrować wykonania"
-  },
   "search": {
     "advanced": "Wyszukiwanie zaawansowane",
     "clear": "Wyczyść wyszukiwanie",
@@ -95,7 +90,7 @@
       "asc": "Sortuj według Nazwy Wyświetlanej (A-Z)",
       "desc": "Sortuj według Nazwy Wyświetlanej (Z-A)"
     },
-    "lastRunAfter": {
+    "lastRunStartDate": {
       "asc": "Sortuj według Daty Ostatniego Wykonania (Najwcześniejsze-Najnowsze)",
       "desc": "Sortuj według Daty Ostatniego Wykonania (Najnowsze-Najwcześniejsze)"
     },
