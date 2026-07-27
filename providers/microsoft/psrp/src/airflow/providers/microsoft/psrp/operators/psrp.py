@@ -118,11 +118,13 @@ class PsrpOperator(BaseOperator):
         self.psrp_session_init = psrp_session_init
 
     def execute(self, context: Context) -> list[Any] | None:
-        if not exactly_one(self.command, self.powershell, self.cmdlet):
+        # A provided option can render to a falsy value, so validate on is-not-None (usage),
+        # not truthiness.
+        if not exactly_one(self.command is not None, self.powershell is not None, self.cmdlet is not None):
             raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
-        if self.arguments and not (self.powershell or self.cmdlet):
+        if self.arguments is not None and self.powershell is None and self.cmdlet is None:
             raise ValueError("Arguments only allowed with 'powershell' or 'cmdlet'")
-        if self.parameters and not (self.powershell or self.cmdlet):
+        if self.parameters is not None and self.powershell is None and self.cmdlet is None:
             raise ValueError("Parameters only allowed with 'powershell' or 'cmdlet'")
         with (
             PsrpHook(
@@ -136,10 +138,10 @@ class PsrpOperator(BaseOperator):
         ):
             if self.psrp_session_init is not None:
                 ps.add_command(self.psrp_session_init)
-            if self.command:
+            if self.command is not None:
                 ps.add_script(f"cmd.exe /c @'\n{self.command}\n'@")
             else:
-                if self.cmdlet:
+                if self.cmdlet is not None:
                     ps.add_cmdlet(self.cmdlet)
                 else:
                     ps.add_script(self.powershell)

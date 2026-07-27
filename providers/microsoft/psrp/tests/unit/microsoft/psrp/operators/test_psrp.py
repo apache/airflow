@@ -45,12 +45,29 @@ class TestPsrpOperator:
         with pytest.raises(ValueError, match=exception_msg):
             op.execute(None)
 
-    def test_rejects_duplicate_command_options(self):
-        # Equal values are still two options: exactly_one receives them
-        # positionally so it does not dedupe them into one.
-        op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, command="x", powershell="x")
+    def test_multiple_options_raise_when_one_renders_empty(self):
+        # Two options are provided; the error must fire even though command renders to a falsy "".
+        op = PsrpOperator(
+            task_id="test", psrp_conn_id=CONNECTION_ID, command="{{ '' }}", powershell="Get-Bar"
+        )
+        op.render_template_fields({})
+        assert op.command == ""
         with pytest.raises(ValueError, match="exactly one"):
             op.execute(None)
+
+    @patch(f"{PsrpOperator.__module__}.PsrpHook")
+    def test_provided_command_rendering_to_empty_dispatches(self, hook_impl):
+        # A provided command is valid usage even when it renders to "": no error, and it
+        # dispatches as the command option rather than falling through.
+        op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, command="{{ '' }}")
+        op.render_template_fields({})
+        assert op.command == ""
+        ps = Mock(spec=PowerShell, output=[], had_errors=False, runspace_pool=Mock(host=Mock(rc=0)))
+        hook_impl.configure_mock(
+            **{"return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps}
+        )
+        op.execute(None)
+        ps.add_script.assert_called_once_with("cmd.exe /c @'\n\n'@")
 
     @pytest.mark.parametrize(
         ("kwargs", "match"),
@@ -64,15 +81,17 @@ class TestPsrpOperator:
         with pytest.raises(ValueError, match=match):
             op.execute(None)
 
-    def test_command_validated_after_rendering(self):
-        # command is a template field: __init__-time validation saw the raw Jinja (truthy),
-        # so an expression that renders to an empty string slipped through. The check must
-        # run on the rendered value in execute().
-        op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, command="{{ '' }}")
+    @pytest.mark.parametrize("kwargs", [{"arguments": ["a"]}, {"parameters": {"k": "v"}}])
+    @patch(f"{PsrpOperator.__module__}.PsrpHook")
+    def test_arguments_and_parameters_allowed_when_powershell_renders_empty(self, hook_impl, kwargs):
+        op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, powershell="{{ '' }}", **kwargs)
         op.render_template_fields({})
-        assert op.command == ""
-        with pytest.raises(ValueError, match="exactly one"):
-            op.execute(None)
+        assert op.powershell == ""
+        ps = Mock(spec=PowerShell, output=[], had_errors=False, runspace_pool=Mock(host=Mock(rc=0)))
+        hook_impl.configure_mock(
+            **{"return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps}
+        )
+        op.execute(None)
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize(
