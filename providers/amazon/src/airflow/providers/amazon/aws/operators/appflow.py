@@ -84,8 +84,6 @@ class AppflowBaseOperator(AwsBaseOperator[AppflowHook]):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if source is not None and source not in SUPPORTED_SOURCES:
-            raise ValueError(f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!")
         self.filter_date = filter_date
         self.flow_name = flow_name
         self.source = source
@@ -96,6 +94,8 @@ class AppflowBaseOperator(AwsBaseOperator[AppflowHook]):
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: Context) -> None:
+        if self.source is not None and self.source not in SUPPORTED_SOURCES:
+            raise ValueError(f"{self.source} is not a supported source (options: {SUPPORTED_SOURCES})!")
         self.filter_date_parsed: datetime | None = (
             datetime.fromisoformat(self.filter_date) if self.filter_date else None
         )

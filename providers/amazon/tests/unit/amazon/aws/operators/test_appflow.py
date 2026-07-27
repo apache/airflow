@@ -124,6 +124,16 @@ def test_run(appflow_conn, ctx, waiter_mock):
     appflow_conn.describe_flow_execution_records.assert_called_once()
 
 
+def test_unsupported_source_fails_at_execute_time():
+    operator = AppflowRunOperator(
+        task_id=TASK_ID,
+        source="not-a-source",
+        flow_name=FLOW_NAME,
+    )
+    with pytest.raises(ValueError, match="not-a-source is not a supported source"):
+        operator.execute({})
+
+
 @pytest.mark.db_test
 def test_run_full(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunFullOperator(**DUMP_COMMON_ARGS)
