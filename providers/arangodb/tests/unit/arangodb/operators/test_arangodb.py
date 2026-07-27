@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.arangodb.operators.arangodb import AQLOperator, ArangoDBCollectionOperator
 
 
@@ -47,3 +49,13 @@ class TestArangoDBCollectionOperator:
         op.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(arangodb_conn_id="arangodb_default")
         mock_hook.return_value.insert_documents.assert_called_once_with("students", documents_to_insert)
+
+    @mock.patch("airflow.providers.arangodb.operators.arangodb.ArangoDBHook")
+    def test_no_operation_fails(self, mock_hook):
+        op = ArangoDBCollectionOperator(
+            task_id="noop_task",
+            collection_name="students",
+        )
+        with pytest.raises(ValueError, match="At least one operation must be specified."):
+            op.execute(mock.MagicMock())
+        mock_hook.return_value.insert_documents.assert_not_called()
