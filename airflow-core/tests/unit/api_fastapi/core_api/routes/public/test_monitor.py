@@ -137,6 +137,58 @@ class TestGetHealth(TestMonitorEndpoint):
         assert body["triggerer"]["status"] == HEALTHY
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.monitor.get_airflow_health")
+    def test_health_includes_instance_team_name_and_bundle_names(self, mock_get_airflow_health, test_client):
+        mock_get_airflow_health.return_value = {
+            "metadatabase": {"status": HEALTHY},
+            "scheduler": {
+                "status": HEALTHY,
+                "latest_scheduler_heartbeat": "2024-11-23T11:09:16.663124+00:00",
+                "detailed_status": HEALTHY,
+                "instances": [
+                    {
+                        "status": HEALTHY,
+                        "hostname": "scheduler-1",
+                        "latest_scheduler_heartbeat": "2024-11-23T11:09:16.663124+00:00",
+                    }
+                ],
+            },
+            "triggerer": {
+                "status": HEALTHY,
+                "latest_triggerer_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+                "detailed_status": HEALTHY,
+                "instances": [
+                    {
+                        "status": HEALTHY,
+                        "hostname": "triggerer-1",
+                        "latest_triggerer_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+                        "team_name": "team-a",
+                    }
+                ],
+            },
+            "dag_processor": {
+                "status": HEALTHY,
+                "latest_dag_processor_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+                "detailed_status": HEALTHY,
+                "instances": [
+                    {
+                        "status": HEALTHY,
+                        "hostname": "dag-processor-1",
+                        "latest_dag_processor_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+                        "bundle_names": ["bundle-a"],
+                    }
+                ],
+            },
+        }
+
+        response = test_client.get("/monitor/health")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["triggerer"]["instances"][0]["team_name"] == "team-a"
+        assert body["dag_processor"]["instances"][0]["bundle_names"] == ["bundle-a"]
+        assert body["scheduler"]["instances"][0]["hostname"] == "scheduler-1"
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.monitor.get_airflow_health")
     def test_health_without_dag_processor(self, mock_get_airflow_health, test_client):
         mock_get_airflow_health.return_value = {
             "metadatabase": {"status": HEALTHY},

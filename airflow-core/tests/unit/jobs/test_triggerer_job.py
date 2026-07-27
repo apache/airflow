@@ -270,6 +270,14 @@ def test_triggerer_job_runner_stores_team_name(team_name):
     job = Job()
     runner = TriggererJobRunner(job, capacity=10, team_name=team_name)
     assert runner.team_name == team_name
+    assert job.team_name == team_name
+
+
+def test_triggerer_job_runner_preserves_existing_job_team_name():
+    job = Job(team_name="existing-team")
+    runner = TriggererJobRunner(job, capacity=10, team_name="other-team")
+    assert runner.team_name == "other-team"
+    assert job.team_name == "existing-team"
 
 
 @pytest.mark.parametrize("platform_uses_exec", [True, False])
