@@ -19,7 +19,7 @@ export class AssetService {
      * @param data.uriPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.dagIds
      * @param data.onlyActive
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at, last_asset_event_timestamp`
      * @returns AssetCollectionResponse Successful Response
      * @throws ApiError
      */

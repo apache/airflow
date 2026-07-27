@@ -54,7 +54,7 @@ const createColumns = (
     header: () => translate("name"),
   },
   {
-    accessorKey: "last_asset_event",
+    accessorFn: (row) => row.last_asset_event?.timestamp,
     cell: ({ row: { original } }: AssetRow) => {
       const assetEvent = original.last_asset_event;
       const timestamp = assetEvent?.timestamp;
@@ -65,8 +65,8 @@ const createColumns = (
 
       return <Time datetime={timestamp} />;
     },
-    enableSorting: false,
     header: () => translate("lastAssetEvent"),
+    id: "last_asset_event_timestamp",
   },
   {
     accessorKey: "group",

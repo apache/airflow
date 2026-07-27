@@ -2836,7 +2836,7 @@ export type GetAssetsData = {
     offset?: number;
     onlyActive?: boolean;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at, last_asset_event_timestamp`
      */
     orderBy?: Array<(string)>;
     /**

@@ -21,7 +21,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -29,6 +29,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.db.assets import generate_last_asset_event_query
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     BaseParam,
@@ -131,6 +132,9 @@ class OnlyActiveFilter(BaseParam[bool]):
         return cls().set_value(only_active)
 
 
+_last_asset_event_query = generate_last_asset_event_query()
+
+
 @assets_router.get(
     "/assets",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
@@ -151,42 +155,24 @@ def get_assets(
     only_active: Annotated[OnlyActiveFilter, Depends(OnlyActiveFilter.depends)],
     order_by: Annotated[
         SortParam,
-        Depends(SortParam(["id", "name", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
+        Depends(
+            SortParam(
+                ["id", "name", "uri", "created_at", "updated_at", "last_asset_event_timestamp"],
+                AssetModel,
+                to_replace={
+                    "last_asset_event_timestamp": _last_asset_event_query.c.last_asset_event_timestamp,
+                },
+            ).dynamic_depends()
+        ),
     ],
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
-    # Build a query that will be used to retrieve the ID and timestamp of the latest AssetEvent
-    last_asset_events = (
-        select(AssetEvent.asset_id, func.max(AssetEvent.timestamp).label("last_timestamp"))
-        .group_by(AssetEvent.asset_id)
-        .subquery()
-    )
-
-    # First, we're pulling the Asset ID, AssetEvent ID, and AssetEvent timestamp for the latest (last)
-    # AssetEvent. We'll eventually OUTER JOIN this to the AssetModel
-    asset_event_query = (
-        select(
-            AssetEvent.asset_id,  # The ID of the Asset, which we'll need to JOIN to the AssetModel
-            func.max(AssetEvent.id).label("last_asset_event_id"),  # The ID of the last AssetEvent
-            func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
-        )
-        .join(
-            last_asset_events,
-            and_(
-                AssetEvent.asset_id == last_asset_events.c.asset_id,
-                AssetEvent.timestamp == last_asset_events.c.last_timestamp,
-            ),
-        )
-        .group_by(AssetEvent.asset_id)
-        .subquery()
-    )
-
     assets_select_statement = select(
         AssetModel,
-        asset_event_query.c.last_asset_event_id,  # This should be the AssetEvent.id
-        asset_event_query.c.last_asset_event_timestamp,
-    ).outerjoin(asset_event_query, AssetModel.id == asset_event_query.c.asset_id)
+        _last_asset_event_query.c.last_asset_event_id,  # This should be the AssetEvent.id
+        _last_asset_event_query.c.last_asset_event_timestamp,
+    ).outerjoin(_last_asset_event_query, AssetModel.id == _last_asset_event_query.c.asset_id)
 
     assets_select, total_entries = paginated_select(
         statement=assets_select_statement,

@@ -497,6 +497,20 @@ class TestGetAssets(TestAssets):
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
 
+    def test_order_by_last_asset_event_timestamp(self, test_client, session):
+        assets = self.create_assets(session=session, num=3)
+        self.create_assets_events(session=session, num=3, varying_timestamps=True)
+
+        response = test_client.get("/assets?order_by=last_asset_event_timestamp")
+        assert response.status_code == 200
+        assert [asset["id"] for asset in response.json()["assets"]] == [asset.id for asset in assets]
+
+        response = test_client.get("/assets?order_by=-last_asset_event_timestamp")
+        assert response.status_code == 200
+        assert [asset["id"] for asset in response.json()["assets"]] == [
+            asset.id for asset in reversed(assets)
+        ]
+
     @pytest.mark.parametrize(
         ("params", "expected_assets"),
         [
