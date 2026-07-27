@@ -67,27 +67,33 @@ def _unsupported_arg_bindings(detail: str) -> NoReturn:
 
 def _resolve_mapped_stub_arg_bindings(
     task: SerializedMappedOperator, ti: Any, *, dag: SerializedDAG, session: Session
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any]] | None:
     """
     Build the per-map-index arg spec for a mapped (``.expand()``) stub task.
 
-    A mapped stub never instantiates at parse time, so no spec is captured in the
-    serialized Dag; it is derived here from the serialized expand input instead, with
-    the map-index decomposition delegated to
-    ``SchedulerDictOfListsExpandInput.resolve_expansion_sub_indexes``.
-    Value schemas come from the stub function's annotations, which are not available
-    server-side, so mapped bindings omit them (runtimes fall back to decode-only checks);
-    delivering them is tracked at https://github.com/apache/airflow/issues/70523.
+    A mapped stub never instantiates at parse time; the Dag serializer captures its
+    per-parameter metadata (declaration order, defaults, value schemas) from the stub
+    signature via ``get_mapped_serialized_fields``, and the map-index decomposition is
+    delegated to ``SchedulerDictOfListsExpandInput.resolve_expansion_sub_indexes``.
+    Dags serialized without the metadata (an older provider) resolve to ``None``: their
+    args were never deliverable, so they keep the legacy ignored-args behavior rather
+    than receive bindings whose order the server cannot know.
     """
+    metadata = getattr(task, "_mapped_arg_binding_params", None)
+    if metadata is None:
+        return None
+    # The isinstance/map_index/unclaimed checks below re-reject what the provider now
+    # fails at parse time, for serialized Dags produced by other provider versions.
     expand_input = task._get_specified_expand_input()
-    # TODO: Support the `expand_kwargs` path once https://github.com/apache/airflow/pull/69757
-    # is merged and all the Lang-SDKs adapt it.
     if not isinstance(expand_input, SchedulerDictOfListsExpandInput):
         _unsupported_arg_bindings("expand_kwargs() is not supported on stub tasks")
     if ti.map_index < 0:
         _unsupported_arg_bindings("the task instance has not been expanded to a map index")
 
     expand_value = expand_input.value
+    partial_op_kwargs = task.partial_kwargs.get("op_kwargs") or {}
+    if unclaimed := (set(expand_value) | set(partial_op_kwargs)) - {meta["name"] for meta in metadata}:
+        _unsupported_arg_bindings(f"kwargs {sorted(unclaimed)} are not in the captured parameter metadata")
     try:
         sub_indexes = expand_input.resolve_expansion_sub_indexes(ti.map_index, ti.run_id, session=session)
     except NotFullyPopulated as e:
@@ -97,20 +103,25 @@ def _resolve_mapped_stub_arg_bindings(
     except ValueError as e:
         _unsupported_arg_bindings(str(e))
 
-    # partial() kwargs. XComArgs inside partial() op_kwargs deserialize to _XComRef and
-    # are never dereferenced (set_task_dag_references only derefs the expand inputs), so
-    # resolve them here before binding.
-    spec = [
-        _bind_mapped_stub_arg(
-            name, value.deref(dag) if isinstance(value, _XComRef) else value, sub_index=None
-        )
-        for name, value in (task.partial_kwargs.get("op_kwargs") or {}).items()
-    ]
-    # expand() kwargs
-    spec += [
-        _bind_mapped_stub_arg(name, value, sub_index=sub_indexes[name])
-        for name, value in expand_value.items()
-    ]
+    spec = []
+    for meta in metadata:  # Declaration order, captured at parse time.
+        name = meta["name"]
+        if name in expand_value:
+            entry = _bind_mapped_stub_arg(name, expand_value[name], sub_index=sub_indexes[name])
+        elif name in partial_op_kwargs:
+            value = partial_op_kwargs[name]
+            # XComArgs inside partial() op_kwargs deserialize to _XComRef and are never
+            # dereferenced (set_task_dag_references only derefs the expand inputs).
+            if isinstance(value, _XComRef):
+                value = value.deref(dag)
+            entry = _bind_mapped_stub_arg(name, value, sub_index=None)
+        elif "default" in meta:
+            entry = {"name": name, "kind": "literal", "value": meta["default"], "from_default": True}
+        else:
+            _unsupported_arg_bindings(f"parameter {name!r} has no expanded, partial, or default value")
+        if (value_schema := meta.get("value_schema")) is not None:
+            entry["value_schema"] = value_schema
+        spec.append(entry)
     return spec
 
 

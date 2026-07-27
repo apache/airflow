@@ -81,20 +81,24 @@ class TestArgBindingsFieldBackwardCompat:
 
     def test_old_version_skips_undeliverable_arg_bindings_derivation(self, old_ver_client, dag_maker):
         """A stub whose bindings cannot be delivered must keep running for clients that never see them."""
-        with dag_maker("test_arg_bindings_compat_expand_kwargs", serialized=True):
+        with dag_maker("test_arg_bindings_compat_unexpanded", serialized=True):
 
             @task.stub
-            def transform(country: str): ...
+            def extract(): ...
 
-            transform.expand_kwargs([{"country": "uk"}])
+            @task.stub
+            def transform(extracted: dict): ...
+
+            transform.expand(extracted=extract())
 
         dr = dag_maker.create_dagrun()
-        (ti,) = dr.get_task_instances()
+        ti = dr.get_task_instance("transform")
+        assert ti.map_index == -1
         ti.set_state(State.QUEUED)
         dag_maker.session.flush()
 
-        # At head this Dag fails ti_run with a structured 500 (expand_kwargs is
-        # unsupported on stubs); a pre-arg-bindings client keeps the legacy behavior.
+        # At head this TI fails ti_run with a structured 500 (it has not been expanded
+        # to a map index); a pre-arg-bindings client keeps the legacy behavior.
         response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
