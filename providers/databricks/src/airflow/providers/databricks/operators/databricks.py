@@ -303,6 +303,16 @@ _DICT_PARAM_FIELD_BY_TASK = {
     "run_job_task": "job_parameters",
 }
 
+# Parameter slots in run-now payload that Databricks API rejects when combined with job_parameters
+_RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
+    "notebook_params",
+    "python_params",
+    "jar_params",
+    "spark_submit_params",
+    "python_named_params",
+    "dbt_commands",
+)
+
 
 def _inject_airflow_params_into_task(task: dict, params: dict) -> None:
     """Set dict-shaped per-task parameter fields from ``params`` if they are not already set."""
@@ -1174,7 +1184,11 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         If ``job_parameters`` is not set in ``json`` and the operator's ``params`` dict is
         non-empty, the operator's ``params`` are automatically forwarded as ``job_parameters``
         so that Airflow Dag params can be passed dynamically to Databricks runs without
-        hardcoding them in ``json``.
+        hardcoding them in ``json``. Set ``forward_dag_params=False`` to disable this.
+        Note that the Databricks API does not permit ``job_parameters`` to be used in combination
+        with ``notebook_params``, ``python_params``, ``jar_params``, ``spark_submit_params``,
+        ``python_named_params``, or ``dbt_commands``; auto-forwarding is automatically skipped
+        when any of those parameters are set.
     """
 
     external_id_key = "databricks_run_now_id"
@@ -1319,7 +1333,12 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             json["job_id"] = job_id
             del json["job_name"]
 
-        if self.forward_dag_params and not json.get("job_parameters") and self.params:
+        if (
+            self.forward_dag_params
+            and not json.get("job_parameters")
+            and self.params
+            and not any(k in json for k in _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS)
+        ):
             json["job_parameters"] = dict(self.params)
 
         return json
