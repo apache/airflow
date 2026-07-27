@@ -1,0 +1,1 @@
+Fix ``on_task_instance_failed`` and ``on_failure_callback`` not firing when ``TriggerDagRunOperator`` fails to trigger a Dag (e.g. target Dag not found). The API error is now routed through the normal task failure path, so listeners fire and retry policy is honored.
