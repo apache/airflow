@@ -96,6 +96,7 @@ describe("MarkdownModal", () => {
 
   it("toggles between the textarea and a rendered preview while editing", () => {
     // The modal is controlled, so drive mdContent from a stateful wrapper.
+    // eslint-disable-next-line unicorn/consistent-function-scoping -- test-local wrapper, keep beside the test
     const ControlledModal = () => {
       const [value, setValue] = useState("");
 
