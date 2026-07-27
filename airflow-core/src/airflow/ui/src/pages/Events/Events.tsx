@@ -66,17 +66,9 @@ const eventsColumn = (
   },
   {
     accessorKey: "owner",
+    cell: ({ row: { original } }) => original.owner_display_name ?? original.owner,
     enableSorting: true,
     header: translate("auditLog.columns.user"),
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "owner_display_name",
-    cell: ({ row: { original } }) => original.owner_display_name?.replace(/ -$/u, ""),
-    enableSorting: false,
-    header: translate("auditLog.columns.userDisplayName"),
     meta: {
       skeletonWidth: 10,
     },

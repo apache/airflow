@@ -18,24 +18,13 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import set_committed_value
 
-from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.core_api.services.public.event_logs import event_log_to_response
-from airflow.models import Log
+from airflow.models import DagModel, Log
 from airflow.utils.session import provide_session
 
 pytestmark = pytest.mark.db_test
-
-
-class User(BaseUser):
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    def get_id(self) -> str:
-        return self.name
-
-    def get_name(self) -> str:
-        return self.name
 
 
 def make_event_log(**kwargs) -> Log:
@@ -47,25 +36,29 @@ def make_event_log(**kwargs) -> Log:
 def test_event_log_to_response_keeps_stored_owner_display_name():
     event_log = make_event_log(owner="owner", owner_display_name="Stored Owner")
 
-    response = event_log_to_response(event_log=event_log, user=User("owner"))
+    response = event_log_to_response(event_log=event_log)
 
     assert response.owner_display_name == "Stored Owner"
 
 
-def test_event_log_to_response_resolves_current_user_display_name():
+def test_event_log_to_response_falls_back_to_owner_when_display_name_is_unset():
     event_log = make_event_log(owner="owner")
 
-    response = event_log_to_response(event_log=event_log, user=User("owner"))
+    response = event_log_to_response(event_log=event_log)
 
     assert response.owner_display_name == "owner"
 
 
-def test_event_log_to_response_falls_back_to_owner_when_user_does_not_match():
-    event_log = make_event_log(owner="owner")
+def test_event_log_to_response_keeps_loaded_relationship_display_names():
+    event_log = make_event_log(owner="owner", dag_id="my_dag")
+    # Mark the relationships as eager-loaded (as the routes do via joinedload) so the unloaded-cleanup
+    # leaves them in place instead of nulling them.
+    set_committed_value(event_log, "dag_model", DagModel(dag_id="my_dag"))
+    set_committed_value(event_log, "task_instance", None)
 
-    response = event_log_to_response(event_log=event_log, user=User("other-owner"))
+    response = event_log_to_response(event_log=event_log)
 
-    assert response.owner_display_name == "owner"
+    assert response.dag_display_name == "my_dag"
 
 
 @provide_session
@@ -74,7 +67,7 @@ def test_event_log_to_response_does_not_mark_event_log_dirty(*, session: Session
     session.add(event_log)
     session.flush()
 
-    response = event_log_to_response(event_log=event_log, user=User("owner"))
+    response = event_log_to_response(event_log=event_log)
 
     assert response.owner_display_name == "owner"
     assert event_log not in session.dirty

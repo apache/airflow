@@ -4,7 +4,6 @@
       "event": "Event",
       "extra": "Extra",
       "user": "User",
-      "userDisplayName": "User Display Name",
       "when": "When"
     },
     "filters": {
