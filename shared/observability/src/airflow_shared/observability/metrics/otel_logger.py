@@ -540,6 +540,9 @@ def configure_otel(
         interval_ms=interval_ms,
     )
 
+    # backcompat: if old-style config provided an endpoint/interval, set the env
+    # vars so the exporter (loaded below) picks them up automatically, mirroring
+    # what traces/configure_otel does
     if backcompat_endpoint:
         os.environ["OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"] = backcompat_endpoint
     if backcompat_interval_ms is not None:
