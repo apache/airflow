@@ -65,7 +65,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-def _sorted_by_dag_id(dags: Collection[DagModel]) -> list[DagModel]:
+def _sorted_by_dag_id(dags: set[DagModel]) -> list[DagModel]:
     """
     Order dags deterministically before queueing their AssetDagRunQueue rows.
 
