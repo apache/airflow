@@ -258,7 +258,7 @@ class BashOperator(BaseOperator):
     @classmethod
     def _is_inline_command(cls, bash_command: Any) -> bool:
         """Return True if the bash command is an inline string. False if it's a bash script file."""
-         return isinstance(bash_command, str) and not bash_command.endswith(tuple(cls.template_ext))
+        return isinstance(bash_command, str) and not bash_command.endswith(tuple(cls.template_ext))
 
     def on_kill(self) -> None:
         self.subprocess_hook.send_sigterm()
