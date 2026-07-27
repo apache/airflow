@@ -40,6 +40,7 @@ except ImportError:
 
 from airflow.providers.common.compat.sdk import (
     KNOWN_CONTEXT_KEYS,
+    XCOM_RETURN_KEY,
     DecoratedOperator,
     PlainXComArg,
     TaskDecorator,
@@ -190,7 +191,7 @@ def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
 def _validate_xcom_value(value: Any, task_id: str, name: str, *, allow_mapped_upstream: bool = False) -> bool:
     """Validate an XComArg argument, returning True when it is a bindable direct upstream output."""
     if isinstance(value, PlainXComArg):
-        if value.key != "return_value":
+        if value.key != XCOM_RETURN_KEY:
             raise ValueError(
                 f"@task.stub task {task_id!r} parameter {name!r} references the XCom key "
                 f"{value.key!r}; only an upstream task's return value can cross the language "

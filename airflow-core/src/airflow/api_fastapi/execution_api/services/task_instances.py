@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 from fastapi import HTTPException, status
 
 from airflow.models.expandinput import NotFullyPopulated, SchedulerDictOfListsExpandInput
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg, SchedulerXComArg
 from airflow.serialization.serialized_objects import _XComRef
@@ -128,7 +129,7 @@ def _resolve_mapped_stub_arg_bindings(
 def _bind_mapped_stub_arg(name: str, value: Any, *, sub_index: int | None) -> dict[str, Any]:
     """Build one arg-binding dict; ``sub_index`` is set for expanded kwargs, None for partial ones."""
     if isinstance(value, SchedulerPlainXComArg):
-        if value.key != "return_value":
+        if value.key != XCOM_RETURN_KEY:
             _unsupported_arg_bindings(f"parameter {name!r} references the XCom key {value.key!r}")
         if sub_index is None and value.operator.is_mapped:
             # A partial() kwarg over a mapped upstream would bind the unmapped XCom row
