@@ -1061,8 +1061,8 @@ Dags, and global components emit the same metrics without a ``team_name`` tag.
 The ``team_name`` tag is applied to metrics across the following components:
 
 - **Triggerer**: heartbeat, capacity, blocked-main-thread, trigger-queue delay, and trigger-outcome metrics
-  (for example, ``triggerer_heartbeat``, ``triggers.running``, ``triggers.succeeded``, 
-  ``triggers.blocked_main_thread``, ``triggers.trigger_queue_delay``).
+  (for example, ``triggerer_heartbeat``, ``triggers.running``, ``triggers.succeeded``,
+  ``triggers.blocked_main_thread``, ``triggerer.trigger_queue_delay``).
 - **Executors**: executor slot gauges and scheduler-observed executor heartbeat timing (for example,
   ``executor.open_slots``, ``executor.queued_tasks``, ``scheduler.executor_heartbeat_duration``).
 - **Scheduler**: pool slot gauges for team-scoped pools plus task- and asset-scheduling counters (for
