@@ -697,6 +697,15 @@ class S3DeleteObjectsOperator(AwsBaseOperator[S3Hook]):
 
         self._keys: str | list[str] = ""
 
+        # Checked here and again in execute(): this guard keeps a plain authoring mistake a
+        # parse-time error, while execute() catches a templated `keys` that renders to None
+        # (which would otherwise list — and delete from — the whole bucket).
+        by_scan = prefix is not None or from_datetime is not None or to_datetime is not None
+        if not exactly_one(keys is not None, by_scan):
+            raise ValueError(
+                "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
+            )
+
     def execute(self, context: Context):
         if not exactly_one(
             self.keys is None, all(var is None for var in [self.prefix, self.from_datetime, self.to_datetime])
