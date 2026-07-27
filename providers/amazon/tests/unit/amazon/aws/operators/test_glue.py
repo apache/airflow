@@ -769,6 +769,9 @@ class TestGlueJobOperatorOpenLineageInjection:
         mock_ti = mock.MagicMock()
         mock_ti.xcom_pull.return_value = None  # no previous run
         context = {"ti": mock_ti}
+        mock_glue_client = mock.MagicMock()
+        glue.hook.conn = mock_glue_client
+        mock_glue_client.get_job_runs.return_value = {"JobRuns": []}
         glue.execute(context)
 
         mock_inject_parent.assert_called_once()

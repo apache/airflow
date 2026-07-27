@@ -256,7 +256,7 @@ MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = str(AIRFLOW_ROOT_PATH)
 PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
 PR_REFERENCE_PATTERN = re.compile(r"#([0-9]+)")
-ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
+ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)(?![0-9])")
 # Release-management commits (provider documentation / release preparation) are pure
 # release-process noise: they are not user-facing changes and existing providers already
 # exclude them (the release tooling parks them in the changelog's excluded section). Match
