@@ -101,6 +101,7 @@ function startairflow_if_requested() {
         echo "Starting Airflow"
         echo
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
+        export AIRFLOW__CORE__LOAD_TESTING_DAGS=${LOAD_TESTING_DAGS}
 
         if airflow db migrate
         then
