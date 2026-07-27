@@ -1,0 +1,11 @@
+The default OTLP transport for traces changed from gRPC to ``http/protobuf``
+
+When traces are enabled (``[traces] otel_on = True``) and ``OTEL_TRACES_EXPORTER`` is unset or set to ``otlp``, spans are now exported over ``http/protobuf`` (typically port ``4318``) instead of gRPC (port ``4317``), following the OpenTelemetry SDK environment-variable specification. The transport is selected via ``OTEL_EXPORTER_OTLP_TRACES_PROTOCOL``, then ``OTEL_EXPORTER_OTLP_PROTOCOL``, defaulting to ``http/protobuf``. This matches how metrics already select their transport.
+
+Deployments that relied on the previous gRPC default should either accept OTLP/HTTP on their collector or restore the old behaviour explicitly:
+
+.. code-block:: bash
+
+    export OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc
+    # or, for all OTLP signals:
+    export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
