@@ -12,7 +12,6 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneS
 providers/amazon/src/airflow/providers/amazon/aws/operators/s3.py::S3DeleteObjectsOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker.py::SageMakerCreateNotebookOperator
 providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker.py::SageMakerProcessingOperator
-providers/amazon/src/airflow/providers/amazon/aws/operators/step_function.py::StepFunctionStartExecutionOperator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::GCSToS3Operator
 providers/amazon/src/airflow/providers/amazon/aws/transfers/s3_to_redshift.py::S3ToRedshiftOperator
 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
