@@ -53,6 +53,7 @@ type Props = {
   readonly onJumpToLatest: () => void;
   readonly runAfterGte?: string;
   readonly runAfterLte?: string;
+  readonly runIdPattern?: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly setOffset: (value: number) => void;
   readonly sharedScrollContainerRef?: RefObject<HTMLDivElement | null>;
@@ -70,6 +71,7 @@ export const Grid = ({
   onJumpToLatest,
   runAfterGte,
   runAfterLte,
+  runIdPattern,
   runType,
   setOffset,
   sharedScrollContainerRef,
@@ -99,6 +101,7 @@ export const Grid = ({
     offset,
     runAfterGte,
     runAfterLte,
+    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -121,6 +124,7 @@ export const Grid = ({
     includeUpstream,
     limit,
     root: filterRoot,
+    runIdPattern,
     runType,
     triggeringUser,
   });
