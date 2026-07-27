@@ -77,12 +77,6 @@ class TestTimeoutPosix:
             tp.handle_timeout(signal.SIGALRM, None)
 
     def test_handle_timeout_raises_even_when_log_write_fails(self):
-        # Task-runner logs go through a pipe owned by the supervisor. If that
-        # pipe is broken when SIGALRM fires (e.g. supervisor already died),
-        # self.log.error raises BrokenPipeError inside the signal handler.
-        # Without a guard, that OSError replaces the AirflowTaskTimeout, so
-        # the task exits with the wrong exception class and skips the
-        # timeout-handling path in task_runner. See #64212.
         if not hasattr(signal, "SIGALRM"):
             pytest.skip("SIGALRM not supported on this platform")
 

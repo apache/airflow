@@ -36,9 +36,7 @@ class TimeoutPosix:
 
     def handle_timeout(self, signum, frame):
         """Log information and raises AirflowTaskTimeout."""
-        # Logging must never mask the timeout: task-runner logs go through
-        # a pipe owned by the supervisor, and a broken pipe here would
-        # replace AirflowTaskTimeout with BrokenPipeError. See #64212.
+        # Ensure the timeout isn't masked by a logging error
         with contextlib.suppress(OSError):
             self.log.error("Process timed out", pid=os.getpid())
         raise AirflowTaskTimeout(self.error_message)
