@@ -40,6 +40,7 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/gcs_to
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/oracle_to_azure_data_lake.py::OracleToAzureDataLakeOperator
 providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator
 providers/oracle/src/airflow/providers/oracle/transfers/oracle_to_oracle.py::OracleToOracleOperator
+providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
 providers/papermill/src/airflow/providers/papermill/operators/papermill.py::PapermillOperator
 providers/standard/src/airflow/providers/standard/operators/bash.py::BashOperator
 providers/standard/src/airflow/providers/standard/operators/trigger_dagrun.py::TriggerDagRunOperator
