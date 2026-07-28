@@ -1157,10 +1157,18 @@ class TestTriggerRunner:
         mock_stats_incr.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_block_watchdog_logs_when_threshold_is_exceeded(self) -> None:
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    async def test_block_watchdog_logs_when_threshold_is_exceeded(self, team_name, expected_tags) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
             trigger_runner = TriggerRunner()
 
+        trigger_runner.team_name = team_name
         trigger_runner.log = AsyncMock()
 
         async def fake_sleep(_):
@@ -1178,7 +1186,7 @@ class TestTriggerRunner:
         assert "configured warning threshold" in log_message
         assert elapsed == pytest.approx(0.6)
         assert threshold == 0.5
-        mock_stats_incr.assert_called_once_with("triggers.blocked_main_thread")
+        mock_stats_incr.assert_called_once_with("triggers.blocked_main_thread", tags=expected_tags)
 
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
@@ -1588,11 +1596,64 @@ class TestTriggerRunner:
         ):
             await runner.create_triggers()
 
-        mock_timing.assert_called_once_with(
+        mock_timing.assert_any_call(
             "triggerer.trigger_queue_delay",
             1500,
             tags=expected_tags,
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.stats.timing")
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    async def test_create_triggers_emits_creation_duration_metric(
+        self,
+        mock_get_trigger_by_classpath,
+        mock_decrypt_kwargs,
+        mock_timing,
+        team_name,
+        expected_tags,
+    ):
+        mock_decrypt_kwargs.return_value = {"moment": timezone.utcnow() + datetime.timedelta(hours=1)}
+
+        workload = workloads.RunTrigger.model_construct(
+            id=1,
+            classpath="abc",
+            encrypted_kwargs="fake",
+        )
+
+        runner = TriggerRunner()
+        runner.team_name = team_name
+        runner.to_create.append(workload)
+
+        await runner.create_triggers()
+
+        mock_timing.assert_called_once()
+
+        metric_name, metric_value = mock_timing.call_args.args
+
+        assert metric_name == "triggerer.batch_trigger_creation_duration"
+
+        # Specific metric_value is not being asserted here as time.monotonic is difficult
+        # to mock deterministically.
+        assert metric_value >= 0
+        assert mock_timing.call_args.kwargs == {"tags": expected_tags}
+
+        task = runner.triggers[workload.id]["task"]
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+        await runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
