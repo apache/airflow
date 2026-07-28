@@ -724,7 +724,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         return cls(
             base_log_folder=os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
             delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
-            host=conf.get("elasticsearch", "host", fallback=""),
+            host=conf.get("elasticsearch", "host") or "http://localhost:9200",
             target_index=conf.get_mandatory_value("elasticsearch", "target_index"),
             write_stdout=conf.getboolean("elasticsearch", "write_stdout"),
             write_to_es=conf.getboolean("elasticsearch", "write_to_es"),

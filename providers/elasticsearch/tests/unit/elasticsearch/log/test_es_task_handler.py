@@ -1048,6 +1048,23 @@ class TestElasticsearchRemoteLogIOFromConfig:
         assert subject.offset_field == "log.offset"
         assert subject.log_id_template == "{dag_id}-{task_id}-{run_id}"
 
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("elasticsearch", "host"): "",
+            ("elasticsearch", "target_index"): "my-logs",
+            ("elasticsearch", "host_field"): "host",
+            ("elasticsearch", "offset_field"): "offset",
+            ("elasticsearch", "log_id_template"): "{dag_id}-{task_id}-{run_id}",
+        }
+    )
+    def test_from_config_missing_host_keeps_class_default(self):
+        # An empty [elasticsearch] host must not override the class default with "", which would
+        # make elasticsearch.Elasticsearch("") raise and silently disable remote logging.
+        subject = ElasticsearchRemoteLogIO.from_config()
+
+        assert subject.host == "http://localhost:9200"
+
     def test_provider_registers_elasticsearch_scheme(self):
         from airflow.providers_manager import ProvidersManager
 
