@@ -38,7 +38,8 @@ from unittest.mock import MagicMock
 import msgspec
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.orm import Session
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
@@ -1039,6 +1040,38 @@ class TestDagFileProcessorManager:
             ).all()
         )
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+
+    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self):
+        """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
+
+        Their files were removed during the upgrade, so nothing will ever parse them and fill the
+        column in, and the time-based check cannot reach them either (see #60763).
+
+        Migration ``0082_3_1_0_make_bundle_name_not_nullable`` backfills the column and makes it NOT
+        NULL, so such a row cannot be inserted into the current schema. The scratch database below
+        recreates the pre-3.1 schema, which is what a database upgraded from 2.x to 3.0.x looks like.
+        """
+        engine = create_engine("sqlite://")
+        with mock.patch.object(DagModel.__table__.c.bundle_name, "nullable", True):
+            DagBundleModel.__table__.create(engine)
+            DagModel.__table__.create(engine)
+
+        with Session(engine) as legacy_session:
+            legacy_session.add(
+                DagModel(
+                    dag_id="legacy_dag",
+                    bundle_name=None,
+                    relative_fileloc="legacy_file.py",
+                    last_parsed_time=timezone.utcnow(),
+                    is_stale=False,
+                )
+            )
+            legacy_session.flush()
+
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+            manager.deactivate_stale_dags(last_parsed={}, session=legacy_session)
+
+            assert legacy_session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
 
     @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
     def test_cleanup_stale_bundle_versions_interval(self, mock_bundle_manager):
