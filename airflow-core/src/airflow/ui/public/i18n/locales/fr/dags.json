@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "Tous les types de Run",
     "allStates": "Tous les états",
+    "anyRunState": "N'importe quel Run",
     "favorite": {
       "all": "Tous",
       "favorite": "Favoris",
       "unfavorite": "Non favoris"
     },
+    "lastRunState": "Dernier Run",
     "paused": {
       "active": "Actif",
       "all": "Tous",
@@ -76,6 +78,11 @@
       "upstream": "En amont"
     }
   },
+  "runStateCounts": {
+    "label": "États des Runs",
+    "loading": "Chargement du décompte des états des Runs",
+    "tooltip": "{{state}} : {{formattedCount}} — cliquez pour filtrer les Runs"
+  },
   "search": {
     "advanced": "Recherche avancée",
     "clear": "Effacer la recherche",
@@ -88,9 +95,9 @@
       "asc": "Trier par nom affiché (A-Z)",
       "desc": "Trier par nom affiché (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Trier par date de début du dernier Run (du plus ancien au plus récent)",
-      "desc": "Trier par date de début du dernier Run (du plus récent au plus ancien)"
+    "lastRunAfter": {
+      "asc": "Trier par dernier Run After (du plus ancien au plus récent)",
+      "desc": "Trier par dernier Run After (du plus récent au plus ancien)"
     },
     "lastRunState": {
       "asc": "Trier par état du dernier Run (A-Z)",

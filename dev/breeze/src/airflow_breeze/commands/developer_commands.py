@@ -107,6 +107,7 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
+    get_java_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
@@ -753,15 +754,6 @@ def start_airflow(
     sys.exit(result.returncode)
 
 
-def _get_java_sdk_version() -> str:
-    """Read the Java SDK version from 'java-sdk/gradle.properties'."""
-    props_path = AIRFLOW_ROOT_PATH / "java-sdk" / "gradle.properties"
-    for line in props_path.read_text().splitlines():
-        if match := re.match(r"^projectVersion\s*=\s*(\S+)$", line.strip()):
-            return match.group(1)
-    raise RuntimeError(f"Java SDK version not found in {props_path}")
-
-
 def _build_java_sdk_docs(generated_path: Path) -> int:
     """Run Dokka for the Java SDK and stage its output for the publish pipeline.
 
@@ -811,7 +803,7 @@ def _build_java_sdk_docs(generated_path: Path) -> int:
 
     # Write stable.txt so breeze release-management publish-docs treats this as a
     # versioned package and places it at docs-archive/java-sdk/{version}/.
-    sdk_version = _get_java_sdk_version()
+    sdk_version = get_java_sdk_version()
     stable_txt = generated_path / "_build" / "docs" / "java-sdk" / "stable.txt"
     stable_txt.write_text(sdk_version + "\n")
     console_print(f"[success]Java SDK docs staged at {dst}  (version: {sdk_version})")
@@ -822,6 +814,7 @@ def _build_python_docs(
     *,
     generated_path: Path,
     builder: str,
+    python: str,
     clean_build: bool,
     clean_inventory_cache: bool,
     refresh_airflow_inventories: bool,
@@ -839,7 +832,7 @@ def _build_python_docs(
 ):
     build_params = BuildCiParams(
         github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        python=python,
         builder=builder,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
@@ -894,7 +887,7 @@ def _build_python_docs(
     )
     shell_params = ShellParams(
         github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        python=python,
         mount_sources=MOUNT_ALL,
     )
     result = execute_command_in_shell(shell_params, project_name="breeze-docs", command=cmd)
@@ -941,6 +934,7 @@ def _build_python_docs(
 @option_github_repository
 @option_include_not_ready_providers
 @option_include_removed_providers
+@option_python
 @click.option(
     "--one-pass-only",
     help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
@@ -985,6 +979,7 @@ def build_docs(
     include_commits: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
+    python: str,
     distributions_list: str,
     spellcheck_only: bool,
     sdk: tuple[str, ...],
@@ -1015,6 +1010,7 @@ def build_docs(
             include_commits=include_commits,
             one_pass_only=one_pass_only,
             package_filter=package_filter,
+            python=python,
             distributions_list=distributions_list,
             spellcheck_only=spellcheck_only,
             doc_packages=doc_packages,

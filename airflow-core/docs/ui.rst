@@ -29,6 +29,11 @@ experienced users alike.
 .. note::
    Screenshots in this guide use **dark theme** by default. Select views are also shown in **light theme** for comparison. You can toggle themes from user settings located at the bottom corner of the Airflow UI.
 
+.. note::
+   The Airflow 3 UI uses modern browser and CSS features. Use a current version of Chrome, Edge, Firefox, or
+   Safari. Older browser versions that do not support modern CSS color functions such as ``oklch()`` or
+   ``color-mix()`` may render the UI incorrectly.
+
 .. _ui-home:
 
 Home Page

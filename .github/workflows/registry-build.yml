@@ -33,6 +33,11 @@ on:  # yamllint disable-line rule:truthy
         required: false
         type: string
         default: ""
+      python-version:
+        description: "Python version of the CI image the extraction runs in"
+        required: false
+        type: string
+        default: "3.12"
   workflow_call:
     inputs:
       destination:
@@ -45,6 +50,16 @@ on:  # yamllint disable-line rule:truthy
         required: false
         type: string
         default: ""
+      python-version:
+        description: "Python version of the CI image the extraction runs in"
+        required: false
+        type: string
+        default: "3.12"
+      ci-image-already-built:
+        description: "Caller has already built and stashed the CI image for this run"
+        required: false
+        type: boolean
+        default: false
     secrets:
       DOCS_AWS_ACCESS_KEY_ID:
         required: true
@@ -62,7 +77,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Skipped when the caller stashed an image for this run; a standalone dispatch has no
+    # such image and still builds its own.
     if: >
+      (inputs.ci-image-already-built != true) && (
       github.event_name == 'workflow_call' ||
       contains(fromJSON('[
         "ashb",
@@ -75,16 +93,18 @@ jobs:
         "pierrejeambrun",
         "shahar1",
         "potiuk",
+        "uranusjr",
         "utkarsharma2",
         "vincbeck"
-        ]'), github.event.sender.login)
+        ]'), github.event.sender.login))
     with:
       runners: '["ubuntu-22.04"]'
       platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"
-      upload-mount-cache-artifact: "false"
-      python-versions: '["3.12"]'
+      # Kept so a standalone registry dispatch reuses the mount cache its last run left behind.
+      upload-mount-cache-artifact: "true"
+      python-versions: ${{ format('["{0}"]', inputs.python-version) }}
       branch: "main"
       constraints-branch: "constraints-main"
       use-uv: "true"
@@ -96,6 +116,27 @@ jobs:
     timeout-minutes: 45
     name: "Build & Publish Registry"
     needs: [build-ci-image]
+    # `build-ci-image` is skipped when the caller stashed the image, so this cannot simply
+    # inherit its result — but it must keep enforcing the same committer allowlist that
+    # skipping that job used to enforce for us on a dispatch.
+    if: >
+      !cancelled() && needs.build-ci-image.result != 'failure' && (
+      github.event_name == 'workflow_call' ||
+      contains(fromJSON('[
+        "ashb",
+        "bugraoz93",
+        "eladkal",
+        "ephraimbuddy",
+        "jedcunningham",
+        "jscheffl",
+        "kaxil",
+        "pierrejeambrun",
+        "shahar1",
+        "potiuk",
+        "uranusjr",
+        "utkarsharma2",
+        "vincbeck"
+        ]'), github.event.sender.login))
     runs-on: ubuntu-latest
     env:
       SCARF_ANALYTICS: "false"
@@ -112,7 +153,7 @@ jobs:
       contents: read
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
           # Tags drive the phantom-version filter in extract_metadata.py
@@ -124,7 +165,7 @@ jobs:
       - name: "Prepare breeze & CI image"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          python: "3.12"
+          python: "${{ inputs.python-version }}"
           platform: "linux/amd64"
           use-uv: "true"
           make-mnt-writeable-and-cleanup: "true"
@@ -138,7 +179,7 @@ jobs:
           rm -rf /tmp/aws/
 
       - name: "Configure AWS credentials"
-        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b  # v6.2.0
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c  # v6.2.3
         with:
           aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
@@ -182,6 +223,7 @@ jobs:
         env:
           PROVIDER: ${{ inputs.provider }}
           DESTINATION: ${{ inputs.destination }}
+          PYTHON_VERSION: ${{ inputs.python-version }}
         run: |
           # Staging dispatches preview unreleased providers (maintainers want to
           # verify newly-bumped versions look right before tagging). Live builds
@@ -192,9 +234,10 @@ jobs:
             ALLOW_UNRELEASED="--allow-unreleased"
           fi
           if [[ -n "${PROVIDER}" ]]; then
-            breeze registry extract-data --python 3.12 --provider "${PROVIDER}" ${ALLOW_UNRELEASED}
+            breeze registry extract-data --python "${PYTHON_VERSION}" \
+              --provider "${PROVIDER}" ${ALLOW_UNRELEASED}
           else
-            breeze registry extract-data --python 3.12 ${ALLOW_UNRELEASED}
+            breeze registry extract-data --python "${PYTHON_VERSION}" ${ALLOW_UNRELEASED}
           fi
 
       # --- Incremental: merge new data with existing ---
@@ -231,12 +274,12 @@ jobs:
           fi
 
       - name: "Setup pnpm"
-        uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093  # v6.0.8
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
         with:
           version: 10
 
       - name: "Setup Node.js"
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: 24
           cache: 'pnpm'

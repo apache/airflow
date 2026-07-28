@@ -35,6 +35,12 @@ both a relative margin (``REL_THRESHOLD``) and an absolute floor
 (``MIN_ABS_INCREASE_MINUTES`` / ``JOB_MIN_ABS_INCREASE_MINUTES``) so short jobs
 with noisy timings do not trigger spurious alerts.
 
+The image-build step ("Prepare breeze & CI image") occasionally balloons on a
+one-off cache miss, so its time is *excluded* from the run and per-job durations
+used for the trend above. The image build is instead watched on its own and only
+reported when it has stayed slow for longer than ``IMAGE_BUILD_PERSISTENCE_DAYS``
+(so a single slow night never alerts).
+
 Environment variables (required):
   GITHUB_REPOSITORY  - Owner/repo (e.g. apache/airflow)
   GITHUB_TOKEN       - GitHub token for API access (used by ``gh``)
@@ -50,6 +56,8 @@ Environment variables (optional):
   REL_THRESHOLD             - Relative increase over baseline to flag, e.g. 0.25 = 25% (default: 0.25)
   MIN_ABS_INCREASE_MINUTES  - Absolute floor for the overall-run alert (default: 5)
   JOB_MIN_ABS_INCREASE_MINUTES - Absolute floor for per-job alerts (default: 3)
+  IMAGE_BUILD_PERSISTENCE_DAYS - Only report a slow image build once it has stayed
+                              elevated for at least this many days (default: 2)
   ANALYZE_JOBS              - Whether to fetch per-job durations ("true"/"false", default: true)
   ONLY_SUCCESSFUL           - Only consider runs that concluded "success" (default: true)
   SLACK_CHANNEL             - Slack channel for the message payload (default: internal-airflow-ci-cd)
@@ -66,8 +74,15 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import TypedDict
 
 ISO_SUFFIX_Z = "Z"
+PREPARE_BREEZE_STEP_PREFIX = "Prepare breeze & CI image"
+
+
+class JobDuration(TypedDict):
+    duration: float
+    prepare_breeze_duration: float | None
 
 
 def env_float(name: str, default: float) -> float:
@@ -171,6 +186,13 @@ def format_duration(seconds: float) -> str:
     return f"{minutes}m {secs:02d}s"
 
 
+def format_duration_delta(seconds: float) -> str:
+    """Format a duration delta with an explicit sign."""
+    if seconds < 0:
+        return f"-{format_duration(abs(seconds))}"
+    return f"+{format_duration(seconds)}"
+
+
 # Wall-clock shorter than this almost always means a run that was cancelled,
 # skipped by selective checks, or never really executed the test matrix — not a
 # representative "main build". Such runs would corrupt the duration baseline.
@@ -227,8 +249,46 @@ def get_recent_runs(
     return runs
 
 
-def get_run_jobs(repo: str, run_id: int) -> dict[str, float]:
-    """Return a mapping of job name -> duration in seconds for a single run.
+def get_prepare_breeze_step_duration(job: dict) -> float | None:
+    """Return the prepare breeze step duration for a job, when the step exists."""
+    for step in job.get("steps", []):
+        name = step.get("name", "")
+        if not name.startswith(PREPARE_BREEZE_STEP_PREFIX):
+            continue
+        return duration_seconds(step.get("startedAt"), step.get("completedAt"))
+    return None
+
+
+def calculate_work_duration(job_data: JobDuration) -> float:
+    """Return a job's wall-clock with the image-build (prepare breeze) step removed.
+
+    The image build occasionally balloons — a cache miss forces a full rebuild
+    (minutes → tens of minutes) — which would otherwise inflate the job's total
+    and flag an unrelated job as "slower". The duration trend should track the
+    actual test/work time, so image build is discounted from it and watched
+    separately by :func:`detect_image_build_regression`.
+    """
+    prepare_breeze = job_data["prepare_breeze_duration"] or 0.0
+    return max(job_data["duration"] - prepare_breeze, 0.0)
+
+
+def calculate_image_build_seconds(jobs: dict[str, JobDuration]) -> float | None:
+    """Return a representative image-build duration for a run.
+
+    The same CI image is prepared by every job, so the median prepare-breeze
+    duration across the run's jobs is a robust single figure for that run
+    (ignoring jobs where the step is absent). None when no job recorded it.
+    """
+    values = [
+        job["prepare_breeze_duration"] for job in jobs.values() if job["prepare_breeze_duration"] is not None
+    ]
+    if not values:
+        return None
+    return median(values)
+
+
+def get_run_jobs(repo: str, run_id: int) -> dict[str, JobDuration]:
+    """Return a mapping of job name -> duration details for a single run.
 
     Only jobs that completed successfully are included, so that a job which was
     cancelled or skipped on a particular run does not pollute its duration trend.
@@ -247,7 +307,7 @@ def get_run_jobs(repo: str, run_id: int) -> dict[str, float]:
     except json.JSONDecodeError:
         return {}
 
-    durations: dict[str, float] = {}
+    durations: dict[str, JobDuration] = {}
     for job in data.get("jobs", []):
         if job.get("conclusion") != "success":
             continue
@@ -256,7 +316,12 @@ def get_run_jobs(repo: str, run_id: int) -> dict[str, float]:
             continue
         name = job.get("name", "unknown")
         # A matrix can surface the same job name more than once per run; keep the longest.
-        durations[name] = max(durations.get(name, 0.0), seconds)
+        existing = durations.get(name)
+        if existing is None or seconds > existing["duration"]:
+            durations[name] = {
+                "duration": seconds,
+                "prepare_breeze_duration": get_prepare_breeze_step_duration(job),
+            }
     return durations
 
 
@@ -287,24 +352,38 @@ def detect_regression(
     return None
 
 
+def fetch_run_jobs_map(repo: str, runs: list[dict]) -> dict[int, dict[str, JobDuration]]:
+    """Fetch per-job durations once for every run, keyed by run id.
+
+    Shared by the per-job trend, the overall-run image-build discount, and the
+    image-build persistence check so the jobs of each run are fetched only once.
+    """
+    return {run["id"]: get_run_jobs(repo, run["id"]) for run in runs}
+
+
 def analyze_jobs(
-    repo: str,
+    jobs_by_run_id: dict[int, dict[str, JobDuration]],
     latest_runs: list[dict],
     baseline_runs: list[dict],
     min_baseline_runs: int,
     rel_threshold: float,
     min_abs_increase_seconds: float,
 ) -> list[dict]:
-    """Fetch per-job durations and return the jobs whose latest duration regressed."""
+    """Return the jobs whose latest duration regressed, image-build time excluded.
+
+    The comparison uses :func:`calculate_work_duration` (wall-clock minus the image-build
+    step) on both sides, so an occasional image rebuild spike does not flag a job
+    that did not actually get slower.
+    """
     latest_job_durations: dict[str, list[float]] = {}
     for run in latest_runs:
-        for name, seconds in get_run_jobs(repo, run["id"]).items():
-            latest_job_durations.setdefault(name, []).append(seconds)
+        for name, job_data in jobs_by_run_id.get(run["id"], {}).items():
+            latest_job_durations.setdefault(name, []).append(calculate_work_duration(job_data))
 
     baseline_job_durations: dict[str, list[float]] = {}
     for run in baseline_runs:
-        for name, seconds in get_run_jobs(repo, run["id"]).items():
-            baseline_job_durations.setdefault(name, []).append(seconds)
+        for name, job_data in jobs_by_run_id.get(run["id"], {}).items():
+            baseline_job_durations.setdefault(name, []).append(calculate_work_duration(job_data))
 
     regressions: list[dict] = []
     for name, latest_values in latest_job_durations.items():
@@ -322,12 +401,73 @@ def analyze_jobs(
     return regressions
 
 
+def detect_image_build_regression(
+    runs: list[dict],
+    jobs_by_run_id: dict[int, dict[str, JobDuration]],
+    latest_runs_count: int,
+    min_baseline_runs: int,
+    rel_threshold: float,
+    min_abs_increase_seconds: float,
+    persistence_days: float,
+) -> dict | None:
+    """Flag the image build only when it has been slow for longer than ``persistence_days``.
+
+    Image-build time is discounted from every other trend precisely because it
+    spikes on a one-off cache miss. A genuinely slow image (a bad base image, a
+    heavier install) shows up as an elevation that *persists* across runs. So we
+    compare each run's representative image-build time (:func:`calculate_image_build_seconds`)
+    against a baseline drawn from the oldest runs in the window, then require an
+    unbroken streak of elevated runs — starting at the most recent — that spans
+    more than ``persistence_days``. A single slow night never alerts.
+    """
+    per_run: list[tuple[dict, float]] = []
+    for run in runs:
+        seconds = calculate_image_build_seconds(jobs_by_run_id.get(run["id"], {}))
+        if seconds is not None:
+            per_run.append((run, seconds))
+    if len(per_run) < latest_runs_count + min_baseline_runs:
+        return None
+
+    # Baseline from the oldest runs in the window: a recent multi-day spike must not
+    # contaminate the baseline it is being measured against.
+    baseline = median([seconds for _, seconds in per_run[-min_baseline_runs:]])
+    threshold = baseline * (1 + rel_threshold)
+
+    streak: list[tuple[dict, float]] = []
+    for run, seconds in per_run:  # newest first
+        if seconds > threshold and (seconds - baseline) >= min_abs_increase_seconds:
+            streak.append((run, seconds))
+        else:
+            break
+    if not streak:
+        return None
+
+    newest_dt = parse_iso(streak[0][0].get("created_at"))
+    oldest_dt = parse_iso(streak[-1][0].get("created_at"))
+    if newest_dt is None or oldest_dt is None:
+        return None
+    span_seconds = (newest_dt - oldest_dt).total_seconds()
+    if span_seconds < persistence_days * 86400:
+        return None
+
+    latest = median([seconds for _, seconds in streak])
+    return {
+        "latest": latest,
+        "baseline": baseline,
+        "increase": latest - baseline,
+        "rel_increase": (latest - baseline) / baseline if baseline > 0 else 0.0,
+        "elevated_runs": len(streak),
+        "span_days": span_seconds / 86400,
+    }
+
+
 def format_slack_message(
     repo: str,
     workflow: str,
     branch: str,
     overall_regression: dict | None,
     job_regressions: list[dict],
+    image_build_regression: dict | None,
     recent_runs: list[dict],
     rel_threshold: float,
     channel: str,
@@ -346,12 +486,32 @@ def format_slack_message(
                     f"CI run times on *{escape_slack_mrkdwn(branch)}* "
                     f"(`{escape_slack_mrkdwn(workflow)}`) have risen above the recent trend "
                     f"(baseline = median of the preceding runs; threshold = "
-                    f"+{int(rel_threshold * 100)}%)."
+                    f"+{int(rel_threshold * 100)}%). Image-build time is excluded from these "
+                    f"durations and reported separately."
                 ),
             },
         },
         {"type": "divider"},
     ]
+
+    if image_build_regression:
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": (
+                        f"🐳 *CI image build slow for {image_build_regression['span_days']:.1f} days* "
+                        f"(across {image_build_regression['elevated_runs']} runs) — not a one-off "
+                        f"cache miss:\n"
+                        f"• {PREPARE_BREEZE_STEP_PREFIX}: "
+                        f"{format_duration(image_build_regression['baseline'])} → "
+                        f"*{format_duration(image_build_regression['latest'])}* "
+                        f"(+{round(image_build_regression['rel_increase'] * 100, 1)}%)"
+                    ),
+                },
+            }
+        )
 
     if overall_regression:
         blocks.append(
@@ -371,7 +531,7 @@ def format_slack_message(
         )
 
     if job_regressions:
-        lines = ["*Jobs that got slower:*"]
+        lines = ["*Jobs that got slower (image build excluded):*"]
         for reg in job_regressions[:15]:
             lines.append(
                 f"• *{escape_slack_mrkdwn(reg['job'])}* — "
@@ -420,6 +580,8 @@ def format_slack_message(
         fallback_parts.append(f"overall +{round(overall_regression['rel_increase'] * 100, 1)}%")
     if job_regressions:
         fallback_parts.append(f"{len(job_regressions)} slower job(s)")
+    if image_build_regression:
+        fallback_parts.append(f"image build slow {image_build_regression['span_days']:.1f}d")
     fallback = f"CI Duration Trend Alert on {branch}: " + ", ".join(fallback_parts)
 
     return {
@@ -434,6 +596,7 @@ def write_step_summary(
     branch: str,
     overall_regression: dict | None,
     job_regressions: list[dict],
+    image_build_regression: dict | None,
     recent_runs: list[dict],
     baseline_count: int,
 ) -> None:
@@ -445,9 +608,22 @@ def write_step_summary(
     lines = [
         "## ⏱️ CI Duration Trend",
         "",
-        f"Workflow `{workflow}` on `{branch}` — baseline from {baseline_count} preceding runs.",
+        f"Workflow `{workflow}` on `{branch}` — baseline from {baseline_count} preceding runs. "
+        "Image-build time is excluded from run/job durations and tracked separately.",
         "",
     ]
+
+    if image_build_regression:
+        lines += [
+            f"### 🐳 CI image build slow for {image_build_regression['span_days']:.1f} days",
+            "",
+            f"- {PREPARE_BREEZE_STEP_PREFIX}: "
+            f"**{format_duration(image_build_regression['latest'])}** "
+            f"(baseline {format_duration(image_build_regression['baseline'])}, "
+            f"+{round(image_build_regression['rel_increase'] * 100, 1)}%) "
+            f"across {image_build_regression['elevated_runs']} runs",
+            "",
+        ]
 
     if overall_regression:
         lines += [
@@ -507,6 +683,7 @@ def main() -> None:
     rel_threshold = env_float("REL_THRESHOLD", 0.25)
     min_abs_increase_seconds = env_float("MIN_ABS_INCREASE_MINUTES", 5.0) * 60
     job_min_abs_increase_seconds = env_float("JOB_MIN_ABS_INCREASE_MINUTES", 3.0) * 60
+    image_build_persistence_days = env_float("IMAGE_BUILD_PERSISTENCE_DAYS", 2.0)
     do_analyze_jobs = env_bool("ANALYZE_JOBS", True)
     only_successful = env_bool("ONLY_SUCCESSFUL", True)
     channel = os.environ.get("SLACK_CHANNEL", "internal-airflow-ci-cd")
@@ -522,22 +699,32 @@ def main() -> None:
             f"Not enough runs to establish a trend "
             f"(found {len(runs)}, need {latest_runs_count + min_baseline_runs}). Skipping."
         )
-        _write_outputs(False, False, 0)
+        _write_outputs(False, False, 0, False)
         sys.exit(0)
 
     latest_runs = runs[:latest_runs_count]
     baseline_runs = runs[latest_runs_count:]
     print(f"Latest runs: {len(latest_runs)}; baseline runs: {len(baseline_runs)}.")
 
+    # Fetch each run's jobs once: they feed the image-build discount below, the
+    # per-job trend, and the image-build persistence check.
+    jobs_by_run_id = fetch_run_jobs_map(repo, runs) if do_analyze_jobs else {}
+
+    def calculate_adjusted_run_duration(run: dict) -> float:
+        """Run wall-clock with the image-build component of its critical path removed."""
+        image_build = calculate_image_build_seconds(jobs_by_run_id.get(run["id"], {})) or 0.0
+        return max(run["duration"] - image_build, 0.0)
+
     overall_regression = detect_regression(
-        [r["duration"] for r in latest_runs],
-        [r["duration"] for r in baseline_runs],
+        [calculate_adjusted_run_duration(r) for r in latest_runs],
+        [calculate_adjusted_run_duration(r) for r in baseline_runs],
         rel_threshold,
         min_abs_increase_seconds,
     )
     if overall_regression:
         print(
-            f"Overall regression: {format_duration(overall_regression['baseline'])} -> "
+            f"Overall regression (image build excluded): "
+            f"{format_duration(overall_regression['baseline'])} -> "
             f"{format_duration(overall_regression['latest'])} "
             f"(+{round(overall_regression['rel_increase'] * 100, 1)}%)"
         )
@@ -545,9 +732,10 @@ def main() -> None:
         print("Overall run duration is within the recent trend.")
 
     job_regressions: list[dict] = []
+    image_build_regression: dict | None = None
     if do_analyze_jobs:
         job_regressions = analyze_jobs(
-            repo,
+            jobs_by_run_id,
             latest_runs,
             baseline_runs,
             min_baseline_runs,
@@ -556,22 +744,60 @@ def main() -> None:
         )
         print(f"Jobs that regressed: {len(job_regressions)}")
 
-    has_regression = bool(overall_regression) or bool(job_regressions)
+        image_build_regression = detect_image_build_regression(
+            runs,
+            jobs_by_run_id,
+            latest_runs_count,
+            min_baseline_runs,
+            rel_threshold,
+            job_min_abs_increase_seconds,
+            image_build_persistence_days,
+        )
+        if image_build_regression:
+            print(
+                f"Image build slow for {image_build_regression['span_days']:.1f} days: "
+                f"{format_duration(image_build_regression['baseline'])} -> "
+                f"{format_duration(image_build_regression['latest'])}"
+            )
+        else:
+            print("Image build within trend (or not slow long enough to report).")
+
+    has_regression = bool(overall_regression) or bool(job_regressions) or bool(image_build_regression)
 
     if has_regression:
         slack_message = format_slack_message(
-            repo, workflow, branch, overall_regression, job_regressions, runs, rel_threshold, channel
+            repo,
+            workflow,
+            branch,
+            overall_regression,
+            job_regressions,
+            image_build_regression,
+            runs,
+            rel_threshold,
+            channel,
         )
         output_file.write_text(json.dumps(slack_message, indent=2))
         print(f"Slack message written to: {output_file}")
     else:
         print("No regression detected; no Slack message written.")
 
-    write_step_summary(workflow, branch, overall_regression, job_regressions, runs, len(baseline_runs))
-    _write_outputs(has_regression, bool(overall_regression), len(job_regressions))
+    write_step_summary(
+        workflow,
+        branch,
+        overall_regression,
+        job_regressions,
+        image_build_regression,
+        runs,
+        len(baseline_runs),
+    )
+    _write_outputs(
+        has_regression, bool(overall_regression), len(job_regressions), bool(image_build_regression)
+    )
 
 
-def _write_outputs(has_regression: bool, overall_regression: bool, regressed_jobs: int) -> None:
+def _write_outputs(
+    has_regression: bool, overall_regression: bool, regressed_jobs: int, image_build_regression: bool
+) -> None:
     """Write GitHub Actions outputs used to gate the Slack-notify step."""
     github_output = os.environ.get("GITHUB_OUTPUT")
     if not github_output:
@@ -580,6 +806,7 @@ def _write_outputs(has_regression: bool, overall_regression: bool, regressed_job
         f.write(f"has-regression={str(has_regression).lower()}\n")
         f.write(f"overall-regression={str(overall_regression).lower()}\n")
         f.write(f"regressed-jobs={regressed_jobs}\n")
+        f.write(f"image-build-regression={str(image_build_regression).lower()}\n")
 
 
 if __name__ == "__main__":

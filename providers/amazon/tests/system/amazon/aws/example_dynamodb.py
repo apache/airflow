@@ -40,9 +40,6 @@ except ImportError:
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-# TODO: FIXME The argument types here seems somewhat tricky to fix
-# mypy: disable-error-code="arg-type"
-
 DAG_ID = "example_dynamodb"
 sys_test_context_task = SystemTestContextBuilder().build()
 
@@ -88,8 +85,8 @@ with DAG(
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     table_name = f"{env_id}-dynamodb-table"
-    create_table = create_table(table_name=table_name)
-    delete_table = delete_table(table_name)
+    create_table_task = create_table(table_name=table_name)
+    delete_table_task = delete_table(table_name)
 
     # [START howto_sensor_dynamodb_value]
     dynamodb_sensor = DynamoDBValueSensor(
@@ -120,12 +117,12 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
-        create_table,
+        create_table_task,
         # TEST BODY
         dynamodb_sensor,
         dynamodb_sensor_any_value,
         # TEST TEARDOWN
-        delete_table,
+        delete_table_task,
     )
 
     from tests_common.test_utils.watcher import watcher

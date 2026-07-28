@@ -50,11 +50,10 @@ class TaskStateStoreModel(Base):
 
     value: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT, "mysql"), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    # Optional override for early expiry. When set, garbage collection deletes this row when
-    # expires_at < now(), even if updated_at is recent. NULL means no early expiry —
-    # the row is still cleaned up by the global `updated_at + default_retention_days` check.
-    # Populated via task_state_store.set(retention_days=N) for keys that should expire differently
-    # than the deployment wide default.
+    # Absolute UTC timestamp which denotes expiry of this row. CLI cleanup will delete this row once
+    # (WHERE expires_at < now()). Computed at write time from the explicit
+    # ``retention`` argument or the global ``default_retention_days`` config.
+    # NULL means the row is never deleted by cleanup.
     expires_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (

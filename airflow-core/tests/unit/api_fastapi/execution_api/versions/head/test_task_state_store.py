@@ -296,25 +296,6 @@ class TestClearTaskState:
             )
             assert remaining_indices == [0, 1]
 
-    def test_clear_with_all_map_indices_query_param_wipes_fleet(
-        self, client: TestClient, create_task_instance: CreateTaskInstance
-    ):
-        """Clear with ?all_map_indices=true wipes state for every mapped instance."""
-        ti = create_task_instance(map_index=2)
-        self._seed_fleet_rows(ti, (0, 1, 2))
-
-        response = client.delete(_api_url(ti.id), params={"all_map_indices": "true"})
-
-        assert response.status_code == 204
-        with create_session() as session:
-            remaining = session.scalars(
-                select(TaskStateStoreModel).where(
-                    TaskStateStoreModel.dag_id == ti.dag_id,
-                    TaskStateStoreModel.task_id == ti.task_id,
-                )
-            ).all()
-            assert remaining == []
-
 
 class TestTiSelfEnforcement:
     @pytest.fixture

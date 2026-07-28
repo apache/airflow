@@ -123,6 +123,7 @@ class DagRunProtocol(Protocol):
     triggering_user_name: str | None
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
+    partition_date: AwareDatetime | None
     note: str | None
 
 

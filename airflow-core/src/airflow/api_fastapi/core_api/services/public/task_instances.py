@@ -140,9 +140,7 @@ def _reload_tis_with_rendered_fields(tis: list[TI], session: Session) -> list[TI
             .options(joinedload(TI.rendered_task_instance_fields))
             .where(TI.id.in_([ti.id for ti in tis]))
             .execution_options(populate_existing=True)
-        )
-        .unique()
-        .all()
+        ).all()
     )
 
 
@@ -315,7 +313,9 @@ def _patch_task_instance_note(
 ) -> None:
     for ti in tis:
         if update_mask or task_instance_body.note is not None:
-            if ti.task_instance_note is None:
+            if task_instance_body.note == "":
+                ti.task_instance_note = None
+            elif ti.task_instance_note is None:
                 ti.note = (task_instance_body.note, user.get_id())
             else:
                 ti.task_instance_note.content = task_instance_body.note
@@ -468,22 +468,22 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             update_mask=update_mask,
         )
 
-        for key, _ in data.items():
-            if key == "new_state":
-                _patch_task_instance_state(
-                    task_id=task_id,
-                    dag_run_id=dag_run_id,
-                    dag=dag,
-                    task_instance_body=entity,
-                    session=self.session,
-                    data=data,
-                )
-            elif key == "note":
-                _patch_task_instance_note(
-                    task_instance_body=entity,
-                    tis=tis,
-                    user=self.user,
-                )
+        # Apply "note" before "state" so listeners fired inside _patch_task_instance_state() see the updated note.
+        if "note" in data:
+            _patch_task_instance_note(
+                task_instance_body=entity,
+                tis=tis,
+                user=self.user,
+            )
+        if "new_state" in data:
+            _patch_task_instance_state(
+                task_id=task_id,
+                dag_run_id=dag_run_id,
+                dag=dag,
+                task_instance_body=entity,
+                session=self.session,
+                data=data,
+            )
 
         results.success.append(f"{dag_id}.{dag_run_id}.{task_id}[{map_index}]")
 

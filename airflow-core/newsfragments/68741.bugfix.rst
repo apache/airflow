@@ -1,0 +1,1 @@
+Ignore stale executor success when a deferred task is rescheduled into QUEUED before the scheduler processes the stale SUCCESS from the worker.

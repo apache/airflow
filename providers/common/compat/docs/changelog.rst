@@ -25,6 +25,36 @@
 Changelog
 ---------
 
+1.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Honor async hook subclass overrides in get_async_connection (#69140)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+1.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Added get_async_hook in common.compat provider (#69208)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'RecursionError' in 'common.compat' hook lineage 'add_extra polyfill' (#68735)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 1.15.0
 ......
 

@@ -11,6 +11,24 @@
     },
     "title": "Audit Log"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Alertnaam",
+      "deadlineTime": "Deadline tijd",
+      "status": "Status"
+    },
+    "deadline_one": "Deadline",
+    "deadline_other": "Deadlines",
+    "filters": {
+      "status": "Status",
+      "statusOptions": {
+        "all": "Alles",
+        "missed": "Gemist",
+        "pending": "In afwachting"
+      }
+    },
+    "title": "Deadlines"
+  },
   "xcom": {
     "add": {
       "error": "Mislukt om XCom toe te voegen",

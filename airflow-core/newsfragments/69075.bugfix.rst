@@ -1,0 +1,1 @@
+Fix mapped task group return value handed to a downstream task being a bare value instead of a one-element list when the group expanded only once (and ``None`` instead of an empty list when every expansion returned ``None``).

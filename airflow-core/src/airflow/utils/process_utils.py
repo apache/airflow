@@ -22,6 +22,7 @@ from __future__ import annotations
 import array
 import errno
 import logging
+import multiprocessing
 import os
 import select
 import shlex
@@ -388,3 +389,67 @@ def set_new_process_group() -> None:
         return
 
     os.setpgid(0, 0)
+
+
+_MP_START_METHOD_OPTION = "mp_start_method"
+_MP_FORKSERVER_PRELOAD_OPTION = "mp_forkserver_preload"
+
+
+def resolve_mp_start_method(component: str) -> str | None:
+    """
+    Return the configured ``multiprocessing`` start method for *component*, or ``None``.
+
+    Resolution order: ``[<component>] mp_start_method`` then ``[core] mp_start_method`` then
+    ``None`` (keep the platform default).
+    """
+    method = conf.get(component, _MP_START_METHOD_OPTION, fallback=None) or conf.get(
+        "core", _MP_START_METHOD_OPTION, fallback=None
+    )
+    return method.strip() if method and method.strip() else None
+
+
+def set_component_mp_start_method(component: str) -> None:
+    """
+    Apply the configured ``multiprocessing`` start method for *component*, if any.
+
+    Python 3.14 changed the Unix (non-macOS) default from ``fork`` to ``forkserver``;
+    ``forkserver``/``spawn`` children re-import Airflow instead of sharing it copy-on-write, which
+    inflates the memory of components that spawn workers (the scheduler's ``LocalExecutor`` and the
+    triggerer). This restores control over that choice.
+
+    Must be called before the component creates any ``multiprocessing`` object (e.g. before the
+    executor or job runner starts). A no-op when unset or when the method is unavailable on the
+    current platform, so it is always safe to call.
+    """
+    method = resolve_mp_start_method(component)
+    if not method:
+        return
+
+    available = multiprocessing.get_all_start_methods()
+    if method not in available:
+        log.warning(
+            "Configured %s=%r for %s is not available on this platform (available: %s); "
+            "leaving the platform default start method in place.",
+            _MP_START_METHOD_OPTION,
+            method,
+            component,
+            available,
+        )
+        return
+
+    try:
+        multiprocessing.set_start_method(method, force=True)
+    except (RuntimeError, ValueError) as exc:
+        log.warning("Could not set multiprocessing start method to %r for %s: %s", method, component, exc)
+        return
+    log.info("Set multiprocessing start method to %r for %s", method, component)
+
+    if method == "forkserver":
+        preload_raw = conf.get(component, _MP_FORKSERVER_PRELOAD_OPTION, fallback=None) or conf.get(
+            "core", _MP_FORKSERVER_PRELOAD_OPTION, fallback=None
+        )
+        modules = [m.strip() for m in preload_raw.split(",")] if preload_raw else []
+        modules = [m for m in modules if m]
+        if modules:
+            multiprocessing.set_forkserver_preload(modules)
+            log.info("Set forkserver preload modules for %s: %s", component, modules)

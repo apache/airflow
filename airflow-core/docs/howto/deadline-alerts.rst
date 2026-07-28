@@ -110,14 +110,14 @@ Airflow provides several built-in reference points that you can use with Deadlin
     Specifies a fixed point in time. Useful when Dags must complete by a specific time.
 
 ``DeadlineReference.AVERAGE_RUNTIME``
-    Calculates deadlines based on the average runtime of previous Dag runs. This reference
+    Calculates deadlines based on the average runtime of previous successful Dag runs. This reference
     analyzes historical execution data to predict when the current run should complete.
     The deadline is set to the current time plus the calculated average runtime plus the interval.
     If insufficient historical data exists, no deadline is created.
 
     Parameters:
-        * ``max_runs`` (int, optional): Maximum number of recent Dag runs to analyze. Defaults to 10.
-        * ``min_runs`` (int, optional): Minimum number of completed runs required to calculate average. Defaults to same value as ``max_runs``.
+        * ``max_runs`` (int, optional): Maximum number of successful recent Dag runs to analyze. Defaults to 10.
+        * ``min_runs`` (int, optional): Minimum number of successful recent Dag runs required to calculate average. Defaults to same value as ``max_runs``.
 
     Example usage:
 

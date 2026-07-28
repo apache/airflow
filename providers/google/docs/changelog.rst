@@ -27,6 +27,73 @@
 Changelog
 ---------
 
+22.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Emit per-statement OpenLineage events for BigQuery script jobs (#69234)``
+* ``Add Vertex AI Agent Engine operators (Create, Get, Query, Update, Delete) (#68479)``
+* ``Adding durable execution to 'BigQueryInsertJobOperator' (#69542)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Preserve Dataform workflow invocation config (#53843) (#69161)``
+* ``Make schema_fields templated in GCSToBigQueryOperator (#69108)``
+* ``Fix Google Links for TPC (Trusted Partner Cloud) (#69805)``
+* ``Fix Google Cloud Batch error messages to include job name (#69783)``
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix the google provider dataform system test (#70136)``
+   * ``Format Dataflow wordcount system-test resource with gofmt (#70174)``
+
+
+22.2.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Log SQL query on its own line in BigQueryInsertJobOperator (#69386)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+
+22.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix GKE provider 401 on kubernetes client 36.x (#69032)``
+
+Misc
+~~~~
+
+* ``Deprecate implicit legacy SQL default in BigQuery operators (#67113)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky CloudSQL custom-universe trigger test on loaded runners (#68981)``
+
 22.2.0
 ......
 

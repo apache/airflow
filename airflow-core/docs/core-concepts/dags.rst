@@ -674,6 +674,7 @@ doc_rst     reStructuredText
 ==========  ================
 
 Please note that for Dags and TaskGroups, ``doc_md`` is the only attribute interpreted. It can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
+Dag documentation is rendered as Markdown, so fenced code blocks, tables, and other common Markdown constructs are supported. Fenced code blocks whose language is ``math`` are rendered with KaTeX, and Mermaid diagrams are rendered from fenced code blocks whose language is ``mermaid``.
 If a relative path is supplied it will be loaded from the path relative to which the Airflow Scheduler or Dag parser was started. If the markdown file does not exist, the passed filename will be used as text, no exception will be displayed. Note that the markdown file is loaded during Dag parsing, changes to the markdown content take one Dag parsing cycle to have changes be displayed.
 
 This is especially useful if your tasks are built dynamically from configuration files, as it allows you to expose the configuration that led to the related tasks in Airflow:

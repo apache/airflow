@@ -186,11 +186,11 @@ class ContinuousTimetable(_TrivialTimetable):
         return DagRunInfo.interval(start, end)
 
 
-class PartitionAtRuntime(NullTimetable):
+class PartitionedAtRuntime(NullTimetable):
     """
     Timetable that never schedules anything; partition keys are set at runtime.
 
-    This corresponds to ``schedule=PartitionAtRuntime()``.
+    This corresponds to ``schedule=PartitionedAtRuntime()``.
 
     A run's ``partition_key`` (run-level provenance) must be supplied at trigger
     time — for example via the REST API's ``partition_key`` field. Partition keys
@@ -204,7 +204,7 @@ class PartitionAtRuntime(NullTimetable):
 
     @property
     def summary(self) -> str:
-        return "PartitionAtRuntime"
+        return "PartitionedAtRuntime"
 
 
 class AssetTriggeredTimetable(_TrivialTimetable):

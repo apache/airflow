@@ -29,6 +29,11 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: ""
         type: string
+      checkout-ref:
+        description: "Commit-ish to checkout sources from (empty = workflow ref)."
+        required: false
+        default: ""
+        type: string
       pull-request-target:
         description: "Whether we are running this from pull-request-target workflow (true/false)"
         required: false
@@ -89,6 +94,11 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      retry-without-cache:
+        description: "Retry the build once with the cache disabled if the cached build fails (true/false)"
+        required: false
+        default: "false"
+        type: string
       disable-airflow-repo-cache:
         description: "Disable airflow repo cache read from main."
         required: true
@@ -118,8 +128,9 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout target branch"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          ref: ${{ inputs.checkout-ref }}
           persist-credentials: false
       - name: "Free up disk space"
         shell: bash
@@ -163,9 +174,19 @@ jobs:
       - name: >
           Build ${{ inputs.push-image == 'true' && ' & push ' || '' }}
           ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }} image
-        run: >
-          breeze ci-image build --platform "${PLATFORM}"
+        run: |
+          if breeze ci-image build --platform "${PLATFORM}"; then
+            exit 0
+          fi
+          if [[ "${RETRY_WITHOUT_CACHE}" != "true" ]]; then
+            exit 1
+          fi
+          # Reached when the ref's pyproject.toml has drifted far enough from the branch the
+          # cache was built for that the cached layers cannot satisfy it. Slow, but correct.
+          echo "Build with ${DOCKER_CACHE} cache failed - retrying with the cache disabled."
+          DOCKER_CACHE="disabled" breeze ci-image build --platform "${PLATFORM}"
         env:
+          RETRY_WITHOUT_CACHE: ${{ inputs.retry-without-cache }}
           DOCKER_CACHE: ${{ inputs.docker-cache }}
           DISABLE_AIRFLOW_REPO_CACHE: ${{ inputs.disable-airflow-repo-cache }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}

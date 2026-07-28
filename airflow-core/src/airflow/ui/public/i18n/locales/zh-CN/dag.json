@@ -106,11 +106,6 @@
     "viewInExternal": "在 {{name}} 中查看日志(重试 {{attempt}})",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "导航: {{arrow}}",
-    "openGraphFilters": "任务筛选器: Ctrl+Shift+F",
-    "toggleGroup": "展开/收起分组: 空格键"
-  },
   "notFound": {
     "back": "返回",
     "backToDags": "返回 Dags",

@@ -29,8 +29,8 @@ from typing import TYPE_CHECKING
 import attrs
 import structlog
 
+from airflow.sdk.coordinators._bundle_metadata import convert_roots, validate_schema_version
 from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
-from airflow.sdk.execution_time.schema import get_schema_version_migrator
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Sequence
@@ -109,14 +109,10 @@ class _JarMetadata:
             return None
 
 
-def _validate_schema_version(instance, _, value) -> str:
-    return get_schema_version_migrator().resolve_version(str(value))
-
-
 @attrs.define
 class _JarInfo:
     main_class: str
-    schema_version: str = attrs.field(validator=_validate_schema_version)
+    schema_version: str = attrs.field(validator=validate_schema_version)
 
     @attrs.define
     class _Progress:
@@ -156,16 +152,6 @@ class _JarInfo:
         raise FileNotFoundError(tp.format(main_class, os.pathsep.join(os.fspath(p.resolve()) for p in roots)))
 
 
-def _convert_jars_root(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    if value is None:
-        return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
-
-
 @attrs.define(kw_only=True)
 class JavaCoordinator(SubprocessCoordinator):
     """
@@ -174,14 +160,13 @@ class JavaCoordinator(SubprocessCoordinator):
     Configuration is taken from the ``[sdk] coordinators`` entry that constructs
     this instance::
 
-        {
-            "name": "jdk-17",
+        "jdk-17": {
             "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
             "kwargs": {
-                "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
-                "jvm_args": ["-Xmx1024m"],
                 "jars_root": ["~/airflow/jars"],
-            },
+                "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
+                "jvm_args": ["-Xmx1024m"]
+            }
         }
 
     :param java_executable: Path to the ``java`` command (defaults to
@@ -214,7 +199,7 @@ class JavaCoordinator(SubprocessCoordinator):
     java_executable: str = "java"
     jvm_args: list[str] = attrs.field(factory=list)
     jars_root: list[pathlib.Path] = attrs.field(
-        converter=_convert_jars_root,
+        converter=convert_roots,
         validator=attrs.validators.min_len(1),
     )
     main_class: str = ""

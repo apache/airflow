@@ -382,3 +382,236 @@ class TestSageMakerProcessingOperator:
             config=CREATE_PROCESSING_PARAMS,
         )
         validate_template_fields(operator)
+
+
+PROCESSING_CONFIG_WITH_OUTPUT_FILES: dict = {
+    **CREATE_PROCESSING_PARAMS,
+    "ProcessingOutputConfig": {
+        "Outputs": [
+            {
+                "OutputName": "evaluation",
+                "S3Output": {
+                    "LocalPath": "/opt/ml/processing/evaluation",
+                    "S3UploadMode": "EndOfJob",
+                    "S3Uri": "s3://my-bucket/eval-output",
+                },
+            }
+        ],
+    },
+}
+
+OUTPUT_FILES_TO_XCOM_CONFIG: list = [
+    {
+        "result_name": "EvaluationReport",
+        "output_name": "evaluation",
+        "file_name": "evaluation.json",
+    }
+]
+
+
+class TestSageMakerProcessingOperatorOutputFiles:
+    """Tests for the output_files_to_xcom feature in SageMakerProcessingOperator."""
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "Completed", "ProcessingJobName": "job_name"},
+    )
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_output_files_read_from_s3(self, _, mock_create, mock_count, mock_describe):
+        """Output files are read from S3 and included in XCom return value."""
+        evaluation_json = '{"metrics": {"mse": {"value": 5.33}}}'
+
+        mock_s3_client = mock.MagicMock()
+        mock_s3_client.get_object.return_value = {
+            "Body": mock.MagicMock(read=mock.MagicMock(return_value=evaluation_json.encode("utf-8")))
+        }
+
+        with mock.patch.object(SageMakerHook, "get_session") as mock_session:
+            mock_session.return_value.client.return_value = mock_s3_client
+
+            operator = SageMakerProcessingOperator(
+                task_id="test_task",
+                config=PROCESSING_CONFIG_WITH_OUTPUT_FILES,
+                output_files_to_xcom=OUTPUT_FILES_TO_XCOM_CONFIG,
+            )
+            result = operator.execute(context=None)
+
+        assert "OutputFiles" in result
+        assert result["OutputFiles"]["EvaluationReport"]["metrics"]["mse"]["value"] == 5.33
+        mock_s3_client.get_object.assert_called_once_with(
+            Bucket="my-bucket", Key="eval-output/evaluation.json"
+        )
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "Completed", "ProcessingJobName": "job_name"},
+    )
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_no_output_files_returns_unchanged(self, _, mock_create, mock_count, mock_describe):
+        """Without output_files_to_xcom kwarg, XCom return has no OutputFiles key."""
+        operator = SageMakerProcessingOperator(
+            task_id="test_task",
+            config=CREATE_PROCESSING_PARAMS,
+        )
+        result = operator.execute(context=None)
+
+        assert "Processing" in result
+        assert "OutputFiles" not in result
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "Completed", "ProcessingJobName": "job_name"},
+    )
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_output_files_s3_error_does_not_fail_task(self, _, mock_create, mock_count, mock_describe):
+        """S3 read failure sets _error key but does not raise."""
+        mock_s3_client = mock.MagicMock()
+        mock_s3_client.get_object.side_effect = Exception("NoSuchKey")
+
+        with mock.patch.object(SageMakerHook, "get_session") as mock_session:
+            mock_session.return_value.client.return_value = mock_s3_client
+
+            operator = SageMakerProcessingOperator(
+                task_id="test_task",
+                config=PROCESSING_CONFIG_WITH_OUTPUT_FILES,
+                output_files_to_xcom=OUTPUT_FILES_TO_XCOM_CONFIG,
+            )
+            result = operator.execute(context=None)
+
+        assert "OutputFiles" in result
+        assert "_error" in result["OutputFiles"]["EvaluationReport"]
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "Completed", "ProcessingJobName": "job_name"},
+    )
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_output_files_no_matching_output_logs_warning(self, _, mock_create, mock_count, mock_describe):
+        """Output file referencing a non-existent output_name is skipped gracefully."""
+        bad_output_files = [
+            {
+                "result_name": "MissingReport",
+                "output_name": "nonexistent_output",
+                "file_name": "report.json",
+            }
+        ]
+        operator = SageMakerProcessingOperator(
+            task_id="test_task",
+            config=CREATE_PROCESSING_PARAMS,
+            output_files_to_xcom=bad_output_files,
+        )
+        result = operator.execute(context=None)
+
+        assert "OutputFiles" not in result
+
+    def test_output_files_missing_required_keys_raises(self):
+        """An output_files_to_xcom entry missing required keys raises when output files are read."""
+        op = SageMakerProcessingOperator(
+            task_id="test_task",
+            config=CREATE_PROCESSING_PARAMS,
+            output_files_to_xcom=[{"result_name": "Report", "output_name": "evaluation"}],  # no file_name
+        )
+        with mock.patch.object(SageMakerHook, "get_session"):
+            with pytest.raises(ValueError, match="missing required keys"):
+                op._read_output_files()
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "Completed", "ProcessingJobName": "job_name"},
+    )
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_output_files_invalid_json_sets_error(self, _, mock_create, mock_count, mock_describe):
+        """A non-JSON file sets an 'Invalid JSON' error but does not fail the task."""
+        mock_s3_client = mock.MagicMock()
+        mock_s3_client.get_object.return_value = {
+            "Body": mock.MagicMock(read=mock.MagicMock(return_value=b"col1,col2\n1,2\n"))
+        }
+
+        with mock.patch.object(SageMakerHook, "get_session") as mock_session:
+            mock_session.return_value.client.return_value = mock_s3_client
+
+            operator = SageMakerProcessingOperator(
+                task_id="test_task",
+                config=PROCESSING_CONFIG_WITH_OUTPUT_FILES,
+                output_files_to_xcom=OUTPUT_FILES_TO_XCOM_CONFIG,
+            )
+            result = operator.execute(context=None)
+
+        assert "Invalid JSON" in result["OutputFiles"]["EvaluationReport"]["_error"]
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "Completed", "ProcessingJobName": "job_name"},
+    )
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_output_files_not_found_sets_error(self, _, mock_create, mock_count, mock_describe):
+        """A missing S3 object (NoSuchKey) sets a 'File not found' error but does not fail the task."""
+        mock_s3_client = mock.MagicMock()
+        mock_s3_client.get_object.side_effect = ClientError(
+            {"Error": {"Code": "NoSuchKey", "Message": "The specified key does not exist."}},
+            "GetObject",
+        )
+
+        with mock.patch.object(SageMakerHook, "get_session") as mock_session:
+            mock_session.return_value.client.return_value = mock_s3_client
+
+            operator = SageMakerProcessingOperator(
+                task_id="test_task",
+                config=PROCESSING_CONFIG_WITH_OUTPUT_FILES,
+                output_files_to_xcom=OUTPUT_FILES_TO_XCOM_CONFIG,
+            )
+            result = operator.execute(context=None)
+
+        assert "File not found" in result["OutputFiles"]["EvaluationReport"]["_error"]
+
+    def test_output_files_skipped_when_not_waiting(self):
+        """With wait_for_completion=False and output_files_to_xcom, init raises ValueError."""
+        with pytest.raises(ValueError, match="output_files_to_xcom requires wait_for_completion=True"):
+            SageMakerProcessingOperator(
+                task_id="test_task",
+                config=PROCESSING_CONFIG_WITH_OUTPUT_FILES,
+                output_files_to_xcom=OUTPUT_FILES_TO_XCOM_CONFIG,
+                wait_for_completion=False,
+            )

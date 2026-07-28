@@ -64,7 +64,24 @@ class TestMSGraphFS:
                 "client_id": "test_client_id",
                 "client_secret": "test_client_secret",
                 "tenant_id": "test_tenant_id",
+                "token_endpoint": "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
             },
+        )
+        assert result == mock_fs_instance
+
+    @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection")
+    @patch("msgraphfs.MSGDriveFS")
+    def test_get_fs_constructs_token_endpoint(self, mock_msgdrivefs, mock_get_connection, mock_connection):
+        """token_endpoint is auto-constructed from tenant_id when not in extras."""
+        mock_get_connection.return_value = mock_connection
+        mock_fs_instance = MagicMock()
+        mock_msgdrivefs.return_value = mock_fs_instance
+
+        result = get_fs("msgraph_default")
+
+        actual_params = mock_msgdrivefs.call_args[1]["oauth2_client_params"]
+        assert actual_params["token_endpoint"] == (
+            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token"
         )
         assert result == mock_fs_instance
 
@@ -127,6 +144,7 @@ class TestMSGraphFS:
             "client_id": "test_client_id",
             "client_secret": "test_client_secret",
             "tenant_id": "test_tenant_id",
+            "token_endpoint": "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
             "scope": "custom.scope",
         }
         mock_msgdrivefs.assert_called_once_with(
