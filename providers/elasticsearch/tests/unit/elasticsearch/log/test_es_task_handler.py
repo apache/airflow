@@ -31,7 +31,7 @@ import elasticsearch
 import pendulum
 import pytest
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
@@ -48,10 +48,8 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     get_es_kwargs_from_config,
     getattr_nested,
 )
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -160,7 +158,7 @@ class TestElasticsearchTaskHandler:
     RUN_ID = "run_for_testing_es_log_handler"
     MAP_INDEX = -1
     TRY_NUM = 1
-    LOGICAL_DATE = datetime(2016, 1, 1)
+    LOGICAL_DATE = timezone.datetime(2016, 1, 1)
     LOG_ID = f"{DAG_ID}-{TASK_ID}-{RUN_ID}-{MAP_INDEX}-{TRY_NUM}"
     FILENAME_TEMPLATE = "{try_number}.log"
 
@@ -518,7 +516,7 @@ class TestElasticsearchTaskHandler:
         assert _render_log_id(self.es_task_handler.log_id_template, ti, 1) == self.LOG_ID
 
     def test_clean_date(self):
-        clean_logical_date = _clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        clean_logical_date = _clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
 
     @pytest.mark.db_test
