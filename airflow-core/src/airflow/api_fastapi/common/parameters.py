@@ -1197,7 +1197,15 @@ class NullableDatetimeRangeFilter(RangeFilter):
     started/ended task will eventually satisfy any past lower bound. For upper bounds the NULL branch
     is ``col IS NULL AND now() <= x``, preserving the COALESCE(col, now()) semantics without the
     function-wrap index penalty.
+
+    When *extra_null_condition* is provided (e.g. ``end_date.is_(None)`` for ``start_date`` lower
+    bounds), the NULL branch also requires that condition — preventing terminal rows whose column
+    happens to be ``NULL`` from matching every lower-bound filter indefinitely.
     """
+
+    def __init__(self, range_val, attr, extra_null_condition=None):
+        super().__init__(range_val, attr)
+        self.extra_null_condition = extra_null_condition
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -1208,10 +1216,16 @@ class NullableDatetimeRangeFilter(RangeFilter):
 
         if self.value.lower_bound_gte:
             x = self.value.lower_bound_gte
-            select = select.where(or_(self.attribute >= x, self.attribute.is_(None)))
+            null_condition = self.attribute.is_(None)
+            if self.extra_null_condition is not None:
+                null_condition = and_(null_condition, self.extra_null_condition)
+            select = select.where(or_(self.attribute >= x, null_condition))
         if self.value.lower_bound_gt:
             x = self.value.lower_bound_gt
-            select = select.where(or_(self.attribute > x, self.attribute.is_(None)))
+            null_condition = self.attribute.is_(None)
+            if self.extra_null_condition is not None:
+                null_condition = and_(null_condition, self.extra_null_condition)
+            select = select.where(or_(self.attribute > x, null_condition))
         if self.value.upper_bound_lte:
             x = self.value.upper_bound_lte
             select = select.where(or_(self.attribute <= x, and_(self.attribute.is_(None), func.now() <= x)))
@@ -1238,7 +1252,12 @@ def datetime_range_filter_factory(
             upper_bound_lte=upper_bound_lte,
             upper_bound_lt=upper_bound_lt,
         )
-        if filter_name in ("start_date", "end_date"):
+        if filter_name == "start_date":
+            return NullableDatetimeRangeFilter(
+                range_val, attr,
+                extra_null_condition=getattr(model, "end_date").is_(None),
+            )
+        if filter_name == "end_date":
             return NullableDatetimeRangeFilter(range_val, attr)
         return RangeFilter(range_val, attr)
 
