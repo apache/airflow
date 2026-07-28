@@ -36,7 +36,7 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout, BaseOperator
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
@@ -163,6 +163,26 @@ class TestProcessAdapterReuse:
 
         assert pid_first == pid_second
         assert adapter_id_first == adapter_id_second
+
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    @patch("airflow.providers.openlineage.plugins.listener.Serde")
+    @patch("airflow.providers.openlineage.plugins.listener._get_process_adapter")
+    def test_pool_wrappers_return_nothing(self, mock_get_adapter, mock_serde, mock_stats):
+        """The emitted event must not be pickled back to the parent.
+
+        An event the pickler chokes on would fail the future and be reported as a submission
+        failure, even though the emission itself succeeded.
+        """
+        from airflow.providers.openlineage.plugins.listener import (
+            _emit_manual_state_change_event,
+            _run_adapter_method,
+        )
+
+        assert _run_adapter_method("dag_started", dag_id="dag") is None
+        assert _emit_manual_state_change_event("fail_task", "ol.event.size.fail.op") is None
+
+        mock_get_adapter.return_value.dag_started.assert_called_once_with(dag_id="dag")
+        mock_get_adapter.return_value.fail_task.assert_called_once_with()
 
 
 class TestExecutorInitializer:
@@ -2729,6 +2749,100 @@ class TestOpenLineageListenerAirflow3:
         assert fut is new_future
         listener.log.warning.assert_called_once()
         assert "recreating" in listener.log.warning.call_args[0][0]
+
+    def test_submit_callable_recreates_executor_after_shutdown(self):
+        """A pool shut down by `before_stopping` must be replaced, not submitted to."""
+        listener = OpenLineageListener()
+        dead_executor = MagicMock()
+        dead_executor.submit.side_effect = RuntimeError("cannot schedule new futures after shutdown")
+        new_executor = MagicMock()
+        listener._executor = dead_executor
+        listener.log = MagicMock()
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor",
+            return_value=new_executor,
+        ):
+            fut = listener.submit_callable(lambda: None)
+
+        assert fut is new_executor.submit.return_value
+        assert listener._executor is new_executor
+
+    def test_before_stopping_does_not_create_executor(self):
+        """On the task runner this hook fires per task; it must not spawn a pool to tear it down."""
+        listener = OpenLineageListener()
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor"
+        ) as mock_pool_cls:
+            listener.before_stopping(MagicMock())
+
+        mock_pool_cls.assert_not_called()
+        assert listener._executor is None
+
+    def test_before_stopping_detaches_executor(self):
+        executor = MagicMock()
+        listener = OpenLineageListener()
+        listener._executor = executor
+
+        listener.before_stopping(MagicMock())
+
+        executor.shutdown.assert_called_once_with(wait=True)
+        assert listener._executor is None
+
+    def test_before_stopping_swallows_shutdown_failure(self):
+        """A timed-out or off-main-thread shutdown must not escape the hook.
+
+        `AirflowTaskTimeout` derives from `BaseException`, so the guard cannot be `except Exception`.
+        """
+        executor = MagicMock()
+        executor.shutdown.side_effect = [AirflowTaskTimeout("timed out"), None]
+        listener = OpenLineageListener()
+        listener._executor = executor
+        listener.log = MagicMock()
+
+        listener.before_stopping(MagicMock())
+
+        assert executor.shutdown.call_args_list == [mock.call(wait=True), mock.call(wait=False)]
+        assert listener._executor is None
+        listener.log.warning.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.logging.shutdown")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os._exit")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os.fork", return_value=0)
+    def test_fork_execute_child_exits_on_base_exception(self, mock_fork, mock_exit, mock_log_shutdown):
+        """A SIGINT to the process group reaches the child as KeyboardInterrupt.
+
+        The child must never return: doing so leaves a duplicate task runner behind, sharing the
+        supervisor connection with the real one.
+        """
+        listener = OpenLineageListener()
+        listener.log = MagicMock()
+
+        listener._fork_execute(mock.Mock(side_effect=KeyboardInterrupt("ctrl-c")), "on_running")
+
+        mock_exit.assert_called_once_with(0)
+        mock_log_shutdown.assert_called_once()
+        listener.log.warning.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.logging.shutdown")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os._exit")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os.fork", return_value=0)
+    def test_fork_execute_child_exits_when_setup_fails(self, mock_fork, mock_exit, mock_log_shutdown):
+        """A failure before the emission call must still exit, not unwind into the caller."""
+        listener = OpenLineageListener()
+        listener.log = MagicMock()
+        callable_ = mock.Mock()
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.getproctitle",
+            side_effect=OSError("cannot read proc title"),
+        ):
+            listener._fork_execute(callable_, "on_running")
+
+        callable_.assert_not_called()
+        mock_exit.assert_called_once_with(0)
+        listener.log.warning.assert_called_once()
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
