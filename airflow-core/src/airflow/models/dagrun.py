@@ -92,6 +92,7 @@ from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mappe
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
+from airflow.models.team import TeamOwnedMixin
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -237,7 +238,7 @@ def parent_trace_context(conf) -> context.Context | None:
     return ctx
 
 
-class DagRun(Base, LoggingMixin):
+class DagRun(Base, LoggingMixin, TeamOwnedMixin):
     """
     Invocation instance of a DAG.
 
@@ -393,6 +394,7 @@ class DagRun(Base, LoggingMixin):
     backfill = relationship(Backfill, uselist=False)
     backfill_max_active_runs = association_proxy("backfill", "max_active_runs")
     max_active_runs = association_proxy("dag_model", "max_active_runs")
+    _team_path = ("dag_model",)
 
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
 

@@ -17,11 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
-from sqlalchemy import Column, ForeignKey, Index, String, Table, select
+from sqlalchemy import Column, ForeignKey, Index, String, Table, inspect as sa_inspect, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from airflow.configuration import conf
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -78,3 +79,48 @@ class Team(Base):
         :return: Set of all team names
         """
         return set(session.scalars(select(Team.name)).all())
+
+
+class TeamOwnedMixin:
+    """
+    Exposes ``team_name`` on models that reach a team through a relationship path.
+
+    Teams only exist in multi-team mode, so the config is checked before any hop is
+    walked: single-team deployments answer ``None`` without loading a relationship, and
+    endpoints there pay for no extra join.  In multi-team mode the value comes from the
+    already-loaded relationships when the query applied
+    :func:`~airflow.api_fastapi.common.db.dags.eager_load_teams`, and falls back to the
+    per-Dag cached resolver otherwise — so the attribute stays correct on paths that
+    cannot eager load (an in-memory Dag run, a callback re-fetching by primary key)
+    instead of tripping the ``lazy="raise"`` guard that keeps N+1 loads out.
+    """
+
+    #: Attribute names to walk from ``self`` to the owning :class:`DagModel`.
+    _team_path: ClassVar[tuple[str, ...]] = ()
+
+    if TYPE_CHECKING:
+        # Every model mixing this in carries ``dag_id`` (it is the fallback lookup key).
+        dag_id: str
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this entity, or ``None`` when it is not team-owned."""
+        if not conf.getboolean("core", "multi_team"):
+            return None
+
+        from airflow.models.dag import DagModel
+
+        entity: Any = self
+        for attribute in (*self._team_path, "bundle", "teams"):
+            state = sa_inspect(entity)
+            if attribute in state.unloaded:
+                # Reuse this entity's own session. ``get_team_name`` is ``@provide_session``,
+                # and the session it would open is the *same* scoped session the caller is
+                # using, so closing it on exit detaches every object the caller still holds.
+                if state.session is not None:
+                    return DagModel.get_team_name(self.dag_id, session=state.session)
+                return DagModel.get_team_name(self.dag_id)
+            if (entity := getattr(entity, attribute)) is None:
+                return None
+        # A bundle maps to at most one team (unique index on dag_bundle_team.dag_bundle_name).
+        return entity[0].name if entity else None

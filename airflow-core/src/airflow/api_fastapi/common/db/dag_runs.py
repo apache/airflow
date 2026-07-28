@@ -26,6 +26,7 @@ from sqlalchemy import func, select, tuple_, union_all
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.interfaces import LoaderOption
 
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -56,14 +57,15 @@ def eager_load_dag_run_for_list() -> tuple[LoaderOption, ...]:
     Lightweight eager loading for the DagRun list endpoint.
 
     Only loads the direct relationships needed for serialization (dag_model,
-    dag_run_note, created_dag_version).  The dag_versions property — which
-    requires iterating every TI and TIH — is populated separately by
+    dag_run_note, created_dag_version, and the owning team).  The dag_versions
+    property — which requires iterating every TI and TIH — is populated separately by
     :func:`attach_dag_versions_to_runs` using a single DISTINCT query.
     """
     return (
         joinedload(DagRun.dag_model),
         joinedload(DagRun.dag_run_note),
         joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
+        *eager_load_teams(DagRun.dag_model),
     )
 
 
