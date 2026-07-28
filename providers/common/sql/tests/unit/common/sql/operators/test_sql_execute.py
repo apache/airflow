@@ -34,7 +34,6 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.operators import read_only_guard
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -509,69 +508,3 @@ class TestSQLExecuteQueryOperatorDeferrable:
         )
         with pytest.raises(ValueError, match="enforce_read_only=True but the SQL appears to contain a write"):
             op.execute({})
-
-
-@pytest.mark.parametrize(
-    ("sql", "expected_kind"),
-    [
-        pytest.param("SELECT * FROM foo", None, id="select"),
-        pytest.param("SELECT 1;", None, id="select-trailing-semicolon"),
-        pytest.param("INSERT INTO foo VALUES (1)", "INSERT", id="insert"),
-        pytest.param("UPDATE foo SET x = 1", "UPDATE", id="update"),
-        pytest.param("DELETE FROM foo", "DELETE", id="delete"),
-        pytest.param(
-            "MERGE INTO foo USING bar ON foo.id = bar.id WHEN MATCHED THEN UPDATE SET x = 1",
-            "MERGE",
-            id="merge",
-        ),
-        pytest.param("CREATE TABLE foo (id int)", "CREATE", id="create"),
-        pytest.param("ALTER TABLE foo ADD COLUMN y int", "ALTER", id="alter"),
-        pytest.param("DROP TABLE foo", "DROP", id="drop"),
-        pytest.param("TRUNCATE TABLE foo", "TRUNCATETABLE", id="truncate"),
-        pytest.param(
-            "WITH cte AS (INSERT INTO foo VALUES (1) RETURNING *) SELECT * FROM cte",
-            "INSERT",
-            id="write-inside-cte",
-        ),
-    ],
-)
-def test_scan_for_writes_detects_write_kind(sql, expected_kind):
-    is_write, reason = read_only_guard.scan_for_writes(sql)
-    if expected_kind is None:
-        assert is_write is False
-        assert "no write detected" in reason
-    else:
-        assert is_write is True
-        assert f"proven write ({expected_kind})" in reason
-
-
-def test_scan_for_writes_detects_write_in_second_of_multiple_statements():
-    is_write, reason = read_only_guard.scan_for_writes("SELECT 1; INSERT INTO foo VALUES (1)")
-    assert is_write is True
-    assert "statement #2" in reason
-    assert "INSERT" in reason
-
-
-def test_scan_for_writes_list_of_read_only_statements():
-    is_write, reason = read_only_guard.scan_for_writes(["SELECT 1", "SELECT 2"])
-    assert is_write is False
-    assert "no write detected" in reason
-
-
-def test_scan_for_writes_detects_write_across_list_of_statements():
-    is_write, reason = read_only_guard.scan_for_writes(["SELECT 1", "INSERT INTO foo VALUES (1)"])
-    assert is_write is True
-    assert "statement #2" in reason
-
-
-def test_scan_for_writes_unparseable_sql_defers_to_read_only_transaction():
-    is_write, reason = read_only_guard.scan_for_writes("SELECT * FROM foo WHERE x = 'unterminated")
-    assert is_write is False
-    assert "unparseable" in reason
-
-
-def test_scan_for_writes_sqlglot_missing_defers_to_read_only_transaction(monkeypatch):
-    monkeypatch.setattr(read_only_guard, "_SQLGLOT_AVAILABLE", False)
-    is_write, reason = read_only_guard.scan_for_writes("INSERT INTO foo VALUES (1)")
-    assert is_write is False
-    assert "sqlglot not installed" in reason

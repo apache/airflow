@@ -87,6 +87,9 @@ dependencies = [
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54",
 ]
+"sqlglot" = [
+    "sqlglot>=30.0.0",
+]
 "amazon" = [
     "apache-airflow-providers-amazon"
 ]
@@ -118,6 +121,7 @@ dev = [
     "apache-airflow-providers-odbc",
     "apache-airflow-providers-sqlite",
     "apache-airflow-providers-common-sql[sqlalchemy]",
+    "apache-airflow-providers-common-sql[sqlglot]",
     "datafusion>=50.0.0,<52.0.0",
     "pyiceberg-core>=0.8.0",
 ]
