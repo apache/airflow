@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
@@ -31,12 +31,21 @@ from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
 
-__all__ = ["SchedulerXComArg", "deserialize_xcom_arg", "get_task_map_length"]
+__all__ = [
+    "SchedulerXComArg",
+    "deserialize_xcom_arg",
+    "get_task_map_length",
+    "prefetch_map_lengths",
+]
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.typing_compat import Self
+
+# Map length of each referenced task, keyed by ``(dag_id, task_id)``. A task whose
+# length is not known yet (upstream unfinished) is absent rather than mapped to None.
+MapLengths = Mapping[tuple[str, str], int]
 
 
 class SchedulerXComArg:
@@ -145,14 +154,102 @@ class SchedulerZipXComArg(SchedulerXComArg):
             yield from arg.iter_references()
 
 
+def _match_referenced_tasks(model: Any, keys: Iterable[tuple[str, str]]) -> tuple[Any, Any]:
+    """
+    Build filters selecting rows of ``model`` for any of the given ``(dag_id, task_id)``.
+
+    Matching the two columns independently rather than as a row value keeps the query
+    portable. That is wider than the key set only if the keys span several Dags, which
+    the callers never do, and callers read results back by exact key regardless.
+    """
+    dag_ids, task_ids = zip(*keys)
+    return model.dag_id.in_(set(dag_ids)), model.task_id.in_(set(task_ids))
+
+
+def prefetch_map_lengths(
+    xcom_args: Iterable[SchedulerXComArg], run_id: str, *, session: Session
+) -> dict[tuple[str, str], int]:
+    """
+    Resolve the map length of every task referenced by ``xcom_args`` in bulk.
+
+    Passing the result to :func:`get_task_map_length` as ``lengths`` keeps the number of
+    queries constant no matter how many arguments -- and how many tasks nested inside
+    ``zip()``/``concat()`` arguments -- have to be resolved.
+
+    Tasks whose length is not known yet are absent from the result, mirroring the
+    ``None`` that :func:`get_task_map_length` returns for them.
+    """
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskmap import TaskMap
+    from airflow.models.xcom import XComModel
+    from airflow.serialization.definitions.mappedoperator import is_mapped
+
+    operators = {(op.dag_id, op.task_id): op for arg in xcom_args for op, _ in arg.iter_references()}
+    if not operators:
+        return {}
+    mapped = {key for key, op in operators.items() if is_mapped(op)}
+    unmapped = operators.keys() - mapped
+
+    lengths: dict[tuple[str, str], int] = {}
+    if unmapped:
+        rows = session.execute(
+            select(TaskMap.dag_id, TaskMap.task_id, TaskMap.length).where(
+                TaskMap.run_id == run_id,
+                TaskMap.map_index < 0,
+                *_match_referenced_tasks(TaskMap, unmapped),
+            )
+        )
+        lengths.update({(dag_id, task_id): length for dag_id, task_id, length in rows})
+    if mapped:
+        unfinished = set(
+            session.execute(
+                select(TaskInstance.dag_id, TaskInstance.task_id)
+                .where(
+                    TaskInstance.run_id == run_id,
+                    *_match_referenced_tasks(TaskInstance, mapped),
+                    # Special NULL treatment is needed because 'state' can be NULL.
+                    # The "IN" part would produce "NULL NOT IN ..." and eventually
+                    # "NULl = NULL", which is a big no-no in SQL.
+                    or_(
+                        TaskInstance.state.is_(None),
+                        TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+                    ),
+                )
+                .distinct()
+            )
+        )
+        if finished := mapped - unfinished:
+            counts = {
+                (dag_id, task_id): count
+                for dag_id, task_id, count in session.execute(
+                    select(XComModel.dag_id, XComModel.task_id, func.count(XComModel.map_index))
+                    .where(
+                        XComModel.run_id == run_id,
+                        XComModel.map_index >= 0,
+                        XComModel.key == XCOM_RETURN_KEY,
+                        *_match_referenced_tasks(XComModel, finished),
+                    )
+                    .group_by(XComModel.dag_id, XComModel.task_id)
+                )
+            }
+            # A finished mapped task that pushed nothing has no row to group, but its
+            # length is a known zero rather than an unresolved value.
+            lengths.update({key: counts.get(key, 0) for key in finished})
+    return lengths
+
+
 @singledispatch
-def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Session) -> int | None:
+def get_task_map_length(
+    xcom_arg: SchedulerXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+) -> int | None:
     # The base implementation -- specific XComArg subclasses have specialised implementations
     raise NotImplementedError(f"get_task_map_length not implemented for {type(xcom_arg)}")
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int | None:
+def _(
+    xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+) -> int | None:
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskmap import TaskMap
     from airflow.models.xcom import XComModel
@@ -160,6 +257,9 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int 
 
     dag_id = xcom_arg.operator.dag_id
     task_id = xcom_arg.operator.task_id
+
+    if lengths is not None:
+        return lengths.get((dag_id, task_id))
 
     if is_mapped(xcom_arg.operator):
         unfinished_ti_exists = exists_query(
@@ -195,13 +295,19 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int 
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerMapXComArg, run_id: str, *, session: Session) -> int | None:
-    return get_task_map_length(xcom_arg.arg, run_id, session=session)
+def _(
+    xcom_arg: SchedulerMapXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+) -> int | None:
+    return get_task_map_length(xcom_arg.arg, run_id, session=session, lengths=lengths)
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session) -> int | None:
-    all_lengths = (get_task_map_length(arg, run_id, session=session) for arg in xcom_arg.args)
+def _(
+    xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+) -> int | None:
+    all_lengths = (
+        get_task_map_length(arg, run_id, session=session, lengths=lengths) for arg in xcom_arg.args
+    )
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
@@ -211,8 +317,12 @@ def _(xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session) -> int | 
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session) -> int | None:
-    all_lengths = (get_task_map_length(arg, run_id, session=session) for arg in xcom_arg.args)
+def _(
+    xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+) -> int | None:
+    all_lengths = (
+        get_task_map_length(arg, run_id, session=session, lengths=lengths) for arg in xcom_arg.args
+    )
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
