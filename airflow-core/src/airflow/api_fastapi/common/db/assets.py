@@ -37,7 +37,7 @@ def generate_last_asset_event_query() -> Subquery:
 
     return (
         select(
-            AssetEvent.asset_id,  # The ID of the Asset, which we'll need to JOIN to the AssetModel
+            AssetEvent.asset_id,  
             func.max(AssetEvent.id).label("last_asset_event_id"),  # The ID of the last AssetEvent
             func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
         )
