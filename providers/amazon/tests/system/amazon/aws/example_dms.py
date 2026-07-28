@@ -27,8 +27,10 @@ from datetime import datetime
 from typing import cast
 
 import boto3
+import pendulum
 from sqlalchemy import Column, MetaData, String, Table, create_engine
 
+from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.dms import (
     DmsCreateTaskOperator,
     DmsDeleteTaskOperator,
@@ -44,6 +46,7 @@ from airflow.providers.amazon.aws.operators.rds import (
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.dms import DmsTaskBaseSensor, DmsTaskCompletedSensor
+from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -118,6 +121,35 @@ def create_security_group(security_group_name: str, vpc_id: str):
     return security_group["GroupId"]
 
 
+@task(multiple_outputs=True)
+def create_db_parameter_group(parameter_group_name: str):
+    rds_client = boto3.client("rds")
+    engine = rds_client.describe_db_engine_versions(Engine=RDS_ENGINE, DefaultOnly=True)["DBEngineVersions"][
+        0
+    ]
+
+    rds_client.create_db_parameter_group(
+        DBParameterGroupName=parameter_group_name,
+        DBParameterGroupFamily=engine["DBParameterGroupFamily"],
+        Description="Created for DMS system test logical replication",
+    )
+    rds_client.modify_db_parameter_group(
+        DBParameterGroupName=parameter_group_name,
+        Parameters=[
+            {
+                "ParameterName": "rds.logical_replication",
+                "ParameterValue": "1",
+                "ApplyMethod": "pending-reboot",
+            }
+        ],
+    )
+    return {
+        "name": parameter_group_name,
+        "engine_version": engine["EngineVersion"],
+        "available_at": pendulum.now("UTC").add(minutes=5).isoformat(),
+    }
+
+
 @task
 def create_sample_table(instance_name: str, db_name: str, table_name: str):
     print("Creating sample table.")
@@ -135,7 +167,7 @@ def create_sample_table(instance_name: str, db_name: str, table_name: str):
         Column(TABLE_HEADERS[1], String),
     )
 
-    with engine.connect() as connection:
+    with engine.begin() as connection:
         # Create the Table.
         table.create(bind=connection)
         load_data = table.insert().values(SAMPLE_DATA)
@@ -143,6 +175,18 @@ def create_sample_table(instance_name: str, db_name: str, table_name: str):
 
         # Read the data back to verify everything is working.
         connection.execute(table.select())
+
+
+@task
+def await_table_load(replication_task_arn: str, schema_name: str, table_name: str):
+    DmsHook().get_waiter("table_reload_complete").wait(
+        ReplicationTaskArn=replication_task_arn,
+        Filters=[
+            {"Name": "schema-name", "Values": [schema_name]},
+            {"Name": "table-name", "Values": [table_name]},
+        ],
+        WaiterConfig={"Delay": 10, "MaxAttempts": 60},
+    )
 
 
 @task(multiple_outputs=True)
@@ -176,6 +220,7 @@ def create_dms_assets(
         ServerName=rds_instance_endpoint["Address"],
         Port=rds_instance_endpoint["Port"],
         DatabaseName=db_name,
+        SslMode="require",
     )["Endpoint"]["EndpointArn"]
 
     print("Creating DMS target endpoint.")
@@ -238,6 +283,15 @@ def delete_security_group(security_group_id: str, security_group_name: str):
     boto3.client("ec2").delete_security_group(GroupId=security_group_id, GroupName=security_group_name)
 
 
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_db_parameter_group(parameter_group_name: str):
+    rds_client = boto3.client("rds")
+    try:
+        rds_client.delete_db_parameter_group(DBParameterGroupName=parameter_group_name)
+    except rds_client.exceptions.DBParameterGroupNotFoundFault:
+        print(f"DB parameter group {parameter_group_name} is already deleted.")
+
+
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -257,6 +311,12 @@ with DAG(
     source_endpoint_identifier = f"{env_id}-source-endpoint"
     target_endpoint_identifier = f"{env_id}-target-endpoint"
     security_group_name = f"{env_id}-dms-security-group"
+    db_parameter_group_name = f"{env_id}-dms-parameter-group"
+    db_parameter_group = create_db_parameter_group(db_parameter_group_name)
+    await_db_parameter_group = DateTimeSensorAsync(
+        task_id="await_db_parameter_group",
+        target_time=db_parameter_group["available_at"],
+    )
 
     # Sample data.
     table_definition = {
@@ -309,6 +369,8 @@ with DAG(
             "MasterUsername": RDS_USERNAME,
             "MasterUserPassword": RDS_PASSWORD,
             "PubliclyAccessible": True,
+            "EngineVersion": db_parameter_group["engine_version"],
+            "DBParameterGroupName": db_parameter_group["name"],
             "VpcSecurityGroupIds": [
                 create_sg,
             ],
@@ -334,6 +396,7 @@ with DAG(
         target_endpoint_arn=create_assets["target_endpoint_arn"],
         replication_instance_arn=create_assets["replication_instance_arn"],
         table_mappings=table_mappings,
+        migration_type="full-load-and-cdc",
     )
     # [END howto_operator_dms_create_task]
 
@@ -368,6 +431,8 @@ with DAG(
         termination_statuses=["stopped", "deleting", "failed"],
         poke_interval=10,
     )
+
+    await_initial_table_load = await_table_load(task_arn, "public", rds_table_name)
 
     # [START howto_operator_dms_reload_tables]
     reload_tables = DmsReloadTablesOperator(
@@ -446,12 +511,16 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    delete_parameter_group = delete_db_parameter_group(db_parameter_group_name)
+
     chain(
         # TEST SETUP
         test_context,
         create_s3_bucket,
         get_vpc_id,
         create_sg,
+        db_parameter_group,
+        await_db_parameter_group,
         create_db_instance,
         create_sample_table(rds_instance_name, rds_db_name, rds_table_name),
         create_assets,
@@ -460,6 +529,7 @@ with DAG(
         start_task,
         describe_tasks,
         await_task_start,
+        await_initial_table_load,
         reload_tables,
         stop_task,
         await_task_stop,
@@ -468,6 +538,7 @@ with DAG(
         delete_task,
         delete_assets,
         delete_db_instance,
+        delete_parameter_group,
         delete_security_group(create_sg, security_group_name),
         delete_s3_bucket,
     )
