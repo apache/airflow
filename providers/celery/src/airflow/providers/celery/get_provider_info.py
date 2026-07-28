@@ -126,11 +126,11 @@ def get_provider_info():
                         "default": "redis://redis:6379/0",
                     },
                     "result_backend": {
-                        "description": "The Celery result_backend. When a job finishes, it needs to update the\nmetadata of the job. Therefore it will post a message on a message bus,\nor insert it into a database (depending of the backend)\nThis status is used by the scheduler to update the state of the task\nThe use of a database is highly recommended\nWhen not specified, sql_alchemy_conn with a db+ scheme prefix will be used\nhttps://docs.celeryq.dev/en/latest/userguide/configuration.html#task-result-backend-settings\n",
+                        "description": "The Celery result_backend. When a job finishes, it needs to update the\nmetadata of the job. Therefore it will post a message on a message bus,\nor insert it into a database (depending of the backend)\nThis status is used by the scheduler to update the state of the task\nThe use of a database is highly recommended\nWhen not specified, sql_alchemy_conn with a db+ scheme prefix will be used\nhttps://docs.celeryq.dev/en/latest/userguide/configuration.html#task-result-backend-settings\nThe psycopg2 driver in the example below is valid on every supported Airflow version.\nWhen this value is derived from a driverless postgresql:// sql_alchemy_conn, psycopg (v3) is\nused wherever SQLAlchemy 2.0 and psycopg are both installed. Do not set\ndb+postgresql+psycopg:// yourself before Airflow 3.2.0 - earlier releases can run on\nSQLAlchemy 1.4, which has no psycopg3 dialect\n",
                         "version_added": None,
                         "type": "string",
                         "sensitive": True,
-                        "example": "db+postgresql+psycopg://postgres:airflow@postgres/airflow",
+                        "example": "db+postgresql+psycopg2://postgres:airflow@postgres/airflow",
                         "default": None,
                     },
                     "result_backend_sqlalchemy_engine_options": {

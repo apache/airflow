@@ -312,6 +312,24 @@ You will be prompted to enter the password if the connection is successful.
 .. END DATABASE_CONNECTION
 
 
+.. BEGIN SQL_ALCHEMY_CONN
+
+.. code-block:: bash
+
+   postgresql+psycopg2://<username>:<password>@<endpoint>/<database_name>
+
+The ``psycopg2`` driver above is valid on every Airflow version these executors support. From Airflow
+3.4.0, a driverless URL resolves to ``psycopg`` (psycopg3) where psycopg3 is installed and to
+``psycopg2`` otherwise. You may instead
+give an explicit ``postgresql+psycopg://`` URL from Airflow 3.2.0, provided psycopg3 is installed —
+whether it is depends on your ``apache-airflow-providers-postgres`` version. Do not use
+``postgresql+psycopg://`` before Airflow 3.2.0 at all: those releases can run on SQLAlchemy 1.4, which
+has no ``postgresql+psycopg`` dialect, so Airflow fails to start with
+``sqlalchemy.exc.NoSuchModuleError``.
+
+.. END SQL_ALCHEMY_CONN
+
+
 .. BEGIN ECR_STEPS
 
 Create an ECR Repository
