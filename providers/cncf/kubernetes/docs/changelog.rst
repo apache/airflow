@@ -33,7 +33,7 @@ Changelog
 New features
 ~~~~~~~~~~~~
 
-* ``Add --min-completed-minutes to cleanup-pods to prevent KPO race condition (#XXXXX)``
+* ``Add --min-completed-minutes to cleanup-pods to prevent KPO race condition (#70595)``
 
 10.20.0
 .......
