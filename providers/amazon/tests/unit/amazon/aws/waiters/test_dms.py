@@ -187,6 +187,7 @@ class TestCustomDmsWaiters:
 
     def test_wait_for_table_reload_complete(self, mock_describe_table_statistics):
         mock_describe_table_statistics.side_effect = [
+            {"TableStatistics": [{"TableState": "Before load"}]},
             {"TableStatistics": [{"TableState": "Table is being reloaded"}]},
             {"TableStatistics": [{"TableState": "Full load"}]},
             {"TableStatistics": [{"TableState": "Table completed"}]},
@@ -200,10 +201,10 @@ class TestCustomDmsWaiters:
                 {"Name": "schema-name", "Values": ["dmsreload"]},
                 {"Name": "table-name", "Values": ["reload_test"]},
             ],
-            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 4},
         )
 
-        assert mock_describe_table_statistics.call_count == 3
+        assert mock_describe_table_statistics.call_count == 4
         mock_describe_table_statistics.assert_called_with(
             ReplicationTaskArn="task-arn",
             Filters=[

@@ -195,6 +195,12 @@
                 {
                     "matcher": "path",
                     "argument": "TableStatistics[0].TableState",
+                    "expected": "Before load",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TableStatistics[0].TableState",
                     "expected": "Full load",
                     "state": "retry"
                 },
