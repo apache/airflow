@@ -360,11 +360,11 @@ The shorthand for this is ``@asset.multi``:
 
 Dynamic data events emitting and asset creation through AssetAlias
 -----------------------------------------------------------------------
-Use ``AssetAlias`` when a task must declare an asset dependency before the concrete asset URI is
-known. The alias is listed in ``outlets`` as a stable name, and the task resolves it at runtime by
-adding one or more concrete ``Asset`` objects through ``outlet_events`` or yielded ``Metadata``.
-Downstream Dags can depend on the alias, and Airflow triggers them when events are emitted for the
-resolved assets.
+Use ``AssetAlias`` when a task must declare an asset dependency before the Asset's fixed attributes
+(like URI or name) are available. The alias is listed in ``outlets`` as a stable name, and the task
+resolves it at runtime byadding one or more concrete ``Asset`` objects through ``outlet_events`` or
+yielded ``Metadata``. Downstream Dags can depend on the alias, and Airflow triggers them when events
+are emitted for the resolved assets.
 
 How to use AssetAlias
 ~~~~~~~~~~~~~~~~~~~~~~~
