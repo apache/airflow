@@ -102,12 +102,13 @@ defaults to ``data-reload``, which reloads the data and runs validation again wh
 Use ``validate-only`` to revalidate without reloading data; this option only applies when validation
 is enabled for the task.
 The replication task must be in the ``RUNNING`` state. By default, the operator waits until every
-table reaches ``Table completed``. The first waiter poll runs immediately after the reload request
-returns. Set ``deferrable=True`` to release the worker slot while waiting, or set
-``wait_for_completion=False`` to return the replication task ARN immediately. Use ``waiter_delay``
-and ``waiter_max_attempts`` to control subsequent polls for each table. Waiting for completion is
-supported only with ``data-reload`` because the waiter monitors full-load table states. When using
-``validate-only``, set ``wait_for_completion=False`` because validation does not perform a full load.
+requested operation completes. With ``data-reload``, it waits for ``TableState`` to reach
+``Table completed``. With ``validate-only``, it waits for ``ValidationState`` to reach ``Validated``
+and fails if DMS reports mismatched or suspended records, a table error, or another terminal
+validation failure. The first waiter poll runs immediately after the request returns. Set
+``deferrable=True`` to release the worker slot while waiting, or set ``wait_for_completion=False``
+to return the replication task ARN immediately. Use ``waiter_delay`` and ``waiter_max_attempts`` to
+control subsequent polls for each table.
 AWS DMS accepts up to 10 unique tables per request and supports tasks using the ``full-load`` or
 ``full-load-and-cdc`` migration type. DMS applies the task's ``TargetTablePrepMode`` setting before
 reloading each table; when it is ``DO_NOTHING``, truncate the target table manually before reloading.

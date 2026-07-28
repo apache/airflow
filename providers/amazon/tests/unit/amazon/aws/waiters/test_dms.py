@@ -42,6 +42,7 @@ class TestCustomDmsWaiters:
         assert "replication_complete" in hook_waiters
         assert "replication_task_modified" in hook_waiters
         assert "table_reload_complete" in hook_waiters
+        assert "table_validation_complete" in hook_waiters
 
     @pytest.fixture
     def mock_describe_replication(self):
@@ -218,6 +219,55 @@ class TestCustomDmsWaiters:
         mock_describe_table_statistics.return_value = {"TableStatistics": [{"TableState": table_state}]}
 
         waiter = DmsHook(aws_conn_id=None).get_waiter("table_reload_complete")
+
+        with pytest.raises(WaiterError, match="terminal failure"):
+            waiter.wait(
+                ReplicationTaskArn="task-arn",
+                Filters=[
+                    {"Name": "schema-name", "Values": ["dmsreload"]},
+                    {"Name": "table-name", "Values": ["reload_test"]},
+                ],
+                WaiterConfig={"Delay": 0.01, "MaxAttempts": 1},
+            )
+
+    def test_wait_for_table_validation_complete(self, mock_describe_table_statistics):
+        mock_describe_table_statistics.side_effect = [
+            {"TableStatistics": [{"ValidationState": "Pending validation"}]},
+            {"TableStatistics": [{"ValidationState": "Preparing table"}]},
+            {"TableStatistics": [{"ValidationState": "Pending revalidation"}]},
+            {"TableStatistics": [{"ValidationState": "Pending records"}]},
+            {"TableStatistics": [{"ValidationState": "Validated"}]},
+        ]
+
+        waiter = DmsHook(aws_conn_id=None).get_waiter("table_validation_complete")
+        waiter.wait(
+            ReplicationTaskArn="task-arn",
+            Filters=[
+                {"Name": "schema-name", "Values": ["dmsreload"]},
+                {"Name": "table-name", "Values": ["reload_test"]},
+            ],
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 5},
+        )
+
+        assert mock_describe_table_statistics.call_count == 5
+
+    @pytest.mark.parametrize(
+        "validation_state",
+        [
+            "Mismatched records",
+            "Suspended records",
+            "No primary key",
+            "Table error",
+            "Error",
+            "Not enabled",
+        ],
+    )
+    def test_wait_for_table_validation_failure(self, mock_describe_table_statistics, validation_state):
+        mock_describe_table_statistics.return_value = {
+            "TableStatistics": [{"ValidationState": validation_state}]
+        }
+
+        waiter = DmsHook(aws_conn_id=None).get_waiter("table_validation_complete")
 
         with pytest.raises(WaiterError, match="terminal failure"):
             waiter.wait(

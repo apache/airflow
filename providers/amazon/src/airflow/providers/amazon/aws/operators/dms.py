@@ -437,8 +437,7 @@ class DmsReloadTablesOperator(AwsBaseOperator[DmsHook]):
     :param reload_option: Use ``data-reload`` to reload data and revalidate it when validation is
         enabled. Use ``validate-only`` to revalidate without reloading data; this option only applies
         when validation is enabled. Defaults to ``data-reload``.
-    :param wait_for_completion: If True, wait until every data reload completes. Waiting is supported
-        only with ``data-reload`` because the waiter monitors full-load table states.
+    :param wait_for_completion: If True, wait until every data reload or validation completes.
         Defaults to True.
     :param deferrable: Run the operator in deferrable mode when waiting for completion.
         Defaults to the ``operators.default_deferrable`` configuration.
@@ -487,8 +486,11 @@ class DmsReloadTablesOperator(AwsBaseOperator[DmsHook]):
         self.waiter_max_attempts = waiter_max_attempts
 
     def _wait_for_reload_completion(self) -> None:
+        waiter_name = (
+            "table_validation_complete" if self.reload_option == "validate-only" else "table_reload_complete"
+        )
         for table in self.tables_to_reload:
-            self.hook.get_waiter("table_reload_complete").wait(
+            self.hook.get_waiter(waiter_name).wait(
                 ReplicationTaskArn=self.replication_task_arn,
                 Filters=[
                     {"Name": "schema-name", "Values": [table["SchemaName"]]},
@@ -502,9 +504,6 @@ class DmsReloadTablesOperator(AwsBaseOperator[DmsHook]):
 
     def execute(self, context: Context) -> str:
         """Start reloading target tables for an AWS DMS replication task."""
-        if self.wait_for_completion and self.reload_option != "data-reload":
-            raise ValueError("wait_for_completion is only supported when reload_option is 'data-reload'.")
-
         self.log.info(
             "Reloading %s table(s) for DMS replication task(%s).",
             len(self.tables_to_reload),
@@ -524,6 +523,7 @@ class DmsReloadTablesOperator(AwsBaseOperator[DmsHook]):
                     trigger=DmsTableReloadCompleteTrigger(
                         replication_task_arn=self.replication_task_arn,
                         tables_to_reload=self.tables_to_reload,
+                        reload_option=self.reload_option,
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,

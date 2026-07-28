@@ -243,6 +243,7 @@ class TestDmsTableReloadCompleteTrigger:
         kwargs = {
             "replication_task_arn": self.TASK_ARN,
             "tables_to_reload": self.TABLES,
+            "reload_option": "data-reload",
             "waiter_delay": 5,
             "waiter_max_attempts": 10,
             "aws_conn_id": "test_conn",
@@ -262,6 +263,7 @@ class TestDmsTableReloadCompleteTrigger:
         assert kwargs == {
             "replication_task_arn": self.TASK_ARN,
             "tables_to_reload": self.TABLES,
+            "reload_option": "data-reload",
             "waiter_delay": 5,
             "waiter_max_attempts": 10,
             "aws_conn_id": "test_conn",
@@ -271,28 +273,56 @@ class TestDmsTableReloadCompleteTrigger:
         }
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("reload_option", "waiter_name", "operation_name", "status_query"),
+        [
+            pytest.param(
+                "data-reload",
+                "table_reload_complete",
+                "reload",
+                "TableStatistics[0].TableState",
+                id="data-reload",
+            ),
+            pytest.param(
+                "validate-only",
+                "table_validation_complete",
+                "validation",
+                "TableStatistics[0].ValidationState",
+                id="validate-only",
+            ),
+        ],
+    )
     @mock.patch(f"{DmsTableReloadCompleteTrigger.__module__}.async_wait", autospec=True)
     @mock.patch.object(DmsHook, "get_waiter", autospec=True)
     @mock.patch.object(DmsHook, "get_async_conn", autospec=True)
-    async def test_run_success(self, mock_get_async_conn, mock_get_waiter, mock_async_wait):
+    async def test_run_success(
+        self,
+        mock_get_async_conn,
+        mock_get_waiter,
+        mock_async_wait,
+        reload_option,
+        waiter_name,
+        operation_name,
+        status_query,
+    ):
         mock_client = mock.MagicMock(spec=["describe_table_statistics"])
         mock_waiter = mock.MagicMock(spec=["wait"])
         mock_get_async_conn.return_value.__aenter__.return_value = mock_client
         mock_get_waiter.return_value = mock_waiter
 
-        [response] = [event async for event in self.build_trigger().run()]
+        [response] = [event async for event in self.build_trigger(reload_option=reload_option).run()]
 
         assert response == TriggerEvent({"status": "success", "replication_task_arn": self.TASK_ARN})
         assert mock_get_waiter.call_args_list == [
             mock.call(
                 mock.ANY,
-                "table_reload_complete",
+                waiter_name,
                 deferrable=True,
                 client=mock_client,
             ),
             mock.call(
                 mock.ANY,
-                "table_reload_complete",
+                waiter_name,
                 deferrable=True,
                 client=mock_client,
             ),
@@ -309,9 +339,9 @@ class TestDmsTableReloadCompleteTrigger:
                         {"Name": "table-name", "Values": ["first_table"]},
                     ],
                 },
-                "DMS table reload failed for public.first_table.",
-                "Status of DMS table reload public.first_table is",
-                ["TableStatistics[0].TableState"],
+                f"DMS table {operation_name} failed for public.first_table.",
+                f"Status of DMS table {operation_name} public.first_table is",
+                [status_query],
             ),
             mock.call(
                 mock_waiter,
@@ -324,9 +354,9 @@ class TestDmsTableReloadCompleteTrigger:
                         {"Name": "table-name", "Values": ["second_table"]},
                     ],
                 },
-                "DMS table reload failed for archive.second_table.",
-                "Status of DMS table reload archive.second_table is",
-                ["TableStatistics[0].TableState"],
+                f"DMS table {operation_name} failed for archive.second_table.",
+                f"Status of DMS table {operation_name} archive.second_table is",
+                [status_query],
             ),
         ]
 

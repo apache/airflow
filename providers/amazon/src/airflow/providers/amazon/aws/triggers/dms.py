@@ -275,10 +275,11 @@ class DmsTaskModifyCompleteTrigger(AwsBaseWaiterTrigger):
 
 class DmsTableReloadCompleteTrigger(BaseTrigger):
     """
-    Trigger when AWS DMS finishes reloading a set of tables.
+    Trigger when AWS DMS finishes reloading or validating a set of tables.
 
     :param replication_task_arn: The ARN of the replication task.
     :param tables_to_reload: Tables being reloaded, including schema and table names.
+    :param reload_option: The reload operation whose completion state should be monitored.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -292,6 +293,7 @@ class DmsTableReloadCompleteTrigger(BaseTrigger):
         *,
         replication_task_arn: str,
         tables_to_reload: list[dict[str, str]],
+        reload_option: str = "data-reload",
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         aws_conn_id: str | None = "aws_default",
@@ -302,6 +304,7 @@ class DmsTableReloadCompleteTrigger(BaseTrigger):
         super().__init__()
         self.replication_task_arn = replication_task_arn
         self.tables_to_reload = tables_to_reload
+        self.reload_option = reload_option
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
@@ -316,6 +319,7 @@ class DmsTableReloadCompleteTrigger(BaseTrigger):
             {
                 "replication_task_arn": self.replication_task_arn,
                 "tables_to_reload": self.tables_to_reload,
+                "reload_option": self.reload_option,
                 "waiter_delay": self.waiter_delay,
                 "waiter_max_attempts": self.waiter_max_attempts,
                 "aws_conn_id": self.aws_conn_id,
@@ -334,8 +338,21 @@ class DmsTableReloadCompleteTrigger(BaseTrigger):
             ],
         }
 
+    def _get_waiter_config(self) -> tuple[str, str, str]:
+        if self.reload_option == "validate-only":
+            return (
+                "table_validation_complete",
+                "validation",
+                "TableStatistics[0].ValidationState",
+            )
+        return (
+            "table_reload_complete",
+            "reload",
+            "TableStatistics[0].TableState",
+        )
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Poll table statistics until all requested reloads finish."""
+        """Poll table statistics until all requested operations finish."""
         hook = DmsHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
@@ -345,9 +362,10 @@ class DmsTableReloadCompleteTrigger(BaseTrigger):
 
         try:
             async with await hook.get_async_conn() as client:
+                waiter_name, operation_name, status_query = self._get_waiter_config()
                 for table in self.tables_to_reload:
                     waiter = hook.get_waiter(
-                        "table_reload_complete",
+                        waiter_name,
                         deferrable=True,
                         client=client,
                     )
@@ -357,9 +375,9 @@ class DmsTableReloadCompleteTrigger(BaseTrigger):
                         self.waiter_delay,
                         self.waiter_max_attempts,
                         self._build_waiter_args(table),
-                        f"DMS table reload failed for {table_name}.",
-                        f"Status of DMS table reload {table_name} is",
-                        ["TableStatistics[0].TableState"],
+                        f"DMS table {operation_name} failed for {table_name}.",
+                        f"Status of DMS table {operation_name} {table_name} is",
+                        [status_query],
                     )
         except AirflowException as error:
             yield TriggerEvent(

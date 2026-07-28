@@ -774,8 +774,9 @@ class TestDmsReloadTablesOperator:
         )
         assert result == TASK_ARN
 
+    @pytest.mark.parametrize("reload_option", ["data-reload", "validate-only"])
     @mock.patch.object(DmsHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute_defers_for_completion(self, mock_conn):
+    def test_execute_defers_for_completion(self, mock_conn, reload_option):
         mock_client = mock.MagicMock(spec=["reload_tables"])
         mock_client.reload_tables.return_value = {"ReplicationTaskArn": TASK_ARN}
         mock_conn.return_value = mock_client
@@ -783,6 +784,7 @@ class TestDmsReloadTablesOperator:
             task_id="reload_tables",
             replication_task_arn=TASK_ARN,
             tables_to_reload=self.TABLES_TO_RELOAD,
+            reload_option=reload_option,
             wait_for_completion=True,
             deferrable=True,
             waiter_delay=5,
@@ -800,6 +802,7 @@ class TestDmsReloadTablesOperator:
         assert isinstance(trigger, DmsTableReloadCompleteTrigger)
         assert trigger.replication_task_arn == TASK_ARN
         assert trigger.tables_to_reload == self.TABLES_TO_RELOAD
+        assert trigger.reload_option == reload_option
         assert trigger.waiter_delay == 5
         assert trigger.waiter_max_attempts == 10
         assert trigger.aws_conn_id == "test_conn"
@@ -809,12 +812,21 @@ class TestDmsReloadTablesOperator:
         assert exc_info.value.method_name == "execute_complete"
         mock_client.reload_tables.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ("reload_option", "waiter_name"),
+        [
+            pytest.param("data-reload", "table_reload_complete", id="data-reload"),
+            pytest.param("validate-only", "table_validation_complete", id="validate-only"),
+        ],
+    )
     @mock.patch.object(DmsHook, "get_waiter", autospec=True)
     @mock.patch.object(DmsHook, "conn", new_callable=mock.PropertyMock)
     def test_execute_waits_for_completion(
         self,
         mock_conn,
         mock_get_waiter,
+        reload_option,
+        waiter_name,
     ):
         mock_client = mock.MagicMock(spec=["reload_tables"])
         mock_client.reload_tables.return_value = {"ReplicationTaskArn": TASK_ARN}
@@ -829,6 +841,7 @@ class TestDmsReloadTablesOperator:
             task_id="reload_tables",
             replication_task_arn=TASK_ARN,
             tables_to_reload=tables_to_reload,
+            reload_option=reload_option,
             waiter_delay=5,
             waiter_max_attempts=10,
         )
@@ -838,8 +851,8 @@ class TestDmsReloadTablesOperator:
         assert result == TASK_ARN
         mock_client.reload_tables.assert_called_once()
         assert mock_get_waiter.call_args_list == [
-            mock.call(op.hook, "table_reload_complete"),
-            mock.call(op.hook, "table_reload_complete"),
+            mock.call(op.hook, waiter_name),
+            mock.call(op.hook, waiter_name),
         ]
         assert mock_waiter.wait.call_args_list == [
             mock.call(
@@ -887,23 +900,6 @@ class TestDmsReloadTablesOperator:
             op.execute(None)
 
         mock_client.reload_tables.assert_called_once()
-
-    @mock.patch.object(DmsHook, "conn", new_callable=mock.PropertyMock)
-    def test_wait_for_completion_rejects_validate_only(self, mock_conn):
-        mock_client = mock.MagicMock(spec=["reload_tables"])
-        mock_conn.return_value = mock_client
-        op = DmsReloadTablesOperator(
-            task_id="reload_tables",
-            replication_task_arn=TASK_ARN,
-            tables_to_reload=self.TABLES_TO_RELOAD,
-            reload_option="validate-only",
-            wait_for_completion=True,
-        )
-
-        with pytest.raises(ValueError, match="only supported.*data-reload"):
-            op.execute(None)
-
-        mock_client.reload_tables.assert_not_called()
 
     def test_execute_complete(self):
         op = DmsReloadTablesOperator(
