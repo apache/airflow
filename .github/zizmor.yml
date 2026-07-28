@@ -19,10 +19,3 @@
 rules:
   secrets-outside-env:
     disable: true
-  # apache/infrastructure-actions tags each action under its own prefix
-  # (allowlist-check/vX.Y.Z, save/vX.Y.Z, restore/vX.Y.Z), so its pins now carry a real
-  # version comment. zizmor matches comments against plain `vX.Y.Z` tags, so the prefixed
-  # form still reads as a mismatch to it.
-  ref-version-mismatch:
-    ignore:
-      - asf-allowlist-check.yml
