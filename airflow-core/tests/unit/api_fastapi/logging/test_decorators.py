@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import Request
@@ -145,12 +145,7 @@ class TestActionLoggingUserFields:
             def get_display_name(self) -> str:
                 return "Jane Doe"
 
-        request = MagicMock(spec=Request)
-        request.headers = {}
-        request.method = "GET"
-        request.query_params = {}
-        request.path_params = {}
-        request.body = AsyncMock(return_value=b"")
+        request = Request({"type": "http", "method": "GET", "headers": [], "query_string": b""})
         session = MagicMock(spec=Session)
 
         asyncio.run(action_logging(event="test_event")(request=request, session=session, user=FakeUser()))
