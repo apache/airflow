@@ -96,7 +96,11 @@ def structure_data(
             depth=depth,
         )
 
-    nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+    group_dict = dag.task_group.get_task_group_dict()
+    nodes = [
+        task_group_to_dict(child, group_dict=group_dict)
+        for child in dag.task_group.topological_sort(group_dict=group_dict)
+    ]
     edges = dag_edges(dag)
 
     data = {

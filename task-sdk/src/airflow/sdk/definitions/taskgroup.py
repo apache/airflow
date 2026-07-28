@@ -549,7 +549,7 @@ class TaskGroup(TaskGroupMixin, DAGNode):
             key=lambda node: (not isinstance(node, TaskGroup), node.node_id),
         )
 
-    def topological_sort(self) -> list[DAGNode]:
+    def topological_sort(self, *, group_dict: dict[str, TaskGroup] | None = None) -> list[DAGNode]:
         """
         Sort children topologically — a task always comes after its upstream dependencies.
 
@@ -570,7 +570,8 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         nodes = list(children.values())
         n = len(nodes)
         id_to_idx = {nid: i for i, nid in enumerate(children)}
-        group_dict = self.dag.task_group.get_task_group_dict()
+        if group_dict is None:
+            group_dict = self.dag.task_group.get_task_group_dict()
 
         projected: list[tuple[int, ...]] = [()] * n
         nodes_with_back_edge = 0
