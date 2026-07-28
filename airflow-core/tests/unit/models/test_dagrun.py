@@ -21,7 +21,7 @@ import datetime
 from collections import defaultdict
 from collections.abc import Mapping
 from contextlib import contextmanager
-from functools import partial, reduce
+from functools import reduce
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import ANY, call
