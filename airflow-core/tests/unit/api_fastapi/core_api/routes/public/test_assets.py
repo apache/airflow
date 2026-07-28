@@ -172,7 +172,16 @@ def _create_provided_asset_alias(session, asset_alias: AssetAliasModel) -> None:
     session.commit()
 
 
-def _create_assets_events(session, num: int = 2, varying_timestamps=False) -> None:
+def _create_assets_events(
+    session,
+    num: int = 2,
+    timestamp_day_offsets: list[int] | None = None,
+) -> None:
+    if timestamp_day_offsets is not None and len(timestamp_day_offsets) != num:
+        raise ValueError("timestamp_day_offsets must have length num")
+
+    offsets = [0] * num if timestamp_day_offsets is None else timestamp_day_offsets
+
     assets_events = [
         AssetEvent(
             id=i,
@@ -181,9 +190,9 @@ def _create_assets_events(session, num: int = 2, varying_timestamps=False) -> No
             source_task_id="source_task_id",
             source_dag_id="source_dag_id",
             source_run_id=f"source_run_id_{i}",
-            timestamp=DEFAULT_DATE + timedelta(days=i - 1) if varying_timestamps else DEFAULT_DATE,
+            timestamp=DEFAULT_DATE + timedelta(days=offset),
         )
-        for i in range(1, 1 + num)
+        for i, offset in enumerate(offsets, start=1)
     ]
     session.add_all(assets_events)
     session.commit()
@@ -281,8 +290,18 @@ class TestAssets:
         _create_provided_asset(session=session, asset=asset)
 
     @provide_session
-    def create_assets_events(self, num: int = 2, varying_timestamps: bool = False, *, session):
-        _create_assets_events(session=session, num=num, varying_timestamps=varying_timestamps)
+    def create_assets_events(
+        self,
+        num: int = 2,
+        timestamp_day_offsets: list[int] | None = None,
+        *,
+        session,
+    ):
+        _create_assets_events(
+            session=session,
+            num=num,
+            timestamp_day_offsets=timestamp_day_offsets,
+        )
 
     @provide_session
     def create_assets_events_with_sensitive_extra(self, num: int = 2, *, session):
@@ -498,18 +517,16 @@ class TestGetAssets(TestAssets):
         assert response.json()["detail"] == msg
 
     def test_order_by_last_asset_event_timestamp(self, test_client, session):
-        assets = self.create_assets(session=session, num=3)
-        self.create_assets_events(session=session, num=3, varying_timestamps=True)
+        self.create_assets(session=session, num=3)
+        self.create_assets_events(session=session, num=3, timestamp_day_offsets=[2, 0, 1])
 
         response = test_client.get("/assets?order_by=last_asset_event_timestamp")
         assert response.status_code == 200
-        assert [asset["id"] for asset in response.json()["assets"]] == [asset.id for asset in assets]
+        assert [asset["id"] for asset in response.json()["assets"]] == [2, 3, 1]
 
         response = test_client.get("/assets?order_by=-last_asset_event_timestamp")
         assert response.status_code == 200
-        assert [asset["id"] for asset in response.json()["assets"]] == [
-            asset.id for asset in reversed(assets)
-        ]
+        assert [asset["id"] for asset in response.json()["assets"]] == [1, 3, 2]
 
     @pytest.mark.parametrize(
         ("params", "expected_assets"),
@@ -986,7 +1003,7 @@ class TestGetAssetEvents(TestAssets):
     def test_filter_by_timestamp_gte_and_lte(self, test_client, params, expected_ids, session):
         # Create sample assets and asset events with specified timestamps
         self.create_assets()
-        self.create_assets_events(num=3, varying_timestamps=True)
+        self.create_assets_events(num=3, timestamp_day_offsets=[0, 1, 2])
         self.create_dag_run()
         self.create_asset_dag_run()
 

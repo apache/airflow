@@ -170,7 +170,7 @@ def get_assets(
     """Get assets."""
     assets_select_statement = select(
         AssetModel,
-        _last_asset_event_query.c.last_asset_event_id,  
+        _last_asset_event_query.c.last_asset_event_id,
         _last_asset_event_query.c.last_asset_event_timestamp,
     ).outerjoin(_last_asset_event_query, AssetModel.id == _last_asset_event_query.c.asset_id)
 
