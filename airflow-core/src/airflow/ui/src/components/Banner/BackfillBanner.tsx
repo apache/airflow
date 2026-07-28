@@ -106,7 +106,7 @@ const BackfillBanner = ({ dagId }: Props) => {
     <Box bg="info.solid" borderRadius="full" color="info.contrast" my="1" px="2" py="1">
       <HStack alignItems="center" ml={3}>
         <RiArrowGoBackFill />
-        <RouterLink color="inherit" fontWeight="medium" to={`/dags/${dagId}/backfills/${backfill.id}`}>
+        <RouterLink color="inherit" fontWeight="medium" to={`/dags/${dagId}/backfills`}>
           {translate("banner.backfillInProgress")}:
         </RouterLink>
         <Tooltip content={translate("backfill.schedulerPriorityHint")} showArrow>

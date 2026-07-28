@@ -76,7 +76,7 @@ const backfill: BackfillResponse = {
 describe("BackfillBanner", () => {
   beforeEach(() => mocks.listBackfills.mockReset());
 
-  it("links the active banner to its Dag runs screen", () => {
+  it("links the active banner to the Backfills tab", () => {
     mocks.listBackfills.mockReturnValue({
       data: { backfills: [backfill], total_entries: 1 },
       isLoading: false,
@@ -86,7 +86,7 @@ describe("BackfillBanner", () => {
 
     expect(screen.getByRole("link", { name: "Backfill in progress:" })).toHaveAttribute(
       "href",
-      "/dags/example_dag/backfills/7",
+      "/dags/example_dag/backfills",
     );
   });
 });

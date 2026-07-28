@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Text } from "@chakra-ui/react";
+import { Box, Button, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -27,19 +28,25 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
 import { getDuration } from "src/utils";
 
+import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
+
 const getColumns = (
-  dagId: string,
+  onSelectBackfill: (backfill: BackfillResponse) => void,
   translate: (key: string) => string,
 ): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
-      <RouterLink fontWeight="bold" to={`/dags/${dagId}/backfills/${row.original.id}`}>
+      <Button
+        colorPalette="brand"
+        fontWeight="bold"
+        onClick={() => onSelectBackfill(row.original)}
+        variant="plain"
+      >
         <Time datetime={row.original.from_date} />
-      </RouterLink>
+      </Button>
     ),
     enableSorting: false,
     header: translate("table.from"),
@@ -110,6 +117,7 @@ const getColumns = (
 export const Backfills = () => {
   const { t: translate } = useTranslation();
   const { setTableURLState, tableURLState } = useTableURLState();
+  const [selectedBackfill, setSelectedBackfill] = useState<BackfillResponse>();
 
   const { pagination } = tableURLState;
 
@@ -120,7 +128,7 @@ export const Backfills = () => {
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
-  const columns = getColumns(dagId, translate);
+  const columns = getColumns(setSelectedBackfill, translate);
 
   return (
     <Box>
@@ -136,6 +144,11 @@ export const Backfills = () => {
         modelName="common:backfill"
         onStateChange={setTableURLState}
         total={data ? data.total_entries : 0}
+      />
+      <BackfillDagRunsModal
+        backfill={selectedBackfill}
+        onClose={() => setSelectedBackfill(undefined)}
+        open={selectedBackfill !== undefined}
       />
     </Box>
   );

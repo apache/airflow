@@ -85,18 +85,10 @@ type Props = {
   readonly isLoading?: boolean;
   /** Value exposed to the active tab via ``useOutletContext`` (so tabs can reuse the parent's data). */
   readonly outletContext?: unknown;
-  readonly showBackfillBanner?: boolean;
   readonly tabs: Array<NavTab>;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({
-  children,
-  error,
-  isLoading,
-  outletContext,
-  showBackfillBanner = true,
-  tabs,
-}: Props) => {
+export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
@@ -249,7 +241,7 @@ export const DetailsLayout = ({
           </Flex>
         </HStack>
         <Toaster />
-        {showBackfillBanner ? <BackfillBanner dagId={dagId} /> : undefined}
+        <BackfillBanner dagId={dagId} />
         <Box flex={1} minH={0}>
           {isRightPanelCollapsed ? (
             <IconButton

@@ -16,20 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text } from "@chakra-ui/react";
+import { Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useOutletContext, useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillDagRuns } from "openapi/queries";
 import type { BackfillDagRunResponse, BackfillResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
-import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
+import { Dialog, RouterLink } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh } from "src/utils";
+
+type BackfillDagRunsModalProps = {
+  readonly backfill: BackfillResponse | undefined;
+  readonly onClose: () => void;
+  readonly open: boolean;
+};
 
 const translateExceptionReason = (reason: string, translate: (key: string) => string) => {
   // Keep this mapping in sync with BackfillDagRunExceptionReason in airflow.models.backfill.
@@ -117,44 +124,69 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
   },
 ];
 
-export const BackfillDagRuns = () => {
+export const BackfillDagRunsModal = ({ backfill, onClose, open }: BackfillDagRunsModalProps) => {
   const { t: translate } = useTranslation();
-  const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination } = tableURLState;
-  const { backfillId = "", dagId = "" } = useParams();
-  const backfill = useOutletContext<BackfillResponse | undefined>();
-  const parsedBackfillId = Number(backfillId);
-  const hasValidBackfillId = Number.isInteger(parsedBackfillId) && parsedBackfillId > 0;
-  const refetchInterval = useAutoRefresh({ dagId });
+  const pageSize = (useConfig("fallback_page_limit") as number | undefined) ?? 100;
+  const [pageIndex, setPageIndex] = useState(0);
+  const tableState = {
+    pagination: {
+      pageIndex,
+      pageSize,
+    },
+    sorting: [],
+  } satisfies TableState;
+  const refetchInterval = useAutoRefresh({ dagId: backfill?.dag_id });
   const shouldPoll = backfill?.completed_at === null && !backfill.is_paused;
 
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillDagRuns(
     {
-      backfillId: hasValidBackfillId ? parsedBackfillId : 0,
-      limit: pagination.pageSize,
-      offset: pagination.pageIndex * pagination.pageSize,
+      backfillId: backfill?.id ?? 0,
+      limit: pageSize,
+      offset: pageIndex * pageSize,
     },
     undefined,
     {
-      enabled: hasValidBackfillId,
+      enabled: open && backfill !== undefined,
       refetchInterval: shouldPoll ? refetchInterval : false,
     },
   );
 
-  const columns = getColumns(translate);
+  const handleOpenChange = () => {
+    setPageIndex(0);
+    onClose();
+  };
 
   return (
-    <Box>
-      <ErrorAlert error={error} />
-      <DataTable
-        columns={columns}
-        data={data?.backfill_dag_runs ?? []}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        modelName="common:slot"
-        onStateChange={setTableURLState}
-        total={data?.total_entries ?? 0}
-      />
-    </Box>
+    <Dialog.Root
+      lazyMount
+      onOpenChange={handleOpenChange}
+      open={open}
+      scrollBehavior="inside"
+      size="cover"
+      unmountOnExit
+    >
+      <Dialog.Content backdrop>
+        <Dialog.Header>
+          <Heading size="md">
+            {translate("common:backfill_one")} #{backfill?.id}
+          </Heading>
+        </Dialog.Header>
+        <Dialog.CloseTrigger />
+        <Dialog.Body>
+          <ErrorAlert error={error} />
+          <DataTable
+            columns={getColumns(translate)}
+            data={data?.backfill_dag_runs ?? []}
+            initialState={tableState}
+            isFetching={isFetching}
+            isLoading={isLoading}
+            modelName="common:slot"
+            onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
+            showRowCountHeading
+            total={data?.total_entries ?? 0}
+          />
+        </Dialog.Body>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 };
