@@ -47,7 +47,6 @@ from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
     BaseOperator,
-    is_arg_set,
 )
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -221,8 +220,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
         self.note = note
         self.deferrable = deferrable
-        logical_date = _validate_datetime_param("logical_date", logical_date)
-        run_after = _validate_datetime_param("run_after", run_after)
         self.logical_date = logical_date
         self.run_after = run_after
         if fail_when_dag_is_paused and AIRFLOW_V_3_0_PLUS and not AIRFLOW_V_3_2_PLUS:
@@ -239,14 +236,14 @@ class TriggerDagRunOperator(BaseOperator):
                 # If no logical_date is provided we will set utcnow()
                 parsed_logical_date = timezone.utcnow()
         else:
-            logical_date = cast("str | datetime.datetime | None", self.logical_date)
-            parsed_logical_date = _parse_datetime_param(logical_date)
+            logical_date_value = cast("str | datetime.datetime | None", self.logical_date)
+            parsed_logical_date = _parse_datetime_param("logical_date", logical_date_value)
 
         if self.run_after is NOTSET:
             parsed_run_after = parsed_logical_date
         else:
-            run_after = cast("str | datetime.datetime | None", self.run_after)
-            parsed_run_after = _parse_datetime_param(run_after)
+            run_after_value = cast("str | datetime.datetime | None", self.run_after)
+            parsed_run_after = _parse_datetime_param("run_after", run_after_value)
 
         try:
             if self.conf and isinstance(self.conf, str):
@@ -512,39 +509,21 @@ class TriggerDagRunOperator(BaseOperator):
 
 
 @overload
-def _validate_datetime_param(name: str, value: ArgNotSet) -> ArgNotSet: ...
+def _parse_datetime_param(name: str, value: None) -> None: ...
 @overload
-def _validate_datetime_param(name: str, value: None) -> None: ...
+def _parse_datetime_param(name: str, value: datetime.datetime) -> datetime.datetime: ...
 @overload
-def _validate_datetime_param(name: str, value: str) -> str: ...
-@overload
-def _validate_datetime_param(name: str, value: datetime.datetime) -> datetime.datetime: ...
-
-
-def _validate_datetime_param(
-    name: str,
-    value: str | datetime.datetime | None | ArgNotSet,
-) -> str | datetime.datetime | None | ArgNotSet:
-    if not is_arg_set(value):
-        return NOTSET
-    if value is None or isinstance(value, (str, datetime.datetime)):
-        return value
-    raise TypeError(
-        f"Expected str, datetime.datetime, or None for parameter '{name}'. Got {type(value).__name__}"
-    )
-
-
-@overload
-def _parse_datetime_param(value: None) -> None: ...
-@overload
-def _parse_datetime_param(value: datetime.datetime) -> datetime.datetime: ...
-@overload
-def _parse_datetime_param(value: str) -> datetime.datetime: ...
+def _parse_datetime_param(name: str, value: str) -> datetime.datetime: ...
 
 
 def _parse_datetime_param(
-    value: str | datetime.datetime | None,
+    name: str,
+    value: Any,
 ) -> datetime.datetime | None:
     if value is None or isinstance(value, datetime.datetime):
         return value
-    return timezone.parse(value)
+    if isinstance(value, str):
+        return timezone.parse(value)
+    raise TypeError(
+        f"Expected str, datetime.datetime, or None for parameter '{name}'. Got {type(value).__name__}"
+    )
