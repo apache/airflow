@@ -47,7 +47,6 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
-    CALLBACK_POD_ANNOTATION_KEY,
     POD_EXECUTOR_DONE_KEY,
     FailureDetails,
     KubernetesJob,
@@ -96,18 +95,7 @@ def _format_workload_key_for_log(key: WorkloadKey) -> str:
         if isinstance(key, CallbackKey):
             return f"callback:{key.id}"
     return str(key)
-
-
-def _annotations_to_workload_key(annotations: dict[str, str]) -> WorkloadKey:
-    """Build the appropriate workload key for task pods and callback pods."""
-    if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in annotations:
-        from airflow.models.callback import CallbackKey
-
-        return CallbackKey(id=annotations[CALLBACK_POD_ANNOTATION_KEY])
-
-    return annotations_to_key(annotations)
-
-
+  
 @dataclass
 class _PodLaunchAttempt:
     """
@@ -1125,7 +1113,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
                 continue
 
-            ti_id = _annotations_to_workload_key(pod.metadata.annotations)
+            ti_id = annotations_to_key(pod.metadata.annotations)
             pod_name = pod.metadata.name
             namespace = pod.metadata.namespace
             self.completed[(namespace, pod_name)] = KubernetesResults(
