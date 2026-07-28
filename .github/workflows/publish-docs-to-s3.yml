@@ -254,39 +254,13 @@ jobs:
       upgrade-to-newer-dependencies: "false"
       docker-cache: "registry"
       disable-airflow-repo-cache: "false"
-
-  # Building against main's registry cache can fail outright when the ref's pyproject.toml has
-  # diverged from main — the case the docs job's inline `breeze ci-image build || docker buildx
-  # build` fallback used to cover. Retry once with the cache off, which is slow but always
-  # correct. Skipped whenever the cached build worked, so a fresh cache costs nothing.
-  build-ci-image-no-cache:
-    name: "Build CI image (no cache)"
-    needs: [build-info, build-ci-image]
-    if: always() && needs.build-ci-image.result == 'failure'
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      packages: write
-    with:
-      runners: '["ubuntu-22.04"]'
-      platform: "linux/amd64"
-      checkout-ref: ${{ inputs.ref }}
-      push-image: "false"
-      upload-image-artifact: "true"
-      upload-mount-cache-artifact: "true"
-      python-versions: ${{ format('["{0}"]', needs.build-info.outputs.default-python-version) }}
-      branch: "main"
-      constraints-branch: "constraints-main"
-      use-uv: "true"
-      upgrade-to-newer-dependencies: "false"
-      docker-cache: "disabled"
-      disable-airflow-repo-cache: "false"
+      # Building against main's cache can fail outright when the ref's pyproject.toml has
+      # diverged from main — the case the docs job's inline `breeze ci-image build || docker
+      # buildx build` fallback used to cover.
+      retry-without-cache: "true"
 
   build-docs:
-    needs: [build-info, build-ci-image, build-ci-image-no-cache]
-    if: >
-      !cancelled() &&
-      (needs.build-ci-image.result == 'success' || needs.build-ci-image-no-cache.result == 'success')
+    needs: [build-info, build-ci-image]
     timeout-minutes: 150
     name: "Build documentation"
     runs-on: ubuntu-latest
@@ -658,12 +632,8 @@ jobs:
   update-registry:
     # Runs alongside the docs build rather than after it: the registry reads nothing the docs
     # publish produces, so waiting only added its whole duration to the release manager's wait.
-    needs: [build-info, build-ci-image, build-ci-image-no-cache]
-    if: >
-      !cancelled() &&
-      (needs.build-ci-image.result == 'success' || needs.build-ci-image-no-cache.result == 'success') &&
-      (needs.build-info.outputs.registry-providers != '' ||
-      needs.build-info.outputs.registry-full-build == 'true')
+    needs: [build-info, build-ci-image]
+    if: needs.build-info.outputs.registry-providers != '' || needs.build-info.outputs.registry-full-build == 'true'
     name: "Update Provider Registry"
     permissions:
       contents: read
