@@ -395,7 +395,7 @@ def ti_run(
             and (serialized_task := get_task(dag_bag, ti, session=session)) is not None
         ):
             # The route excludes unset fields, keeping responses without a captured TaskFlow arg spec lean.
-            if arg_bindings := get_arg_bindings(serialized_task):
+            if arg_bindings := get_arg_bindings(serialized_task, ti, session=session):
                 try:
                     context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
                 except ValidationError:
