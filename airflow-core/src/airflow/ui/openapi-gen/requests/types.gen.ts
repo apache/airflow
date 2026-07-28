@@ -3604,6 +3604,14 @@ export type GetEventLogsData = {
     orderBy?: Array<(string)>;
     owner?: string | null;
     /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    ownerDisplayNamePattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    ownerDisplayNamePrefixPattern?: string | null;
+    /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     ownerPattern?: string | null;

@@ -2078,11 +2078,13 @@ export class EventLogService {
      * @param data.taskIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `task_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.runIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.ownerPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     * @param data.ownerDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.eventPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `event_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.taskIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.runIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.ownerPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.ownerDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @param data.eventPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      * @returns EventLogCollectionResponse Successful Response
      * @throws ApiError
@@ -2110,11 +2112,13 @@ export class EventLogService {
                 task_id_pattern: data.taskIdPattern,
                 run_id_pattern: data.runIdPattern,
                 owner_pattern: data.ownerPattern,
+                owner_display_name_pattern: data.ownerDisplayNamePattern,
                 event_pattern: data.eventPattern,
                 dag_id_prefix_pattern: data.dagIdPrefixPattern,
                 task_id_prefix_pattern: data.taskIdPrefixPattern,
                 run_id_prefix_pattern: data.runIdPrefixPattern,
                 owner_prefix_pattern: data.ownerPrefixPattern,
+                owner_display_name_prefix_pattern: data.ownerDisplayNamePrefixPattern,
                 event_prefix_pattern: data.eventPrefixPattern
             },
             errors: {
