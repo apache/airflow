@@ -60,6 +60,15 @@ on:  # yamllint disable-line rule:truthy
         required: false
         type: boolean
         default: false
+      # `github.event_name` inside a called workflow reports the *caller's* event, never
+      # `workflow_call`, so it cannot distinguish the two entry points. An input declared
+      # only here can: it defaults to true when called and is undefined (falsy) on a
+      # `workflow_dispatch`. Callers must not pass it.
+      is-workflow-call:
+        description: "Internal: always true on the workflow_call path, do not pass explicitly"
+        required: false
+        type: boolean
+        default: true
       image-stash-ref:
         description: >
           Ref whose CI image stash to use (empty = the per-branch one). Set it to whatever the
@@ -89,7 +98,7 @@ jobs:
     # such image and still builds its own.
     if: >
       (inputs.ci-image-already-built != true) && (
-      github.event_name == 'workflow_call' ||
+      inputs.is-workflow-call ||
       contains(fromJSON('[
         "ashb",
         "bugraoz93",
@@ -125,11 +134,12 @@ jobs:
     name: "Build & Publish Registry"
     needs: [build-ci-image]
     # `build-ci-image` is skipped when the caller stashed the image, so this cannot simply
-    # inherit its result — but it must keep enforcing the same committer allowlist that
-    # skipping that job used to enforce for us on a dispatch.
+    # inherit its result. On a dispatch it enforces the committer allowlist below; on the
+    # `workflow_call` path the caller has already gated on its own allowlist, so this must
+    # not re-check it against a second, separately-maintained copy.
     if: >
       !cancelled() && needs.build-ci-image.result != 'failure' && (
-      github.event_name == 'workflow_call' ||
+      inputs.is-workflow-call ||
       contains(fromJSON('[
         "ashb",
         "bugraoz93",
