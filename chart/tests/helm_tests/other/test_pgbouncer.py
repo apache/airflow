@@ -108,6 +108,28 @@ class TestPgbouncer:
 
         assert jmespath.search("spec.clusterIP", docs[0]) == "10.10.10.10"
 
+    def test_pgbouncer_service_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True},
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_pgbouncer_service_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True}},
+            show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
     @pytest.mark.parametrize(
         ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
@@ -902,10 +924,10 @@ class TestPgbouncerNetworkPolicy:
     @pytest.mark.parametrize(
         "values",
         [
-            {"workers": {"keda": {"enabled": True}}},
+            {"workers": {"celery": {"keda": {"enabled": True}}}},
             {"triggerer": {"keda": {"enabled": True}}},
             {
-                "workers": {"keda": {"enabled": True}},
+                "workers": {"celery": {"keda": {"enabled": True}}},
                 "triggerer": {"keda": {"enabled": True}},
             },
         ],
@@ -937,37 +959,17 @@ class TestPgbouncerNetworkPolicy:
         [
             # test with workers.keda/workers.celery.keda enabled with namespace labels
             {
-                "workers": {
-                    "keda": {"namespaceLabels": {"app": "airflow"}},
-                    "celery": {"keda": {"enabled": True}},
-                },
-            },
-            {
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
-            },
-            {
-                "workers": {
-                    "keda": {"namespaceLabels": {"airflow": "app"}},
-                    "celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                },
             },
             # test with triggerer.keda enabled with namespace labels
             {"triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
             # test with workers.keda/workers.celery.keda and triggerer.keda both enabled with namespace labels
-            {
-                "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-            },
             {
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
                 "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
             },
             # test with workers.keda/workers.celery.keda and triggerer.keda both enabled workers
             # with namespace labels and triggerer without namespace labels
-            {
-                "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
-                "triggerer": {"keda": {"enabled": True}},
-            },
             {
                 "workers": {"celery": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
                 "triggerer": {"keda": {"enabled": True}},

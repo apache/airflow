@@ -43,6 +43,7 @@ const TASK_STATES: Array<keyof TaskInstanceStateCount> = [
   "up_for_reschedule",
   "upstream_failed",
   "deferred",
+  "awaiting_input",
   "no_status",
 ];
 
@@ -54,6 +55,10 @@ export const TaskInstanceMetrics = ({
 }: TaskInstanceMetricsProps) => {
   const { t: translate } = useTranslation();
   const total = Object.values(taskInstanceStates).reduce((sum, count) => sum + count, 0);
+  // When any state hit the API's STATE_COUNT_CAP, the summed total is only a
+  // lower bound, so per-state percentages computed from it are wrong (#67336).
+  // Suppress percentages for the whole group in that case.
+  const isTotalTruncated = Object.values(taskInstanceStates).some((count) => count >= stateCountLimit);
 
   return (
     <Box borderRadius={5} borderWidth={1} mt={2} p={4}>
@@ -70,6 +75,7 @@ export const TaskInstanceMetrics = ({
             <MetricSection
               capped={taskInstanceStates[state] >= stateCountLimit}
               endDate={endDate}
+              isTotalTruncated={isTotalTruncated}
               key={state}
               kind="task_instances"
               runs={taskInstanceStates[state]}

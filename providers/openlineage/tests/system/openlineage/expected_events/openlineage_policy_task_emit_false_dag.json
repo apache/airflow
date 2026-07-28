@@ -1,0 +1,57 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_normal",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'hello' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_normal",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'hello' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "$absent": "task has emit=False via authoring",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_silenced"
+        }
+    },
+    {
+        "$absent": "task has emit=False via authoring",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_silenced"
+        }
+    },
+    {
+        "$absent": "task has emit=False via authoring",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_silenced"
+        }
+    }
+]

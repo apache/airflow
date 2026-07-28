@@ -434,10 +434,8 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
-            mock.patch(
-                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
-            ) as mock_cti,
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -487,10 +485,8 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
-            mock.patch(
-                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
-            ) as mock_cti,
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -541,10 +537,8 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
-            mock.patch(
-                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
-            ) as mock_cti,
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -569,7 +563,7 @@ class TestPartitionsClear:
         clear_db_dags()
 
     def test_clear_task_instances_chunks_mid_loop_trigger(self, parser, dag_maker):
-        """Pin mid-loop SELECT IN + slice trigger (partition_command.py L120-132).
+        """Pin mid-loop SELECT IN + slice trigger (dagrun.py clear_partition_runs loop body).
 
         Design: TI_CHUNK_SIZE=3, 1 dag with 2 tasks, 3 DRs (6 TIs total).
 
@@ -616,10 +610,8 @@ class TestPartitionsClear:
         dag_maker.sync_dagbag_to_db()
 
         with (
-            mock.patch.object(partition_command, "TI_CHUNK_SIZE", ti_cap),
-            mock.patch(
-                "airflow.cli.commands.partition_command.clear_task_instances", autospec=True
-            ) as mock_cti,
+            mock.patch("airflow.models.dagrun._TI_CHUNK_SIZE", ti_cap),
+            mock.patch("airflow.models.dagrun.clear_task_instances", autospec=True) as mock_cti,
         ):
             partition_command.clear(
                 parser.parse_args(
@@ -768,6 +760,142 @@ class TestPartitionsClear:
             )
         assert "--date must be in the form 'a~b'" in str(excinfo.value.code)
 
+    @pytest.mark.parametrize(
+        ("cli_args", "expected_message"),
+        [
+            (
+                ["--start-date", "2026-01-03", "--end-date", "2026-01-01"],
+                "--start-date must be on or before --end-date.",
+            ),
+            (
+                ["--date", "2026-01-03~2026-01-01"],
+                "--date: the start of the range ('2026-01-03') must be on or before the end ('2026-01-01').",
+            ),
+        ],
+    )
+    def test_inverted_date_window_is_rejected(self, parser, cli_args, expected_message):
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, *cli_args]))
+        assert excinfo.value.code == expected_message
+
+    def test_equal_start_and_end_date_is_accepted(self, parser, capsys):
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    DAG_ID,
+                    "--start-date",
+                    "2026-01-02",
+                    "--end-date",
+                    "2026-01-02",
+                ]
+            )
+        )
+        captured = capsys.readouterr()
+        assert captured.out == (
+            "DagRun part_run_2: partition_key='2026-01-02T00:00:00' -> None, "
+            "partition_date=2026-01-02T00:00:00+00:00 -> None\n"
+            "Cleared partition fields on 1 DagRun(s).\n"
+        )
+
+    def test_offset_aware_window_false_rejection_is_accepted(self, parser, dag_maker):
+        """Absolute-instant order disagrees with Asia/Taipei-localized wall-clock order.
+
+        --start-date 2026-01-01T00:00:00+00:00 (instant Jan1 00:00Z) is *after* the
+        instant of --end-date 2026-01-01T01:00:00+10:00 (Dec31 15:00Z), so a raw
+        instant comparison would wrongly flag this as an inverted window. Once each
+        bound's wall-clock reading is localized to the Dag's Asia/Taipei timetable
+        timezone (matching downstream ``apply_partition_date_window``), the window
+        becomes [Dec31 16:00Z, Dec31 17:00Z) -- lower before upper, valid -- and the
+        run seeded inside it must be cleared.
+        """
+        dag_id = "dag_taipei_offset_false_rejection"
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            start_date=datetime(2025, 1, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id="in_window_run",
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2025, 12, 31, 16, 30, 0, tzinfo=pendulum.UTC),
+            partition_key="in-window",
+        )
+        dag_maker.sync_dagbag_to_db()
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    dag_id,
+                    "--start-date",
+                    "2026-01-01T00:00:00+00:00",
+                    "--end-date",
+                    "2026-01-01T01:00:00+10:00",
+                ]
+            )
+        )
+
+        run = _get_run("in_window_run")
+        assert run.partition_key is None
+        assert run.partition_date is None
+
+        clear_db_runs()
+        clear_db_dags()
+
+    def test_offset_aware_window_false_acceptance_is_rejected(self, parser, dag_maker):
+        """Absolute-instant order disagrees with Asia/Taipei-localized wall-clock order.
+
+        --start-date 2026-01-01T05:00:00+00:00 (instant Jan1 05:00Z) is *before* the
+        instant of --end-date 2026-01-01T04:00:00-10:00 (Jan1 14:00Z), so a raw
+        instant comparison would wrongly accept this window. Once each bound's
+        wall-clock reading is localized to the Dag's Asia/Taipei timetable timezone,
+        the window is [Dec31 21:00Z, Dec31 20:00Z) -- lower after upper, inverted --
+        and clear() must reject it with the same message as the UTC-only case.
+        """
+        dag_id = "dag_taipei_offset_false_acceptance"
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            start_date=datetime(2025, 1, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.sync_dagbag_to_db()
+
+        with pytest.raises(SystemExit) as excinfo:
+            partition_command.clear(
+                parser.parse_args(
+                    [
+                        "partitions",
+                        "clear",
+                        "--dag-id",
+                        dag_id,
+                        "--start-date",
+                        "2026-01-01T05:00:00+00:00",
+                        "--end-date",
+                        "2026-01-01T04:00:00-10:00",
+                    ]
+                )
+            )
+        assert excinfo.value.code == "--start-date must be on or before --end-date."
+
+        clear_db_runs()
+        clear_db_dags()
+
     def test_date_range_syntax_mutually_exclusive_with_start_end(self, parser):
         with pytest.raises(SystemExit) as excinfo:
             partition_command.clear(
@@ -786,11 +914,12 @@ class TestPartitionsClear:
             )
         assert excinfo.value.code == "--date cannot be combined with --start-date / --end-date."
 
-    def test_date_range_end_date_is_literal(self, parser, dag_maker):
-        """Pin literal <= semantics: --date right side is used as-is (no end-of-day clamp).
+    def test_date_range_date_only_endpoints_default_to_midnight(self, parser, dag_maker):
+        """Date-only --date endpoints default to local midnight; the time component is honoured.
 
-        '2026-01-02' parses to midnight 2026-01-02T00:00:00, so a run at 15:00 on
-        the same day has partition_date > the bound and must NOT be cleared.
+        '2026-01-02~2026-01-02' resolves to the inclusive window [Jan 2 00:00Z, Jan 2 00:00Z],
+        so only the midnight run is cleared.  A 15:00 run on the same calendar day falls
+        after the upper bound and is left untouched.
         """
         dag_maker.create_dagrun(
             run_id="part_run_2_midday_date",
@@ -814,22 +943,26 @@ class TestPartitionsClear:
             )
         )
 
-        # Midnight run on exact date is matched (partition_date == bound).
+        # Midnight run on the date is cleared.
         run_2 = _get_run("part_run_2")
         assert run_2.partition_key is None
         assert run_2.partition_date is None
-        # 15:00 > midnight bound — NOT cleared.
+        # 15:00 is after the Jan 2 00:00Z upper bound → untouched.
         run_midday = _get_run("part_run_2_midday_date")
         assert run_midday.partition_key == "2026-01-02T15:00:00"
-        assert run_midday.partition_date == datetime(2026, 1, 2, 15, 0, 0, tzinfo=pendulum.UTC)
-        # Runs outside the range are untouched.
+        # Runs outside the date range are untouched.
         run_1 = _get_run("part_run_1")
         assert run_1.partition_key == "2026-01-01T00:00:00"
         run_3 = _get_run("part_run_3")
         assert run_3.partition_key == "2026-01-03T00:00:00"
 
-    def test_clear_with_datetime_end_date_no_clamp(self, parser, dag_maker):
-        """Pin literal <= semantics with a datetime endpoint: runs after the bound are excluded."""
+    def test_clear_end_date_time_component_honoured(self, parser, dag_maker):
+        """The time-of-day in --end-date is honoured; runs after it are not cleared.
+
+        --end-date 2026-01-02T10:00:00 gives the inclusive upper bound Jan 2 10:00Z.
+        The 10:00 run is at the bound and cleared; the 15:00 run is after it and
+        left untouched.
+        """
         dag_maker.create_dagrun(
             run_id="part_run_h10",
             state=DagRunState.SUCCESS,
@@ -859,16 +992,21 @@ class TestPartitionsClear:
             )
         )
 
-        # 10:00 is within the boundary (<=), must be cleared.
+        # 10:00 on Jan 2 is at the inclusive upper bound — cleared.
         run_h10 = _get_run("part_run_h10")
         assert run_h10.partition_key is None
         assert run_h10.partition_date is None
-        # 15:00 exceeds the un-clamped 10:00 boundary, must be untouched.
+        # 15:00 on Jan 2 is after the upper bound — untouched.
         run_h15 = _get_run("part_run_h15")
         assert run_h15.partition_key == "2026-01-02T15:00:00"
 
-    def test_clear_hourly_window_via_start_end_date(self, parser, dag_maker):
-        """ISO datetime --start-date / --end-date selects only runs within the exact window."""
+    def test_clear_datetime_inputs_honour_time_window(self, parser, dag_maker):
+        """Datetime --start-date / --end-date define a sub-day window; the time part is honoured.
+
+        --start-date 2026-01-02T03:00:00 → lower = Jan 2 03:00Z.
+        --end-date   2026-01-02T10:00:00 → upper = Jan 2 10:00Z.
+        Only the 05:00 run sits inside [03:00Z, 10:00Z]; the 02:00 and 11:00 runs are outside.
+        """
         dag_maker.create_dagrun(
             run_id="part_run_h02",
             state=DagRunState.SUCCESS,
@@ -907,19 +1045,16 @@ class TestPartitionsClear:
             )
         )
 
-        # 02:00 is before the window start — untouched.
-        run_h02 = _get_run("part_run_h02")
-        assert run_h02.partition_key == "2026-01-02T02:00:00"
-        # 05:00 is inside [03:00, 10:00] — cleared.
+        # Only the 05:00 run is inside [Jan 2 03:00Z, Jan 2 10:00Z] — cleared.
         run_h05 = _get_run("part_run_h05")
         assert run_h05.partition_key is None
         assert run_h05.partition_date is None
-        # 11:00 is after the window end — untouched.
-        run_h11b = _get_run("part_run_h11b")
-        assert run_h11b.partition_key == "2026-01-02T11:00:00"
+        # 02:00 (before lower) and 11:00 (after upper) are outside the window — untouched.
+        assert _get_run("part_run_h02").partition_key == "2026-01-02T02:00:00"
+        assert _get_run("part_run_h11b").partition_key == "2026-01-02T11:00:00"
 
-    def test_clear_via_date_range_with_datetime_endpoints(self, parser, dag_maker):
-        """--date with ISO datetime endpoints does not clamp the right side."""
+    def test_clear_via_date_range_datetime_endpoints_honour_time(self, parser, dag_maker):
+        """--date with ISO datetime endpoints honours the time part; only the in-window run clears."""
         dag_maker.create_dagrun(
             run_id="part_run_h02b",
             state=DagRunState.SUCCESS,
@@ -943,6 +1078,7 @@ class TestPartitionsClear:
         )
         dag_maker.sync_dagbag_to_db()
 
+        # Window is the inclusive [Jan 2 03:00Z, Jan 2 10:00Z].
         partition_command.clear(
             parser.parse_args(
                 [
@@ -956,13 +1092,272 @@ class TestPartitionsClear:
             )
         )
 
-        # 02:00 is before window start — untouched.
-        run_h02b = _get_run("part_run_h02b")
-        assert run_h02b.partition_key == "2026-01-02T02:00:00"
-        # 05:00 is inside [03:00, 10:00] — cleared.
+        # Only the 05:00 run is inside the window — cleared.
         run_h05b = _get_run("part_run_h05b")
         assert run_h05b.partition_key is None
         assert run_h05b.partition_date is None
-        # 11:00 is after un-clamped 10:00 end — untouched.
-        run_h11c = _get_run("part_run_h11c")
-        assert run_h11c.partition_key == "2026-01-02T11:00:00"
+        # 02:00 (before lower) and 11:00 (after upper) are untouched.
+        assert _get_run("part_run_h02b").partition_key == "2026-01-02T02:00:00"
+        assert _get_run("part_run_h11c").partition_key == "2026-01-02T11:00:00"
+
+    TAIPEI_DAG_ID = "test_partitions_clear_taipei_dag"
+
+    @pytest.fixture
+    def seeded_taipei_runs(self, dag_maker, setup_partitioned_runs):
+        """Seed DagRuns for a Asia/Taipei (UTC+8) CronPartitionTimetable.
+
+        Depends on ``setup_partitioned_runs`` (the class-level fixture) so that its
+        ``clear_db_runs()`` runs before — not after — the Taipei runs are seeded.
+
+        Local midnight in Taipei is stored as UTC-8h in partition_date.
+        Written as explicit UTC instants so the oracle is independent of the
+        timetable under test:
+
+          local 2026-02-18 midnight  → datetime(2026, 2, 17, 16, 0, 0, UTC)
+          local 2026-02-19 midnight  → datetime(2026, 2, 18, 16, 0, 0, UTC)
+          local 2026-02-20 midnight  → datetime(2026, 2, 19, 16, 0, 0, UTC)  (outside window)
+        """
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            self.TAIPEI_DAG_ID,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            start_date=datetime(2026, 2, 1, tzinfo=pendulum.UTC),
+            catchup=True,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        runs = [
+            (
+                "taipei_2026_02_18",
+                datetime(2026, 2, 17, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-18T00:00:00",
+            ),
+            (
+                "taipei_2026_02_19",
+                datetime(2026, 2, 18, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-19T00:00:00",
+            ),
+            (
+                "taipei_2026_02_20",
+                datetime(2026, 2, 19, 16, 0, 0, tzinfo=pendulum.UTC),
+                "2026-02-20T00:00:00",
+            ),
+        ]
+        for run_id, partition_date, partition_key in runs:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
+        dag_maker.sync_dagbag_to_db()
+        yield
+        clear_db_runs()
+        clear_db_dags()
+
+    def _get_taipei_run_partition_dates(self) -> dict[str, datetime | None]:
+        with create_session() as session:
+            runs = session.scalars(select(DagRun).where(DagRun.dag_id == self.TAIPEI_DAG_ID)).all()
+        return {r.run_id: r.partition_date for r in runs}
+
+    @pytest.mark.usefixtures("seeded_taipei_runs")
+    def test_taipei_lower_bound_selects_correct_partition(self, parser):
+        """--start-date 2026-02-19 must match the run stored at 2026-02-18T16Z.
+
+        Without the timezone fix, parsedate("2026-02-19") yields 2026-02-19T00:00:00Z
+        under the UTC default timezone.  The old filter compared
+        partition_date >= 2026-02-19T00:00Z; the run for local 2026-02-19 is stored
+        as 2026-02-18T16:00Z, which is *before* that UTC boundary, so the run would
+        be missed.  Resolving through the timetable timezone fixes the off-by-one:
+        the run at 2026-02-18T16Z is selected, the earlier run is not.
+        """
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    self.TAIPEI_DAG_ID,
+                    "--start-date",
+                    "2026-02-19",
+                ]
+            )
+        )
+
+        dates = self._get_taipei_run_partition_dates()
+        # 2026-02-19 local midnight stored as 2026-02-18T16Z — must be cleared (partition_date is None).
+        assert dates["taipei_2026_02_19"] is None
+        # 2026-02-20 local midnight stored as 2026-02-19T16Z — also in window (no upper bound).
+        assert dates["taipei_2026_02_20"] is None
+        # 2026-02-18 local midnight stored as 2026-02-17T16Z — before the start, must NOT be cleared.
+        assert dates["taipei_2026_02_18"] == datetime(2026, 2, 17, 16, 0, 0, tzinfo=pendulum.UTC)
+
+    @pytest.mark.usefixtures("seeded_taipei_runs")
+    def test_taipei_upper_bound_at_cap(self, parser):
+        """--end-date 2026-02-19 must include the run stored at 2026-02-18T16Z (at-cap).
+
+        The half-open upper bound is 2026-02-20 midnight Taipei = 2026-02-19T16Z, so
+        the run for local 2026-02-19 (stored at 2026-02-18T16Z) falls within the window.
+        """
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    self.TAIPEI_DAG_ID,
+                    "--end-date",
+                    "2026-02-19",
+                ]
+            )
+        )
+
+        dates = self._get_taipei_run_partition_dates()
+        # Both 2026-02-18 and 2026-02-19 local dates are within [start, Feb 20 16Z).
+        assert dates["taipei_2026_02_18"] is None
+        assert dates["taipei_2026_02_19"] is None
+        # 2026-02-20 local midnight (stored at 2026-02-19T16Z) equals the upper bound — NOT cleared.
+        assert dates["taipei_2026_02_20"] == datetime(2026, 2, 19, 16, 0, 0, tzinfo=pendulum.UTC)
+
+    @pytest.mark.usefixtures("seeded_taipei_runs")
+    def test_taipei_upper_bound_over_cap(self, parser):
+        """--end-date 2026-02-18 must NOT include the run stored at 2026-02-18T16Z (over-cap).
+
+        The half-open upper bound is 2026-02-19 midnight Taipei = 2026-02-18T16Z, so
+        the run for local 2026-02-19 (stored at exactly that UTC instant) falls outside.
+        """
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    self.TAIPEI_DAG_ID,
+                    "--end-date",
+                    "2026-02-18",
+                ]
+            )
+        )
+
+        dates = self._get_taipei_run_partition_dates()
+        # Only the 2026-02-18 local date run is within the window.
+        assert dates["taipei_2026_02_18"] is None
+        # 2026-02-19 (stored at 2026-02-18T16Z) equals the upper bound — strictly less than, NOT cleared.
+        assert dates["taipei_2026_02_19"] == datetime(2026, 2, 18, 16, 0, 0, tzinfo=pendulum.UTC)
+        assert dates["taipei_2026_02_20"] == datetime(2026, 2, 19, 16, 0, 0, tzinfo=pendulum.UTC)
+
+    def test_cross_dag_run_id_collision_does_not_clear_other_dag(self, parser, dag_maker):
+        """Clearing by run_id only affects the target Dag; a second Dag sharing the same run_id is untouched."""
+        shared_run_id = "cross_dag_shared_run"
+        dag_id_target = "cli_cross_dag_target"
+        dag_id_bystander = "cli_cross_dag_bystander"
+        clear_db_runs()
+        clear_db_dags()
+
+        with dag_maker(
+            dag_id_target,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2026, 1, 1),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_key="key-target",
+        )
+
+        with dag_maker(
+            dag_id_bystander,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone=pendulum.UTC),
+            start_date=datetime(2026, 1, 1),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t1")
+        dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            logical_date=None,
+            partition_date=datetime(2026, 1, 1, tzinfo=pendulum.UTC),
+            partition_key="key-bystander",
+        )
+
+        dag_maker.sync_dagbag_to_db()
+
+        _set_tis_state(shared_run_id, TaskInstanceState.SUCCESS)
+
+        partition_command.clear(
+            parser.parse_args(
+                [
+                    "partitions",
+                    "clear",
+                    "--dag-id",
+                    dag_id_target,
+                    "--run-id",
+                    shared_run_id,
+                    "--clear-task-instances",
+                ]
+            )
+        )
+
+        with create_session() as session:
+            run_target = session.scalar(
+                select(DagRun).where(DagRun.dag_id == dag_id_target, DagRun.run_id == shared_run_id)
+            )
+            run_bystander = session.scalar(
+                select(DagRun).where(DagRun.dag_id == dag_id_bystander, DagRun.run_id == shared_run_id)
+            )
+            tis_bystander = list(
+                session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == dag_id_bystander,
+                        TaskInstance.run_id == shared_run_id,
+                    )
+                )
+            )
+
+        assert run_target.partition_key is None
+        assert run_target.partition_date is None
+
+        assert run_bystander.partition_key == "key-bystander"
+        assert run_bystander.partition_date is not None
+        assert all(ti.state == TaskInstanceState.SUCCESS for ti in tis_bystander)
+
+        # Target Dag's TIs must have been reset (clear_task_instances=True).
+        with create_session() as session:
+            tis_target = list(
+                session.scalars(
+                    select(TaskInstance).where(
+                        TaskInstance.dag_id == dag_id_target,
+                        TaskInstance.run_id == shared_run_id,
+                    )
+                )
+            )
+        assert all(ti.state is None for ti in tis_target)
+
+        clear_db_runs()
+        clear_db_dags()
+
+    @pytest.mark.parametrize(
+        "selector_args",
+        [
+            ["--run-id", "part_run_1"],
+            ["--partition-key", "2026-01-01T00:00:00"],
+        ],
+    )
+    def test_run_id_and_partition_key_do_not_call_get_db_dag(self, parser, selector_args):
+        """run_id and partition_key selectors must not load the Dag from the DB.
+
+        get_db_dag raises when the Dag has been deleted but DagRuns remain; the
+        CLI must not call it for these two selectors so that orphaned runs can
+        still be cleared.
+        """
+        with mock.patch("airflow.cli.commands.partition_command.get_db_dag") as mock_get_db_dag:
+            partition_command.clear(
+                parser.parse_args(["partitions", "clear", "--dag-id", DAG_ID, *selector_args])
+            )
+        mock_get_db_dag.assert_not_called()

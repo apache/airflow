@@ -10,9 +10,12 @@
     "maxRuns": "Maximális aktív futások",
     "missingAndErroredRuns": "Hiányzó és hibás futások",
     "missingRuns": "Hiányzó futások",
+    "overrideExistingParams": "Jelenlegi futások paramétereinek felülírása.",
     "permissionDenied": "Próbafuttatás sikertelen: a felhasználónak nincs jogosultsága backfill létrehozásához.",
     "reprocessBehavior": "Újrafeldolgozás viselkedése",
     "run": "Backfill futtatása",
+    "scheduleNotBackfillable": "A Dag ütemezése nem támogatja a backfill futtatást",
+    "schedulerPriorityHint": "A backfill típusú Dag futások mindig a nem-backfill futásokat követően kerülnek sorra az ütemezési ciklusokban. Ha nem-backfill futások is vannak a sorban, akkor a backfill futások hosszabb ideig is ott maradhatnak.",
     "selectDescription": "Futtasd ezt a Dag-et egy dátumtartományra",
     "selectLabel": "Backfill",
     "title": "Backfill futtatása",
@@ -45,7 +48,6 @@
   },
   "dagWarnings": {
     "error_one": "1 hiba",
-    "error_other": "{{count}} hiba",
     "errorAndWarning": "1 hiba és {{warningText}}",
     "warning_one": "1 figyelmeztetés",
     "warning_other": "{{count}} figyelmeztetés"
@@ -72,6 +74,7 @@
     "files_other": "{{count}} fájl"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Időtartam megadása ISO 8601 formátumban",
     "placeholder": "Érték kiválasztása",
     "placeholderArray": "Adjon meg minden sztringet új sorban",
     "placeholderExamples": "Kezdjen el gépelni az opciók megjelenítéséhez",
@@ -79,6 +82,7 @@
     "validationErrorArrayNotArray": "Az értéknek tömbnek kell lennie.",
     "validationErrorArrayNotNumbers": "A tömb minden elemének számnak kell lennie.",
     "validationErrorArrayNotObject": "A tömb minden elemének objektumnak kell lennie.",
+    "validationErrorDuration": "Érvénytelen ISO 8601 időtartam formátum",
     "validationErrorRequired": "Ez a mező kötelező"
   },
   "graph": {
@@ -92,13 +96,14 @@
     "otherDagRuns": "+További Dag futások",
     "taskCount_one": "{{count}} feladat",
     "taskCount_other": "{{count}} feladat",
-    "taskGroup": "Feladatcsoport"
+    "taskGroup": "Feladatcsoport",
+    "zoomToTask": "Nagyítás a kiválasztott feladatra"
   },
   "limitedList": "+{{count}} további",
   "limitedList.allItems": "Összes {{count}} elem:",
   "limitedList.allTags_one": "Összes címke ({{count}})",
   "limitedList.allTags_other": "Összes címke ({{count}})",
-  "limitedList.clickToInteract": "Kattintson egy címkére a Dag-ok szűréséhez",
+  "limitedList.clickToInteract": "Kattintson egy címkére a Dag-ek szűréséhez",
   "limitedList.clickToOpenFull": "Kattintson a \"+{{count}} további\" gombra a teljes nézethez",
   "limitedList.copyPasteText": "A fenti szöveg másolható és beilleszthető",
   "limitedList.showingItems_one": "{{count}} elem megjelenítve",
@@ -132,8 +137,8 @@
     "loading": "Dag információk betöltése...",
     "loadingFailed": "A Dag információk betöltése sikertelen. Kérem, próbálja újra.",
     "manualRunDenied": "Kézi futtatás nem engedélyezett ennél a Dag-nél",
-    "runIdHelp": "Opcionális – ha nincs megadva, automatikusan generálódik",
-    "selectDescription": "Indítsd el ennek a Dag-nek egyetlen futását",
+    "runIdHelp": "Opcionális, ha nincs megadva, automatikusan generálásra kerül",
+    "selectDescription": "A kiválasztott Dag egyszeri futtatása.",
     "selectLabel": "Egyszeri futás",
     "title": "Dag indítása",
     "toaster": {

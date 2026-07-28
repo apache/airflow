@@ -177,3 +177,21 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
             onupdate="CASCADE",
         ),
     )
+
+    def as_resume_event_payload(self, *, timedout: bool = False) -> dict[str, Any]:
+        """
+        Build the event payload that ``HITLOperator.execute_complete`` consumes on resume.
+
+        Single source of truth mapping the response columns to the event dict the operator reads,
+        reproducing the provider's ``HITLTriggerEventSuccessPayload`` contract so a human response
+        (via the Core API) or the scheduler timeout sweep can resume an ``awaiting_input`` task
+        directly, without a trigger. ``responded_at`` stays a ``datetime`` (``execute_complete``
+        calls ``.isoformat()`` on it); ``responded_by_user`` is ``None`` for the timeout default.
+        """
+        return {
+            "chosen_options": list(self.chosen_options or []),
+            "params_input": self.params_input or {},
+            "responded_at": self.responded_at,
+            "responded_by_user": self.responded_by_user,
+            "timedout": timedout,
+        }

@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.partition_mappers.base import PartitionMapper
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ProductMapper(PartitionMapper):
@@ -32,7 +35,9 @@ class ProductMapper(PartitionMapper):
         /,
         *mappers: PartitionMapper,
         delimiter: str = "|",
+        max_downstream_keys: int | None = None,
     ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.mappers = [mapper0, mapper1, *mappers]
         self.delimiter = delimiter
 
@@ -51,17 +56,50 @@ class ProductMapper(PartitionMapper):
             results.append(result)
         return self.delimiter.join(results)
 
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        """
+        Return the temporal anchor for *downstream_key*, or ``None`` when ambiguous.
+
+        Splits *downstream_key* by :attr:`delimiter` and calls each child mapper's
+        ``to_partition_date`` on the corresponding segment. Exactly one non-``None``
+        result is returned as the anchor. Zero temporal children (all categorical)
+        and two or more temporal children (ambiguous) both return ``None`` —
+        the convention is at most one time-based dimension per product key.
+
+        An unexpected segment count (key does not match the number of child mappers)
+        returns ``None`` rather than raising, matching the scheduler's rule of leaving
+        ``partition_date`` unset when the input is ambiguous.
+        """
+        segments = downstream_key.split(self.delimiter)
+        if len(segments) != len(self.mappers):
+            return None
+        anchors = [
+            anchor
+            for mapper, segment in zip(self.mappers, segments)
+            if (anchor := mapper.to_partition_date(segment)) is not None
+        ]
+        if len(anchors) == 1:
+            return anchors[0]
+        return None
+
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper
 
-        return {
+        result: dict[str, Any] = {
             "delimiter": self.delimiter,
             "mappers": [encode_partition_mapper(m) for m in self.mappers],
         }
+        if self.max_downstream_keys is not None:
+            result["max_downstream_keys"] = self.max_downstream_keys
+        return result
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         from airflow.serialization.decoders import decode_partition_mapper
 
         mappers = [decode_partition_mapper(m) for m in data["mappers"]]
-        return cls(*mappers, delimiter=data.get("delimiter", "|"))
+        return cls(
+            *mappers,
+            delimiter=data.get("delimiter", "|"),
+            max_downstream_keys=data.get("max_downstream_keys"),
+        )

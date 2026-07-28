@@ -25,7 +25,7 @@ import pytest
 import time_machine
 from botocore.credentials import Credentials
 
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,
@@ -71,7 +71,6 @@ from airflow.providers.google.cloud.operators.cloud_storage_transfer_service imp
 from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
     CloudStorageTransferServiceCheckJobStatusTrigger,
 )
-from airflow.utils import timezone
 
 try:
     import boto3

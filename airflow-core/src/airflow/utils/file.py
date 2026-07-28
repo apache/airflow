@@ -28,11 +28,10 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import overload
 
+from airflow._shared.module_loading import MODIFIED_DAG_MODULE_NAME
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
-
-MODIFIED_DAG_MODULE_NAME = "unusual_prefix_{path_hash}_{module_name}"
 
 
 ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")

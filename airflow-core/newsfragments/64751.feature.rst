@@ -1,0 +1,1 @@
+Allow DeadlineAlert intervals to be dynamically resolved at Deadline evaluation using objects such as VariableInterval.

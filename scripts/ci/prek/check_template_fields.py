@@ -27,14 +27,14 @@ import sys
 
 from common_prek_utils import (
     initialize_breeze_prek,
-    run_command_via_breeze_shell,
+    run_command_via_breeze_run,
     validate_cmd_result,
 )
 
 initialize_breeze_prek(__name__, __file__)
 py_files_to_test = sys.argv[1:]
 
-cmd_result = run_command_via_breeze_shell(
+cmd_result = run_command_via_breeze_run(
     ["python3", "/opt/airflow/scripts/in_container/run_template_fields_check.py", *py_files_to_test],
     backend="sqlite",
     warn_image_upgrade_needed=True,

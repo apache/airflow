@@ -184,6 +184,7 @@
           "title": "Ignorer"
         }
       },
+      "parsingFile": "Analyse du fichier...",
       "title": "Importer des Variables",
       "upload": "Soumettre un Fichier JSON",
       "uploadPlaceholder": "Soumettre un fichier JSON contenant des variables (par exemple, {\"key\": \"value\", ...})"

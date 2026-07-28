@@ -45,7 +45,7 @@
             "name": "openlineage_task_groups_dag.tg1.task_1"
         }
     },
-        {
+    {
         "eventType": "START",
         "run": {
             "facets": {
@@ -59,7 +59,7 @@
                             "tooltip": "",
                             "upstream_group_ids": "['tg1']",
                             "upstream_task_ids": "['tg1.task_1']"
-                      }
+                        }
                     }
                 }
             }

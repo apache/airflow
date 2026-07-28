@@ -43,10 +43,12 @@ class WeaviateIngestOperator(BaseOperator):
     custom vectors and store them in the Weaviate class.
 
     :param conn_id: The Weaviate connection.
-    :param collection: The Weaviate collection to be used for storing the data objects into.
+    :param collection_name: The Weaviate collection to be used for storing the data objects into.
     :param input_data: The list of dicts or pandas dataframe representing Weaviate data objects to generate
         embeddings on (or provides custom vectors) and store them in the Weaviate class.
     :param vector_col: key/column name in which the vectors are stored.
+    :param uuid_column: Column with pre-generated UUIDs.
+    :param tenant: The tenant to which objects will be added.
     :param hook_params: Optional config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
     """
@@ -57,7 +59,7 @@ class WeaviateIngestOperator(BaseOperator):
         self,
         conn_id: str,
         collection_name: str,
-        input_data: list[dict[str, Any]] | pd.DataFrame | None = None,
+        input_data: list[dict[str, Any]] | pd.DataFrame,
         vector_col: str = "Vector",
         uuid_column: str = "id",
         tenant: str | None = None,
@@ -73,21 +75,21 @@ class WeaviateIngestOperator(BaseOperator):
         self.input_data = input_data
         self.hook_params = hook_params or {}
 
-        if self.input_data is None:
-            raise TypeError("input_data is required")
-
     @cached_property
     def hook(self) -> WeaviateHook:
         """Return an instance of the WeaviateHook."""
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> None:
+        if self.input_data is None:
+            raise TypeError("input_data is required")
         self.log.debug("Input data: %s", self.input_data)
         self.hook.batch_data(
             collection_name=self.collection_name,
             data=self.input_data,
             vector_col=self.vector_col,
             uuid_col=self.uuid_column,
+            tenant=self.tenant,
         )
 
 
@@ -118,7 +120,7 @@ class WeaviateDocumentIngestOperator(BaseOperator):
     :param document_column: Column in DataFrame that identifying source document.
     :param uuid_column: Column with pre-generated UUIDs. If not provided, UUIDs will be generated.
     :param vector_column: Column with embedding vectors for pre-embedded data.
-    :param tenant: The tenant to which the object will be added.
+    :param tenant: The tenant to which objects will be added.
     :param verbose: Flag to enable verbose output during the ingestion process.
     :param hook_params: Optional config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
@@ -172,5 +174,6 @@ class WeaviateDocumentIngestOperator(BaseOperator):
             uuid_column=self.uuid_column,
             vector_column=self.vector_col,
             verbose=self.verbose,
+            tenant=self.tenant,
         )
         return batch_delete_error

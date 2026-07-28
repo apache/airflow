@@ -2,6 +2,22 @@
   "additional_data": "Additional Data",
   "asset_many": "Assets",
   "asset_one": "Asset",
+  "assetStateStore": {
+    "add": "Add Asset State Store",
+    "clearAll": {
+      "resource": "all asset state store",
+      "title": "Clear All Asset State Store",
+      "warning": "All asset state store will be wiped. Tasks that use this store to coordinate work will lose their persisted memory."
+    },
+    "delete": "Delete Asset State Store",
+    "deleteWarning": "The asset will lose this persisted state store entry.",
+    "edit": "Edit Asset State Store",
+    "emptyState": "Asset state store stores values scoped to an asset identity, shared across all Dag runs. Workers can write asset state store via the Task SDK.",
+    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Asset State Store"
+  },
   "consumingDags": "Consuming Dags",
   "consumingTasks": "Consuming Tasks",
   "createEvent": {
@@ -25,6 +41,7 @@
     },
     "title": "Create Asset Event for {{name}}"
   },
+  "events": "Events",
   "extra": "Extra",
   "group": "Group",
   "lastAssetEvent": "Last Asset Event",

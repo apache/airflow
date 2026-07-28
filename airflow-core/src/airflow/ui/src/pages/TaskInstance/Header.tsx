@@ -25,15 +25,16 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
+import NotePreview from "src/components/NotePreview";
 import Time from "src/components/Time";
-import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
+import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
+  const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -61,36 +62,6 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     },
   ];
 
-  const [note, setNote] = useState<string | null>(taskInstance.note);
-
-  const dagId = taskInstance.dag_id;
-  const dagRunId = taskInstance.dag_run_id;
-  const taskId = taskInstance.task_id;
-  const mapIndex = taskInstance.map_index;
-
-  const { isPending, mutate } = usePatchTaskInstance({
-    dagId,
-    dagRunId,
-    mapIndex,
-    taskId,
-  });
-
-  const onConfirm = () => {
-    if (note !== taskInstance.note) {
-      mutate({
-        dagId,
-        dagRunId,
-        mapIndex,
-        requestBody: { note },
-        taskId,
-      });
-    }
-  };
-
-  const onOpen = () => {
-    setNote(taskInstance.note ?? "");
-  };
-
   // Stable dialog state at header/page level
   const [clearOpen, setClearOpen] = useState(false);
 
@@ -99,15 +70,6 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       <HeaderCard
         actions={
           <>
-            <EditableMarkdownButton
-              header={translate("note.taskInstance")}
-              isPending={isPending}
-              mdContent={taskInstance.note}
-              onConfirm={onConfirm}
-              onOpen={onOpen}
-              placeholder={translate("note.placeholder")}
-              setMdContent={setNote}
-            />
             <ClearTaskInstanceButton
               isHotkeyEnabled
               onOpen={() => setClearOpen(true)}
@@ -121,13 +83,19 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
-      {clearOpen ? (
-        <ClearTaskInstanceDialog
-          onClose={() => setClearOpen(false)}
-          open={clearOpen}
-          taskInstance={taskInstance}
-        />
-      ) : undefined}
+      <NotePreview
+        header={translate("note.taskInstance")}
+        isPending={isPending}
+        note={note}
+        onOpen={onOpen}
+        onSave={onSave}
+        setNote={setNote}
+      />
+      <ClearTaskInstanceDialog
+        onClose={() => setClearOpen(false)}
+        open={clearOpen}
+        taskInstance={taskInstance}
+      />
     </Box>
   );
 };

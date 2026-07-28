@@ -59,7 +59,7 @@ class TestDagBagSingleton:
             purge_cached_app()
             yield
 
-    def test_dagbag_used_as_singleton_in_dependency(self, session, dag_maker, test_client):
+    def test_dagbag_used_as_singleton_in_dependency(self, session, dag_maker, fresh_test_client):
         """
         Ensure DagBag is created only once and reused across multiple API requests.
 
@@ -76,10 +76,10 @@ class TestDagBagSingleton:
             BaseOperator(task_id="test_task")
         session.commit()
 
-        resp1 = test_client.get(f"/api/v2/dags/{dag_id}")
+        resp1 = fresh_test_client.get(f"/api/v2/dags/{dag_id}")
         assert resp1.status_code == 200
 
-        resp2 = test_client.get(f"/api/v2/dags/{dag_id}")
+        resp2 = fresh_test_client.get(f"/api/v2/dags/{dag_id}")
         assert resp2.status_code == 200
 
         assert self.dagbag_call_counter["count"] == 1

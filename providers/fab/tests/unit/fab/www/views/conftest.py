@@ -43,7 +43,8 @@ def session():
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag(session):
-    dag_bag = parse_and_sync_to_db(os.devnull, include_examples=True)
+    with conf_vars({("core", "load_examples"): "True"}):
+        dag_bag = parse_and_sync_to_db(os.devnull)
     session.commit()
     return dag_bag
 

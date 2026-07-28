@@ -181,7 +181,17 @@ def test_tracer():
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     tracer = provider.get_tracer("test")
-    with mock.patch.object(listener_module, "tracer", tracer):
+    with (
+        mock.patch.object(listener_module, "tracer", tracer),
+        # new_dagrun_trace_carrier consults the global provider's sampler to set the
+        # carrier's SAMPLED flag. In tests the global provider is a no-op
+        # ProxyTracerProvider (no sampler) -> unsampled carrier -> ParentBased drops
+        # the spans. Point the lookup at a real sampling provider so spans record.
+        mock.patch(
+            "airflow_shared.observability.traces.trace.get_tracer_provider",
+            return_value=provider,
+        ),
+    ):
         yield tracer, exporter
 
 

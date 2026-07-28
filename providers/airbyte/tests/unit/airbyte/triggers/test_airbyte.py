@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from contextlib import suppress
 from unittest import mock
 
 import pytest
@@ -44,11 +45,11 @@ class TestAirbyteSyncTrigger:
 
     @pytest.fixture
     def end_time(self):
-        return time.monotonic() + 60 * 60 * 24 * 7
+        return time.time() + 60 * 60 * 24 * 7
 
     @pytest.fixture
     def execution_deadline(self):
-        return time.monotonic() + 60 * 60 * 24 * 7
+        return time.time() + 60 * 60 * 24 * 7
 
     def test_serialization(self, end_time, execution_deadline):
         """Assert TestAirbyteSyncTrigger correctly serializes its arguments and classpath."""
@@ -205,7 +206,7 @@ class TestAirbyteSyncTrigger:
         """Assert that run timeout after end_time elapsed"""
         mock_get_job_status.side_effect = JobStatusEnum.RUNNING
 
-        end_time = time.monotonic()
+        end_time = time.time()
         trigger = AirbyteSyncTrigger(
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
@@ -232,7 +233,7 @@ class TestAirbyteSyncTrigger:
     async def test_airbyte_job_run_execution_timeout(self, mock_get_job_status, end_time):
         """Assert that run timeout after execution_deadline has elapsed"""
         mock_get_job_status.side_effect = JobStatusEnum.RUNNING
-        execution_deadline = time.monotonic() - 1
+        execution_deadline = time.time() - 1
 
         trigger = AirbyteSyncTrigger(
             conn_id=self.CONN_ID,
@@ -257,13 +258,83 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
+    async def test_execution_timeout_takes_precedence_over_success_status(
+        self,
+        mock_get_job_status,
+        end_time,
+    ):
+        """Execution timeout should take precedence over terminal job states."""
+
+        mock_get_job_status.return_value = JobStatusEnum.SUCCEEDED
+
+        trigger = AirbyteSyncTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=end_time,
+            execution_deadline=time.time() - 1,
+            job_id=self.JOB_ID,
+        )
+
+        events = [e async for e in trigger.run()]
+
+        expected_result = TriggerEvent(
+            {
+                "status": "timeout",
+                "message": f"Job run {self.JOB_ID} has reached execution timeout.",
+                "job_id": self.JOB_ID,
+            }
+        )
+
+        assert len(events) == 1
+        assert expected_result in events
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.airbyte.triggers.airbyte.time")
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
+    async def test_airbyte_job_run_trigger_uses_wall_clock_end_time(
+        self,
+        mock_get_job_status,
+        mock_time,
+        end_time,
+        execution_deadline,
+    ):
+        """Assert serialized deadlines are compared to wall-clock time."""
+
+        mock_time.time.return_value = end_time - 60
+
+        mock_get_job_status.return_value = JobStatusEnum.RUNNING
+
+        trigger = AirbyteSyncTrigger(
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=end_time,
+            execution_deadline=execution_deadline,
+            job_id=self.JOB_ID,
+        )
+
+        task = asyncio.create_task(trigger.run().__anext__())
+
+        await asyncio.sleep(0)
+
+        assert task.done() is False
+
+        mock_time.time.assert_called()
+        mock_time.monotonic.assert_not_called()
+        mock_get_job_status.assert_called_once_with(self.JOB_ID)
+
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
     async def test_terminal_yields_only_once(self, mock_get_job_status):
         mock_get_job_status.return_value = JobStatusEnum.SUCCEEDED
 
         trigger = AirbyteSyncTrigger(
             conn_id="airbyte_default",
             poll_interval=1,
-            end_time=time.monotonic() + 100,
+            end_time=time.time() + 100,
             job_id=1234,
         )
 

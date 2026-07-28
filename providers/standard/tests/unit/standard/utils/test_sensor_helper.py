@@ -114,7 +114,7 @@ class TestSensorHelper:
                 ti = dag_run.get_task_instance(task_id)
                 if TYPE_CHECKING:
                     assert ti
-                ti.set_state(task_state, session)
+                ti.set_state(task_state, session=session)
             session.flush()
 
     @pytest.mark.parametrize(

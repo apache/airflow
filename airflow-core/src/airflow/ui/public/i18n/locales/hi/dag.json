@@ -40,17 +40,49 @@
     "parseDuration": "पार्स अवधि:",
     "parsedAt": "पार्स किया गया:"
   },
+  "deadlineAlerts": {
+    "completionRule": "{{reference}} के {{interval}} के भीतर पूरा होना चाहिए",
+    "count_one": "{{count}} डेडलाइन",
+    "count_other": "{{count}} डेडलाइन",
+    "referenceType": {
+      "AverageRuntimeDeadline": "औसत रनटाइम",
+      "DagRunLogicalDateDeadline": "लॉजिकल तारीख",
+      "DagRunQueuedAtDeadline": "कतार समय"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "वास्तविक",
+    "expected": "अपेक्षित",
+    "finishedEarly": "डेडलाइन से {{duration}} पहले समाप्त",
+    "finishedLate": "डेडलाइन के {{duration}} बाद समाप्त",
+    "label": "डेडलाइन",
+    "met": "पूरी हुई",
+    "missed": "छूट गई",
+    "missedCount_one": "{{count}} छूटी हुई डेडलाइन",
+    "missedCount_other": "{{count}} छूटी हुई डेडलाइन",
+    "mixedCount": "{{missedCount}} छूटी हुई, {{upcomingCount}} आगामी",
+    "stillRunning": "अभी भी चल रहा है",
+    "upcoming": "आगामी",
+    "upcomingCount_one": "{{count}} आगामी डेडलाइन",
+    "upcomingCount_other": "{{count}} आगामी डेडलाइन"
+  },
   "extraLinks": "अतिरिक्त लिंक्स",
   "grid": {
     "buttons": {
+      "newerRuns": "नए रन",
+      "olderRuns": "पुराने रन",
       "resetToLatest": "नवीनतम पर रीसेट करें",
       "toggleGroup": "ग्रुप टॉगल करें"
-    }
+    },
+    "runTypeLegend": "रन प्रकार लेजेंड"
   },
   "header": {
     "buttons": {
       "advanced": "उन्नत",
       "dagDocs": "डैग प्रलेखन"
+    },
+    "status": {
+      "deactivated": "निष्क्रिय"
     }
   },
   "logs": {
@@ -65,13 +97,14 @@
     },
     "info": "INFO",
     "noTryNumber": "कोई प्रयास संख्या नहीं",
+    "search": {
+      "matchCount": "{{total}} में से {{current}}",
+      "noMatches": "कोई मिलान नहीं",
+      "placeholder": "लॉग खोजें..."
+    },
     "settings": "लॉग सेटिंग्स",
     "viewInExternal": "{{name}} में लॉग्स देखें (प्रयास {{attempt}})",
     "warning": "WARNING"
-  },
-  "navigation": {
-    "navigation": "नेवीगेशन: Shift+{{arrow}}",
-    "toggleGroup": "ग्रुप टॉगल करें: Space"
   },
   "notFound": {
     "back": "वापस जाएं",
@@ -91,6 +124,10 @@
     "charts": {
       "assetEvent_one": "बनाया गया एसेट इवेंट",
       "assetEvent_other": "बनाए गए एसेट इवेंट्स"
+    },
+    "deadlines": {
+      "showAll": "सभी दिखाएं",
+      "title": "डेडलाइन"
     },
     "failedLogs": {
       "hideLogs": "लॉग्स छुपाएं",
@@ -120,6 +157,25 @@
     },
     "graphDirection": {
       "label": "ग्राफ़ दिशा"
+    },
+    "graphFilters": {
+      "clearFilters": "फ़िल्टर साफ़ करें",
+      "durationGte": "न्यूनतम अवधि (से)",
+      "durationGteHint": "मैप किए गए टास्क के लिए, सभी इंस्टेंस में कुल अवधि मापता है",
+      "mapIndex": "न्यूनतम map index",
+      "mapIndexHint": "कम से कम इस इंडेक्स तक विस्तारित मैप किए गए टास्क दिखाता है",
+      "selectStatus": "स्थिति चुनें",
+      "selectTaskGroup": "task group चुनें",
+      "title": "Task फ़िल्टर"
+    },
+    "showVersionIndicator": {
+      "label": "वर्शन इंडिकेटर दिखाएं",
+      "options": {
+        "hideAll": "सभी छिपाएं",
+        "showAll": "सभी दिखाएं",
+        "showBundleVersion": "Bundle वर्शन दिखाएं",
+        "showDagVersion": "Dag वर्शन दिखाएं"
+      }
     },
     "taskStreamFilter": {
       "activeFilter": "सक्रिय फ़िल्टर",
@@ -169,12 +225,34 @@
     "renderedTemplates": "रेंडर किए गए टेम्प्लेट्स",
     "requiredActions": "आवश्यक क्रियाएं",
     "runs": "रन्स",
+    "storage": "स्टोरेज",
     "taskInstances": "टास्क इंस्टेंसेज",
+    "taskStateStore": "Task State Store",
     "tasks": "टास्क्स",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "सभी टास्क ग्रुप्स को संकुचित करें",
     "expandAll": "सभी टास्क ग्रुप्स को विस्तृत करें"
+  },
+  "taskStateStore": {
+    "add": "Task State Store जोड़ें",
+    "clearAll": {
+      "resource": "सभी task state store",
+      "title": "सभी Task State Store साफ़ करें",
+      "warning": "सभी task state store मिटा दिए जाएंगे। जो टास्क बाहरी काम को ट्रैक करने के लिए इस स्टोर का उपयोग करते हैं, वे शुरू से दोबारा चलाए बिना फिर से शुरू नहीं हो पाएंगे।"
+    },
+    "delete": "Task State Store हटाएं",
+    "deleteWarning": "टास्क इस सहेजी गई मेमोरी को खो देगा। यदि टास्क इस कुंजी का उपयोग बाहरी काम (जैसे किसी बाहरी जॉब ID) को ट्रैक करने के लिए कर रहा है, तो वह उसे फिर से शुरू नहीं कर पाएगा।",
+    "edit": "Task State Store संपादित करें",
+    "emptyStore": "Task state store ऐसे मान संग्रहीत करता है जो पुनः प्रयासों के बीच बने रहते हैं। वर्कर Task SDK के माध्यम से task state store में लिख सकते हैं।",
+    "expiresAt": {
+      "column": "समाप्ति",
+      "custom": "कस्टम",
+      "default": "डिफ़ॉल्ट ({{interval}})",
+      "label": "समाप्ति",
+      "never": "कभी नहीं"
+    },
+    "title": "Task State Store"
   }
 }

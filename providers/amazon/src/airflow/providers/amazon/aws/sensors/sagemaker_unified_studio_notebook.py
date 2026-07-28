@@ -126,6 +126,7 @@ class SageMakerUnifiedStudioNotebookSensor(AwsBaseSensor[SageMakerUnifiedStudioN
         outputs = self.hook.get_notebook_outputs(
             notebook_identifier=self.notebook_identifier,
             notebook_run_id=self.notebook_run_id,
+            domain_identifier=self.domain_identifier,
             owning_project_identifier=self.owning_project_identifier,
         )
         if outputs:

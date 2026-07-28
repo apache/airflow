@@ -57,8 +57,44 @@ class TestWeaviateIngestOperator:
             data=[{"data": "sample_data"}],
             vector_col="Vector",
             uuid_col="id",
+            tenant=None,
         )
         mock_log.debug.assert_called_once_with("Input data: %s", [{"data": "sample_data"}])
+
+    def test_execute_passes_tenant_to_hook(self):
+        operator = WeaviateIngestOperator(
+            task_id="weaviate_task",
+            conn_id="weaviate_conn",
+            collection_name="my_collection",
+            input_data=[{"data": "sample_data"}],
+            tenant="tenant-a",
+        )
+        operator.hook.batch_data = MagicMock()
+
+        operator.execute(context=None)
+
+        operator.hook.batch_data.assert_called_once_with(
+            collection_name="my_collection",
+            data=[{"data": "sample_data"}],
+            vector_col="Vector",
+            uuid_col="id",
+            tenant="tenant-a",
+        )
+
+    def test_missing_input_data_raises_at_execute_not_init(self):
+        """
+        input_data is a template field, so the required-value check runs in execute()
+        (after rendering), not in __init__. Constructing with input_data=None must not raise.
+        """
+        operator = WeaviateIngestOperator(
+            task_id="weaviate_task",
+            conn_id="weaviate_conn",
+            collection_name="my_collection",
+            input_data=None,
+        )
+
+        with pytest.raises(TypeError, match="input_data is required"):
+            operator.execute(context=None)
 
     @pytest.mark.db_test
     def test_templates(self, create_task_instance_of_operator):
@@ -129,8 +165,33 @@ class TestWeaviateDocumentIngestOperator:
             uuid_column="id",
             vector_column="vector",
             verbose=False,
+            tenant=None,
         )
         mock_log.debug.assert_called_once_with("Total input objects : %s", len([{"data": "sample_data"}]))
+
+    def test_execute_passes_tenant_to_hook(self):
+        operator = WeaviateDocumentIngestOperator(
+            task_id="weaviate_task",
+            conn_id="weaviate_conn",
+            input_data=[{"data": "sample_data"}],
+            collection_name="my_collection",
+            document_column="docLink",
+            tenant="tenant-a",
+        )
+        operator.hook.create_or_replace_document_objects = MagicMock()
+
+        operator.execute(context=None)
+
+        operator.hook.create_or_replace_document_objects.assert_called_once_with(
+            data=[{"data": "sample_data"}],
+            collection_name="my_collection",
+            document_column="docLink",
+            existing="skip",
+            uuid_column="id",
+            vector_column="Vector",
+            verbose=False,
+            tenant="tenant-a",
+        )
 
     @pytest.mark.db_test
     def test_partial_hook_params(self, dag_maker, session):

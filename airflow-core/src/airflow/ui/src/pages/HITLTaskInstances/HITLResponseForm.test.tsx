@@ -140,3 +140,37 @@ describe("HITLResponseForm – option button rendering boundary", () => {
     expect(screen.getByTestId("hitl-option-Reject")).toBeInTheDocument();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests: pending-state enablement
+//
+// HITL tasks park in "deferred" (pre-3.3) or "awaiting_input" (from 3.3). Both
+// are "pending a response", so the option buttons must be enabled in either
+// state. Previously the form only treated "deferred" as pending, which disabled
+// the response form for awaiting_input tasks.
+// ---------------------------------------------------------------------------
+describe("HITLResponseForm – pending-state enablement", () => {
+  it("enables option buttons for a deferred task", () => {
+    renderForm(["Yes", "No"], {
+      task_instance: { ...MOCK_TASK_INSTANCE, state: "deferred" },
+    });
+    expect(screen.getByTestId("hitl-option-Yes")).toBeEnabled();
+    expect(screen.getByTestId("hitl-option-No")).toBeEnabled();
+  });
+
+  it("enables option buttons for an awaiting_input task", () => {
+    renderForm(["Yes", "No"], {
+      task_instance: { ...MOCK_TASK_INSTANCE, state: "awaiting_input" },
+    });
+    expect(screen.getByTestId("hitl-option-Yes")).toBeEnabled();
+    expect(screen.getByTestId("hitl-option-No")).toBeEnabled();
+  });
+
+  it("disables option buttons for a finished task", () => {
+    renderForm(["Yes", "No"], {
+      task_instance: { ...MOCK_TASK_INSTANCE, state: "success" },
+    });
+    expect(screen.getByTestId("hitl-option-Yes")).toBeDisabled();
+    expect(screen.getByTestId("hitl-option-No")).toBeDisabled();
+  });
+});

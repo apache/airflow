@@ -8,6 +8,7 @@
     "Variables": "משתנים"
   },
   "allOperators": "כל האופרטורים",
+  "allTeams": "כל הצוותים",
   "appearance": {
     "appearance": "מראה",
     "darkMode": "מצב כהה",
@@ -20,16 +21,22 @@
   "assetEvent_one": "אירוע נכס",
   "assetEvent_other": "אירועי נכסים",
   "assetEvent_two": "אירועי נכסים",
+  "assetInactive": {
+    "tooltip": "הנכס שבמעלה הזרם הושבת; המתזמן מעכב את הערכת החלוקות עד להפעלה מחדש שלו."
+  },
   "backfill_one": "השלמה למפרע",
   "backfill_other": "השלמות למפרע",
   "backfill_two": "השלמות למפרע",
   "browse": {
     "auditLog": "יומן מערכת",
+    "deadlines": "מועדים",
+    "jobs": "עבודות",
     "requiredActions": "פעולות נדרשות",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "כווץ תוכן JSON",
   "collapseDetailsPanel": "כווץ לוח פרטים",
+  "consumingAsset": "נכס משתמש",
   "createdAssetEvent_one": "אירוע נכס שנוצר",
   "createdAssetEvent_other": "אירועי נכס שנוצרו",
   "createdAssetEvent_two": "אירועי נכס שנוצרו",
@@ -56,7 +63,8 @@
     "owner": "בעלים",
     "params": "פרמטרים",
     "schedule": "תזמון",
-    "tags": "תגיות"
+    "tags": "תגיות",
+    "team": "צוות"
   },
   "dagId": "מזהה Dag",
   "dagRun": {
@@ -70,6 +78,8 @@
     },
     "expectedDuration": "משך זמן צפוי",
     "lastSchedulingDecision": "החלטת תזמון אחרונה",
+    "mappedPartitionKey": "מפתח חלוקה ממופה",
+    "partitionDate": "תאריך חלוקה",
     "partitionKey": "מפתח חלוקה",
     "queuedAt": "זמן כניסה לתור",
     "runAfter": "ריצה לאחר",
@@ -112,6 +122,12 @@
     "notFound": "הדף לא נמצא",
     "title": "שגיאה"
   },
+  "errors": {
+    "forbidden": {
+      "description": "אין לך הרשאה לבצע פעולה זו.",
+      "title": "גישה נדחתה"
+    }
+  },
   "expand": {
     "collapse": "כווץ",
     "expand": "הרחב",
@@ -134,9 +150,15 @@
     "logicalDateTo": "תאריך לוגי עד",
     "runAfterFrom": "ריצה לאחר (מתאריך)",
     "runAfterTo": "ריצה לאחר (עד תאריך)",
+    "searchAsset": "חפש נכס",
     "selectDateRange": "בחר טווח תאריכים",
     "startTime": "זמן התחלה"
   },
+  "fullscreen": {
+    "tooltip": "לחץ {{hotkey}} למסך מלא"
+  },
+  "generateToken": "צור אסימון",
+  "key": "מפתח",
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
   "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
@@ -166,13 +188,44 @@
   "note": {
     "add": "הוסף הערה",
     "dagRun": "הערת הרצת Dag",
+    "edit": "ערוך הערה",
     "label": "הערה",
     "placeholder": "הוסף הערה...",
-    "taskInstance": "הערת משימה"
+    "preview": "תצוגה מקדימה",
+    "taskInstance": "הערת משימה",
+    "write": "כתיבה"
+  },
+  "overallStatus": "סטטוס כללי",
+  "partitionedDagRun_one": "הרצת Dag מחולקת",
+  "partitionedDagRun_other": "הרצות Dag מחולקות",
+  "partitionedDagRun_two": "הרצות Dag מחולקות",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "אירועי נכס שהתקבלו"
+  },
+  "pendingDagRun_one": "{{count}} הרצת Dag ממתינה",
+  "pendingDagRun_other": "{{count}} הרצות Dag ממתינות",
+  "pendingDagRun_two": "{{count}} הרצות Dag ממתינות",
+  "presetFilters": {
+    "deleteTitle": "מחק מסנן מוגדר מראש",
+    "deleteWarning": "מסננים מוגדרים מראש נשמרים בדפדפן זה בלבד.",
+    "duplicate": "למסנן המוגדר מראש \"{{name}}\" כבר יש הגדרה זהה.",
+    "empty": "אין עדיין מסננים מוגדרים מראש",
+    "info": {
+      "default": "נעץ מסנן מוגדר מראש כברירת מחדל, והוא יוחל אוטומטית בכל כניסה לדף זה ללא מסננים פעילים.",
+      "save": "שמור את המסננים והמיון הנוכחיים כמסנן מוגדר מראש בעל שם, וחזור אליו בכל עת.",
+      "storage": "מסננים מוגדרים מראש נשמרים בדפדפן זה."
+    },
+    "namePlaceholder": "שם המסנן המוגדר מראש",
+    "nothingToSave": "אין מה לשמור. החל מסננים או מיון כדי לשמור מסנן מוגדר מראש.",
+    "save": "שמור",
+    "setDefault": "הגדר כברירת מחדל",
+    "title": "מסננים מוגדרים מראש",
+    "unsetDefault": "בטל ברירת מחדל"
   },
   "reset": "אתחל",
   "runId": "מזהה ריצה",
   "runTypes": {
+    "asset_materialization": "מימוש נכס",
     "asset_triggered": "מופעל על-ידי נכס",
     "backfill": "השלמה למפרע",
     "manual": "הפעלה ידנית",
@@ -185,6 +238,12 @@
     },
     "tooltip": "לחץ {{hotkey}} לגלילה ל{{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "חיפוש בכל מקום (תת-מחרוזת). איטי יותר בפריסות גדולות כי לא ניתן להשתמש באינדקס B-tree הרגיל. למידע נוסף, ראה תיעוד בנושא אינדקסי מטא-נתונים מותאמים אישית.",
+      "title": "חיפוש בכל מקום"
+    }
+  },
   "security": {
     "actions": "פעולות",
     "permissions": "הרשאות",
@@ -193,6 +252,48 @@
     "users": "משתמשים"
   },
   "selectLanguage": "בחר שפה",
+  "selected": "נבחר",
+  "shortcuts": {
+    "categories": {
+      "code": "קוד",
+      "dagView": "תצוגת Dag",
+      "filters": "מסננים",
+      "global": "כללי",
+      "logs": "רישומים",
+      "navigation": "ניווט",
+      "runActions": "פעולות ריצה ומשימה",
+      "search": "חיפוש"
+    },
+    "descriptions": {
+      "clearRun": "נקה $t(dagRun_one)",
+      "clearTaskInstance": "נקה $t(taskInstance_one)",
+      "downloadLogs": "הורד רישומים",
+      "focusFilterSearch": "מיקוד בחיפוש מסננים",
+      "focusLogSearch": "חפש ברישומים",
+      "focusSearch": "מיקוד בחיפוש",
+      "markRunFailed": "סמן $t(dagRun_one) ככשלון",
+      "markRunSuccess": "סמן $t(dagRun_one) כהצלחה",
+      "markTaskFailed": "סמן $t(task_one) ככשלון",
+      "markTaskGroupFailed": "סמן $t(taskGroup_one) ככשלון",
+      "markTaskGroupSuccess": "סמן $t(taskGroup_one) כהצלחה",
+      "markTaskSuccess": "סמן $t(task_one) כהצלחה",
+      "navigateTasks": "נווט בין $t(task_other)",
+      "openGraphFilters": "פתח מסנני גרף",
+      "scrollBottom": "גלול לתחתית הדף",
+      "scrollTop": "גלול לראש הדף",
+      "searchDags": "חפש $t(dag_other)",
+      "showHelp": "הצג $t(shortcuts.title)",
+      "toggleExpand": "הרחב או כווץ את כל הקבוצות",
+      "toggleFullscreen": "הפעל/כבה מסך מלא",
+      "toggleGraphGrid": "החלף בין תצוגת גרף לתצוגת רשת",
+      "toggleSource": "הצג/הסתר מקור",
+      "toggleTaskGroup": "הרחב או כווץ $t(taskGroup_one)",
+      "toggleTimestamp": "הצג/הסתר חותמות זמן",
+      "toggleWrap": "הפעל/כבה גלישת טקסט"
+    },
+    "empty": "אין קיצורי מקלדת זמינים בדף זה.",
+    "title": "קיצורי מקלדת"
+  },
   "showDetailsPanel": "הצג לוח פרטים",
   "signedInAs": "מחובר כ",
   "source": {
@@ -206,6 +307,7 @@
   "startDate": "תאריך התחלה",
   "state": "מצב",
   "states": {
+    "awaiting_input": "ממתין לקלט",
     "deferred": "בהשהייה",
     "failed": "נכשלו",
     "no_status": "ללא סטטוס",
@@ -234,29 +336,41 @@
     "from": "מ-",
     "maxActiveRuns": "מספר הרצות פעילות מרבי",
     "noTagsFound": "לא נמצאו תגיות",
+    "noTeamsFound": "לא נמצאו צוותים",
     "tagMode": {
       "all": "הכל",
       "any": "כלשהו"
     },
     "tagPlaceholder": "סנן לפי תגית",
-    "to": "עד"
+    "to": "עד",
+    "updatedAt": "עודכן בתאריך"
   },
   "task": {
+    "dependsOnPast": "תלוי בעבר",
     "documentation": "תיעוד משימה",
     "lastInstance": "משימה אחרונה",
     "operator": "אופרטור",
-    "triggerRule": "כלל הפעלה"
+    "retries": "ניסיונות חוזרים",
+    "triggerRule": "כלל הפעלה",
+    "waitForDownstream": "המתן למשימות במורד הזרם"
   },
   "task_one": "משימה",
   "task_other": "משימות",
   "task_two": "משימות",
-  "taskGroup": "קבוצת משימות",
+  "taskGroup": {
+    "documentation": "תיעוד קבוצת משימות"
+  },
+  "taskGroup_one": "קבוצת משימות",
+  "taskGroup_other": "קבוצות משימות",
+  "taskGroup_two": "קבוצות משימות",
   "taskId": "מזהה משימה",
   "taskInstance": {
+    "additionalAttributes": "מאפייני מופע משימה נוספים",
     "dagVersion": "גרסת Dag",
-    "executor": "מבצע",
-    "executorConfig": "הגדרות מבצע",
+    "executor": "Executor",
+    "executorConfig": "הגדרות Executor",
     "hostname": "שם מארח",
+    "id": "מזהה",
     "maxTries": "מספר נסיונות מרבי",
     "pid": "מזהה תהליך",
     "pool": "מאגר משאבים",
@@ -264,13 +378,16 @@
     "priorityWeight": "משקל עדיפות",
     "queue": "תור",
     "queuedWhen": "זמן כניסה לתור",
+    "renderedMapIndex": "אינדקס מיפוי מעובד",
     "scheduledWhen": "מועד תזמון",
+    "trigger": "מפעיל",
     "triggerer": {
       "assigned": "מפעיל מוקצה",
       "class": "סוג מפעיל",
       "createdAt": "זמן יצירת מפעיל",
       "id": "מזהה מפעיל",
-      "latestHeartbeat": "עדכון חיים אחרון",
+      "job": "עבודת מפעיל",
+      "latestHeartbeat": "אות חיים אחרון",
       "title": "פרטי מפעיל"
     },
     "unixname": "שם משתמש Unix"
@@ -297,11 +414,25 @@
     "utc": "UTC"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "שגיאה בניקוי מרובה של {{resourceName}}",
+      "success": {
+        "description": "נוקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "title": "בקשת ניקוי מרובה של {{resourceName}} נשלחה"
+      }
+    },
     "bulkDelete": {
       "error": "שגיאה במחיקה מרובה של {{resourceName}}",
       "success": {
         "description": "נמחקו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
         "title": "בקשת מחיקה מרובה של {{resourceName}} נשלחה"
+      }
+    },
+    "bulkUpdate": {
+      "error": "שגיאה בעדכון מרובה של {{resourceName}}",
+      "success": {
+        "description": "עודכנו בהצלחה {{count}} {{resourceName}}. מזהים: {{keys}}",
+        "title": "בקשת עדכון מרובה של {{resourceName}} נשלחה"
       }
     },
     "create": {
@@ -333,10 +464,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "אסימון API",
+    "cliToken": "אסימון CLI",
+    "errorDescription": "אירעה שגיאה בעת יצירת האסימון. אנא נסה שוב.",
+    "errorTitle": "יצירת האסימון נכשלה",
+    "generate": "צור",
+    "selectType": "בחר את סוג האסימון ליצירה.",
+    "title": "צור אסימון",
+    "tokenExpiresIn": "אסימון זה יפוג בעוד {{duration}}.",
+    "tokenGenerated": "האסימון שלך נוצר.",
+    "tokenShownOnce": "אסימון זה יוצג פעם אחת בלבד. העתק אותו עכשיו."
+  },
   "total": "סה״כ {{state}}",
   "triggered": "הופעל",
   "tryNumber": "מספר ניסיון",
   "user": "משתמש",
+  "validation": {
+    "mustBeAtLeast": "חייב להיות {{min}} לפחות.",
+    "mustBeValidNumber": "חייב להיות מספר תקין."
+  },
+  "value": "ערך",
   "wrap": {
     "hotkey": "w",
     "tooltip": "לחץ {{hotkey}} להפעלת/כיבוי גלישת טקסט",

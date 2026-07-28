@@ -41,15 +41,17 @@ def create_scheduler_dag(dag: DAG | SerializedDAG) -> SerializedDAG:
 def sync_dag_to_db(
     dag: DAG,
     bundle_name: str = "testing",
+    bundle_version: str | None = None,
     session: Session = NEW_SESSION,
 ) -> SerializedDAG:
-    return sync_dags_to_db([dag], bundle_name=bundle_name, session=session)[0]
+    return sync_dags_to_db([dag], bundle_name=bundle_name, bundle_version=bundle_version, session=session)[0]
 
 
 @provide_session
 def sync_dags_to_db(
     dags: Collection[DAG],
     bundle_name: str = "testing",
+    bundle_version: str | None = None,
     session: Session = NEW_SESSION,
 ) -> Sequence[SerializedDAG]:
     """
@@ -68,10 +70,12 @@ def sync_dags_to_db(
 
     def _write_dag(dag: DAG) -> SerializedDAG:
         data = DagSerialization.to_dict(dag)
-        SerializedDagModel.write_dag(LazyDeserializedDAG(data=data), bundle_name, session=session)
+        SerializedDagModel.write_dag(
+            LazyDeserializedDAG(data=data), bundle_name, bundle_version, session=session
+        )
         return DagSerialization.from_dict(data)
 
-    SerializedDAG.bulk_write_to_db(bundle_name, None, dags, session=session)
+    SerializedDAG.bulk_write_to_db(bundle_name, bundle_version, dags, session=session)
     scheduler_dags = [_write_dag(dag) for dag in dags]
     session.flush()
     return scheduler_dags

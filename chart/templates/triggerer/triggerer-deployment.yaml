@@ -127,6 +127,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.triggerer.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "triggerer.serviceAccountName" . }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
@@ -145,7 +146,7 @@ spec:
               {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.triggerer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.triggerer.extraVolumeMounts) . | nindent 12 }}
@@ -182,7 +183,7 @@ spec:
           resources: {{- toYaml .Values.triggerer.resources | nindent 12 }}
           volumeMounts:
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.triggerer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.triggerer.extraVolumeMounts) . | nindent 12 }}
@@ -267,7 +268,7 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.triggerer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.triggerer.extraVolumeMounts) . | nindent 12 }}
@@ -292,7 +293,7 @@ spec:
         {{- end }}
         {{- end }}
         {{- if .Values.volumes }}
-          {{- toYaml .Values.volumes | nindent 8 }}
+          {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.triggerer.extraVolumes }}
           {{- tpl (toYaml .Values.triggerer.extraVolumes) . | nindent 8 }}

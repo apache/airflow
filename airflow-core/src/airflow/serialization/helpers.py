@@ -30,6 +30,7 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from airflow.models.deadline import DeadlineReferenceType
     from airflow.partition_mappers.base import PartitionMapper
+    from airflow.partition_mappers.window import Window
     from airflow.timetables.base import Timetable as CoreTimetable
 
 
@@ -197,3 +198,50 @@ class PartitionMapperNotFound(ValueError):
 def is_core_partition_mapper_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core partition mapper class."""
     return importable_string.startswith("airflow.partition_mappers.")
+
+
+class WindowNotSupported(ValueError):
+    """Raise when serialization encounters an unregistered ``Window`` subclass."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"Window class {self.type_string!r} is not registered. Custom Window "
+            "subclasses must be registered via the ``windows`` attribute on an AirflowPlugin."
+        )
+
+
+def is_core_window_import_path(importable_string: str) -> bool:
+    """Whether an importable string points to a core ``Window`` class."""
+    return importable_string.startswith("airflow.partition_mappers.window.")
+
+
+def find_registered_custom_window(importable_string: str) -> type[Window]:
+    """Find a user-defined custom window class registered via a plugin."""
+    from airflow import plugins_manager
+
+    window_classes = plugins_manager.get_windows_plugins()
+    with contextlib.suppress(KeyError):
+        return window_classes[importable_string]
+    raise WindowNotSupported(importable_string)
+
+
+class WaitPolicyNotSupported(ValueError):
+    """Raise when serialization encounters a non-built-in ``WaitPolicy`` subclass."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"WaitPolicy class {self.type_string!r} is not a built-in. Custom WaitPolicy "
+            "subclasses are not supported; use one of the built-in "
+            "policies under ``airflow.partition_mappers.wait_policy``."
+        )
+
+
+def is_core_wait_policy_import_path(importable_string: str) -> bool:
+    """Whether an importable string points to a core ``WaitPolicy`` class."""
+    return importable_string.startswith("airflow.partition_mappers.wait_policy.")

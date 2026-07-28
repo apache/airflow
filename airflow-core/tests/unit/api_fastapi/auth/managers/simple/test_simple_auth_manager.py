@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 from unittest import mock
+from urllib.parse import urlencode
 
 import pytest
 
@@ -230,6 +231,17 @@ class TestSimpleAuthManager:
         with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
             result = auth_manager.get_url_login()
             assert result == AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/login"
+
+    def test_get_url_login_with_next_url(self, auth_manager):
+        next_url = "http://localhost:8080/dags/example_dag/runs/manual__2026-05-20/tasks/example_task"
+        result = auth_manager.get_url_login(next_url=next_url)
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login?{urlencode({'next': next_url})}"
+
+    def test_get_url_login_with_next_url_all_admins(self, auth_manager):
+        with conf_vars({("core", "simple_auth_manager_all_admins"): "true"}):
+            next_url = "http://localhost:8080/dags/example_dag/runs/manual__2026-05-20/tasks/example_task"
+            result = auth_manager.get_url_login(next_url=next_url)
+            assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/login?{urlencode({'next': next_url})}"
 
     def test_deserialize_user(self, auth_manager):
         result = auth_manager.deserialize_user({"sub": "test", "role": "admin"})

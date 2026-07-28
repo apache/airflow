@@ -55,7 +55,7 @@ The official list of committers can be found `here <https://airflow.apache.org/d
 
 Committers are responsible for:
 
-* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
+* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Wiki>`__
 * Reviewing & Merging Pull-Requests
 * Scanning and responding to GitHub issues
 * Responding to questions on the dev mailing list (dev@airflow.apache.org)
@@ -64,7 +64,7 @@ Release managers
 ----------------
 
 The task of release managers is to prepare and release Airflow artifacts (airflow, providers, Helm Chart, Python client).
-The release managers are usually PMC members and the process of releasing is described in the `dev <dev>`__
+The release managers are usually PMC members and the process of releasing is described in the `dev <../dev/README.md>`__
 documentation where we keep information and tools used for releasing.
 
 Contributors
@@ -77,7 +77,7 @@ Contributors are responsible for:
 
 * Fixing bugs
 * Adding features
-* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__.
+* Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Wiki>`__.
 
 Security Team
 -------------

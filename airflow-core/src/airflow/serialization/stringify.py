@@ -17,9 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from typing import Any, TypeVar
 
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
+
+# DagBag prefixes user-DAG modules with ``unusual_prefix_<40-char-sha>_`` so two
+# DAG files with the same name in different bundles don't clash in ``sys.modules``.
+# That prefix is deterministic and load-bearing for round-trip deserialization,
+# but it has no place in the human-readable XCom value rendering.
+_DAGBAG_PREFIX_RE = re.compile(r"unusual_prefix_[a-f0-9]{40}_")
 
 
 class StringifyNotSupportedError(ValueError):
@@ -128,14 +135,27 @@ def stringify(o: T | None) -> object:
         return result
 
     # only return string representation
-    s = f"{classname}@version={version}("
+    display_classname = _DAGBAG_PREFIX_RE.sub("", classname)
+    s = f"{display_classname}@version={version}("
     if isinstance(value, _primitives):
         s += f"{value}"
     elif isinstance(value, _builtin_collections):
         # deserialized values can be != str
         s += ",".join(str(stringify(v)) for v in value)
     elif isinstance(value, dict):
-        s += ",".join(f"{k}={stringify(v)}" for k, v in value.items())
+        # Render string field values with ``repr`` so the output reads like a
+        # Pydantic/dataclass instance (``field='value'``) instead of an
+        # ambiguous ``field=value`` that could be mistaken for a bare token.
+        # Non-string field values keep their natural rendering (numbers stay
+        # bare, nested serialized objects keep their own ``ClassName@...`` form).
+        parts = []
+        for k, v in value.items():
+            rendered = stringify(v)
+            if isinstance(v, str):
+                parts.append(f"{k}={v!r}")
+            else:
+                parts.append(f"{k}={rendered}")
+        s += ", ".join(parts)
     s += ")"
 
     return s

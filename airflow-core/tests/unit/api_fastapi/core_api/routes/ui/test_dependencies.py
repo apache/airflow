@@ -23,6 +23,8 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models.asset import AssetModel
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
@@ -113,31 +115,43 @@ def expected_primary_component_response(asset1_id):
                 "id": "dag:downstream",
                 "label": "downstream",
                 "type": "dag",
+                "team": None,
             },
             {
                 "id": f"asset:{asset1_id}",
                 "label": "asset1",
                 "type": "asset",
+                "team": None,
             },
             {
                 "id": "sensor:other_dag:downstream:external_task_sensor",
                 "label": "external_task_sensor",
                 "type": "sensor",
+                "team": None,
             },
             {
                 "id": "dag:external_trigger_dag_id",
                 "label": "external_trigger_dag_id",
                 "type": "dag",
+                "team": None,
             },
             {
                 "id": "trigger:external_trigger_dag_id:downstream:trigger_dag_run_operator",
                 "label": "trigger_dag_run_operator",
                 "type": "trigger",
+                "team": None,
             },
             {
                 "id": "dag:upstream",
                 "label": "upstream",
                 "type": "dag",
+                "team": None,
+            },
+            {
+                "id": "dag:other_dag",
+                "label": "other_dag",
+                "type": "dag",
+                "team": None,
             },
         ],
     }
@@ -188,16 +202,19 @@ def expected_secondary_component_response(asset2_id):
                 "id": "dag:downstream_secondary",
                 "label": "downstream_secondary",
                 "type": "dag",
+                "team": None,
             },
             {
                 "id": f"asset:{asset2_id}",
                 "label": "asset2",
                 "type": "asset",
+                "team": None,
             },
             {
                 "id": "dag:upstream_secondary",
                 "label": "upstream_secondary",
                 "type": "dag",
+                "team": None,
             },
         ],
     }
@@ -206,7 +223,7 @@ def expected_secondary_component_response(asset2_id):
 class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component")
     def test_should_response_200(self, test_client, expected_primary_component_response):
-        with assert_queries_count(6):
+        with assert_queries_count(7):
             response = test_client.get("/dependencies")
         assert response.status_code == 200
 
@@ -242,7 +259,7 @@ class TestGetDependencies:
     @pytest.mark.usefixtures("make_primary_connected_component", "make_secondary_connected_component")
     def test_with_node_id_filter(self, test_client, node_id, expected_response_fixture, request):
         expected_response = request.getfixturevalue(expected_response_fixture)
-        with assert_queries_count(6):
+        with assert_queries_count(7):
             response = test_client.get("/dependencies", params={"node_id": node_id})
         assert response.status_code == 200
 
@@ -260,7 +277,7 @@ class TestGetDependencies:
             (asset1_id, expected_primary_component_response),
             (asset2_id, expected_secondary_component_response),
         ):
-            with assert_queries_count(6):
+            with assert_queries_count(7):
                 response = test_client.get("/dependencies", params={"node_id": f"asset:{asset_id}"})
             assert response.status_code == 200
 
@@ -320,6 +337,8 @@ class TestGetDependencies:
         # Task label includes dag_id.task_id for disambiguation
         assert nodes_by_id[task_node_id]["label"] == "upstream.task2"
         assert nodes_by_id[task_node_id]["type"] == "task"
+        # No team association in the default fixture
+        assert nodes_by_id[task_node_id]["team"] is None
 
         # Task should point to asset (producing task → asset)
         edges = result["edges"]
@@ -357,6 +376,50 @@ class TestGetDependencies:
             assert node_id in dag_node_ids
         for node_id in expected_absent:
             assert node_id not in dag_node_ids
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={"downstream"},
+    )
+    @pytest.mark.usefixtures("make_primary_connected_component")
+    def test_scheduling_dependencies_redacts_trigger_sensor_endpoints_referencing_unreadable_dags(
+        self, _, test_client, asset1_id
+    ):
+        """Trigger/sensor dependency objects under a readable top-level DAG must
+        not leak unreadable DAG identifiers through ``dep.node_id`` /
+        ``dep.source`` / ``dep.target``. The top-level filter only hides the
+        unreadable DAG as a top-level key; this regression check covers the
+        edge-endpoint leak."""
+        response = test_client.get("/dependencies")
+        assert response.status_code == 200
+
+        result = response.json()
+        unreadable_dag_ids = {"external_trigger_dag_id", "other_dag", "upstream"}
+
+        # No node id may contain any unreadable DAG identifier (covers the
+        # bare ``dag:`` nodes that the top-level filter already hid, plus
+        # the ``trigger:.../sensor:...`` nodes whose ids embed both endpoints).
+        for node in result["nodes"]:
+            for unreadable in unreadable_dag_ids:
+                assert unreadable not in node["id"], (
+                    f"node id {node['id']!r} leaks unreadable DAG {unreadable!r}"
+                )
+
+        # No edge endpoint may be a ``dag:<unreadable>`` reference, and no
+        # endpoint may be a ``trigger:.../sensor:...`` node whose id embeds
+        # an unreadable DAG.
+        for edge in result["edges"]:
+            for endpoint in (edge["source_id"], edge["target_id"]):
+                for unreadable in unreadable_dag_ids:
+                    assert unreadable not in endpoint, (
+                        f"edge endpoint {endpoint!r} leaks unreadable DAG {unreadable!r}"
+                    )
+
+        # The readable top-level DAG itself must still be present, along with
+        # its legitimate asset-scheduled-by edge (asset ids are not DAG ids
+        # and are unaffected by the readable-DAG filter).
+        dag_node_ids = {node["id"] for node in result["nodes"] if node["type"] == "dag"}
+        assert dag_node_ids == {"dag:downstream"}
 
     @pytest.mark.parametrize(
         ("readable_dags", "expected_present", "expected_absent"),
@@ -427,3 +490,94 @@ class TestGetDependencies:
             params={"node_id": f"asset:{asset1_id}", "dependency_type": "data"},
         )
         assert response.status_code == 404
+
+    def test_scheduling_dependencies_include_team_name(self, dag_maker, test_client, session):
+        team = Team(name="my-team")
+        session.add(team)
+        bundle = DagBundleModel(name="team-bundle-sched")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(
+            dag_id="team_upstream",
+            serialized=True,
+            session=session,
+            bundle_name="team-bundle-sched",
+        ):
+            EmptyOperator(task_id="t1", outlets=[Asset(uri="s3://team-asset/1", name="team_asset")])
+
+        with dag_maker(
+            dag_id="team_downstream",
+            schedule=[Asset(uri="s3://team-asset/1", name="team_asset")],
+            serialized=True,
+            session=session,
+            bundle_name="team-bundle-sched",
+        ):
+            EmptyOperator(task_id="t2")
+
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get("/dependencies")
+        assert response.status_code == 200
+
+        result = response.json()
+        dag_nodes = {node["id"]: node for node in result["nodes"] if node["type"] == "dag"}
+        assert dag_nodes["dag:team_upstream"]["team"] == "my-team"
+        assert dag_nodes["dag:team_downstream"]["team"] == "my-team"
+
+    def test_data_dependencies_include_team_name_on_task_nodes(self, dag_maker, test_client, session):
+        team = Team(name="data-team")
+        session.add(team)
+        bundle = DagBundleModel(name="team-bundle-data")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        asset = Asset(uri="s3://team-data-asset/1", name="team_data_asset")
+        with dag_maker(
+            dag_id="producer_dag",
+            serialized=True,
+            session=session,
+            bundle_name="team-bundle-data",
+        ):
+            EmptyOperator(task_id="produce_task", outlets=[asset])
+
+        dag_maker.sync_dagbag_to_db()
+
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "team_data_asset"))
+
+        response = test_client.get(
+            "/dependencies",
+            params={"node_id": f"asset:{asset_id}", "dependency_type": "data"},
+        )
+        assert response.status_code == 200
+
+        result = response.json()
+        task_nodes = [node for node in result["nodes"] if node["type"] == "task"]
+        assert len(task_nodes) == 1
+        assert task_nodes[0]["team"] == "data-team"
+
+    def test_trigger_target_without_scheduling_dependencies_is_materialised(self, dag_maker, test_client):
+        """A DAG triggered via TriggerDagRunOperator that has no scheduling dependencies must still appear as a node"""
+        with dag_maker(dag_id="parent_dag", serialized=True):
+            TriggerDagRunOperator(task_id="trigger_child_dag", trigger_dag_id="child_dag")
+
+        with dag_maker(dag_id="child_dag", serialized=True):
+            EmptyOperator(task_id="some_task")
+
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get("/dependencies")
+        assert response.status_code == 200
+
+        result = response.json()
+        node_ids = {node["id"] for node in result["nodes"]}
+        assert "dag:child_dag" in node_ids
+
+        expected_edge = (
+            "trigger:parent_dag:child_dag:trigger_child_dag",
+            "dag:child_dag",
+        )
+        actual_edges = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        assert expected_edge in actual_edges

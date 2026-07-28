@@ -17,11 +17,25 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import time
 
 import pytest
 from pymongo import MongoClient
 from testcontainers.mongodb import MongoDbContainer
+
+# In CI only: disable the testcontainers "ryuk" reaper. Ryuk reaps spawned
+# containers a short time after the controlling connection drops; on long provider /
+# Airflow-compat test runs that can reap the session-scoped MongoDB container
+# *before* the mongo tests execute, producing a cascade of "Connection refused"
+# errors at the setup of every TestMongoHook test (the container started fine early
+# in the session, then vanished by the time the mongo module ran). The fixture stops
+# the container itself (see ``container.stop()`` below) and CI runners are ephemeral,
+# so the reaper is unnecessary and harmful there. Locally we keep ryuk enabled so an
+# abandoned container from an interrupted run is still cleaned up. Set before any
+# ``MongoDbContainer`` is created so testcontainers picks it up.
+if os.environ.get("CI", "").lower() == "true" or os.environ.get("GITHUB_ACTIONS", "").lower() == "true":
+    os.environ.setdefault("TESTCONTAINERS_RYUK_DISABLED", "true")
 
 pytest_plugins = "tests_common.pytest_plugin"
 

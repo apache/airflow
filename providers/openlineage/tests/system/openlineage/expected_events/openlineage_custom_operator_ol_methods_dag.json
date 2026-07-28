@@ -1,0 +1,434 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "only-start-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.only_start_task",
+            "facets": {
+                "only-start-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://only-start",
+                "name": "input.csv",
+                "facets": {
+                    "only-start-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://only-start",
+                "name": "output.csv",
+                "facets": {
+                    "only-start-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "only-start-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.only_start_task",
+            "facets": {
+                "only-start-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://only-start",
+                "name": "input.csv",
+                "facets": {
+                    "only-start-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://only-start",
+                "name": "output.csv",
+                "facets": {
+                    "only-start-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.only_complete_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "only-complete-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.only_complete_task",
+            "facets": {
+                "only-complete-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://only-complete",
+                "name": "input.csv",
+                "facets": {
+                    "only-complete-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://only-complete",
+                "name": "output.csv",
+                "facets": {
+                    "only-complete-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.only_failure_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.only_failure_task"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "sc-start-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.start_complete_task",
+            "facets": {
+                "sc-start-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://start-complete",
+                "name": "start_input.csv",
+                "facets": {
+                    "sc-start-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://start-complete",
+                "name": "start_output.csv",
+                "facets": {
+                    "sc-start-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "sc-complete-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.start_complete_task",
+            "facets": {
+                "sc-complete-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://start-complete",
+                "name": "complete_input.csv",
+                "facets": {
+                    "sc-complete-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://start-complete",
+                "name": "complete_output.csv",
+                "facets": {
+                    "sc-complete-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "sf-start-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.start_failure_task",
+            "facets": {
+                "sf-start-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://start-failure",
+                "name": "start_input.csv",
+                "facets": {
+                    "sf-start-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://start-failure",
+                "name": "start_output.csv",
+                "facets": {
+                    "sf-start-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "sf-start-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.start_failure_task",
+            "facets": {
+                "sf-start-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://start-failure",
+                "name": "start_input.csv",
+                "facets": {
+                    "sf-start-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://start-failure",
+                "name": "start_output.csv",
+                "facets": {
+                    "sf-start-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.complete_failure_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "cf-complete-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.complete_failure_task",
+            "facets": {
+                "cf-complete-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://complete-failure",
+                "name": "complete_input.csv",
+                "facets": {
+                    "cf-complete-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://complete-failure",
+                "name": "complete_output.csv",
+                "facets": {
+                    "cf-complete-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "at-start-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.all_three_task",
+            "facets": {
+                "at-start-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://all-three",
+                "name": "start_input.csv",
+                "facets": {
+                    "at-start-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://all-three",
+                "name": "start_output.csv",
+                "facets": {
+                    "at-start-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "at-complete-run": {
+                    "key": "value"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_custom_operator_ol_methods_dag.all_three_task",
+            "facets": {
+                "at-complete-job": {
+                    "key": "value"
+                }
+            }
+        },
+        "inputs": [
+            {
+                "namespace": "s3://all-three",
+                "name": "complete_input.csv",
+                "facets": {
+                    "at-complete-input-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "s3://all-three",
+                "name": "complete_output.csv",
+                "facets": {
+                    "at-complete-output-ds": {
+                        "key": "value"
+                    }
+                }
+            }
+        ]
+    }
+]

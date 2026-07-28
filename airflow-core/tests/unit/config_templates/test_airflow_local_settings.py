@@ -40,8 +40,12 @@ REMOTE_IO_PROVIDERS = [
     ),
     ("oss://bucket/path", "airflow.providers.alibaba.cloud.log.oss_task_handler.OSSRemoteLogIO"),
     ("hdfs://host/path", "airflow.providers.apache.hdfs.log.hdfs_task_handler.HdfsRemoteLogIO"),
+    (
+        "stackdriver://host/path",
+        "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO",
+    ),
 ]
-REMOTE_IO_IDS = ["s3", "wasb", "gcs", "cloudwatch", "oss", "hdfs"]
+REMOTE_IO_IDS = ["s3", "wasb", "gcs", "cloudwatch", "oss", "hdfs", "stackdriver"]
 
 
 @pytest.fixture

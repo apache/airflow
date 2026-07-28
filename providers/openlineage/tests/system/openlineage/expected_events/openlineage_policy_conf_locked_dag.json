@@ -1,0 +1,26 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_locked_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_conf_locked_dag.t_locked_blocked",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_conf_locked_dag.t_locked_blocked",
+            "facets": {
+                "sourceCode": null
+            }
+        }
+    }
+]

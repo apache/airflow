@@ -164,6 +164,13 @@ Parameters
 
 * ``remote_os`` (str, optional): Remote OS type (``"auto"``, ``"posix"``, ``"windows"``). Default: ``"auto"``
 * ``skip_on_exit_code`` (int or list, optional): Exit code(s) that should cause task to skip instead of fail
+* ``conn_timeout`` (int, optional): SSH connection timeout in seconds
+* ``banner_timeout`` (float, optional): Seconds to wait for the SSH banner. Default: 30.0
+* ``conn_retry_attempts`` (int, optional): How many times to attempt the initial SSH connection for
+  submission and cleanup before failing. Default: 5. Raise this for large fan-outs where the remote
+  ``sshd`` transiently refuses connections (see :ref:`High Fan-out <howto/operator:SSHRemoteJobOperator:fanout>`)
+* ``cleanup_retries`` (int, optional): How many times to retry remote directory cleanup before giving up
+  and leaving the directory in place. Default: 3
 
 Remote OS Detection
 -------------------
@@ -213,7 +220,9 @@ Limitations and Considerations
 -------------------------------
 
 **Network Interruptions**: While the operator is resilient to disconnections during monitoring,
-the initial job submission must succeed. If submission fails, the task will fail immediately.
+the initial job submission must succeed. The connection used for submission is retried
+(``conn_retry_attempts``); if every attempt fails, the task fails immediately. The trigger also
+reconnects automatically if the monitoring connection drops mid-job.
 
 **Remote Process Management**: Jobs are detached using ``nohup`` (POSIX) or ``Start-Process`` (Windows).
 If the remote host reboots during job execution, the job will be lost.
@@ -231,7 +240,36 @@ tasks can run on the same remote host without conflicts.
 
 **Cleanup**: Use ``cleanup="on_success"`` or ``cleanup="always"`` to avoid accumulating
 job directories on the remote host. For debugging, use ``cleanup="never"`` and manually
-inspect the job directory.
+inspect the job directory. Cleanup runs only when the job reaches completion, so tasks that
+are killed or time out can still leave a directory behind; for those, add a server-side TTL
+reaper (for example ``systemd-tmpfiles`` or a cron job) for the base directory.
+
+.. _howto/operator:SSHRemoteJobOperator:fanout:
+
+High Fan-out (Many Concurrent Tasks)
+-------------------------------------
+
+Many tasks targeting the same SSH server at once (a large ``.expand()`` fan-out, parallel DAG
+runs, or just high concurrency) can overwhelm it. Each remote
+command opens a new SSH connection, and the remote ``sshd`` throttles concurrent
+*unauthenticated* connections via ``MaxStartups`` (default ``10:30:100``: start randomly
+dropping at 10 concurrent, reaching 100% at 100). A dropped connection surfaces on the client
+as::
+
+    paramiko ... Error reading SSH protocol banner
+
+This is the server closing the socket before the handshake, not a slow banner, so raising
+``banner_timeout`` does not help.
+
+The operator and trigger keep the connection rate low: submission reuses a single connection
+for OS detection and the submit itself, and the trigger holds **one** connection for the whole
+poll loop instead of reconnecting on every status check. To push a high fan-out further:
+
+* Raise ``MaxStartups`` (and ``MaxSessions``) on the remote ``sshd`` -- this is the direct fix.
+* Increase ``conn_retry_attempts`` so transient refusals during the initial burst are retried.
+* Cap how many mapped tasks run at once with ``max_active_tis_per_dag`` (or a pool) instead of
+  releasing the entire fan-out simultaneously. See the "Placing Limits on Mapped Tasks" section of
+  :doc:`apache-airflow:authoring-and-scheduling/dynamic-task-mapping` for the available limits.
 
 Comparison with SSHOperator
 ----------------------------

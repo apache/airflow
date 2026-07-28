@@ -35,7 +35,7 @@ from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.enums import stringify_encoding_keys as _stringify_encoding_keys
+from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -158,7 +158,7 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(_stringify_encoding_keys(kwargs))
+        serialized_kwargs = serialize(stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -204,7 +204,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
+    def bulk_fetch(cls, ids: Iterable[int], *, session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """Fetch all the Triggers by ID and return a dict mapping ID -> Trigger instance."""
         stmt = (
             select(cls)
@@ -219,7 +219,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[int]:
+    def fetch_trigger_ids_with_non_task_associations(cls, *, session: Session = NEW_SESSION) -> set[int]:
         """Fetch all trigger IDs actively associated with non-task entities like assets and callbacks."""
         from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
@@ -231,7 +231,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def clean_unused(cls, session: Session = NEW_SESSION) -> None:
+    def clean_unused(cls, *, session: Session = NEW_SESSION) -> None:
         """
         Delete all triggers that have no tasks dependent on them and are not associated to an asset.
 
@@ -270,7 +270,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_event(cls, trigger_id, event: TriggerEvent, session: Session = NEW_SESSION) -> None:
+    def submit_event(cls, trigger_id, event: TriggerEvent, *, session: Session = NEW_SESSION) -> None:
         """
         Fire an event.
 
@@ -286,7 +286,11 @@ class Trigger(Base):
             handle_event_submit(event, task_instance=task_instance, session=session)
 
         # Send an event to assets
-        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
+        trigger = session.scalars(
+            select(cls)
+            .where(cls.id == trigger_id)
+            .options(selectinload(cls.asset_watchers).selectinload(AssetWatcherModel.asset))
+        ).one_or_none()
         if trigger is None:
             # Already deleted for some reason
             return
@@ -301,7 +305,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
+    def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
 
@@ -341,6 +345,7 @@ class Trigger(Base):
         triggerer_id,
         queues: set[str] | None = None,
         team_name: str | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> list[int]:
         """Retrieve a list of trigger ids."""
@@ -372,6 +377,7 @@ class Trigger(Base):
         health_check_threshold,
         queues: set[str] | None = None,
         team_name: str | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -564,12 +570,31 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
             if task_instance.dag_model.relative_fileloc is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
+            from airflow.models.dag_version import _resolve_version_data
+
+            # Derive bundle identity from the TI's dag_version (falling back to dag_run/dag_model
+            # for legacy/unpinned runs), mirroring the other callback sites so bundle_version and
+            # version_data always describe the same version.
+            bundle_name = (
+                task_instance.dag_version.bundle_name
+                if task_instance.dag_version
+                else task_instance.dag_model.bundle_name
+            )
+            bundle_version = (
+                task_instance.dag_version.bundle_version
+                if task_instance.dag_version and task_instance.dag_run.bundle_version is not None
+                else task_instance.dag_run.bundle_version
+            )
+            version_data = _resolve_version_data(
+                task_instance.dag_version, task_instance.dag_run.bundle_version
+            )
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
                 task_callback_type=event.task_instance_state,
-                bundle_name=task_instance.dag_model.bundle_name,
-                bundle_version=task_instance.dag_run.bundle_version,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
             )
             log.info("Sending callback: %s", request)
             try:

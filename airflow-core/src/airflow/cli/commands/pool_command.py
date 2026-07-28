@@ -25,6 +25,7 @@ from json import JSONDecodeError
 
 from airflow.api.client import get_current_api_client
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import deprecated_for_airflowctl
 from airflow.exceptions import PoolNotFound
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
@@ -40,10 +41,12 @@ def _show_pools(pools, output):
             "slots": x[1],
             "description": x[2],
             "include_deferred": x[3],
+            "team_name": x[4],
         },
     )
 
 
+@deprecated_for_airflowctl("airflowctl pools list")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def pool_list(args):
@@ -53,6 +56,7 @@ def pool_list(args):
     _show_pools(pools=pools, output=args.output)
 
 
+@deprecated_for_airflowctl("airflowctl pools get")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def pool_get(args):
@@ -65,6 +69,7 @@ def pool_get(args):
         raise SystemExit(f"Pool {args.pool} does not exist")
 
 
+@deprecated_for_airflowctl("airflowctl pools create")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -72,11 +77,16 @@ def pool_set(args):
     """Create new pool with a given name and slots."""
     api_client = get_current_api_client()
     api_client.create_pool(
-        name=args.pool, slots=args.slots, description=args.description, include_deferred=args.include_deferred
+        name=args.pool,
+        slots=args.slots,
+        description=args.description,
+        include_deferred=args.include_deferred,
+        team_name=args.team_name,
     )
     print(f"Pool {args.pool} created")
 
 
+@deprecated_for_airflowctl("airflowctl pools delete")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -90,6 +100,7 @@ def pool_delete(args):
         raise SystemExit(f"Pool {args.pool} does not exist")
 
 
+@deprecated_for_airflowctl("airflowctl pools import")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -103,6 +114,7 @@ def pool_import(args):
     print(f"Uploaded {len(pools)} pool(s)")
 
 
+@deprecated_for_airflowctl("airflowctl pools export")
 @providers_configuration_loaded
 def pool_export(args):
     """Export all the pools to the file."""
@@ -130,6 +142,7 @@ def pool_import_helper(filepath):
                     slots=v["slots"],
                     description=v["description"],
                     include_deferred=v.get("include_deferred", False),
+                    team_name=v.get("team_name"),
                 )
             )
         else:
@@ -143,7 +156,14 @@ def pool_export_helper(filepath):
     pool_dict = {}
     pools = api_client.get_pools()
     for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2], "include_deferred": pool[3]}
+        entry = {
+            "slots": pool[1],
+            "description": pool[2],
+            "include_deferred": pool[3],
+        }
+        if pool[4] is not None:
+            entry["team_name"] = pool[4]
+        pool_dict[pool[0]] = entry
     with open(filepath, "w") as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     return pools

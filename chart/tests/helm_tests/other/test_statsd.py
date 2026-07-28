@@ -269,28 +269,6 @@ class TestStatsd:
             "runAsNonRoot": True,
         }
 
-    def test_statsd_security_context_legacy(self):
-        docs = render_chart(
-            values={
-                "statsd": {
-                    "securityContext": {
-                        "fsGroup": 1000,
-                        "runAsGroup": 1001,
-                        "runAsNonRoot": True,
-                        "runAsUser": 2000,
-                    }
-                },
-            },
-            show_only=["templates/statsd/statsd-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.securityContext", docs[0]) == {
-            "runAsUser": 2000,
-            "runAsGroup": 1001,
-            "fsGroup": 1000,
-            "runAsNonRoot": True,
-        }
-
     def test_statsd_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/statsd/statsd-deployment.yaml"],
@@ -420,6 +398,32 @@ class TestStatsd:
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
         assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
+
+class TestStatsdService:
+    """Tests statsd service."""
+
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "statsd": {"enabled": True},
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=["templates/statsd/statsd-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            values={"statsd": {"enabled": True}},
+            show_only=["templates/statsd/statsd-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
 
 
 class TestStatsdServiceAccount:

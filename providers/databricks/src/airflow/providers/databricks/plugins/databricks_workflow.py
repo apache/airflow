@@ -164,7 +164,7 @@ if not AIRFLOW_V_3_0_PLUS:
 
     @provide_session
     def _clear_task_instances(
-        dag_id: str, run_id: str, task_ids: list[str], log: Logger, session: Session = NEW_SESSION
+        dag_id: str, run_id: str, task_ids: list[str], log: Logger, *, session: Session = NEW_SESSION
     ) -> None:
         dag = _get_dag(dag_id, session=session)
         log.debug("task_ids %s to clear", str(task_ids))
@@ -173,7 +173,7 @@ if not AIRFLOW_V_3_0_PLUS:
         clear_task_instances(tis_to_clear, session)
 
     @provide_session
-    def get_task_instance(operator: BaseOperator, dttm, session: Session = NEW_SESSION) -> TaskInstance:
+    def get_task_instance(operator: BaseOperator, dttm, *, session: Session = NEW_SESSION) -> TaskInstance:
         if select is None:
             raise AirflowOptionalProviderFeatureException(
                 "sqlalchemy is required to get task instance. "

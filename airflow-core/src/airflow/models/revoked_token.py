@@ -49,13 +49,13 @@ class RevokedToken(Base):
 
     @classmethod
     @provide_session
-    def revoke(cls, jti: str, exp: datetime, session: Session = NEW_SESSION) -> None:
+    def revoke(cls, jti: str, exp: datetime, *, session: Session = NEW_SESSION) -> None:
         """Add a token JTI to the revoked tokens."""
         session.merge(cls(jti=jti, exp=exp))
 
     @classmethod
     @provide_session
-    def is_revoked(cls, jti: str, session: Session = NEW_SESSION) -> bool:
+    def is_revoked(cls, jti: str, *, session: Session = NEW_SESSION) -> bool:
         """Check if a token JTI has been revoked."""
         cls._maybe_cleanup_expired(session)
         return bool(session.scalar(select(exists().where(cls.jti == jti))))

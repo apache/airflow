@@ -226,12 +226,42 @@ for **any** Dag in the installation. The ``ti:self`` token scope restricts cross
 mutation only; it is not a per-Dag access control.
 
 There is an **experimental** multi-team feature in Airflow (``[core] multi_team``) that provides UI-level and
-REST API-level RBAC isolation between teams. However, this feature **does not yet guarantee task-level isolation**.
+REST API-level RBAC isolation between teams. In multi-team mode, the team-scoped resources reachable through
+the Task Execution API are also isolated by team: a task may only access **Variables** and **Connections**
+belonging to its own team (falling back to global values), and may only access **XComs** of Dags in its own
+team (reads may additionally reach global Dags, but writes and deletes may not).
+
+However, this feature **does not yet guarantee task-level isolation**.
 At the task execution level, workloads from different teams still share the same Execution API, signing keys,
 connections, and variables. A task from one team can access the same shared resources as a task from another team.
 The multi-team feature is a work in progress — task-level isolation and Execution API enforcement of team
 boundaries will be improved in future versions of Airflow. Until then, you should assume that all Dag authors
 have access to all Dags and shared resources, and can modify their state regardless of team assignment.
+
+
+Per-Dag read access and source-code retrieval
+---------------------------------------------
+
+The dag-source retrieval endpoint (``GET /api/v2/dagSources/{dag_id}``) honors
+per-Dag read scoping for the **current** Dag-to-file mapping: if the file
+backing the requested Dag also defines other Dags the caller is not authorized
+to read, the endpoint returns a redacted placeholder instead of the source.
+
+The endpoint also supports retrieving historical source via the optional
+``version_number`` query parameter. For historical versions, the per-Dag scope
+is enforced using the **current** file membership, which may differ from the
+file's contents at the time the requested version was stored. As a consequence,
+requesting an older version may return source containing a Dag that has since
+been removed from the file, even if the caller does not currently have read
+access to that removed Dag. Conversely, requesting an older version may return
+the redacted placeholder when a later-added co-located Dag is not in the
+caller's readable set, even though the requested historical source predates
+that addition.
+
+Deployments that rely on per-Dag read scoping for source isolation should
+either keep one Dag per source file, or restrict ``DagAccessEntity.CODE`` to
+roles that are trusted to read every Dag that has ever co-existed in any
+source file.
 
 
 Security contexts for Dag author submitted code

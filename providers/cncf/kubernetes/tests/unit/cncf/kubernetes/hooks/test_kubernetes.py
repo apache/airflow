@@ -227,6 +227,19 @@ class TestKubernetesHook:
                 },
             ),
             ("sidecar_container_resources_empty", {"xcom_sidecar_container_resources": ""}),
+            (
+                "sidecar_container_security_context",
+                {
+                    "xcom_sidecar_container_security_context": json.dumps(
+                        {
+                            "allowPrivilegeEscalation": False,
+                            "readOnlyRootFilesystem": True,
+                            "seccompProfile": {"type": "RuntimeDefault"},
+                        }
+                    ),
+                },
+            ),
+            ("sidecar_container_security_context_empty", {"xcom_sidecar_container_security_context": ""}),
         ]
         for conn_id, extra in connections:
             create_connection_without_db(
@@ -559,6 +572,27 @@ class TestKubernetesHook:
     def test_get_xcom_sidecar_container_resources(self, conn_id, expected):
         hook = KubernetesHook(conn_id=conn_id)
         assert hook.get_xcom_sidecar_container_resources() == expected
+
+    @pytest.mark.parametrize(
+        ("conn_id", "expected"),
+        (
+            pytest.param(
+                "sidecar_container_security_context",
+                {
+                    "allowPrivilegeEscalation": False,
+                    "readOnlyRootFilesystem": True,
+                    "seccompProfile": {"type": "RuntimeDefault"},
+                },
+                id="sidecar-with-security-context",
+            ),
+            pytest.param(
+                "sidecar_container_security_context_empty", None, id="sidecar-without-security-context"
+            ),
+        ),
+    )
+    def test_get_xcom_sidecar_container_security_context(self, conn_id, expected):
+        hook = KubernetesHook(conn_id=conn_id)
+        assert hook.get_xcom_sidecar_container_security_context() == expected
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")

@@ -68,7 +68,7 @@ class Team(Base):
 
     @classmethod
     @provide_session
-    def get_all_team_names(cls, session: Session = NEW_SESSION) -> set[str]:
+    def get_all_team_names(cls, *, session: Session = NEW_SESSION) -> set[str]:
         """
         Return a set of all team names from the database.
 

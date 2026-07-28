@@ -18,9 +18,10 @@
 TaskFlow decorator for general-purpose LLM calls.
 
 The user writes a function that **returns the prompt string**. The decorator
-handles hook creation, agent configuration, LLM call, and output serialization.
-When ``output_type`` is a Pydantic ``BaseModel``, the result is serialized via
-``model_dump()`` for XCom.
+handles hook creation, agent configuration, and the LLM call. When
+``output_type`` is a Pydantic ``BaseModel`` subclass, the model instance is
+returned to XCom unchanged so downstream tasks can type-hint it directly.
+The class must be defined at module scope.
 """
 
 from __future__ import annotations

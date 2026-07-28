@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+3.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add overwrite parameter to IMAP hook to prevent silent file overwrites (#68838)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 3.11.3
 ......
 

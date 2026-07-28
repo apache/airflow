@@ -57,18 +57,18 @@ roleRef:
 subjects:
   {{- if and .Values.scheduler.enabled (or (contains "LocalExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor)) }}
   - kind: ServiceAccount
-    name: {{ include "scheduler.serviceAccountName" $ }}
-    namespace: "{{ $.Release.Namespace }}"
+    name: {{ include "scheduler.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  {{- if or (contains "CeleryExecutor" .Values.executor) (and (contains "KubernetesExecutor" .Values.executor) (eq .Values.workers.kubernetes.serviceAccount.create nil)) }}
+  {{- if and (contains "CeleryExecutor" .Values.executor) (or .Values.workers.celery.serviceAccount.create .Values.workers.celery.serviceAccount.name) }}
   - kind: ServiceAccount
-    name: {{ include "worker.serviceAccountName" $ }}
-    namespace: "{{ $.Release.Namespace }}"
+    name: {{ include "worker.celery.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
   {{- end }}
   {{- if and (or .Values.workers.kubernetes.serviceAccount.create .Values.workers.kubernetes.serviceAccount.name) (contains "KubernetesExecutor" .Values.executor) }}
   - kind: ServiceAccount
-    name: {{ include "worker.kubernetes.serviceAccountName" $ }}
-    namespace: "{{ $.Release.Namespace }}"
+    name: {{ include "worker.kubernetes.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
   {{- end }}
   {{- if .Values.triggerer.enabled }}
   - kind: ServiceAccount

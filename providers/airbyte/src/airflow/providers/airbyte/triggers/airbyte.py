@@ -76,28 +76,7 @@ class AirbyteSyncTrigger(BaseTrigger):
         hook = AirbyteHook(airbyte_conn_id=self.conn_id)
         try:
             while True:
-                now = time.monotonic()
-
-                job_run_status = hook.get_job_status(self.job_id)
-
-                if job_run_status == JobStatusEnum.SUCCEEDED:
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "message": f"Job run {self.job_id} has completed successfully.",
-                            "job_id": self.job_id,
-                        }
-                    )
-                    return
-                elif job_run_status == JobStatusEnum.CANCELLED:
-                    yield TriggerEvent(
-                        {
-                            "status": "cancelled",
-                            "message": f"Job run {self.job_id} has been cancelled.",
-                            "job_id": self.job_id,
-                        }
-                    )
-                    return
+                now = time.time()
 
                 if self.execution_deadline is not None:
                     if self.execution_deadline <= now:
@@ -116,6 +95,27 @@ class AirbyteSyncTrigger(BaseTrigger):
                             "status": "error",
                             "message": f"Job run {self.job_id} has not reached a terminal status after "
                             f"{self.end_time} seconds.",
+                            "job_id": self.job_id,
+                        }
+                    )
+                    return
+
+                job_run_status = hook.get_job_status(self.job_id)
+
+                if job_run_status == JobStatusEnum.SUCCEEDED:
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "message": f"Job run {self.job_id} has completed successfully.",
+                            "job_id": self.job_id,
+                        }
+                    )
+                    return
+                elif job_run_status == JobStatusEnum.CANCELLED:
+                    yield TriggerEvent(
+                        {
+                            "status": "cancelled",
+                            "message": f"Job run {self.job_id} has been cancelled.",
                             "job_id": self.job_id,
                         }
                     )

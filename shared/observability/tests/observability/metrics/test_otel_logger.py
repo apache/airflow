@@ -28,7 +28,6 @@ from opentelemetry.metrics import MeterProvider
 from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 
 from airflow_shared.observability.common import get_otel_data_exporter
-from airflow_shared.observability.exceptions import InvalidStatsNameException
 from airflow_shared.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
@@ -78,9 +77,9 @@ class TestOtelMetrics:
         assert not _is_up_down_counter("this_is_not_a_udc")
 
     def test_exemption_list_has_not_grown(self):
-        assert len(BACK_COMPAT_METRIC_NAMES) <= 26, (
+        assert len(BACK_COMPAT_METRIC_NAMES) <= 25, (
             "This test exists solely to ensure that nobody is adding names to the exemption list. "
-            "There are 26 names which are potentially too long for OTel and that number should "
+            "There are 25 names which are potentially too long for OTel and that number should "
             "only ever go down as these names are deprecated.  If this test is failing, please "
             "adjust your new stat's name; do not add as exemption without a very good reason."
         )
@@ -98,15 +97,54 @@ class TestOtelMetrics:
             ],
         ],
     )
-    def test_invalid_stat_names_are_caught(self, invalid_stat_combo):
+    def test_invalid_stat_names_are_skipped(self, invalid_stat_combo):
         prefix = invalid_stat_combo[0]
         name = invalid_stat_combo[1]
         self.stats.prefix = prefix
 
-        with pytest.raises(InvalidStatsNameException):
-            self.stats.incr(name)
+        result = self.stats.incr(name)
 
-        self.meter.assert_not_called()
+        assert result is None
+        self.meter.get_meter().create_counter.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag.my_dag.preço_task.scheduled_duration",
+            "dag.my_dag.tâche_principale.duration",
+            "dag.my_dag.aufgäbe.duration",
+        ],
+    )
+    def test_non_ascii_stat_names_are_skipped_without_raising(self, stat):
+        result = self.stats.incr(stat)
+
+        assert result is None
+        self.meter.get_meter().create_counter.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag_processing.last_run.seconds_ago.PBI_SKU_Performance copy",  # space in filename
+            "dag_processing.last_run.seconds_ago.mein_däg_file",  # non-ASCII in filename
+        ],
+    )
+    def test_gauge_with_invalid_stat_names_skipped_without_raising(self, stat):
+        self.stats.gauge(stat, value=1)
+
+        self.meter.get_meter().create_gauge.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "stat",
+        [
+            "dag.my_dag.preço_task.duration",  # non-ASCII
+            "dag.my_dag.task copy.duration",  # space
+        ],
+    )
+    def test_timer_with_invalid_stat_name_does_not_record(self, stat):
+        with self.stats.timer(stat):
+            pass
+
+        self.meter.get_meter().create_histogram.assert_not_called()
 
     def test_old_name_exception_works(self, caplog):
         name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit/task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"

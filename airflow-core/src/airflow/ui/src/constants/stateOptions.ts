@@ -37,6 +37,7 @@ export const taskInstanceStateOptions = createListCollection<{
     { label: "common:states.upstream_failed", value: "upstream_failed" },
     { label: "common:states.skipped", value: "skipped" },
     { label: "common:states.deferred", value: "deferred" },
+    { label: "common:states.awaiting_input", value: "awaiting_input" },
     { label: "common:states.removed", value: "removed" },
     { label: "common:states.none", value: "none" },
   ],

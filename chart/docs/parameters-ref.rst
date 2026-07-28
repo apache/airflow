@@ -86,6 +86,7 @@ in the next Helm Chart major release.
 
 .. jinja:: params_ctx
 
+   {% if deprecations_exist %}
    .. list-table::
       :widths: 15 10 30
       :header-rows: 1
@@ -111,3 +112,6 @@ in the next Helm Chart major release.
          {% endif %}
       {% endfor %}
    {% endfor %}
+   {% else %}
+   There are no deprecations within current release of Helm Chart.
+   {% endif %}

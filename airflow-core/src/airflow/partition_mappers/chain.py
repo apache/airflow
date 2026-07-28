@@ -18,9 +18,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.partition_mappers.base import PartitionMapper
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class ChainMapper(PartitionMapper):
@@ -32,7 +35,9 @@ class ChainMapper(PartitionMapper):
         mapper1: PartitionMapper,
         /,
         *mappers: PartitionMapper,
+        max_downstream_keys: int | None = None,
     ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.mappers = [mapper0, mapper1, *mappers]
 
     def to_downstream(self, key: str) -> str | Iterable[str]:
@@ -60,14 +65,21 @@ class ChainMapper(PartitionMapper):
             keys = next_keys
         return keys[0] if len(keys) == 1 else keys
 
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        # The last mapper in the chain formats the final downstream key, so it owns the anchor.
+        return self.mappers[-1].to_partition_date(downstream_key)
+
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_partition_mapper
 
-        return {"mappers": [encode_partition_mapper(m) for m in self.mappers]}
+        result: dict[str, Any] = {"mappers": [encode_partition_mapper(m) for m in self.mappers]}
+        if self.max_downstream_keys is not None:
+            result["max_downstream_keys"] = self.max_downstream_keys
+        return result
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         from airflow.serialization.decoders import decode_partition_mapper
 
         mappers = [decode_partition_mapper(m) for m in data["mappers"]]
-        return cls(*mappers)
+        return cls(*mappers, max_downstream_keys=data.get("max_downstream_keys"))

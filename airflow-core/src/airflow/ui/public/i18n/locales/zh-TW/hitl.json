@@ -24,6 +24,20 @@
     "success": "任務 {{taskId}} 回應成功",
     "title": "人類參與流程任務實例 - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "選擇一個待回應的任務實例以查看詳細資訊"
+    },
+    "list": {
+      "completedRequiredActions": "已回應的任務實例 ({{count}})",
+      "loadError": "無法載入待回應的任務實例",
+      "loadingActions": "正在載入待回應的任務實例...",
+      "pendingRequiredActions": "待回應的任務實例 ({{count}})"
+    },
+    "openReviewDrawer": "開啟回應面板",
+    "pageLimitHint": "這裡僅顯示前幾項任務實例。請使用「$t(review.viewAll)」以查看全部。",
+    "viewAll": "查看所有待回應的任務實例"
+  },
   "state": {
     "approvalReceived": "已核准",
     "approvalRequired": "需要核准",

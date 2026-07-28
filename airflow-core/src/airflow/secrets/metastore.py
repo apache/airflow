@@ -37,7 +37,7 @@ class MetastoreBackend(BaseSecretsBackend):
 
     @provide_session
     def get_connection(
-        self, conn_id: str, team_name: str | None = None, session: Session = NEW_SESSION
+        self, conn_id: str, team_name: str | None = None, *, session: Session = NEW_SESSION
     ) -> Connection | None:
         """
         Get Airflow Connection from Metadata DB.
@@ -63,7 +63,7 @@ class MetastoreBackend(BaseSecretsBackend):
 
     @provide_session
     def get_variable(
-        self, key: str, team_name: str | None = None, session: Session = NEW_SESSION
+        self, key: str, team_name: str | None = None, *, session: Session = NEW_SESSION
     ) -> str | None:
         """
         Get Airflow Variable from Metadata DB.

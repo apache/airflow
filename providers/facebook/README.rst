@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-facebook``
 
-Release: ``3.9.4``
+Release: ``3.9.5``
 
 
 `Facebook Ads <https://www.facebook.com/about/ads>`__
@@ -36,7 +36,7 @@ This is a provider package for ``facebook`` provider. All classes for this provi
 are in ``airflow.providers.facebook`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-facebook/3.9.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-facebook/3.9.5/>`_.
 
 Installation
 ------------
@@ -58,24 +58,5 @@ PIP package                                 Version required
 ``facebook-business``                       ``>=22.0.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-facebook[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-facebook/3.9.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-facebook/3.9.5/changelog.html>`_.

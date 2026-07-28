@@ -25,12 +25,12 @@ from airflow.api_fastapi.execution_api.deps import DepContainer
 router = APIRouter()
 
 
-@router.get("")
+@router.get("/health")
 def health() -> dict:
     return {"status": "healthy"}
 
 
-@router.get("/ping")
+@router.get("/health/ping")
 async def ping(services=DepContainer):
     ok: list[str] = []
     failing: dict[str, str] = {}

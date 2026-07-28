@@ -24,6 +24,7 @@ import { FieldAdvancedArray } from "./FieldAdvancedArray";
 import { FieldBool } from "./FieldBool";
 import { FieldDateTime } from "./FieldDateTime";
 import { FieldDropdown } from "./FieldDropdown";
+import { FieldDuration } from "./FieldDuration";
 import { FieldMultiSelect } from "./FieldMultiSelect";
 import { FieldMultiType } from "./FieldMultiType";
 import { FieldMultilineText } from "./FieldMultilineText";
@@ -66,6 +67,9 @@ const isFieldDate = (fieldType: string, fieldSchema: ParamSchema) =>
 
 const isFieldDateTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "date-time";
+
+const isFieldDuration = (fieldType: string, fieldSchema: ParamSchema) =>
+  fieldType === "string" && fieldSchema.format === "duration";
 
 const enumTypes = ["null", "string", "number", "integer"];
 
@@ -140,6 +144,8 @@ export const FieldSelector = ({ name, namespace = "default", onUpdate }: Flexibl
     return <FieldObject name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else if (isFieldNumber(fieldType)) {
     return <FieldNumber name={name} namespace={namespace} onUpdate={onUpdate} />;
+  } else if (isFieldDuration(fieldType, param.schema)) {
+    return <FieldDuration name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else if (isFieldMultilineText(fieldType, param.schema)) {
     return <FieldMultilineText name={name} namespace={namespace} onUpdate={onUpdate} />;
   } else {

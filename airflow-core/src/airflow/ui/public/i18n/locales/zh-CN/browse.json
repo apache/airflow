@@ -11,6 +11,24 @@
     },
     "title": "审计日志"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "警告名称",
+      "deadlineTime": "截止时间",
+      "status": "状态"
+    },
+    "deadline_one": "截止期限",
+    "deadline_other": "截止期限",
+    "filters": {
+      "status": "状态",
+      "statusOptions": {
+        "all": "全部",
+        "missed": "已错过",
+        "pending": "待处理"
+      }
+    },
+    "title": "截止期限"
+  },
   "xcom": {
     "add": {
       "error": "添加 XCom 失败",

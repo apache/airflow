@@ -18,7 +18,7 @@
  */
 import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
-import { waitForStableRowCount } from "tests/e2e/utils/test-helpers";
+import { waitForStableRowCount } from "tests/e2e/utils/ui/waits";
 
 type ConnectionDetails = {
   conn_type: string;

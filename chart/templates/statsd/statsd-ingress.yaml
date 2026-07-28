@@ -59,7 +59,7 @@ spec:
   {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.statsd.hosts | default (list .Values.ingress.statsd.host) }}
+    {{- range .Values.ingress.statsd.hosts | default (list "") }}
     - http:
         paths:
           - backend:

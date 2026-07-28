@@ -20,13 +20,13 @@ package execution
 import (
 	"bytes"
 	"encoding/binary"
-	"strconv"
 	"testing"
-	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 func TestEncodeRequest(t *testing.T) {
@@ -55,6 +55,32 @@ func TestEncodeRequest(t *testing.T) {
 	assert.Equal(t, "my_var", decodedBody["key"])
 }
 
+// TestEncodeRequestStampsType verifies encodeRequest stamps the "type"
+// discriminator from the body's Go type (via genmodels.EnsureType), so a call
+// site that leaves Type unset — or sets the wrong one — still produces a frame
+// whose discriminator matches the model. This is the guarantee that keeps the
+// type<->model binding from drifting.
+func TestEncodeRequestStampsType(t *testing.T) {
+	t.Run("unset Type is stamped", func(t *testing.T) {
+		data, err := encodeRequest(1, genmodels.GetConnection{ConnID: "c"})
+		require.NoError(t, err)
+		frame, err := decodeFrame(data)
+		require.NoError(t, err)
+		assert.Equal(t, genmodels.TypeGetConnection, peekBodyType(frame.Body))
+	})
+
+	t.Run("wrong Type is corrected", func(t *testing.T) {
+		data, err := encodeRequest(
+			2,
+			genmodels.SetXCom{Type: genmodels.TypeGetConnection, Key: "k"},
+		)
+		require.NoError(t, err)
+		frame, err := decodeFrame(data)
+		require.NoError(t, err)
+		assert.Equal(t, genmodels.TypeSetXCom, peekBodyType(frame.Body))
+	})
+}
+
 func TestWriteAndReadFrame(t *testing.T) {
 	body := map[string]any{
 		"type":    "GetConnection",
@@ -77,10 +103,11 @@ func TestWriteAndReadFrame(t *testing.T) {
 	// Read back.
 	frame, err := readFrame(&buf)
 	require.NoError(t, err)
-	assert.Equal(t, 7, frame.ID)
-	assert.Equal(t, "GetConnection", frame.Body["type"])
-	assert.Equal(t, "my_db", frame.Body["conn_id"])
-	assert.Nil(t, frame.Err)
+	assert.Equal(t, int64(7), frame.ID)
+	bodyMap := rawToMap(t, frame.Body)
+	assert.Equal(t, "GetConnection", bodyMap["type"])
+	assert.Equal(t, "my_db", bodyMap["conn_id"])
+	assert.True(t, isNilRaw(frame.Err))
 }
 
 func TestDecodeResponseFrame(t *testing.T) {
@@ -100,10 +127,11 @@ func TestDecodeResponseFrame(t *testing.T) {
 
 	frame, err := decodeFrame(buf.Bytes())
 	require.NoError(t, err)
-	assert.Equal(t, 5, frame.ID)
-	assert.Equal(t, "ConnectionResult", frame.Body["type"])
-	assert.Equal(t, "localhost", frame.Body["host"])
-	assert.Nil(t, frame.Err)
+	assert.Equal(t, int64(5), frame.ID)
+	bodyMap := rawToMap(t, frame.Body)
+	assert.Equal(t, "ConnectionResult", bodyMap["type"])
+	assert.Equal(t, "localhost", bodyMap["host"])
+	assert.True(t, isNilRaw(frame.Err))
 }
 
 func TestDecodeResponseFrameWithError(t *testing.T) {
@@ -122,66 +150,10 @@ func TestDecodeResponseFrameWithError(t *testing.T) {
 
 	frame, err := decodeFrame(buf.Bytes())
 	require.NoError(t, err)
-	assert.Equal(t, 3, frame.ID)
-	assert.Nil(t, frame.Body)
-	assert.NotNil(t, frame.Err)
-	assert.Equal(t, "not_found", frame.Err["error"])
-}
-
-func TestDecodeFrameRejectsNonMapBody(t *testing.T) {
-	// A non-nil, non-map body element is a protocol violation; the decoder
-	// must surface it instead of silently turning the body into nil.
-	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf)
-	enc.UseCompactInts(true)
-
-	require.NoError(t, enc.EncodeArrayLen(2))
-	require.NoError(t, enc.EncodeInt(1))
-	require.NoError(t, enc.EncodeString("not a map"))
-
-	_, err := decodeFrame(buf.Bytes())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "body element: expected map")
-}
-
-func TestDecodeFrameRejectsNonMapError(t *testing.T) {
-	// Same rule applies to the error element of a 3-tuple response frame.
-	var buf bytes.Buffer
-	enc := msgpack.NewEncoder(&buf)
-	enc.UseCompactInts(true)
-
-	require.NoError(t, enc.EncodeArrayLen(3))
-	require.NoError(t, enc.EncodeInt(2))
-	require.NoError(t, enc.Encode(nil))
-	require.NoError(t, enc.EncodeString("not a map"))
-
-	_, err := decodeFrame(buf.Bytes())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "error element: expected map")
-}
-
-// TestWriteFrameRejectsOversizedPayload pins the guard at the top of
-// writeFrame against the rename/refactor that previously dropped its
-// coverage. The guard only inspects len(payload) before doing any allocation
-// or read of payload bytes, so we hand it a fake-length slice built with
-// unsafe.Slice (one real byte of backing storage, length > MaxFrameSize)
-// rather than allocating 4 GiB of real memory.
-//
-// The matching read-side guard at the top of readFrame is dead code with
-// MaxFrameSize pinned at the uint32 maximum (payloadLen is uint32, so
-// payloadLen > MaxFrameSize is never true) and cannot be exercised without
-// modifying production code; it remains as defense-in-depth in case
-// MaxFrameSize is ever lowered.
-func TestWriteFrameRejectsOversizedPayload(t *testing.T) {
-	if strconv.IntSize < 64 {
-		t.Skip("requires 64-bit int to construct a slice longer than MaxFrameSize")
-	}
-	var backing byte
-	payload := unsafe.Slice(&backing, uint64(MaxFrameSize)+1)
-
-	err := writeFrame(&bytes.Buffer{}, payload)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "exceeds max")
+	assert.Equal(t, int64(3), frame.ID)
+	assert.True(t, isNilRaw(frame.Body))
+	assert.False(t, isNilRaw(frame.Err))
+	assert.Equal(t, "not_found", rawToMap(t, frame.Err)["error"])
 }
 
 func TestRoundTripMultipleFrames(t *testing.T) {
@@ -193,7 +165,7 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 		{"type": "GetVariable", "key": "v2"},
 	}
 	for i, body := range bodies {
-		payload, err := encodeRequest(i, body)
+		payload, err := encodeRequest(int64(i), body)
 		require.NoError(t, err)
 		require.NoError(t, writeFrame(&buf, payload))
 	}
@@ -202,57 +174,7 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 	for i, expected := range bodies {
 		frame, err := readFrame(&buf)
 		require.NoError(t, err)
-		assert.Equal(t, i, frame.ID)
-		assert.Equal(t, expected["key"], frame.Body["key"])
+		assert.Equal(t, int64(i), frame.ID)
+		assert.Equal(t, expected["key"], rawToMap(t, frame.Body)["key"])
 	}
-}
-
-func TestToStringMap(t *testing.T) {
-	tests := []struct {
-		name  string
-		input any
-		want  map[string]any
-		ok    bool
-	}{
-		{"nil", nil, nil, false},
-		{"string map", map[string]any{"a": 1}, map[string]any{"a": 1}, true},
-		{"any key map", map[any]any{"b": 2}, map[string]any{"b": 2}, true},
-		{"not a map", "hello", nil, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, ok := toStringMap(tt.input)
-			assert.Equal(t, tt.ok, ok)
-			if tt.ok {
-				assert.Equal(t, tt.want, got)
-			}
-		})
-	}
-}
-
-func TestToInt(t *testing.T) {
-	tests := []struct {
-		input any
-		want  int
-	}{
-		{int8(42), 42},
-		{int16(42), 42},
-		{int32(42), 42},
-		{int64(42), 42},
-		{uint8(42), 42},
-		{uint16(42), 42},
-		{uint32(42), 42},
-		{uint64(42), 42},
-		{float32(42.0), 42},
-		{float64(42.0), 42},
-		{int(42), 42},
-	}
-	for _, tt := range tests {
-		got, err := toInt(tt.input)
-		require.NoError(t, err)
-		assert.Equal(t, tt.want, got)
-	}
-
-	_, err := toInt("not a number")
-	assert.Error(t, err)
 }

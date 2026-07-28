@@ -21,6 +21,7 @@ import re
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import Annotated
+from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
@@ -41,10 +42,14 @@ from airflow.api_fastapi.common.parameters import (
     _TaskDisplayNamePrefixPatternParam,
     datetime_range_filter_factory,
     filter_param_factory,
+    regex_param_factory,
 )
 from airflow.models import DagModel, DagRun, Log
+from airflow.models.asset import AssetEvent
 from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestFilterParam:
@@ -135,23 +140,56 @@ class TestSortParam:
         assert param.row_value(row, "dag_run_id") == "manual__2026-04-22"
         assert param.row_value(row, "id") == 42
 
-    def test_row_value_raises_on_column_form_to_replace(self):
+    def test_row_value_column_form_to_replace_resolves_via_row_attribute(self):
         """
-        Column-form ``to_replace`` is not supported by cursor encoding. The helper must
-        fail loudly so a future endpoint doesn't silently ship ``None`` cursor tokens.
+        Column-form ``to_replace`` resolves through the primary model's attribute so
+        association proxies (e.g. ``TaskInstance.run_after``) are usable for cursor encoding.
         """
         param = SortParam(["dag_id"], DagModel, {"last_run_state": DagRun.state}).set_value(
             ["last_run_state"]
         )
-        row = SimpleNamespace(id="test_dag")
-        with pytest.raises(NotImplementedError, match="column-form ``to_replace``"):
-            param.row_value(row, "last_run_state")
+        row = SimpleNamespace(id="test_dag", last_run_state="success")
+        assert param.row_value(row, "last_run_state") == "success"
+
+    def test_row_value_column_form_to_replace_raises_when_attribute_absent(self):
+        """
+        Column-form ``to_replace`` must raise ``NotImplementedError`` (not return ``None``)
+        when the primary model exposes no such attribute. A ``None`` cursor token would cause
+        the next-page ``WHERE`` to compare against ``NULL`` and silently drop rows.
+        """
+        param = SortParam(
+            ["dag_id"], DagModel, {"data_interval_start": DagRun.data_interval_start}
+        ).set_value(["data_interval_start"])
+        row = SimpleNamespace(id="test_dag")  # deliberately no data_interval_start attribute
+        with pytest.raises(NotImplementedError, match="data_interval_start"):
+            param.row_value(row, "data_interval_start")
 
     def test_primary_key_is_not_duplicated_when_alias_maps_to_pk(self):
         """Sorting by an alias that resolves to the PK must not append the PK a second time."""
         param = SortParam(["id"], ParseImportError, {"import_error_id": "id"}).set_value(["import_error_id"])
         resolved = param.get_resolved_columns()
         assert [name for name, _col, _desc in resolved] == ["import_error_id"]
+
+    def test_dynamic_depends_returns_independent_instances(self):
+        """Each call to the inner closure must produce a separate SortParam instance.
+
+        Two concurrent requests with different order_by values must not share state —
+        a mutation on one must not affect the other.
+        """
+        sort_param = SortParam(["id", "run_id", "logical_date"], DagRun, {"dag_run_id": "run_id"})
+        inner = sort_param.dynamic_depends(default="id")
+
+        instance_a = inner(order_by=["logical_date"])
+        instance_b = inner(order_by=["run_id"])
+
+        assert instance_a is not instance_b
+        assert instance_a.value == ["logical_date"]
+        assert instance_b.value == ["run_id"]
+        # Resolving one must not affect the other.
+        cols_a = [name for name, _col, _desc in instance_a.get_resolved_columns()]
+        cols_b = [name for name, _col, _desc in instance_b.get_resolved_columns()]
+        assert cols_a[0] == "logical_date"
+        assert cols_b[0] == "run_id"
 
 
 def _compile(statement):
@@ -222,6 +260,26 @@ class TestSearchParam:
         sql = _compile(statement)
         assert _has_ilike(sql, "example_bash")
         assert " or " not in sql
+
+    def test_to_orm_pipe_as_or_false_treats_pipe_as_literal(self):
+        """With ``pipe_as_or=False``, the pipe character is passed through literally."""
+        param = _SearchParam(DagModel.dag_id, pipe_as_or=False).set_value("2026-01-01|us")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert _has_ilike(sql, "2026-01-01|us")
+        assert " or " not in sql
+
+    def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
+        """``pipe_as_or=False`` must not interfere with the ``~`` → ``%`` alias."""
+        param = _SearchParam(DagModel.dag_id, pipe_as_or=False)
+        param.set_value(param.transform_aliases("~"))
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert _has_ilike(sql, "%")
 
 
 class TestEscapeLikePattern:
@@ -382,6 +440,28 @@ class TestPrefixSearchParam:
         result = param.to_orm(statement)
         assert result is statement
 
+    def test_to_orm_pipe_as_or_false_treats_pipe_as_literal(self):
+        """With ``pipe_as_or=False``, the pipe character is part of the prefix and not an OR delimiter."""
+        param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False).set_value("2026-01-01|us")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        # Use " or " (with spaces) to avoid false positives from column-name substrings like "owners".
+        assert " or " not in sql
+        # Range scan uses the full composite-key value as the lower bound.
+        assert "2026-01-01|us" in sql
+
+    def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
+        """``pipe_as_or=False`` must not interfere with the ``~`` → empty alias."""
+        param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False)
+        param.set_value(param.transform_aliases("~"))
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert "is not null" in sql
+
 
 class TestTaskDisplayNamePrefixPatternParam:
     """Prefix filter splits on NULL override so ``task_id`` can use indexes."""
@@ -462,3 +542,51 @@ class TestDatetimeRangeFilterFactory:
         rf = _make_datetime_filter("start_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "coalesce" not in sql
+
+
+class TestRegexParamFactory:
+    """The regexp filter dependency must apply the query timeout itself (callers can't forget)."""
+
+    @staticmethod
+    def _depends():
+        return regex_param_factory(AssetEvent.partition_key, "partition_key_regexp_pattern")
+
+    def test_dependency_applies_timeout_when_pattern_provided(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            with mock.patch("airflow.api_fastapi.common.parameters.apply_regex_query_timeout") as apply_mock:
+                gen = self._depends()(session=session, value="^us")
+                param = next(gen)
+                apply_mock.assert_called_once_with(session)
+                assert param.value == "^us"
+                with pytest.raises(StopIteration):
+                    next(gen)
+
+    def test_dependency_skips_timeout_without_pattern(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            with mock.patch("airflow.api_fastapi.common.parameters.apply_regex_query_timeout") as apply_mock:
+                gen = self._depends()(session=session, value=None)
+                param = next(gen)
+                apply_mock.assert_not_called()
+                assert param.value is None
+                with pytest.raises(StopIteration):
+                    next(gen)
+
+    def test_dependency_rejects_pattern_when_disabled(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
+            gen = self._depends()(session=session, value="^us")
+            with pytest.raises(HTTPException) as exc:
+                next(gen)
+        assert exc.value.status_code == 400
+        assert "disabled" in exc.value.detail
+
+    def test_dependency_rejects_invalid_regex(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            gen = self._depends()(session=session, value="[invalid(")
+            with pytest.raises(HTTPException) as exc:
+                next(gen)
+        assert exc.value.status_code == 400
+        assert "Invalid regular expression" in exc.value.detail

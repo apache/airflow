@@ -12,50 +12,51 @@
                                     {
                                         "__type": "asset_all",
                                         "objects": [
-                                    {
-                                        "__type": "asset_any",
-                                        "objects": [
                                             {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket/file.txt",
-                                                "name": "s3://bucket/file.txt",
-                                                "group": "asset",
-                                                "extra": {
-                                                    "a": 1
-                                                }
+                                                "__type": "asset_any",
+                                                "objects": [
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket/file.txt",
+                                                        "name": "s3://bucket/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {
+                                                            "a": 1
+                                                        }
+                                                    },
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket2/file.txt",
+                                                        "name": "s3://bucket2/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {}
+                                                    }
+                                                ]
                                             },
                                             {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket2/file.txt",
-                                                "name": "s3://bucket2/file.txt",
-                                                "group": "asset",
-                                                "extra": {}
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "__type": "asset_any",
-                                        "objects": [
-                                            {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket3/file.txt",
-                                                "name": "s3://bucket3/file.txt",
-                                                "group": "asset",
-                                                "extra": {}
-                                            },
-                                            {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket4/file.txt",
-                                                "name": "s3://bucket4/file.txt",
-                                                "group": "asset",
-                                                "extra": {"b":  2}
+                                                "__type": "asset_any",
+                                                "objects": [
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket3/file.txt",
+                                                        "name": "s3://bucket3/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {}
+                                                    },
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket4/file.txt",
+                                                        "name": "s3://bucket4/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {
+                                                            "b": 2
+                                                        }
+                                                    }
+                                                ]
                                             }
                                         ]
                                     }
                                 ]
-                                    }
-                                ]
-
                             }
                         },
                         "timetable_summary": "Asset"
@@ -80,50 +81,51 @@
                                     {
                                         "__type": "asset_all",
                                         "objects": [
-                                    {
-                                        "__type": "asset_any",
-                                        "objects": [
                                             {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket/file.txt",
-                                                "name": "s3://bucket/file.txt",
-                                                "group": "asset",
-                                                "extra": {
-                                                    "a": 1
-                                                }
+                                                "__type": "asset_any",
+                                                "objects": [
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket/file.txt",
+                                                        "name": "s3://bucket/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {
+                                                            "a": 1
+                                                        }
+                                                    },
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket2/file.txt",
+                                                        "name": "s3://bucket2/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {}
+                                                    }
+                                                ]
                                             },
                                             {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket2/file.txt",
-                                                "name": "s3://bucket2/file.txt",
-                                                "group": "asset",
-                                                "extra": {}
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "__type": "asset_any",
-                                        "objects": [
-                                            {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket3/file.txt",
-                                                "name": "s3://bucket3/file.txt",
-                                                "group": "asset",
-                                                "extra": {}
-                                            },
-                                            {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket4/file.txt",
-                                                "name": "s3://bucket4/file.txt",
-                                                "group": "asset",
-                                                "extra": {"b":  2}
+                                                "__type": "asset_any",
+                                                "objects": [
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket3/file.txt",
+                                                        "name": "s3://bucket3/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {}
+                                                    },
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket4/file.txt",
+                                                        "name": "s3://bucket4/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {
+                                                            "b": 2
+                                                        }
+                                                    }
+                                                ]
                                             }
                                         ]
                                     }
                                 ]
-                                    }
-                                ]
-
                             }
                         },
                         "timetable_summary": "Asset"
@@ -148,50 +150,51 @@
                                     {
                                         "__type": "asset_all",
                                         "objects": [
-                                    {
-                                        "__type": "asset_any",
-                                        "objects": [
                                             {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket/file.txt",
-                                                "name": "s3://bucket/file.txt",
-                                                "group": "asset",
-                                                "extra": {
-                                                    "a": 1
-                                                }
+                                                "__type": "asset_any",
+                                                "objects": [
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket/file.txt",
+                                                        "name": "s3://bucket/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {
+                                                            "a": 1
+                                                        }
+                                                    },
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket2/file.txt",
+                                                        "name": "s3://bucket2/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {}
+                                                    }
+                                                ]
                                             },
                                             {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket2/file.txt",
-                                                "name": "s3://bucket2/file.txt",
-                                                "group": "asset",
-                                                "extra": {}
-                                            }
-                                        ]
-                                    },
-                                    {
-                                        "__type": "asset_any",
-                                        "objects": [
-                                            {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket3/file.txt",
-                                                "name": "s3://bucket3/file.txt",
-                                                "group": "asset",
-                                                "extra": {}
-                                            },
-                                            {
-                                                "__type": "asset",
-                                                "uri": "s3://bucket4/file.txt",
-                                                "name": "s3://bucket4/file.txt",
-                                                "group": "asset",
-                                                "extra": {"b":  2}
+                                                "__type": "asset_any",
+                                                "objects": [
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket3/file.txt",
+                                                        "name": "s3://bucket3/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {}
+                                                    },
+                                                    {
+                                                        "__type": "asset",
+                                                        "uri": "s3://bucket4/file.txt",
+                                                        "name": "s3://bucket4/file.txt",
+                                                        "group": "asset",
+                                                        "extra": {
+                                                            "b": 2
+                                                        }
+                                                    }
+                                                ]
                                             }
                                         ]
                                     }
                                 ]
-                                    }
-                                ]
-
                             }
                         },
                         "timetable_summary": "Asset"

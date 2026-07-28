@@ -28,15 +28,13 @@ from unittest import mock
 from unittest.mock import PropertyMock, call, mock_open
 from urllib.parse import parse_qsl, unquote, urlsplit
 
-import aiohttp
 import httplib2
 import pytest
-from aiohttp.helpers import TimerNoop
 from googleapiclient.errors import HttpError
-from yarl import URL
 
 from airflow.providers.common.compat.sdk import AirflowException
 
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
@@ -1980,21 +1978,12 @@ class TestCloudSQLAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation_name"))
     async def test_async_get_operation_completed_should_execute_successfully(self, mocked_get, hook_async):
-        response = aiohttp.ClientResponse(
-            "get",
-            URL(OPERATION_URL),
-            request_info=mock.Mock(),
-            writer=mock.Mock(),
-            continue100=None,
-            timer=TimerNoop(),
-            traces=[],
-            loop=mock.Mock(),
-            session=None,
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"status": "DONE"},
+            method="GET",
+            url=OPERATION_URL,
         )
-        response.status = 200
-        mocked_get.return_value = response
-        mocked_get.return_value._headers = {"Authorization": "test-token"}
-        mocked_get.return_value._body = b'{"status": "DONE"}'
 
         operation = await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
         mocked_get.assert_awaited_once()
@@ -2003,21 +1992,12 @@ class TestCloudSQLAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation_name"))
     async def test_async_get_operation_running_should_execute_successfully(self, mocked_get, hook_async):
-        response = aiohttp.ClientResponse(
-            "get",
-            URL(OPERATION_URL),
-            request_info=mock.Mock(),
-            writer=mock.Mock(),
-            continue100=None,
-            timer=TimerNoop(),
-            traces=[],
-            loop=mock.Mock(),
-            session=None,
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"status": "RUNNING"},
+            method="GET",
+            url=OPERATION_URL,
         )
-        response.status = 200
-        mocked_get.return_value = response
-        mocked_get.return_value._headers = {"Authorization": "test-token"}
-        mocked_get.return_value._body = b'{"status": "RUNNING"}'
 
         operation = await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
         mocked_get.assert_awaited_once()

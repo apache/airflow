@@ -219,6 +219,7 @@ class TestSageMakerUnifiedStudioNotebookSensor:
         mock_hook.get_notebook_outputs.assert_called_once_with(
             notebook_identifier=NOTEBOOK_ID,
             notebook_run_id=NOTEBOOK_RUN_ID,
+            domain_identifier=DOMAIN_ID,
             owning_project_identifier=PROJECT_ID,
         )
         context["ti"].xcom_push.assert_called_once_with(key=f"{NOTEBOOK_OUTPUT_PREFIX}.name", value="Alice")

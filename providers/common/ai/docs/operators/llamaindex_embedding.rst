@@ -25,10 +25,10 @@ LlamaIndex. Designed to feed the output of
 :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
 into vector storage (pgvector, Pinecone, Weaviate, ...).
 
-The operator passes the embedding model **directly** to
-``VectorStoreIndex(..., embed_model=...)`` -- it does not mutate
-LlamaIndex's global ``Settings`` singleton, so concurrent tasks in the same
-worker process don't race on shared model state.
+The operator calls the embedding model **directly** (and passes it to
+``VectorStoreIndex(..., embed_model=...)`` when persisting) -- it does not
+mutate LlamaIndex's global ``Settings`` singleton, so concurrent tasks in the
+same worker process don't race on shared model state.
 
 Basic usage
 -----------
@@ -117,3 +117,7 @@ Returns a dict with::
             ...
         ],
     }
+
+``vector`` is computed over the chunk's metadata-enriched content
+(LlamaIndex's ``MetadataMode.EMBED``, the same content ``VectorStoreIndex``
+embeds), while ``text`` is the raw chunk text without metadata.

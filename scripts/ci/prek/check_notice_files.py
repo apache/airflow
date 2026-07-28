@@ -47,4 +47,10 @@ for notice_file in sys.argv[1:]:
         print(f"❌ {notice_file}: Missing expected string: {expected!r}")
         errors += 1
 
-sys.exit(1 if errors else 0)
+if errors:
+    print()
+    print("To fix, run: prek run update-notice-year --all-files")
+    print("Then commit the changes.")
+    sys.exit(1)
+
+sys.exit(0)

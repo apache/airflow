@@ -42,14 +42,14 @@ from airflow.models import DagModel, DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
-from airflow.models.task_state import TaskStateModel
+from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskinstance import uuid7
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import BaseOperator, TaskGroup
-from airflow.state.metastore import MetastoreStateBackend
+from airflow.sdk import BaseOperator
+from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -74,6 +74,35 @@ DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
 
 DEFAULT_DATETIME_1 = dt.datetime.fromisoformat(DEFAULT_DATETIME_STR_1)
 DEFAULT_DATETIME_2 = dt.datetime.fromisoformat(DEFAULT_DATETIME_STR_2)
+
+
+def _attach_dag_to_team(session, dag_id: str, *, bundle_name: str, team_name: str) -> str:
+    """
+    Associate a Dag with a team via a team-scoped bundle for multi-team tests.
+
+    Returns the Dag's original bundle name so the caller can restore it during cleanup
+    (``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action).
+    """
+    original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
+    bundle = DagBundleModel(name=bundle_name)
+    bundle.teams.append(Team(name=team_name))
+    session.add(bundle)
+    session.flush()
+    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+    session.commit()
+    return original_bundle_name
+
+
+def _detach_dag_from_team(
+    session, dag_id: str, *, bundle_name: str, team_name: str, original_bundle_name: str
+) -> None:
+    """Undo :func:`_attach_dag_to_team`, restoring the Dag's original bundle."""
+    session.execute(
+        update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=original_bundle_name)
+    )
+    session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
+    session.execute(delete(Team).where(Team.name == team_name))
+    session.commit()
 
 
 class TestTaskInstanceEndpoint:
@@ -201,7 +230,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -242,6 +271,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
 
     def test_should_respond_200_with_decorator(self, test_client, session):
@@ -318,6 +348,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": mock.ANY,
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
             "dag_version": {
                 "id": response_data["dag_version"]["id"],
                 "version_number": expected_version_number,
@@ -359,7 +390,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -411,6 +442,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "state": "running",
                 "unixname": getuser(),
             },
+            "team_name": None,
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
@@ -423,7 +455,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response_data == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -464,6 +496,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
 
     def test_should_respond_200_task_instance_with_rendered(self, test_client, session):
@@ -479,7 +512,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.json() == {
             "dag_id": "example_python_operator",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -520,6 +553,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "run_after": "2020-01-01T00:00:00Z",
             "trigger": None,
             "triggerer_job": None,
+            "team_name": None,
         }
 
     def test_raises_404_for_nonexistent_task_instance(self, test_client):
@@ -599,7 +633,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
             assert response_data == {
                 "dag_id": "example_python_operator",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["dag_version"]["created_at"],
@@ -640,6 +674,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
             }
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -736,7 +771,7 @@ class TestGetMappedTaskInstances:
                 session.add(ti)
 
             DagBundlesManager().sync_bundles_to_db()
-            dagbag = DagBag(os.devnull, include_examples=False)
+            dagbag = DagBag(os.devnull)
             dagbag.dags = {dag_id: dag_maker.dag}
             sync_bag_to_db(dagbag, "dags-folder", None)
             session.flush()
@@ -751,20 +786,6 @@ class TestGetMappedTaskInstances:
             dags={
                 "mapped_tis": {
                     "success": 3,
-                    "failed": 0,
-                    "running": 0,
-                },
-            },
-        )
-
-    @pytest.fixture
-    def one_task_with_single_mapped_ti(self, dag_maker, session):
-        self.create_dag_runs_with_mapped_tasks(
-            dag_maker,
-            session,
-            dags={
-                "mapped_tis": {
-                    "success": 1,
                     "failed": 0,
                     "running": 0,
                 },
@@ -856,10 +877,13 @@ class TestGetMappedTaskInstances:
             ({"order_by": "-logical_date", "limit": 100}, list(range(109, 9, -1))),
             ({"order_by": "data_interval_start", "limit": 100}, list(range(100))),
             ({"order_by": "-data_interval_start", "limit": 100}, list(range(109, 9, -1))),
-            ({"order_by": "rendered_map_index", "limit": 100}, sorted(range(110), key=str)[:100]),
+            # Compound sort (_rendered_map_index ASC, map_index ASC): all TIs have NULL
+            # _rendered_map_index in this fixture so they all tie on the first key and
+            # are ordered by map_index integer — 0, 1, 2, ..., 99 (not lexicographic).
+            ({"order_by": "rendered_map_index", "limit": 100}, list(range(100))),
             (
                 {"order_by": "-rendered_map_index", "limit": 100},
-                sorted(range(110), key=str, reverse=True)[:100],
+                list(range(109, 9, -1)),
             ),
         ],
     )
@@ -929,6 +953,97 @@ class TestGetMappedTaskInstances:
         body = response.json()
         assert body["total_entries"] == len(expected_map_indexes)
         assert [ti["map_index"] for ti in body["task_instances"]] == expected_map_indexes
+
+    def test_rendered_map_index_order_without_template_numeric(self, test_client, session, dag_maker):
+        """map_index values beyond 9 must sort numerically, not lexicographically.
+
+        Without the compound sort the SQL expression falls back to
+        CAST(map_index AS String), producing "0","1","10","11","2"... instead
+        of 0, 1, 2, ..., 10, 11.
+        """
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags={"numeric_order_dag": {"success": 12, "failed": 0, "running": 0}},
+        )
+
+        response = test_client.get(
+            "/dags/numeric_order_dag/dagRuns/run_numeric_order_dag/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 20},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Numeric order: 0, 1, 2, ..., 11.
+        # Lexicographic order would be: 0, 1, 10, 11, 2, 3, 4, 5, 6, 7, 8, 9.
+        assert [ti["map_index"] for ti in body["task_instances"]] == list(range(12))
+
+    def test_rendered_map_index_order_with_template(self, test_client, session, one_task_with_mapped_tis):
+        """Custom map_index_template labels must be sorted alphabetically."""
+        # one_task_with_mapped_tis creates 3 TIs: map_index 0, 1, 2.
+        labels = {0: "zebra", 1: "apple", 2: "mango"}
+        for map_index, label in labels.items():
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == "task_2",
+                    TaskInstance.map_index == map_index,
+                )
+            )
+            ti._rendered_map_index = label
+        session.commit()
+
+        response = test_client.get(
+            "/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Alphabetical order: "apple" (1), "mango" (2), "zebra" (0).
+        assert [ti["map_index"] for ti in body["task_instances"]] == [1, 2, 0]
+        assert [ti["rendered_map_index"] for ti in body["task_instances"]] == [
+            "apple",
+            "mango",
+            "zebra",
+        ]
+
+    def test_rendered_map_index_order_stable_regardless_of_uuid_order(self, test_client, session, dag_maker):
+        """
+        Results must be ordered by integer map_index regardless of UUID insertion order.
+
+        The compound sort ([_rendered_map_index, map_index]) makes the integer
+        map_index the effective tiebreaker when no map_index_template is set.
+        This verifies that even when UUIDs are assigned out of map_index order
+        (as happens during retries), the response is still sorted 0, 1, 2, ...
+        """
+        self.create_dag_runs_with_mapped_tasks(
+            dag_maker,
+            session,
+            dags={"retry_dag": {"success": 5, "failed": 0, "running": 0}},
+        )
+
+        # Assign newer (larger) UUIDs to map_index 1 and 3, simulating retry
+        # ordering where some TIs received their UUIDs after others.  The sort
+        # result must still follow integer map_index order, not UUID order.
+        for map_index in [1, 3]:
+            session.execute(
+                update(TaskInstance)
+                .where(
+                    TaskInstance.dag_id == "retry_dag",
+                    TaskInstance.task_id == "task_2",
+                    TaskInstance.map_index == map_index,
+                )
+                .values(id=uuid7())
+            )
+        session.commit()
+
+        response = test_client.get(
+            "/dags/retry_dag/dagRuns/run_retry_dag/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 50},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # All 5 TIs must be on the first page in map_index order.
+        assert body["total_entries"] == 5
+        assert [ti["map_index"] for ti in body["task_instances"]] == [0, 1, 2, 3, 4]
 
     def test_with_date(self, test_client, one_task_with_mapped_tis):
         response = test_client.get(
@@ -1843,8 +1958,11 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
         ("order_by", "expected_map_indexes"),
         [
-            ("rendered_map_index", [2, 3, 0, 1]),
-            ("-rendered_map_index", [1, 0, 3, 2]),
+            # All four TIs have explicit labels so alphabetical order is
+            # consistent across databases (no NULL ordering differences).
+            # Labels: "analytics"(3), "events"(2), "table_orders"(0), "table_users"(1)
+            ("rendered_map_index", [3, 2, 0, 1]),
+            ("-rendered_map_index", [1, 0, 2, 3]),
         ],
     )
     def test_should_respond_200_for_rendered_map_index_order(
@@ -1856,8 +1974,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             task_instances=[
                 {"map_index": 0, "_rendered_map_index": "table_orders"},
                 {"map_index": 1, "_rendered_map_index": "table_users"},
-                {"map_index": 2, "_rendered_map_index": None},
-                {"map_index": 3, "_rendered_map_index": None},
+                {"map_index": 2, "_rendered_map_index": "events"},
+                {"map_index": 3, "_rendered_map_index": "analytics"},
             ],
         )
         response = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"order_by": order_by})
@@ -2030,46 +2148,201 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 400
 
-    def test_task_group_filter_uses_run_version_not_latest(self, test_client, dag_maker, session):
+    def test_cursor_pagination_order_by_run_after_roundtrips(self, test_client, session):
         """
-        Task group lookup should use the DAG version from the run, not the latest version.
+        Sorting by ``run_after`` (a column-form ``to_replace`` backed by an association proxy)
+        must not raise a 500 when ``has_next=true``.  Regression for
+        https://github.com/apache/airflow/issues/67970.
 
-        When a task group is renamed between versions, clicking on a historical run's
-        task group in the grid should still resolve correctly against the version
-        that run was created with — not the latest version where the group may have
-        a different name, i.e serialized_dag might not have that taskgroup anymore.
+        Verify the full cursor round-trip: the first page must include a ``next_cursor``,
+        and following that cursor must return the remaining TIs without overlap.
         """
-        dag_id = "test_tg_version"
-
-        # Version 1: task group named "process_data"
-        with dag_maker(dag_id, session=session):
-            with TaskGroup(group_id="process_data"):
-                EmptyOperator(task_id="step_1")
-        dag_maker.create_dagrun(run_id="run_v1")
-        session.commit()
-
-        # Version 2: task group renamed to "process_data_v2"
-        with dag_maker(dag_id, session=session):
-            with TaskGroup(group_id="process_data_v2"):
-                EmptyOperator(task_id="step_1")
-        session.commit()
-
-        # The run was created with v1 which had "process_data".
-        # Querying with the old group name must succeed.
-        response = test_client.get(
-            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
-            params={"task_group_id": "process_data"},
+        dag_id = "example_python_operator"
+        total_tis = 5
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(total_tis)
+            ],
+            dag_id=dag_id,
         )
-        assert response.status_code == 200, response.json()
-        assert response.json()["total_entries"] == 1
-        assert response.json()["task_instances"][0]["task_id"] == "process_data.step_1"
-
-        # The new group name should NOT be found in the old run's version.
-        response = test_client.get(
-            f"/dags/{dag_id}/dagRuns/run_v1/taskInstances",
-            params={"task_group_id": "process_data_v2"},
+        # First page — limit < total so next_cursor must be present
+        response1 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 3, "order_by": ["-run_after"], "cursor": ""},
         )
-        assert response.status_code == 404
+        assert response1.status_code == 200, response1.json()
+        body1 = response1.json()
+        assert len(body1["task_instances"]) == 3
+        next_cursor = body1["next_cursor"]
+        assert next_cursor is not None, "next_cursor must be present when more rows exist"
+
+        # Second page — follow the cursor; must not 500 and must return remaining TIs
+        response2 = test_client.get(
+            "/dags/~/dagRuns/~/taskInstances",
+            params={"limit": 10, "order_by": ["-run_after"], "cursor": next_cursor},
+        )
+        assert response2.status_code == 200, response2.json()
+        body2 = response2.json()
+        ids1 = {ti["id"] for ti in body1["task_instances"]}
+        ids2 = {ti["id"] for ti in body2["task_instances"]}
+        assert ids1.isdisjoint(ids2), "Pages must not overlap"
+        assert len(ids1) + len(ids2) == total_tis
+
+    def test_cursor_pagination_nullable_sort_column_returns_all_rows(self, test_client, session):
+        """Cursor pagination sorted by a nullable column must not silently drop rows.
+
+        With NULLs present, the keyset predicate and the ORDER BY can disagree on NULL
+        placement, so every row on one side of the NULL/non-NULL boundary is dropped
+        without error.
+        """
+        dag_id = "example_python_operator"
+        # Three TIs with NULL start_date and three with distinct values, so both the NULL and
+        # the non-NULL block span more than one page and the boundary is crossed mid-walk.
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": None},
+                {"start_date": None},
+                {"start_date": None},
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=1)},
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=2)},
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=3)},
+            ],
+            dag_id=dag_id,
+        )
+
+        # Full set via offset pagination (returns everything).
+        full = test_client.get("/dags/~/dagRuns/~/taskInstances", params={"limit": 100})
+        assert full.status_code == 200, full.json()
+        full_ids = {ti["id"] for ti in full.json()["task_instances"]}
+        assert len(full_ids) == 6
+
+        # Walk every page forward via cursor, sorted by the nullable column.
+        collected: list[str] = []
+        cursor_token: str | None = ""
+        for _ in range(20):
+            resp = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": 2, "order_by": ["start_date"], "cursor": cursor_token},
+            )
+            assert resp.status_code == 200, resp.json()
+            body = resp.json()
+            collected.extend(ti["id"] for ti in body["task_instances"])
+            cursor_token = body.get("next_cursor")
+            if cursor_token is None:
+                break
+
+        assert len(collected) == len(set(collected)), "cursor pages overlapped"
+        assert set(collected) == full_ids, "cursor pagination dropped rows across the NULL boundary"
+
+    def test_cursor_pagination_forward_backward_consistency_nullable(self, test_client, session):
+        """Forward then backward walk over a nullable column must agree, NULLs included.
+
+        Backward pagination flips the sort direction, re-deriving the keyset bounds; this
+        guards that NULL placement stays consistent in both directions.
+        """
+        dag_id = "example_python_operator"
+        page_size = 3
+        # 3 NULL start_dates + 5 distinct values -> NULL block and non-NULL block both span pages.
+        self.create_task_instances(
+            session,
+            task_instances=[{"start_date": None} for _ in range(3)]
+            + [{"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(5)],
+            dag_id=dag_id,
+        )
+
+        forward_ids: list[str] = []
+        forward_pages: list[dict] = []
+        cursor_token: str | None = ""
+        for _ in range(20):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": page_size, "order_by": ["start_date"], "cursor": cursor_token},
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            forward_pages.append(body)
+            forward_ids.extend(ti["id"] for ti in body["task_instances"])
+            cursor_token = body.get("next_cursor")
+            if cursor_token is None:
+                break
+
+        assert len(forward_ids) == 8
+        assert len(forward_ids) == len(set(forward_ids)), "Forward pages should not overlap"
+        assert forward_pages[0]["previous_cursor"] is None
+
+        backward_ids: list[str] = []
+        cursor_token = forward_pages[-1]["previous_cursor"]
+        assert cursor_token is not None
+        for _ in range(20):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances",
+                params={"limit": page_size, "order_by": ["start_date"], "cursor": cursor_token},
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            backward_ids = [ti["id"] for ti in body["task_instances"]] + backward_ids
+            cursor_token = body.get("previous_cursor")
+            if cursor_token is None:
+                break
+
+        all_backward = backward_ids + [ti["id"] for ti in forward_pages[-1]["task_instances"]]
+        assert all_backward == forward_ids, "Backward walk + last page must match the forward walk exactly"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_include_team_name(self, test_client, session):
+        self.create_task_instances(session)
+        original_bundle_name = _attach_dag_to_team(
+            session, "example_python_operator", bundle_name="team-bundle-tis", team_name="team-tis"
+        )
+        try:
+            response = test_client.get(f"/dags/{'example_python_operator'}/dagRuns/~/taskInstances")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["task_instances"]
+            assert all(ti["team_name"] == "team-tis" for ti in body["task_instances"])
+        finally:
+            _detach_dag_from_team(
+                session,
+                "example_python_operator",
+                bundle_name="team-bundle-tis",
+                team_name="team-tis",
+                original_bundle_name=original_bundle_name,
+            )
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_filter_by_team(self, test_client, session):
+        self.create_task_instances(session)
+        original_bundle_name = _attach_dag_to_team(
+            session,
+            "example_python_operator",
+            bundle_name="team-bundle-tis-filter",
+            team_name="team-tis-filter",
+        )
+        try:
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances", params={"teams": ["team-tis-filter"]}
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] > 0
+            assert all(ti["dag_id"] == "example_python_operator" for ti in body["task_instances"])
+
+            # A team with no Dags returns nothing.
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances", params={"teams": ["nonexistent-team"]}
+            )
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+        finally:
+            _detach_dag_from_team(
+                session,
+                "example_python_operator",
+                bundle_name="team-bundle-tis-filter",
+                team_name="team-tis-filter",
+                original_bundle_name=original_bundle_name,
+            )
 
 
 class TestGetTaskDependencies(TestTaskInstanceEndpoint):
@@ -2547,7 +2820,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2593,7 +2866,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2670,7 +2943,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["dag_version"]["created_at"],
@@ -2742,7 +3015,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -2789,7 +3062,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
             "dag_version": {
-                "bundle_name": "dags-folder",
+                "bundle_name": "apache-airflow-providers-standard-example-dags",
                 "bundle_url": None,
                 "bundle_version": None,
                 "created_at": response_data["dag_version"]["created_at"],
@@ -3595,7 +3868,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "dag_id": "example_python_operator",
                 "dag_display_name": "example_python_operator",
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -3633,6 +3906,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "task_display_name": "print_the_context",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
                 "try_number": 0,
                 "unixname": getuser(),
             },
@@ -4087,7 +4361,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4124,7 +4398,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][1]["dag_version"]["created_at"],
@@ -4195,7 +4469,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4278,7 +4552,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4315,7 +4589,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][1]["dag_version"]["created_at"],
@@ -4490,6 +4764,22 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json()["state"] == state
         assert listener.state == listener_state
 
+    def test_patch_task_instance_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session)
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "success", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
+
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
         self.create_task_instances(session)
@@ -4517,7 +4807,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4557,6 +4847,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
@@ -4793,7 +5084,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
                             "dag_version": {
-                                "bundle_name": "dags-folder",
+                                "bundle_name": "apache-airflow-providers-standard-example-dags",
                                 "bundle_url": None,
                                 "bundle_version": None,
                                 "created_at": mock.ANY,
@@ -4833,6 +5124,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "run_after": "2020-01-01T00:00:00Z",
                             "trigger": None,
                             "triggerer_job": None,
+                            "team_name": None,
                         }
                     ],
                     "total_entries": 1,
@@ -4931,7 +5223,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -4971,6 +5263,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
@@ -4994,7 +5287,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -5034,6 +5327,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
@@ -5044,6 +5338,20 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         _check_task_instance_note(
             session, response_data["task_instances"][0]["id"], {"content": new_note_value, "user_id": "test"}
         )
+
+    def test_set_empty_note_removes_existing_note(self, test_client, session):
+        self.create_task_instances(session)
+        url = "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
+
+        set_response = test_client.patch(url, json={"note": "a note to remove"})
+        assert set_response.status_code == 200, set_response.text
+        ti_id = set_response.json()["task_instances"][0]["id"]
+        _check_task_instance_note(session, ti_id, {"content": "a note to remove", "user_id": "test"})
+
+        clear_response = test_client.patch(url, json={"note": ""})
+        assert clear_response.status_code == 200, clear_response.text
+        assert clear_response.json()["task_instances"][0]["note"] is None
+        _check_task_instance_note(session, ti_id, None)
 
     def test_set_note_should_respond_200_mapped_task_with_rtif(self, test_client, session):
         """Verify we don't duplicate rows through join to RTIF"""
@@ -5075,7 +5383,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "dag_id": self.DAG_ID,
                         "dag_display_name": self.DAG_DISPLAY_NAME,
                         "dag_version": {
-                            "bundle_name": "dags-folder",
+                            "bundle_name": "apache-airflow-providers-standard-example-dags",
                             "bundle_url": None,
                             "bundle_version": None,
                             "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -5115,6 +5423,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "run_after": "2020-01-01T00:00:00Z",
                         "trigger": None,
                         "triggerer_job": None,
+                        "team_name": None,
                     }
                 ],
                 "total_entries": 1,
@@ -5158,7 +5467,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "dag_id": self.DAG_ID,
                 "dag_display_name": self.DAG_DISPLAY_NAME,
                 "dag_version": {
-                    "bundle_name": "dags-folder",
+                    "bundle_name": "apache-airflow-providers-standard-example-dags",
                     "bundle_url": None,
                     "bundle_version": None,
                     "created_at": response_ti["dag_version"]["created_at"],
@@ -5198,6 +5507,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "run_after": "2020-01-01T00:00:00Z",
                 "trigger": None,
                 "triggerer_job": None,
+                "team_name": None,
             }
 
             _check_task_instance_note(
@@ -5251,17 +5561,21 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
 
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
 
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
 
         session.expire_all()
-        assert not session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert not session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "True"})
@@ -5276,7 +5590,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5284,7 +5598,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "failed"})
 
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
 
     @pytest.mark.db_test
     @conf_vars({("state_store", "clear_on_success"): "False"})
@@ -5299,7 +5615,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
         ).one()
 
-        backend = MetastoreStateBackend()
+        backend = MetastoreBackend()
         scope = TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
         backend.set(scope, "job_id", "app_1234", session=session)
         session.commit()
@@ -5307,7 +5623,9 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         test_client.patch(self.ENDPOINT_URL, json={"new_state": "success"})
 
         session.expire_all()
-        assert session.scalars(select(TaskStateModel).where(TaskStateModel.task_id == self.TASK_ID)).all()
+        assert session.scalars(
+            select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == self.TASK_ID)
+        ).all()
 
 
 class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
@@ -5345,7 +5663,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                        "bundle_name": "dags-folder",
+                        "bundle_name": "apache-airflow-providers-standard-example-dags",
                         "bundle_url": None,
                         "bundle_version": None,
                         "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
@@ -5385,6 +5703,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "run_after": "2020-01-01T00:00:00Z",
                     "trigger": None,
                     "triggerer_job": None,
+                    "team_name": None,
                 }
             ],
             "total_entries": 1,
@@ -5633,7 +5952,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
                             "dag_version": {
-                                "bundle_name": "dags-folder",
+                                "bundle_name": "apache-airflow-providers-standard-example-dags",
                                 "bundle_url": None,
                                 "bundle_version": None,
                                 "created_at": mock.ANY,
@@ -5673,6 +5992,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "run_after": "2020-01-01T00:00:00Z",
                             "trigger": None,
                             "triggerer_job": None,
+                            "team_name": None,
                         }
                     ],
                     "total_entries": 1,
@@ -5913,7 +6233,6 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     @pytest.fixture(autouse=True)
     def clean_db(self, session):
         clear_db_runs()
-        clear_db_teams()
         yield
         clear_db_teams()
         clear_db_runs()
@@ -6726,7 +7045,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
         # not 2 (DELETE + re-SELECT). A regression that re-queries inside the loop would make
         # each run strictly exceed BASE_QUERY_COUNT + task_count * QUERIES_PER_TASK_INSTANCE.
         QUERIES_PER_TASK_INSTANCE = 1
-        BASE_QUERY_COUNT = 5
+        BASE_QUERY_COUNT = 4
 
         self.create_task_instances(
             session,
@@ -6770,6 +7089,35 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     def test_should_respond_422(self, test_client):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
+
+    def test_bulk_update_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session, task_instances=[{"state": State.RUNNING}])
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": self.TASK_ID,
+                                "new_state": "success",
+                                "note": "listener_note",
+                            }
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
 
 
 class TestPatchTaskGroup(TestTaskInstanceEndpoint):
@@ -7215,6 +7563,22 @@ class TestPatchTaskGroup(TestTaskInstanceEndpoint):
         for ti in tis_after:
             assert ti.state == TaskInstanceState.FAILED
             _check_task_instance_note(session, ti.id, {"content": note_value, "user_id": "test"})
+
+    def test_patch_task_group_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, session, listener_manager
+    ):
+        from unit.listeners.class_listener import ClassBasedListener
+
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={"new_state": "failed", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.ti_note_at_listener == "listener_note"
 
 
 class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):

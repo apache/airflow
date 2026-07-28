@@ -56,7 +56,7 @@ class RemoteLogIO(Protocol):
         """
         ...
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI) -> None:
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
         ...
 

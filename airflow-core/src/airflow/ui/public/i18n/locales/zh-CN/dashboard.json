@@ -1,4 +1,6 @@
 {
+  "deferredSlotsNotCounted": "未计入配额的延迟任务：{{count}}",
+  "deferredSlotsNotCountedTooltip": "条形图中显示的延迟任务会计入资源池配额。条形图下方显示的延迟任务来自不将延迟任务计入配额的资源池。",
   "favorite": {
     "favoriteDags_one": "第 {{ count }} 个收藏的 Dag",
     "favoriteDags_other": "前 {{ count }} 个收藏的 Dag",

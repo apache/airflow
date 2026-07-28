@@ -98,8 +98,11 @@ def workflow_run_group():
 )
 @click.option(
     "--workflow-branch",
-    help="Branch to run the workflow on. Defaults to 'main'.",
-    default="main",
+    help="Git ref the workflow DEFINITION runs from. Defaults to the value of --ref, so the "
+    "workflow version matches the content being built (running main's workflow against an "
+    "older tag breaks when inputs/jobs have since changed). Pass an explicit ref to override "
+    "(e.g. 'main').",
+    default=None,
     type=str,
 )
 @click.option(
@@ -118,9 +121,14 @@ def workflow_run_publish(
     airflow_version: str | None = None,
     airflow_base_version: str | None = None,
     apply_commits: str | None = None,
-    workflow_branch: str = "main",
+    workflow_branch: str | None = None,
     ignore_missing_inventories: bool = False,
 ):
+    # Default the workflow-definition ref to the ref being built, so the workflow version
+    # matches the content. Running main's workflow against an older tag breaks when the
+    # workflow's inputs/jobs have changed since that tag (e.g. a newly required input).
+    if workflow_branch is None:
+        workflow_branch = ref
     if len(doc_packages) == 0:
         console_print(
             "[red]Error: No doc packages provided. Please provide at least one doc package.[/red]",

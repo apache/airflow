@@ -20,10 +20,11 @@
 from __future__ import annotations
 
 import asyncio
+import random
 from collections.abc import AsyncIterator
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
-import tenacity
+import asyncssh
 
 from airflow.providers.ssh.hooks.ssh import SSHHookAsync
 from airflow.providers.ssh.utils.remote_job import (
@@ -36,6 +37,16 @@ from airflow.providers.ssh.utils.remote_job import (
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
+if TYPE_CHECKING:
+    from asyncssh import SSHClientConnection
+
+# Errors that mean the connection itself is broken/refused and the poll should
+# reconnect instead of failing the job. ``asyncssh.Error`` covers handshake,
+# protocol and disconnect failures (e.g. an sshd that drops the connection under
+# ``MaxStartups`` load); ``OSError`` covers TCP-level refusals; ``TimeoutError``
+# covers a wedged command or connection.
+_CONNECTION_ERRORS = (OSError, asyncssh.Error, TimeoutError)
+
 
 class SSHRemoteJobTrigger(BaseTrigger):
     """
@@ -43,6 +54,13 @@ class SSHRemoteJobTrigger(BaseTrigger):
 
     This trigger polls the remote host to check job completion status
     and reads log output incrementally.
+
+    A single SSH connection is opened and reused for the whole poll loop instead
+    of reconnecting for every command. Opening a fresh TCP/SSH connection per poll
+    multiplies the connection rate against the remote ``sshd`` (which throttles
+    concurrent unauthenticated connections via ``MaxStartups``), so reuse keeps the
+    load flat when many tasks target the same host. If the connection drops, the
+    trigger transparently reconnects with backoff up to ``max_reconnect_attempts``.
 
     :param ssh_conn_id: SSH connection ID from Airflow Connections
     :param remote_host: Optional override for the remote host
@@ -54,6 +72,9 @@ class SSHRemoteJobTrigger(BaseTrigger):
     :param poll_interval: Seconds between polling attempts
     :param log_chunk_size: Maximum bytes to read per poll
     :param log_offset: Current byte offset in the log file
+    :param command_timeout: Per-command timeout in seconds
+    :param max_reconnect_attempts: Consecutive connection failures tolerated before the
+        trigger gives up and emits an error event
     """
 
     def __init__(
@@ -69,6 +90,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
         log_chunk_size: int = 65536,
         log_offset: int = 0,
         command_timeout: float = 30.0,
+        max_reconnect_attempts: int = 5,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -82,6 +104,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
         self.log_chunk_size = log_chunk_size
         self.log_offset = log_offset
         self.command_timeout = command_timeout
+        self.max_reconnect_attempts = max_reconnect_attempts
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize the trigger for storage."""
@@ -99,6 +122,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
                 "log_chunk_size": self.log_chunk_size,
                 "log_offset": self.log_offset,
                 "command_timeout": self.command_timeout,
+                "max_reconnect_attempts": self.max_reconnect_attempts,
             },
         )
 
@@ -109,17 +133,41 @@ class SSHRemoteJobTrigger(BaseTrigger):
             host=self.remote_host,
         )
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential(multiplier=1, min=1, max=10),
-        retry=tenacity.retry_if_exception_type((OSError, TimeoutError, ConnectionError)),
-        reraise=True,
-    )
-    async def _check_completion(self, hook: SSHHookAsync) -> int | None:
+    async def _connect(self) -> SSHClientConnection:
+        """Open a reusable asyncssh connection. Separated out as a seam for testing."""
+        return await self._get_hook().get_conn()
+
+    @staticmethod
+    async def _close(conn: SSHClientConnection) -> None:
+        """Close a connection, swallowing teardown errors."""
+        try:
+            conn.close()
+            await conn.wait_closed()
+        except Exception:
+            # Teardown is best-effort; a failing close has nothing actionable to recover.
+            pass
+
+    def _reconnect_delay(self, attempt: int) -> float:
+        """Exponential backoff with randomness so reconnecting triggers do not retry in lockstep."""
+        base = min(2 ** (attempt - 1), 30)
+        return base + random.uniform(0, base)
+
+    async def _run_command(self, conn: SSHClientConnection, command: str) -> tuple[int, str, str]:
+        """Run a command on an existing connection, mirroring ``SSHHookAsync.run_command``."""
+        result = await conn.run(command, timeout=self.command_timeout, check=False)
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        # asyncssh types stdout/stderr as bytes | str; with the default text encoding they are
+        # str, but decode defensively so the helper holds if a binary connection is ever used.
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        return result.exit_status or 0, stdout, stderr
+
+    async def _check_completion(self, conn: SSHClientConnection) -> int | None:
         """
         Check if the remote job has completed.
-
-        Retries transient network errors up to 3 times with exponential backoff.
 
         :return: Exit code if completed, None if still running
         """
@@ -128,62 +176,32 @@ class SSHRemoteJobTrigger(BaseTrigger):
         else:
             cmd = build_windows_completion_check_command(self.exit_code_file)
 
-        try:
-            _, stdout, _ = await hook.run_command(cmd, timeout=self.command_timeout)
-            stdout = stdout.strip()
-            if stdout and stdout.isdigit():
-                return int(stdout)
-        except (OSError, TimeoutError, ConnectionError) as e:
-            self.log.warning("Transient error checking completion (will retry): %s", e)
-            raise
-        except Exception as e:
-            self.log.warning("Error checking completion status: %s", e)
+        _, stdout, _ = await self._run_command(conn, cmd)
+        stdout = stdout.strip()
+        if stdout and stdout.isdigit():
+            return int(stdout)
         return None
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential(multiplier=1, min=1, max=10),
-        retry=tenacity.retry_if_exception_type((OSError, TimeoutError, ConnectionError)),
-        reraise=True,
-    )
-    async def _get_log_size(self, hook: SSHHookAsync) -> int:
-        """
-        Get the current size of the log file in bytes.
-
-        Retries transient network errors up to 3 times with exponential backoff.
-        """
+    async def _get_log_size(self, conn: SSHClientConnection) -> int:
+        """Get the current size of the log file in bytes."""
         if self.remote_os == "posix":
             cmd = build_posix_file_size_command(self.log_file)
         else:
             cmd = build_windows_file_size_command(self.log_file)
 
-        try:
-            _, stdout, _ = await hook.run_command(cmd, timeout=self.command_timeout)
-            stdout = stdout.strip()
-            if stdout and stdout.isdigit():
-                return int(stdout)
-        except (OSError, TimeoutError, ConnectionError) as e:
-            self.log.warning("Transient error getting log size (will retry): %s", e)
-            raise
-        except Exception as e:
-            self.log.warning("Error getting log file size: %s", e)
+        _, stdout, _ = await self._run_command(conn, cmd)
+        stdout = stdout.strip()
+        if stdout and stdout.isdigit():
+            return int(stdout)
         return 0
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_exponential(multiplier=1, min=1, max=10),
-        retry=tenacity.retry_if_exception_type((OSError, TimeoutError, ConnectionError)),
-        reraise=True,
-    )
-    async def _read_log_chunk(self, hook: SSHHookAsync) -> tuple[str, int]:
+    async def _read_log_chunk(self, conn: SSHClientConnection) -> tuple[str, int]:
         """
         Read a chunk of logs from the current offset.
 
-        Retries transient network errors up to 3 times with exponential backoff.
-
         :return: Tuple of (log_chunk, new_offset)
         """
-        file_size = await self._get_log_size(hook)
+        file_size = await self._get_log_size(conn)
         if file_size <= self.log_offset:
             return "", self.log_offset
 
@@ -195,47 +213,94 @@ class SSHRemoteJobTrigger(BaseTrigger):
         else:
             cmd = build_windows_log_tail_command(self.log_file, self.log_offset, bytes_to_read)
 
-        try:
-            exit_code, stdout, _ = await hook.run_command(cmd, timeout=self.command_timeout)
+        _, stdout, _ = await self._run_command(conn, cmd)
 
-            # Advance offset by bytes requested, not decoded string length
-            new_offset = self.log_offset + bytes_to_read if stdout else self.log_offset
+        # Advance offset by bytes requested, not decoded string length
+        new_offset = self.log_offset + bytes_to_read if stdout else self.log_offset
+        return stdout, new_offset
 
-            return stdout, new_offset
-        except (OSError, TimeoutError, ConnectionError) as e:
-            self.log.warning("Transient error reading logs (will retry): %s", e)
-            raise
-        except Exception as e:
-            self.log.warning("Error reading log chunk: %s", e)
-            return "", self.log_offset
+    def _error_event(self, message: str) -> TriggerEvent:
+        return TriggerEvent(
+            {
+                "job_id": self.job_id,
+                "job_dir": self.job_dir,
+                "log_file": self.log_file,
+                "exit_code_file": self.exit_code_file,
+                "remote_os": self.remote_os,
+                "status": "error",
+                "done": True,
+                "exit_code": None,
+                "log_chunk": "",
+                "log_offset": self.log_offset,
+                "message": message,
+            }
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """
-        Poll the remote job status and yield events with log chunks.
+        Poll the remote job status and yield a completion event.
 
-        This method runs in a loop, checking the job status and reading
-        logs at each poll interval. It yields a TriggerEvent each time
-        with the current status and any new log output.
+        One connection is held for the whole loop. On a connection-level failure the
+        connection is dropped and re-established (with exponential backoff) up to
+        ``max_reconnect_attempts`` consecutive times; any other error, or exhausting the
+        reconnect budget, ends the trigger with an error event.
         """
-        hook = self._get_hook()
+        conn: SSHClientConnection | None = None
+        # Consecutive failures since the last *fully successful* poll. A successful
+        # handshake alone does not reset this: a connection that handshakes but whose
+        # command channel keeps failing (e.g. ChannelOpenError under sshd MaxSessions)
+        # must still exhaust the budget instead of looping forever.
+        failures = 0
 
-        while True:
-            try:
-                exit_code = await self._check_completion(hook)
-                log_chunk, new_offset = await self._read_log_chunk(hook)
+        try:
+            while True:
+                if conn is None:
+                    try:
+                        conn = await self._connect()
+                    except _CONNECTION_ERRORS as e:
+                        failures += 1
+                        if failures > self.max_reconnect_attempts:
+                            raise
+                        delay = self._reconnect_delay(failures)
+                        self.log.warning(
+                            "Failed to connect to remote host (attempt %d/%d), retrying in %.1fs: %s",
+                            failures,
+                            self.max_reconnect_attempts,
+                            delay,
+                            e,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
 
-                base_event = {
-                    "job_id": self.job_id,
-                    "job_dir": self.job_dir,
-                    "log_file": self.log_file,
-                    "exit_code_file": self.exit_code_file,
-                    "remote_os": self.remote_os,
-                }
+                try:
+                    exit_code = await self._check_completion(conn)
+                    log_chunk, new_offset = await self._read_log_chunk(conn)
+                except _CONNECTION_ERRORS as e:
+                    failures += 1
+                    self.log.warning(
+                        "Lost SSH connection while polling (attempt %d/%d), reconnecting: %s",
+                        failures,
+                        self.max_reconnect_attempts,
+                        e,
+                    )
+                    await self._close(conn)
+                    conn = None
+                    if failures > self.max_reconnect_attempts:
+                        raise
+                    await asyncio.sleep(self._reconnect_delay(failures))
+                    continue
+
+                # A full poll cycle succeeded on this connection; clear the failure budget.
+                failures = 0
 
                 if exit_code is not None:
                     yield TriggerEvent(
                         {
-                            **base_event,
+                            "job_id": self.job_id,
+                            "job_dir": self.job_dir,
+                            "log_file": self.log_file,
+                            "exit_code_file": self.exit_code_file,
+                            "remote_os": self.remote_os,
                             "status": "success" if exit_code == 0 else "failed",
                             "done": True,
                             "exit_code": exit_code,
@@ -251,21 +316,10 @@ class SSHRemoteJobTrigger(BaseTrigger):
                     self.log.info("%s", log_chunk.rstrip())
                 await asyncio.sleep(self.poll_interval)
 
-            except Exception as e:
-                self.log.exception("Error in SSH remote job trigger")
-                yield TriggerEvent(
-                    {
-                        "job_id": self.job_id,
-                        "job_dir": self.job_dir,
-                        "log_file": self.log_file,
-                        "exit_code_file": self.exit_code_file,
-                        "remote_os": self.remote_os,
-                        "status": "error",
-                        "done": True,
-                        "exit_code": None,
-                        "log_chunk": "",
-                        "log_offset": self.log_offset,
-                        "message": f"Trigger error: {e}",
-                    }
-                )
-                return
+        except Exception as e:
+            self.log.exception("Error in SSH remote job trigger")
+            yield self._error_event(f"Trigger error: {e}")
+            return
+        finally:
+            if conn is not None:
+                await self._close(conn)

@@ -26,7 +26,6 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
-import { useHover } from "src/context/hover";
 import {
   GANTT_AXIS_HEIGHT_PX,
   GANTT_TOP_PADDING_PX,
@@ -85,8 +84,8 @@ const toTooltipSummary = (
 
   return {
     child_states: null,
-    max_end_date: dayjs(segment.x[1]).toISOString(),
-    min_start_date: dayjs(segment.x[0]).toISOString(),
+    max_end_date: segment.end_when ?? dayjs(segment.x[1]).toISOString(),
+    min_start_date: segment.start_when ?? dayjs(segment.x[0]).toISOString(),
     state: segment.state ?? null,
     task_display_name: segment.y,
     task_id: segment.taskId,
@@ -115,7 +114,6 @@ export const GanttTimeline = ({
 }: Props) => {
   const location = useLocation();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
-  const { hoveredTaskId, setHoveredTaskId } = useHover();
   const [bodyWidthPx, setBodyWidthPx] = useState(0);
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
@@ -291,7 +289,6 @@ export const GanttTimeline = ({
                 : allSegments;
             const taskId = node.id;
             const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
-            const isHovered = hoveredTaskId === taskId;
             const gridSummary = summaryByTaskId.get(taskId);
 
             return (
@@ -309,11 +306,11 @@ export const GanttTimeline = ({
                 zIndex={1}
               >
                 <Box
-                  bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+                  bg={isSelected ? "brand.emphasized" : undefined}
+                  data-selected={isSelected}
+                  data-task-id={taskId}
                   h="100%"
                   maxW="100%"
-                  onMouseEnter={() => setHoveredTaskId(taskId)}
-                  onMouseLeave={() => setHoveredTaskId(undefined)}
                   overflow="hidden"
                   position="relative"
                   px="3px"

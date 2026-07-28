@@ -1,0 +1,6 @@
+# .apache-magpie.lock — committed; the project's pin.
+# Edited only by /magpie-setup; do not modify by hand.
+
+method: git-branch
+url:    https://github.com/apache/magpie.git
+ref:    main

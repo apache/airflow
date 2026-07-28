@@ -5,3 +5,4 @@
 <pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre>
       "trough",
                 assert "task_instance_id" in route.dependant.path_param_names, (
+                assert "connection_test_id" in route.dependant.path_param_names, (

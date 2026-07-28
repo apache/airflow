@@ -22,7 +22,7 @@
  */
 import { testConfig } from "playwright.config";
 import { test as base } from "tests/e2e/fixtures";
-import { safeCleanupDagRun } from "tests/e2e/utils/test-helpers";
+import { safeCleanupDagRun } from "tests/e2e/utils/api/dag-runs";
 
 export type DagRunCleanup = {
   track: (runId: string) => void;

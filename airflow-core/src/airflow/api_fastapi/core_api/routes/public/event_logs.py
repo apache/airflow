@@ -49,6 +49,7 @@ from airflow.api_fastapi.core_api.security import (
     ReadableEventLogsFilterDep,
     requires_access_event_log,
 )
+from airflow.api_fastapi.core_api.services.public.event_logs import event_log_to_response
 from airflow.models import Log
 
 event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
@@ -64,11 +65,20 @@ def get_event_log(
     session: SessionDep,
 ) -> EventLogResponse:
     event_log = session.scalar(
-        select(Log).where(Log.id == event_log_id).options(joinedload(Log.task_instance))
+        # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
+        # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
+        # exclude them here. Such rows can exist in legacy installs or via direct DB inserts
+        # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
+        # Making EventLogResponse.when nullable would be a breaking API contract change for
+        # clients that currently rely on `when` always being present.
+        select(Log)
+        .where(Log.id == event_log_id, Log.dttm.is_not(None))
+        .options(joinedload(Log.task_instance), joinedload(Log.dag_model))
     )
     if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
-    return event_log
+
+    return event_log_to_response(event_log=event_log)
 
 
 @event_logs_router.get(
@@ -92,6 +102,7 @@ def get_event_logs(
                     "event",
                     "logical_date",
                     "owner",
+                    "owner_display_name",
                     "extra",
                 ],
                 Log,
@@ -155,7 +166,17 @@ def get_event_logs(
     readable_event_logs_filter: ReadableEventLogsFilterDep,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
-    query = select(Log).options(joinedload(Log.task_instance), joinedload(Log.dag_model))
+    query = (
+        # Log.dttm is nullable at the DB level, but EventLogResponse.when is a non-optional
+        # datetime. Rows with dttm=NULL would cause a Pydantic validation error (500), so
+        # exclude them here. Such rows can exist in legacy installs or via direct DB inserts
+        # that bypass Log.__init__ (which always sets dttm = timezone.utcnow()).
+        # Making EventLogResponse.when nullable would be a breaking API contract change for
+        # clients that currently rely on `when` always being present.
+        select(Log)
+        .where(Log.dttm.is_not(None))
+        .options(joinedload(Log.task_instance), joinedload(Log.dag_model))
+    )
     event_logs_select, total_entries = paginated_select(
         statement=query,
         order_by=order_by,
@@ -190,9 +211,9 @@ def get_event_logs(
         limit=limit,
         session=session,
     )
-    event_logs = session.scalars(event_logs_select)
+    event_logs = list(session.scalars(event_logs_select))
 
     return EventLogCollectionResponse(
-        event_logs=event_logs,
+        event_logs=[event_log_to_response(event_log=event_log) for event_log in event_logs],
         total_entries=total_entries,
     )

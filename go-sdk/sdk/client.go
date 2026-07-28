@@ -33,6 +33,10 @@ type client struct{}
 
 var _ Client = (*client)(nil)
 
+// NewClient returns the default Client, which serves Variable, Connection, and
+// XCom calls from the Execution API (reading the per-task API client from the
+// context). Task functions are handed a Client by the runtime and rarely need
+// this; it is exported mainly for tests and advanced setups.
 func NewClient() Client {
 	return &client{}
 }

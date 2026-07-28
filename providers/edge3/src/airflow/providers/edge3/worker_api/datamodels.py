@@ -22,9 +22,9 @@ from typing import Annotated
 from fastapi import Path
 from pydantic import BaseModel, Field
 
-from airflow.executors.workloads import ExecuteTask  # noqa: TCH001
 from airflow.providers.common.compat.sdk import TaskInstanceKey
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState  # noqa: TCH001
+from airflow.providers.edge3.models.types import ExecuteTypeBody  # noqa: TCH001
 
 
 class WorkerApiDocs:
@@ -69,7 +69,7 @@ class EdgeJobFetched(EdgeJobBase):
     """Job that is to be executed on the edge worker."""
 
     command: Annotated[
-        ExecuteTask,
+        ExecuteTypeBody,
         Field(
             title="Command",
             description="Command line to use to execute the job in Airflow",

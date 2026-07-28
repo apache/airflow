@@ -119,6 +119,14 @@ BASIC_BUNDLE_CONFIG = [
     }
 ]
 
+OTHER_BUNDLE_CONFIG = [
+    {
+        "name": "other-test-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.BasicBundle",
+        "kwargs": {"refresh_interval": 1},
+    }
+]
+
 
 def test_get_bundle():
     """Test that get_bundle builds and returns a bundle."""
@@ -215,6 +223,54 @@ def test_sync_bundles_to_db_does_not_log_removing_none_team(clear_db, caplog):
         manager.sync_bundles_to_db()
 
     assert "Removing ownership of team 'None'" not in caplog.text
+
+
+@pytest.mark.db_test
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+def test_sync_bundles_to_db_partial_config_does_not_disable_other_bundles(clear_db, session):
+    """
+    Multiple dag-processors, each configured with only its own bundle, must not
+    disable each other's bundles.
+
+    Each processor is started with ``--bundle-name`` (``bundle_names_to_parse``)
+    and a ``dag_bundle_config_list`` containing only the bundle it owns. When
+    ``sync_bundles_to_db`` is told it only owns a subset (``deactivate_missing=False``),
+    it must leave bundles it does not know about untouched instead of marking them
+    inactive. Otherwise processor A disables B's bundle, B disables A's, and neither
+    ever makes progress.
+    """
+
+    def _get_bundle_names_and_active():
+        return session.execute(
+            select(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name)
+        ).all()
+
+    # Processor A: only knows "my-test-bundle".
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        DagBundlesManager().sync_bundles_to_db(deactivate_missing=False)
+    assert _get_bundle_names_and_active() == [("my-test-bundle", True)]
+
+    # Processor B: only knows "other-test-bundle". It must not touch A's bundle.
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(OTHER_BUNDLE_CONFIG)}
+    ):
+        DagBundlesManager().sync_bundles_to_db(deactivate_missing=False)
+    assert _get_bundle_names_and_active() == [
+        ("my-test-bundle", True),
+        ("other-test-bundle", True),
+    ]
+
+    # Processor A runs again: still must not disable B's bundle.
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        DagBundlesManager().sync_bundles_to_db(deactivate_missing=False)
+    assert _get_bundle_names_and_active() == [
+        ("my-test-bundle", True),
+        ("other-test-bundle", True),
+    ]
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)})
@@ -466,4 +522,13 @@ def test_multiple_bundles_one_fails(clear_db, session):
 
 
 def test_get_all_bundle_names():
-    assert DagBundlesManager().get_all_bundle_names() == ["dags-folder", "example_dags"]
+    bundle_names = DagBundlesManager().get_all_bundle_names()
+    # Built-in bundles are always present.
+    assert "dags-folder" in bundle_names
+    assert "example_dags" in bundle_names
+    # Any other bundle exposed here comes from a provider's example_dags
+    # folder discovered via ProvidersManager. Their presence depends on
+    # which providers are installed in the environment, so we only check
+    # the naming suffix instead of pinning an exact list.
+    extra = [n for n in bundle_names if n not in {"dags-folder", "example_dags"}]
+    assert all(n.endswith("-example-dags") for n in extra)

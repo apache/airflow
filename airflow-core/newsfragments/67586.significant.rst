@@ -1,0 +1,4 @@
+Add a new **Deadlines** page under the Browse menu.
+
+The page is accessible to any role that already has ``can_read`` and
+``menu_access`` on ``DAG Runs``.

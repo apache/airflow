@@ -57,6 +57,8 @@ from airflowctl.api.operations import (
     PoolsOperations,
     ProvidersOperations,
     ServerResponseError,
+    TaskInstancesOperations,
+    TasksOperations,
     VariablesOperations,
     VersionOperations,
     XComOperations,
@@ -111,7 +113,8 @@ def get_json_error(response: httpx.Response):
     if err:
         # This part is used in integration tests to verify the error message
         # If you are updating here don't forget to update the airflow-ctl-tests
-        log.warning("Server error ", extra=dict(err.response.json()))
+        if not response.request.extensions.get("airflowctl_suppress_error_log"):
+            log.warning("Server error ", extra=dict(err.response.json()))
         raise err
 
 
@@ -448,6 +451,18 @@ class Client(httpx.Client):
     def providers(self):
         """Operations related to providers."""
         return ProvidersOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def task_instances(self):
+        """Operations related to task instances."""
+        return TaskInstancesOperations(self)
+
+    @lru_cache()  # type: ignore[prop-decorator]
+    @property
+    def tasks(self):
+        """Operations related to tasks."""
+        return TasksOperations(self)
 
     @lru_cache()  # type: ignore[prop-decorator]
     @property

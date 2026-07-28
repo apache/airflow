@@ -39,9 +39,12 @@ class TestAirbyteTriggerSyncOp:
     wait_seconds = 0
     timeout = 360
 
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.time")
     @mock.patch("airbyte_api.jobs.Jobs.create_job")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job", return_value=None)
-    def test_execute(self, mock_wait_for_job, mock_submit_sync_connection, create_connection_without_db):
+    def test_execute(
+        self, mock_wait_for_job, mock_submit_sync_connection, mock_time, create_connection_without_db
+    ):
         conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
         create_connection_without_db(conn)
         mock_response = mock.Mock()
@@ -70,18 +73,26 @@ class TestAirbyteTriggerSyncOp:
             job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout
         )
 
+        # Ensure that wall-clock time is used during operator execution flow.
+        mock_time.time.assert_called()
+        mock_time.monotonic.assert_not_called()
+
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.time")
     @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteTriggerSyncOperator.defer")
     @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteSyncTrigger")
     @mock.patch("airbyte_api.jobs.Jobs.create_job")
-    def test_execute_deferrable_does_not_pass_execution_timeout_to_defer(
+    def test_execute_deferrable_without_execution_timeout(
         self,
         mock_create_job,
         mock_airbyte_trigger,
         mock_defer,
+        mock_time,
         create_connection_without_db,
     ):
         conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
         create_connection_without_db(conn)
+
+        mock_time.time.return_value = 1000.0
 
         mock_response = mock.Mock()
         mock_response.job_response = JobResponse(
@@ -97,30 +108,78 @@ class TestAirbyteTriggerSyncOp:
             task_id="test_airbyte_op",
             airbyte_conn_id=self.airbyte_conn_id,
             connection_id=self.connection_id,
-            wait_seconds=self.wait_seconds,
             timeout=self.timeout,
             deferrable=True,
-            execution_timeout=timedelta(seconds=30),
+            execution_timeout=None,
         )
 
         op.execute({})
 
-        # Explicitly pass timeout=None so Airflow's framework-level deferred
-        # timeout handling does not bypass execute_complete(), which is
-        # responsible for Airbyte job cancellation in deferrable mode.
         mock_defer.assert_called_once_with(
             method_name="execute_complete",
             trigger=mock_airbyte_trigger.return_value,
             timeout=None,
         )
 
-        # Ensure the trigger still receives execution_deadline handling for
-        # Airbyte job timeout cancellation processing.
         mock_airbyte_trigger.assert_called_once_with(
             conn_id=self.airbyte_conn_id,
             job_id=self.job_id,
-            end_time=mock.ANY,
-            execution_deadline=mock.ANY,
+            end_time=1000.0 + self.timeout,
+            execution_deadline=None,
+            poll_interval=60,
+        )
+
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.time")
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteTriggerSyncOperator.defer")
+    @mock.patch("airflow.providers.airbyte.operators.airbyte.AirbyteSyncTrigger")
+    @mock.patch("airbyte_api.jobs.Jobs.create_job")
+    def test_execute_deferrable_with_execution_timeout(
+        self,
+        mock_create_job,
+        mock_airbyte_trigger,
+        mock_defer,
+        mock_time,
+        create_connection_without_db,
+    ):
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        create_connection_without_db(conn)
+
+        mock_time.time.return_value = 1000.0
+
+        mock_response = mock.Mock()
+        mock_response.job_response = JobResponse(
+            connection_id="connection-mock",
+            job_id=1,
+            start_time="today",
+            job_type=JobTypeEnum.SYNC,
+            status=JobStatusEnum.RUNNING,
+        )
+        mock_create_job.return_value = mock_response
+
+        execution_timeout = timedelta(seconds=60)
+
+        op = AirbyteTriggerSyncOperator(
+            task_id="test_airbyte_op",
+            airbyte_conn_id=self.airbyte_conn_id,
+            connection_id=self.connection_id,
+            timeout=self.timeout,
+            deferrable=True,
+            execution_timeout=execution_timeout,
+        )
+
+        op.execute({})
+
+        mock_defer.assert_called_once_with(
+            method_name="execute_complete",
+            trigger=mock_airbyte_trigger.return_value,
+            timeout=timedelta(seconds=180),  # 60s timeout + 120s buffer
+        )
+
+        mock_airbyte_trigger.assert_called_once_with(
+            conn_id=self.airbyte_conn_id,
+            job_id=self.job_id,
+            end_time=1000.0 + self.timeout,
+            execution_deadline=1060.0,
             poll_interval=60,
         )
 

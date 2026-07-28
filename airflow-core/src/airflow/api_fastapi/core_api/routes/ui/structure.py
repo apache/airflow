@@ -42,7 +42,12 @@ structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 
 @structure_router.get(
     "/structure_data",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
     dependencies=[
         Depends(requires_access_dag("GET")),
         Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES)),
@@ -91,7 +96,11 @@ def structure_data(
             depth=depth,
         )
 
-    nodes = [task_group_to_dict(child) for child in dag.task_group.topological_sort()]
+    group_dict = dag.task_group.get_task_group_dict()
+    nodes = [
+        task_group_to_dict(child, group_dict=group_dict)
+        for child in dag.task_group.topological_sort(group_dict=group_dict)
+    ]
     edges = dag_edges(dag)
 
     data = {
@@ -161,9 +170,15 @@ def structure_data(
                 )
 
         if (asset_expression := serialized_dag.dag_model.asset_expression) and entry_node_ref:
-            upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
-                asset_expression, entry_node_ref["id"]
-            )
+            try:
+                upstream_asset_nodes, upstream_asset_edges = get_upstream_assets(
+                    asset_expression, entry_node_ref["id"]
+                )
+            except TypeError as e:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Malformed asset_expression in Dag {dag_id!r} version {version_number}: {e}",
+                ) from e
             data["nodes"] += upstream_asset_nodes
             data["edges"] += upstream_asset_edges
 

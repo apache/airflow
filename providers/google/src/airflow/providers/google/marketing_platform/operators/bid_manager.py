@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import tempfile
 import urllib.request
@@ -338,19 +339,46 @@ class GoogleBidManagerDownloadReportOperator(BaseOperator):
         no_redirect_opener = urllib.request.build_opener(_NoRedirect)
         self.log.info("Starting downloading report %s", self.report_id)
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            with no_redirect_opener.open(file_url) as response:  # nosec
-                shutil.copyfileobj(response, temp_file, length=self.chunk_size)
+            try:
+                with no_redirect_opener.open(file_url) as response:  # nosec
+                    shutil.copyfileobj(response, temp_file, length=self.chunk_size)
 
-            temp_file.flush()
-            # Upload the local file to bucket
-            bucket_name = self._set_bucket_name(self.bucket_name)
-            gcs_hook.upload(
-                bucket_name=bucket_name,
-                object_name=report_name,
-                gzip=self.gzip,
-                filename=temp_file.name,
-                mime_type="text/csv",
-            )
+                temp_file.flush()
+                # Close the handle before any operation that opens or unlinks the
+                # file by name: on Windows a NamedTemporaryFile keeps the handle
+                # open, and unlink (or a re-open from another component) raises
+                # PermissionError while it is held. close() is idempotent and the
+                # surrounding ``with`` still runs __exit__ harmlessly.
+                temp_file.close()
+                # Upload the local file to bucket
+                bucket_name = self._set_bucket_name(self.bucket_name)
+                gcs_hook.upload(
+                    bucket_name=bucket_name,
+                    object_name=report_name,
+                    gzip=self.gzip,
+                    filename=temp_file.name,
+                    mime_type="text/csv",
+                )
+            finally:
+                # On the failure path the handle may still be open; close it
+                # idempotently so the unlink below also succeeds on Windows.
+                temp_file.close()
+                # Always remove the unencrypted report left in the temp directory,
+                # on both the success and the failure path. Don't silently swallow
+                # unexpected OSErrors: a missing file is benign and ignored, but
+                # anything else (e.g. PermissionError from another handle still
+                # holding the file) is surfaced via a log warning so that real
+                # cleanup failures are observable.
+                try:
+                    os.unlink(temp_file.name)
+                except FileNotFoundError:
+                    pass
+                except OSError as cleanup_err:
+                    self.log.warning(
+                        "Failed to remove temporary report file %s: %s",
+                        temp_file.name,
+                        cleanup_err,
+                    )
         self.log.info(
             "Report %s was saved in bucket %s as %s.",
             self.report_id,

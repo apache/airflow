@@ -56,6 +56,14 @@ The artifact is identified by its relative file path within the project (e.g. ``
     :start-after: [START howto_operator_sagemaker_unified_studio_notebook]
     :end-before: [END howto_operator_sagemaker_unified_studio_notebook]
 
+The following example adds domain ID, project ID, and domain name as operator parameters.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_unified_studio.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+    :end-before: [END howto_operator_sagemaker_unified_studio_notebook_explicit_params]
+
 .. _howto/operator:SageMakerUnifiedStudioNotebookOperator:
 
 Run SageMaker Unified Studio notebooks
@@ -72,15 +80,6 @@ where the notebook resides.
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_unified_studio_notebook]
     :end-before: [END howto_operator_sagemaker_unified_studio_notebook]
-
-
-The following example adds domain ID, project ID, and domain name as operator parameters.
-
-.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_sagemaker_unified_studio.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_sagemaker_unified_studio_notebook_explicit_params]
-    :end-before: [END howto_operator_sagemaker_unified_studio_notebook_explicit_params]
 
 Notebooks can produce output variables that are automatically pushed to XCom when the run completes.
 Downstream tasks can consume these outputs via Jinja templating in ``notebook_parameters``.

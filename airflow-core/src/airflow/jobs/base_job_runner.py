@@ -54,7 +54,7 @@ class BaseJobRunner:
         raise NotImplementedError()
 
     @provide_session
-    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
+    def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         """
         Execute callback during heartbeat.
 
@@ -63,7 +63,7 @@ class BaseJobRunner:
 
     @classmethod
     @provide_session
-    def most_recent_job(cls, session: Session = NEW_SESSION) -> Job | None:
+    def most_recent_job(cls, *, session: Session = NEW_SESSION) -> Job | None:
         """Return the most recent job of this type, if any, based on last heartbeat received."""
         from airflow.jobs.job import most_recent_job
 

@@ -50,7 +50,7 @@ def test_data_studio_aliases():
 class LookerTestBase:
     @classmethod
     def setUpClass(cls):
-        cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
+        cls.dagbag = DagBag(dag_folder="/dev/null")
         cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
 
     def setup_method(self):

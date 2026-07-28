@@ -37,10 +37,21 @@ There are three main types of cluster policy:
   task running in a DagRun. The ``task_policy`` defined is applied to all the task instances that will be
   executed in the future.
 * ``task_instance_mutation_hook``: Takes a :class:`~airflow.models.taskinstance.TaskInstance` parameter called
-  ``task_instance``. The ``task_instance_mutation_hook`` applies not to a task but to the instance of a task that
-  relates to a particular DagRun. It is executed in a "worker", not in the Dag file processor, just before the
-  task instance is executed. The policy is only applied to the currently executed run (i.e. instance) of that
-  task.
+  ``task_instance`` and an optional :class:`~airflow.models.dagrun.DagRun` parameter called ``dag_run``. The
+  ``task_instance_mutation_hook`` applies not to a task but to the instance of a task that
+  relates to a particular DagRun. It is executed scheduler-side while task instances are created or
+  reconciled (not in the Dag file processor, and not on the worker). The policy is only applied to the
+  currently executed run (i.e. instance) of that task. The ``dag_run`` argument lets the policy route on
+  run configuration (``dag_run.conf``); it may be ``None`` in early task-instance construction, and a hook
+  that only declares ``task_instance`` keeps working unchanged. Note that ``dag_run.conf`` is only populated
+  for manually triggered or API-triggered runs; scheduled runs carry an empty ``conf``.
+
+.. warning::
+
+    ``task_instance_mutation_hook`` runs inside a scheduler transaction that prohibits committing the
+    session. Do not open a new database session or commit from within the hook -- in particular, do not
+    call ``task_instance.get_dagrun()`` without passing the active session, as the resulting commit
+    crashes the scheduler. Use the ``dag_run`` argument to read run configuration instead.
 
 The Dag and Task cluster policies can raise the  :class:`~airflow.exceptions.AirflowClusterPolicyViolation`
 exception to indicate that the Dag/task they were passed is not compliant and should not be loaded.

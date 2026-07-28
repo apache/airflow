@@ -54,7 +54,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     default_partition_mapper: PartitionMapper = IdentityMapper()
 
 
-class PartitionAtRuntime(BaseTimetable):
+class PartitionedAtRuntime(BaseTimetable):
     """Marker timetable indicating that partition key(s) are determined at runtime."""
 
     can_be_scheduled = False
