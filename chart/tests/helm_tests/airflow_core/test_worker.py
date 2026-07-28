@@ -1552,6 +1552,24 @@ class TestWorker:
             {"name": "test-extra-port", "containerPort": 10}
         ]
 
+    def test_worker_service_name_matches_service(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": {"celery": {"persistence": {"enabled": True}}}},
+            show_only=["templates/workers/worker-deployment.yaml", "templates/workers/worker-service.yaml"],
+        )
+
+        assert jmespath.search("spec.serviceName", docs[0]) == jmespath.search("metadata.name", docs[1])
+
+    def test_worker_subdomain_matches_service(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": {"celery": {"persistence": {"enabled": False}}}},
+            show_only=["templates/workers/worker-deployment.yaml", "templates/workers/worker-service.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.subdomain", docs[0]) == jmespath.search(
+            "metadata.name", docs[1]
+        )
+
 
 class TestWorkerCeleryLogGroomer(LogGroomerTestBase):
     """Worker Celery groomer."""
