@@ -188,7 +188,7 @@ def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
         )
 
 
-def _validate_xcom_value(value: Any, task_id: str, name: str) -> bool:
+def _validate_xcom_value(value: Any, task_id: str, name: str, *, allow_mapped_upstream: bool = False) -> bool:
     """Validate an XComArg argument, returning True when it is a bindable direct upstream output."""
     if isinstance(value, PlainXComArg):
         if value.key != XCOM_RETURN_KEY:
@@ -197,7 +197,7 @@ def _validate_xcom_value(value: Any, task_id: str, name: str) -> bool:
                 f"{value.key!r}; only an upstream task's return value can cross the language "
                 "boundary -- indexing an output by a custom key is not supported"
             )
-        if value.operator.is_mapped:
+        if value.operator.is_mapped and not allow_mapped_upstream:
             raise ValueError(
                 f"@task.stub task {task_id!r} parameter {name!r} references the aggregated "
                 f"output of the mapped task {value.operator.task_id!r}; a foreign runtime "
@@ -266,6 +266,64 @@ def _build_arg_bindings(
     return spec
 
 
+def _build_mapped_arg_binding_params(
+    python_callable: Callable,
+    *,
+    partial_op_kwargs: Mapping[str, Any],
+    expand_input: Any,
+    task_id: str,
+) -> list[dict[str, Any]] | None:
+    """
+    Build the ordered per-parameter metadata for a mapped (``.expand()``) stub task.
+
+    Per-map-index values only resolve at run time, so unlike ``_build_arg_bindings`` this
+    captures what the server-side derivation cannot recover from the serialized Dag alone:
+    the declaration order the wire contract promises, defaults for parameters no kwarg
+    covers, and each parameter's value schema. Returns ``None`` for parameterless stubs
+    (the legacy fan-out shape whose call args were always ignored keeps parsing).
+    """
+    signature = inspect.signature(python_callable)
+    if not signature.parameters:
+        return None
+    _validate_stub_signature(signature, task_id)
+    if not isinstance(expand_input.value, Mapping):
+        # expand_kwargs() carries a list (or upstream XCom) of kwarg dicts whose
+        # parameter names are unknowable at parse time.
+        raise ValueError(
+            f"@task.stub task {task_id!r} does not support expand_kwargs(); the parameter "
+            "binding must be derivable at parse time, so use .expand() with explicit kwargs"
+        )
+    expand_kwargs = expand_input.value
+
+    try:
+        bound = signature.bind(**{**partial_op_kwargs, **expand_kwargs})
+    except TypeError as e:
+        raise ValueError(f"@task.stub task {task_id!r} TaskFlow mapping does not bind to its signature: {e}")
+    bound.apply_defaults()
+
+    annotations = _resolve_param_annotations(python_callable, signature)
+
+    params: list[dict[str, Any]] = []
+    for name in signature.parameters:
+        entry: dict[str, Any] = {"name": name}
+        if (value_schema := _infer_value_schema(annotations[name])) is not None:
+            entry["value_schema"] = value_schema
+        if name in expand_kwargs:
+            # The whole expanded collection ships through XCom/serialization; an upstream
+            # output is consumed per element, so a mapped upstream is fine here.
+            if not _validate_xcom_value(expand_kwargs[name], task_id, name, allow_mapped_upstream=True):
+                _ensure_json_literal(expand_kwargs[name], task_id, name)
+        elif name in partial_op_kwargs:
+            if not _validate_xcom_value(partial_op_kwargs[name], task_id, name):
+                _ensure_json_literal(partial_op_kwargs[name], task_id, name)
+        else:
+            default = bound.arguments[name]
+            _ensure_json_literal(default, task_id, name)
+            entry["default"] = default
+        params.append(entry)
+    return params
+
+
 class _StubOperator(DecoratedOperator):
     custom_operator_name: str = "@task.stub"
 
@@ -332,6 +390,25 @@ class _StubOperator(DecoratedOperator):
     def get_serialized_fields(cls):
         return super().get_serialized_fields() | {"_arg_bindings"}
 
+    @classmethod
+    def get_mapped_serialized_fields(cls, mapped_op: Any) -> dict[str, Any]:
+        """
+        Extra serialized fields for the mapped (``.expand()``) form of this operator.
+
+        Called by the core Dag serializer (Airflow 3.4+) while ``python_callable`` is
+        still the real function; older cores never call it, so mapped stubs there keep
+        the legacy ignored-args behavior.
+        """
+        params = _build_mapped_arg_binding_params(
+            mapped_op.python_callable,
+            partial_op_kwargs=mapped_op.partial_kwargs.get("op_kwargs") or {},
+            expand_input=mapped_op._get_specified_expand_input(),
+            task_id=mapped_op.task_id,
+        )
+        if params is None:
+            return {}
+        return {"_mapped_arg_binding_params": params}
+
     def execute(self, context: Context) -> Any:
         raise RuntimeError(
             "@task.stub should not be executed directly -- we expected this to go to a remote worker. "
@@ -355,10 +432,6 @@ def stub(
     outputs or JSON-serializable literals; the resulting argument-binding spec (parameter
     names, value schemas, and values, in declaration order) is delivered to the foreign
     runtime, which binds the values onto the native task function.
-
-    Mapped (``.expand()``) stubs do not receive TaskFlow arguments yet -- their call args
-    keep the legacy ignored behavior; per-map-index delivery is part of
-    https://github.com/apache/airflow/issues/66937 and lands in a follow-up.
     """
     return task_decorator_factory(
         decorated_operator_class=_StubOperator,
