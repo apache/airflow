@@ -141,7 +141,7 @@ class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
-    def _topological_upstream_ids(self) -> Iterable[str]:
+    def _topological_upstream_ids(self) -> Collection[str]:
         """
         Node ids this node must be ordered after within its parent group.
 
@@ -285,7 +285,7 @@ class TaskGroupMixin:
         raise NotImplementedError()
 
     @property
-    def _topological_upstream_ids(self) -> Iterable[str]:
+    def _topological_upstream_ids(self) -> Collection[str]:
         """
         Node ids this node must be ordered after within its parent group.
 

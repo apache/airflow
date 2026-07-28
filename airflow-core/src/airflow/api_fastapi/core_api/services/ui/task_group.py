@@ -19,14 +19,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from functools import cache
-from typing import Any
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator, is_mapped
-from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
+
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 
 
 @cache
@@ -44,7 +48,7 @@ def _ui_colors(node) -> dict[str, str]:
     }
 
 
-def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False, group_dict=None):
+def task_group_to_dict(task_item_or_group, *, group_dict=None, parent_group_is_mapped=False):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     if isinstance(task := task_item_or_group, (SerializedBaseOperator, SerializedMappedOperator)):
         # we explicitly want the short task ID here, not the full doted notation if in a group
