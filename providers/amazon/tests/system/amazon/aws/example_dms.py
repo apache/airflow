@@ -163,7 +163,7 @@ def create_dms_assets(
     print("Creating replication instance.")
     instance_arn = dms_client.create_replication_instance(
         ReplicationInstanceIdentifier=replication_instance_name,
-        ReplicationInstanceClass="dms.t3.micro",
+        ReplicationInstanceClass="dms.t3.small",
     )["ReplicationInstance"]["ReplicationInstanceArn"]
 
     print("Creating DMS source endpoint.")
