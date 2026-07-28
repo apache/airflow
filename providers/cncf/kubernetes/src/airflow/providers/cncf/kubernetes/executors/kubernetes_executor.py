@@ -963,6 +963,18 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
+        if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in pod.metadata.annotations:
+            new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
+            from kubernetes.client.rest import ApiException
+            try:
+                kube_client.patch_namespaced_pod(
+                    name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    body={"metadata": {"labels": {"airflow-worker": new_worker_id_label}}},
+                )
+            except ApiException as e:
+                self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            return
         self.log.info("attempting to adopt pod %s", pod.metadata.name)
         ti_key = annotations_to_key(pod.metadata.annotations)
         if ti_key not in tis_to_flush_by_key:
@@ -1113,7 +1125,7 @@ class KubernetesExecutor(BaseExecutor):
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
                 continue
-            
+
             ti_id: TaskInstanceKey | CallbackKey
             if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in pod.metadata.annotations:
                 from airflow.models.callback import CallbackKey
