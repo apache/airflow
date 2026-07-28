@@ -1080,12 +1080,19 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
-def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
+def reflect_tables(tables: list[MappedClassProtocol | str] | None, session, schema: str | None = None):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 
     This function gets the current state of each table in the set of models
     provided and returns a SqlAlchemy metadata object containing them.
+
+    A string entry in ``tables`` may be schema-qualified using dot notation (e.g.
+    ``"celery.celery_taskmeta"``) to reflect a table from a non-default schema; the returned
+    metadata's ``tables`` mapping is then keyed by that same ``schema.table`` string. When
+    ``tables`` is ``None``, ``schema`` selects which schema to reflect in full (default: the
+    connection's default schema); SQLAlchemy keys every reflected table by ``schema.table`` in
+    that case too, whenever a non-``None`` schema was given.
     """
     import sqlalchemy.schema
 
@@ -1093,12 +1100,18 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
     metadata = sqlalchemy.schema.MetaData()
 
     if tables is None:
-        metadata.reflect(bind=bind, resolve_fks=False)
+        metadata.reflect(bind=bind, schema=schema, resolve_fks=False)
     else:
         for tbl in tables:
             try:
                 table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-                metadata.reflect(bind=bind, only=[table_name], extend_existing=True, resolve_fks=False)
+                tbl_schema: str | None
+                tbl_schema, sep, name = table_name.partition(".")
+                if not sep:
+                    tbl_schema, name = None, table_name
+                metadata.reflect(
+                    bind=bind, schema=tbl_schema, only=[name], extend_existing=True, resolve_fks=False
+                )
             except exc.InvalidRequestError:
                 continue
     return metadata
