@@ -189,3 +189,54 @@ class TestDateTimeSensor:
             "moment": "",
             "end_from_trigger": False,
         }
+
+    @patch("airflow.providers.standard.sensors.date_time.AIRFLOW_V_3_3_PLUS", True)
+    def test_async_start_from_trigger_templated_target_time_on_3_3_plus(self):
+        """
+        On Airflow >= 3.3 a templated target_time must not crash Dag parsing (#70284): the raw
+        template is handed to the trigger under the "target_time" key (matching the operator's
+        template field) so the triggerer can render it before the trigger runs.
+        """
+        op = DateTimeSensorAsync(
+            task_id="async_templated_3_3",
+            target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        assert op.start_from_trigger is True
+        assert op.start_trigger_args.trigger_kwargs == {
+            "target_time": "{{ data_interval_end.tomorrow().replace(hour=1) }}",
+            "end_from_trigger": False,
+        }
+        # No moment key should be present -- moment can't be computed until the template renders.
+        assert "moment" not in op.start_trigger_args.trigger_kwargs
+
+    @patch("airflow.providers.standard.sensors.date_time.AIRFLOW_V_3_3_PLUS", False)
+    def test_async_start_from_trigger_templated_target_time_pre_3_3(self, capsys):
+        """
+        Before Airflow 3.3, the triggerer can't render template fields on a trigger before it
+        runs, so a templated target_time can never resolve via start_from_trigger. Rather than
+        crashing Dag parsing, fall back to the normal worker-deferred path.
+        """
+        op = DateTimeSensorAsync(
+            task_id="async_templated_pre_3_3",
+            target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        assert op.start_from_trigger is False
+        # Airflow's task logger uses structlog and writes straight to stdout, so it isn't
+        # captured by the stdlib-logging-based `caplog` fixture; assert on stdout instead.
+        assert "requires a static target_time" in capsys.readouterr().out
+
+    @patch("airflow.providers.standard.sensors.date_time.AIRFLOW_V_3_3_PLUS", False)
+    def test_async_start_from_trigger_static_target_time_pre_3_3_unaffected(self):
+        """A static target_time must keep working identically regardless of AIRFLOW_V_3_3_PLUS."""
+        op = DateTimeSensorAsync(
+            task_id="async_static_pre_3_3",
+            target_time="2020-01-01T00:00:00+00:00",
+            start_from_trigger=True,
+            dag=self.dag,
+        )
+        assert op.start_from_trigger is True
+        assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse("2020-01-01T00:00:00+00:00")
