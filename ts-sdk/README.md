@@ -235,22 +235,22 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | Dimension | Tier | Supported | Since | Notes |
 |---|---|---|---|---|
 | **TaskInstance states** |  |  |  |  |
-| state: `success` | MUST | ✓ | 3.4 |  |
-| state: `failed` | MUST | ✓ | 3.4 |  |
-| state: `up_for_retry` | MUST | ✓ | 3.4 | RetryTask |
+| state: `success` | MUST | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) |  |
+| state: `failed` | MUST | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) |  |
+| state: `up_for_retry` | MUST | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) | RetryTask |
 | state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
 | state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
 | state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
-| state: `removed` | MAY | ✓ | 3.4 |  |
+| state: `removed` | MAY | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) |  |
 | **Runtime capabilities** |  |  |  |  |
-| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 | @task.stub |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) | @task.stub |
 | capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
-| capability: `task-logging` | MUST | ✓ | 3.4 | structured records over the log socket |
-| capability: `xcom-read-write` | MUST | ✓ | 3.4 | getXCom / setXCom |
-| capability: `connection-read` | MUST | ✓ | 3.4 | getConnection |
+| capability: `task-logging` | MUST | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) | structured records over the log socket |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) | getXCom / setXCom |
+| capability: `connection-read` | MUST | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) | getConnection |
 | capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
-| capability: `self-contained-bundle` | MUST | ✓ | 3.4 | Airflow metadata embedded in the bundle |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.4 (TypeScript SDK 0.1.0-beta1) | Airflow metadata embedded in the bundle |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |

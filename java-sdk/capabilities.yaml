@@ -29,12 +29,15 @@ states:
   success:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
   failed:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
   up_for_retry:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
     note: "RetryTask"
   skipped:
     supported: false
@@ -51,6 +54,7 @@ states:
   removed:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
 
 # Runtime capabilities reflect the task-facing Client surface; native-Dag authoring is not
 # implemented yet, so every native capability is unsupported.
@@ -58,6 +62,7 @@ capabilities:
   mixed-lang-stub-target:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
     note: "@task.stub"
   taskflow-binding:
     supported: false
@@ -65,19 +70,24 @@ capabilities:
   task-logging:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
     note: "SLF4J + JPL bridged to the task log"
   xcom-read-write:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
   connection-read:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
   variable-read-write:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
   self-contained-bundle:
     supported: true
     since: "3.3"
+    sdk_version: "1.0.0-beta1"
     note: "Airflow metadata embedded in the jar artifact"
   retry-policy:
     supported: false

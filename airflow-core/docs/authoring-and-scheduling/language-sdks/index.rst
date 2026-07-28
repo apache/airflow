@@ -187,6 +187,172 @@ Both settings can be supplied as environment variables using the standard Airflo
     AIRFLOW__SDK__COORDINATORS='{"my-coordinator": {...}}'
     AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{"jdk17": "my-coordinator"}'
 
+Compatibility matrix
+--------------------
+
+Language SDKs mature independently, so they do not all support the same features yet. The table
+below shows what each Language SDK currently supports. See the legend below the table for what
+each mark means.
+
+.. BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX
+
+.. list-table:: Language SDK compatibility matrix
+   :header-rows: 1
+   :widths: 30 15 15 15
+
+   * - Dimension
+     - Go
+     - Java
+     - TypeScript
+   * - Min. Airflow version
+     - 3.3
+     - 3.3
+     - 3.4
+   * - Current Supervisor Schema Version
+     - 2026-10-30
+     - 2026-06-16
+     - 2026-10-30
+   * - **TaskInstance states**
+     -
+     -
+     -
+   * - ``success`` (MUST)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - ``failed`` (MUST)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - ``up_for_retry`` (MUST)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - ``skipped`` (SHOULD)
+     - ✗
+     - ✗
+     - ✗
+   * - ``deferred`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``up_for_reschedule`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``awaiting_input`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``removed`` (MAY)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - **Runtime capabilities**
+     -
+     -
+     -
+   * - ``mixed-lang-stub-target`` (MUST)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - ``taskflow-binding`` (MUST)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-logging`` (MUST)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - ``xcom-read-write`` (MUST)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - ``connection-read`` (MUST)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - ``variable-read-write`` (MUST)
+     - ✗
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✗
+   * - ``self-contained-bundle`` (MUST)
+     - ✓ 3.3 (Go SDK 1.0.0-beta3)
+     - ✓ 3.3 (Java SDK 1.0.0-beta1)
+     - ✓ 3.4 (TypeScript SDK 0.1.0-beta1)
+   * - ``retry-policy`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-state-store`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-state-store`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-event-emit`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-event-read`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - **Native-Dag authoring**
+     -
+     -
+     -
+   * - ``native-dag-authoring`` (SHOULD)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-args`` (MUST †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``dag-params`` (MUST †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``taskflow-dependencies`` (MUST †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``branching`` (SHOULD †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``dag-test`` (SHOULD †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``task-group`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``dynamic-task-mapping`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``asset-inlets-outlets`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``asset-scheduling`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``object-store`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+
+*Marks:* ``✓`` supported (its Airflow and SDK release, when known) · ``✗`` not supported · ``n/a`` not applicable · ``–`` not published. A tier marked ``†`` applies only when ``native-dag-authoring`` is supported.
+
+.. END AUTO-GENERATED LANG-SDK COMPAT MATRIX
+
 .. _language-sdks/bundle-spec:
 
 Implementing a new compiled language SDK

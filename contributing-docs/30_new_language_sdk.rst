@@ -508,7 +508,7 @@ Compatibility matrix
 ~~~~~~~~~~~~~~~~~~~~
 
 The dimensions above are prose; each SDK also declares them *machine-readably* in one
-hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates its published tables:
+hand-authored ``<sdk>/capabilities.yaml``, from which prek hooks generate the published tables:
 
 .. code-block:: text
 
@@ -518,10 +518,16 @@ hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates its 
       |
       +--> java-sdk/README.md            (contributor-facing)
       +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
+      +--> airflow-core/docs/authoring-and-scheduling/language-sdks/index.rst
+           (consolidated cross-SDK matrix)
 
-The hook rewrites its targets and exits non-zero when either was stale, so a drifted table fails
+Each hook rewrites its targets and exits non-zero when a target was stale, so a drifted table fails
 the build. Keep the manifest out of whatever the SDK publishes — it describes the SDK rather than
 being part of it; for Java that means sitting above every subproject in ``settings.gradle.kts``.
+
+A supported dimension may also record ``sdk_version``, the SDK's own release that shipped it,
+alongside ``since`` (the Airflow version). It's optional — omit it when no SDK release has been
+tagged yet — and each per-SDK table renders both together in its Since column.
 
 To add an SDK, register it in ``LANG_SDKS`` in ``scripts/ci/prek/lang_sdk_compat_matrix.py``, write
 a ``capabilities.yaml`` in the same schema, and add the equivalent hook. Adding or renaming a

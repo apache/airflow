@@ -287,27 +287,27 @@ prek hook regenerate it.
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.4 · supervisor schema: 2026-10-30*
+*Min. Airflow version: 3.3 · supervisor schema: 2026-10-30*
 
 | Dimension | Tier | Supported | Since | Notes |
 |---|---|---|---|---|
 | **TaskInstance states** |  |  |  |  |
-| state: `success` | MUST | ✓ | 3.3 |  |
-| state: `failed` | MUST | ✓ | 3.3 |  |
-| state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
+| state: `success` | MUST | ✓ | 3.3 (Go SDK 1.0.0-beta3) |  |
+| state: `failed` | MUST | ✓ | 3.3 (Go SDK 1.0.0-beta3) |  |
+| state: `up_for_retry` | MUST | ✓ | 3.3 (Go SDK 1.0.0-beta3) | RetryTask |
 | state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
 | state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
 | state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
-| state: `removed` | MAY | ✓ | 3.3 |  |
+| state: `removed` | MAY | ✓ | 3.3 (Go SDK 1.0.0-beta3) |  |
 | **Runtime capabilities** |  |  |  |  |
-| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 (Go SDK 1.0.0-beta3) | @task.stub |
 | capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
-| capability: `task-logging` | MUST | ✓ | 3.3 | slog records streamed over the logs socket |
-| capability: `xcom-read-write` | MUST | ✓ | 3.3 | PushXCom / GetXCom |
-| capability: `connection-read` | MUST | ✓ | 3.3 | GetConnection |
+| capability: `task-logging` | MUST | ✓ | 3.3 (Go SDK 1.0.0-beta3) | slog records streamed over the logs socket |
+| capability: `xcom-read-write` | MUST | ✓ | 3.3 (Go SDK 1.0.0-beta3) | PushXCom / GetXCom |
+| capability: `connection-read` | MUST | ✓ | 3.3 (Go SDK 1.0.0-beta3) | GetConnection |
 | capability: `variable-read-write` | MUST | ✗ | – | GetVariable only; no write over the comm socket yet |
-| capability: `self-contained-bundle` | MUST | ✓ | 3.3 | AFBNDL01 native binary via airflow-go-pack |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.3 (Go SDK 1.0.0-beta3) | AFBNDL01 native binary via airflow-go-pack |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |

@@ -34,22 +34,22 @@ meaning of each dimension is defined in the
 | Dimension | Tier | Supported | Since | Notes |
 |---|---|---|---|---|
 | **TaskInstance states** |  |  |  |  |
-| state: `success` | MUST | ✓ | 3.3 |  |
-| state: `failed` | MUST | ✓ | 3.3 |  |
-| state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
+| state: `success` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) |  |
+| state: `failed` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) |  |
+| state: `up_for_retry` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) | RetryTask |
 | state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
 | state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
 | state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
 | state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
-| state: `removed` | MAY | ✓ | 3.3 |  |
+| state: `removed` | MAY | ✓ | 3.3 (Java SDK 1.0.0-beta1) |  |
 | **Runtime capabilities** |  |  |  |  |
-| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) | @task.stub |
 | capability: `taskflow-binding` | MUST | ✗ | – | bind @task.stub literal/XCom args to the native handler |
-| capability: `task-logging` | MUST | ✓ | 3.3 | SLF4J + JPL bridged to the task log |
-| capability: `xcom-read-write` | MUST | ✓ | 3.3 |  |
-| capability: `connection-read` | MUST | ✓ | 3.3 |  |
-| capability: `variable-read-write` | MUST | ✓ | 3.3 |  |
-| capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
+| capability: `task-logging` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) | SLF4J + JPL bridged to the task log |
+| capability: `xcom-read-write` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) |  |
+| capability: `connection-read` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) |  |
+| capability: `variable-read-write` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) |  |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.3 (Java SDK 1.0.0-beta1) | Airflow metadata embedded in the jar artifact |
 | capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
 | capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
 | capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
