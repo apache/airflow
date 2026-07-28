@@ -1035,25 +1035,19 @@ class TestGoogleCloudStorageToCloudStorageOperator:
     def test_get_openlineage_facets_on_complete(
         self, mock_hook, source_objects, destination_object, inputs, outputs
     ):
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_objects=source_objects,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=destination_object,
+        )
+
         if source_objects and any(WILDCARD in obj for obj in source_objects):
             with pytest.warns(AirflowProviderDeprecationWarning, match="Usage of wildcard"):
-                operator = GCSToGCSOperator(
-                    task_id=TASK_ID,
-                    source_bucket=TEST_BUCKET,
-                    source_objects=source_objects,
-                    destination_bucket=DESTINATION_BUCKET,
-                    destination_object=destination_object,
-                )
+                operator.execute(None)
         else:
-            operator = GCSToGCSOperator(
-                task_id=TASK_ID,
-                source_bucket=TEST_BUCKET,
-                source_objects=source_objects,
-                destination_bucket=DESTINATION_BUCKET,
-                destination_object=destination_object,
-            )
-
-        operator.execute(None)
+            operator.execute(None)
 
         lineage = operator.get_openlineage_facets_on_complete(None)
         assert len(lineage.inputs) == len(inputs)
@@ -1082,15 +1076,15 @@ class TestGoogleCloudStorageToCloudStorageOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_execute_returns_list_of_destination_uris_multiple_files(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX,
+        )
         with pytest.warns(AirflowProviderDeprecationWarning, match="Usage of wildcard"):
-            operator = GCSToGCSOperator(
-                task_id=TASK_ID,
-                source_bucket=TEST_BUCKET,
-                source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
-                destination_bucket=DESTINATION_BUCKET,
-                destination_object=DESTINATION_OBJECT_PREFIX,
-            )
-        result = operator.execute(None)
+            result = operator.execute(None)
         expected = [
             f"gs://{DESTINATION_BUCKET}/foo/bar/file1.txt",
             f"gs://{DESTINATION_BUCKET}/foo/bar/file2.txt",
