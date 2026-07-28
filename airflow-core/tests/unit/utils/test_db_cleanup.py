@@ -1427,3 +1427,170 @@ def _dag_version_config_without_row_exclusion():
         if key in config:
             config[key] = None
     return config
+
+
+@pytest.mark.db_test
+class TestDagRunNullStartDateCleanup:
+    """Tests for cleaning dag_run records where start_date is NULL."""
+
+    @pytest.fixture(autouse=True)
+    def clear_airflow_tables(self):
+        drop_tables_with_prefix("_airflow_")
+
+    def _create_dag_runs_with_null_start_date(self, base_date):
+        """Create dag_runs: some with start_date set, one with start_date=None."""
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-dag-null-sd_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+
+            # Run with start_date set (normal run)
+            dag_run_normal = DagRun(
+                dag.dag_id,
+                run_id="normal_run",
+                run_type=DagRunType.MANUAL,
+                start_date=base_date,
+            )
+            session.add(dag_run_normal)
+
+            # Run with start_date=None (failed before starting)
+            dag_run_null = DagRun(
+                dag.dag_id,
+                run_id="null_start_date_run",
+                run_type=DagRunType.MANUAL,
+                start_date=None,
+            )
+            dag_run_null.created_at = base_date
+            session.add(dag_run_null)
+            session.commit()
+        return dag_id
+
+    def test_build_query_without_flag_skips_null_start_date(self):
+        """Without --fallback-cleanup-on-null, NULL start_date rows are invisible."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        self._create_dag_runs_with_null_start_date(base_date)
+
+        with create_session() as session:
+            # Use a future cutoff so all records are eligible by age
+            clean_before = base_date.add(days=365)
+            query = _build_query(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=clean_before,
+                session=session,
+            )
+            num_rows = session.scalars(select(func.count()).select_from(query.subquery())).one()
+            # Only the normal run (with start_date) should be found; NULL row is skipped
+            assert num_rows == 1
+
+    def test_build_query_with_flag_finds_null_start_date(self):
+        """With --fallback-cleanup-on-null, NULL start_date rows are found via created_at."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        self._create_dag_runs_with_null_start_date(base_date)
+
+        with create_session() as session:
+            clean_before = base_date.add(days=365)
+            query = _build_query(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=clean_before,
+                fallback_cleanup_on_null=True,
+                session=session,
+            )
+            num_rows = session.scalars(select(func.count()).select_from(query.subquery())).one()
+            # Both runs should be found: normal (via start_date) and null (via created_at fallback)
+            assert num_rows == 2
+
+    def test_cleanup_table_with_flag_deletes_null_start_date(self):
+        """Verify actual deletion of NULL start_date records when flag is enabled."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        self._create_dag_runs_with_null_start_date(base_date)
+
+        with create_session() as session:
+            # Verify 2 dag_runs exist before cleanup
+            model = config_dict["dag_run"].orm_model
+            assert session.scalar(select(func.count()).select_from(model)) == 2
+
+            clean_before = base_date.add(days=365)
+            _cleanup_table(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=clean_before,
+                dry_run=False,
+                session=session,
+                fallback_cleanup_on_null=True,
+            )
+
+            # Both should be deleted (all are manual, keep_last only protects non-manual)
+            assert session.scalar(select(func.count()).select_from(model)) == 0
+
+    def _create_scheduled_runs_with_null_start_date(self, base_date):
+        """Create 2 scheduled dag_runs with NULL start_date and different created_at."""
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-dag-sched-null_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+
+            # Older scheduled run (NULL start_date)
+            dr_old = DagRun(
+                dag.dag_id,
+                run_id="scheduled_old",
+                run_type=DagRunType.SCHEDULED,
+                start_date=None,
+            )
+            dr_old.created_at = base_date
+            session.add(dr_old)
+
+            # Newer scheduled run (NULL start_date) — should be protected by keep_last
+            dr_new = DagRun(
+                dag.dag_id,
+                run_id="scheduled_new",
+                run_type=DagRunType.SCHEDULED,
+                start_date=None,
+            )
+            dr_new.created_at = base_date.add(months=1)
+            session.add(dr_new)
+            session.commit()
+        return dag_id
+
+    def test_keep_last_protects_latest_null_start_date_run(self):
+        """With flag, keep_last protects the newest scheduled run even when start_date is NULL."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        self._create_scheduled_runs_with_null_start_date(base_date)
+
+        with create_session() as session:
+            clean_before = base_date.add(years=1)
+            query = _build_query(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=clean_before,
+                fallback_cleanup_on_null=True,
+                session=session,
+            )
+            num_rows = session.scalars(select(func.count()).select_from(query.subquery())).one()
+            # Only the older run should be eligible; the newer one is protected by keep_last
+            assert num_rows == 1
+
+    def test_keep_last_all_null_without_flag_skips_all(self):
+        """Without flag, scheduled runs with NULL start_date are invisible to cleanup."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        self._create_scheduled_runs_with_null_start_date(base_date)
+
+        with create_session() as session:
+            clean_before = base_date.add(years=1)
+            query = _build_query(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=clean_before,
+                session=session,
+            )
+            num_rows = session.scalars(select(func.count()).select_from(query.subquery())).one()
+            # Without flag, both are invisible (NULL < cutoff → NULL → skipped)
+            assert num_rows == 0

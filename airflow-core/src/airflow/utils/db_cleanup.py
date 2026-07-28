@@ -78,6 +78,11 @@ class _TableConfig:
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param dependent_tables: list of tables which have FK relationship with this table
     :param extra_filters: SQLAlchemy expressions ANDed with the recency filter; referenced columns must be in ``extra_columns``.
+    :param fallback_recency_column_name: optional fallback date column used when ``recency_column_name``
+        is NULL for a row. When the ``--fallback-cleanup-on-null`` CLI flag is enabled, the cleanup query
+        uses ``COALESCE(recency_column, fallback_recency_column)`` so that rows with a NULL recency value
+        (e.g. ``dag_run.start_date`` for runs that never started) can still be cleaned based on the
+        fallback column (e.g. ``created_at``). The fallback column must be listed in ``extra_columns``.
     :param skip_if_referenced: list of ``(referencing_table, fk_column)`` pairs whose FK points at this
         table's ``referenced_pk_column``. A row that is still referenced by any of these is excluded from
         deletion. This avoids issuing deletes that would violate an ``ON DELETE RESTRICT`` foreign key
@@ -98,11 +103,15 @@ class _TableConfig:
     # Relying on automation here would increase complexity and reduce maintainability.
     dependent_tables: list[str] | None = None
     extra_filters: list[Any] | None = None
+    fallback_recency_column_name: str | None = None
     skip_if_referenced: list[tuple[str, str]] | None = None
     referenced_pk_column: str = "id"
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
+        self.fallback_recency_column = (
+            column(self.fallback_recency_column_name) if self.fallback_recency_column_name else None
+        )
         if self.dag_id_column_name is None:
             self.dag_id_column = None
             self.orm_model: Base = table(
@@ -154,11 +163,12 @@ config_list: list[_TableConfig] = [
         table_name="dag_run",
         recency_column_name="start_date",
         dag_id_column_name="dag_id",
-        extra_columns=["dag_id", "run_type"],
+        extra_columns=["dag_id", "run_type", "created_at"],
         keep_last=True,
         keep_last_filters=[column("run_type") != DagRunType.MANUAL],
         keep_last_group_by=["dag_id"],
         dependent_tables=["task_instance", "task_state_store", "deadline"],
+        fallback_recency_column_name="created_at",
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
@@ -372,8 +382,14 @@ def _subquery_keep_last(
     keep_last_filters,
     group_by_columns,
     max_date_colname,
+    fallback_recency_column=None,
+    fallback_cleanup_on_null: bool = False,
 ):
-    subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
+    if fallback_cleanup_on_null and fallback_recency_column is not None:
+        effective_col = func.coalesce(recency_column, fallback_recency_column)
+    else:
+        effective_col = recency_column
+    subquery = select(*group_by_columns, func.max(effective_col).label(max_date_colname))
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
@@ -415,13 +431,22 @@ def _build_query(
     extra_filters: list[Any] | None = None,
     skip_if_referenced: list[tuple[str, str]] | None = None,
     referenced_pk_column: str = "id",
+    fallback_recency_column=None,
+    fallback_cleanup_on_null: bool = False,
     **kwargs,
 ) -> Select:
     base_table_alias = "base"
     base_table = aliased(orm_model, name=base_table_alias)
     query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
-    conditions = [base_table_recency_col < clean_before_timestamp]
+
+    if fallback_cleanup_on_null and fallback_recency_column is not None:
+        base_table_fallback_col = base_table.c[fallback_recency_column.name]
+        effective_recency = func.coalesce(base_table_recency_col, base_table_fallback_col)
+    else:
+        effective_recency = base_table_recency_col
+
+    conditions = [effective_recency < clean_before_timestamp]
 
     if extra_filters:
         conditions.extend(extra_filters)
@@ -458,12 +483,14 @@ def _build_query(
             keep_last_filters=keep_last_filters,
             group_by_columns=group_by_columns,
             max_date_colname=max_date_col_name,
+            fallback_recency_column=fallback_recency_column,
+            fallback_cleanup_on_null=fallback_cleanup_on_null,
         )
         query = query.outerjoin(
             subquery,
             and_(
                 *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
-                base_table_recency_col == column(max_date_col_name),
+                effective_recency == column(max_date_col_name),
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
@@ -490,6 +517,8 @@ def _cleanup_table(
     extra_filters: list[Any] | None = None,
     skip_if_referenced: list[tuple[str, str]] | None = None,
     referenced_pk_column: str = "id",
+    fallback_recency_column=None,
+    fallback_cleanup_on_null: bool = False,
     **kwargs,
 ) -> None:
     print()
@@ -508,6 +537,8 @@ def _cleanup_table(
         extra_filters=extra_filters,
         skip_if_referenced=skip_if_referenced,
         referenced_pk_column=referenced_pk_column,
+        fallback_recency_column=fallback_recency_column,
+        fallback_cleanup_on_null=fallback_cleanup_on_null,
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
@@ -667,6 +698,7 @@ def run_cleanup(
     session: Session = NEW_SESSION,
     batch_size: int | None = None,
     error_on_cleanup_failure: bool = False,
+    fallback_cleanup_on_null: bool = False,
 ) -> None:
     """
     Purges old records in airflow metadata database.
@@ -693,6 +725,10 @@ def run_cleanup(
     :param error_on_cleanup_failure: If True, raise a RuntimeError after processing all tables
         if any per-table cleanup encountered an error. By default errors are suppressed, a warning
         summary is logged, and the command exits 0 even if some tables were not cleaned.
+    :param fallback_cleanup_on_null: If True, use a fallback column (e.g. ``created_at``) for
+        tables whose recency column (e.g. ``dag_run.start_date``) can be NULL. Without this flag,
+        rows with a NULL recency column are silently skipped. When enabled, the query uses
+        ``COALESCE(recency_column, fallback_column)`` to determine the row's age.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 
@@ -728,6 +764,7 @@ def run_cleanup(
                     skip_archive=skip_archive,
                     session=session,
                     batch_size=batch_size,
+                    fallback_cleanup_on_null=fallback_cleanup_on_null,
                 )
             if ctx.failed:
                 failed_tables.append(table_name)
