@@ -422,6 +422,36 @@ class TestTIRunState:
         session.refresh(ti)
         assert ti.state == State.RUNNING
 
+    def test_ti_run_allows_null_external_executor_id_for_rolling_upgrade(
+        self, client, session, create_task_instance
+    ):
+        """A worker sending a null launch token must not be fenced out during rolling upgrades."""
+        ti = create_task_instance(
+            task_id="test_ti_run_allows_null_external_executor_id_for_rolling_upgrade",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            dag_id=str(uuid4()),
+        )
+        ti.external_executor_id = "current-launch-token"
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+                "external_executor_id": None,
+            },
+        )
+
+        assert response.status_code == 200
+        session.refresh(ti)
+        assert ti.state == State.RUNNING
+
     def test_ti_run_returns_execution_token(
         self, client, exec_app, session, create_task_instance, time_machine
     ):
