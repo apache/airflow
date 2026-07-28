@@ -266,7 +266,17 @@ eleventyComputed:
           <tr class="conn-integrations-row">
             <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
             <td>
+              {% if conn.external_integrations.length > 4 %}
+              <details class="conn-integrations-details">
+                <summary>
+                  <span class="show-label">Show {{ conn.external_integrations.length }} providers</span>
+                  <span class="hide-label">Hide</span>
+                </summary>
+                {% for integration in conn.external_integrations %}<span class="badge conn-integration-badge">{{ integration }}</span>{% endfor %}
+              </details>
+              {% else %}
               {% for integration in conn.external_integrations %}<span class="badge conn-integration-badge">{{ integration }}</span>{% endfor %}
+              {% endif %}
             </td>
           </tr>
           {% endif %}
