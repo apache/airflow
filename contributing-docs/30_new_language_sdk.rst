@@ -416,17 +416,8 @@ Runtime capabilities
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Runtime capabilities describe what a task *body* can do while it executes, regardless of
-whether the task was declared in a Python Dag (via ``@task.stub``) or in a native Dag
+whether the task was declared in a Python Dag (via ``@task.stub``) or in a Dag definition
 authored in the target language. An SDK declares each one independently.
-
-``mixed-lang-stub-target`` (MUST)
-    The SDK can execute a task declared in a Python Dag with the ``@task.stub``
-    decorator. This is the primary execution path for every Language SDK.
-
-``taskflow-binding`` (MUST)
-    Arguments bound to a ``@task.stub`` target in the Python TaskFlow Dag — literal values
-    and upstream XCom results alike — are delivered to the task function's parameters at
-    runtime.
 
 ``task-logging`` (MUST)
     The SDK forwards the task's log output — stdout / stderr and any structured log
@@ -461,7 +452,8 @@ authored in the target language. An SDK declares each one independently.
     The task can read and write the per-task state store.
 
 ``asset-state-store`` (MAY)
-    The task can read and write the per-asset state store.
+    The task can read and write the state store keyed by an asset name or URI. It says
+    nothing about whether the SDK can *declare* an asset, which is ``asset-definition``.
 
 ``asset-event-emit`` (MAY)
     The task can emit asset events — outlet events, including alias events — as it runs.
@@ -469,60 +461,118 @@ authored in the target language. An SDK declares each one independently.
 ``asset-event-read`` (MAY)
     The task can read prior asset events.
 
-Native-Dag authoring
-~~~~~~~~~~~~~~~~~~~~~~
+``object-store`` (MAY)
+    The SDK exposes an object-storage API (an ``ObjectStoragePath`` equivalent) usable from
+    task code.
 
-Native-Dag authoring lets an entire Dag — not just individual task bodies — be written in
+Dag definition
+~~~~~~~~~~~~~~
+
+A Dag definition lets an entire Dag — not just individual task bodies — be written in
 the target language, without a Python Dag file. It is gated by a single umbrella
 capability:
 
-``native-dag-authoring`` (SHOULD)
+``dag-definition`` (SHOULD)
     The SDK can define a whole Dag in the target language. The project intends every
     Language SDK to reach this bar, but an SDK is not required to ship it before it is
     ready; an SDK that only executes ``@task.stub`` tasks from a Python Dag is still useful
     and remains conformant to the MUST tier.
 
-The remaining native-Dag capabilities are **conditional**: their tier applies only when
-``native-dag-authoring`` is supported (written ``†``). For an SDK that does not (yet) author
-native Dags they are *not applicable* (``n/a``) rather than unsupported.
+The remaining Dag-definition capabilities are **conditional**: their tier applies only when
+``dag-definition`` is supported (written ``†``). For an SDK that does not (yet) author Dags
+in its own language they are *not applicable* (``n/a``) rather than unsupported.
+
+``dag-args`` (MUST †)
+    Dag-level arguments (schedule, tags, default queue, and so on) can be set on a Dag definition.
 
 ``task-args`` (MUST †)
-    Task-level arguments can be bound to a native task.
+    Task-level arguments (retries, pool, queue, and so on) can be set on a task of a Dag definition.
 
 ``dag-params`` (MUST †)
-    Dag-level params can be declared on a native Dag.
+    Dag-level params can be declared on a Dag definition.
+
+``explicit-dependencies`` (MUST †)
+    Order-only dependencies can be drawn between tasks, the equivalent of Python's ``>>`` and
+    ``<<``.
+
+``edge-labels`` (MAY †)
+    A dependency can carry a label, the equivalent of Python's
+    ``loaded >> Label("when empty") >> notify``, and the Dag graph shows it.
 
 ``taskflow-dependencies`` (MUST †)
     Task dependencies can be expressed in a TaskFlow style, including passing a task's
     return value to a downstream task.
 
-``branching`` (SHOULD †)
-    The native DSL offers a branch construct that skips the non-selected branches.
-
-``dag-test`` (SHOULD †)
-    A native Dag can be exercised locally with ``airflow dags test``.
-
 ``task-group`` (MAY †)
     Tasks can be organised into task groups.
 
-``dynamic-task-mapping`` (MAY †)
-    Tasks can be expanded at runtime via dynamic task mapping.
+``task-loops`` (MAY †)
+    A task group can be repeated at runtime, the equivalent of Python's ``@task_group``
+    with ``.loop()``, bounded by ``max_iterations`` and an optional ``until`` condition.
 
-``asset-inlets-outlets`` (MAY †)
-    Native tasks can declare asset inlets and outlets.
+``if-else-branching`` (SHOULD †)
+    A task can decide between two downstream paths and skip the one not taken.
+
+``switch-case-branching`` (SHOULD †)
+    A task can pick one of several downstream paths and skip the others.
+
+``trigger-dag-run`` (MAY †)
+    A Dag definition can declare a task that triggers a run of another Dag, like
+    ``TriggerDagRunOperator``.
+
+``dynamic-dag-generation`` (MAY †)
+    One artifact can generate several Dags from code, for example in a loop.
+
+``human-in-the-loop`` (MAY †)
+    A Dag definition can declare a task that waits for human input.
+
+``dag-test`` (SHOULD †)
+    A Dag definition can be exercised locally with ``airflow dags test``.
+
+``asset-definition`` (MAY †)
+    Assets can be declared in the target language: the equivalents of Python's ``Asset``,
+    ``AssetAlias``, ``AssetAll`` / ``AssetAny``, and the partition mappers a partitioned
+    asset timetable consumes.
 
 ``asset-scheduling`` (MAY †)
-    A native Dag can be scheduled on asset events.
+    A Dag definition can be scheduled on asset events, including the ``AssetWatcher``
+    equivalent that turns an external trigger into those events.
 
-``object-store`` (MAY †)
-    The SDK exposes an object-storage API (an ``ObjectStoragePath`` equivalent) usable from
-    native Dag code.
+Python Dag with stub TaskHandler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+These capabilities cover tasks declared in a Python Dag with the ``@task.stub`` decorator and
+implemented in the target language.
+
+``mixed-lang-stub-target`` (MUST)
+    The SDK can execute a task declared in a Python Dag with the ``@task.stub``
+    decorator. This is the primary execution path for every Language SDK.
+
+``taskflow-binding`` (MUST)
+    Arguments bound to a ``@task.stub`` target in the Python TaskFlow Dag — literal values
+    and upstream XCom results alike — are delivered to the task function's parameters at
+    runtime.
+
+Shared capabilities
+~~~~~~~~~~~~~~~~~~~
+
+These capabilities exist in both authoring modes, and an SDK may support them in one mode but not
+the other, so each one is declared once per mode. In a Dag definition the tier applies only when
+``dag-definition`` is supported.
+
+``dynamic-task-mapping`` (MAY)
+    A task can be expanded at runtime via dynamic task mapping, and each mapped instance
+    receives its own arguments.
+
+``asset-inlets-outlets`` (MAY)
+    A task's asset inlets and outlets are honored, so a successful task emits events for its
+    outlets.
 
 Compatibility matrix
 ~~~~~~~~~~~~~~~~~~~~
 
 The dimensions above are prose; each SDK also declares them *machine-readably* in one
-hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates its published tables:
+hand-authored ``<sdk>/capabilities.yaml``, from which prek hooks generate the published tables:
 
 .. code-block:: text
 
@@ -532,12 +582,30 @@ hand-authored ``<sdk>/capabilities.yaml``, from which a prek hook generates its 
       |
       +--> java-sdk/README.md            (user-facing landing page)
       +--> java-sdk/sdk/module.md        (Dokka -> the published API reference)
+      +--> airflow-core/docs/authoring-and-scheduling/language-sdks/index.rst
+           (consolidated cross-SDK matrix)
 
-The hook rewrites its targets and exits non-zero when either was stale, so a drifted table fails
+Each hook rewrites its targets and exits non-zero when a target was stale, so a drifted table fails
 the build. Keep the manifest out of whatever the SDK publishes — it describes the SDK rather than
 being part of it; for Java that means sitting above every subproject in ``settings.gradle.kts``.
 
-To add an SDK, register it in ``LANG_SDKS`` in ``scripts/ci/prek/lang_sdk_compat_matrix.py``, write
+A supported dimension may also record ``sdk_version``, the SDK's own release that shipped it,
+alongside ``since`` (the Airflow version). It is optional: name the release that ships, or will
+ship, the dimension, and omit it when that is not settled yet. A shared capability holds one
+entry per authoring mode:
+
+.. code-block:: yaml
+
+    dynamic-task-mapping:
+      dag-definition:
+        supported: false
+      stub-task-handler:
+        supported: true
+        since: "3.4.0"
+        sdk_version: "1.0.0"
+
+To add an SDK, register it in ``LANG_SDKS`` (its ``id``, ``display_name`` and file locations) in
+``scripts/ci/prek/lang_sdk_compat_matrix.py``, write
 a ``capabilities.yaml`` in the same schema, and add the equivalent hook. Adding or renaming a
 dimension means editing ``STATE_DIMENSIONS`` / ``CAPABILITY_DIMENSIONS`` there **and** the prose
 above in the same PR — the renderer validates every manifest against that list.
