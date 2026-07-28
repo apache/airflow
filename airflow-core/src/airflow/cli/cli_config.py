@@ -520,7 +520,7 @@ ARG_DB_TABLES = Arg(
     help=lazy_object_proxy.Proxy(
         lambda: (
             f"Table names to perform maintenance on (use comma-separated list).\n"
-            f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+            f"Options: {import_string('airflow.utils.db_cleanup.get_all_table_names')()}"
         )
     ),
     type=string_list_type,

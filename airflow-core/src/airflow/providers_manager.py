@@ -449,6 +449,7 @@ class ProvidersManager(LoggingMixin):
         self._executor_without_check_set: set[tuple[str, str]] = set()
         self._queue_class_name_set: set[str] = set()
         self._db_manager_class_name_set: set[str] = set()
+        self._db_cleanup_table_provider_set: set[str] = set()
         self._provider_configs: dict[str, dict[str, Any]] = {}
         self._trigger_info_set: set[TriggerInfo] = set()
         self._notification_info_set: set[NotificationInfo] = set()
@@ -616,6 +617,12 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of providers db_managers information."""
         self.initialize_providers_list()
         self._discover_db_managers()
+
+    @provider_info_cache("db_cleanup_tables")
+    def initialize_providers_db_cleanup_tables(self):
+        """Lazy initialization of providers db cleanup table information."""
+        self.initialize_providers_list()
+        self._discover_db_cleanup_tables()
 
     @provider_info_cache("notifications")
     def initialize_providers_notifications(self):
@@ -1315,6 +1322,13 @@ class ProvidersManager(LoggingMixin):
                     if _correctness_check(provider_package, db_manager_class_name, provider):
                         self._db_manager_class_name_set.add(db_manager_class_name)
 
+    def _discover_db_cleanup_tables(self) -> None:
+        """Retrieve all ``airflow db clean`` table contributors defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            for callable_name in provider.data.get("db-cleanup-tables", []):
+                if _correctness_check(provider_package, callable_name, provider):
+                    self._db_cleanup_table_provider_set.add(callable_name)
+
     def _discover_config(self) -> None:
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1530,6 +1544,12 @@ class ProvidersManager(LoggingMixin):
         return sorted(self._db_manager_class_name_set)
 
     @property
+    def db_cleanup_table_providers(self) -> list[str]:
+        """Import paths of provider callables that contribute ``airflow db clean`` table configs."""
+        self.initialize_providers_db_cleanup_tables()
+        return sorted(self._db_cleanup_table_provider_set)
+
+    @property
     def filesystem_module_names(self) -> list[str]:
         self.initialize_providers_filesystems()
         return sorted(self._fs_set)
@@ -1592,6 +1612,7 @@ class ProvidersManager(LoggingMixin):
         self._executor_class_name_set.clear()
         self._executor_without_check_set.clear()
         self._queue_class_name_set.clear()
+        self._db_cleanup_table_provider_set.clear()
         self._provider_configs.clear()
 
         # Imported lazily to avoid a configuration/providers_manager import cycle during cleanup.
