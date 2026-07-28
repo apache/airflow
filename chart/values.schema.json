@@ -1316,7 +1316,7 @@
                     "default": null
                 },
                 "metadataSecretKey": {
-                    "description": "Key in the metadata connection secret containing the connection string. Only used when `metadataSecretName` is set. Defaults to `connection`.",
+                    "description": "Key in the metadata connection secret containing the connection string. Only used when `metadataSecretName` is set.",
                     "type": [
                         "string",
                         "null"
@@ -1332,7 +1332,7 @@
                     "default": null
                 },
                 "resultBackendSecretKey": {
-                    "description": "Key in the result backend connection secret containing the connection string. Only used when `resultBackendSecretName` is set. Defaults to `connection`.",
+                    "description": "Key in the result backend connection secret containing the connection string. Only used when `resultBackendSecretName` is set.",
                     "type": [
                         "string",
                         "null"
@@ -1349,7 +1349,7 @@
                     "default": null
                 },
                 "brokerUrlSecretKey": {
-                    "description": "Key in the broker URL secret containing the broker URL. Only used when `brokerUrlSecretName` is set. Defaults to `connection`.",
+                    "description": "Key in the broker URL secret containing the broker URL. Only used when `brokerUrlSecretName` is set.",
                     "type": [
                         "string",
                         "null"
