@@ -21,6 +21,8 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from fastapi import Request
+from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.logging.decorators import (
@@ -143,13 +145,13 @@ class TestActionLoggingUserFields:
             def get_display_name(self) -> str:
                 return "Jane Doe"
 
-        request = MagicMock()
+        request = MagicMock(spec=Request)
         request.headers = {}
         request.method = "GET"
         request.query_params = {}
         request.path_params = {}
         request.body = AsyncMock(return_value=b"")
-        session = MagicMock()
+        session = MagicMock(spec=Session)
 
         asyncio.run(action_logging(event="test_event")(request=request, session=session, user=FakeUser()))
 
