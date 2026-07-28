@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from functools import cached_property
+from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 import redshift_connector
@@ -25,9 +26,9 @@ from redshift_connector import Connection as RedshiftConnection, InterfaceError,
 
 try:
     from sqlalchemy import create_engine
-    from sqlalchemy.engine.url import URL
+    from sqlalchemy.engine.url import URL, make_url
 except ImportError:
-    URL = create_engine = None  # type: ignore[assignment,misc]
+    URL = create_engine = make_url = None  # type: ignore[assignment,misc]
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
@@ -36,6 +37,35 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+
+def _is_sqlalchemy_2() -> bool:
+    """Whether the installed SQLAlchemy has the native psycopg (v3) dialect (added in 2.0)."""
+    from packaging.version import Version
+    from sqlalchemy import __version__ as sqlalchemy_version
+
+    return Version(sqlalchemy_version) >= Version("2.0.0")
+
+
+def _resolve_postgres_drivername() -> str:
+    """
+    Pick a Postgres DB-API driver for the SQLAlchemy engine used by lineage/reflection.
+
+    Redshift is wire-compatible with Postgres, but Airflow's own connection to Redshift
+    uses ``redshift_connector`` directly (see ``get_conn``) — this only picks the driver
+    for the separate SQLAlchemy engine used e.g. for OpenLineage extraction.
+    """
+    # The psycopg (v3) package may be importable even where SQLAlchemy is pinned below 2.0
+    # (e.g. compat tests against older released Airflow versions), which doesn't register
+    # SQLAlchemy's native "postgresql+psycopg" dialect and would raise NoSuchModuleError.
+    if find_spec("psycopg") is not None and _is_sqlalchemy_2():
+        return "postgresql+psycopg"
+    if find_spec("psycopg2") is not None:
+        return "postgresql+psycopg2"
+    raise AirflowOptionalProviderFeatureException(
+        "A Postgres DB-API driver is required for the SQLAlchemy engine. Install one with: "
+        "pip install 'apache-airflow-providers-amazon[sqlalchemy]' psycopg2-binary (or psycopg[binary])"
+    )
 
 
 class RedshiftSQLHook(DbApiHook):
@@ -201,7 +231,8 @@ class RedshiftSQLHook(DbApiHook):
         else:
             engine_kwargs["connect_args"] = conn_kwargs
 
-        return create_engine(self.get_uri(), **engine_kwargs)
+        engine_url = make_url(self.get_uri()).set(drivername=_resolve_postgres_drivername())
+        return create_engine(engine_url, **engine_kwargs)
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """

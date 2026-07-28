@@ -189,6 +189,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
             ARG_OUTPUT,
             ARG_STATE,
             ARG_WORKER_NAME_PATTERN,
+            ARG_QUEUES,
         ),
     ),
     ActionCommand(

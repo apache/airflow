@@ -629,13 +629,22 @@ Using Breeze
              alt="Connecting to postgresql">
       </div>
 
-4. Stopping breeze
+4. Stopping Breeze
 
-If ``breeze`` was started with ``breeze start-airflow``, this command will stop breeze and Airflow:
+If Breeze was started with ``breeze start-airflow``, first exit the terminal multiplexer so that the
+Breeze container stops and releases its forwarded ports:
+
+* With mprocs (the default), press ``q`` in the mprocs interface.
+* With tmux, run ``stop_airflow`` from the main shell pane:
 
 .. code-block:: bash
 
   [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# stop_airflow
+
+After returning to the host shell, stop the remaining Docker Compose services:
+
+.. code-block:: bash
+
   breeze down
 
 If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or similar):
@@ -646,7 +655,8 @@ If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or s
   breeze down
 
 .. note::
-    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
+    ``stop_airflow`` is available only when ``breeze start-airflow`` uses tmux. Use ``q`` to quit
+    the default mprocs interface.
 
 Using tmux Instead of mprocs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import threading
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
 from datetime import datetime
@@ -974,9 +975,59 @@ class OpenLineageListener:
 
     def _execute(self, callable, callable_name: str, use_fork: bool = False):
         if use_fork:
-            self._fork_execute(callable, callable_name)
+            if conf.execute_in_thread():
+                self._thread_execute(callable, callable_name)
+            else:
+                self._fork_execute(callable, callable_name)
         else:
             callable()
+
+    def _thread_execute(self, callable, callable_name: str):
+        """
+        Run OpenLineage event emission in a time-bounded daemon thread.
+
+        Opt-in alternative to :meth:`_fork_execute`, enabled via
+        ``[openlineage] execute_in_thread``. Unlike forking, this never duplicates the
+        task runner process, so no supervisor connection is inherited and left in a broken
+        state -- emission therefore cannot strand the task in the ``running`` state. The
+        task runner waits at most ``[openlineage] execution_timeout`` for emission and then
+        proceeds. Metadata extraction still runs in-process with full access to the task
+        runtime, so Operators whose extractors resolve Connections, Variables or XComs keep
+        working.
+        """
+
+        def _run():
+            try:
+                callable()
+            except Exception:
+                self.log.warning(
+                    "OpenLineage %s thread failed. This has no impact on actual task execution status.",
+                    callable_name,
+                    exc_info=True,
+                )
+
+        thread = threading.Thread(
+            target=_run,
+            name=f"openlineage-{callable_name}",
+            daemon=True,
+        )
+        thread.start()
+        thread.join(timeout=conf.execution_timeout())
+        if thread.is_alive():
+            # Emission is still running. We deliberately do not keep waiting: the thread is a
+            # daemon, reaped when the process exits. Unlike the fork path -- where parent and
+            # child shared a socket fd with no cross-process locking and could interleave bytes
+            # on the supervisor channel -- this thread reaches the supervisor only through the
+            # shared SUPERVISOR_COMMS threading lock, so it cannot corrupt the protocol. The main
+            # thread may briefly wait on that lock if the abandoned thread is mid-request, but the
+            # wait is bounded by a single round trip. This mirrors the fork path terminating an
+            # over-running child.
+            self.log.warning(
+                "OpenLineage %s thread did not finish within execution_timeout=%ss and will be "
+                "abandoned. This has no impact on actual task execution status.",
+                callable_name,
+                conf.execution_timeout(),
+            )
 
     def _terminate_with_wait(self, process: psutil.Process):
         process.terminate()

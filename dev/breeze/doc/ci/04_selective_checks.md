@@ -508,8 +508,11 @@ when some files are not changed. Those are the rules implemented:
     skipped (it regenerates and diffs the generated ts-sdk file; a change to the supervisor
     wire schema alone deliberately does not trigger it - regenerating the ts-sdk types is
     the ts-sdk follow-up PR's job, not the schema author's)
-  * if no `All Providers Python files` and no `All Providers Yaml files` are changed -
-    `check-provider-yaml-valid` check is skipped
+  * `check-provider-yaml-valid` is skipped unless at least one of these changed:
+    `All Providers Python files`, `All Providers Distribution Config files`
+    (which includes `provider.yaml`, `pyproject.toml`, and `providers/.pre-commit-config.yaml`),
+    or `Prek files` (`scripts/ci/prek/`). The last condition ensures the check runs
+    when the check script itself is modified.
 
 ## Suspended providers
 
