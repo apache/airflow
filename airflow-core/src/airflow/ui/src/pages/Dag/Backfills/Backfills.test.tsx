@@ -18,21 +18,23 @@
  */
 import "@testing-library/jest-dom";
 import { fireEvent, render, screen, waitForElementToBeRemoved, within } from "@testing-library/react";
-import type * as ReactRouterDom from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BackfillDagRunResponse, BackfillResponse } from "openapi/requests/types.gen";
 import type * as Utils from "src/utils";
-import { Wrapper } from "src/utils/Wrapper";
+import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Backfills } from "./Backfills";
 
 const mocks = vi.hoisted(() => ({
+  getBackfill: vi.fn(),
   listBackfillDagRuns: vi.fn(),
   listBackfills: vi.fn(),
 }));
 
 vi.mock("openapi/queries", () => ({
+  useBackfillServiceGetBackfill: mocks.getBackfill,
   useBackfillServiceListBackfillDagRuns: mocks.listBackfillDagRuns,
   useBackfillServiceListBackfillsUi: mocks.listBackfills,
 }));
@@ -45,18 +47,16 @@ vi.mock("react-i18next", () => ({
         "common:backfill_one": "Backfill",
         "common:slot": "Slots",
         "components:backfill.exceptionReason.alreadyExists": "Already exists",
+        "components:backfill.exceptionReason.inFlight": "In flight",
+        "components:backfill.exceptionReason.unknown": "Unknown",
         "components:backfill.notCreatedReason": "Not Created Reason",
+        "dagRun.partitionKey": "Partition Key",
         dagRunState: "Dag Run State",
+        logicalDate: "Logical Date",
         "states.success": "Success",
       })[key] ?? key,
   }),
 }));
-
-vi.mock("react-router-dom", async (importOriginal) => {
-  const actual = await importOriginal<typeof ReactRouterDom>();
-
-  return { ...actual, useParams: () => ({ dagId: "example_dag" }) };
-});
 
 vi.mock("src/components/Time", () => ({
   default: ({ datetime }: { readonly datetime: string | null }) => <span>{datetime}</span>,
@@ -107,14 +107,65 @@ const dagRuns: Array<BackfillDagRunResponse> = [
     dag_run_state: "success",
     exception_reason: null,
     id: 2,
-    logical_date: "2026-07-02T00:00:00Z",
-    partition_key: null,
+    logical_date: null,
+    partition_key: "partition-b",
     sort_ordinal: 2,
   },
 ];
 
+const renderBackfills = (initialEntry = "/dags/example_dag/backfills") =>
+  render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route element={<Backfills />} path="/dags/:dagId/backfills" />
+          <Route element={<Backfills />} path="/dags/:dagId/backfills/:backfillId" />
+        </Routes>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
+
+const expectGetBackfillQuery = (backfillId: number) => {
+  const [parameters, queryKey, options] = mocks.getBackfill.mock.lastCall as [
+    { backfillId: number },
+    undefined,
+    {
+      enabled: boolean;
+      refetchInterval: (query: { state: { data: BackfillResponse } }) => number | false;
+    },
+  ];
+
+  expect(parameters).toEqual({ backfillId });
+  expect(queryKey).toBeUndefined();
+  expect(options.enabled).toBe(true);
+  expect(typeof options.refetchInterval).toBe("function");
+
+  return options.refetchInterval;
+};
+
+const expectDagRunsQuery = (backfillId: number) => {
+  const [parameters, queryKey, options] = mocks.listBackfillDagRuns.mock.lastCall as [
+    { backfillId: number; limit: number; offset: number },
+    undefined,
+    {
+      enabled: boolean;
+      refetchInterval: (query: {
+        state: { data: { backfill_dag_runs: Array<BackfillDagRunResponse> } };
+      }) => number | false;
+    },
+  ];
+
+  expect(parameters).toEqual({ backfillId, limit: 25, offset: 0 });
+  expect(queryKey).toBeUndefined();
+  expect(options.enabled).toBe(true);
+  expect(typeof options.refetchInterval).toBe("function");
+
+  return options.refetchInterval;
+};
+
 describe("Backfills", () => {
   beforeEach(() => {
+    mocks.getBackfill.mockReset();
     mocks.listBackfillDagRuns.mockReset();
     mocks.listBackfills.mockReset();
   });
@@ -130,6 +181,11 @@ describe("Backfills", () => {
       }),
     ];
 
+    mocks.getBackfill.mockImplementation(({ backfillId }: { backfillId: number }) => ({
+      data: backfillId === 8 ? backfills[1] : backfills[0],
+      error: undefined,
+      isLoading: false,
+    }));
     mocks.listBackfillDagRuns.mockReturnValue({
       data: { backfill_dag_runs: dagRuns, total_entries: dagRuns.length },
       error: undefined,
@@ -143,7 +199,7 @@ describe("Backfills", () => {
       isLoading: false,
     });
 
-    render(<Backfills />, { wrapper: Wrapper });
+    renderBackfills();
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
@@ -153,6 +209,7 @@ describe("Backfills", () => {
 
     expect(within(dialog).getByRole("heading", { name: "Backfill #7" })).toBeInTheDocument();
     expect(within(dialog).getByRole("heading", { name: "2 Slots" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("columnheader", { name: "Partition Key" })).toBeInTheDocument();
     expect(within(dialog).getByText("partition-a")).toBeInTheDocument();
     expect(within(dialog).getByText("Already exists")).toBeInTheDocument();
     expect(within(dialog).getByText("Success")).toBeInTheDocument();
@@ -160,18 +217,17 @@ describe("Backfills", () => {
       "href",
       "/dags/example_dag/runs/scheduled__2026-07-02",
     );
-    expect(mocks.listBackfillDagRuns).toHaveBeenLastCalledWith(
-      {
-        backfillId: 7,
-        limit: 25,
-        offset: 0,
-      },
-      undefined,
-      {
-        enabled: true,
-        refetchInterval: 5000,
-      },
-    );
+    const getDagRunsRefetchInterval = expectDagRunsQuery(7);
+
+    expect(getDagRunsRefetchInterval({ state: { data: { backfill_dag_runs: dagRuns } } })).toBe(5000);
+    const getBackfillRefetchInterval = expectGetBackfillQuery(7);
+
+    expect(getBackfillRefetchInterval({ state: { data: makeBackfill() } })).toBe(5000);
+    expect(
+      getBackfillRefetchInterval({
+        state: { data: makeBackfill({ completed_at: "2026-08-06T00:00:00Z" }) },
+      }),
+    ).toBe(false);
     expect(mocks.listBackfills).toHaveBeenCalledWith({
       dagId: "example_dag",
       limit: 25,
@@ -183,17 +239,88 @@ describe("Backfills", () => {
     fireEvent.click(screen.getByText("2026-08-01T00:00:00Z"));
     await screen.findByRole("dialog");
 
-    expect(mocks.listBackfillDagRuns).toHaveBeenLastCalledWith(
-      {
-        backfillId: 8,
-        limit: 25,
-        offset: 0,
-      },
-      undefined,
-      {
-        enabled: true,
-        refetchInterval: false,
-      },
+    const getCompletedDagRunsRefetchInterval = expectDagRunsQuery(8);
+
+    expect(getCompletedDagRunsRefetchInterval({ state: { data: { backfill_dag_runs: dagRuns } } })).toBe(
+      false,
     );
+    expect(
+      getCompletedDagRunsRefetchInterval({
+        state: {
+          data: {
+            backfill_dag_runs: [
+              {
+                ...dagRuns[1]!,
+                dag_run_state: "queued",
+              },
+            ],
+          },
+        },
+      }),
+    ).toBe(5000);
+  });
+
+  it("opens a linked backfill with logical dates and renders creation reasons", async () => {
+    const backfill = makeBackfill({ id: 9 });
+    const logicalDate = "2026-07-03T00:00:00Z";
+    const reason = "future reason";
+
+    mocks.getBackfill.mockReturnValue({
+      data: backfill,
+      error: undefined,
+      isLoading: false,
+    });
+    mocks.listBackfillDagRuns.mockReturnValue({
+      data: {
+        backfill_dag_runs: [
+          {
+            ...dagRuns[0],
+            backfill_id: 9,
+            exception_reason: "in flight",
+            logical_date: logicalDate,
+            partition_key: null,
+          },
+          {
+            ...dagRuns[0],
+            backfill_id: 9,
+            exception_reason: "unknown",
+            id: 2,
+            logical_date: logicalDate,
+            partition_key: null,
+            sort_ordinal: 2,
+          },
+          {
+            ...dagRuns[0],
+            backfill_id: 9,
+            exception_reason: reason as BackfillDagRunResponse["exception_reason"],
+            id: 3,
+            logical_date: logicalDate,
+            partition_key: null,
+            sort_ordinal: 3,
+          },
+        ],
+        total_entries: 3,
+      },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+    mocks.listBackfills.mockReturnValue({
+      data: { backfills: [], total_entries: 0 },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+
+    renderBackfills("/dags/example_dag/backfills/9");
+
+    const dialog = await screen.findByRole("dialog");
+
+    expect(within(dialog).getByRole("columnheader", { name: "Logical Date" })).toBeInTheDocument();
+    expect(within(dialog).getAllByText(logicalDate)).toHaveLength(3);
+    expect(within(dialog).getByText("In flight")).toBeInTheDocument();
+    expect(within(dialog).getByText("Unknown")).toBeInTheDocument();
+    expect(within(dialog).getByText(reason)).toBeInTheDocument();
+    expectGetBackfillQuery(9);
   });
 });

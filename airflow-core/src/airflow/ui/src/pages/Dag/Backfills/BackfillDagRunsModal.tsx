@@ -21,8 +21,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useBackfillServiceListBackfillDagRuns } from "openapi/queries";
-import type { BackfillDagRunResponse, BackfillResponse } from "openapi/requests/types.gen";
+import { useBackfillServiceGetBackfill, useBackfillServiceListBackfillDagRuns } from "openapi/queries";
+import type { BackfillDagRunResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { TableState } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -33,7 +33,8 @@ import { useConfig } from "src/queries/useConfig";
 import { useAutoRefresh } from "src/utils";
 
 type BackfillDagRunsModalProps = {
-  readonly backfill: BackfillResponse | undefined;
+  readonly backfillId: number | undefined;
+  readonly dagId: string;
   readonly onClose: () => void;
   readonly open: boolean;
 };
@@ -45,17 +46,29 @@ const translateExceptionReason = (reason: string, translate: (key: string) => st
       return translate("components:backfill.exceptionReason.alreadyExists");
     case "in flight":
       return translate("components:backfill.exceptionReason.inFlight");
-    default:
+    case "unknown":
       return translate("components:backfill.exceptionReason.unknown");
+    default:
+      return reason;
   }
 };
 
-const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillDagRunResponse>> => [
+const isPendingDagRun = ({ dag_run_state: state, exception_reason: reason }: BackfillDagRunResponse) =>
+  reason === null && state !== "failed" && state !== "success";
+
+const getColumns = (
+  isPartitioned: boolean,
+  translate: (key: string) => string,
+): Array<ColumnDef<BackfillDagRunResponse>> => [
   {
-    accessorKey: "logical_date",
+    accessorKey: isPartitioned ? "partition_key" : "logical_date",
     cell: ({ row }) => {
-      if (row.original.partition_key !== null && row.original.partition_key !== "") {
-        return <Text>{row.original.partition_key}</Text>;
+      if (isPartitioned) {
+        return row.original.partition_key === null || row.original.partition_key === "" ? (
+          <Text color="fg.muted">—</Text>
+        ) : (
+          <Text>{row.original.partition_key}</Text>
+        );
       }
 
       if (row.original.logical_date !== null && row.original.logical_date !== "") {
@@ -69,7 +82,7 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
       return <Text color="fg.muted">—</Text>;
     },
     enableSorting: false,
-    header: translate("slot"),
+    header: translate(isPartitioned ? "dagRun.partitionKey" : "logicalDate"),
   },
   {
     accessorKey: "dag_run_state",
@@ -124,7 +137,7 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
   },
 ];
 
-export const BackfillDagRunsModal = ({ backfill, onClose, open }: BackfillDagRunsModalProps) => {
+export const BackfillDagRunsModal = ({ backfillId, dagId, onClose, open }: BackfillDagRunsModalProps) => {
   const { t: translate } = useTranslation();
   const pageSize = (useConfig("fallback_page_limit") as number | undefined) ?? 100;
   const [pageIndex, setPageIndex] = useState(0);
@@ -135,21 +148,34 @@ export const BackfillDagRunsModal = ({ backfill, onClose, open }: BackfillDagRun
     },
     sorting: [],
   } satisfies TableState;
-  const refetchInterval = useAutoRefresh({ dagId: backfill?.dag_id });
-  const shouldPoll = backfill?.completed_at === null && !backfill.is_paused;
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const {
+    data: backfill,
+    error: backfillError,
+    isLoading: isBackfillLoading,
+  } = useBackfillServiceGetBackfill({ backfillId: backfillId ?? 0 }, undefined, {
+    enabled: open && backfillId !== undefined,
+    refetchInterval: (query) => (query.state.data?.completed_at === null ? refetchInterval : false),
+  });
+  const shouldPoll = backfill?.completed_at === null;
 
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillDagRuns(
     {
-      backfillId: backfill?.id ?? 0,
+      backfillId: backfillId ?? 0,
       limit: pageSize,
       offset: pageIndex * pageSize,
     },
     undefined,
     {
-      enabled: open && backfill !== undefined,
-      refetchInterval: shouldPoll ? refetchInterval : false,
+      enabled: open && backfillId !== undefined,
+      refetchInterval: (query) =>
+        shouldPoll || query.state.data?.backfill_dag_runs.some(isPendingDagRun) ? refetchInterval : false,
     },
   );
+  const isPartitioned =
+    data?.backfill_dag_runs[0]?.partition_key !== null &&
+    data?.backfill_dag_runs[0]?.partition_key !== undefined;
 
   const handleOpenChange = () => {
     setPageIndex(0);
@@ -168,18 +194,19 @@ export const BackfillDagRunsModal = ({ backfill, onClose, open }: BackfillDagRun
       <Dialog.Content backdrop>
         <Dialog.Header>
           <Heading size="md">
-            {translate("common:backfill_one")} #{backfill?.id}
+            {translate("common:backfill_one")} #{backfillId}
           </Heading>
         </Dialog.Header>
         <Dialog.CloseTrigger />
         <Dialog.Body>
+          <ErrorAlert error={backfillError} />
           <ErrorAlert error={error} />
           <DataTable
-            columns={getColumns(translate)}
+            columns={getColumns(isPartitioned, translate)}
             data={data?.backfill_dag_runs ?? []}
             initialState={tableState}
             isFetching={isFetching}
-            isLoading={isLoading}
+            isLoading={isBackfillLoading || isLoading}
             modelName="common:slot"
             onStateChange={(state) => setPageIndex(state.pagination.pageIndex)}
             showRowCountHeading

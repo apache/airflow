@@ -18,9 +18,8 @@
  */
 import { Box, Button, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
@@ -33,7 +32,7 @@ import { getDuration } from "src/utils";
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 
 const getColumns = (
-  onSelectBackfill: (backfill: BackfillResponse) => void,
+  onSelectBackfill: (backfillId: number) => void,
   translate: (key: string) => string,
 ): Array<ColumnDef<BackfillResponse>> => [
   {
@@ -42,7 +41,7 @@ const getColumns = (
       <Button
         colorPalette="brand"
         fontWeight="bold"
-        onClick={() => onSelectBackfill(row.original)}
+        onClick={() => onSelectBackfill(row.original.id)}
         variant="plain"
       >
         <Time datetime={row.original.from_date} />
@@ -117,18 +116,40 @@ const getColumns = (
 export const Backfills = () => {
   const { t: translate } = useTranslation();
   const { setTableURLState, tableURLState } = useTableURLState();
-  const [selectedBackfill, setSelectedBackfill] = useState<BackfillResponse>();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const { pagination } = tableURLState;
 
-  const { dagId = "" } = useParams();
+  const { backfillId, dagId = "" } = useParams();
+  const selectedBackfillId = Number(backfillId);
+  const hasSelectedBackfill = Number.isInteger(selectedBackfillId) && selectedBackfillId > 0;
   const { data, error, isFetching, isLoading } = useBackfillServiceListBackfillsUi({
     dagId,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
-  const columns = getColumns(setSelectedBackfill, translate);
+  const onSelectBackfill = (id: number) => {
+    void Promise.resolve(
+      navigate({
+        pathname: `/dags/${dagId}/backfills/${id}`,
+        search: location.search,
+      }),
+    );
+  };
+  const onClose = () => {
+    void Promise.resolve(
+      navigate(
+        {
+          pathname: `/dags/${dagId}/backfills`,
+          search: location.search,
+        },
+        { replace: true },
+      ),
+    );
+  };
+  const columns = getColumns(onSelectBackfill, translate);
 
   return (
     <Box>
@@ -146,9 +167,10 @@ export const Backfills = () => {
         total={data ? data.total_entries : 0}
       />
       <BackfillDagRunsModal
-        backfill={selectedBackfill}
-        onClose={() => setSelectedBackfill(undefined)}
-        open={selectedBackfill !== undefined}
+        backfillId={hasSelectedBackfill ? selectedBackfillId : undefined}
+        dagId={dagId}
+        onClose={onClose}
+        open={hasSelectedBackfill}
       />
     </Box>
   );
