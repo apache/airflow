@@ -16,30 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow.providers.fab.auth_manager.models import User
-
-pytestmark = pytest.mark.db_test
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 
 
-@pytest.mark.parametrize(
-    ("user_id", "expected_id"),
-    [(999, "999")],
-)
-def test_get_id_returns_str(user_id: int, expected_id: str) -> None:
-    """
-    Ensure get_id() always returns a string representation of the id.
-    """
-    user = User()
-    user.id = user_id
-    result = user.get_id()
-    assert isinstance(result, str), f"Expected str, got {type(result)}"
-    assert result == expected_id
+class UserWithoutDisplayName(BaseUser):
+    """An auth manager user predating get_display_name (only get_id / get_name defined)."""
+
+    def get_id(self) -> str:
+        return "user-id"
+
+    def get_name(self) -> str:
+        return "user-name"
 
 
-def test_get_display_name_uses_full_name() -> None:
-    user = User()
-    user.first_name = "Jane"
-    user.last_name = "Doe"
-    assert user.get_display_name() == "Jane Doe"
+def test_get_display_name_defaults_to_get_name():
+    assert UserWithoutDisplayName().get_display_name() == "user-name"

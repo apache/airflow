@@ -403,6 +403,20 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert event_log["owner"] == OWNER_AIRFLOW
         assert event_log["owner_display_name"] == OWNER_AIRFLOW
 
+    def test_get_event_logs_filters_by_owner_display_name_pattern(self, test_client):
+        response = test_client.get("/eventLogs", params={"owner_display_name_pattern": "est Own"})
+
+        assert response.status_code == 200
+        events = {event_log["event"] for event_log in response.json()["event_logs"]}
+        assert events == {EVENT_WITH_OWNER, EVENT_WITH_OWNER_AND_TASK_INSTANCE}
+
+    def test_get_event_logs_filters_by_owner_display_name_prefix_pattern(self, test_client):
+        response = test_client.get("/eventLogs", params={"owner_display_name_prefix_pattern": "Test"})
+
+        assert response.status_code == 200
+        events = {event_log["event"] for event_log in response.json()["event_logs"]}
+        assert events == {EVENT_WITH_OWNER, EVENT_WITH_OWNER_AND_TASK_INSTANCE}
+
     # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
