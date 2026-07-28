@@ -32,17 +32,16 @@ except ImportError:  # pragma: no cover
 # Postgres only matches the current scope of the deferrable SQLExecuteQueryOperator
 _DIALECT = "postgres"
 
+_WRITE_TYPES: tuple[type[exp.Expr], ...] = ()
 if _SQLGLOT_AVAILABLE:
     _WRITE_TYPES = (exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Create, exp.Alter, exp.Drop)
     for name in ("TruncateTable", "Rename"):
         cls = getattr(exp, name, None)
         if cls is not None:
             _WRITE_TYPES += (cls,)
-else:
-    _WRITE_TYPES = ()
 
 
-def _statement_write_node(stmt: exp.Expression):
+def _statement_write_node(stmt: exp.Expr):
     """Return the first node that proves this statement writes, or None."""
     if isinstance(stmt, _WRITE_TYPES):
         return stmt
@@ -66,7 +65,7 @@ def scan_for_writes(sql: str | list[str]) -> tuple[bool, str]:
             "read-only guard: could not parse SQL (%s); deferring judgement to the read-only transaction",
             exc.__class__.__name__,
         )
-        return False, "unparseable; read-only transaction will enforce"
+        return False, "unparsable; read-only transaction will enforce"
 
     for idx, stmt in enumerate(statements):
         if stmt is None:  # empty fragment from a trailing ';'
