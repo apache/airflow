@@ -66,9 +66,9 @@
 // parameter is made per execution, so the same function can bind either way in
 // different Dags.
 //
-// Mapped upstream fan-in is out of scope: the wire spec may carry a map_index /
-// element_index, but this version ignores them and always pulls the unmapped
-// upstream instance.
+// Mapped (.expand()) stubs are out of scope: their specs carry no bindings on
+// this wire version, so an XCom pull always targets the unmapped upstream
+// instance. Per-map-index delivery arrives with the mapped follow-up.
 package binding
 
 import (
