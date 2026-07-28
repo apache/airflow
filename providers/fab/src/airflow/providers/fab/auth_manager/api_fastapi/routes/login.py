@@ -102,7 +102,14 @@ def create_token_cli(request: Request, body: dict[str, Any] = Body(...)) -> Logi
 def logout(request: Request) -> RedirectResponse:
     """Clear session cookies and redirect to the login page."""
     with _get_flask_app().app_context():
-        login_url = get_auth_manager().get_url_login()
+        auth_manager = get_auth_manager()
+
+        # Revoke the current token before redirecting, matching the core
+        # /auth/logout route's behavior (see PR #67289).
+        if token_str := request.cookies.get(COOKIE_NAME_JWT_TOKEN):
+            auth_manager.revoke_token(token_str)
+
+        login_url = auth_manager.get_url_login()
         secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
         cookie_path = get_cookie_path()
         response = RedirectResponse(login_url)
