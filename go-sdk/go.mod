@@ -21,7 +21,7 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.10
-	resty.dev/v3 v3.0.0-beta.2
+	resty.dev/v3 v3.0.0-rc.3
 )
 
 require (
