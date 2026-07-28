@@ -120,7 +120,8 @@ def generate_pod_yaml(args):
 
 
 def _get_pod_completion_time(pod):
-    """Return the time the pod entered a terminal state, or its creation time as fallback.
+    """
+    Return the time the pod entered a terminal state, or its creation time as fallback.
 
     Uses the latest ``finished_at`` timestamp across all container statuses so that pods
     with multiple containers (e.g. an init container + a base container) are judged by
