@@ -42,7 +42,11 @@ from airflow.api_fastapi.common.parameters import (
     QueryOffset,
     RangeFilter,
     SortParam,
+    _PrefixSearchParam,
+    _SearchParam,
     datetime_range_filter_factory,
+    prefix_search_param_factory,
+    search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import (
@@ -144,6 +148,11 @@ def get_dag_structure(
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
     triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(DagRun.run_id, "run_id_prefix_pattern")),
+    ],
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
     depth: int | None = None,
@@ -177,7 +186,15 @@ def get_dag_structure(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
+        filters=[
+            run_after,
+            run_type,
+            state,
+            triggering_user,
+            triggering_user_prefix,
+            run_id_pattern,
+            run_id_prefix_pattern,
+        ],
         limit=limit,
     )
     run_ids = list(session.scalars(dag_runs_select_filter))
@@ -282,6 +299,11 @@ def get_grid_runs(
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
     triggering_user_prefix: QueryDagRunTriggeringUserPrefixSearch,
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(DagRun.run_id, "run_id_pattern"))],
+    run_id_prefix_pattern: Annotated[
+        _PrefixSearchParam,
+        Depends(prefix_search_param_factory(DagRun.run_id, "run_id_prefix_pattern")),
+    ],
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
     # Retrieve, sort the previous Dag Runs
@@ -330,7 +352,15 @@ def get_grid_runs(
         statement=base_query,
         order_by=order_by,
         offset=offset,
-        filters=[run_after, run_type, state, triggering_user, triggering_user_prefix],
+        filters=[
+            run_after,
+            run_type,
+            state,
+            triggering_user,
+            triggering_user_prefix,
+            run_id_pattern,
+            run_id_prefix_pattern,
+        ],
         limit=limit,
         return_total_entries=False,
     )
