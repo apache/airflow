@@ -298,7 +298,10 @@ repos:
       - id: check-go-example-mod-tidy
         name: Check lang-SDK Go example module is tidy against the Go SDK
         entry: ./scripts/ci/prek/check_go_example_mod_tidy.py
-        language: python
+        # golang so prek provisions the toolchain the check needs: static checks run on a
+        # runner whose preinstalled toolchains are wiped to free disk space, and the SDK's
+        # own `go mod tidy` hook gets its Go the same way.
+        language: golang
         # The example module keeps its own copy of the SDK's indirect requirements
         # (it resolves the SDK through a `replace`), so a dependency moving in
         # go-sdk/go.mod leaves it stale. Watching both modules' manifests is enough:
