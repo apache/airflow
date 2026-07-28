@@ -168,14 +168,6 @@ def via_flat_map(config: dict): ...
 def via_struct_map(payload: dict): ...
 
 
-@task.stub(queue="golang")
-def make_items(): ...
-
-
-@task.stub(queue="golang")
-def via_expand(item: str): ...
-
-
 @dag(dag_id="taskflow_binding_dag")
 def taskflow_binding_dag():
     """
@@ -223,13 +215,6 @@ def taskflow_binding_dag():
     argument matches no struct field, so the whole dict is decoded into a Go
     struct (flat), while ``via_struct_map``'s ``payload`` argument binds by name
     onto a Go struct's ``map`` field (struct-based).
-
-    ``via_expand`` is a *mapped* stub: ``.expand(item=make_items())`` fans it out
-    over ``make_items``' list output, so the scheduler creates one instance per
-    element. A mapped stub captures no parse-time spec; the execution API derives
-    each instance's binding from the serialized expand input, tagging it with the
-    ``element_index`` the Go runtime uses to pick its element of the pulled list.
-    Each mapped instance echoes its element and its own ``map_index``.
     """
     via_flat_args(
         "summary",
@@ -246,7 +231,6 @@ def taskflow_binding_dag():
     via_struct_unmatched_arg(region_code=region)
     via_flat_map(config={"region": "eu-west-1", "count": 3})
     via_struct_map(payload={"region": "eu-west-1", "count": 3})
-    via_expand.expand(item=make_items())
 
 
 taskflow_binding_dag()

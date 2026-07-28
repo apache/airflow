@@ -38,18 +38,3 @@ class AddArgBindingsToTIRunContext(VersionChange):
     def remove_arg_bindings_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``arg_bindings`` from the run context for older clients."""
         response.body.pop("arg_bindings", None)
-
-
-class AddHasMappedDependantsToTIRunContext(VersionChange):
-    """Add ``has_mapped_dependants`` so a stub task's supervisor records its ``mapped_length``."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        schema(TIRunContext).field("has_mapped_dependants").didnt_exist,
-    )
-
-    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_has_mapped_dependants_field(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Strip ``has_mapped_dependants`` from the run context for older clients."""
-        response.body.pop("has_mapped_dependants", None)

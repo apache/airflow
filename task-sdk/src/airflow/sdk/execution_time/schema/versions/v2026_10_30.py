@@ -34,18 +34,3 @@ class AddArgBindingsToSupervisorTIRunContext(VersionChange):
     description = __doc__
 
     instructions_to_migrate_to_previous_version = (schema(TIRunContext).field("arg_bindings").didnt_exist,)
-
-
-class AddHasMappedDependantsToSupervisorTIRunContext(VersionChange):
-    """
-    Add ``has_mapped_dependants`` so a stub task's supervisor records its ``mapped_length``.
-
-    The supervisor-schema mirror of the execution API's
-    ``AddHasMappedDependantsToTIRunContext``, named apart so the two migrations are not confused.
-    """
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        schema(TIRunContext).field("has_mapped_dependants").didnt_exist,
-    )

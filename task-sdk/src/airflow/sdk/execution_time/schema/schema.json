@@ -5066,11 +5066,6 @@
           ],
           "default": null,
           "title": "Arg Bindings"
-        },
-        "has_mapped_dependants": {
-          "default": false,
-          "title": "Has Mapped Dependants",
-          "type": "boolean"
         }
       },
       "required": [

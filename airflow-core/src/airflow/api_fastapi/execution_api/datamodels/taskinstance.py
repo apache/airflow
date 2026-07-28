@@ -443,16 +443,6 @@ class TIRunContext(BaseModel):
     ``None`` for regular tasks and for stub tasks that declare no parameters.
     """
 
-    has_mapped_dependants: bool = False
-    """
-    Whether a downstream mapped task expands over this stub task's output.
-
-    Set only for stub (foreign-runtime) tasks: a foreign runtime cannot inspect the
-    Dag to discover this itself, so the supervisor uses this flag to record the
-    ``mapped_length`` (its return value's length) that lets the scheduler expand its
-    mapped dependants -- mirroring what the Python task runner does via ``iter_mapped_dependants``.
-    """
-
 
 class PrevSuccessfulDagRunResponse(BaseModel):
     """Schema for response with previous successful DagRun information for Task Template Context."""

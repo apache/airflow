@@ -326,26 +326,3 @@ func ViaStructMap(
 	log.InfoContext(ctx, "Bound map onto struct field", "payload", fmt.Sprint(input.Payload))
 	return map[string]any{"payload": input.Payload}, nil
 }
-
-// MakeItems pushes a small array XCom that via_expand fans out over with
-// .expand(): each mapped via_expand instance binds one element of this list.
-func MakeItems(log *slog.Logger) (any, error) {
-	items := []string{"alpha", "beta", "gamma"}
-	log.Info("Pushing items", "items", fmt.Sprint(items))
-	return items, nil
-}
-
-// ViaExpand is a mapped (.expand()) task. The Python stub is expanded over
-// make_items' list output, so each mapped instance binds one element of that
-// list by its map_index -- the element_index binding path. It echoes the bound
-// element and its own map_index so the round trip proves the element and the
-// map index line up (mapped instance i receives make_items' element i).
-func ViaExpand(ctx sdk.TIRunContext, log *slog.Logger, item string) (any, error) {
-	mapIndex := -1
-	if mi := ctx.TaskInstance().MapIndex; mi != nil {
-		mapIndex = *mi
-	}
-
-	log.InfoContext(ctx, "Bound expanded element", "map_index", mapIndex, "item", item)
-	return map[string]any{"item": item, "map_index": mapIndex}, nil
-}
