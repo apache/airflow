@@ -59,6 +59,7 @@ from airflow_breeze.commands.common_options import (
     option_install_airflow_with_constraints_default_true,
     option_installation_distribution_format,
     option_keep_env_variables,
+    option_local_theme,
     option_max_time,
     option_mount_sources,
     option_mount_ui_dist,
@@ -823,6 +824,7 @@ def _build_python_docs(
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     include_commits: bool,
+    local_theme: str | None,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
@@ -888,6 +890,7 @@ def _build_python_docs(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         mount_sources=MOUNT_ALL,
+        local_theme=local_theme or "",
     )
     result = execute_command_in_shell(shell_params, project_name="breeze-docs", command=cmd)
     fix_ownership_using_docker()
@@ -931,6 +934,7 @@ def _build_python_docs(
 )
 @option_dry_run
 @option_github_repository
+@option_local_theme
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
@@ -975,6 +979,7 @@ def build_docs(
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     include_commits: bool,
+    local_theme: str | None,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
@@ -1005,6 +1010,7 @@ def build_docs(
             include_not_ready_providers=include_not_ready_providers,
             include_removed_providers=include_removed_providers,
             include_commits=include_commits,
+            local_theme=local_theme,
             one_pass_only=one_pass_only,
             package_filter=package_filter,
             distributions_list=distributions_list,

@@ -98,6 +98,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_LOCAL_THEME_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
@@ -207,6 +208,7 @@ class ShellParams:
     keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
+    local_theme: str = ""
     mount_sources: str = MOUNT_SELECTED
     mount_ui_dist: bool = False
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
@@ -426,6 +428,8 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH)
         if self.mount_ui_dist:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH)
+        if self.local_theme:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_LOCAL_THEME_PATH)
         if self.forward_credentials:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH)
         if self.include_mypy_volume:
@@ -674,6 +678,7 @@ services:
         _set_var(_env, "ISSUE_ID", self.issue_id)
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
         _set_var(_env, "LOAD_EXAMPLES", self.load_example_dags)
+        _set_var(_env, "LOCAL_THEME_PATH", self.local_theme)
         _set_var(_env, "MSSQL_HOST_PORT", None, MSSQL_HOST_PORT)
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)

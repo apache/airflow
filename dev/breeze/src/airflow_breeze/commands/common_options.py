@@ -309,6 +309,15 @@ option_mount_sources = click.option(
     envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
+option_local_theme = click.option(
+    "--local-theme",
+    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    default=None,
+    envvar="LOCAL_THEME_PATH",
+    help="Mount a local sphinx-airflow-theme package directory into the container, "
+    "overriding the bundled docs-theme. Point to the directory containing __init__.py "
+    "(e.g. ~/airflow-site/sphinx_airflow_theme).",
+)
 option_mount_ui_dist = click.option(
     "--mount-ui-dist",
     is_flag=True,
