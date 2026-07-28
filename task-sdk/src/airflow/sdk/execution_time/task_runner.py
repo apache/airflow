@@ -1626,7 +1626,7 @@ def run(
         try:
             msg, state = _handle_trigger_dag_run(drte, context, ti, log)
         except AirflowRuntimeError as e:
-            # The supervisor reports API-server errors (target DAG not found, permission
+            # The supervisor reports API-server errors (target Dag not found, permission
             # denied, ...) by raising here. Route through the normal failure path so
             # finalize() fires failure listeners; re-raising would escape run() entirely
             # and skip finalize().

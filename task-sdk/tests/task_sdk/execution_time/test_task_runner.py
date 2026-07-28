@@ -5201,13 +5201,11 @@ class TestTriggerDagRunOperator:
     def test_handle_trigger_dag_run_api_error_fails_task(
         self, should_retry, expected_state, create_runtime_ti, mock_supervisor_comms
     ):
-        """API errors (e.g. 404 target DAG not found) must route through the failure path.
+        """API errors (e.g. 404 target Dag not found) must route through the failure path.
 
         Regression test: the AirflowRuntimeError used to escape run() entirely, so
         finalize() never ran and on_task_instance_failed listeners were never called.
         """
-        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-
         task = TriggerDagRunOperator(
             task_id="test_task",
             trigger_dag_id="missing_dag",
