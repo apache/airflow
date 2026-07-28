@@ -1225,7 +1225,7 @@ class TestDmsStartReplicationOperator:
         }
 
     def test_init_raises_if_both_cdc_start_params_provided(self):
-        with pytest.raises(AirflowException, match="Only one of"):
+        with pytest.raises(ValueError, match="Only one of"):
             DmsStartReplicationOperator(
                 task_id="start_replication",
                 replication_config_arn="XXXXXXXXXXXXXXX",

@@ -789,7 +789,7 @@ class DmsStartReplicationOperator(AwsBaseOperator[DmsHook]):
             **kwargs,
         )
         if cdc_start_time is not None and cdc_start_pos is not None:
-            raise AirflowException("Only one of cdc_start_time or cdc_start_pos should be provided.")
+            raise ValueError("Only one of cdc_start_time or cdc_start_pos should be provided.")
         self.replication_config_arn = replication_config_arn
         self.replication_start_type = replication_start_type
         self.cdc_start_time = cdc_start_time
