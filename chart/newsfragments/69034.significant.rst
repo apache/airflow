@@ -1,0 +1,7 @@
+Default ``DUMB_INIT_SETSID`` changed to ``"0"`` for KubernetesExecutor task pods.
+
+Pod-termination signals (e.g. SIGTERM on graceful shutdown) are now delivered only to the
+task supervisor (``dumb-init``'s direct child) instead of being broadcast to the whole
+process group. This lets a running task finish via the supervisor's warm-shutdown handler --
+the same behaviour Celery worker pods already had -- rather than the task subprocess being
+killed directly. Hard kills (heartbeat loss / overtime / the post-grace SIGKILL) are unaffected.

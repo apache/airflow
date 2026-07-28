@@ -43,7 +43,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_llamaindex_rag_pipeline]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_llamaindex_rag_pipeline():
     """End-to-end RAG pipeline in a single DAG.
 
@@ -109,7 +109,7 @@ example_llamaindex_rag_pipeline()
 
 
 # [START howto_llamaindex_index_dag]
-@dag(schedule="@weekly")
+@dag(schedule="@weekly", tags=["example"])
 def example_llamaindex_index_pdf():
     """Weekly indexing DAG -- keep the vector index fresh as PDFs arrive.
 
@@ -142,6 +142,7 @@ example_llamaindex_index_pdf()
 @dag(
     schedule=None,
     params={"question": "Summarize the key findings from the latest quarterly report."},
+    tags=["example"],
 )
 def example_llamaindex_query():
     """On-demand query DAG -- retrieve from a pre-built index and synthesize.
@@ -193,7 +194,7 @@ example_llamaindex_query()
 
 
 # [START howto_llamaindex_multi_source]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_llamaindex_multi_source():
     """Combine multiple loaders with source-tagging metadata.
 

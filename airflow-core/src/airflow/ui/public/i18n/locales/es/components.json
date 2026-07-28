@@ -11,8 +11,12 @@
     "maxRuns": "Máximo de Ejecuciones Activas",
     "missingAndErroredRuns": "Ejecutaciones Faltantes y con Errores",
     "missingRuns": "Ejecutaciones Faltantes",
+    "overrideExistingParams": "Sobrescribir parámetros en ejecuciones existentes",
+    "permissionDenied": "Ejecución en Seco Fallida: el usuario no tiene permiso para crear backfills.",
     "reprocessBehavior": "Comportamiento de Reprocesamiento",
     "run": "Ejecutar Backfill",
+    "scheduleNotBackfillable": "La programación de este Dag no admite backfills",
+    "schedulerPriorityHint": "Las ejecuciones del Dag de backfill se ordenan después de las ejecuciones del Dag que no son backfill en cada ciclo del programador. Las ejecuciones de backfill pueden permanecer en cola más tiempo si hay otras ejecuciones que no son backfill presentes.",
     "selectDescription": "Ejecutar este Dag para un rango de fechas",
     "selectLabel": "Backfill",
     "title": "Ejecutar Backfill",
@@ -44,13 +48,18 @@
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_many": "Errores",
     "error_one": "1 Error",
-    "error_other": "Errores",
     "errorAndWarning": "1 Error y {{warningText}}",
     "warning_many": "{{count}} Advertencias",
     "warning_one": "1 Advertencia",
     "warning_other": "{{count}} Advertencias"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Formato de fecha inválido.",
+      "invalidTimeFormat": "Formato de hora inválido.",
+      "startBeforeEnd": "La fecha/hora inicial debe ser anterior a la fecha/hora final"
+    }
   },
   "durationChart": {
     "duration": "Duración (segundos)",
@@ -70,6 +79,7 @@
     "files_other": "{{count}} archivos"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Ingresa la duración en formato ISO 8601",
     "placeholder": "Seleccionar Valor",
     "placeholderArray": "Ingrese cada cadena en una nueva línea",
     "placeholderExamples": "Comience a escribir para ver opciones",
@@ -77,6 +87,7 @@
     "validationErrorArrayNotArray": "El valor debe ser un array.",
     "validationErrorArrayNotNumbers": "Todos los elementos en el array deben ser números.",
     "validationErrorArrayNotObject": "Todos los elementos en el array deben ser objetos.",
+    "validationErrorDuration": "Formato de duración ISO 8601 inválido",
     "validationErrorRequired": "Este campo es requerido"
   },
   "graph": {
@@ -91,7 +102,8 @@
     "taskCount_many": "{{count}} Tareas",
     "taskCount_one": "{{count}} Tarea",
     "taskCount_other": "{{count}} Tareas",
-    "taskGroup": "Grupo de Tareas"
+    "taskGroup": "Grupo de Tareas",
+    "zoomToTask": "Zoom a la tarea seleccionada"
   },
   "limitedList": "+{{count}} más",
   "limitedList.allItems": "Todos los {{count}} elementos:",
@@ -113,22 +125,40 @@
   "sortedDescending": "ordenado descendente",
   "sortedUnsorted": "sin ordenar",
   "taskTries": "Intentos de Tarea",
+  "taskTryPlaceholder": "Intento de Tarea",
+  "team": {
+    "selector": {
+      "helperText": "Opcional. Restringe el uso a un equipo específico.",
+      "label": "Equipo",
+      "placeHolder": "Seleccionar un equipo"
+    }
+  },
   "toggleCardView": "Mostrar vista de tarjeta",
   "toggleTableView": "Mostrar vista de tabla",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Intervalo de Datos",
+    "dataIntervalAuto": "Inferido de la Fecha Lógica y la Programación",
+    "dataIntervalManual": "Especificar Manualmente",
+    "intervalEnd": "Fin",
+    "intervalStart": "Inicio",
     "loading": "Cargando información del Dag...",
     "loadingFailed": "Error al cargar la información del Dag. Por favor, inténtelo de nuevo.",
+    "manualRunDenied": "Las ejecuciones manuales no están permitidas para este Dag",
     "runIdHelp": "Opcional - se generará si no se proporciona",
     "selectDescription": "Activar una ejecución única de este Dag",
     "selectLabel": "Ejecución Única",
     "title": "Activar Dag",
     "toaster": {
+      "error": {
+        "title": "Error al Activar el Dag"
+      },
       "success": {
         "description": "La ejecución del Dag ha sido activada exitosamente.",
         "title": "Ejecución del Dag Activada"
       }
     },
+    "triggerAgainWithConfig": "Activar de nuevo con esta configuración",
     "unpause": "Reanudar {{dagDisplayName}} al activarse"
   },
   "trimText": {
@@ -144,6 +174,7 @@
     "versionId": "ID de la Versión"
   },
   "versionSelect": {
+    "allVersions": "Todas las Versiones",
     "dagVersion": "Versión del Dag",
     "versionCode": "v{{versionCode}}"
   }

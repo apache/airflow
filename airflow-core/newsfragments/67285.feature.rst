@@ -1,0 +1,1 @@
+Propagate ``partition_date`` from producer DagRuns to consumers of partitioned assets, so date-shaped partitions are available in consumer task templates.

@@ -48,7 +48,7 @@ if k8s:
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
-        tags=["example3"],
+        tags=["example", "example3"],
     ) as dag:
         # You can use annotations on your kubernetes pods!
         start_task_executor_config = {

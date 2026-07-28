@@ -26,8 +26,11 @@ import structlog
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import AirflowSkipException
-from airflow.sdk.execution_time.comms import GetXCom, XComResult
+from airflow.sdk.execution_time.comms import GetXCom, XComResult, XComSequenceSliceResult
+from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
+from airflow.sdk.serde import deserialize, serialize
 
 log = structlog.get_logger(__name__)
 
@@ -344,9 +347,72 @@ def test_xcom_concat(run_ti, mock_supervisor_comms):
     mock_supervisor_comms.send.side_effect = xcom_get
 
     # Run "pull_one" and "pull_all".
-    assert run_ti(dag, "pull_all", None) == TaskInstanceState.SUCCESS
+    assert run_ti(dag, "pull_all", -1) == TaskInstanceState.SUCCESS
     assert all_results == ["a", "b", "c", 1, 2]
 
     states = [run_ti(dag, "pull_one", map_index) for map_index in range(5)]
     assert states == [TaskInstanceState.SUCCESS] * 5
     assert agg_results == {"a", "b", "c", 1, 2}
+
+
+class TestPlainXComArgResolveMappedGroup:
+    """Resolving a task inside a mapped task group from a task outside that group.
+
+    Regression tests for #69036 and #48005: the combined return value of a
+    mapped task group must always serialize to a list (one element per
+    expansion), even when the group expanded only once or every expansion
+    returned ``None``. Previously this case was routed through ``xcom_pull``
+    pulling all map indexes, which collapsed a single value to a bare scalar
+    and an empty set of values to ``None``. ``resolve`` stays lazy and serde
+    materialises the sequence only when the value is actually returned.
+    """
+
+    @staticmethod
+    def _make_ti(*, computed):
+        ti = mock.MagicMock()
+        ti._upstream_map_indexes = None
+        ti._cached_template_context = {"expanded_ti_count": 1}
+        ti.run_id = "run-1"
+        ti.get_relevant_upstream_map_indexes.return_value = computed
+        return ti
+
+    @staticmethod
+    def _make_arg():
+        operator = mock.MagicMock()
+        operator.is_mapped = False
+        operator.task_id = "do_something"
+        operator.dag_id = "test_dag"
+        operator.get_closest_mapped_task_group.return_value = mock.MagicMock()
+        return PlainXComArg(operator=operator, key="test")
+
+    @pytest.mark.parametrize(
+        ("root", "expected"),
+        [
+            pytest.param(["14"], ["14"], id="single-expansion-stays-a-list"),
+            pytest.param([], [], id="all-none-expansions-give-empty-list"),
+            pytest.param(["a", "b"], ["a", "b"], id="multiple-expansions"),
+        ],
+    )
+    def test_resolve_stays_lazy_and_serializes_as_list(self, root, expected, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=root)
+
+        arg = self._make_arg()
+        ti = self._make_ti(computed=None)
+
+        resolved = arg.resolve({"ti": ti})
+
+        assert isinstance(resolved, LazyXComSequence)
+        ti.xcom_pull.assert_not_called()
+        # The lazy sequence materializes to a plain list only when actually serialized.
+        assert deserialize(serialize(resolved)) == expected
+
+    def test_resolve_uses_xcom_pull_for_specific_index(self):
+        arg = self._make_arg()
+        ti = self._make_ti(computed=0)
+        ti.xcom_pull.return_value = "value-0"
+
+        resolved = arg.resolve({"ti": ti})
+
+        assert resolved == "value-0"
+        ti.xcom_pull.assert_called_once()
+        assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0

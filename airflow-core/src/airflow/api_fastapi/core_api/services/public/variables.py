@@ -100,17 +100,18 @@ def update_orm_from_pydantic(
 class BulkVariableService(BulkService[VariableBody]):
     """Service for handling bulk operations on variables."""
 
-    def categorize_keys(self, keys: set) -> tuple[set, set]:
+    def categorize_keys(self, keys: set) -> tuple[dict, set, set]:
         """Categorize the given keys into matched_keys and not_found_keys based on existing keys."""
-        existing_keys = {variable for variable in self.session.execute(select(Variable.key)).scalars()}
-        matched_keys = existing_keys & keys
-        not_found_keys = keys - existing_keys
-        return matched_keys, not_found_keys
+        existing_variables = self.session.execute(select(Variable).filter(Variable.key.in_(keys))).scalars()
+        existing_variables_dict = {variable.key: variable for variable in existing_variables}
+        matched_keys = set(existing_variables_dict.keys())
+        not_found_keys = keys - matched_keys
+        return existing_variables_dict, matched_keys, not_found_keys
 
     def handle_bulk_create(self, action: BulkCreateAction, results: BulkActionResponse) -> None:
         """Bulk create variables."""
         to_create_keys = {variable.key for variable in action.entities}
-        matched_keys, not_found_keys = self.categorize_keys(to_create_keys)
+        _, matched_keys, not_found_keys = self.categorize_keys(to_create_keys)
 
         try:
             if action.action_on_existence == BulkActionOnExistence.FAIL and matched_keys:
@@ -141,7 +142,7 @@ class BulkVariableService(BulkService[VariableBody]):
     def handle_bulk_update(self, action: BulkUpdateAction, results: BulkActionResponse) -> None:
         """Bulk Update variables."""
         to_update_keys = {variable.key for variable in action.entities}
-        matched_keys, not_found_keys = self.categorize_keys(to_update_keys)
+        _, matched_keys, not_found_keys = self.categorize_keys(to_update_keys)
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
                 raise HTTPException(
@@ -171,7 +172,7 @@ class BulkVariableService(BulkService[VariableBody]):
     def handle_bulk_delete(self, action: BulkDeleteAction, results: BulkActionResponse) -> None:
         """Bulk delete variables."""
         to_delete_keys = set(action.entities)
-        matched_keys, not_found_keys = self.categorize_keys(to_delete_keys)
+        existing_variables_dict, matched_keys, not_found_keys = self.categorize_keys(to_delete_keys)
 
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
@@ -185,7 +186,7 @@ class BulkVariableService(BulkService[VariableBody]):
                 delete_keys = to_delete_keys
 
             for key in delete_keys:
-                existing_variable = self.session.scalar(select(Variable).where(Variable.key == key).limit(1))
+                existing_variable = existing_variables_dict.get(key)
                 if existing_variable:
                     self.session.delete(existing_variable)
                     results.success.append(key)

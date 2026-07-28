@@ -34,6 +34,11 @@
       "error": "{{type}} temizlenemedi",
       "title": "{{type}} Temizle"
     },
+    "clearAllMapped": {
+      "button": "Tüm Haritalanmış Görevleri Temizle",
+      "buttonTooltip": "Tüm haritalanmış görev örneklerini temizlemek için shift+c tuşlarına basın",
+      "title": "Tüm Haritalanmış Görev Örneklerini Temizle"
+    },
     "confirmationDialog": {
       "description": "Bu işlem, seçilen görev {{state}} ve {{user}} kullanıcısı tarafından {{time}} tarihinde başlatıldı. Görev çalışmayı tamamlayana kadar veya bir kullanıcı temizleme görev iletişim kutusundaki \"Çalışan görevlerin yeniden çalıştırılmasını önle\" seçeneğinin işaretini kaldırana kadar bu görevi temizleyemez.",
       "title": "Görev Temizlenemiyor"

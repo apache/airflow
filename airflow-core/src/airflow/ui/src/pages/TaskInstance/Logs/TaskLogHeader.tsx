@@ -234,19 +234,15 @@ export const TaskLogHeader = ({
             </Menu.Content>
           </Menu.Root>
           {!isFullscreen && (
-            <IconButton
-              label={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
-              onClick={toggleFullscreen}
-            >
+            <IconButton label={translate("fullscreen.tooltip", { hotkey: "f" })} onClick={toggleFullscreen}>
               <MdOutlineOpenInFull />
             </IconButton>
           )}
 
           <LazyClipboard
-            aria-label={translate("components:clipboard.copy")}
             getValue={getLogString}
+            label={translate("components:clipboard.copy")}
             size="md"
-            title={translate("components:clipboard.copy")}
             variant="ghost"
           />
 

@@ -28,6 +28,28 @@ import { Accordion } from "../ui";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 
+const FlatSection = ({
+  children,
+  hasError,
+  title,
+}: {
+  readonly children: React.ReactNode;
+  readonly hasError: boolean;
+  readonly title: string;
+}) => (
+  <Stack gap={2}>
+    <Text color={hasError ? "fg.error" : undefined} fontWeight="medium">
+      {title}
+      {hasError ? (
+        <Icon color="fg.error" margin="-1" ml={1}>
+          <MdError />
+        </Icon>
+      ) : undefined}
+    </Text>
+    {children}
+  </Stack>
+);
+
 const computeSectionErrors = (
   params: Record<string, ParamSpec>,
   defaultSection: string,
@@ -54,6 +76,7 @@ export type FlexibleFormProps = {
   readonly isHITL?: boolean;
   readonly key?: string;
   readonly namespace?: string;
+  readonly noAccordion?: boolean;
   readonly setError: (error: boolean) => void;
   readonly subHeader?: string;
 };
@@ -65,12 +88,14 @@ export const FlexibleForm = ({
   initialParamsDict,
   isHITL,
   namespace = "default",
+  noAccordion,
   setError,
   subHeader,
 }: FlexibleFormProps) => {
   const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore(namespace);
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
+  const [hasValidationError, setHasValidationError] = useState(false);
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
@@ -95,8 +120,8 @@ export const FlexibleForm = ({
     const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
 
     setSectionError(newSectionError);
-    setError(newSectionError.size > 0);
-  }, [params, flexibleFormDefaultSection, setError]);
+    setError(hasValidationError || newSectionError.size > 0);
+  }, [params, flexibleFormDefaultSection, setError, hasValidationError]);
 
   useEffect(() => {
     setDisabled(disabled ?? false);
@@ -105,9 +130,60 @@ export const FlexibleForm = ({
   const onUpdate = (_value?: string, error?: unknown) => {
     const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
 
+    setHasValidationError(Boolean(error));
     setSectionError(newSectionError);
     setError(Boolean(error) || newSectionError.size > 0);
   };
+
+  if (noAccordion) {
+    return Object.keys(params).length > 0 ? (
+      <>
+        {Object.entries(params).map(([, secParam]) => {
+          const currentSection = secParam.schema.section ?? flexibleFormDefaultSection;
+
+          if (processedSections.has(currentSection)) {
+            return undefined;
+          }
+          processedSections.set(currentSection, true);
+
+          return (
+            <FlatSection
+              hasError={Boolean(sectionError.get(currentSection))}
+              key={currentSection}
+              title={currentSection}
+            >
+              {Boolean(subHeader) ? (
+                <Text color="fg.muted" fontSize="xs">
+                  {subHeader}
+                </Text>
+              ) : undefined}
+              <Stack separator={<StackSeparator py={2} />}>
+                {Boolean(flexFormDescription) ? (
+                  <ReactMarkdown>{flexFormDescription}</ReactMarkdown>
+                ) : undefined}
+                {Object.entries(params)
+                  .filter(
+                    ([, param]) =>
+                      param.schema.section === currentSection ||
+                      (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
+                  )
+                  .map(([name]) => (
+                    <Row key={name} name={name} namespace={namespace} onUpdate={onUpdate} />
+                  ))}
+              </Stack>
+            </FlatSection>
+          );
+        })}
+      </>
+    ) : isHITL ? (
+      <FlatSection
+        hasError={Boolean(sectionError.get(flexibleFormDefaultSection))}
+        title={flexibleFormDefaultSection}
+      >
+        {Boolean(flexFormDescription) ? <ReactMarkdown>{flexFormDescription}</ReactMarkdown> : undefined}
+      </FlatSection>
+    ) : undefined;
+  }
 
   return Object.keys(params).length > 0 ? (
     Object.entries(params).map(([, secParam]) => {

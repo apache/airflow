@@ -27,12 +27,30 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
 
+# NOTE: Keep in sync with cron_presets in airflow-core/src/airflow/utils/dates.py
+# Core cannot be imported from the SDK, so both dicts must be updated together.
+CRON_PRESETS: dict[str, str] = {
+    "@hourly": "0 * * * *",
+    "@daily": "0 0 * * *",
+    "@weekly": "0 0 * * 0",
+    "@monthly": "0 0 1 * *",
+    "@quarterly": "0 0 1 */3 *",
+    "@yearly": "0 0 1 1 *",
+}
+
+
 @attrs.define
 class CronMixin:
     """Mixin to provide interface to work with croniter."""
 
     expression: str
     timezone: str | Timezone | FixedTimezone
+
+    def __attrs_post_init__(self) -> None:
+        # Resolve preset aliases (e.g. "@quarterly") to their cron expressions
+        # in-place. After this point the original preset string is lost;
+        # attrs.evolve, equality, and serialisation all see the resolved form.
+        self.expression = CRON_PRESETS.get(self.expression, self.expression)
 
     def validate(self) -> None:
         try:

@@ -2,7 +2,6 @@
   "additional_data": "Ek bilgiler",
   "asset_many": "Olaylar",
   "asset_one": "Olay",
-  "asset_other": "Diğer Olaylar",
   "consumingDags": "Tüketen Dag'ler",
   "consumingTasks": "Tüketen görevler",
   "createEvent": {

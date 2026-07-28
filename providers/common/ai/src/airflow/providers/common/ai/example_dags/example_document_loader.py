@@ -27,7 +27,7 @@ from airflow.providers.common.compat.sdk import dag, task
 
 
 # [START howto_operator_document_loader_basic]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_document_loader_basic():
     """Parse a single local file -- the operator infers the format from the suffix."""
 
@@ -49,7 +49,7 @@ example_document_loader_basic()
 
 
 # [START howto_operator_document_loader_directory]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_document_loader_directory():
     """Walk a directory recursively, only picking up PDFs and Markdown."""
 
@@ -77,7 +77,7 @@ example_document_loader_directory()
 
 
 # [START howto_operator_document_loader_bytes]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_document_loader_bytes():
     """Feed raw bytes from an upstream hook (e.g. an S3 download) into the parser."""
 
@@ -103,7 +103,7 @@ example_document_loader_bytes()
 
 
 # [START howto_operator_document_loader_json_field]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_document_loader_json_field():
     """Read an array of records, embedding only the ``body`` field per item.
 
@@ -126,7 +126,7 @@ example_document_loader_json_field()
 
 
 # [START howto_operator_document_loader_cloud_uri]
-@dag(schedule=None)
+@dag(schedule=None, tags=["example"])
 def example_document_loader_cloud_uri():
     """Read PDFs directly from S3 -- no separate download step."""
 

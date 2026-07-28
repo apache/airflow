@@ -55,6 +55,10 @@ from registry_contract_models import validate_providers_catalog
 # External endpoints used by metadata extraction.
 PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent"
 PYPI_PACKAGE_JSON_URL = "https://pypi.org/pypi/{package_name}/json"
+# ClickHouse's public PyPI dataset (the data behind clickpy.clickhouse.com), sourced
+# from the same PyPI download logs as pypistats.org but queryable for every package
+# in a single SQL request -- no per-package rate limiting.
+CLICKHOUSE_PYPI_URL = "https://sql-clickhouse.clickhouse.com/?user=demo"
 S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
 AIRFLOW_PROVIDER_DOCS_URL = "https://airflow.apache.org/docs/{package_name}/stable/"
 AIRFLOW_PROVIDER_SOURCE_URL = (
@@ -108,25 +112,84 @@ def fetch_pypi_dates(package_name: str) -> dict[str, str]:
         return {"first_released": "", "last_updated": ""}
 
 
+def fetch_pypi_downloads_clickhouse(package_names: list[str]) -> dict[str, dict[str, int]]:
+    """Fetch weekly/monthly downloads for many packages in ONE query.
+
+    Replaces the previous ~N parallel ``pypistats.org/api/recent`` calls. That burst
+    tripped pypistats' per-IP rate limit, and ``fetch_pypi_downloads`` silently turned
+    each 429 into ``{weekly: 0, monthly: 0}`` -- zeroing roughly a third of providers
+    on the live registry. ClickHouse exposes the same underlying PyPI download data
+    via a single SQL endpoint, so one request covers every package with nothing to
+    rate-limit.
+
+    Returns ``{package_name: {"weekly": int, "monthly": int, "total": 0}}``. On any
+    failure returns ``{}`` so callers fall back to pypistats per-package. ``total`` is
+    left at 0 to match the existing schema (the registry has never populated it).
+    """
+    if not package_names:
+        return {}
+    # Package names are ``apache-airflow-providers-*`` (only [a-z0-9-]); strip any
+    # stray quote defensively before interpolating into the IN-list.
+    in_list = ", ".join("'" + name.replace("'", "") + "'" for name in package_names)
+    # Anchor the rolling windows on the dataset's latest loaded date, not today(): the
+    # public dataset lags a few days, so a today()-relative window would be truncated to
+    # the loaded days and undercount. max(date) gives a true last-7/30-day rolling sum,
+    # matching pypistats' last_week/last_month semantics.
+    query = (
+        "WITH (SELECT max(date) FROM pypi.pypi_downloads_per_day) AS max_date "
+        "SELECT project, "
+        "toUInt64(sumIf(count, date > max_date - 7)) AS weekly, "
+        "toUInt64(sumIf(count, date > max_date - 30)) AS monthly "
+        "FROM pypi.pypi_downloads_per_day "
+        f"WHERE project IN ({in_list}) "
+        "GROUP BY project FORMAT TSV"
+    )
+    try:
+        request = urllib.request.Request(CLICKHOUSE_PYPI_URL, data=query.encode())
+        with urllib.request.urlopen(request, timeout=30) as response:
+            body = response.read().decode()
+    except Exception as e:
+        print(f"    Warning: ClickHouse download query failed ({e}); falling back to pypistats")
+        return {}
+    result: dict[str, dict[str, int]] = {}
+    for line in body.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        project, weekly, monthly = parts
+        try:
+            result[project] = {"weekly": int(weekly), "monthly": int(monthly), "total": 0}
+        except ValueError:
+            continue
+    return result
+
+
 def fetch_pypi_data_parallel(
     package_names: list[str], max_workers: int = 16
 ) -> dict[str, tuple[dict[str, int], dict[str, str]]]:
-    """Fetch downloads + dates for many packages concurrently.
+    """Fetch downloads + release dates for many packages.
 
-    Returns ``{package_name: (downloads_dict, dates_dict)}``. Each per-package
-    failure is isolated -- ``fetch_pypi_downloads`` / ``fetch_pypi_dates``
-    already return zero-value defaults on error, so a flaky pypistats response
-    only zeroes that one package instead of stalling or crashing the build.
+    Downloads come from a single ClickHouse query (``fetch_pypi_downloads_clickhouse``).
+    Any package ClickHouse doesn't return -- or returns zero for, e.g. a just-published
+    provider not yet in its dataset -- falls back to a per-package pypistats.org call;
+    that path is now rare, so it no longer produces a rate-limiting burst. Release dates
+    still come from pypi.org/json, fetched in parallel (a per-package-only endpoint that
+    was never the source of the rate-limiting that motivated the ClickHouse switch).
 
-    Concurrency: ~86 providers * 2 endpoints, but pypistats.org and pypi.org
-    each tolerate 16 parallel connections without rate-limiting in practice.
-    Matches the ``max_workers=8`` shape used in extract_parameters.py for
-    inventory fetches; bumped slightly because PyPI calls are simpler/faster.
+    Returns ``{package_name: (downloads_dict, dates_dict)}``. Per-package failures are
+    isolated -- the fallbacks return zero-value defaults -- so one flaky response only
+    affects that package.
     """
+    clickhouse_downloads = fetch_pypi_downloads_clickhouse(package_names)
     results: dict[str, tuple[dict[str, int], dict[str, str]]] = {}
 
     def _fetch_one(pkg: str) -> tuple[str, dict[str, int], dict[str, str]]:
-        return pkg, fetch_pypi_downloads(pkg), fetch_pypi_dates(pkg)
+        downloads = clickhouse_downloads.get(pkg)
+        if not downloads or downloads.get("monthly", 0) == 0:
+            # Missing from ClickHouse (or zero) -- fall back to pypistats for this one
+            # package only. No burst because this is the exception, not every package.
+            downloads = fetch_pypi_downloads(pkg)
+        return pkg, downloads, fetch_pypi_dates(pkg)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [executor.submit(_fetch_one, pkg) for pkg in package_names]
@@ -135,6 +198,27 @@ def fetch_pypi_data_parallel(
             results[pkg] = (downloads, dates)
 
     return results
+
+
+def preserve_nonzero_downloads(new_providers: list[dict], existing_providers: list[dict]) -> int:
+    """Keep a provider's previous download counts when this build fetched zero.
+
+    Defense-in-depth for the case where BOTH ClickHouse and the pypistats fallback fail
+    for a package: rather than overwrite a known-good number on the live registry with a
+    spurious zero, retain the previous ``pypi_downloads`` from the existing catalog.
+    Mutates ``new_providers`` in place; returns the number of providers preserved.
+    """
+    existing_by_id = {p["id"]: p for p in existing_providers}
+    preserved = 0
+    for provider in new_providers:
+        if (provider.get("pypi_downloads") or {}).get("monthly", 0):
+            continue  # this build got a real number; nothing to preserve
+        previous = existing_by_id.get(provider["id"], {}).get("pypi_downloads") or {}
+        if previous.get("monthly", 0) > 0:
+            provider["pypi_downloads"] = previous
+            preserved += 1
+            print(f"    Preserved previous downloads for {provider['id']} (this build fetched 0)")
+    return preserved
 
 
 def _parse_inventory_lines(inv_path: Path) -> list[str]:
@@ -762,6 +846,21 @@ def main():
 
     # Convert to JSON-serializable format
     new_providers = [asdict(p) for p in all_providers]
+
+    # Defense-in-depth: if this build fetched 0 downloads for a provider that had a real
+    # number on the previous (S3) providers.json, keep the previous number rather than
+    # publishing a spurious zero (#1309). No-op when there's no existing catalog on disk.
+    for candidate_dir in (SCRIPT_DIR, OUTPUT_DIR):
+        existing_catalog_path = candidate_dir / "providers.json"
+        if existing_catalog_path.exists():
+            try:
+                previous_catalog = json.loads(existing_catalog_path.read_text())
+            except json.JSONDecodeError:
+                break
+            preserved = preserve_nonzero_downloads(new_providers, previous_catalog.get("providers", []))
+            if preserved:
+                print(f"Preserved previous download counts for {preserved} provider(s) that fetched 0")
+            break
 
     # In incremental mode, merge new providers into existing providers.json
     # so parallel runs for different providers don't clobber each other.

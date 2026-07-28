@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { MdOutlineTask } from "react-icons/md";
+import { AiOutlineGroup } from "react-icons/ai";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
@@ -32,9 +32,9 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
 
-  Object.entries(taskInstance.child_states ?? {}).forEach(([taskState, count]) => {
+  Object.entries(taskInstance.child_states ?? {}).forEach(([state, count]) => {
     entries.push({
-      label: translate("total", { state: translate(`states.${taskState.toLowerCase()}`) }),
+      label: translate("total", { state: translate(`states.${state.toLowerCase()}`) }),
       value: count,
     });
   });
@@ -61,7 +61,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
             <MarkTaskGroupAsButton groupTaskInstance={taskInstance} isHotkeyEnabled />
           </>
         }
-        icon={<MdOutlineTask />}
+        icon={<AiOutlineGroup />}
         state={taskInstance.state}
         stats={stats}
         subTitle={<Time datetime={taskInstance.min_start_date} />}

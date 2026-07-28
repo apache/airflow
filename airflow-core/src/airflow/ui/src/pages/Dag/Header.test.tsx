@@ -57,7 +57,6 @@ describe("Header", () => {
       </Wrapper>,
     );
 
-    expect(screen.getByText(i18n.t("dag:header.status.deactivated"))).toBeInTheDocument();
     expect(screen.queryByText(i18n.t("dag:dagDetails.nextRun"))).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reparse Dag" })).not.toBeInTheDocument();
   });

@@ -145,6 +145,11 @@ This way, the :class:`~airflow.sdk.definitions.param.Param`'s type is respected 
         ),
     )
 
+Because ``render_template_as_native_obj=True`` uses Jinja's native rendering, values that look like
+Python literals can also be converted. For example, a string value of ``"42"`` may be rendered as the
+integer ``42``. Leave native rendering disabled, use a callable template field, or quote the value
+explicitly when the task must receive a string.
+
 Another way to access your param is via a task's ``context`` kwarg.
 
 .. code-block::
@@ -242,6 +247,9 @@ The following features are supported in the Trigger UI Form:
             * | ``format="date-time"``: Generate a date and
               | time-picker with calendar pop-up
             * ``format="time"``: Generate a time-picker
+            * | ``format="duration"``: Generate a duration
+              | input field accepting ISO 8601 duration
+              | strings (e.g. ``P1D``, ``PT15M``, ``PT2H``)
             * ``format="multiline"``: Generate a multi-line textarea
             * | ``enum=["a", "b", "c"]``: Generates a
               | drop-down select list for scalar values.

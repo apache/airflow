@@ -144,7 +144,6 @@ The following configuration options are available in the ``[api]`` section:
 - ``worker_refresh_batch_size``: Number of workers to refresh per cycle (default: 1)
 - ``dag_cache_size``: Max cached SerializedDAG versions in the API server (default: 64, 0 = unbounded)
 - ``dag_cache_ttl``: TTL in seconds for cached DAGs (default: 3600, 0 = LRU only)
-- ``reload_on_plugin_change``: Reload when plugin files change (default: False)
 
 When to Use Gunicorn
 ^^^^^^^^^^^^^^^^^^^^

@@ -16,15 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import { type APIRequestContext, expect, type Locator, type Page } from "@playwright/test";
 import { testConfig } from "playwright.config";
-import { apiTriggerDagRun, waitForDagReady } from "tests/e2e/utils/test-helpers";
+import { HITLReviewDrawer } from "tests/e2e/components/HITLReviewDrawer";
+import { apiTriggerDagRun, waitForDagReady } from "tests/e2e/utils/api/dag-runs";
 
 import { BasePage } from "./BasePage";
 
 export class RequiredActionsPage extends BasePage {
   public readonly actionsTable: Locator;
   public readonly emptyStateMessage: Locator;
+  public readonly hitlReviewDrawer: HITLReviewDrawer;
   public readonly pageHeading: Locator;
 
   // Standalone API context — page.request degrades after many navigations in WebKit.
@@ -36,25 +38,39 @@ export class RequiredActionsPage extends BasePage {
     this.pageHeading = page.getByRole("heading").filter({ hasText: /required action/i });
     this.actionsTable = page.getByTestId("table-list");
     this.emptyStateMessage = page.getByText(/no required actions found/i);
+    this.hitlReviewDrawer = new HITLReviewDrawer(page);
+  }
+
+  public static getPendingRequiredActionsUrl(): string {
+    return `${this.getRequiredActionsUrl()}?response_received=false`;
   }
 
   public static getRequiredActionsUrl(): string {
     return "/required_actions";
   }
 
-  public async getActionsTableRowCount(): Promise<number> {
-    const rows = this.actionsTable.locator("tbody").getByRole("row");
-    const isTableVisible = await this.actionsTable.isVisible();
+  public async clickReviewDrawerButton(dagId: string): Promise<void> {
+    const actionRow = this.getActionRow(dagId);
+    const reviewDrawerButton = actionRow.getByRole("button", { name: "Open Review Drawer" });
 
-    return isTableVisible ? rows.count() : 0;
+    await expect(reviewDrawerButton).toBeVisible({ timeout: 30_000 });
+    await reviewDrawerButton.click();
+  }
+
+  public getActionRow(dagId: string): Locator {
+    return this.actionsTable
+      .getByRole("row")
+      .filter({ has: this.page.getByRole("cell", { name: dagId }) })
+      .first();
   }
 
   public async isEmptyStateDisplayed(): Promise<boolean> {
     return this.emptyStateMessage.isVisible();
   }
 
-  public async isTableDisplayed(): Promise<boolean> {
-    return this.actionsTable.isVisible();
+  public async navigateToPendingRequiredActionsPage(): Promise<void> {
+    await this.navigateTo(RequiredActionsPage.getPendingRequiredActionsUrl());
+    await expect(this.pageHeading).toBeVisible({ timeout: 30_000 });
   }
 
   public async navigateToRequiredActionsPage(): Promise<void> {

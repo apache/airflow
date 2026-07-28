@@ -20,21 +20,12 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from aioresponses import aioresponses
 
 from airflow.models import Connection
 from airflow.providers.atlassian.jira.hooks.jira import JiraAsyncHook, JiraHook
 
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 from tests_common.test_utils.compat import connection_as_json
-
-
-@pytest.fixture
-def aioresponse():
-    """
-    Creates mock async API response.
-    """
-    with aioresponses() as async_response:
-        yield async_response
 
 
 @pytest.fixture
@@ -176,7 +167,7 @@ class TestJiraAsyncHook:
             assert mocked_function.call_args.kwargs.get("auth").password == "password"
 
     @pytest.mark.asyncio
-    async def test_create_issue_with_success(self, aioresponse, setup_connections):
+    async def test_create_issue_with_success(self, setup_connections):
         """Asserts that create issue return with success."""
         hook = JiraAsyncHook(jira_conn_id="jira_default")
         fields = {
@@ -185,7 +176,11 @@ class TestJiraAsyncHook:
             "summary": "test rest",
             "description": "rest rest",
         }
-        aioresponse.post("http://test.atlassian.net/rest/api/2/issue", status=200)
-
-        res = await hook.create_issue(fields)
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_post:
+            mocked_post.return_value = MockAiohttpClientResponse(
+                status=200,
+                method="POST",
+                url="http://test.atlassian.net/rest/api/2/issue",
+            )
+            res = await hook.create_issue(fields)
         assert res.status == 200

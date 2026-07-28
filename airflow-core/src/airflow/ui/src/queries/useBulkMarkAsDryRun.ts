@@ -85,7 +85,7 @@ export const useBulkMarkAsDryRun = (
           new_state: targetState,
         },
       ],
-      refetchOnMount: "always" as const,
+      refetchOnMount: "always",
     })),
   });
 

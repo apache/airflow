@@ -37,7 +37,10 @@ export default defineConfig({
     {
       name: "transform-url-src",
       transformIndexHtml: (html) =>
-        html.replace(`src="./assets/`, `src="./static/assets/`).replace(`href="/`, `href="./`),
+        html
+          .replaceAll(`src="./assets/`, `src="./static/assets/`)
+          .replaceAll(`href="./assets/`, `href="./static/assets/`)
+          .replaceAll(`href="/`, `href="./`),
     },
     // Keep Monaco's codicon CSS as a real CSS file (rather than inlined into JS).
     // The codicon stylesheet references `codicon.ttf` with a CSS-relative URL — when

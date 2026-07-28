@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-salesforce``
 
-Release: ``5.14.0``
+Release: ``5.14.1``
 
 
 `Salesforce <https://www.salesforce.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``salesforce`` provider. All classes for this pro
 are in ``airflow.providers.salesforce`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.14.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.14.1/>`_.
 
 Installation
 ------------
@@ -61,24 +61,5 @@ PIP package                                 Version required
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ==========================================  =================================================================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-salesforce[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.14.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.14.1/changelog.html>`_.

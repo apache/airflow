@@ -38,7 +38,9 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
+from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
@@ -90,6 +92,8 @@ from airflow.sdk.log import mask_secret
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
+from airflow.utils.helpers import prune_dict
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -386,7 +390,19 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             callback(context)
         except Exception:
             log.exception("Callback failed", dag_id=request.dag_id)
-            stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
+            stats.incr(
+                "dag.callback_exceptions",
+                tags=prune_dict(
+                    {
+                        "dag_id": request.dag_id,
+                        "team_name": (
+                            DagModel.get_team_name(request.dag_id)
+                            if conf.getboolean("core", "multi_team")
+                            else None
+                        ),
+                    }
+                ),
+            )
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
@@ -535,7 +551,7 @@ def in_process_api_server() -> InProcessExecutionAPI:
 
 
 @attrs.define(kw_only=True)
-class DagFileProcessorProcess(WatchedSubprocess):
+class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
     Parses dags with Task SDK API.
 
@@ -572,13 +588,24 @@ class DagFileProcessorProcess(WatchedSubprocess):
     ) -> Self:
         logger = kwargs["logger"]
 
-        _pre_import_airflow_modules(os.fspath(path), logger)
+        # Parsing DAG files runs user code that can trigger macOS-unsafe ObjC
+        # initialization (secret backends, connection/variable lookups, HTTP
+        # clients). Fork+exec a clean interpreter there. Tests override `target`
+        # with a stub to exercise the base infrastructure; keep bare fork for those.
+        use_exec = target is _parse_file_entrypoint and supervisor._should_use_exec()
+
+        # Pre-importing only helps the bare-fork child (it inherits the imports via
+        # copy-on-write). An exec'd child re-imports from scratch, so skip it there
+        # to avoid leaking user modules into the long-lived processor manager.
+        if not use_exec:
+            _pre_import_airflow_modules(os.fspath(path), logger)
 
         proc: Self = super().start(
             target=target,
             client=client,
             bundle_name=bundle_name,
             dag_file_rel_path=dag_file_rel_path,
+            use_exec=use_exec,
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
@@ -609,9 +636,19 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
 
     def _create_log_forwarder(
-        self, loggers: tuple[FilteringBoundLogger, ...], name: str, log_level: int = logging.INFO
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
     ) -> Callable[[socket], bool]:
-        return super()._create_log_forwarder(loggers, name.replace("task.", "dag_processor.", 1), log_level)
+        return super()._create_log_forwarder(
+            loggers,
+            name.replace("task.", "dag_processor.", 1),
+            data=data,
+            log_level=log_level,
+        )
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
@@ -694,3 +731,13 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
+
+    def close(self):
+        try:
+            self.logger_filehandle.close()
+        except OSError:
+            self.log.warning(
+                "Failed to close log file handle for %s",
+                self.dag_file_rel_path,
+                exc_info=True,
+            )

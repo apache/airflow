@@ -1,0 +1,3 @@
+Default for ``enableServiceLinks`` changed to false.
+
+Warning: The default is false in ``Chart 2.0``. If you rely on these environment variables, explicitly set ``enableServiceLinks: true``, or migrate your code to use dns based service lookups.

@@ -116,12 +116,18 @@ def _prepare_app(broker_url=None, execute=None):
         session = backend.ResultSession()
         session.close()
 
+    # Clear the per-team workload app cache so the patched create_celery_app
+    # is actually called. Without this, _get_celery_app_for_workload returns
+    # a stale app from a previous test and the patched factory is bypassed.
+    celery_executor_utils._get_celery_app_for_workload.cache_clear()
+
     with patch_app, patch_execute, patch_factory:
         try:
             yield test_app
         finally:
             # Clear event loop to tear down each celery instance
             set_event_loop(None)
+            celery_executor_utils._get_celery_app_for_workload.cache_clear()
 
 
 def setup_dagrun_with_success_and_fail_workloads(dag_maker):

@@ -21,6 +21,8 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.hooks.bedrock import (
+    BedrockAgentCoreControlHook,
+    BedrockAgentCoreHook,
     BedrockAgentHook,
     BedrockAgentRuntimeHook,
     BedrockHook,
@@ -36,6 +38,8 @@ class TestBedrockHooks:
             pytest.param(BedrockRuntimeHook(), "bedrock-runtime", id="bedrock-runtime"),
             pytest.param(BedrockAgentHook(), "bedrock-agent", id="bedrock-agent"),
             pytest.param(BedrockAgentRuntimeHook(), "bedrock-agent-runtime", id="bedrock-agent-runtime"),
+            pytest.param(BedrockAgentCoreControlHook(), "bedrock-agentcore-control", id="agentcore-control"),
+            pytest.param(BedrockAgentCoreHook(), "bedrock-agentcore", id="agentcore"),
         ],
     )
     def test_bedrock_hooks(self, test_hook, service_name):

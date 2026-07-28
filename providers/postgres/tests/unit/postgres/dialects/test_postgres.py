@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
@@ -102,4 +104,59 @@ class TestPostgresDialect:
             == """
             INSERT INTO hollywood.actors ("id", "name", "firstname", "age") VALUES (?,?,?,?,?) ON CONFLICT ("id") DO UPDATE SET "name" = excluded."name", "firstname" = excluded."firstname", "age" = excluded."age"
         """.strip()
+        )
+
+    @pytest.mark.parametrize(
+        ("replace_index", "replace_target", "expected_clause"),
+        [
+            (
+                None,
+                ["name"],
+                "ON CONFLICT (id) DO UPDATE SET name = excluded.name",
+            ),
+            (
+                None,
+                ["name", "age"],
+                "ON CONFLICT (id) DO UPDATE SET name = excluded.name, age = excluded.age",
+            ),
+            (
+                None,
+                [],
+                "ON CONFLICT (id) DO NOTHING",
+            ),
+            (
+                ["id", "name"],
+                ["age"],
+                "ON CONFLICT (id, name) DO UPDATE SET age = excluded.age",
+            ),
+        ],
+    )
+    def test_generate_replace_sql_with_replace_target(
+        self,
+        replace_index,
+        replace_target,
+        expected_clause,
+    ):
+        values = [
+            {"id": 1, "name": "Stallone", "firstname": "Sylvester", "age": "78"},
+            {"id": 2, "name": "Statham", "firstname": "Jason", "age": "57"},
+            {"id": 3, "name": "Li", "firstname": "Jet", "age": "61"},
+            {"id": 4, "name": "Lundgren", "firstname": "Dolph", "age": "66"},
+            {"id": 5, "name": "Norris", "firstname": "Chuck", "age": "84"},
+        ]
+
+        target_fields = ["id", "name", "firstname", "age"]
+
+        sql = PostgresDialect(self.test_db_hook).generate_replace_sql(
+            "hollywood.actors",
+            values,
+            target_fields,
+            replace_index=replace_index,
+            replace_target=replace_target,
+        )
+
+        assert (
+            sql
+            == f"""
+            INSERT INTO hollywood.actors (id, name, firstname, age) VALUES (?,?,?,?,?) {expected_clause}""".strip()
         )

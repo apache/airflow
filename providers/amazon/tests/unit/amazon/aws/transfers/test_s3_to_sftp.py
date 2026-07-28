@@ -24,6 +24,7 @@ from moto import mock_aws
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
+from airflow.providers.amazon.aws.utils import validate_destination_path
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
@@ -313,3 +314,84 @@ class TestS3ToSFTPOperator:
 
     def teardown_method(self):
         self.delete_remote_resource()
+
+
+class TestS3ToSFTPOperatorInit:
+    """Unit tests for S3ToSFTPOperator.__init__ that do not require an SSH server."""
+
+    @pytest.mark.parametrize(
+        ("s3_filenames", "sftp_filenames"),
+        [
+            (None, None),
+            ("*", None),
+            ("prefix_", "renamed_"),
+            (["a.csv", "b.csv"], ["x.csv", "y.csv"]),
+        ],
+    )
+    def test_multi_file_params(self, s3_filenames, sftp_filenames):
+        """s3_filenames and sftp_filenames are stored correctly."""
+        op = S3ToSFTPOperator(
+            task_id="test_multi",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            s3_filenames=s3_filenames,
+            sftp_filenames=sftp_filenames,
+        )
+        assert op.s3_filenames == s3_filenames
+        assert op.sftp_filenames == sftp_filenames
+
+    def test_fail_on_file_not_exist_default(self):
+        """fail_on_file_not_exist defaults to True."""
+        op = S3ToSFTPOperator(
+            task_id="test_fail_default",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        assert op.fail_on_file_not_exist is True
+
+    @pytest.mark.parametrize("fail_on_file_not_exist", [True, False])
+    def test_fail_on_file_not_exist_skip(self, fail_on_file_not_exist):
+        """When key is missing: raise FileNotFoundError if True, skip if False."""
+        from unittest.mock import MagicMock, patch
+
+        op = S3ToSFTPOperator(
+            task_id="test_skip",
+            s3_bucket=BUCKET,
+            s3_key=S3_KEY,
+            sftp_path=SFTP_PATH,
+            sftp_conn_id=SFTP_CONN_ID,
+            fail_on_file_not_exist=fail_on_file_not_exist,
+        )
+        mock_s3_hook = MagicMock()
+        mock_s3_hook.check_for_key.return_value = False
+
+        if fail_on_file_not_exist:
+            with pytest.raises(FileNotFoundError):
+                op._download_from_s3(MagicMock(), mock_s3_hook, S3_KEY, SFTP_PATH)
+        else:
+            with patch.object(op.log, "info") as mock_log:
+                op._download_from_s3(MagicMock(), mock_s3_hook, S3_KEY, SFTP_PATH)
+            mock_log.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "object_suffix",
+        [
+            pytest.param("../../../../etc/cron.d/evil", id="dotdot-segments"),
+            pytest.param("subdir/../../../escape", id="dotdot-cancels-base"),
+        ],
+    )
+    def test_validate_destination_path_rejects_escape(self, object_suffix):
+        # In multi-file mode the destination is ``sftp_path`` plus a key suffix
+        # returned by ``list_keys``; a crafted object name must not place the
+        # upload outside the configured ``sftp_path`` on the SFTP server.
+        sftp_path = "/srv/sftp/incoming/"
+        with pytest.raises(ValueError, match="escapes configured sftp_path"):
+            validate_destination_path(sftp_path + object_suffix, sftp_path, base_name="sftp_path")
+
+    def test_validate_destination_path_allows_contained(self):
+        sftp_path = "/srv/sftp/incoming/"
+        validate_destination_path(sftp_path + "sub/dir/report.csv", sftp_path, base_name="sftp_path")

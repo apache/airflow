@@ -370,3 +370,35 @@ class TestGoogleCloudStorageToSambaOperator:
         )
         with pytest.raises(AirflowException):
             operator.execute(None)
+
+    @pytest.mark.parametrize(
+        "source_object",
+        [
+            "../../victim_area/payload",
+            "../escape",
+            "subdir/../../escape",
+        ],
+    )
+    def test_resolve_destination_path_rejects_traversal(self, source_object):
+        operator = GCSToSambaOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=source_object,
+            destination_path=DESTINATION_SMB,
+            gcp_conn_id=GCP_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
+        )
+        with pytest.raises(ValueError, match="outside the configured"):
+            operator._resolve_destination_path(source_object)
+
+    def test_resolve_destination_path_allows_contained_object(self):
+        operator = GCSToSambaOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="dir/file.txt",
+            destination_path=DESTINATION_SMB,
+            gcp_conn_id=GCP_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
+        )
+        resolved = operator._resolve_destination_path("dir/file.txt")
+        assert resolved == os.path.join(DESTINATION_SMB, "dir/file.txt")

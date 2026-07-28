@@ -19,14 +19,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
 
 from airflow.models import DAG
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
-from airflow.utils import timezone
 
 TASK_ID = "db-sensor"
 DEFAULT_CONN_ID = "databricks_default"
@@ -101,3 +101,71 @@ class TestDatabricksSqlSensor:
             " Please specify either http_path or sql_warehouse_name.",
         ):
             self.sensor._get_results()
+
+    def _make_sensor(self, **kwargs):
+        return DatabricksSqlSensor(
+            task_id=TASK_ID,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            sql_warehouse_name=DEFAULT_SQL_WAREHOUSE,
+            sql=DEFAULT_SQL,
+            **kwargs,
+        )
+
+    def test_query_tags_defaults(self):
+        sensor = self._make_sensor()
+        assert sensor.query_tags == {}
+        assert sensor.include_airflow_query_tags is True
+
+    def test_query_tags_in_template_fields(self):
+        assert "query_tags" in DatabricksSqlSensor.template_fields
+
+    def test_query_tags_stored(self):
+        sensor = self._make_sensor(query_tags={"env": "prod"})
+        assert sensor.query_tags == {"env": "prod"}
+
+    def test_poke_sets_query_tags_on_hook(self):
+        sensor = self._make_sensor(query_tags={"env": "test"}, include_airflow_query_tags=False)
+        with patch.object(sensor, "_get_results", return_value=True) as mock_results:
+            sensor.poke(context=None)
+        assert sensor.hook.query_tags == {"env": "test"}
+        mock_results.assert_called_once()
+
+    def test_poke_no_tags_when_disabled_and_no_custom(self):
+        sensor = self._make_sensor(include_airflow_query_tags=False)
+        with patch.object(sensor, "_get_results", return_value=True):
+            sensor.poke(context=None)
+        assert sensor.hook.query_tags is None
+
+    def test_poke_includes_airflow_tags_from_context(self):
+        sensor = self._make_sensor(query_tags={"custom": "value"})
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index"])
+        mock_ti.dag_id = "my_dag"
+        mock_ti.task_id = "my_task"
+        mock_ti.run_id = "run_1"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+        mock_context = {"ti": mock_ti}
+
+        with patch.object(sensor, "_get_results", return_value=True):
+            sensor.poke(context=mock_context)
+
+        tags = sensor.hook.query_tags
+        assert tags is not None
+        assert tags["airflow_dag_id"] == "my_dag"
+        assert tags["airflow_task_id"] == "my_task"
+        assert tags["custom"] == "value"
+
+    def test_custom_tags_override_airflow_tags(self):
+        sensor = self._make_sensor(query_tags={"airflow_dag_id": "overridden"})
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index"])
+        mock_ti.dag_id = "original"
+        mock_ti.task_id = "t"
+        mock_ti.run_id = "r"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+        mock_context = {"ti": mock_ti}
+
+        with patch.object(sensor, "_get_results", return_value=True):
+            sensor.poke(context=mock_context)
+
+        assert sensor.hook.query_tags["airflow_dag_id"] == "overridden"

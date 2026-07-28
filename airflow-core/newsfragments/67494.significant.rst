@@ -1,0 +1,43 @@
+Fix ``jwt_audience`` for the public API being read from two different config sections
+
+Earlier 3.x releases contained a bug in ``BaseAuthManager``: the JWT signer read
+``jwt_audience`` from the ``[api]`` section while the validator read it from the documented
+``[api_auth]`` section. Only ``[api_auth] jwt_audience`` is declared in ``config.yml``;
+``[api] jwt_audience`` was never part of the schema. Default deployments were unaffected
+because both sides fell back to ``apache-airflow``, but a deployment that set a custom
+audience under the documented ``[api_auth]`` location had its tokens signed with the
+default value and silently rejected by the validator. Some operators worked around the
+bug by setting the audience under the undocumented ``[api]`` section instead, which made
+the signer emit the configured value but left the validator on the default.
+
+Both the signer and validator now read ``jwt_audience`` from ``[api_auth]``.
+
+**What you should do:**
+
+- If you set ``[api_auth] jwt_audience`` (env ``AIRFLOW__API_AUTH__JWT_AUDIENCE``):
+  nothing — this is the documented location and continues to work.
+- If you worked around the original bug by setting ``[api] jwt_audience`` (env
+  ``AIRFLOW__API__JWT_AUDIENCE``): move the value to ``[api_auth] jwt_audience``
+  (env ``AIRFLOW__API_AUTH__JWT_AUDIENCE``). The value under ``[api]`` is still
+  honoured for backwards compatibility and emits a ``DeprecationWarning``; support
+  for it will be removed in a future release.
+- If you set both: the documented ``[api_auth]`` value wins; remove the ``[api]``
+  one to silence the deprecation warning.
+
+**Behaviour changes:**
+
+- Deployments that set ``[api_auth] jwt_audience`` will now also have their tokens
+  signed with that value (previously only validated against it). If signer and
+  validator were on different audiences because of this bug, expect tokens
+  generated after upgrade to be accepted again.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

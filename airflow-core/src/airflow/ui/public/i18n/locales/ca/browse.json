@@ -11,6 +11,24 @@
     },
     "title": "Registre d'auditoria"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Nom de l'alerta",
+      "deadlineTime": "Hora del termini",
+      "status": "Estat"
+    },
+    "deadline_one": "Termini",
+    "deadline_other": "Terminis",
+    "filters": {
+      "status": "Estat",
+      "statusOptions": {
+        "all": "Tots",
+        "missed": "Vençut",
+        "pending": "Pendent"
+      }
+    },
+    "title": "Terminis"
+  },
   "xcom": {
     "add": {
       "error": "No s'ha pogut afegir l'XCom",

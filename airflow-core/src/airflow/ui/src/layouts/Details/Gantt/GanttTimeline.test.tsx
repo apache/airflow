@@ -21,7 +21,6 @@ import type { PropsWithChildren, RefObject } from "react";
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { HoverProvider } from "src/context/hover";
 import { ROW_HEIGHT } from "src/layouts/Details/Grid/constants";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 import { Wrapper } from "src/utils/Wrapper";
@@ -45,11 +44,7 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
-const TestWrapper = ({ children }: PropsWithChildren) => (
-  <Wrapper>
-    <HoverProvider>{children}</HoverProvider>
-  </Wrapper>
-);
+const TestWrapper = ({ children }: PropsWithChildren) => <Wrapper>{children}</Wrapper>;
 
 // Shared time range: 10:00 → 10:10 UTC on 2024-03-14
 const MIN_MS = new Date("2024-03-14T10:00:00Z").getTime();

@@ -23,11 +23,15 @@ import { usePluginServiceGetPlugins } from "openapi/queries";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { useDocumentTitle } from "src/utils";
 
 import { PluginImportErrors } from "./Dashboard/Stats/PluginImportErrors";
 
 export const Plugins = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
+
+  useDocumentTitle(translate("common:admin.Plugins"));
+
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
   const { data, error } = usePluginServiceGetPlugins({

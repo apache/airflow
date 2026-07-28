@@ -223,6 +223,14 @@ class NotificationInfo(NamedTuple):
     package_name: str
 
 
+class RemoteLoggingInfo(NamedTuple):
+    """Remote logging IO handler registered by a provider."""
+
+    classpath: str
+    scheme: str
+    package_name: str
+
+
 class PluginInfo(NamedTuple):
     """Plugin class, name and provider it comes from."""
 
@@ -432,6 +440,8 @@ class ProvidersManager(LoggingMixin):
         self._cli_command_provider_name_set: set[str] = set()
         self._extra_link_class_name_set: set[str] = set()
         self._logging_class_name_set: set[str] = set()
+        self._remote_logging_info_list: list[RemoteLoggingInfo] = []
+        self._remote_logging_by_scheme: dict[str, RemoteLoggingInfo] = {}
         self._auth_manager_class_name_set: set[str] = set()
         self._auth_manager_without_check_set: set[tuple[str, str]] = set()
         self._secrets_backend_class_name_set: set[str] = set()
@@ -570,6 +580,12 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of providers logging information."""
         self.initialize_providers_list()
         self._discover_logging()
+
+    @provider_info_cache("remote_logging")
+    def initialize_providers_remote_logging(self):
+        """Lazy initialization of providers remote logging IO handlers."""
+        self.initialize_providers_list()
+        self._discover_remote_logging()
 
     @provider_info_cache("secrets_backends")
     def initialize_providers_secrets_backends(self):
@@ -1240,6 +1256,31 @@ class ProvidersManager(LoggingMixin):
                     if _correctness_check(provider_package, logging_class_name, provider):
                         self._logging_class_name_set.add(logging_class_name)
 
+    def _discover_remote_logging(self) -> None:
+        """Retrieve all remote logging IO handlers defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            entries = provider.data.get("remote-logging") or []
+            for entry in entries:
+                classpath = entry["classpath"]
+                if not _correctness_check(provider_package, classpath, provider):
+                    continue
+                info = RemoteLoggingInfo(
+                    classpath=classpath,
+                    scheme=entry["scheme"],
+                    package_name=provider_package,
+                )
+                if (existing := self._remote_logging_by_scheme.get(info.scheme)) is not None:
+                    log.warning(
+                        "Remote logging scheme '%s' is already registered by %s; ignoring "
+                        "duplicate registration from %s.",
+                        info.scheme,
+                        existing.package_name,
+                        info.package_name,
+                    )
+                    continue
+                self._remote_logging_info_list.append(info)
+                self._remote_logging_by_scheme[info.scheme] = info
+
     def _discover_secrets_backends(self) -> None:
         """Retrieve all secrets backends defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1451,6 +1492,17 @@ class ProvidersManager(LoggingMixin):
         return sorted(self._logging_class_name_set)
 
     @property
+    def remote_logging_handlers(self) -> list[RemoteLoggingInfo]:
+        """Return all remote logging IO handlers contributed by providers."""
+        self.initialize_providers_remote_logging()
+        return list(self._remote_logging_info_list)
+
+    def remote_logging_handler_by_scheme(self, scheme: str) -> RemoteLoggingInfo | None:
+        """Return the remote logging IO handler registered for the given URL scheme, if any."""
+        self.initialize_providers_remote_logging()
+        return self._remote_logging_by_scheme.get(scheme)
+
+    @property
     def secrets_backend_class_names(self) -> list[str]:
         """Returns set of secret backend class names."""
         self.initialize_providers_secrets_backends()
@@ -1532,6 +1584,8 @@ class ProvidersManager(LoggingMixin):
         self._field_behaviours.clear()
         self._extra_link_class_name_set.clear()
         self._logging_class_name_set.clear()
+        self._remote_logging_info_list.clear()
+        self._remote_logging_by_scheme.clear()
         self._auth_manager_class_name_set.clear()
         self._auth_manager_without_check_set.clear()
         self._secrets_backend_class_name_set.clear()

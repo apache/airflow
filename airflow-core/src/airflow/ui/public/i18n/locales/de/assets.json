@@ -2,6 +2,22 @@
   "additional_data": "Zusätzliche Daten",
   "asset_many": "Datensets (Assets)",
   "asset_one": "Datenset (Asset)",
+  "assetStateStore": {
+    "add": "Datenset (Asset) Zwischenspeicher hinzufügen",
+    "clearAll": {
+      "resource": "alle Datenset (Asset) Zwischenspeicher",
+      "title": "Alle Datenset (Asset) Zwischenspeicher löschen",
+      "warning": "Alle Datenset (Asset) Zwischenspeicher werden gelöscht. Tasks, die diesen Speicher zur Koordination verwenden, verlieren ihre gespeicherten Daten."
+    },
+    "delete": "Datenset (Asset) Zwischenspeicher löschen",
+    "deleteWarning": "Das Datenset (Asset) verliert diesen gespeicherten Eintrag.",
+    "edit": "Datenset (Asset) Zwischenspeicher bearbeiten",
+    "emptyState": "Der Datenset (Asset) Zwischenspeicher speichert Werte, die auf ein Datenset (Asset) beschränkt sind und über alle Dag-Läufe hinweg geteilt werden. Worker können den Datenset (Asset) Zwischenspeicher über das Task SDK schreiben.",
+    "lastUpdatedBy": "Zuletzt aktualisiert von",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Ereignis",
+    "title": "Datenset (Asset) Zwischenspeicher"
+  },
   "consumingDags": "Konsumierende Dags",
   "consumingTasks": "Konsumierende Tasks",
   "createEvent": {
@@ -25,6 +41,7 @@
     },
     "title": "Ereignis zu Datenset (Asset) {{name}} erstellen"
   },
+  "events": "Ereignisse",
   "extra": "Extra",
   "group": "Gruppe",
   "lastAssetEvent": "Letztes Ereignis zu Datenset (Asset)",

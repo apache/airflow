@@ -1,0 +1,83 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Docker Compose override for the openlineage E2E test mode.
+#
+# The OpenLineage system-test DAGs are sourced into the dags folder by
+# openlineage_tests/prepare_dags.py (conftest._setup_openlineage_integration). They emit through the
+# test VariableTransport (events land in Airflow Variables) and each DAG's terminal
+# OpenLineageTestOperator validates them, so a run ending "success" means the lineage matched.
+---
+# yamllint disable rule:line-length
+x-ol-common-env: &ol-common-env
+  # These DAGs are the only ones the harness drives; keep the stock example DAGs out of the way.
+  AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+  # The OpenLineage system-test DAGs (and the custom VariableTransport / OpenLineageTestOperator
+  # they import) live under <dags>/system/openlineage; the dags folder is added to PYTHONPATH so
+  # both DAG parsing and the dotted-path transport class resolve in every component.
+  PYTHONPATH: '/opt/airflow/dags'
+  # Route OpenLineage events to the test VariableTransport (stores events in Airflow Variables,
+  # read back and validated by the in-DAG OpenLineageTestOperator). The transport type is the
+  # fully-qualified class path; the OpenLineage client imports it directly.
+  AIRFLOW__OPENLINEAGE__TRANSPORT: '{"type": "system.openlineage.transport.variable.VariableTransport"}'
+  AIRFLOW__OPENLINEAGE__DISABLED: 'false'
+  # Deployment-wide policy required by the two conf-driven policy DAGs. Each rule is scoped by
+  # dag_id, so both rules coexist and do not affect any other DAG.
+  AIRFLOW__OPENLINEAGE__EMISSION_POLICY: '[{"scope": {"dag_id": "openlineage_policy_conf_locked_dag"}, "locked": true, "controls": {"include_source_code": false}}, {"scope": {"dag_id": "openlineage_policy_conf_source_code_dag"}, "controls": {"include_source_code": false}}]'
+  AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT: '60'
+  # Both control how quickly the dag-processor picks up dags: REFRESH_INTERVAL is how often it
+  # re-scans the folder for new/removed files, MIN_FILE_PROCESS_INTERVAL is how often it re-parses
+  # a file it already knows about. Tightened from the 300s/30s defaults so the e2e run doesn't wait
+  # on the dag-processor's own cadence on top of everything else.
+  AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: '3'
+  AIRFLOW__DAG_PROCESSOR__MIN_FILE_PROCESS_INTERVAL: '3'
+  # openlineage_defer_simple_dag's TimeDeltaSensor defaults to a 180s delta so it reliably defers at
+  # least once even before a worker picks up the task; tighten it here since we do not need to wait.
+  SYSTEM_TESTS_OL_TIMEDELTA: '60'
+  # Every DAG's dagrun_timeout (system.openlineage.constants.DEFAULT_DAGRUN_TIMEOUT) defaults to 10
+  # minutes; tighten it here since we do not need to wait for worker.
+  SYSTEM_TESTS_OL_DAGRUN_TIMEOUT_MINUTES: '5'
+  AIRFLOW__CORE__TASK_SUCCESS_OVERTIME: '70'
+  # Serve the dags folder through a versioned bundle so example_openlineage_versioned_dag gets a
+  # non-null dag_bundle_version. MockVersionedLocalDagBundle still serves from /opt/airflow/dags
+  # (keeping PYTHONPATH valid); it is copied into the dags folder by prepare_dags.py.
+  AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST: '[{"name": "dags-folder", "classpath": "e2e_versioned_bundle.MockVersionedLocalDagBundle", "kwargs": {}}]'
+  # The breeze PROD image installs every provider from source, including informatica, whose listener
+  # fires on every task and errors without its connection — suppressing OL events. A curated
+  # deployment (e.g. Astro) does not ship it; disable its listener to match.
+  AIRFLOW__INFORMATICA__LISTENER_DISABLED: 'true'
+
+x-ol-common: &ol-common
+  environment:
+    <<: *ol-common-env
+  volumes:
+    # example_openlineage_docs_file_dag sets doc_md="dag_doc.md", which Airflow resolves with a
+    # CWD-relative open(); components run with CWD=/opt/airflow. prepare_dags.py generates a clean,
+    # license-free dag_doc.md (matching the expected event) in the dags folder; expose it here.
+    - ./dags/dag_doc.md:/opt/airflow/dag_doc.md
+
+services:
+  airflow-apiserver:
+    <<: *ol-common
+  airflow-scheduler:
+    <<: *ol-common
+  airflow-dag-processor:
+    <<: *ol-common
+  airflow-triggerer:
+    <<: *ol-common
+  airflow-worker:
+    <<: *ol-common

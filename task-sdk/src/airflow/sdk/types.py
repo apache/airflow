@@ -123,6 +123,7 @@ class DagRunProtocol(Protocol):
     triggering_user_name: str | None
     consumed_asset_events: list[AssetEventDagRunReference]
     partition_key: str | None
+    partition_date: AwareDatetime | None
     note: str | None
 
 
@@ -150,6 +151,9 @@ class RuntimeTaskInstanceProtocol(Protocol):
 
     @property
     def mark_success_url(self) -> str: ...
+
+    @property
+    def stats_tags(self) -> dict[str, str]: ...
 
     def xcom_pull(
         self,

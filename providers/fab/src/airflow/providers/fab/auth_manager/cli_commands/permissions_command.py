@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 
 @provide_session
-def cleanup_dag_permissions(dag_id: str, session: Session = NEW_SESSION) -> None:
+def cleanup_dag_permissions(dag_id: str, *, session: Session = NEW_SESSION) -> None:
     """
     Clean up DAG-specific permissions from Flask-AppBuilder tables.
 
@@ -190,7 +190,7 @@ def permissions_cleanup(args):
             cleanup_count = 0
             for dag_id in orphaned_dag_ids:
                 try:
-                    cleanup_dag_permissions(dag_id, session)
+                    cleanup_dag_permissions(dag_id, session=session)
                     cleanup_count += 1
                     if args.verbose:
                         print(f"Cleaned up permissions for DAG: {dag_id}")

@@ -27,6 +27,59 @@
 Changelog
 ---------
 
+6.0.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Honor async hook subclass overrides in get_async_connection (#69140)``
+
+Doc-only
+~~~~~~~~
+
+* ``Enhancing docs for 'HttpEventTrigger' (#70073)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
+6.0.4
+.....
+
+Misc
+~~~~
+
+* ``Explicitly add pydantic dependency to the http provider (#68321)``
+* ``Bump aiohttp>=3.14.0 (#67978)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix Typo in HTTP Connection Example (#68076)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.0.3
+.....
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify HttpOperator response_filter XCom usage (#66597)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
+
 6.0.2
 .....
 

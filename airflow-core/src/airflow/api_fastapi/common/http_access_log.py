@@ -21,8 +21,11 @@ from __future__ import annotations
 import contextlib
 import time
 from typing import TYPE_CHECKING
+from urllib.parse import parse_qsl, urlencode
 
 import structlog
+
+from airflow._shared.secrets_masker import secrets_masker
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -30,6 +33,29 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(logger_name="http.access")
 
 _HEALTH_PATHS = frozenset(["/api/v2/monitor/health"])
+
+
+def _redact_query_string(query: str) -> str:
+    """
+    Redact secret-looking query parameters before they reach the access log.
+
+    Treat each ``key=value`` pair independently so a key whose name signals a secret
+    (``password``, ``token``, ``api_key`` — anything ``secrets_masker`` flags as sensitive)
+    gets its value replaced with ``***``. Also catches values that were previously registered
+    via ``mask_secret()``.
+    """
+    if not query:
+        return query
+    try:
+        pairs = parse_qsl(query, keep_blank_values=True)
+    except ValueError:
+        # Malformed query string — leave it alone; we'd rather log the raw bytes than
+        # silently drop diagnostic information.
+        return query
+    if not pairs:
+        return query
+    redacted_pairs = [(k, secrets_masker.redact(v, k)) for k, v in pairs]
+    return urlencode(redacted_pairs)
 
 
 class HttpAccessLogMiddleware:
@@ -91,16 +117,22 @@ class HttpAccessLogMiddleware:
                     duration_us = (time.monotonic_ns() - start) // 1000
                     status = response["status"] if response is not None else 0
                     method = scope.get("method", "")
-                    query = scope["query_string"].decode("ascii", errors="replace")
+                    query = _redact_query_string(scope["query_string"].decode("ascii", errors="replace"))
                     client = scope.get("client")
                     client_addr = f"{client[0]}:{client[1]}" if client else None
 
-                    logger.info(
-                        "request finished",
-                        method=method,
-                        path=path,
-                        query=query,
-                        status_code=status,
-                        duration_us=duration_us,
-                        client_addr=client_addr,
-                    )
+                    # Guard the log emit: if it raised inside a ``finally`` while the
+                    # original ``try`` block was already propagating an app exception,
+                    # Python's exception-replacement semantics would discard the
+                    # original. Swallow logging failures so the application exception
+                    # always reaches uvicorn intact.
+                    with contextlib.suppress(Exception):
+                        logger.info(
+                            "request finished",
+                            method=method,
+                            path=path,
+                            query=query,
+                            status_code=status,
+                            duration_us=duration_us,
+                            client_addr=client_addr,
+                        )

@@ -191,6 +191,21 @@ class TestAkeylessHook:
         with pytest.raises(ValueError, match="Unsupported access_type"):
             hook.authenticate()
 
+    @patch(
+        f"{HOOK_MODULE}.AkeylessHook.get_connection",
+        return_value=_make_connection(extra='{"access_type": "jwt", "jwt_token": "jwt-token-value"}'),
+    )
+    @patch(f"{HOOK_MODULE}.akeyless")
+    def test_jwt_auth_uses_jwt_token_extra(self, mock_sdk, mock_conn):
+        api = mock_sdk.V2Api.return_value
+        api.auth.return_value = MagicMock(token="t")
+        from airflow.providers.akeyless.hooks.akeyless import AkeylessHook
+
+        hook = AkeylessHook()
+        hook.authenticate()
+        auth_body = api.auth.call_args.args[0]
+        assert auth_body.jwt == "jwt-token-value"
+
     @patch(f"{HOOK_MODULE}.AkeylessHook.get_connection", return_value=_make_connection())
     @patch(f"{HOOK_MODULE}.akeyless")
     def test_get_rotated_secret_passes_list(self, mock_sdk, mock_conn):

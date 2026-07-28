@@ -1,0 +1,12 @@
+Provider example DAGs are exposed as dedicated bundles
+
+Example DAGs shipped by provider distributions are now discovered via
+``ProvidersManager`` and registered as their own DAG bundles, one per
+provider, named ``apache-airflow-providers-<distribution>-example-dags``
+(or ``<distribution>-example-dags`` for third-party providers). The
+``[core] load_examples`` option still gates whether they are registered.
+
+REST API clients that filtered ``bundle_name`` by ``"dags-folder"`` for
+provider-shipped example DAGs (e.g. ``example_python_operator``) must
+update to the new per-provider bundle names. DAG identifiers are
+unchanged.

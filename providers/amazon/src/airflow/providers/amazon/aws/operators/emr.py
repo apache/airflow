@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import warnings
 from collections.abc import Sequence
 from datetime import timedelta
@@ -60,6 +61,7 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_emr_serverless_properties,
+    inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_emr_serverless_properties,
 )
 from airflow.providers.common.compat.sdk import AirflowException, conf
@@ -100,6 +102,9 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
+    :param openlineage_inject_parent_job_info: If True, injects OpenLineage parent job information
+        into Spark steps so the Spark job emits a ``parentRunFacet`` linking back to the Airflow task.
+        Defaults to the ``openlineage.spark_inject_parent_job_info`` config value.
     """
 
     aws_hook_class = EmrHook
@@ -130,6 +135,9 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
         waiter_max_attempts: int = 60,
         execution_role_arn: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -146,6 +154,36 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
         self.waiter_max_attempts = waiter_max_attempts
         self.execution_role_arn = execution_role_arn
         self.deferrable = deferrable
+        self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
+
+    def _inject_openlineage_parent_job_information(self, steps: list[dict], context: Context) -> list[dict]:
+        parent_job_information = inject_parent_job_information_into_spark_properties({}, context)
+        if not parent_job_information:
+            return steps
+
+        parent_conf = [
+            argument
+            for key, value in parent_job_information.items()
+            for argument in ("--conf", f"{key}={value}")
+        ]
+        result = copy.deepcopy(steps)
+        for step in result:
+            hadoop_jar_step = step.get("HadoopJarStep", {})
+            arguments = hadoop_jar_step.get("Args", [])
+            if hadoop_jar_step.get("Jar", "").rsplit("/", 1)[-1] != "command-runner.jar" or not arguments:
+                continue
+            command = arguments[0].rsplit("/", 1)[-1]
+            if command not in {"run-example", "spark-submit"}:
+                continue
+            if any("spark.openlineage.parent" in argument for argument in arguments):
+                self.log.info(
+                    "Some OpenLineage properties with parent job information are already present "
+                    "in EMR Spark step arguments. Skipping injection for step `%s`.",
+                    step.get("Name", ""),
+                )
+                continue
+            hadoop_jar_step["Args"] = [arguments[0], *parent_conf, *arguments[1:]]
+        return result
 
     def execute(self, context: Context) -> list[str]:
         job_flow_id = self.job_flow_id or self.hook.get_cluster_id_by_name(
@@ -181,6 +219,9 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
+        if self.openlineage_inject_parent_job_info:
+            self.log.info("Injecting OpenLineage parent job information into EMR Spark steps.")
+            steps = self._inject_openlineage_parent_job_information(steps, context)
         step_ids = self.hook.add_job_flow_steps(
             job_flow_id=job_flow_id,
             steps=steps,
@@ -471,8 +512,10 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
     :param configuration_overrides: The configuration overrides for the job run,
         specifically either application configuration or monitoring configuration.
     :param client_request_token: The client idempotency token of the job run request.
-        Use this if you want to specify a unique ID to prevent two jobs from getting started.
-        If no token is provided, a UUIDv4 token will be generated for you.
+        Pass an explicit value to make repeated submissions idempotent: EMR on EKS treats a
+        resubmission with the same token as the original run, so task retries return that run
+        instead of starting a new one. If no token is provided, a fresh UUIDv4 is generated on
+        every task attempt, so each retry starts a genuinely new job run.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -545,7 +588,7 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
         self.release_label = release_label
         self.job_driver = job_driver
         self.configuration_overrides = configuration_overrides or {}
-        self.client_request_token = client_request_token or str(uuid4())
+        self.client_request_token = client_request_token
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.max_polling_attempts = max_polling_attempts
@@ -575,13 +618,14 @@ class EmrContainerOperator(AwsBaseOperator[EmrContainerHook]):
                 configuration_overrides, context
             )
 
+        client_request_token = self.client_request_token or str(uuid4())
         self.job_id = self.hook.submit_job(
             self.name,
             self.execution_role_arn,
             self.release_label,
             self.job_driver,
             configuration_overrides,
-            self.client_request_token,
+            client_request_token,
             self.tags,
             self.job_retry_max_attempts,
         )

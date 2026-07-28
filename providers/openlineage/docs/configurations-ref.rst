@@ -25,6 +25,20 @@
 Highlighted configurations
 ===========================
 
+
+Configuration precedence
+-------------------------
+
+Primary, and recommended method of configuring OpenLineage Airflow Provider is Airflow configuration.
+As there are multiple possible ways of configuring OpenLineage, it's important to keep in mind the precedence of different configurations.
+OpenLineage Airflow Provider looks for the configuration in the following order:
+
+1. Check ``config_conn_id`` in ``airflow.cfg`` under ``openlineage`` section.
+2. Check ``config_path`` in ``airflow.cfg`` under ``openlineage`` section (or AIRFLOW__OPENLINEAGE__CONFIG_PATH environment variable)
+3. Check ``transport`` in ``airflow.cfg`` under ``openlineage`` section (or AIRFLOW__OPENLINEAGE__TRANSPORT environment variable)
+4. If all the above options are missing, the OpenLineage Python client used underneath looks for configuration in the order described in `this <https://openlineage.io/docs/client/python/configuration>`_ documentation. Please note that **using Airflow configuration is encouraged** and is the only future proof solution.
+
+
 .. _configuration_transport:openlineage:
 
 Transport setup
@@ -55,6 +69,36 @@ If you want to look at OpenLineage events without sending them anywhere, you can
 
     [openlineage]
     transport = {"type": "console"}
+
+OpenLineage config stored in an Airflow connection
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can store OpenLineage client configuration in a Generic Airflow connection instead of putting the full JSON
+configuration directly in ``airflow.cfg``. Set ``config_conn_id`` to the connection ID and store the OpenLineage
+configuration in the connection extra as JSON.
+
+.. code-block:: ini
+
+    [openlineage]
+    config_conn_id = openlineage_default
+
+Connection extra should contain the OpenLineage client configuration:
+
+.. code-block:: json
+
+    {
+      "transport": {
+        "type": "http",
+        "url": "http://example.com:5000",
+        "auth": {"type": "airflow_connection_api_key"}
+      }
+    }
+
+For HTTP transports that require API key authentication, you can keep the token in the Airflow connection password.
+Set ``auth.type`` to ``airflow_connection_api_key``. When the config is loaded from ``config_conn_id``, the provider
+reads the API key from the same connection password by default. You can also set ``auth.conn_id`` to read the token
+from another Airflow connection. The provider resolves ``airflow_connection_api_key`` to standard OpenLineage
+``api_key`` auth before creating the OpenLineage client.
 
 .. note::
   For full list of built-in transport types, specific transport's options or instructions on how to implement your custom transport, refer to
@@ -91,82 +135,6 @@ Example content of config YAML file:
 .. note::
 
     Detailed description, together with example config files, can be found `in Python client documentation <https://openlineage.io/docs/client/python/configuration#transports>`_.
-
-
-Configuration precedence
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Primary, and recommended method of configuring OpenLineage Airflow Provider is Airflow configuration.
-As there are multiple possible ways of configuring OpenLineage, it's important to keep in mind the precedence of different configurations.
-OpenLineage Airflow Provider looks for the configuration in the following order:
-
-1. Check ``config_path`` in ``airflow.cfg`` under ``openlineage`` section (or AIRFLOW__OPENLINEAGE__CONFIG_PATH environment variable)
-2. Check ``transport`` in ``airflow.cfg`` under ``openlineage`` section (or AIRFLOW__OPENLINEAGE__TRANSPORT environment variable)
-3. If all the above options are missing, the OpenLineage Python client used underneath looks for configuration in the order described in `this <https://openlineage.io/docs/client/python/configuration>`_ documentation. Please note that **using Airflow configuration is encouraged** and is the only future proof solution.
-
-
-.. _configuration_selective_enable:openlineage:
-
-Enabling OpenLineage on Dag/task level
----------------------------------------
-
-One can selectively enable OpenLineage for specific Dags and tasks by using the ``selective_enable`` policy.
-To enable this policy, set the ``selective_enable`` option to True in the [openlineage] section of your Airflow configuration file:
-
-.. code-block:: ini
-
-    [openlineage]
-    selective_enable = True
-
-``AIRFLOW__OPENLINEAGE__SELECTIVE_ENABLE`` environment variable is an equivalent.
-
-.. code-block:: ini
-
-  AIRFLOW__OPENLINEAGE__SELECTIVE_ENABLE=true
-
-
-While ``selective_enable`` enables selective control, the ``disabled`` option still has precedence.
-If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all Dags and tasks regardless of the ``selective_enable`` setting.
-
-Once the ``selective_enable`` policy is enabled, you can choose to enable OpenLineage
-for individual Dags and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
-
-1. Enabling Lineage on a Dag:
-
-.. code-block:: python
-
-    from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
-
-    with enable_lineage(Dag(...)):
-        # Tasks within this Dag will have lineage tracking enabled
-        MyOperator(...)
-
-        AnotherOperator(...)
-
-2. Enabling Lineage on a Task:
-
-While enabling lineage on a Dag implicitly enables it for all tasks within that Dag, you can still selectively disable it for specific tasks:
-
-.. code-block:: python
-
-    from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
-
-    with DAG(...) as dag:
-        t1 = MyOperator(...)
-        t2 = AnotherOperator(...)
-
-    # Enable lineage for the entire Dag
-    enable_lineage(dag)
-
-    # Disable lineage for task t1
-    disable_lineage(t1)
-
-Enabling lineage on the Dag level automatically enables it for all tasks within that Dag unless explicitly disabled per task.
-
-Enabling lineage on the task level implicitly enables lineage on its Dag.
-This is because each emitting task sends a `ParentRunFacet <https://openlineage.io/docs/spec/facets/run-facets/parent_run>`_,
-which requires the Dag-level lineage to be enabled in some OpenLineage backend systems.
-Disabling Dag-level lineage while enabling task-level lineage might cause errors or inconsistencies.
 
 
 .. _configuration_custom_facets:openlineage:

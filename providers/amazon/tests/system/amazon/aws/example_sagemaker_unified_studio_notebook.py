@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import time
 from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.sagemaker_unified_studio_notebook import (
@@ -28,8 +30,9 @@ from airflow.providers.amazon.aws.sensors.sagemaker_unified_studio_notebook impo
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, chain
+    from airflow.sdk import DAG, chain, task
 else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
 
@@ -54,6 +57,7 @@ DOMAIN_ID_KEY = "DOMAIN_ID"
 PROJECT_ID_KEY = "PROJECT_ID"
 NOTEBOOK_ID_KEY = "NOTEBOOK_ID"
 NOTEBOOK_B_ID_KEY = "NOTEBOOK_B_ID"
+DATAZONE_ROLE_ARN_KEY = "DATAZONE_ROLE_ARN"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -61,8 +65,28 @@ sys_test_context_task = (
     .add_variable(PROJECT_ID_KEY)
     .add_variable(NOTEBOOK_ID_KEY)
     .add_variable(NOTEBOOK_B_ID_KEY)
+    .add_variable(DATAZONE_ROLE_ARN_KEY)
     .build()
 )
+
+DATAZONE_CONN_ID = "aws_datazone_notebook"
+
+
+@task
+def setup_datazone_connection(role_arn: str):
+    """Configure an Airflow connection that assumes the DataZone environment role."""
+    from airflow import settings
+    from airflow.models.connection import Connection
+
+    conn = Connection(
+        conn_id=DATAZONE_CONN_ID,
+        conn_type="aws",
+        extra=json.dumps({"role_arn": role_arn, "assume_role_method": "assume_role"}),
+    )
+    session = settings.Session()  # type: ignore[misc]
+    session.add(conn)
+    session.commit()
+
 
 with DAG(
     DAG_ID,
@@ -77,15 +101,15 @@ with DAG(
     project_id = test_context[PROJECT_ID_KEY]
     notebook_id = test_context[NOTEBOOK_ID_KEY]
     notebook_b_id = test_context[NOTEBOOK_B_ID_KEY]
+    configure_conn = setup_datazone_connection(test_context[DATAZONE_ROLE_ARN_KEY])
 
     # [START howto_operator_sagemaker_unified_studio_notebook]
-    import time
-
     client_token = f"idempotency-token-{int(time.time())}"
 
     run_notebook = SageMakerUnifiedStudioNotebookOperator(
         task_id="notebook-task",
-        notebook_identifier=notebook_id,  # This should be the notebook asset identifier from within the SageMaker Unified Studio domain
+        aws_conn_id=DATAZONE_CONN_ID,
+        notebook_identifier=notebook_id,
         domain_identifier=domain_id,
         owning_project_identifier=project_id,
         client_token=client_token,  # optional
@@ -101,20 +125,10 @@ with DAG(
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]
 
-    # [START howto_operator_sagemaker_unified_studio_notebook_deferrable]
-    run_notebook_deferrable = SageMakerUnifiedStudioNotebookOperator(
-        task_id="notebook-deferrable-task",
-        notebook_identifier=notebook_id,
-        domain_identifier=domain_id,
-        owning_project_identifier=project_id,
-        deferrable=True,  # optional
-        waiter_delay=10,  # optional
-    )
-    # [END howto_operator_sagemaker_unified_studio_notebook_deferrable]
-
     # [START howto_sensor_sagemaker_unified_studio_notebook]
     run_sensor = SageMakerUnifiedStudioNotebookSensor(
         task_id="notebook-sensor-task",
+        aws_conn_id=DATAZONE_CONN_ID,
         domain_identifier=domain_id,
         owning_project_identifier=project_id,
         notebook_identifier=notebook_id,
@@ -127,14 +141,17 @@ with DAG(
     # Notebook B consumes those outputs via Jinja templating in notebook_parameters.
     run_notebook_a = SageMakerUnifiedStudioNotebookOperator(
         task_id="notebook-a-task",
+        aws_conn_id=DATAZONE_CONN_ID,
         notebook_identifier=notebook_id,
         domain_identifier=domain_id,
         owning_project_identifier=project_id,
         wait_for_completion=True,
+        deferrable=False,
     )
 
     run_notebook_b = SageMakerUnifiedStudioNotebookOperator(
         task_id="notebook-b-task",
+        aws_conn_id=DATAZONE_CONN_ID,
         notebook_identifier=notebook_b_id,
         domain_identifier=domain_id,
         owning_project_identifier=project_id,
@@ -143,13 +160,14 @@ with DAG(
             "employee_age": "{{ task_instance.xcom_pull(task_ids='notebook-a-task', key='NOTEBOOK_OUTPUT.age') }}",
         },
         wait_for_completion=True,
+        deferrable=False,
     )
     # [END howto_operator_sagemaker_unified_studio_notebook_pass_outputs]
 
     chain(
         test_context,
+        configure_conn,
         run_notebook,
-        run_notebook_deferrable,
         run_sensor,
         run_notebook_a,
         run_notebook_b,

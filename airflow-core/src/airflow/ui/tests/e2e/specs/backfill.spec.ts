@@ -24,8 +24,8 @@ import {
   apiCancelAllActiveBackfills,
   apiCreateBackfill,
   apiWaitForBackfillComplete,
-  waitForDagReady,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/backfills";
+import { waitForDagReady } from "tests/e2e/utils/api/dag-runs";
 
 // Fixed past dates avoid non-determinism from relative date calculations.
 // Controls tests use wide, non-overlapping ranges so the scheduler cannot

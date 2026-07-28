@@ -369,8 +369,29 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
-            # Avoid spending too much effort on pattern-based masking of
-            # deeply nested non-dict structures.
+            # Always walk lists/tuples/sets too, mirroring the unconditional dict
+            # walk above, so a sensitive key wrapped in an iterable is still
+            # caught at any nesting depth. Self-referential iterables hit Python's
+            # own recursion limit and are caught by the except clause below, which
+            # fails closed.
+            if isinstance(item, (tuple, set)):
+                # Turn set in to tuple!
+                return tuple(
+                    self._redact(
+                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
+                    )
+                    for subval in item
+                )
+            if isinstance(item, list):
+                return [
+                    self._redact(
+                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
+                    )
+                    for subval in item
+                ]
+            # The depth cutoff only bounds the work of pattern-based string
+            # masking below — key-name redaction (dicts and iterables above) is
+            # unbounded so sensitive keys fail closed at any depth.
             if depth > max_depth:
                 return item
             if isinstance(item, Enum):
@@ -393,21 +414,6 @@ class SecretsMasker(logging.Filter):
                     # the structure.
                     return self.replacer.sub(replacement, str(item))
                 return item
-            if isinstance(item, (tuple, set)):
-                # Turn set in to tuple!
-                return tuple(
-                    self._redact(
-                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
-                    )
-                    for subval in item
-                )
-            if isinstance(item, list):
-                return [
-                    self._redact(
-                        subval, name=None, depth=(depth + 1), max_depth=max_depth, replacement=replacement
-                    )
-                    for subval in item
-                ]
             return item
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
@@ -445,12 +451,20 @@ class SecretsMasker(logging.Filter):
             # Determine if we should treat this as sensitive
             is_sensitive = force_sensitive or (name is not None and self.should_hide_value_for_key(name))
 
+            v1_env_var_name = None
+            if isinstance(new_item, dict) and _is_v1_env_var(old_item):
+                # redact(V1EnvVar) returns a dict, so merge against the old object's serialized shape.
+                old_item = old_item.to_dict()
+                v1_env_var_name = old_item.get("name")
+
             if isinstance(new_item, dict) and isinstance(old_item, dict):
                 merged = {}
                 for key in new_item.keys():
                     if key in old_item:
                         # For dicts, pass the key as name unless we're in sensitive mode
                         child_name = None if is_sensitive else key
+                        if key == "value" and v1_env_var_name:
+                            child_name = v1_env_var_name
                         merged[key] = self._merge(
                             new_item[key],
                             old_item[key],
@@ -569,7 +583,8 @@ class SecretsMasker(logging.Filter):
         """
         if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
             name = name.strip().lower()
-            return any(s in name for s in self.sensitive_variables_fields)
+            normalized = re.sub(r"\W+", "_", name)
+            return any(s in normalized for s in self.sensitive_variables_fields)
         return False
 
     def add_mask(self, secret: JsonValue, name: str | None = None):

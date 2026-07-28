@@ -33,11 +33,9 @@ from docs.utils.conf_constants import (
     AUTOAPI_OPTIONS,
     BASIC_AUTOAPI_IGNORE_PATTERNS,
     BASIC_SPHINX_EXTENSIONS,
-    REDOC_SCRIPT_URL,
     SMARTQUOTES_EXCLUDES,
     SPELLING_WORDLIST_PATH,
     SPHINX_DESIGN_STATIC_PATH,
-    SPHINX_REDOC_EXTENSIONS,
     SUPPRESS_WARNINGS,
     filter_autoapi_ignore_entries,
     get_autodoc_mock_imports,
@@ -88,11 +86,6 @@ smartquotes_excludes = SMARTQUOTES_EXCLUDES
 # ones.
 extensions = BASIC_SPHINX_EXTENSIONS
 
-# -- Options for sphinxcontrib.redoc -------------------------------------------
-# See: https://sphinxcontrib-redoc.readthedocs.io/en/stable/
-
-extensions.extend(SPHINX_REDOC_EXTENSIONS)
-redoc_script_url = REDOC_SCRIPT_URL
 
 extensions.extend(
     [
@@ -290,7 +283,10 @@ exampleinclude_sourceroot = os.path.abspath("..")
 redirects_file = "redirects.txt"
 
 # -- Options for sphinxcontrib-spelling ----------------------------------------
-spelling_word_list_filename = [SPELLING_WORDLIST_PATH.as_posix()]
+spelling_word_list_filename = [
+    SPELLING_WORDLIST_PATH.as_posix(),
+    (pathlib.Path(__file__).parent / "spelling_wordlist.txt").as_posix(),
+]
 spelling_exclude_patterns = ["project.rst", "changelog.rst"]
 
 spelling_ignore_contributor_names = False

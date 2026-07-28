@@ -129,7 +129,7 @@ class LLMFileAnalysisOperator(LLMOperator):
             self.sample_rows,
         )
         self.log.debug("Resolved file analysis paths: %s", request.resolved_paths)
-        agent: Agent[None, Any] = self.llm_hook.create_agent(
+        agent: Agent[object, Any] = self.llm_hook.create_agent(
             output_type=self.output_type,
             instructions=self._build_system_prompt(),
             **self.agent_params,
@@ -141,16 +141,13 @@ class LLMFileAnalysisOperator(LLMOperator):
         if self.require_approval:
             self.defer_for_approval(context, output)  # type: ignore[misc]
 
-        if isinstance(output, BaseModel):
+        if self._serialize_model_output and isinstance(output, BaseModel):
+            # Honour ``serialize_output=True`` and the older-Airflow fallback,
+            # matching ``LLMOperator.execute``. ``LLMFileAnalysisOperator``
+            # overrides ``execute`` rather than calling ``super().execute()``,
+            # so the dump step has to be repeated here.
             output = output.model_dump()
 
-        return output
-
-    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
-        """Resume after human review, restoring structured outputs for XCom consumers."""
-        output = super().execute_complete(context, generated_output, event)
-        if isinstance(self.output_type, type) and issubclass(self.output_type, BaseModel):
-            return self.output_type.model_validate_json(output).model_dump()
         return output
 
     def _build_system_prompt(self) -> str:

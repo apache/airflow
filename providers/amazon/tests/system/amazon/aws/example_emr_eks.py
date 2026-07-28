@@ -20,7 +20,7 @@ import json
 import logging
 import subprocess
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import boto3
 from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_exponential
@@ -338,8 +338,9 @@ with DAG(
         name="pi.py",
     )
     # [END howto_operator_emr_container]
-    job_starter.wait_for_completion = False
-    job_starter.job_retry_max_attempts = 5
+    job_starter.wait_for_completion = True
+    job_starter.retries = 2
+    job_starter.retry_delay = timedelta(minutes=2)
 
     # [START howto_sensor_emr_container]
     job_waiter = EmrContainerSensor(

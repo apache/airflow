@@ -16,6 +16,30 @@
 // under the License.
 
 /*
-Package sdk provides access to the Airflow objects (Variables, Connection, XCom etc) during run time for tasks.
+Package sdk gives task functions access to the Airflow "model" (Variables,
+Connections, and XCom) at run time.
+
+A task function does not construct a client itself. The runtime inspects the
+function's parameters and injects one by type, so you declare the narrowest
+interface you need and use it:
+
+	func mytask(ctx context.Context, client sdk.Client, log *slog.Logger) error {
+		val, err := client.GetVariable(ctx, "my_variable")
+		if err != nil {
+			return err
+		}
+		log.Info("got variable", "value", val)
+		return nil
+	}
+
+Ask for [Client] for full access, or a narrower interface such as
+[VariableClient] or [ConnectionClient] when the task only reads one kind of
+object. The narrower type documents what the task touches and makes it easy to
+pass a fake in unit tests.
+
+To publish a result, return a value from the task function: the runtime pushes
+it as the task's return-value XCom, so most tasks never call [XComClient]
+directly. Lookups that miss return a wrapped sentinel error ([VariableNotFound],
+[ConnectionNotFound], [XComNotFound]) you can test for with errors.Is.
 */
 package sdk

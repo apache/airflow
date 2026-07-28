@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-arangodb``
 
-Release: ``2.9.4``
+Release: ``2.9.5``
 
 
 `ArangoDB <https://www.arangodb.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``arangodb`` provider. All classes for this provi
 are in ``airflow.providers.arangodb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-arangodb/2.9.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-arangodb/2.9.5/>`_.
 
 Installation
 ------------
@@ -58,24 +58,5 @@ PIP package                                 Version required
 ``python-arango``                           ``>=7.3.2``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-arangodb[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-arangodb/2.9.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-arangodb/2.9.5/changelog.html>`_.

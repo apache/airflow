@@ -20,6 +20,8 @@ import { useParams } from "react-router-dom";
 
 import { useGridServiceGetDagStructure } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useAutoRefresh } from "src/utils";
 
 export const useGridStructure = ({
@@ -30,6 +32,7 @@ export const useGridStructure = ({
   includeUpstream,
   limit,
   root,
+  runIdPattern,
   runType,
   triggeringUser,
 }: {
@@ -40,11 +43,21 @@ export const useGridStructure = ({
   includeUpstream?: boolean;
   limit?: number;
   root?: string;
+  runIdPattern?: string | undefined;
   runType?: DagRunType | undefined;
   triggeringUser?: string | undefined;
 }) => {
   const { dagId = "" } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
+
+  // Advanced-search toggle picks between the substring ``runIdPattern`` and the
+  // index-friendly ``runIdPrefixPattern`` variants of the Run ID filter.
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: SearchParamsKeys.RUN_ID_PATTERN,
+    value: runIdPattern,
+  });
 
   // This is necessary for keepPreviousData
   const { data: dagStructure, ...rest } = useGridServiceGetDagStructure(
@@ -56,6 +69,7 @@ export const useGridStructure = ({
       limit,
       orderBy: ["-run_after"],
       root,
+      ...runIdPatternArg,
       runType: runType ? [runType] : undefined,
       state: dagRunState ? [dagRunState] : undefined,
       triggeringUser: triggeringUser ?? undefined,

@@ -42,6 +42,31 @@ from airflow.providers.microsoft.mssql.assets.mssql import (
             "mssql://example.com:1433/database/schema/table",
             id="default-port",
         ),
+        pytest.param(
+            "mssql://example.com/instance/database/schema/table",
+            "mssql://example.com:1433/instance/database/schema/table",
+            id="with-instance-default-port",
+        ),
+        pytest.param(
+            "mssql://my-azure-server.database.windows.net/database/schema/table",
+            "mssql://my-azure-server.database.windows.net:1433/database/schema/table",
+            id="azure-sql-default-port",
+        ),
+        pytest.param(
+            "mssql://my-azure-server.database.windows.net/instance/database/schema/table",
+            "mssql://my-azure-server.database.windows.net:1433/instance/database/schema/table",
+            id="azure-sql-with-instance-default-port",
+        ),
+        pytest.param(
+            "mssql://my-fabric-server.my-tenant.fabric.microsoft.com/database/schema/table",
+            "mssql://my-fabric-server.my-tenant.fabric.microsoft.com:1433/database/schema/table",
+            id="fabric-default-port",
+        ),
+        pytest.param(
+            "mssql://my-fabric-server.my-tenant.fabric.microsoft.com/instance/database/schema/table",
+            "mssql://my-fabric-server.my-tenant.fabric.microsoft.com:1433/instance/database/schema/table",
+            id="fabric-with-instance-default-port",
+        ),
     ],
 )
 def test_sanitize_uri_pass(original: str, normalized: str) -> None:
@@ -53,15 +78,34 @@ def test_sanitize_uri_pass(original: str, normalized: str) -> None:
 @pytest.mark.parametrize(
     "value",
     [
-        pytest.param("mssql://", id="blank"),
-        pytest.param("mssql:///database/schema/table", id="no-host"),
-        pytest.param("mssql://example.com/database/table", id="missing-component"),
-        pytest.param("mssql://example.com/database/schema/table/column", id="extra-component"),
+        pytest.param("mssql://example.com/database", id="missing-component"),
+        pytest.param("mssql://example.com/database/schema/table/column/extra", id="extra-component"),
+        pytest.param("mssql://my-azure-server.database.windows.net/database", id="azure-missing-component"),
+        pytest.param(
+            "mssql://my-fabric-server.my-tenant.fabric.microsoft.com/database/schema/table/column/extra",
+            id="fabric-extra-component",
+        ),
     ],
 )
-def test_sanitize_uri_fail(value: str) -> None:
+def test_sanitize_uri_fail_invalid_path(value: str) -> None:
     uri_i = urllib.parse.urlsplit(value)
-    with pytest.raises(ValueError, match="URI format mssql:// must contain"):
+    with pytest.raises(
+        ValueError,
+        match="URI format mssql:// must contain database, schema, and table/view names with optional instance name",
+    ):
+        sanitize_uri(uri_i)
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("mssql://", id="blank"),
+        pytest.param("mssql:///database/schema/table", id="no-host"),
+    ],
+)
+def test_sanitize_uri_fail_missing_host(value: str) -> None:
+    uri_i = urllib.parse.urlsplit(value)
+    with pytest.raises(ValueError, match="URI format mssql:// must contain a host"):
         sanitize_uri(uri_i)
 
 
@@ -115,6 +159,12 @@ def test_create_asset(
             "mssql://db-host:1434",
             "testdb.schema1.events",
             id="custom-port",
+        ),
+        pytest.param(
+            "mssql://db-host:1434/sql2019/testdb/schema1/events",
+            "mssql://db-host:1434",
+            "testdb.schema1.events",
+            id="with-instance",
         ),
     ],
 )

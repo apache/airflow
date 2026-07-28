@@ -93,6 +93,15 @@ with DAG(
             description="Please select a date and time, use the button on the left for a pop-up calendar.",
             section="Typed parameters with Param object",
         ),
+        # Durations are also Supported support for ISO 8601
+        "duration": Param(
+            "PT15M",
+            type="string",
+            format="duration",
+            title="Duration definitions",
+            description="Please enter a duration in ISO 8601 format (e.g. PT15M, PT2H, P1D).",
+            section="Typed parameters with Param object",
+        ),
         "date": Param(
             f"{datetime.date.today()}",
             type="string",

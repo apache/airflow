@@ -24,7 +24,9 @@ class DurableStepCounter:
     Monotonically increasing counter shared between CachingModel and CachingToolset.
 
     Each model call and tool call increments the counter. The step index
-    is used as the cache key, ensuring deterministic replay on retry.
+    is used as the cache key; replay correctness is verified separately by
+    comparing the request fingerprint stored with each cache entry (see
+    ``airflow.providers.common.ai.durable.fingerprint``).
     """
 
     def __init__(self) -> None:

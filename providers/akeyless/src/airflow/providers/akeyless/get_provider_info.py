@@ -54,7 +54,7 @@ def get_provider_info():
                     "uid_token": {"label": "UID Token", "schema": {"type": ["string", "null"]}},
                     "gcp_audience": {"label": "GCP Audience", "schema": {"type": ["string", "null"]}},
                     "azure_object_id": {"label": "Azure Object ID", "schema": {"type": ["string", "null"]}},
-                    "jwt": {"label": "JWT", "schema": {"type": ["string", "null"]}},
+                    "jwt_token": {"label": "JWT", "schema": {"type": ["string", "null"]}},
                     "k8s_auth_config_name": {
                         "label": "K8s Auth Config Name",
                         "schema": {"type": ["string", "null"]},

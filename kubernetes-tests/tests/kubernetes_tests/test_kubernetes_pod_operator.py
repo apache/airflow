@@ -964,6 +964,7 @@ class TestKubernetesPodOperatorSystem:
         hook_mock.return_value.is_in_cluster = False
         hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
         hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
+        hook_mock.return_value.get_xcom_sidecar_container_security_context.return_value = None
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
         k = KubernetesPodOperator(
@@ -1037,7 +1038,7 @@ class TestKubernetesPodOperatorSystem:
                     },
                     {
                         "command": ["sh", "-c", 'trap "exit 0" INT; while true; do sleep 1; done;'],
-                        "image": "alpine:3.23.4",
+                        "image": "alpine:3.24.1",
                         "name": "airflow-xcom-sidecar",
                         "resources": {
                             "requests": {"cpu": "1m", "memory": "10Mi"},
@@ -1360,13 +1361,13 @@ class TestKubernetesPodOperatorSystem:
         callback = MagicMock()
         init_container = k8s.V1Container(
             name="init-container",
-            image="busybox:1.37.0",
+            image="busybox:1.38.0",
             command=["sh", "-cx"],
             args=[f"echo {marker_from_init_container}"],
         )
         k = KubernetesPodOperator(
             namespace="default",
-            image="busybox:1.37.0",
+            image="busybox:1.38.0",
             cmds=["sh", "-cx"],
             arguments=[f"echo {marker_from_main_container}"],
             labels=self.labels,
@@ -1393,25 +1394,25 @@ class TestKubernetesPodOperatorSystem:
         callback = MagicMock()
         init_container_to_log_1 = k8s.V1Container(
             name="init-container-to-log-1",
-            image="busybox:1.37.0",
+            image="busybox:1.38.0",
             command=["sh", "-cx"],
             args=[f"echo {marker_from_init_container_to_log_1}"],
         )
         init_container_to_log_2 = k8s.V1Container(
             name="init-container-to-log-2",
-            image="busybox:1.37.0",
+            image="busybox:1.38.0",
             command=["sh", "-cx"],
             args=[f"echo {marker_from_init_container_to_log_2}"],
         )
         init_container_to_ignore = k8s.V1Container(
             name="init-container-to-ignore",
-            image="busybox:1.37.0",
+            image="busybox:1.38.0",
             command=["sh", "-cx"],
             args=[f"echo {marker_from_init_container_to_ignore}"],
         )
         k = KubernetesPodOperator(
             namespace="default",
-            image="busybox:1.37.0",
+            image="busybox:1.38.0",
             cmds=["sh", "-cx"],
             arguments=[f"echo {marker_from_main_container}"],
             labels=self.labels,
@@ -1477,7 +1478,7 @@ class TestKubernetesPodOperatorSystem:
         marker = f"test_log_{uuid4()}"
         k = KubernetesPodOperator(
             namespace="default",
-            image="busybox:1.37.0",
+            image="busybox:1.38.0",
             cmds=["sh", "-cx"],
             arguments=[f"echo {marker}"],
             labels={"test_label": "test"},
@@ -1559,7 +1560,7 @@ class TestKubernetesPodOperator(BaseK8STest):
         k = KubernetesPodOperator(
             task_id=f"test_task_{active_deadline_seconds}",
             active_deadline_seconds=active_deadline_seconds,
-            image="busybox:1.37.0",
+            image="busybox:1.38.0",
             cmds=["sh", "-c", echo],
             namespace=ns,
             on_finish_action="keep_pod",

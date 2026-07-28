@@ -9,7 +9,25 @@
     "filters": {
       "eventType": "事件類型"
     },
-    "title": "審計日誌事件"
+    "title": "稽核日誌事件"
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "警示名稱",
+      "deadlineTime": "截止時間",
+      "status": "狀態"
+    },
+    "deadline_one": "截止期限",
+    "deadline_other": "截止期限",
+    "filters": {
+      "status": "狀態",
+      "statusOptions": {
+        "all": "全部",
+        "missed": "已逾期",
+        "pending": "待處理"
+      }
+    },
+    "title": "截止期限"
   },
   "xcom": {
     "add": {

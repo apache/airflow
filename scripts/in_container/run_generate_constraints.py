@@ -40,8 +40,6 @@ DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 PYTHON_VERSION = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "3.10")
 GENERATED_PROVIDER_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 
-ALL_PROVIDER_DEPENDENCIES = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
-
 
 def _read_version_from_pyproject(pyproject_path: Path) -> str:
     with pyproject_path.open("rb") as f:
@@ -298,6 +296,127 @@ def diff_constraints(config_params: ConfigParams) -> None:
     console.print(f"[green]Diff generated to file: {config_params.constraints_diff_file}")
 
 
+def _read_provider_versions_from_constraints(constraints_file: Path) -> dict[str, str]:
+    """Extract ``apache-airflow-providers-*`` name -> version pairs from a constraints file."""
+    provider_versions: dict[str, str] = {}
+    for raw_line in constraints_file.read_text().splitlines():
+        line = raw_line.strip()
+        if not line.startswith("apache-airflow-providers-"):
+            continue
+        # Strip any environment marker (e.g. "; python_version < '3.11'") before splitting.
+        spec = line.split(";", 1)[0].strip()
+        if "==" not in spec:
+            continue
+        name, _, version = spec.partition("==")
+        provider_versions[name.strip()] = version.strip()
+    return provider_versions
+
+
+def write_provider_downgrade_slack_message(
+    config_params: ConfigParams, downgraded: list[tuple[str, str, str]]
+) -> None:
+    """
+    Write a Slack Block Kit payload describing provider downgrades to the constraints directory.
+
+    The file lives on the mounted ``/files`` volume so the CI runner can pick it up and post it to
+    Slack via the ``slackapi/slack-github-action`` step. The in-container step has no Slack credentials
+    itself - it only produces the payload.
+    """
+    channel = os.environ.get("SLACK_CHANNEL", "internal-airflow-ci-cd")
+    server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+    repository = os.environ.get("GITHUB_REPOSITORY", "apache/airflow")
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    downgrade_lines = "\n".join(
+        f"• *{provider}*: `{latest_version}` → `{current_version}`"
+        for provider, latest_version, current_version in sorted(downgraded)
+    )
+    blocks: list[dict] = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "⛔ Provider downgrade in constraints"},
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f"Regular `constraints` generation for the *{DEFAULT_BRANCH}* branch on "
+                    f"Python *{config_params.python}* would *downgrade* released providers below the "
+                    "versions already published in the constraints. Released providers only ever move "
+                    "forward, so this signals a broken dependency dragging an old provider back in."
+                ),
+            },
+        },
+        {"type": "section", "text": {"type": "mrkdwn", "text": downgrade_lines}},
+    ]
+    if run_id:
+        blocks.append(
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"<{server_url}/{repository}/actions/runs/{run_id}|View the failing run>",
+                    }
+                ],
+            }
+        )
+    payload = {
+        "channel": channel,
+        "text": (
+            f"Provider downgrade in {DEFAULT_BRANCH} constraints "
+            f"(Python {config_params.python}): {len(downgraded)} provider(s)"
+        ),
+        "blocks": blocks,
+    }
+    slack_message_file = config_params.constraints_dir / "provider-downgrade-slack-message.json"
+    slack_message_file.write_text(json.dumps(payload, indent=2))
+    console.print(f"[yellow]Wrote provider downgrade Slack payload to {slack_message_file}")
+
+
+def check_providers_not_downgraded(config_params: ConfigParams) -> None:
+    """
+    Fail generation if any released provider is downgraded compared to the latest constraints.
+
+    Released provider versions only ever move forward on PyPI, so a lower version in the freshly
+    generated constraints signals a resolution problem (a broken dependency forcing an old provider
+    back in) rather than an intended change. We stop here so it is caught instead of being published.
+    """
+    from packaging.version import InvalidVersion, Version
+
+    if not config_params.latest_constraints_file.exists():
+        console.print("[yellow]No previous constraints file downloaded - skipping provider downgrade check.")
+        return
+    latest_versions = _read_provider_versions_from_constraints(config_params.latest_constraints_file)
+    current_versions = _read_provider_versions_from_constraints(config_params.current_constraints_file)
+    downgraded: list[tuple[str, str, str]] = []
+    for provider, latest_version in latest_versions.items():
+        current_version = current_versions.get(provider)
+        if current_version is None:
+            continue
+        try:
+            if Version(current_version) < Version(latest_version):
+                downgraded.append((provider, latest_version, current_version))
+        except InvalidVersion:
+            console.print(
+                f"[yellow]Could not compare versions for {provider} "
+                f"({latest_version!r} vs {current_version!r}) - skipping."
+            )
+    if downgraded:
+        console.print("[red]The following providers would be downgraded in the generated constraints:[/]")
+        for provider, latest_version, current_version in sorted(downgraded):
+            console.print(f"[red]  * {provider}: {latest_version} -> {current_version}")
+        console.print(
+            "[yellow]Released providers should never be downgraded. This usually means a broken "
+            "dependency version forced an older provider back in during resolution. Investigate the "
+            "diff above and, if needed, add an exclusion in the "
+            f"`additional_constraints_for_highest_resolution` list in [/] {__file__}"
+        )
+        write_provider_downgrade_slack_message(config_params, downgraded)
+        sys.exit(1)
+    console.print("[green]No providers were downgraded in the generated constraints.")
+
+
 def uninstall_all_packages(config_params: ConfigParams):
     console.print("[bright_blue]Uninstall All PIP packages")
     result = run_command(
@@ -327,13 +446,14 @@ def uninstall_all_packages(config_params: ConfigParams):
 
 
 def get_all_active_provider_distributions(python_version: str | None = None) -> list[str]:
+    all_provider_dependencies = json.loads(GENERATED_PROVIDER_DEPENDENCIES_FILE.read_text())
     return [
         f"apache-airflow-providers-{provider.replace('.', '-')}"
-        for provider in ALL_PROVIDER_DEPENDENCIES.keys()
-        if ALL_PROVIDER_DEPENDENCIES[provider]["state"] == "ready"
+        for provider in all_provider_dependencies.keys()
+        if all_provider_dependencies[provider]["state"] == "ready"
         and (
             python_version is None
-            or python_version not in ALL_PROVIDER_DEPENDENCIES[provider]["excluded-python-versions"]
+            or python_version not in all_provider_dependencies[provider]["excluded-python-versions"]
         )
     ]
 
@@ -392,9 +512,21 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     # * pyarrow>=22.0.0 on Python 3.14 — older pyarrow releases have no prebuilt wheels for
     #   Python 3.14 and uv falls back to building from source, which fails. pyarrow 22.0.0 is
     #   the first release shipping cp314 wheels.
-    #
+    # * pymysql<1.2 — pymysql 1.2.0 changed Connection.ping() to require `reconnect` as a
+    #   positional arg, which breaks SQLAlchemy's AsyncAdapt_aiomysql_connection.ping() (it
+    #   has no default for `reconnect`). The released apache-airflow-providers-mysql on PyPI
+    #   does not yet carry this cap, so we mirror it here so PyPI constraints stay installable
+    #   until the SQLAlchemy fix is released. Tracked upstream at
+    #   https://github.com/sqlalchemy/sqlalchemy/issues/13306
+    # * databricks-sql-connector>=4.0.0 - added to keep databricks-sql-connector from downgrading
+    #   because of https://github.com/apache/thrift/pull/3584 - which shipped thrift 0.24.0. Older
+    #   versions of databricks-sql-connector do not have the thrift<=0.23.0 limitation, so the
+    #   resolver preferred the latest thrift over the latest connector and downgraded the connector.
+    #   This is tracked in https://github.com/databricks/databricks-sql-python/issues/859
     additional_constraints_for_highest_resolution: list[str] = [
         "pyarrow>=22.0.0; python_version >= '3.14'",
+        "pymysql>=1.0.3,<1.2",
+        "databricks-sql-connector>=4.0.0",
     ]
 
     result = run_command(
@@ -442,6 +574,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
         )
     download_latest_constraint_file(config_params)
     diff_constraints(config_params)
+    check_providers_not_downgraded(config_params)
 
 
 def generate_constraints_no_providers(config_params: ConfigParams) -> None:

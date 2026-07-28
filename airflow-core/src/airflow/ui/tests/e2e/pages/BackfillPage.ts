@@ -23,9 +23,8 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 import {
   apiCancelAllActiveBackfills,
   apiCancelBackfill,
-  apiWaitForBackfillComplete,
   apiWaitForNoActiveBackfill,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/backfills";
 
 export const REPROCESS_API_TO_UI = {
   completed: "All Runs",
@@ -447,10 +446,6 @@ export class BackfillPage extends BasePage {
 
   public async togglePauseState(): Promise<void> {
     await this.pauseOrUnpauseButton.click();
-  }
-
-  public async waitForBackfillComplete(backfillId: number, timeout: number = 120_000): Promise<void> {
-    await apiWaitForBackfillComplete(this.page, backfillId, timeout);
   }
 
   public async waitForNoActiveBackfillViaApi(dagId: string, timeout: number = 120_000): Promise<void> {

@@ -4,6 +4,22 @@
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
   "asset_other": "Zasoby",
+  "assetStateStore": {
+    "add": "Dodaj wpis magazynu stanu zasobu",
+    "clearAll": {
+      "resource": "całego magazynu stanu zasobu",
+      "title": "Wyczyść cały magazyn stanu zasobu",
+      "warning": "Cały magazyn stanu zasobu zostanie wyczyszczony. Zadania, które używają go do koordynacji pracy, utracą zachowane dane."
+    },
+    "delete": "Usuń wpis magazynu stanu zasobu",
+    "deleteWarning": "Zasób utraci ten zachowany wpis magazynu stanu.",
+    "edit": "Edytuj wpis magazynu stanu zasobu",
+    "emptyState": "Magazyn stanu zasobu przechowuje wartości przypisane do tożsamości zasobu, współdzielone przez wszystkie wykonania Dagów. Workery mogą zapisywać do magazynu stanu zasobu przez Task SDK.",
+    "lastUpdatedBy": "Ostatnio zaktualizowane przez",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
+    "title": "Magazyn stanu zasobu"
+  },
   "consumingDags": "Przetwarzanie Dagów",
   "consumingTasks": "Przetwarzanie zadań",
   "createEvent": {
@@ -27,6 +43,7 @@
     },
     "title": "Utwórz zdarzenie zasobu dla {{name}}"
   },
+  "events": "Zdarzenia",
   "extra": "Dodatkowe",
   "group": "Grupa",
   "lastAssetEvent": "Ostatnie zdarzenie zasobu",

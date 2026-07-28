@@ -149,7 +149,14 @@ class BulkPoolService(BulkService[PoolBody]):
                 if pool.pool in create_pool_names:
                     if pool.pool in matched_pool_names:
                         existed_pool = existing_pools_dict[pool.pool]
-                        for key, val in pool.model_dump().items():
+                        # Only overwrite fields the request actually provided. Plain ``model_dump()``
+                        # emits every field at its default, so an overwrite that omits e.g.
+                        # ``team_name``/``description``/``include_deferred`` silently resets them on the
+                        # existing pool — most damagingly nulling its multi-team ``team_name`` ownership.
+                        # ``exclude_unset=True`` writes only fields present in the request body, so
+                        # omitted fields keep their current value while an explicitly-set field (even
+                        # ``None``) is still applied.
+                        for key, val in pool.model_dump(exclude_unset=True).items():
                             setattr(existed_pool, key, val)
                     else:
                         self.session.add(Pool(**pool.model_dump()))

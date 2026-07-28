@@ -542,7 +542,7 @@ git push upstream "airflow-ctl/${VERSION_RC}"
   you are actively debugging the build itself:
 
 ```shell script
-breeze release-management prepare-airflow-ctl-distributions --distribution-format both
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --version-suffix ""
 breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
@@ -1232,6 +1232,32 @@ pip install apache-airflow-ctl==<VERSION>rc<X>
 
 Once you install and run Airflow, you can perform any verification you see as necessary to check
 that the Airflow works as you expected.
+
+### Non-interactive smoke test against a live API
+
+The [`dev/verify_airflow_ctl_rc.sh`](verify_airflow_ctl_rc.sh) helper exercises `airflowctl`
+end-to-end against a live API server in a single non-interactive `breeze shell` invocation: it boots
+`airflow standalone`, installs the RC, authenticates, and runs a handful of commands (`dags list`,
+`pools list`, `connections list`, `variables list`).
+
+```shell
+# install the RC from PyPI (published with the rcN suffix)
+CTL_VERSION=${VERSION_RC} breeze shell --load-example-dags --backend sqlite \
+    "bash dev/verify_airflow_ctl_rc.sh"
+
+# or test the exact SVN wheel (copy it under ./dist first so it is visible at /opt/airflow/dist)
+CTL_WHEEL=/opt/airflow/dist/apache_airflow_ctl-${VERSION}-py3-none-any.whl \
+    breeze shell --load-example-dags --backend sqlite "bash dev/verify_airflow_ctl_rc.sh"
+```
+
+The script prints `AIRFLOW_CTL_RC_VERIFY: OK` on success.
+
+> [!NOTE]
+> In a headless container the OS keyring has no backend, so `airflowctl auth login` with a
+> username/password fails (it tries to create an encrypted keyring and prompts for a password).
+> The headless path — which the script uses — is to mint a token with `airflowctl auth token` and
+> export it as `AIRFLOW_CLI_TOKEN`; `airflowctl auth login --skip-keyring` still persists the
+> api-url so subsequent commands know where to connect.
 
 
 # Publish release

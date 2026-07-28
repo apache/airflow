@@ -27,6 +27,7 @@ with DAG(
     catchup=False,
     start_date=datetime(2023, 1, 1),
     dag_id="example_oracle",
+    tags=["example"],
 ) as dag:
     # [START howto_oracle_stored_procedure_operator_with_list_inout]
 

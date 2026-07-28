@@ -390,6 +390,55 @@ You can create and configure ``Ingress`` objects. See the :ref:`Ingress chart pa
 For more information on ``Ingress``, see the
 `Kubernetes Ingress documentation <https://kubernetes.io/docs/concepts/services-networking/ingress/>`_.
 
+Gateway API (HTTPRoute)
+^^^^^^^^^^^^^^^^^^^^^^^
+
+As an alternative to ``Ingress``, the chart can create
+`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` resources for the API server and Flower.
+This requires the Gateway API CRDs to be installed in the cluster and a ``Gateway`` to already exist —
+the chart only creates the ``HTTPRoute`` resources and attaches them to the Gateway via ``parentRefs``.
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   executor: CeleryExecutor
+
+   apiServer:
+     httpRoute:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - airflow.example.com
+
+   flower:
+     enabled: true
+     httpRoute:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - flower.example.com
+
+Flower HTTPRoute resources are only created when Flower itself is created, so ``flower.enabled`` must be
+``true`` and the executor must include ``CeleryExecutor``.
+
+For fine-grained routing, supply ``apiServer.httpRoute.rules`` or ``flower.httpRoute.rules`` directly —
+the entry mirrors the upstream ``HTTPRouteRule`` schema and overrides the default rule generated from
+the corresponding ``apiServer.httpRoute.path`` and ``apiServer.httpRoute.pathType``, or
+``flower.httpRoute.path`` and ``flower.httpRoute.pathType`` values.
+
+.. note::
+
+   ``HTTPRoute`` is an alternative to ``Ingress`` for the same component, so enable only one routing
+   mechanism for each component. Enabling both for the same component fails template rendering.
+   When an ``HTTPRoute`` is enabled, the chart also verifies (via Helm ``Capabilities``) that the Gateway
+   API CRDs are installed and fails with a clear message if they are not.
+
 LoadBalancer Service
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -788,12 +837,12 @@ This container-specific approach ensures that:
 Configuration Options
 ^^^^^^^^^^^^^^^^^^^^^
 
-The service account token volume configuration is available for the scheduler component and includes the following options:
+The service account token volume configuration is available for the scheduler and cleanup component and includes the following options:
 
 .. code-block:: yaml
    :caption: values.yaml
 
-   scheduler:
+   (scheduler|cleanup):
      serviceAccount:
        automountServiceAccountToken: false
        serviceAccountTokenVolume:

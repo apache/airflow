@@ -28,14 +28,15 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
+from airflow.providers.common.ai.utils.validation import validate_prompt
 from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
     context_merge,
+    determine_kwargs,
     task_decorator_factory,
 )
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
-from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -87,10 +88,7 @@ class _LLMBranchDecoratedOperator(DecoratedOperator, LLMBranchOperator):
 
         self.prompt = self.python_callable(*self.op_args, **kwargs)
 
-        if not isinstance(self.prompt, str) or not self.prompt.strip():
-            raise TypeError(
-                "The returned value from the @task.llm_branch callable must be a non-empty string."
-            )
+        validate_prompt(self.prompt, decorator_name="@task.llm_branch")
 
         self.render_template_fields(context)
         return LLMBranchOperator.execute(self, context)

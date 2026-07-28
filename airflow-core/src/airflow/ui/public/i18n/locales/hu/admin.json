@@ -95,15 +95,15 @@
       "allTypes": "Minden típus",
       "dagProcessorJob": "DAG-feldolgozó feladat",
       "schedulerJob": "Ütemező feladat",
-      "triggererJob": "Triggerelő feladat"
+      "triggererJob": "Indító feladat"
     }
   },
   "plugins": {
     "columns": {
       "source": "Forrás"
     },
-    "importError_one": "Plugin importálási hiba",
-    "importError_other": "Plugin importálási hibák",
+    "importError_one": "Bővítmény importálási hiba",
+    "importError_other": "Bővítmény importálási hibák",
     "searchPlaceholder": "Keresés fájl szerint"
   },
   "pools": {
@@ -120,7 +120,8 @@
       "includeDeferred": "Várakozó feladatok belefoglalása",
       "nameMaxLength": "A név maximum 256 karakter hosszú lehet",
       "nameRequired": "Név megadása kötelező",
-      "slots": "Slotok"
+      "slots": "Slotok",
+      "slotsHelperText": "Korátlan számú slot-hoz adjon meg -1 értéket"
     },
     "noPoolsFound": "Nem található pool",
     "pool_one": "Pool",

@@ -45,6 +45,10 @@ but not limited to:
 * ``catalog``
 * ``schema``
 * ``parameters``
+* ``query_tags``
+* ``include_airflow_query_tags`` - When ``True`` (default), Airflow context metadata
+  (``dag_id``, ``task_id``, ``run_id``, ``try_number``, ``map_index``) is merged into
+  ``query_tags`` automatically. Set to ``False`` to suppress these automatic tags.
 
 Examples
 --------
@@ -91,6 +95,10 @@ but not limited to:
 * ``catalog``
 * ``schema``
 * ``parameters``
+* ``query_tags``
+* ``include_airflow_query_tags`` - When ``True`` (default), Airflow context metadata
+  (``dag_id``, ``task_id``, ``run_id``, ``try_number``, ``map_index``) is merged into
+  ``query_tags`` automatically. Set to ``False`` to suppress these automatic tags.
 
 Examples
 --------

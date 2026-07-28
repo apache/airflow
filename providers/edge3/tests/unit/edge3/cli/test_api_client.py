@@ -16,21 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
 from http import HTTPStatus
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 from aiohttp import ClientResponseError, ConnectionTimeoutError
-from aioresponses import aioresponses
-from yarl import URL
 
 from airflow.providers.edge3.cli.api_client import _make_generic_request
 
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 from tests_common.test_utils.config import conf_vars
-
-if TYPE_CHECKING:
-    from aioresponses.core import RequestCall
 
 pytestmark = [pytest.mark.asyncio]
 
@@ -38,49 +34,114 @@ MOCK_ENDPOINT = "https://mock-api-test-endpoint"
 MOCK_OK_PAYLOAD = {"test": "ok"}
 
 
-@pytest.fixture
-def mock_responses():
-    with conf_vars({("edge", "api_url"): MOCK_ENDPOINT}), aioresponses() as m:
-        yield m
+@dataclass
+class _ResponseSpec:
+    status: int
+    payload: dict | None = None
+
+
+class _MockRequestContext:
+    def __init__(self, *, response: MockAiohttpClientResponse | None = None, exc: Exception | None = None):
+        self._response = response
+        self._exc = exc
+
+    async def __aenter__(self) -> MockAiohttpClientResponse:
+        if self._exc:
+            raise self._exc
+        return self._response  # type: ignore[return-value]
+
+    async def __aexit__(self, exc_type, exc, tb) -> bool:
+        return False
+
+
+def _build_request_side_effect(
+    sequence: list[_ResponseSpec | Exception],
+    calls: list[tuple[str, str, str | None]],
+):
+    iterator = iter(sequence)
+
+    def _request(method: str, *, url: str, data: str | None = None, headers=None):
+        calls.append((method, url, data))
+        current = next(iterator)
+        if isinstance(current, Exception):
+            return _MockRequestContext(exc=current)
+        return _MockRequestContext(
+            response=MockAiohttpClientResponse(
+                status=current.status,
+                payload=current.payload,
+                method=method,
+                url=url,
+                reason=f"HTTP {current.status}",
+            )
+        )
+
+    return _request
 
 
 class TestApiClient:
-    async def test_make_generic_request_success(self, mock_responses: aioresponses):
-        mock_responses.get(f"{MOCK_ENDPOINT}/mock_service", repeat=True, payload=MOCK_OK_PAYLOAD)
-        mock_responses.post(f"{MOCK_ENDPOINT}/service_no_content", status=HTTPStatus.NO_CONTENT, repeat=True)
+    @patch.dict("os.environ", {"AIRFLOW__EDGE__API_RETRIES": "10"}, clear=False)
+    async def test_make_generic_request_success(self):
+        calls: list[tuple[str, str, str | None]] = []
+        request_side_effect = _build_request_side_effect(
+            [
+                _ResponseSpec(status=HTTPStatus.OK, payload=MOCK_OK_PAYLOAD),
+                _ResponseSpec(status=HTTPStatus.NO_CONTENT),
+            ],
+            calls,
+        )
 
-        result1 = await _make_generic_request("GET", f"{MOCK_ENDPOINT}/mock_service")
-        result2 = await _make_generic_request("POST", f"{MOCK_ENDPOINT}/service_no_content", "test")
+        with (
+            conf_vars({("edge", "api_url"): MOCK_ENDPOINT}),
+            patch("airflow.providers.edge3.cli.api_client.request", side_effect=request_side_effect),
+        ):
+            result1 = await _make_generic_request("GET", f"{MOCK_ENDPOINT}/mock_service")
+            result2 = await _make_generic_request("POST", f"{MOCK_ENDPOINT}/service_no_content", "test")
 
         assert result1 == MOCK_OK_PAYLOAD
         assert result2 is None
-        assert len(mock_responses.requests) == 2
+        assert len(calls) == 2
 
     @patch("asyncio.sleep", return_value=None)
-    async def test_make_generic_request_retry(self, mock_sleep, mock_responses: aioresponses):
+    async def test_make_generic_request_retry(self, mock_sleep):
         flaky_service = f"{MOCK_ENDPOINT}/flaky_service"
-        mock_responses.get(flaky_service, status=HTTPStatus.SERVICE_UNAVAILABLE)
-        mock_responses.get(flaky_service, status=HTTPStatus.SERVICE_UNAVAILABLE)
-        mock_responses.get(flaky_service, status=HTTPStatus.SERVICE_UNAVAILABLE)
-        mock_responses.get(flaky_service, exception=ConnectionTimeoutError())
-        mock_responses.get(flaky_service, payload=MOCK_OK_PAYLOAD)
-        result = await _make_generic_request("GET", flaky_service)
+        calls: list[tuple[str, str, str | None]] = []
+        request_side_effect = _build_request_side_effect(
+            [
+                _ResponseSpec(status=HTTPStatus.SERVICE_UNAVAILABLE),
+                _ResponseSpec(status=HTTPStatus.SERVICE_UNAVAILABLE),
+                _ResponseSpec(status=HTTPStatus.SERVICE_UNAVAILABLE),
+                ConnectionTimeoutError(),
+                _ResponseSpec(status=HTTPStatus.OK, payload=MOCK_OK_PAYLOAD),
+            ],
+            calls,
+        )
+        with (
+            conf_vars({("edge", "api_url"): MOCK_ENDPOINT}),
+            patch("airflow.providers.edge3.cli.api_client.request", side_effect=request_side_effect),
+        ):
+            result = await _make_generic_request("GET", flaky_service)
 
         assert result == MOCK_OK_PAYLOAD
-        calls: list[RequestCall] | None = mock_responses.requests.get(("GET", URL(flaky_service)))
-        assert calls
         assert len(calls) == 5
+        assert all(call[0] == "GET" and call[1] == flaky_service for call in calls)
 
     @patch("asyncio.sleep", return_value=None)
-    async def test_make_generic_request_unrecoverable_error(self, mock_sleep, mock_responses: aioresponses):
+    async def test_make_generic_request_unrecoverable_error(self, mock_sleep):
         unreliable_service = f"{MOCK_ENDPOINT}/bad_service"
-        mock_responses.post(unreliable_service, status=HTTPStatus.INTERNAL_SERVER_ERROR, repeat=True)
+        calls: list[tuple[str, str, str | None]] = []
+        request_side_effect = _build_request_side_effect(
+            [_ResponseSpec(status=HTTPStatus.INTERNAL_SERVER_ERROR) for _ in range(10)],
+            calls,
+        )
 
-        with pytest.raises(ClientResponseError) as err:
-            await _make_generic_request("POST", unreliable_service, "test")
+        with (
+            conf_vars({("edge", "api_url"): MOCK_ENDPOINT}),
+            patch("airflow.providers.edge3.cli.api_client.request", side_effect=request_side_effect),
+        ):
+            with pytest.raises(ClientResponseError) as err:
+                await _make_generic_request("POST", unreliable_service, "test")
 
         mock_sleep.assert_called()
         assert err.value.status == HTTPStatus.INTERNAL_SERVER_ERROR
-        calls: list[RequestCall] | None = mock_responses.requests.get(("POST", URL(unreliable_service)))
-        assert calls
         assert len(calls) == 10
+        assert all(call[0] == "POST" and call[1] == unreliable_service for call in calls)

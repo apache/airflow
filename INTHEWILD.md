@@ -438,7 +438,7 @@ Currently, **officially** using Airflow:
 1. [Qliro](https://www.qliro.com) [[@kvackkvackanka](https://github.com/kvackkvackanka)]
 1. [Qoala](https://www.qoala.id) [[@gnomeria](https://github.com/gnomeria), [@qoala-engineering](https://github.com/qoala-engineering)]
 1. [Qplum](https://qplum.co) [[@manti](https://github.com/manti)]
-1. [Qualcomm](https://www.qualcomm.com/) [[@dheerajturaga](https://github.com/dheerajturaga) & [@shubhamraj-git](https://github.com/shubhamraj-git)]
+1. [Qualcomm](https://www.qualcomm.com/) [[@dheerajturaga](https://github.com/dheerajturaga), [@shubhamraj-git](https://github.com/shubhamraj-git), &  [@suhaas-vaddadi](https://github.com/suhaas-vaddadi)]
 1. [Quantopian](https://www.quantopian.com/) [[@eronarn](https://github.com/eronarn)]
 1. [Quero Educação](https://querobolsa.com.br/) [[@joaopedro02](https://github.com/joaopedro02)]
 1. [Quick Algorithm Analytics](https://quickalgorithm.com) [[@QuickAlgorithm](https://github.com/QuickAlgorithm), [@jacojaki](https://github.com/jacojaki), [@Giuzzilla](https://github.com/Giuzzilla), [@breizh24](https://github.com/breizh24) & [@AndreaSoprani](https://github.com/andreasoprani)]
@@ -468,6 +468,7 @@ Currently, **officially** using Airflow:
 1. [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
 1. [Sentry.io](https://www.sentry.io) [[@tiopi](https://github.com/tiopi)]
 1. [Sequoia Consulting Group](https://www.sequoia.com) [[@SequoiaConsulting](https://github.com/SequoiaConsulting) & [@rawwar](https://github.com/rawwar)]
+1. [ServiceNow](https://www.servicenow.com) [[@koteshyelamati](https://github.com/koteshyelamati)]
 1. [ShopBack](https://www.shopback.sg/) [[@shopback](https://github.com/shopback)]
 1. [Shopify](https://shopify.com/) [[@shopify](https://github.com/Shopify)]
 1. [Shopkick](https://shopkick.com/) [[@shopkick](https://github.com/shopkick)]
@@ -594,6 +595,7 @@ Currently, **officially** using Airflow:
 1. [Zendesk](https://www.github.com/zendesk)
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
 1. [Zerodha](https://zerodha.com/) [[@johnnybravo-xyz](https://github.com/johnnybravo-xyz)]
+1. [Zomato](https://www.zomato.com/) [[@zomato](https://github.com/zomato)]
 1. [Zymergen](https://www.zymergen.com/)
 1. [Zynga](https://www.zynga.com)
 1. [Ørsted](https://orsted.com/en) [[@arjunanan6](https://github.com/arjunanan6)]

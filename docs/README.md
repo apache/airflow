@@ -39,10 +39,9 @@
 # Documentation configuration
 
 This directory used to contain all the documentation files for the project. The documentation has
-been split into separate folders - the documentation is now in the folders in sub-projects that they
-are referring to.
+been split into separate folders; the documentation is now stored in the folders of the sub-projects it refers to.
 
-If you look for the documentation, it is stored as follows:
+If you are looking for the documentation, it is stored as follows:
 
 Documentation in separate distributions:
 
@@ -84,10 +83,10 @@ We have two S3 buckets where we can publish the documentation generated from the
 Note that those S3 buckets are not served directly to Apache Server, but they are served via Cloudfront
 in order to provide caching and automated resolution of folders into index.html files.
 
-The cloudfront distributions of ours are:
+Our CloudFront distributions are:
 
-* Live cloudfront url: https://d7fnmbhf26p21.cloudfront.net
-* Staging cloudfront url: https://d3a2du7x0n8ydr.cloudfront.net
+* Live CloudFront url: https://d7fnmbhf26p21.cloudfront.net
+* Staging CloudFront url: https://d3a2du7x0n8ydr.cloudfront.net
 
 Those cloudfront caches are automatically invalidated when we publish new documentation to S3 using
 GitHub Actions workflows, but you can also manually invalidate them using the AWS Console if needed.
@@ -137,8 +136,7 @@ When the release manager publishes the documentation, they choose `auto` destina
 tag they use - `staging` will be used to publish from pre-release tag and `live` will be used to publish
 from the release tag.
 
-You can also specify whether `live` or `staging` documentation should be published manually - overriding
-the auto-detection.
+You can also specify whether documentation should be published to `live` or `staging`, thereby overriding the auto-detection.
 
 The person who triggers the build (release manager) should specify the tag name of the docs to be published
 and the list of documentation packages to be published. Usually it is:
@@ -158,7 +156,7 @@ Example screenshot of the workflow triggered from the GitHub UI:
 
 Note that this just publishes the documentation but does not update the "site" with version numbers or
 stable links to providers and airflow - if you release a new documentation version, it will be available
-with direct URL (say https://apache.airflow.org/docs/apache-airflow/3.0.1/), but the main site will still
+with direct URL (say https://airflow.apache.org/docs/apache-airflow/3.0.1/), but the main site will still
 point to the previous version of the documentation as `stable` and the version drop-downs will not be updated.
 
 In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
@@ -174,8 +172,8 @@ The `staging` documentation is produced automatically with `staging` watermark a
 ![Publishing site](images/publish_site.png)
 
 This workflow also invalidates cache in Fastly that Apache Software Foundation uses to serve the website,
-so you should always run it after you modify the documentation for the website. Other than that Fastly is
-configured with 3600 seconds TTL - which means that changes will propagate to the website in ~1 hour.
+so you should always run it after you modify the documentation for the website. Fastly is configured with a
+3600-second TTL, which means that changes may take up to ~1 hour to propagate to the website.
 
 Shortly after the workflow succeeds and documentation is published, in the live bucket, the [airflow-site-archive](https://github.com/apache/airflow-site-archive)
 repository is automatically synchronized with the live S3 bucket. TODO: IMPLEMENT THIS, FOR NOW IT HAS

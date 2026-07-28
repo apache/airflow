@@ -21,7 +21,11 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import select
 
-from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
+from airflow.api.common.mark_tasks import (
+    find_task_relatives,
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_success,
+)
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -46,9 +50,10 @@ def test_set_dag_run_state_to_failed(dag_maker: DagMaker[SerializedDAG]):
             ti.set_state(TaskInstanceState.RUNNING)
     dag_maker.session.flush()
 
-    updated_tis: list[TaskInstance] = set_dag_run_state_to_failed(
+    result: tuple[list[TaskInstance], list[TaskInstance]] = set_dag_run_state_to_failed(
         dag=dag, run_id=dr.run_id, commit=True, session=dag_maker.session
     )
+    updated_tis, _ = result
     assert len(updated_tis) == 2
     task_dict = {ti.task_id: ti for ti in updated_tis}
     assert task_dict["running"].state == TaskInstanceState.FAILED
@@ -78,44 +83,73 @@ def test_set_dag_run_state_to_success_unfinished_teardown(
     dag_maker.session.flush()
     assert dr.state == DagRunState.RUNNING
 
-    updated_tis: list[TaskInstance] = set_dag_run_state_to_success(
+    result: tuple[list[TaskInstance], list[TaskInstance]] = set_dag_run_state_to_success(
         dag=dag, run_id=dr.run_id, commit=True, session=dag_maker.session
     )
+    updated_tis, _ = result
     run = dag_maker.session.scalar(select(DagRun).filter_by(dag_id=dr.dag_id, run_id=dr.run_id))
     assert run is not None
     assert run.state != DagRunState.SUCCESS
     assert len(updated_tis) == 2
     task_dict = {ti.task_id: ti for ti in updated_tis}
     assert task_dict["running"].state == TaskInstanceState.SUCCESS
-    assert task_dict["pending"].state == TaskInstanceState.SUCCESS
+    assert task_dict["pending"].state == TaskInstanceState.SKIPPED
     assert "teardown" not in task_dict
 
 
 @pytest.mark.parametrize("finished_state", sorted(list(State.finished)))
-def test_set_dag_run_state_to_success_finished_teardown(dag_maker: DagMaker[SerializedDAG], finished_state):
+def test_set_dag_run_state_to_success_keeps_finished_task_states(
+    dag_maker: DagMaker[SerializedDAG], finished_state
+):
     with dag_maker("TEST_DAG_1") as dag:
         with EmptyOperator(task_id="teardown").as_teardown():
-            EmptyOperator(task_id="failed")
+            EmptyOperator(task_id="finished")
     dr = dag_maker.create_dagrun()
     for ti in dr.get_task_instances():
-        if ti.task_id == "failed":
-            ti.set_state(TaskInstanceState.FAILED)
-        if ti.task_id == "teardown":
+        if ti.task_id == "finished":
             ti.set_state(finished_state)
+        if ti.task_id == "teardown":
+            ti.set_state(TaskInstanceState.SUCCESS)
     dag_maker.session.flush()
     dr.set_state(DagRunState.FAILED)
 
-    updated_tis: list[TaskInstance] = set_dag_run_state_to_success(
+    result: tuple[list[TaskInstance], list[TaskInstance]] = set_dag_run_state_to_success(
         dag=dag, run_id=dr.run_id, commit=True, session=dag_maker.session
     )
+    updated_tis, _ = result
     run = dag_maker.session.scalar(select(DagRun).filter_by(dag_id=dr.dag_id, run_id=dr.run_id))
     assert run is not None
     assert run.state == DagRunState.SUCCESS
-    if finished_state == TaskInstanceState.SUCCESS:
-        assert len(updated_tis) == 1
-    else:
-        assert len(updated_tis) == 2
-    task_dict = {ti.task_id: ti for ti in updated_tis}
-    assert task_dict["failed"].state == TaskInstanceState.SUCCESS
-    if finished_state != TaskInstanceState.SUCCESS:
-        assert task_dict["teardown"].state == TaskInstanceState.SUCCESS
+    assert updated_tis == []
+    states = {ti.task_id: ti.state for ti in dr.get_task_instances(session=dag_maker.session)}
+    assert states == {"finished": finished_state, "teardown": TaskInstanceState.SUCCESS}
+
+
+def test_find_task_relatives_downstream_skips_teardowns(dag_maker: DagMaker[SerializedDAG]):
+    with dag_maker("test_find_task_relatives_downstream_skips_teardowns") as dag:
+        setup_t = EmptyOperator(task_id="setup_t").as_setup()
+        normal_t = EmptyOperator(task_id="normal_t")
+        teardown_t = EmptyOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+        setup_t >> normal_t >> teardown_t
+    dag_maker.create_dagrun()
+    normal_task = dag.get_task("normal_t")
+
+    relatives = list(find_task_relatives([normal_task], downstream=True, upstream=False))
+
+    assert "normal_t" in relatives
+    assert "teardown_t" not in relatives
+
+
+def test_find_task_relatives_upstream_still_includes_setups(dag_maker: DagMaker[SerializedDAG]):
+    with dag_maker("test_find_task_relatives_upstream_still_includes_setups") as dag:
+        setup_t = EmptyOperator(task_id="setup_t").as_setup()
+        normal_t = EmptyOperator(task_id="normal_t")
+        teardown_t = EmptyOperator(task_id="teardown_t").as_teardown(setups=setup_t)
+        setup_t >> normal_t >> teardown_t
+    dag_maker.create_dagrun()
+    normal_task = dag.get_task("normal_t")
+
+    relatives = list(find_task_relatives([normal_task], downstream=False, upstream=True))
+
+    assert "normal_t" in relatives
+    assert "setup_t" in relatives

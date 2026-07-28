@@ -22,29 +22,49 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/api"
 )
 
+// BundleProvider is the single interface a bundle author implements. Construct
+// one in main and pass it to bundlev1server.Serve; the runtime calls
+// GetBundleVersion to identify the bundle and RegisterDags to load its tasks.
 type BundleProvider interface {
 	// GetBundleVersion returns upfront information about the bundle name and version without needing to load
 	// the full dag and task information, which could be memory intensive.
 	GetBundleVersion() BundleInfo
 
-	// RegisterDags is called to populate the Task functions in the registry in order to execute them.
+	// RegisterDags declares every dag and task in this bundle on the supplied
+	// Registry, for example:
 	//
-	// You should populate all dags and tasks in the bundle.
+	//	func (m *myBundle) RegisterDags(dagbag bundlev1.Registry) error {
+	//		dag := dagbag.AddDag("simple_dag")
+	//		dag.AddTask(extract)
+	//		dag.AddTask(transform)
+	//		return nil
+	//	}
 	//
-	// This will be called once-per-process-per-bundle and cached internally. You do not have to cache this
-	// yourself
+	// Register all dags and tasks here. It is called once per process per
+	// bundle and cached internally, so you do not have to cache it yourself.
 	RegisterDags(Registry) error
 }
 
-// BundleInfo Schema for telling task which bundle to run with.
+// BundleInfo identifies a bundle by name and version. It is returned by
+// BundleProvider.GetBundleVersion and tells Airflow which bundle to run a task
+// with.
 type BundleInfo = api.BundleInfo
 
+// TaskInstance identifies the running task by dag_id, run_id, task_id, and
+// map_index. It is an alias for the Execution-API type and is what
+// XComClient.PushXCom takes.
 type TaskInstance = api.TaskInstance
 
+// GetMetadataResponse is the runtime reply that carries a bundle's BundleInfo
+// back over the go-plugin transport. It is plumbing between the worker and the
+// bundle, not something authors construct.
 type GetMetadataResponse struct {
 	Bundle BundleInfo
 }
 
+// ExecuteTaskWorkload is the runtime payload describing one task to run: its
+// TaskInstance, the bundle to load, and an optional log path. The worker
+// delivers it to the bundle; authors do not build it themselves.
 type ExecuteTaskWorkload struct {
 	Token string `json:"token"`
 

@@ -741,6 +741,26 @@ class TestAPIServerService:
 
         assert len(docs) == 0
 
+    def test_ip_family_policy(self):
+        docs = render_chart(
+            values={
+                "ipFamilyPolicy": "PreferDualStack",
+                "ipFamilies": ["IPv4", "IPv6"],
+            },
+            show_only=["templates/api-server/api-server-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) == "PreferDualStack"
+        assert jmespath.search("spec.ipFamilies", docs[0]) == ["IPv4", "IPv6"]
+
+    def test_ip_family_policy_not_set_by_default(self):
+        docs = render_chart(
+            show_only=["templates/api-server/api-server-service.yaml"],
+        )
+
+        assert jmespath.search("spec.ipFamilyPolicy", docs[0]) is None
+        assert jmespath.search("spec.ipFamilies", docs[0]) is None
+
 
 class TestAPIServerNetworkPolicy:
     """Tests api-server network policy."""

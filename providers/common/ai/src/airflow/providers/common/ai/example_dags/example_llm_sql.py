@@ -18,135 +18,128 @@
 
 from __future__ import annotations
 
-from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+try:
+    from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+except Exception:
+    LLMSQLQueryOperator = None  # type: ignore[assignment,misc]
+
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.common.sql.config import DataSourceConfig
 
+if LLMSQLQueryOperator is not None:
+    # [START howto_operator_llm_sql_basic]
+    @dag(tags=["example"])
+    def example_llm_sql_basic():
+        LLMSQLQueryOperator(
+            task_id="generate_sql",
+            prompt="Find the top 10 customers by total revenue",
+            llm_conn_id="pydanticai_default",
+            schema_context=(
+                "Table: customers\n"
+                "Columns: id INT, name TEXT, email TEXT\n\n"
+                "Table: orders\n"
+                "Columns: id INT, customer_id INT, total DECIMAL, created_at TIMESTAMP"
+            ),
+        )
 
-# [START howto_operator_llm_sql_basic]
-@dag
-def example_llm_sql_basic():
-    LLMSQLQueryOperator(
-        task_id="generate_sql",
-        prompt="Find the top 10 customers by total revenue",
-        llm_conn_id="pydanticai_default",
-        schema_context=(
-            "Table: customers\n"
-            "Columns: id INT, name TEXT, email TEXT\n\n"
-            "Table: orders\n"
-            "Columns: id INT, customer_id INT, total DECIMAL, created_at TIMESTAMP"
-        ),
-    )
+    # [END howto_operator_llm_sql_basic]
 
+    example_llm_sql_basic()
 
-# [END howto_operator_llm_sql_basic]
+    # [START howto_operator_llm_sql_schema]
+    @dag(tags=["example"])
+    def example_llm_sql_schema_introspection():
+        LLMSQLQueryOperator(
+            task_id="generate_sql",
+            prompt="Calculate monthly revenue for 2024",
+            llm_conn_id="pydanticai_default",
+            db_conn_id="postgres_default",
+            table_names=["orders", "customers"],
+            dialect="postgres",
+        )
 
-example_llm_sql_basic()
+    # [END howto_operator_llm_sql_schema]
 
+    example_llm_sql_schema_introspection()
 
-# [START howto_operator_llm_sql_schema]
-@dag
-def example_llm_sql_schema_introspection():
-    LLMSQLQueryOperator(
-        task_id="generate_sql",
-        prompt="Calculate monthly revenue for 2024",
-        llm_conn_id="pydanticai_default",
-        db_conn_id="postgres_default",
-        table_names=["orders", "customers"],
-        dialect="postgres",
-    )
+    # [START howto_decorator_llm_sql]
+    @dag(tags=["example"])
+    def example_llm_sql_decorator():
+        @task.llm_sql(
+            llm_conn_id="pydanticai_default",
+            schema_context="Table: users\nColumns: id INT, name TEXT, signup_date DATE",
+        )
+        def build_churn_query(ds=None):
+            return f"Find users who signed up before {ds} and have no orders"
 
+        build_churn_query()
 
-# [END howto_operator_llm_sql_schema]
+    # [END howto_decorator_llm_sql]
 
-example_llm_sql_schema_introspection()
+    example_llm_sql_decorator()
 
+    # [START howto_operator_llm_sql_expand]
+    @dag(tags=["example"])
+    def example_llm_sql_expand():
+        LLMSQLQueryOperator.partial(
+            task_id="generate_sql",
+            llm_conn_id="pydanticai_default",
+            schema_context=(
+                "Table: orders\nColumns: id INT, customer_id INT, total DECIMAL, created_at TIMESTAMP"
+            ),
+        ).expand(
+            prompt=[
+                "Total revenue by month",
+                "Top 10 customers by order count",
+                "Average order value by day of week",
+            ]
+        )
 
-# [START howto_decorator_llm_sql]
-@dag
-def example_llm_sql_decorator():
-    @task.llm_sql(
-        llm_conn_id="pydanticai_default",
-        schema_context="Table: users\nColumns: id INT, name TEXT, signup_date DATE",
-    )
-    def build_churn_query(ds=None):
-        return f"Find users who signed up before {ds} and have no orders"
+    # [END howto_operator_llm_sql_expand]
 
-    build_churn_query()
+    example_llm_sql_expand()
 
+    # [START howto_operator_llm_sql_with_object_storage]
+    @dag(tags=["example"])
+    def example_llm_sql_with_object_storage():
+        datasource_config = DataSourceConfig(
+            conn_id="aws_default",
+            table_name="sales_data",
+            uri="s3://my-bucket/data/sales/",
+            format="parquet",
+        )
 
-# [END howto_decorator_llm_sql]
+        LLMSQLQueryOperator(
+            task_id="generate_sql",
+            prompt="Find the top 5 products by total sales amount",
+            llm_conn_id="pydanticai_default",
+            datasource_config=datasource_config,
+        )
 
-example_llm_sql_decorator()
+    # [END howto_operator_llm_sql_with_object_storage]
 
+    example_llm_sql_with_object_storage()
 
-# [START howto_operator_llm_sql_expand]
-@dag
-def example_llm_sql_expand():
-    LLMSQLQueryOperator.partial(
-        task_id="generate_sql",
-        llm_conn_id="pydanticai_default",
-        schema_context=(
-            "Table: orders\nColumns: id INT, customer_id INT, total DECIMAL, created_at TIMESTAMP"
-        ),
-    ).expand(
-        prompt=[
-            "Total revenue by month",
-            "Top 10 customers by order count",
-            "Average order value by day of week",
-        ]
-    )
+    # [START howto_operator_llm_sql_approval]
+    @dag(tags=["example"])
+    def example_llm_sql_approval():
+        from datetime import timedelta
 
+        LLMSQLQueryOperator(
+            task_id="generate_sql_with_approval",
+            prompt="Find the top 10 customers by total revenue in the last quarter",
+            llm_conn_id="pydanticai_default",
+            schema_context=(
+                "Table: customers\n"
+                "Columns: id INT, name TEXT\n\n"
+                "Table: orders\n"
+                "Columns: id INT, customer_id INT, total DECIMAL, created_at TIMESTAMP"
+            ),
+            require_approval=True,
+            approval_timeout=timedelta(hours=1),
+            allow_modifications=True,
+        )
 
-# [END howto_operator_llm_sql_expand]
+    # [END howto_operator_llm_sql_approval]
 
-example_llm_sql_expand()
-
-
-# [START howto_operator_llm_sql_with_object_storage]
-@dag
-def example_llm_sql_with_object_storage():
-    datasource_config = DataSourceConfig(
-        conn_id="aws_default",
-        table_name="sales_data",
-        uri="s3://my-bucket/data/sales/",
-        format="parquet",
-    )
-
-    LLMSQLQueryOperator(
-        task_id="generate_sql",
-        prompt="Find the top 5 products by total sales amount",
-        llm_conn_id="pydanticai_default",
-        datasource_config=datasource_config,
-    )
-
-
-# [END howto_operator_llm_sql_with_object_storage]
-
-example_llm_sql_with_object_storage()
-
-
-# [START howto_operator_llm_sql_approval]
-@dag
-def example_llm_sql_approval():
-    from datetime import timedelta
-
-    LLMSQLQueryOperator(
-        task_id="generate_sql_with_approval",
-        prompt="Find the top 10 customers by total revenue in the last quarter",
-        llm_conn_id="pydanticai_default",
-        schema_context=(
-            "Table: customers\n"
-            "Columns: id INT, name TEXT\n\n"
-            "Table: orders\n"
-            "Columns: id INT, customer_id INT, total DECIMAL, created_at TIMESTAMP"
-        ),
-        require_approval=True,
-        approval_timeout=timedelta(hours=1),
-        allow_modifications=True,
-    )
-
-
-# [END howto_operator_llm_sql_approval]
-
-example_llm_sql_approval()
+    example_llm_sql_approval()

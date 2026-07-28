@@ -1,4 +1,24 @@
 {
+  "alerts": {
+    "seeLessContext": "접기",
+    "seeMoreContext": "더 보기",
+    "showMoreAlerts_one": "알림 +{{count}}개 더 보기",
+    "showMoreAlerts_other": "알림 +{{count}}개 더 보기"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "예정된 데드라인이 없습니다",
+      "title": "예정"
+    },
+    "recentlyMissed": {
+      "empty": "놓친 데드라인이 없습니다",
+      "title": "놓친 데드라인"
+    },
+    "showMore": "더 보기",
+    "title": "데드라인"
+  },
+  "deferredSlotsNotCounted": "슬롯 계산에서 제외된 연기된 슬롯: {{count}}개",
+  "deferredSlotsNotCountedTooltip": "막대에 표시된 연기된 태스크는 슬롯 계산에 포함됩니다. 막대 아래에 표시된 연기된 태스크는 연기된 태스크를 슬롯 계산에 포함하지 않는 풀에 속합니다.",
   "favorite": {
     "favoriteDags_one": "{{count}}개의 즐겨찾기 Dag",
     "favoriteDags_other": "{{count}}개의 즐겨찾기 Dags",

@@ -718,6 +718,20 @@ class TestSecretsMasker:
                 {"a": {"b": {"c": {"d": {"e": {"api_key": "leaked"}}}}}},
                 {"a": {"b": {"c": {"d": {"e": {"api_key": "***"}}}}}},
             ),
+            # A sensitive key wrapped in a list beyond MAX_RECURSION_DEPTH is
+            # still redacted: the list is walked unconditionally, mirroring the
+            # unbounded dict walk above. Here the list sits at depth 6 (one past
+            # the cutoff), reached through the unbounded dict chain a..f.
+            (
+                {"a": {"b": {"c": {"d": {"e": {"f": [{"password": "leaked"}]}}}}}},
+                {"a": {"b": {"c": {"d": {"e": {"f": [{"password": "***"}]}}}}}},
+            ),
+            # Same for a tuple-wrapped sensitive key past MAX_RECURSION_DEPTH
+            # (a set cannot hold a dict, so only list/tuple are exercised here).
+            (
+                {"a": {"b": {"c": {"d": {"e": {"f": ({"token": "leaked"},)}}}}}},
+                {"a": {"b": {"c": {"d": {"e": {"f": ({"token": "***"},)}}}}}},
+            ),
         ],
     )
     def test_redact_sensitive_key_past_max_depth(self, val, expected):
@@ -834,6 +848,13 @@ class TestShouldHideValueForKey:
             ("custom_auth_header", True),
             ("service_key", True),
             ("my_service_key", True),
+            ("spark.hadoop.fs.s3a.bucket.spark.access.key", True),
+            ("spark.hadoop.fs.s3a.bucket.spark.secret.key", True),
+            ("spark.sql.catalog.kometa.token", True),
+            ("my-access-key", True),
+            ("auth.example.com/token", True),
+            ("spark.executor.memory", False),
+            ("spark.driver.cores", False),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):
@@ -1481,6 +1502,41 @@ class TestSecretsMaskerMerge:
         result = self.masker.merge(new_enum, old_enum)
         assert result == new_enum
         assert isinstance(result, MyEnum)
+
+    def test_merge_round_trip_kubernetes_env_var(self):
+        class MockV1EnvVar:
+            def __init__(self, name, value, value_from=None):
+                self.name = name
+                self.value = value
+                self.value_from = value_from
+
+            def to_dict(self):
+                return {"name": self.name, "value": self.value, "value_from": self.value_from}
+
+        original_env_var = MockV1EnvVar("password", "original_password", "original_source")
+        normal_env_var = MockV1EnvVar("app_name", "original_app")
+
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._is_v1_env_var",
+            side_effect=lambda item: isinstance(item, MockV1EnvVar),
+        ):
+            redacted_env_var = self.masker.redact(original_env_var)
+            redacted_env_var["value_from"] = "***"
+
+            merged = self.masker.merge(redacted_env_var, original_env_var)
+
+            updated_env_var = {**redacted_env_var, "value": "updated_password"}
+            merged_updated = self.masker.merge(updated_env_var, original_env_var)
+
+            normal_merged = self.masker.merge({"name": "app_name", "value": "***"}, normal_env_var)
+
+        assert merged == {
+            "name": "password",
+            "value": "original_password",
+            "value_from": "***",
+        }
+        assert merged_updated["value"] == "updated_password"
+        assert normal_merged["value"] == "***"
 
     def test_merge_round_trip(self):
         # Original data with sensitive information

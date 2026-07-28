@@ -17,6 +17,7 @@
     "reprocessBehavior": "Zachowanie ponownego przetwarzania",
     "run": "Uruchom ponowne przetwarzanie",
     "scheduleNotBackfillable": "Harmonogram tego Daga nie obsługuje wypełnień wstecznych",
+    "schedulerPriorityHint": "Uruchomienia wypełnienia wstecznego są szeregowane po uruchomieniach niebędących wypełnieniem wstecznym w każdym cyklu harmonogramu. Uruchomienia wypełnienia wstecznego mogą dłużej pozostawać w kolejce, jeśli obecne są inne uruchomienia niebędące wypełnieniem wstecznym.",
     "selectDescription": "Uruchom ten Dag dla zakresu dat",
     "selectLabel": "Wypełnienie wsteczne",
     "title": "Uruchom uzupełnienie wsteczne",
@@ -72,6 +73,7 @@
     "lastTaskInstance_many": "Ostatnich {{count}} instancji zadania",
     "lastTaskInstance_one": "Ostatnia instancja zadania",
     "lastTaskInstance_other": "Ostatnie {{count}} instancje zadania",
+    "medianTotalDuration": "Łącznie: {{duration}}",
     "queuedDuration": "Czas oczekiwania",
     "runAfter": "Uruchom po",
     "runDuration": "Czas trwania wykonania"
@@ -83,6 +85,7 @@
     "files_other": "{{count}} plików"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Wprowadź czas trwania w formacie ISO 8601",
     "placeholder": "Wybierz wartość",
     "placeholderArray": "Wprowadź każdy ciąg w nowej linii",
     "placeholderExamples": "Zacznij pisać, aby zobaczyć opcje",
@@ -90,6 +93,7 @@
     "validationErrorArrayNotArray": "Wartość musi być tablicą.",
     "validationErrorArrayNotNumbers": "Wszystkie elementy w tablicy muszą być liczbami.",
     "validationErrorArrayNotObject": "Wszystkie elementy w tablicy muszą być obiektami.",
+    "validationErrorDuration": "Nieprawidłowy format czasu trwania ISO 8601",
     "validationErrorRequired": "To pole jest wymagane"
   },
   "graph": {
@@ -150,6 +154,7 @@
     "loading": "Ładowanie informacji o Dagach...",
     "loadingFailed": "Nie udało się załadować informacji o Dagach. Spróbuj ponownie.",
     "manualRunDenied": "Ręczne uruchamianie nie jest dozwolone dla tego Daga",
+    "partitionKeyHelp": "Opcjonalne - dotyczy tylko Dagów partycjonowanych",
     "runIdHelp": "Opcjonalne - zostanie wygenerowane, jeśli nie podano",
     "selectDescription": "Wyzwól pojedyncze wykonanie",
     "selectLabel": "Pojedyncze wykonanie",

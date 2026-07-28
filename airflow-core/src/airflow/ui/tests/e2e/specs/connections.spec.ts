@@ -17,7 +17,7 @@
  * under the License.
  */
 import { expect, test } from "tests/e2e/fixtures";
-import { uniqueRunId } from "tests/e2e/utils/test-helpers";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 test.describe("Connections Page - List and Display", () => {
   let seedConnection: { conn_type: string; connection_id: string; host: string };

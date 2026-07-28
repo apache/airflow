@@ -19,5 +19,7 @@
 Simple auth manager token API
 =============================
 
-It's a stub file. It will be converted automatically during the build process
-to the valid documentation by the Sphinx plugin. See: /docs/conf.py
+.. swagger-plugin:: ../../../../src/airflow/api_fastapi/auth/managers/simple/openapi/v2-simple-auth-manager-generated.yaml
+    :id: sam-token-api-ref
+    :page-title: Simple auth manager token API
+    :swagger-options: { "tryItOutEnabled": "false", "supportedSubmitMethods": [] }

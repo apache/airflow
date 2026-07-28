@@ -61,7 +61,7 @@ with DAG(
     schedule=datetime.timedelta(hours=4),
     start_date=datetime.datetime(2021, 1, 1),
     catchup=False,
-    tags=["analytics", "common-sql"],
+    tags=["example", "analytics", "common-sql"],
 ) as dag:
     # [START howto_analytics_operator_with_s3]
     analytics_with_s3 = AnalyticsOperator(

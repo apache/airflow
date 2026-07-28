@@ -22,6 +22,7 @@ import logging
 import time
 import warnings
 from base64 import urlsafe_b64decode
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
@@ -34,6 +35,7 @@ from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
@@ -68,7 +70,6 @@ if TYPE_CHECKING:
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
-        DagDetails,
         PoolDetails,
         TeamDetails,
         VariableDetails,
@@ -78,6 +79,8 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
+
+
 TEAM_SCOPED_RESOURCES = frozenset(
     {
         KeycloakResource.CONNECTION,
@@ -400,16 +403,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
         context_attributes = prune_dict(attributes or {})
+
+        is_team_resource = bool(
+            team_name
+            and conf.getboolean("core", "multi_team", fallback=False)
+            and resource_type in TEAM_SCOPED_RESOURCES
+        )
+
         if resource_id:
             context_attributes[RESOURCE_ID_ATTRIBUTE_NAME] = resource_id
         elif method == "GET":
             method = "LIST"
 
-        if (
-            team_name
-            and conf.getboolean("core", "multi_team", fallback=False)
-            and resource_type in TEAM_SCOPED_RESOURCES
-        ):
+        if is_team_resource:
             resource_name = f"{resource_type.value}:{team_name}"
         else:
             resource_name = resource_type.value
@@ -431,6 +437,12 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             return False
         if resp.status_code == 400:
             error = json.loads(resp.text)
+            if is_team_resource and error.get("error") == "invalid_resource":
+                # filter_authorized_dag_ids will return this error if team resources have not been added to the Keycloak Client.
+                log.warning(
+                    "Keycloak authorization resource is missing; denying access. Response: %s", resp.text
+                )
+                return False
             raise AirflowException(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
@@ -447,10 +459,29 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         cache_key = (user.get_id(), method, team_name, frozenset(dag_ids))
 
         def query_keycloak() -> set[str]:
-            kwargs: dict = dict(dag_ids=dag_ids, user=user, method=method)
-            if team_name is not None:
-                kwargs["team_name"] = team_name
-            return super(KeycloakAuthManager, self).filter_authorized_dag_ids(**kwargs)
+            if not dag_ids:
+                return set()
+            # Cap workers at the HTTP connection pool size: each is_authorized_dag() call
+            # goes through the shared requests.Session, so extra threads would just block
+            # waiting for a free connection in urllib3's pool.
+            max_workers = min(
+                len(dag_ids), conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+            )
+
+            def check(dag_id: str) -> tuple[str, bool]:
+                details_kwargs: dict[str, Any] = {"id": dag_id}
+                if team_name is not None:
+                    details_kwargs["team_name"] = team_name
+                return dag_id, self.is_authorized_dag(
+                    method=method,
+                    user=user,
+                    details=DagDetails(**details_kwargs),
+                )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                results = executor.map(check, dag_ids)
+
+            return {dag_id for dag_id, authorized in results if authorized}
 
         return single_flight(cache_key, query_keycloak)
 

@@ -37,6 +37,35 @@ BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
 FORCE = os.environ.get("FORCE", "false")[0].lower() == "t"
 
 
+def breeze_env_with_local_sources() -> dict[str, str]:
+    """Return an environment that forces breeze to import the local worktree sources.
+
+    The ``breeze`` command on PATH is normally the uvx shim (ADR 0017), which runs
+    breeze from a *cached* build. That cache does not always reflect uncommitted edits
+    to ``dev/breeze``: ``uvx --refresh`` / ``--reinstall`` do not rebuild a local path
+    dependency, only ``uvx --no-cache`` does. When the cache is stale this hook computes
+    the command hashes / option groups from old code and then either misses a needed
+    regeneration or *reverts* a correctly regenerated image back to the stale version.
+
+    Prepending the local breeze sources to ``PYTHONPATH`` makes the in-process
+    computation (and the help rendering it spawns) always reflect the current source,
+    while third-party dependencies (rich-click, click, ...) still resolve from the
+    breeze environment. CI, which installs breeze fresh from the same checkout, is
+    unaffected.
+    """
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        f"{BREEZE_SOURCES_DIR}{os.pathsep}{existing_pythonpath}"
+        if existing_pythonpath
+        else str(BREEZE_SOURCES_DIR)
+    )
+    return env
+
+
+BREEZE_ENV = breeze_env_with_local_sources()
+
+
 def verify_all_commands_described_in_docs():
     errors = []
     doc_content = ""
@@ -66,36 +95,45 @@ def is_regeneration_needed() -> bool:
     result = subprocess.run(
         ["breeze", "setup", "regenerate-command-images", "--check-only"],
         check=False,
+        env=BREEZE_ENV,
     )
     return result.returncode != 0
 
 
-initialize_breeze_prek(__name__, __file__)
+def main() -> int:
+    initialize_breeze_prek(__name__, __file__)
 
-return_code = 0
-verify_all_commands_described_in_docs()
-if is_regeneration_needed():
-    console.print(
-        "\n[bright_blue]Some of the commands changed since last time images were generated. Regenerating.\n"
-    )
-    return_code = 1
+    return_code = 0
+    verify_all_commands_described_in_docs()
+    if is_regeneration_needed():
+        console.print(
+            "\n[bright_blue]Some of the commands changed since last time images were generated. "
+            "Regenerating.\n"
+        )
+        return_code = 1
+        res = subprocess.run(
+            ["breeze", "setup", "regenerate-command-images"],
+            check=False,
+            env=BREEZE_ENV,
+        )
+        if res.returncode != 0:
+            console.print("\n[red]Breeze command configuration has changed.\n")
+            console.print("\n[bright_blue]Images have been regenerated.\n")
+            console.print("\n[bright_blue]You might want to run it manually:\n")
+            console.print("\n[magenta]breeze setup regenerate-command-images\n")
     res = subprocess.run(
-        ["breeze", "setup", "regenerate-command-images"],
+        ["breeze", "setup", "check-all-params-in-groups"],
         check=False,
+        env=BREEZE_ENV,
     )
     if res.returncode != 0:
+        return_code = 1
         console.print("\n[red]Breeze command configuration has changed.\n")
-        console.print("\n[bright_blue]Images have been regenerated.\n")
-        console.print("\n[bright_blue]You might want to run it manually:\n")
-        console.print("\n[magenta]breeze setup regenerate-command-images\n")
-res = subprocess.run(
-    ["breeze", "setup", "check-all-params-in-groups"],
-    check=False,
-)
-if res.returncode != 0:
-    return_code = 1
-    console.print("\n[red]Breeze command configuration has changed.\n")
-    console.print("\n[yellow]Please fix it in the appropriate command_*_config.py file\n")
-    console.print("\n[bright_blue]You can run consistency check manually by running:\n")
-    console.print("\nbreeze setup check-all-params-in-groups\n")
-sys.exit(return_code)
+        console.print("\n[yellow]Please fix it in the appropriate command_*_config.py file\n")
+        console.print("\n[bright_blue]You can run consistency check manually by running:\n")
+        console.print("\nbreeze setup check-all-params-in-groups\n")
+    return return_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -20,10 +20,16 @@ from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 
-__all__ = ["HookToolset", "MCPToolset", "SQLToolset"]
+__all__ = ["AWSToolset", "HookToolset", "MCPToolset", "SQLToolset", "airflow_toolset_to_langchain_tools"]
 
 
 def __getattr__(name: str):
+    if name == "airflow_toolset_to_langchain_tools":
+        from airflow.providers.common.ai.toolsets.langchain_bridge import (
+            airflow_toolset_to_langchain_tools,
+        )
+
+        return airflow_toolset_to_langchain_tools
     if name == "SQLToolset":
         try:
             from airflow.providers.common.ai.toolsets.sql import SQLToolset
@@ -40,4 +46,12 @@ def __getattr__(name: str):
 
             raise AirflowOptionalProviderFeatureException(e)
         return MCPToolset
+    if name == "AWSToolset":
+        try:
+            from airflow.providers.common.ai.toolsets.aws import AWSToolset
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException() from e
+        return AWSToolset
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

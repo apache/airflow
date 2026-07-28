@@ -130,12 +130,12 @@ There is no difference in technical capabilities between community and 3rd-party
 See the `Ecosystem page <https://airflow.apache.org/ecosystem/#third-party-airflow-plugins-and-providers>`_
 for a registry of available 3rd-party providers.
 
-Examples
---------
+Examples of current process
+---------------------------
 
-WIP: To be added later
+* ClickHouse - `[PROPOSAL] New Community Provider: ClickHouse <https://lists.apache.org/thread/dpcfv6k60sw2xwmrf6mtokhfwr85n278>`_
 
-Examples (pre policy simplification)
+Historical examples (pre policy simplification)
 -------------------------------------
 
 * Akeyless - `[PROPOSAL] New community provider: apache-airflow-providers-akeyless <https://lists.apache.org/thread/ztf1mqbkoc39qz6o419lynttk4fhoz0t>`_, `[VOTE] New Community Provider: apache-airflow-providers-akeyless <https://lists.apache.org/thread/jqvbo8x82g87okn0fqh5o2bxxx84g9qj>`_, `[RESULT][VOTE] New Community Provider: apache-airflow-providers-akeyless <https://lists.apache.org/thread/87zn154n2vppg2vsxlbhscnfl68vb4ls>`_

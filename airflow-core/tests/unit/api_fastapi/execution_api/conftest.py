@@ -56,7 +56,15 @@ def client(request: pytest.FixtureRequest):
     async def mock_require_auth(request: Request) -> TIToken:
         from uuid import UUID
 
-        ti_id = UUID(request.path_params.get("task_instance_id", "00000000-0000-0000-0000-000000000000"))
+        raw_id = request.path_params.get(
+            "task_instance_id",
+            request.path_params.get("connection_test_id", "00000000-0000-0000-0000-000000000000"),
+        )
+        try:
+            ti_id = UUID(raw_id)
+        except ValueError:
+            # Raw (uncoerced) path param; fall back so the route's own validation returns 422.
+            ti_id = UUID("00000000-0000-0000-0000-000000000000")
         return TIToken(id=ti_id, claims=TIClaims(scope="execution"))
 
     exec_app.dependency_overrides[require_auth] = mock_require_auth

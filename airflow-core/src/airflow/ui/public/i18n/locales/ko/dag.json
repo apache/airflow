@@ -91,10 +91,6 @@
     "critical": "크리티컬",
     "debug": "디버그",
     "error": "오류",
-    "fullscreen": {
-      "button": "전체 화면",
-      "tooltip": "전체 화면을 보려면 {{hotkey}}를 누르세요."
-    },
     "info": "정보",
     "noTryNumber": "시도 횟수 없음",
     "search": {
@@ -105,11 +101,6 @@
     "settings": "로그 설정",
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
     "warning": "경고"
-  },
-  "navigation": {
-    "navigation": "탐색: Shift+{{arrow}}",
-    "openGraphFilters": "태스크 필터: Ctrl+Shift+F",
-    "toggleGroup": "그룹 전환: Space"
   },
   "notFound": {
     "back": "뒤로",
@@ -230,12 +221,34 @@
     "renderedTemplates": "렌더링된 템플릿",
     "requiredActions": "필수 작업",
     "runs": "실행",
+    "storage": "스토리지",
     "taskInstances": "태스크 인스턴스",
+    "taskStateStore": "태스크 상태 저장소",
     "tasks": "태스크",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "모든 태스크 그룹 접기",
     "expandAll": "모든 태스크 그룹 펼치기"
+  },
+  "taskStateStore": {
+    "add": "태스크 상태 저장소 추가",
+    "clearAll": {
+      "resource": "모든 태스크 상태 저장소",
+      "title": "모든 태스크 상태 저장소 삭제",
+      "warning": "모든 태스크 상태 저장소가 삭제됩니다. 외부 작업을 추적하기 위해 이 저장소를 사용하는 태스크는 처음부터 다시 실행하지 않으면 작업을 재개할 수 없습니다."
+    },
+    "delete": "태스크 상태 저장소 삭제",
+    "deleteWarning": "태스크가 저장된 메모리를 잃게 됩니다. 태스크가 이 키를 사용하여 외부 작업(예: 외부 작업 ID)을 추적하고 있다면, 해당 작업을 재개할 수 없습니다.",
+    "edit": "태스크 상태 저장소 편집",
+    "emptyStore": "태스크 상태 저장소는 재시도 간에 유지되는 값을 저장합니다. 워커는 Task SDK를 통해 태스크 상태 저장소에 값을 기록할 수 있습니다.",
+    "expiresAt": {
+      "column": "만료 시간",
+      "custom": "사용자 지정",
+      "default": "기본값 ({{interval}})",
+      "label": "만료",
+      "never": "만료 없음"
+    },
+    "title": "태스크 상태 저장소"
   }
 }

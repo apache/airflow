@@ -23,6 +23,7 @@ from urllib.parse import urlsplit
 
 import sqlalchemy as sa
 from sqlalchemy import (
+    JSON,
     Column,
     ForeignKey,
     ForeignKeyConstraint,
@@ -332,6 +333,7 @@ class AssetModel(Base):
     __tablename__ = "asset"
     __table_args__ = (
         Index("idx_asset_name_uri_unique", name, uri, unique=True),
+        Index("idx_asset_uri", uri),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
@@ -649,6 +651,10 @@ class TaskOutletAssetReference(Base):
     asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
     task_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    allow_consumer_teams: Mapped[list | None] = mapped_column(sa.JSON(), nullable=True)
+    allow_global_consumers: Mapped[bool] = mapped_column(
+        sa.Boolean(), nullable=False, server_default=sa.true()
+    )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
@@ -822,6 +828,7 @@ class AssetEvent(Base):
     __tablename__ = "asset_event"
     __table_args__ = (
         Index("idx_asset_id_timestamp", asset_id, timestamp),
+        Index("idx_asset_event_asset_id_partition_key", asset_id, partition_key),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
@@ -907,15 +914,32 @@ class AssetPartitionDagRun(Base):
     We can look up the AssetEvents that contribute to AssetPartitionDagRun entities
     with the PartitionedAssetKeyLog mapping table.
 
-    Where dag_run_id is null, the dag run has not yet been created.
-    We should not allow more than one like this. But to guard against
-    an accident, we should always work on the latest one.
+    Rows are never deleted from this table, so multiple records with the same
+    target_dag_id / partition_key are expected in general; each dag run that
+    gets created leaves its APDR record behind.
+
+    Where created_dag_run_id is null, the dag run has not yet been created.
+    We should not allow more than one row with the same target_dag_id /
+    partition_key where created_dag_run_id is null, and this is what the
+    `_lock_asset_model` mutex control is for. In case a duplicate somehow
+    gets created, we always work on the latest matching APDR record.
     """
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
-    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
+    partition_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    # Serialized snapshot of the rollup definition (mapper + window for every
+    # partitioned asset in the timetable) at the time this APDR was created.
+    # The scheduler discards APDRs whose stored fingerprint no longer matches
+    # the current timetable's fingerprint, because the mapper or window that
+    # drove the APDR's required upstream key set may have changed. Only
+    # mapper / window edits invalidate the fingerprint; unrelated Dag changes
+    # (task additions, description updates) do not. Nullable to tolerate
+    # legacy rows that pre-date the column; they are treated as stale on the
+    # next scheduler tick.
+    rollup_fingerprint: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
@@ -944,12 +968,17 @@ class PartitionedAssetKeyLog(Base):
     asset_id: Mapped[int] = mapped_column(Integer, nullable=False)
     asset_event_id: Mapped[int] = mapped_column(Integer, nullable=False)
     asset_partition_dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    source_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
-    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
-    target_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    source_partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
+    target_dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
+    target_partition_key: Mapped[str] = mapped_column(StringID(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "partitioned_asset_key_log"
+    __table_args__ = (
+        # Filter column for the stale-APDR cleanup bulk DELETE in
+        # ``SchedulerJobRunner._create_dagruns_for_partitioned_asset_dags``.
+        Index("idx_pakl_apdr_id", "asset_partition_dag_run_id"),
+    )
 
     def __repr__(self):
         args = (f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key)

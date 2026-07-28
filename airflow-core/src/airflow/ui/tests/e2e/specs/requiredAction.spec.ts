@@ -18,7 +18,8 @@
  */
 import { testConfig } from "playwright.config";
 import { expect, test } from "tests/e2e/fixtures";
-import { apiDeleteDagRun, setupHITLFlowViaAPI } from "tests/e2e/utils/test-helpers";
+import { apiDeleteDagRun } from "tests/e2e/utils/api/dag-runs";
+import { setupHITLFlowViaAPI } from "tests/e2e/utils/api/hitl";
 
 const hitlDagId = testConfig.testDag.hitlId;
 
@@ -51,5 +52,16 @@ test.describe("Verify Required Action page", () => {
     await expect(page.locator("th").filter({ hasText: "Dag Run ID" })).toBeVisible();
     await expect(page.locator("th").filter({ hasText: "Response created at" })).toBeVisible();
     await expect(page.locator("th").filter({ hasText: "Response received at" })).toBeVisible();
+  });
+
+  test("verify HITL Review drawer opens from clicking a pending action state", async ({
+    pendingHITLRun,
+    requiredActionsPage,
+  }) => {
+    await requiredActionsPage.navigateToPendingRequiredActionsPage();
+
+    await requiredActionsPage.clickReviewDrawerButton(pendingHITLRun.dagId);
+
+    await requiredActionsPage.hitlReviewDrawer.expectOpenWith(pendingHITLRun.dagId);
   });
 });

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import threading
 import uuid
-from socket import socketpair
 
 import msgspec
 import pytest
@@ -29,9 +28,12 @@ from airflow.sdk import timezone
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     CommsDecoder,
+    DeadlockImminentError,
+    GetVariable,
     MaskSecret,
     StartupDetails,
     VariableResult,
+    _RequestFrame,
     _ResponseFrame,
 )
 
@@ -59,23 +61,13 @@ class TestCommsModels:
         mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
         assert mask_secret_object.value == object_to_mask
 
-    def test_mask_secret_with_list(self):
-        example_dict = ["test"]
-        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
-        assert mask_secret_object.value == example_dict
-
-    def test_mask_secret_with_iterable(self):
-        example_dict = ["test"]
-        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
-        assert mask_secret_object.value == example_dict
-
 
 class TestCommsDecoder:
     """Test the communication between the subprocess and the "supervisor"."""
 
     @pytest.mark.usefixtures("disable_capturing")
-    def test_recv_StartupDetails(self):
-        r, w = socketpair()
+    def test_recv_StartupDetails(self, socket_pair):
+        r, w = socket_pair
 
         msg = {
             "type": "StartupDetails",
@@ -86,6 +78,9 @@ class TestCommsDecoder:
                 "run_id": "b",
                 "dag_id": "c",
                 "dag_version_id": uuid.UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                "pool_slots": 1,
+                "queue": "default",
+                "priority_weight": 1,
             },
             "ti_context": {
                 "dag_run": {
@@ -127,8 +122,8 @@ class TestCommsDecoder:
         assert msg.bundle_info == BundleInfo(name="any-name", version="any-version")
         assert msg.start_date == timezone.datetime(2024, 12, 1, 1)
 
-    def test_huge_payload(self):
-        r, w = socketpair()
+    def test_huge_payload(self, socket_pair):
+        r, w = socket_pair
 
         msg = {
             "type": "XComResult",
@@ -156,16 +151,14 @@ class TestCommsDecoder:
         assert len(msg.value) == 10 * 1024 * 1024 + 1
         assert msg.value[-1] == "b"
 
-    def test_send_thread_safety(self):
-        r, w = socketpair()
+    def test_send_thread_safety(self, socket_pair):
+        r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
         num_threads = 5
         results = [None] * num_threads
         errors = [None] * num_threads
-        request_sent = [threading.Event() for _ in range(num_threads)]
 
         def send_and_store(idx):
-            request_sent[idx].set()  # Signal that this thread is about to send
             try:
                 msg = VariableResult(key=f"key{idx}", value=f"value{idx}", type="VariableResult")
                 results[idx] = decoder.send(msg)
@@ -176,12 +169,25 @@ class TestCommsDecoder:
         for t in threads:
             t.start()
 
-        # For each thread, wait until it signals it's ready, then send the response
-        for idx in range(num_threads):
-            request_sent[idx].wait()
-            resp = {"type": "VariableResult", "key": f"key{idx}", "value": f"value{idx}"}
-            frame = _ResponseFrame(idx, resp, None)
-            data = msgspec.msgpack.encode(frame)
+        def _recv_exactly(sock, n):
+            buffer = bytearray()
+            while len(buffer) < n:
+                chunk = sock.recv(n - len(buffer))
+                if not chunk:
+                    raise EOFError("socket closed before a full frame was received")
+                buffer.extend(chunk)
+            return bytes(buffer)
+
+        # The order in which the concurrent ``send`` calls reach the socket is not
+        # deterministic, so the parent must not assume requests arrive in thread-index
+        # order. Read each request as it arrives and echo a response built from that
+        # request's own body, so every thread reliably gets the response to its own
+        # message regardless of thread scheduling.
+        for _ in range(num_threads):
+            length = int.from_bytes(_recv_exactly(w, 4), byteorder="big")
+            request = msgspec.msgpack.decode(_recv_exactly(w, length), type=_RequestFrame)
+            resp = {"type": "VariableResult", "key": request.body["key"], "value": request.body["value"]}
+            data = msgspec.msgpack.encode(_ResponseFrame(request.id, resp, None))
             w.sendall(len(data).to_bytes(4, byteorder="big") + data)
 
         for t in threads:
@@ -193,3 +199,143 @@ class TestCommsDecoder:
             assert errors[idx] is None, f"Thread {idx} error: {errors[idx]}"
             assert results[idx].key == f"key{idx}", f"Out-of-order or missing response for thread {idx}"
             assert results[idx].value == f"value{idx}", f"Incorrect value for thread {idx}"
+
+    @pytest.mark.asyncio
+    async def test_send_from_event_loop_raises_deadlock_imminent_error_when_asend_in_flight(
+        self, socket_pair
+    ):
+        """
+        Regression: send() called from the event loop thread while asend() holds
+        _thread_lock in a thread-pool worker must raise DeadlockImminentError
+        (deadlock_imminent=True) before attempting to acquire the lock.
+
+        DeadlockImminentError inherits from BaseException so it escapes
+        contextlib.suppress(Exception) in mask_secret() and similar helpers.
+        """
+        r, _ = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+
+        # Simulate asend() having recorded this thread as the event-loop thread.
+        decoder._loop_thread_id = threading.get_ident()
+
+        # Hold _thread_lock from a background thread to simulate an in-flight asend().
+        lock_held = threading.Event()
+        lock_release = threading.Event()
+
+        def _hold_lock():
+            decoder._thread_lock.acquire()
+            lock_held.set()
+            lock_release.wait()
+            decoder._thread_lock.release()
+
+        holder = threading.Thread(target=_hold_lock, daemon=True)
+        holder.start()
+        assert lock_held.wait(timeout=2), "Background thread never acquired _thread_lock"
+
+        try:
+            # send() from the event loop thread while lock is held must raise immediately.
+            with pytest.raises(DeadlockImminentError) as exc_info:
+                decoder.send(GetVariable(key="should_fail"))
+
+            msg = str(exc_info.value)
+            assert msg.startswith("comms.send() called from the event loop thread")
+            assert "deadlock is imminent" in msg
+        finally:
+            lock_release.set()
+            holder.join(timeout=2)
+
+    @pytest.mark.asyncio
+    async def test_send_from_event_loop_succeeds_when_lock_free(self, socket_pair):
+        """
+        send() called from the event loop thread when no asend() is currently
+        in-flight (lock not held) must proceed safely and return a result —
+        even after _loop_thread_id has been recorded by a prior asend() call.
+
+        The non-blocking acquire succeeds (lock is free), so the sync socket
+        I/O completes without needing the event loop, avoiding a deadlock.
+        DeadlockImminentError must NOT be raised in this scenario.
+        """
+        import asyncio
+
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+
+        def _serve_one():
+            length = int.from_bytes(w.recv(4), "big")
+            body = b""
+            while len(body) < length:
+                body += w.recv(length - len(body))
+            req = msgspec.msgpack.decode(body, type=_RequestFrame)
+            resp = {"type": "VariableResult", "key": req.body["key"], "value": "v"}
+            encoded = msgspec.msgpack.encode(_ResponseFrame(req.id, resp, None))
+            w.sendall(len(encoded).to_bytes(4, "big") + encoded)
+
+        # Phase 1: complete one asend() to record _loop_thread_id on the decoder
+        server = threading.Thread(target=_serve_one, daemon=True)
+        server.start()
+        await asyncio.wait_for(decoder.asend(GetVariable(key="prime")), timeout=5)
+        server.join(timeout=2)
+
+        # Phase 2: lock is free, _loop_thread_id is set.
+        # send() from the event loop thread must succeed (non-blocking acquire
+        # gets the free lock and the sync I/O completes without the event loop).
+        server2 = threading.Thread(target=_serve_one, daemon=True)
+        server2.start()
+        result = decoder.send(GetVariable(key="should_succeed"))
+        server2.join(timeout=2)
+
+        assert result is not None
+        assert result.key == "should_succeed"
+
+    def test_send_after_event_loop_closes_does_not_raise(self, socket_pair):
+        """
+        Regression test: send() called from the same thread that previously ran
+        the event loop — but after the loop has finished — must NOT raise
+        DeadlockImminentError.
+
+        Scenario: AsyncOperator.execute() runs aexecute() via
+        loop.run_until_complete(), which calls await SUPERVISOR_COMMS.asend(...)
+        (recording _loop_thread_id).  After execute() returns the loop is closed.
+        The task_runner then calls SUPERVISOR_COMMS.send() to push XCom results.
+        Without this fix that call raised DeadlockImminentError spuriously.
+        """
+        import asyncio
+
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+
+        # Helper: serve exactly one request from the given socket pair.
+        def _serve_one(sock):
+            length = int.from_bytes(sock.recv(4), "big")
+            body = b""
+            while len(body) < length:
+                body += sock.recv(length - len(body))
+            req = msgspec.msgpack.decode(body, type=_RequestFrame)
+            resp = {"type": "VariableResult", "key": req.body["key"], "value": "v"}
+            encoded = msgspec.msgpack.encode(_ResponseFrame(req.id, resp, None))
+            sock.sendall(len(encoded).to_bytes(4, "big") + encoded)
+
+        # --- Phase 1: run the async part (simulates aexecute()) ---
+        async def _async_phase():
+            server = threading.Thread(target=_serve_one, args=(w,), daemon=True)
+            server.start()
+            await asyncio.wait_for(decoder.asend(GetVariable(key="async_key")), timeout=5)
+            server.join(timeout=2)
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(_async_phase())
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
+
+        # --- Phase 2: sync send() after the loop is closed (simulates _push_xcom_if_needed) ---
+        # _loop_thread_id is still set from phase 1, but the loop is no longer running.
+        # This must NOT raise DeadlockImminentError.
+        server2 = threading.Thread(target=_serve_one, args=(w,), daemon=True)
+        server2.start()
+
+        result = decoder.send(GetVariable(key="sync_key"))
+        server2.join(timeout=2)
+
+        assert result is not None

@@ -56,7 +56,7 @@ class TestDagParsingEndpoint:
         assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert len(parsing_requests) == 1
-        assert parsing_requests[0].bundle_name == "dags-folder"
+        assert parsing_requests[0].bundle_name == "example_dags"
         assert parsing_requests[0].relative_fileloc == test_dag.relative_fileloc
         _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 
@@ -65,7 +65,7 @@ class TestDagParsingEndpoint:
         assert response.status_code == 409
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert len(parsing_requests) == 1
-        assert parsing_requests[0].bundle_name == "dags-folder"
+        assert parsing_requests[0].bundle_name == "example_dags"
         assert parsing_requests[0].relative_fileloc == test_dag.relative_fileloc
         _check_last_log(session, dag_id=None, event="reparse_dag_file", logical_date=None)
 
@@ -75,8 +75,15 @@ class TestDagParsingEndpoint:
         )
         assert response.status_code == 401
 
-    def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.put("/parseDagFile/token", headers={"Accept": "application/json"})
+    def test_should_respond_403(self, unauthorized_test_client, url_safe_serializer, session):
+        parse_and_sync_to_db(EXAMPLE_DAG_FILE)
+        test_dag = DBDagBag(load_op_links=False).get_latest_version_of_dag(TEST_DAG_ID, session=session)
+        token = url_safe_serializer.dumps(
+            {"bundle_name": "example_dags", "relative_fileloc": test_dag.relative_fileloc}
+        )
+        response = unauthorized_test_client.put(
+            f"/parseDagFile/{token}", headers={"Accept": "application/json"}
+        )
         assert response.status_code == 403
 
     def test_bad_file_request(self, url_safe_serializer, session, test_client):

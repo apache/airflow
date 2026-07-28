@@ -99,6 +99,8 @@ class RunState:
         "TERMINATED",
         "SKIPPED",
         "INTERNAL_ERROR",
+        "BLOCKED",
+        "WAITING_FOR_RETRY",
         "QUEUED",
     ]
 

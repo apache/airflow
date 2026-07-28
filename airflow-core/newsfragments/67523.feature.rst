@@ -1,0 +1,1 @@
+Shared-stream triggers now support a producer-side ack channel so message-broker upstreams (Kafka, SQS, Pub/Sub, Service Bus) can commit, delete, or ack on the broker handle after all subscribers have accepted an event and the resulting trigger events have been persisted to the metadata database.

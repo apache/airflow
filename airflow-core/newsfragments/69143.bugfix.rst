@@ -1,0 +1,1 @@
+Fix drifting, mis-aligned data intervals for monthly and yearly (``relativedelta``) schedules when ``catchup`` is disabled. The first interval is now anchored to the Dag's ``start_date`` instead of a fixed 30-day/365-day grid, matching the boundaries produced with ``catchup=True``.

@@ -20,6 +20,15 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import (
+    Aborted,
+    DeadlineExceeded,
+    GatewayTimeout,
+    InternalServerError,
+    PermissionDenied,
+    ResourceExhausted,
+    ServiceUnavailable,
+)
 from google.cloud.run_v2 import Execution
 from google.protobuf.any_pb2 import Any
 from google.rpc.status_pb2 import Status
@@ -51,6 +60,10 @@ POLL_SLEEP = 0.01
 TIMEOUT = 0.02
 IMPERSONATION_CHAIN = "impersonation_chain"
 USE_REGIONAL_ENDPOINT = True
+EXECUTION_NAME = "jobname-abc12"
+EXECUTION_FULL_NAME = (
+    f"projects/{PROJECT_ID}/locations/{LOCATION}/jobs/{JOB_NAME}/executions/{EXECUTION_NAME}"
+)
 
 
 @pytest.fixture
@@ -93,7 +106,14 @@ class TestCloudBatchJobFinishedTrigger:
     ):
         """
         Tests the CloudRunJobFinishedTrigger fires once the job execution reaches a successful state.
+
+        The success event must carry the short ``execution_name`` parsed from the operation's
+        Execution metadata so that ``execute_complete`` can fetch the container logs from
+        Cloud Logging (see issue #36963).
         """
+
+        metadata_any = Any()
+        metadata_any.Pack(Execution.pb(Execution(name=EXECUTION_FULL_NAME)))
 
         async def _mock_operation(operation_name, location, use_regional_endpoint):
             operation = mock.MagicMock()
@@ -102,6 +122,7 @@ class TestCloudBatchJobFinishedTrigger:
             operation.error = Any()
             operation.error.ParseFromString(b"")
             operation.response = _packed_execution_response(task_count=3, succeeded_count=3, failed_count=0)
+            operation.metadata = metadata_any
             return operation
 
         mock_hook.return_value.get_operation = _mock_operation
@@ -112,6 +133,7 @@ class TestCloudBatchJobFinishedTrigger:
                 {
                     "status": RunJobStatus.SUCCESS.value,
                     "job_name": JOB_NAME,
+                    "execution_name": EXECUTION_NAME,
                 }
             )
             == actual
@@ -176,14 +198,23 @@ class TestCloudBatchJobFinishedTrigger:
         self, mock_hook, trigger: CloudRunJobFinishedTrigger
     ):
         """
-        Tests the CloudRunJobFinishedTrigger raises an exception once the job execution fails.
+        Tests the CloudRunJobFinishedTrigger fires a FAIL event when the operation fails.
+
+        The FAIL event must also carry ``execution_name`` (parsed from
+        ``operation.metadata`` whenever it is populated) so that
+        ``execute_complete`` can still pull container logs from Cloud Logging
+        before raising — see issue #36963.
         """
+
+        metadata_any = Any()
+        metadata_any.Pack(Execution.pb(Execution(name=EXECUTION_FULL_NAME)))
 
         async def _mock_operation(operation_name, location, use_regional_endpoint):
             operation = mock.MagicMock()
             operation.done = True
             operation.name = "name"
             operation.error = Status(code=13, message="Some message")
+            operation.metadata = metadata_any
             return operation
 
         mock_hook.return_value.get_operation = _mock_operation
@@ -197,10 +228,111 @@ class TestCloudBatchJobFinishedTrigger:
                     "operation_error_code": ERROR_CODE,
                     "operation_error_message": ERROR_MESSAGE,
                     "job_name": JOB_NAME,
+                    "execution_name": EXECUTION_NAME,
                 }
             )
             == actual
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "transient_exception",
+        [
+            pytest.param(ServiceUnavailable("Service is currently unavailable."), id="ServiceUnavailable"),
+            pytest.param(InternalServerError("Internal server error."), id="InternalServerError"),
+            pytest.param(DeadlineExceeded("Deadline exceeded."), id="DeadlineExceeded"),
+            pytest.param(GatewayTimeout("Gateway timeout."), id="GatewayTimeout"),
+            pytest.param(ResourceExhausted("Quota exceeded."), id="ResourceExhausted"),
+            pytest.param(Aborted("Aborted."), id="Aborted"),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_run.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")
+    async def test_trigger_continues_polling_after_retryable_grpc_error(
+        self, mock_hook, mock_sleep, transient_exception, trigger: CloudRunJobFinishedTrigger
+    ):
+        """
+        Transient gRPC errors from ``get_operation`` should be absorbed at the polling boundary
+        so the triggerer keeps re-polling instead of failing the deferred task (which would
+        otherwise cascade into Airflow re-submitting the whole Cloud Run job on task-level
+        retry). Covers every error class in the retryable tuple.
+        """
+        done_operation = mock.MagicMock()
+        done_operation.done = True
+        done_operation.error = Any()
+        done_operation.error.ParseFromString(b"")
+        done_operation.response = _packed_execution_response(task_count=1, succeeded_count=1, failed_count=0)
+
+        mock_hook.return_value.get_operation = mock.AsyncMock(
+            side_effect=[transient_exception, done_operation]
+        )
+
+        generator = trigger.run()
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
+
+        assert (
+            TriggerEvent(
+                {
+                    "status": RunJobStatus.SUCCESS.value,
+                    "job_name": JOB_NAME,
+                    "execution_name": None,
+                }
+            )
+            == actual
+        )
+        assert mock_hook.return_value.get_operation.await_count == 2
+        mock_sleep.assert_awaited_once_with(POLL_SLEEP)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "fatal_exception",
+        [
+            pytest.param(PermissionDenied("Permission denied."), id="PermissionDenied"),
+            pytest.param(RuntimeError("boom"), id="RuntimeError"),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_run.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")
+    async def test_trigger_propagates_unexpected_polling_exception(
+        self, mock_hook, mock_sleep, fatal_exception, trigger: CloudRunJobFinishedTrigger
+    ):
+        """
+        Only the retryable gRPC error set should be absorbed. Anything outside that tuple
+        (auth failures, permission denied, unexpected runtime errors, ...) must propagate so
+        Airflow's task-level retry can take over — and the trigger must NOT have backed off
+        before re-raising (otherwise we'd be swallowing the exception class boundary).
+        """
+        mock_hook.return_value.get_operation = mock.AsyncMock(side_effect=fatal_exception)
+
+        generator = trigger.run()
+        with pytest.raises(type(fatal_exception)):
+            await generator.asend(None)  # type:ignore[attr-defined]
+
+        mock_sleep.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_run.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")
+    async def test_trigger_yields_timeout_when_retries_exhaust_timeout(
+        self, mock_hook, mock_sleep, trigger: CloudRunJobFinishedTrigger
+    ):
+        """
+        Retries during a perpetual transient outage must charge against the trigger's
+        timeout budget the same way a normal poll does, so the trigger eventually yields
+        TIMEOUT instead of extending the deferral indefinitely.
+        """
+        mock_hook.return_value.get_operation = mock.AsyncMock(side_effect=ServiceUnavailable("Always 503"))
+
+        generator = trigger.run()
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
+
+        assert TriggerEvent({"status": RunJobStatus.TIMEOUT.value, "job_name": JOB_NAME}) == actual
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")

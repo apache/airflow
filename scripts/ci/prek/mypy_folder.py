@@ -34,7 +34,8 @@ from common_prek_utils import (
     console,
     get_all_provider_ids,
     initialize_breeze_prek,
-    run_command_via_breeze_shell,
+    is_hidden_within_root,
+    run_command_via_breeze_run,
 )
 
 initialize_breeze_prek(__name__, __file__)
@@ -110,7 +111,7 @@ def get_all_files(folder: str) -> list[str]:
     for file in python_file_paths:
         if (
             (file.name not in ("conftest.py",) and not any(x.match(file.as_posix()) for x in exclude_regexps))
-            and not any(part.startswith(".") for part in file.parts)
+            and not is_hidden_within_root(file, AIRFLOW_ROOT_PATH)
         ) and not file.as_posix().endswith("src/airflow/providers/__init__.py"):
             files_to_check.append(file.relative_to(AIRFLOW_ROOT_PATH).as_posix())
     file_spec = "@/files/mypy_files.txt"
@@ -169,7 +170,7 @@ mypy_cmd = " ".join(mypy_cmd_parts)
 
 cmd = ["bash", "-c", mypy_cmd]
 
-res = run_command_via_breeze_shell(
+res = run_command_via_breeze_run(
     cmd=cmd,
     warn_image_upgrade_needed=True,
     extra_env={

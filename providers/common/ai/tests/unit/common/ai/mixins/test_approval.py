@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -34,9 +34,13 @@ from airflow.providers.common.ai.mixins.approval import (
 )
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTriggerEventError
 
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.exceptions import TaskAwaitingInput
+
 HITL_TRIGGER_PATH = "airflow.providers.standard.triggers.hitl.HITLTrigger"
 UPSERT_HITL_PATH = "airflow.sdk.execution_time.hitl.upsert_hitl_detail"
 UTCNOW_PATH = "airflow.sdk.timezone.utcnow"
+AWAIT_INPUT_FLAG_PATH = "airflow.providers.common.ai.mixins.approval.AIRFLOW_V_3_3_PLUS"
 
 
 class FakeOperator(LLMApprovalMixin):
@@ -76,6 +80,9 @@ def context():
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
 
 
+# The legacy trigger path is taken on cores < 3.3; pin the flag so these tests keep
+# exercising the defer() fallback when run against newer cores.
+@patch(AWAIT_INPUT_FLAG_PATH, False)
 class TestDeferForApproval:
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -111,15 +118,20 @@ class TestDeferForApproval:
         defer_kwargs = approval_op.defer.call_args[1]
         assert defer_kwargs["kwargs"]["generated_output"] == '{"text":"Paris","confidence":0.95}'
 
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [(42, "42"), (True, "true"), ([1, "a"], '[1,"a"]'), ({"k": "v"}, '{"k":"v"}')],
+        ids=["int", "bool", "list", "dict"],
+    )
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
-    def test_non_string_non_pydantic_output_is_stringified(
-        self, mock_upsert, mock_trigger_cls, approval_op, context
+    def test_non_string_non_pydantic_output_is_json_encoded(
+        self, mock_upsert, mock_trigger_cls, approval_op, context, output, expected
     ):
-        approval_op.defer_for_approval(context, 42)
+        approval_op.defer_for_approval(context, output)
 
         defer_kwargs = approval_op.defer.call_args[1]
-        assert defer_kwargs["kwargs"]["generated_output"] == "42"
+        assert defer_kwargs["kwargs"]["generated_output"] == expected
 
     @patch(HITL_TRIGGER_PATH, autospec=True)
     @patch(UPSERT_HITL_PATH)
@@ -141,6 +153,11 @@ class TestDeferForApproval:
 
         call_kwargs = mock_upsert.call_args[1]
         assert call_kwargs["params"] == {}
+
+    def test_raises_on_non_string_prompt(self, context):
+        op = FakeOperator(prompt=["Describe this:", object()])  # type: ignore[arg-type]
+        with pytest.raises(TypeError, match="non-string prompt"):
+            op.defer_for_approval(context, "output")
 
     @patch(UTCNOW_PATH)
     @patch(HITL_TRIGGER_PATH, autospec=True)
@@ -248,6 +265,21 @@ class TestDeferForApproval:
 
         assert result == "modified output"
 
+    def test_approved_with_non_string_modified_output_raises(self, approval_op_with_modifications):
+        # On the awaiting_input path nothing upstream schema-validates params_input
+        # (HITLTrigger did on the legacy path), so execute_complete must enforce the
+        # string contract instead of returning a dict as the task's output.
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": "editor",
+            "params_input": {"output": {"sneaky": "dict"}},
+        }
+
+        with pytest.raises(HITLTriggerEventError, match="must be a string"):
+            approval_op_with_modifications.execute_complete(
+                {}, generated_output="original output", event=event
+            )
+
     def test_approved_with_unmodified_output(self, approval_op_with_modifications):
         event = {
             "chosen_options": ["Approve"],
@@ -319,3 +351,41 @@ class TestDeferForApproval:
 
         with pytest.raises(HITLRejectException, match="alice"):
             approval_op.execute_complete({}, generated_output="output", event=event)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="awaiting_input path requires Airflow 3.3+")
+class TestAwaitInputForApproval:
+    """On Airflow 3.3+ the review parks the task in AWAITING_INPUT instead of deferring."""
+
+    @patch(UPSERT_HITL_PATH)
+    def test_parks_task_in_awaiting_input(self, mock_upsert, approval_op, context):
+        with pytest.raises(TaskAwaitingInput) as exc_info:
+            approval_op.defer_for_approval(context, "some LLM output")
+
+        assert exc_info.value.method_name == "execute_complete"
+        assert exc_info.value.kwargs == {"generated_output": "some LLM output"}
+        assert exc_info.value.timeout is None
+        mock_upsert.assert_called_once()
+        assert mock_upsert.call_args[1]["options"] == ["Approve", "Reject"]
+        approval_op.defer.assert_not_called()
+
+    @patch(UPSERT_HITL_PATH)
+    def test_approval_timeout_carried_on_await(self, mock_upsert, context):
+        timeout = timedelta(hours=2)
+        op = FakeOperator(approval_timeout=timeout)
+
+        with pytest.raises(TaskAwaitingInput) as exc_info:
+            op.defer_for_approval(context, "output")
+
+        assert exc_info.value.timeout == timeout
+
+    @patch(UPSERT_HITL_PATH)
+    def test_pydantic_output_stringified_on_await(self, mock_upsert, approval_op, context):
+        class Answer(BaseModel):
+            text: str
+            confidence: float
+
+        with pytest.raises(TaskAwaitingInput) as exc_info:
+            approval_op.defer_for_approval(context, Answer(text="Paris", confidence=0.95))
+
+        assert exc_info.value.kwargs == {"generated_output": '{"text":"Paris","confidence":0.95}'}

@@ -23,6 +23,17 @@ HITLOperator (Human-in-the-loop)
 Human-in-the-Loop (HITL) functionality allows you to incorporate human decision-making directly into your workflows.
 This powerful feature enables workflows to pause and wait for human input, making it perfect for approval processes, manual quality checks, and scenarios where human judgment is essential.
 
+.. versionchanged:: 3.3
+
+   A HITL task waiting for input now uses a dedicated, scheduler-managed ``awaiting_input`` task state
+   instead of deferring onto the triggerer. While waiting, the task holds neither a worker slot nor the
+   triggerer, so the triggerer can scale to zero even while tasks await a response; tasks resume on a human
+   response or on the scheduler's response-timeout sweep. On Airflow 3.1 and 3.2, HITL tasks use the older
+   trigger-based deferral.
+
+   A waiting ``awaiting_input`` task does not occupy a pool slot. This differs from the older deferral
+   path, where a deferred HITL task counted against a pool that had ``include_deferred`` enabled.
+
 In this tutorial, we will explore how to use the HITL operators in workflows and demonstrate how it would look like in Airflow UI.
 
 An HITL Example Dag
@@ -184,6 +195,37 @@ When the operator creates an HITL request that is waiting for a human response, 
    :start-after: [START howto_hitl_entry_operator]
    :end-before: [END howto_hitl_entry_operator]
 
+
+Testing HITL Dags locally
+-------------------------
+
+``airflow dags test`` (and the underlying ``dag.test()``) supports HITL tasks. A task that reaches
+the ``awaiting_input`` state stays parked -- the test run never resolves it itself -- and the run
+waits, logging which tasks await input, until a response is recorded from outside. The response
+goes through the same channels as on a real deployment: the Required Actions page or the HITL REST
+API (``PATCH .../hitlDetails``) of an api-server sharing the metadata database (for example
+``airflow standalone``, or a separately started ``airflow api-server``). Once the response lands,
+the test run resumes the task and continues with downstream tasks.
+
+This also lets AI agents drive a HITL pipeline end-to-end locally: run ``airflow dags test``, watch
+for the waiting log line, ask the human, and submit their answer through the HITL REST API. The two
+calls involved (``~`` works as a wildcard for ``dag_id`` and ``dag_run_id``):
+
+.. code-block:: text
+
+    # Discover pending requests (subject, options, params, run/task identifiers)
+    GET /api/v2/dags/~/dagRuns/~/hitlDetails?response_received=false
+
+    # Submit the response; the test run resumes the task on its next poll.
+    # map_index is -1 for non-mapped tasks.
+    PATCH /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails
+    {"chosen_options": ["Approve"], "params_input": {}}
+
+.. note::
+
+    ``response_timeout`` and timeout defaults are enforced by the scheduler, which does not run
+    under ``airflow dags test``. A parked task therefore waits indefinitely for a response; supply
+    one through the UI or REST API to let the run finish.
 
 Benefits and Common Use Cases
 -----------------------------

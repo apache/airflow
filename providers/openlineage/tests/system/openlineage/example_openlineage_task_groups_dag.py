@@ -33,12 +33,14 @@ try:
 except ImportError:
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 DAG_ID = "openlineage_task_groups_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=None,

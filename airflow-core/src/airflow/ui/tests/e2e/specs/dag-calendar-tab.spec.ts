@@ -48,7 +48,7 @@ test.describe("Dag Calendar Tab", () => {
     expect(states.length).toBeGreaterThanOrEqual(2);
   });
 
-  test("verify hover shows correct run states", async ({ dagCalendarTab }) => {
+  test("verify success and failed run states are detected", async ({ dagCalendarTab }) => {
     await dagCalendarTab.switchToHourly();
 
     const states = await dagCalendarTab.getManualRunStates();

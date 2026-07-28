@@ -28,6 +28,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
+from airflow.providers.common.ai.utils.validation import validate_prompt
 from airflow.providers.common.compat.sdk import (
     DecoratedOperator,
     TaskDecorator,
@@ -87,10 +88,7 @@ class _LLMSchemaCompareDecoratedOperator(DecoratedOperator, LLMSchemaCompareOper
 
         self.prompt = self.python_callable(*self.op_args, **kwargs)
 
-        if not isinstance(self.prompt, str) or not self.prompt.strip():
-            raise TypeError(
-                "The returned value from the @task.llm_schema_compare callable must be a non-empty string."
-            )
+        validate_prompt(self.prompt, decorator_name="@task.llm_schema_compare")
 
         self.render_template_fields(context)
         return LLMSchemaCompareOperator.execute(self, context)

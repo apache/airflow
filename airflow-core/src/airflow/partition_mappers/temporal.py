@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+import re
+from abc import abstractmethod
+from collections.abc import Iterable
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow._shared.timezones.timezone import make_aware, parse_timezone
 from airflow.partition_mappers.base import PartitionMapper
@@ -26,9 +28,134 @@ from airflow.partition_mappers.base import PartitionMapper
 if TYPE_CHECKING:
     from pendulum import FixedTimezone, Timezone
 
+    from airflow.partition_mappers.window import Window
 
-class _BaseTemporalMapper(PartitionMapper, ABC):
+
+_STRPTIME_PATTERNS: dict[str, str] = {
+    "%Y": r"\d{4}",
+    "%m": r"\d{2}",
+    "%d": r"\d{2}",
+    "%H": r"\d{2}",
+    "%M": r"\d{2}",
+    "%S": r"\d{2}",
+    "%V": r"\d{2}",
+    "%U": r"\d{2}",
+    "%W": r"\d{2}",
+}
+
+
+def _compile_output_format_regex(
+    fmt: str, placeholder_patterns: dict[str, str] | None = None
+) -> re.Pattern[str]:
+    r"""
+    Compile *fmt* into a regex with named groups so a formatted key can be parsed back.
+
+    Walks *fmt* left-to-right, classifying each position into one of three
+    branches:
+
+    1. A two-character strftime directive listed in ``_STRPTIME_PATTERNS``
+       (``%Y``, ``%m``, ``%V`` …) becomes a named group keyed on the directive
+       letter — e.g. ``%Y`` → ``(?P<Y>\d{4})``. The ``i + 1 < len(fmt)`` guard
+       lets a trailing bare ``%`` fall through to the literal branch (escaped
+       as ``\%``), and unrecognised directives like ``%X`` likewise fall
+       through (matched literally; the format will not round-trip through
+       strftime output that uses them).
+    2. A FastAPI-style ``{name}`` placeholder becomes a named group keyed on
+       *name*. The pattern defaults to ``\w+``; pass *placeholder_patterns*
+       to narrow it (e.g. ``{"quarter": r"[1-4]"}``). A ``{`` with no
+       matching ``}`` falls through to the literal branch (so a stray ``{``
+       is escaped, not raised). This ``{name}`` → named-group translation
+       mirrors the path-template parsing in Starlette's ``compile_path``
+       (see `Starlette routing <https://www.starlette.io/routing/>`_).
+    3. Anything else is escaped via :func:`re.escape` and emitted verbatim,
+       so separators, literal hyphens, ``Q``/``W`` prefix letters, and so on
+       all participate in the match.
+
+    The compiled regex is anchored with ``^...$`` so callers can use
+    ``.search`` or ``.fullmatch`` interchangeably — a malformed key with
+    extra prefix/suffix raises instead of silently parsing the first
+    matching substring.
+
+    Raises :exc:`ValueError` at compile time when *fmt* is structurally
+    malformed — empty ``{}``, a placeholder name that is not a valid Python
+    identifier, the same strftime directive used twice, the same
+    placeholder used twice, or two adjacent default-pattern placeholders
+    (the greedy ``\w+`` default would consume the previous group's tail,
+    yielding a parse the caller almost never intends — insert a separator
+    or narrow at least one placeholder via *placeholder_patterns*).
+    Catching these at construction keeps a misconfigured mapper from
+    surfacing as an opaque ``re.error`` deep inside the scheduler tick or
+    a UI route.
+
+    Known limitation: locale-sensitive strftime directives (``%A``, ``%a``,
+    ``%B``, ``%b``, ``%p``) are not in ``_STRPTIME_PATTERNS`` and are
+    treated as literals; formats relying on them are not invertible by
+    this helper.
+    """
+    placeholder_patterns = placeholder_patterns or {}
+    parts: list[str] = []
+    seen_groups: set[str] = set()
+    prev_was_default_placeholder = False
+    i = 0
+    while i < len(fmt):
+        if fmt[i] == "%" and i + 1 < len(fmt) and fmt[i : i + 2] in _STRPTIME_PATTERNS:
+            directive = fmt[i : i + 2]
+            name = directive[1]
+            if name in seen_groups:
+                raise ValueError(
+                    f"output_format {fmt!r} reuses directive {directive!r}; "
+                    "each strftime directive may appear at most once."
+                )
+            seen_groups.add(name)
+            parts.append(f"(?P<{name}>{_STRPTIME_PATTERNS[directive]})")
+            i += 2
+            prev_was_default_placeholder = False
+            continue
+        if fmt[i] == "{":
+            end = fmt.find("}", i)
+            if end != -1:
+                name = fmt[i + 1 : end]
+                if not name.isidentifier():
+                    raise ValueError(
+                        f"output_format {fmt!r} has invalid placeholder {{{name}}}; "
+                        "placeholder names must be valid Python identifiers."
+                    )
+                if name in seen_groups:
+                    raise ValueError(
+                        f"output_format {fmt!r} reuses placeholder {{{name}}}; "
+                        "each placeholder may appear at most once."
+                    )
+                seen_groups.add(name)
+                is_default = name not in placeholder_patterns
+                if is_default and prev_was_default_placeholder:
+                    # Two adjacent default-pattern (``\w+``) placeholders.
+                    # The greedy first group consumes everything except the
+                    # minimum length the second needs, producing a parse the
+                    # caller almost never intends (e.g. ``{a}{b}`` on "foo123"
+                    # yields a="foo12", b="3"). Either insert a literal
+                    # separator between them or narrow at least one pattern
+                    # via *placeholder_patterns*.
+                    raise ValueError(
+                        f"output_format {fmt!r} has adjacent default-pattern placeholders "
+                        f"ending at {{{name}}}; the greedy ``\\w+`` default would consume "
+                        "the previous group's tail. Insert a separator between the "
+                        "placeholders, or narrow at least one of them via placeholder_patterns."
+                    )
+                pattern = placeholder_patterns.get(name, r"\w+")
+                parts.append(f"(?P<{name}>{pattern})")
+                i = end + 1
+                prev_was_default_placeholder = is_default
+                continue
+        parts.append(re.escape(fmt[i]))
+        i += 1
+        prev_was_default_placeholder = False
+    return re.compile(f"^{''.join(parts)}$")
+
+
+class _BaseTemporalMapper(PartitionMapper):
     """Base class for Temporal Partition Mappers."""
+
+    expected_decoded_type: ClassVar[type] = datetime
 
     default_output_format: str
 
@@ -38,7 +165,9 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
         timezone: str | Timezone | FixedTimezone = "UTC",
         input_format: str = "%Y-%m-%dT%H:%M:%S",
         output_format: str | None = None,
+        max_downstream_keys: int | None = None,
     ):
+        super().__init__(max_downstream_keys=max_downstream_keys)
         self.input_format = input_format
         self.output_format = output_format or self.default_output_format
         if isinstance(timezone, str):
@@ -62,14 +191,57 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
         """Format the normalized datetime."""
         return dt.strftime(self.output_format)
 
+    def decode_downstream(self, downstream_key: str) -> datetime:
+        """
+        Recover the period-start datetime from a previously formatted downstream key.
+
+        Inverse of ``format``. The default implementation uses ``strptime`` with
+        ``output_format``, which works for any format made of standard strptime
+        directives. Subclasses with custom format markers (e.g. ``{quarter}``) or
+        ambiguous directives (e.g. bare ``%V``) override this.
+        """
+        return datetime.strptime(downstream_key, self.output_format)
+
+    def to_partition_date(self, downstream_key: str) -> datetime:
+        anchor = self.normalize(self.decode_downstream(downstream_key))
+        # decode_downstream returns a naive datetime; localise it with the mapper's
+        # own timezone, mirroring to_downstream, so the stored instant is correct.
+        if anchor.tzinfo is None:
+            anchor = make_aware(anchor, self._timezone)
+        return anchor
+
+    def encode_upstream(self, dt: datetime) -> str:
+        """
+        Format *dt* as an upstream partition key string.
+
+        Pair of :meth:`decode_downstream`: takes a (decoded) period-start
+        datetime and produces a key string in the upstream's ``input_format``
+        with ``timezone`` applied. Used by :class:`RollupMapper` to render each
+        upstream member yielded by the window back into the form upstream
+        producers actually emit.
+
+        When *dt* is aware (e.g. the default ``decode_downstream`` returned an
+        aware datetime because ``output_format`` contains ``%z``), converts to
+        the mapper timezone first so the resulting key reflects the same instant
+        rather than re-interpreting the wall-clock as local time.
+        """
+        if dt.tzinfo is not None:
+            naive = dt.astimezone(self._timezone).replace(tzinfo=None)
+        else:
+            naive = dt
+        return make_aware(naive, self._timezone).strftime(self.input_format)
+
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_timezone
 
-        return {
+        result: dict[str, Any] = {
             "timezone": encode_timezone(self._timezone),
             "input_format": self.input_format,
             "output_format": self.output_format,
         }
+        if self.max_downstream_keys is not None:
+            result["max_downstream_keys"] = self.max_downstream_keys
+        return result
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
@@ -77,11 +249,16 @@ class _BaseTemporalMapper(PartitionMapper, ABC):
             timezone=parse_timezone(data.get("timezone", "UTC")),
             input_format=data["input_format"],
             output_format=data["output_format"],
+            max_downstream_keys=data.get("max_downstream_keys"),
         )
 
 
 class StartOfHourMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to hour."""
+    """
+    Map a partition key to the start of the hour that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-03-13T10``.
+    """
 
     default_output_format = "%Y-%m-%dT%H"
 
@@ -90,7 +267,11 @@ class StartOfHourMapper(_BaseTemporalMapper):
 
 
 class StartOfDayMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to day."""
+    """
+    Map a partition key to the start of the day that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-03-13``.
+    """
 
     default_output_format = "%Y-%m-%d"
 
@@ -99,17 +280,70 @@ class StartOfDayMapper(_BaseTemporalMapper):
 
 
 class StartOfWeekMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to week."""
+    """
+    Map a partition key to the Monday of the ISO week that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-03-11 (W11)``.
+    """
 
     default_output_format = "%Y-%m-%d (W%V)"
+
+    def __init__(
+        self,
+        *,
+        timezone: str | Timezone | FixedTimezone = "UTC",
+        input_format: str = "%Y-%m-%dT%H:%M:%S",
+        output_format: str | None = None,
+        max_downstream_keys: int | None = None,
+    ) -> None:
+        """
+        Compile *output_format* eagerly so malformed patterns raise here.
+
+        :param timezone: Timezone used to localize naive upstream keys before
+            normalising to week-start. Accepts a timezone name (e.g.
+            ``"America/New_York"``), a ``pendulum.Timezone``, or a
+            ``pendulum.FixedTimezone``.
+        :param input_format: ``strptime``-compatible format for parsing upstream
+            partition keys. Supported directives (those that appear in
+            ``_STRPTIME_PATTERNS``): ``%Y %m %d %H %M %S %V %U %W``.
+        :param output_format: ``strftime``-compatible format for the downstream
+            (week-start) key. To support ``decode_downstream``, the format
+            **must** include ``%Y``, ``%m``, and ``%d`` so the week-start date
+            can be recovered for ``to_upstream``.
+        """
+        super().__init__(
+            timezone=timezone,
+            input_format=input_format,
+            output_format=output_format,
+            max_downstream_keys=max_downstream_keys,
+        )
+        # %V (ISO week) cannot be round-tripped through strptime without %G+%u,
+        # so derive a named-group regex from output_format and pull out %Y/%m/%d.
+        # Compile eagerly so a malformed output_format raises ValueError here
+        # instead of an opaque re.error inside the scheduler.
+        self._key_pattern = _compile_output_format_regex(self.output_format)
 
     def normalize(self, dt: datetime) -> datetime:
         start = dt - timedelta(days=dt.weekday())
         return start.replace(hour=0, minute=0, second=0, microsecond=0)
 
+    def decode_downstream(self, downstream_key: str) -> datetime:
+        match = self._key_pattern.search(downstream_key)
+        if match is None or not {"Y", "m", "d"}.issubset(match.groupdict()):
+            raise ValueError(
+                f"StartOfWeekMapper.decode_downstream could not parse {downstream_key!r} "
+                f"with output_format {self.output_format!r}; "
+                "output_format must include the %Y, %m and %d directives."
+            )
+        return datetime(int(match["Y"]), int(match["m"]), int(match["d"]))
+
 
 class StartOfMonthMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to month."""
+    """
+    Map a partition key to day 1 of the month that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-03``.
+    """
 
     default_output_format = "%Y-%m"
 
@@ -124,9 +358,50 @@ class StartOfMonthMapper(_BaseTemporalMapper):
 
 
 class StartOfQuarterMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to quarter."""
+    """
+    Map a partition key to the first day of the calendar quarter that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024-Q1``.
+    """
 
     default_output_format = "%Y-Q{quarter}"
+
+    def __init__(
+        self,
+        *,
+        timezone: str | Timezone | FixedTimezone = "UTC",
+        input_format: str = "%Y-%m-%dT%H:%M:%S",
+        output_format: str | None = None,
+        max_downstream_keys: int | None = None,
+    ) -> None:
+        """
+        Compile *output_format* eagerly so malformed patterns raise here.
+
+        :param timezone: Timezone used to localize naive upstream keys before
+            normalising to quarter-start. Accepts a timezone name (e.g.
+            ``"America/New_York"``), a ``pendulum.Timezone``, or a
+            ``pendulum.FixedTimezone``.
+        :param input_format: ``strptime``-compatible format for parsing upstream
+            partition keys. Supported directives (those that appear in
+            ``_STRPTIME_PATTERNS``): ``%Y %m %d %H %M %S %V %U %W``.
+        :param output_format: Format for the downstream (quarter-start) key.
+            Supports the same ``strftime`` directives as *input_format* plus the
+            Python-format ``{quarter}`` placeholder (e.g. ``"%Y-Q{quarter}"``).
+            To support ``decode_downstream``, the format **must** include ``%Y``
+            and ``{quarter}`` so the quarter-start date can be recovered for
+            ``to_upstream``.
+        """
+        super().__init__(
+            timezone=timezone,
+            input_format=input_format,
+            output_format=output_format,
+            max_downstream_keys=max_downstream_keys,
+        )
+        # ``{quarter}`` is a Python-format placeholder, not a strftime directive,
+        # so derive a named-group regex from output_format that handles both.
+        # Compile eagerly so a malformed output_format raises ValueError here
+        # instead of an opaque re.error inside the scheduler.
+        self._key_pattern = _compile_output_format_regex(self.output_format, {"quarter": r"[1-4]"})
 
     def normalize(self, dt: datetime) -> datetime:
         quarter = (dt.month - 1) // 3
@@ -144,9 +419,25 @@ class StartOfQuarterMapper(_BaseTemporalMapper):
         quarter = (dt.month - 1) // 3 + 1
         return dt.strftime(self.output_format).format(quarter=quarter)
 
+    def decode_downstream(self, downstream_key: str) -> datetime:
+        match = self._key_pattern.search(downstream_key)
+        if match is None or not {"Y", "quarter"}.issubset(match.groupdict()):
+            raise ValueError(
+                f"StartOfQuarterMapper.decode_downstream could not parse {downstream_key!r} "
+                f"with output_format {self.output_format!r}; "
+                "output_format must include the %Y directive and the {quarter} placeholder."
+            )
+        year = int(match["Y"])
+        quarter = int(match["quarter"])
+        return datetime(year, (quarter - 1) * 3 + 1, 1)
+
 
 class StartOfYearMapper(_BaseTemporalMapper):
-    """Map a time-based partition key to year."""
+    """
+    Map a partition key to January 1 of the year that contains the key.
+
+    Example: ``2024-03-13T10:42:15`` → ``2024``.
+    """
 
     default_output_format = "%Y"
 
@@ -159,3 +450,154 @@ class StartOfYearMapper(_BaseTemporalMapper):
             second=0,
             microsecond=0,
         )
+
+
+class FanOutMapper(PartitionMapper):
+    """
+    Partition mapper that fans one upstream key out into multiple downstream keys.
+
+    Compose an ``upstream_mapper`` (parses the coarse upstream key and
+    normalizes it to its period start) with a ``window`` (enumerates the
+    members of that period). ``downstream_mapper`` formats each member into a
+    downstream key string; if omitted, a default is chosen from the window
+    class.
+
+    ``downstream_mapper`` must be passed explicitly for any window without an
+    entry in the default table — currently ``HourWindow`` and any custom
+    ``Window`` subclass. Constructing a ``FanOutMapper`` for those windows
+    without a ``downstream_mapper`` raises ``ValueError`` at Dag-parse time.
+
+    Symmetric to :class:`~airflow.partition_mappers.base.RollupMapper`: rollup
+    is N→1 (downstream waits until all members arrive), fan-out is 1→N (one
+    upstream event creates one downstream Dag run per member).
+
+    ``window``'s direction controls which period each upstream key fans out to.
+    The default, ``Window.Direction.FORWARD``, yields the period *starting at*
+    the upstream key (the period it represents); ``Window.Direction.BACKWARD``
+    yields the trailing period *ending at* the upstream key. Pass
+    ``direction=Window.Direction.BACKWARD`` to the window for the latter:
+
+    .. code-block:: python
+
+        from airflow.partition_mappers import WeekWindow, Window
+        from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
+
+        # Weekly upstream → 7 daily downstream Dag runs (the 7 days the upstream Monday represents)
+        FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
+
+        # Weekly upstream → the 7 days ending at the upstream Monday (trailing period)
+        backward_window = WeekWindow(direction=Window.Direction.BACKWARD)
+        FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=backward_window)
+    """
+
+    # Keep ``FanOutMapper.default_downstream_mapper_by_window_name`` in sync with
+    # the SDK copy in
+    # ``task-sdk/src/airflow/sdk/definitions/partition_mappers/temporal.py`` —
+    # the SDK and core class hierarchies are independent (the SDK cannot import
+    # core), so both sides carry the same defaults and the lookup is by class
+    # name. When adding a new ``Window`` subclass, extend the table on both
+    # sides; a missing entry raises ``ValueError`` at ``FanOutMapper.__init__``
+    # (see ``FanOutMapper._resolve_default_downstream_mapper``). The
+    # ``check-partition-mapper-defaults-in-sync`` prek hook enforces that the
+    # two tables stay identical.
+    default_downstream_mapper_by_window_name: ClassVar[dict[str, type[_BaseTemporalMapper]]] = {
+        "DayWindow": StartOfHourMapper,
+        "WeekWindow": StartOfDayMapper,
+        "MonthWindow": StartOfDayMapper,
+        "QuarterWindow": StartOfMonthMapper,
+        "YearWindow": StartOfMonthMapper,
+    }
+
+    @classmethod
+    def _resolve_default_downstream_mapper(cls, window: Window) -> PartitionMapper:
+        """
+        Return the conventional downstream mapper for *window*.
+
+        Looked up by the window's class **name** rather than identity so that
+        the SDK ``Window`` classes (used in Dag-author code) and the core
+        ``Window`` classes (used after deserialization) both resolve to the
+        same default. Subclasses can extend or override the defaults by
+        setting :attr:`default_downstream_mapper_by_window_name` on the subclass.
+        """
+        mapper_cls = cls.default_downstream_mapper_by_window_name.get(type(window).__name__)
+        if mapper_cls is None:
+            raise ValueError(
+                f"{cls.__name__} has no default downstream_mapper for window type "
+                f"{type(window).__name__}; pass downstream_mapper explicitly."
+            )
+        return mapper_cls()
+
+    def __init__(
+        self,
+        *,
+        upstream_mapper: PartitionMapper,
+        window: Window,
+        downstream_mapper: PartitionMapper | None = None,
+        max_downstream_keys: int | None = None,
+    ) -> None:
+        super().__init__(max_downstream_keys=max_downstream_keys)
+        self.upstream_mapper = upstream_mapper
+        self.window = window
+        self.downstream_mapper = downstream_mapper or self._resolve_default_downstream_mapper(window)
+
+    def to_downstream(self, key: str) -> Iterable[str]:
+        # Round-trip the upstream key through its mapper to obtain the
+        # period-start datetime (decoded form). This keeps the upstream_mapper
+        # opaque — we don't need to know whether it's temporal or segment.
+        formatted = self.upstream_mapper.to_downstream(key)
+        if not isinstance(formatted, str):
+            raise TypeError(
+                "FanOutMapper.upstream_mapper must produce a single key from "
+                "to_downstream; chained fan-out (mapper that itself returns multiple keys) "
+                "is not supported."
+            )
+        coarse = self.upstream_mapper.decode_downstream(formatted)
+        return [_format_with(self.downstream_mapper, item) for item in self.window.to_upstream(coarse)]
+
+    def to_partition_date(self, downstream_key: str) -> datetime | None:
+        # Fan-out keys are formatted by downstream_mapper, so it owns the anchor.
+        return self.downstream_mapper.to_partition_date(downstream_key)
+
+    def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.encoders import encode_partition_mapper, encode_window
+
+        result: dict[str, Any] = {
+            "upstream_mapper": encode_partition_mapper(self.upstream_mapper),
+            "window": encode_window(self.window),
+            "downstream_mapper": encode_partition_mapper(self.downstream_mapper),
+        }
+        if self.max_downstream_keys is not None:
+            result["max_downstream_keys"] = self.max_downstream_keys
+        return result
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
+        from airflow.serialization.decoders import decode_partition_mapper, decode_window
+
+        return cls(
+            upstream_mapper=decode_partition_mapper(data["upstream_mapper"]),
+            window=decode_window(data["window"]),
+            downstream_mapper=decode_partition_mapper(data["downstream_mapper"]),
+            max_downstream_keys=data.get("max_downstream_keys"),
+        )
+
+
+def _format_with(mapper: PartitionMapper, decoded: Any) -> str:
+    """
+    Format *decoded* using *mapper*'s downstream format.
+
+    Three-layer fallback, in order:
+
+    1. *mapper* exposes a callable ``format`` attribute (all temporal mappers do)
+       — delegates to ``mapper.format(decoded)``, which uses ``output_format``.
+    2. *decoded* is a ``datetime`` instance — returns ``decoded.isoformat()``,
+       producing a stable ISO-8601 string that round-trips via
+       ``datetime.fromisoformat``.
+    3. Anything else — ``str(decoded)`` as a last-resort fallback.
+    """
+    formatter = getattr(mapper, "format", None)
+    if callable(formatter):
+        return formatter(decoded)
+    if isinstance(decoded, datetime):
+        return decoded.isoformat()
+    return str(decoded)

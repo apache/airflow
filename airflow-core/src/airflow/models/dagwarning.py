@@ -77,7 +77,7 @@ class DagWarning(Base):
     @classmethod
     @provide_session
     @retry_db_transaction
-    def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
+    def purge_inactive_dag_warnings(cls, *, session: Session = NEW_SESSION) -> None:
         """
         Deactivate DagWarning records for inactive dags.
 
@@ -102,5 +102,6 @@ class DagWarningType(str, Enum):
     """
 
     ASSET_CONFLICT = "asset conflict"
+    DUPLICATE_DAG_ID = "duplicate dag id"
     NONEXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"

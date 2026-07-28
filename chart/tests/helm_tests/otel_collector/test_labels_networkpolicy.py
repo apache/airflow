@@ -26,7 +26,6 @@ class TestOtelCollectorNetworkPolicy:
     TEMPLATE_FILE = "templates/otel-collector/otel-collector-networkpolicy.yaml"
 
     def test_should_add_global_labels(self):
-        """Test adding only .Values.labels."""
         docs = render_chart(
             values={
                 "otelCollector": {"tracesEnabled": True},
@@ -40,7 +39,6 @@ class TestOtelCollectorNetworkPolicy:
         assert jmespath.search("metadata.labels", docs[0])["test_global_label"] == "test_global_label_value"
 
     def test_should_add_component_specific_labels(self):
-        """Test adding only .Values.otelCollector.labels."""
         docs = render_chart(
             values={
                 "otelCollector": {
@@ -59,7 +57,6 @@ class TestOtelCollectorNetworkPolicy:
         )
 
     def test_should_merge_global_and_component_specific_labels(self):
-        """Test adding both .Values.labels and .Values.otelCollector.labels."""
         docs = render_chart(
             values={
                 "otelCollector": {
@@ -81,7 +78,6 @@ class TestOtelCollectorNetworkPolicy:
         )
 
     def test_component_specific_labels_should_override_global_labels(self):
-        """Test that component-specific labels take precedence over global labels with the same key."""
         docs = render_chart(
             values={
                 "otelCollector": {

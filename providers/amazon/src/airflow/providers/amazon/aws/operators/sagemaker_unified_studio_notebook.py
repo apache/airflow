@@ -157,6 +157,7 @@ class SageMakerUnifiedStudioNotebookOperator(AwsBaseOperator[SageMakerUnifiedStu
         outputs = self.hook.get_notebook_outputs(
             notebook_identifier=self.notebook_identifier,
             notebook_run_id=notebook_run_id,
+            domain_identifier=self.domain_identifier,
             owning_project_identifier=self.owning_project_identifier,
         )
         if outputs:

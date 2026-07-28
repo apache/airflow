@@ -97,3 +97,53 @@ a.headerlink svg {
     margin: -117px 0 0; /* negative fixed header height */
   }
 }
+
+/*
+Some layout optimization especially for dark mode for Swagger API reference
+*/
+
+/* Hide the authorize button which is use-less in docs w/o API running behind */
+.swagger-ui div.scheme-container {
+  display: none;
+}
+
+/* Set text color to white in dark mode for better readability */
+[data-bs-theme="dark"] .swagger-ui .title,
+[data-bs-theme="dark"] .swagger-ui h4,
+[data-bs-theme="dark"] .swagger-ui .opblock .opblock-section-header h4,
+[data-bs-theme="dark"] .swagger-ui .parameter__name,
+[data-bs-theme="dark"]  .swagger-ui .parameter__type,
+[data-bs-theme="dark"] .swagger-ui p {
+  color: var(--bs-emphasis-color);
+}
+
+[data-bs-theme="dark"] .swagger-ui a.nostyle {
+  color: var(--bs-link-color);
+}
+
+[data-bs-theme="dark"] .swagger-ui .opblock .opblock-summary-description {
+  color: var(--bs-secondary-color);
+}
+
+[data-bs-theme="dark"] .swagger-ui svg {
+  stroke: var(--bs-emphasis-color);
+}
+
+[data-bs-theme="dark"] .swagger-ui .opblock .opblock-section-header {
+  color: var(--bs-emphasis-color);
+  background-color: var(--bs-secondary-bg);
+}
+
+[data-bs-theme="dark"] .swagger-ui input[disabled],
+[data-bs-theme="dark"] .swagger-ui select[disabled],
+[data-bs-theme="dark"] .swagger-ui select,
+[data-bs-theme="dark"] .swagger-ui textarea[disabled]  {
+  border: 1px solid var(--bs-border-color)  ;
+  color: var(--bs-emphasis-color);
+  background-color: var(--bs-secondary-bg);
+}
+
+/* Somehow some dark mode is showing-up also in light mode for code areas, fix it here */
+.swagger-ui pre code {
+  background-color: rgb(51, 51, 51);
+}

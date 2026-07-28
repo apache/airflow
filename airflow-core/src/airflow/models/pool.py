@@ -94,13 +94,13 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_pools(session: Session = NEW_SESSION) -> Sequence[Pool]:
+    def get_pools(*, session: Session = NEW_SESSION) -> Sequence[Pool]:
         """Get all pools."""
         return session.scalars(select(Pool)).all()
 
     @staticmethod
     @provide_session
-    def get_pool(pool_name: str, session: Session = NEW_SESSION) -> Pool | None:
+    def get_pool(pool_name: str, *, session: Session = NEW_SESSION) -> Pool | None:
         """
         Get the Pool with specific pool name from the Pools.
 
@@ -112,7 +112,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_default_pool(session: Session = NEW_SESSION) -> Pool | None:
+    def get_default_pool(*, session: Session = NEW_SESSION) -> Pool | None:
         """
         Get the Pool of the default_pool from the Pools.
 
@@ -129,20 +129,35 @@ class Pool(Base):
         description: str,
         include_deferred: bool,
         *,
+        team_name: str | None = None,
         session: Session = NEW_SESSION,
     ) -> Pool:
         """Create a pool with given parameters or update it if it already exists."""
+        from airflow.configuration import conf
+
         if not name:
             raise ValueError("Pool name must not be empty")
 
+        if team_name and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
+            )
+
         pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:
-            pool = Pool(pool=name, slots=slots, description=description, include_deferred=include_deferred)
+            pool = Pool(
+                pool=name,
+                slots=slots,
+                description=description,
+                include_deferred=include_deferred,
+                team_name=team_name,
+            )
             session.add(pool)
         else:
             pool.slots = slots
             pool.description = description
             pool.include_deferred = include_deferred
+            pool.team_name = team_name
 
         return pool
 
@@ -251,7 +266,7 @@ class Pool(Base):
         }
 
     @provide_session
-    def occupied_slots(self, session: Session = NEW_SESSION) -> int:
+    def occupied_slots(self, *, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots used by running/queued tasks at the moment.
 
@@ -279,7 +294,7 @@ class Pool(Base):
         return EXECUTION_STATES
 
     @provide_session
-    def running_slots(self, session: Session = NEW_SESSION) -> int:
+    def running_slots(self, *, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots used by running tasks at the moment.
 
@@ -298,7 +313,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def queued_slots(self, session: Session = NEW_SESSION) -> int:
+    def queued_slots(self, *, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots used by queued tasks at the moment.
 
@@ -317,7 +332,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def scheduled_slots(self, session: Session = NEW_SESSION) -> int:
+    def scheduled_slots(self, *, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots scheduled at the moment.
 
@@ -336,7 +351,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def deferred_slots(self, session: Session = NEW_SESSION) -> int:
+    def deferred_slots(self, *, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots deferred at the moment.
 
@@ -355,7 +370,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def open_slots(self, session: Session = NEW_SESSION) -> float:
+    def open_slots(self, *, session: Session = NEW_SESSION) -> float:
         """
         Get the number of slots open at the moment.
 
@@ -364,18 +379,18 @@ class Pool(Base):
         """
         if self.slots == -1:
             return float("inf")
-        return self.slots - self.occupied_slots(session)
+        return self.slots - self.occupied_slots(session=session)
 
     @staticmethod
     @provide_session
-    def get_team_name(pool_name: str, session: Session = NEW_SESSION) -> str | None:
+    def get_team_name(pool_name: str, *, session: Session = NEW_SESSION) -> str | None:
         stmt = select(Pool.team_name).where(Pool.pool == pool_name)
         return session.scalar(stmt)
 
     @staticmethod
     @provide_session
     def get_name_to_team_name_mapping(
-        pool_names: list[str], session: Session = NEW_SESSION
+        pool_names: list[str], *, session: Session = NEW_SESSION
     ) -> dict[str, str | None]:
         stmt = select(Pool.pool, Pool.team_name).where(Pool.pool.in_(pool_names))
         return {pool: team_name for pool, team_name in session.execute(stmt)}

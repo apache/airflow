@@ -27,8 +27,21 @@ from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.compat.sdk import dag, task
 
 
+# [START howto_operator_llm_structured_output_class]
+# Pydantic output classes must be defined at module scope so they survive
+# XCom serialization (their qualname is used to re-import them downstream).
+class Entities(BaseModel):
+    """Named entities extracted from a text."""
+
+    names: list[str]
+    locations: list[str]
+
+
+# [END howto_operator_llm_structured_output_class]
+
+
 # [START howto_operator_llm_basic]
-@dag
+@dag(tags=["example"])
 def example_llm_operator():
     LLMOperator(
         task_id="summarize",
@@ -44,12 +57,8 @@ example_llm_operator()
 
 
 # [START howto_operator_llm_structured]
-@dag
+@dag(tags=["example"])
 def example_llm_operator_structured():
-    class Entities(BaseModel):
-        names: list[str]
-        locations: list[str]
-
     LLMOperator(
         task_id="extract_entities",
         prompt="Extract all named entities from the article.",
@@ -65,7 +74,7 @@ example_llm_operator_structured()
 
 
 # [START howto_operator_llm_agent_params]
-@dag
+@dag(tags=["example"])
 def example_llm_operator_agent_params():
     LLMOperator(
         task_id="creative_writing",
@@ -82,7 +91,7 @@ example_llm_operator_agent_params()
 
 
 # [START howto_decorator_llm]
-@dag
+@dag(tags=["example"])
 def example_llm_decorator():
     @task.llm(llm_conn_id="pydanticai_default", system_prompt="Summarize concisely.")
     def summarize(text: str):
@@ -97,12 +106,8 @@ example_llm_decorator()
 
 
 # [START howto_decorator_llm_structured]
-@dag
+@dag(tags=["example"])
 def example_llm_decorator_structured():
-    class Entities(BaseModel):
-        names: list[str]
-        locations: list[str]
-
     @task.llm(
         llm_conn_id="pydanticai_default",
         system_prompt="Extract named entities.",
@@ -120,7 +125,7 @@ example_llm_decorator_structured()
 
 
 # [START howto_operator_llm_usage_limits]
-@dag
+@dag(tags=["example"])
 def example_llm_operator_usage_limits():
     LLMOperator(
         task_id="capped_summary",
@@ -144,7 +149,7 @@ example_llm_operator_usage_limits()
 
 
 # [START howto_operator_llm_approval]
-@dag
+@dag(tags=["example"])
 def example_llm_operator_approval():
 
     LLMOperator(

@@ -15,6 +15,7 @@
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
     "scheduleNotBackfillable": "This Dag's schedule does not support backfills",
+    "schedulerPriorityHint": "Backfill Dag runs are ordered after non-backfill Dag runs in each scheduler cycle. Backfill runs may remain queued longer if other non-backfill runs are present.",
     "selectDescription": "Run this Dag for a range of dates",
     "selectLabel": "Backfill",
     "title": "Run Backfill",
@@ -64,6 +65,7 @@
     "lastDagRun_other": "Last {{count}} Dag Runs",
     "lastTaskInstance_one": "Last Task Instance",
     "lastTaskInstance_other": "Last {{count}} Task Instances",
+    "medianTotalDuration": "Total: {{duration}}",
     "queuedDuration": "Queued Duration",
     "runAfter": "Run After",
     "runDuration": "Run Duration"
@@ -72,6 +74,7 @@
     "files_other": "{{count}} files"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Enter Duration in ISO 8601 format",
     "placeholder": "Select Value",
     "placeholderArray": "Enter each string on a new line",
     "placeholderExamples": "Start typing to see options",
@@ -79,6 +82,7 @@
     "validationErrorArrayNotArray": "Value must be an array.",
     "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
     "validationErrorArrayNotObject": "All elements in the array must be objects.",
+    "validationErrorDuration": "Invalid ISO 8601 duration format",
     "validationErrorRequired": "This field is required"
   },
   "graph": {
@@ -133,6 +137,7 @@
     "loading": "Loading Dag information...",
     "loadingFailed": "Failed to load Dag information. Please try again.",
     "manualRunDenied": "Manual runs are not allowed for this Dag",
+    "partitionKeyHelp": "Optional - only applies to partitioned Dags",
     "runIdHelp": "Optional - will be generated if not provided",
     "selectDescription": "Trigger a single run of this Dag",
     "selectLabel": "Single Run",

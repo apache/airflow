@@ -419,7 +419,7 @@ def print_build_errors_and_exit(
     if build_errors or spelling_errors:
         if build_errors:
             if spellcheck_only:
-                console.print("f[warning]There were some build errors remaining.")
+                console.print("[warning]There were some build errors remaining.")
                 console.print()
             else:
                 display_errors_summary(build_errors)

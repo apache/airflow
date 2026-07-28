@@ -59,8 +59,8 @@ export const FieldRow = ({
 
   return (
     <Field.Root invalid={!isValid} orientation="horizontal" required={isRequired(param)}>
-      <Stack>
-        <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+      <Stack minWidth={0} style={{ flexBasis: "30%" }}>
+        <Field.Label fontSize="md" wordBreak="break-word">
           {param.schema.title ?? name} <Field.RequiredIndicator />
         </Field.Label>
       </Stack>

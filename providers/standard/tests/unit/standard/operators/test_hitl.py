@@ -20,7 +20,11 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -47,9 +51,13 @@ from airflow.providers.standard.operators.hitl import (
 from airflow.sdk import Param, timezone
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import HITLUser
+from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.sdk.exceptions import TaskAwaitingInput
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -63,6 +71,23 @@ pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
+
+
+def _run_execute_until_park(op: HITLOperator, context: Any) -> None:
+    """
+    Run ``execute()`` through the HITL pause point.
+
+    Tolerates both the Airflow 3.3+ behavior (raises ``TaskAwaitingInput`` to park the task in
+    AWAITING_INPUT) and the < 3.3 fallback (calls ``self.defer()``, mocked here), so the
+    ``hitl_summary`` enriched just before the pause can be asserted afterwards.
+    """
+    with patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"):
+        if AIRFLOW_V_3_3_PLUS:
+            with pytest.raises(TaskAwaitingInput):
+                op.execute(context)
+        else:
+            with patch.object(op, "defer"):
+                op.execute(context)
 
 
 @pytest.fixture
@@ -284,19 +309,31 @@ class TestHITLOperator:
         else:
             expected_params_in_trigger_kwargs = {"input_1": {"value": 1, "description": None, "schema": {}}}
 
-        registered_trigger = session.scalar(
-            select(Trigger).where(Trigger.classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger")
-        )
-        assert registered_trigger is not None
-        assert registered_trigger.kwargs == {
-            "ti_id": expected_ti_id,
-            "options": ["1", "2", "3", "4", "5"],
-            "defaults": ["1"],
-            "params": expected_params_in_trigger_kwargs,
-            "multiple": False,
-            "timeout_datetime": None,
-            "poke_interval": 5.0,
-        }
+        if AIRFLOW_V_3_3_PLUS:
+            # On Airflow 3.3+ the task parks in AWAITING_INPUT with no trigger / triggerer.
+            assert ti.state == TaskInstanceState.AWAITING_INPUT
+            registered_trigger = session.scalar(
+                select(Trigger).where(
+                    Trigger.classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger"
+                )
+            )
+            assert registered_trigger is None
+        else:
+            registered_trigger = session.scalar(
+                select(Trigger).where(
+                    Trigger.classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger"
+                )
+            )
+            assert registered_trigger is not None
+            assert registered_trigger.kwargs == {
+                "ti_id": expected_ti_id,
+                "options": ["1", "2", "3", "4", "5"],
+                "defaults": ["1"],
+                "params": expected_params_in_trigger_kwargs,
+                "multiple": False,
+                "timeout_datetime": None,
+                "poke_interval": 5.0,
+            }
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_3_PLUS, reason="This only works in airflow-core >= 3.1.3")
     @pytest.mark.parametrize(
@@ -937,6 +974,21 @@ class TestHITLSummaryForListeners:
             "serialized_params": None,
         }
 
+    def test_summary_reflects_rendered_subject_body(self) -> None:
+        """The summary reads subject/body live, so it reflects rendered values (guards #70296)."""
+        op = HITLOperator(
+            task_id="test",
+            subject="Review for {{ ds }}",
+            body="Deploy {{ ds }}?",
+            options=["Yes", "No"],
+        )
+        # Airflow renders template fields in place before execute.
+        op.subject = "Review for 2020-01-01"
+        op.body = "Deploy 2020-01-01?"
+
+        assert op.hitl_summary["subject"] == "Review for 2020-01-01"
+        assert op.hitl_summary["body"] == "Deploy 2020-01-01?"
+
     def test_approval_operator_init_summary(self) -> None:
         """ApprovalOperator hitl_summary includes base + approval-specific fields."""
         op = ApprovalOperator(
@@ -1058,11 +1110,7 @@ class TestHITLSummaryForListeners:
             response_timeout=datetime.timedelta(minutes=10),
         )
 
-        with (
-            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
-            patch.object(op, "defer"),
-        ):
-            op.execute({"task_instance": MagicMock(id=uuid4())})  # type: ignore[arg-type]
+        _run_execute_until_park(op, {"task_instance": MagicMock(id=uuid4())})
 
         s = op.hitl_summary
         # Validate the timeout value is a parseable ISO string
@@ -1088,11 +1136,7 @@ class TestHITLSummaryForListeners:
             options=["OK"],
         )
 
-        with (
-            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
-            patch.object(op, "defer"),
-        ):
-            op.execute({"task_instance": MagicMock(id=uuid4())})  # type: ignore[arg-type]
+        _run_execute_until_park(op, {"task_instance": MagicMock(id=uuid4())})
 
         assert op.hitl_summary == {
             "subject": "Review",
@@ -1321,11 +1365,7 @@ class TestHITLSummaryForListeners:
         }
 
         # -- After execute (mocked defer): timeout_datetime added --
-        with (
-            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
-            patch.object(op, "defer"),
-        ):
-            op.execute({"task_instance": MagicMock(id=uuid4())})  # type: ignore[arg-type]
+        _run_execute_until_park(op, {"task_instance": MagicMock(id=uuid4())})
 
         s = op.hitl_summary
         timeout_dt_str = s["timeout_datetime"]
@@ -1357,7 +1397,8 @@ class TestHITLSummaryForListeners:
             },
         )
 
-        assert s == {
+        # hitl_summary is a property, so re-read it to see the execute_complete additions.
+        assert op.hitl_summary == {
             "subject": "Release v2.0?",
             "body": "Please approve the production deployment.",
             "options": ["Approve", "Reject"],

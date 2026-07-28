@@ -20,9 +20,12 @@ from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
+import svcs
 from fastapi import APIRouter, FastAPI, Request, Security
 from fastapi.testclient import TestClient
+from structlog.testing import capture_logs
 
+from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
@@ -156,6 +159,45 @@ class TestTokenTypeScopeEnforcement:
         run = client.get(f"/task-instances/{self.TI_ID}/run", headers={"Authorization": "Bearer fake"})
         assert state.status_code == 200
         assert run.status_code == 200
+
+
+class TestJWTBearerLogging:
+    @pytest.fixture
+    def app(self):
+        app = FastAPI()
+        app.state.svcs_registry = svcs.Registry()
+
+        @app.get("/protected")
+        def protected(token: TIToken = Security(require_auth)):
+            return {"id": str(token.id)}
+
+        return app
+
+    @pytest.mark.parametrize(
+        "bearer_credential",
+        [
+            pytest.param("eyJ.invalid.jwt", id="jwt-looking-token"),
+            pytest.param("opaque-token-value", id="opaque-token"),
+        ],
+    )
+    def test_validation_failure_does_not_log_supplied_credential(self, app, bearer_credential):
+        validator = MagicMock(spec=JWTValidator)
+        validator.avalidated_claims.side_effect = ValueError("invalid token")
+        app.state.svcs_registry.register_value(JWTValidator, validator)
+        client = TestClient(app)
+
+        with capture_logs() as logs:
+            response = client.get(
+                "/protected",
+                headers={"Authorization": f"Bearer {bearer_credential}"},
+            )
+
+        assert response.status_code == 403
+        assert response.json() == {"detail": "Invalid auth token"}
+        validator.avalidated_claims.assert_awaited_once_with(bearer_credential, {})
+        assert any(log["event"] == "Failed to validate JWT" for log in logs)
+        assert bearer_credential not in repr(logs)
+        assert "invalid token" not in response.text
 
 
 class TestTiSelfScopeEnforcement:

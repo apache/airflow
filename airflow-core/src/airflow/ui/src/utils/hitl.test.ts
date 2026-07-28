@@ -21,7 +21,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
 
-import { getHITLParamsDict } from "./hitl";
+import { getHITLParamsDict, getHITLState, isHITLPending } from "./hitl";
 
 const mockTranslate = vi.fn((key: string) => key) as unknown as TFunction;
 
@@ -47,6 +47,56 @@ const createMockHITLDetail = (overrides?: Partial<HITLDetail>): HITLDetail =>
     },
     ...overrides,
   }) as HITLDetail;
+
+describe("isHITLPending", () => {
+  it("treats a deferred task as pending", () => {
+    expect(isHITLPending("deferred")).toBe(true);
+  });
+
+  it("treats an awaiting_input task as pending", () => {
+    expect(isHITLPending("awaiting_input")).toBe(true);
+  });
+
+  it("treats a finished/cleared task as not pending", () => {
+    expect(isHITLPending("success")).toBe(false);
+    expect(isHITLPending(undefined)).toBe(false);
+    expect(isHITLPending(null)).toBe(false);
+  });
+});
+
+describe("getHITLState", () => {
+  it("reports a 'required' state for an awaiting_input task without a response", () => {
+    const hitlDetail = createMockHITLDetail({
+      response_received: false,
+      task_instance: {
+        dag_id: "test_dag",
+        dag_run_id: "test_run",
+        map_index: -1,
+        state: "awaiting_input",
+        task_id: "test_task",
+      },
+    } as Partial<HITLDetail>);
+
+    // Empty params + non-approval options -> choice task; the point is that a parked
+    // awaiting_input task is "required", not "noResponseReceived".
+    expect(getHITLState(mockTranslate, hitlDetail)).toBe("state.choiceRequired");
+  });
+
+  it("reports no response received for a finished task without a response", () => {
+    const hitlDetail = createMockHITLDetail({
+      response_received: false,
+      task_instance: {
+        dag_id: "test_dag",
+        dag_run_id: "test_run",
+        map_index: -1,
+        state: "success",
+        task_id: "test_task",
+      },
+    } as Partial<HITLDetail>);
+
+    expect(getHITLState(mockTranslate, hitlDetail)).toBe("state.noResponseReceived");
+  });
+});
 
 describe("getHITLParamsDict", () => {
   it("correctly types object parameters as 'object' instead of 'string'", () => {

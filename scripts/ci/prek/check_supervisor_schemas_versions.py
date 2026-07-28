@@ -84,6 +84,7 @@ def dump_snapshot(cwd: Path) -> str:
             "run",
             "-p",
             "3.12",
+            "--frozen",
             "--no-progress",
             "--project",
             "task-sdk",
