@@ -1,1 +1,0 @@
-Add timetable type filtering to the Dags list.
