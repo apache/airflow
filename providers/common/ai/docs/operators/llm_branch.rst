@@ -75,6 +75,30 @@ With multiple branches:
     :start-after: [START howto_decorator_llm_branch_multi]
     :end-before: [END howto_decorator_llm_branch_multi]
 
+Human-in-the-Loop Approval
+--------------------------
+
+Set ``require_approval=True`` to pause the task after the LLM chooses the
+branch(es) and wait for a human reviewer to approve the choice before any
+downstream task is skipped. When ``allow_modifications=True``, the reviewer
+can also change the choice — the modified branch(es) are validated against
+the downstream task IDs before branching. With
+``allow_multiple_branches=True`` the reviewed value is a JSON list of task
+IDs (e.g. ``["task_a", "task_b"]``):
+
+.. code-block:: python
+
+    branch = LLMBranchOperator(
+        task_id="route",
+        prompt="Route this support ticket: {{ dag_run.conf['message'] }}",
+        llm_conn_id="openai_default",
+        require_approval=True,
+        allow_modifications=True,
+    )
+
+``approval_timeout`` and the rest of the approval behaviour are inherited
+from :ref:`LLMOperator <howto/operator:llm>`.
+
 How It Works
 ------------
 

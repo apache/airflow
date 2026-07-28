@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -47,6 +48,15 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         single task ID. When ``True`` the LLM may return one or more task IDs.
     :param agent_params: Additional keyword arguments passed to the pydantic-ai
         ``Agent`` constructor (e.g. ``retries``, ``model_settings``, ``tools``).
+
+    Human-in-the-Loop approval parameters are inherited from
+    :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
+    (``require_approval``, ``approval_timeout``, ``allow_modifications``).
+    The task pauses after the LLM chooses the branch(es) and only skips the
+    unselected downstream tasks once a reviewer approves. When
+    ``allow_modifications=True`` and the reviewer edits the choice, the
+    modified branch(es) are validated against the downstream task IDs before
+    branching.
     """
 
     inherits_from_skipmixin = True
@@ -60,12 +70,18 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
-        if kwargs.get("require_approval"):
-            raise ValueError("require_approval=True is not supported by LLMBranchOperator.")
         super().__init__(**kwargs)
         self.allow_multiple_branches = allow_multiple_branches
 
     def execute(self, context: Context) -> str | Iterable[str] | None:
+        if self.require_approval and not isinstance(self.prompt, str):
+            raise TypeError(
+                f"{type(self).__name__}: require_approval=True is not supported "
+                f"with a non-string prompt (got {type(self.prompt).__name__}). "
+                f"The approval review body renders the prompt as text. Return a "
+                f"str prompt, or disable require_approval."
+            )
+
         if not self.downstream_task_ids:
             raise ValueError(
                 f"{self.task_id!r} has no downstream tasks. "
@@ -95,4 +111,38 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         else:
             branches = str(output)
 
+        if self.require_approval:
+            self.defer_for_approval(context, branches)  # type: ignore[misc]
+
         return self.do_branch(context, branches)
+
+    def execute_complete(self, context: Context, generated_output: str, event: dict[str, Any]) -> Any:
+        """Resume after human review, validating the reviewed choice before branching."""
+        output = super().execute_complete(context, generated_output, event)
+        branches = self._parse_reviewed_branches(output)
+        selected = {branches} if isinstance(branches, str) else set(branches)
+        invalid = selected - self.downstream_task_ids
+        if invalid:
+            raise ValueError(
+                f"Reviewed branch(es) {sorted(invalid)} are not downstream tasks of "
+                f"{self.task_id!r}. Valid choices: {sorted(self.downstream_task_ids)}."
+            )
+        return self.do_branch(context, branches)
+
+    def _parse_reviewed_branches(self, output: str) -> str | list[str]:
+        if not self.allow_multiple_branches:
+            return output
+        try:
+            branches = json.loads(output)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Reviewed output {output!r} is not valid JSON. With "
+                f"allow_multiple_branches=True the reviewed output must be a "
+                f'JSON list of task IDs, e.g. ["task_a", "task_b"].'
+            ) from e
+        if not isinstance(branches, list) or not all(isinstance(b, str) for b in branches):
+            raise ValueError(
+                f"Reviewed output {output!r} must be a JSON list of task ID strings, "
+                f'e.g. ["task_a", "task_b"].'
+            )
+        return branches
