@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import itertools
 from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -464,148 +463,23 @@ class TestTIRunState:
         "start_date": "2024-09-30T12:00:00Z",
     }
 
-    def test_ti_run_resolves_mapped_stub_literal_expand(self, client, dag_maker):
-        """Expanding a stub over a literal list resolves each map index to its element server-side."""
-        with dag_maker("test_mapped_stub_literal", serialized=True):
+    def test_ti_run_returns_no_arg_bindings_for_mapped_stub(self, client, dag_maker):
+        """Mapped stubs keep the legacy ignored-args behavior until per-map-index delivery lands."""
+        with dag_maker("test_mapped_stub_ignored_args", serialized=True):
 
             @task.stub
             def transform(country: str): ...
 
-            transform.expand(country=["uk", "fr", "de"])
+            transform.expand(country=["uk", "fr"])
 
         dr = dag_maker.create_dagrun()
-        tis = {ti.map_index: ti for ti in dr.get_task_instances()}
-        assert set(tis) == {0, 1, 2}
-        for ti in tis.values():
-            ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
-
-        for map_index, country in enumerate(["uk", "fr", "de"]):
-            response = client.patch(
-                f"/execution/task-instances/{tis[map_index].id}/run", json=self.RUN_PAYLOAD
-            )
-            assert response.status_code == 200
-            assert response.json()["arg_bindings"] == [
-                {"name": "country", "kind": "literal", "value": country}
-            ]
-
-    def test_ti_run_resolves_mapped_stub_over_unmapped_upstream(self, client, dag_maker):
-        """Expanding over an unmapped upstream's output binds the whole XCom plus an element index."""
-        with dag_maker("test_mapped_stub_unmapped_upstream", serialized=True):
-
-            @task.stub
-            def extract(): ...
-
-            @task.stub
-            def transform(extracted: dict): ...
-
-            transform.expand(extracted=extract())
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance("transform")
-        ti.map_index = 1
+        ti = next(t for t in dr.get_task_instances() if t.map_index == 0)
         ti.set_state(State.QUEUED)
         dag_maker.session.flush()
 
         response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
-        assert response.json()["arg_bindings"] == [
-            {"name": "extracted", "kind": "xcom", "task_id": "extract", "element_index": 1}
-        ]
-
-    def test_ti_run_resolves_mapped_stub_over_mapped_upstream(self, client, dag_maker):
-        """Expanding over a mapped upstream binds the upstream XCom row at the same map index."""
-        with dag_maker("test_mapped_stub_mapped_upstream", serialized=True):
-
-            @task.stub
-            def seed(n: int): ...
-
-            @task.stub
-            def transform(extracted: dict): ...
-
-            transform.expand(extracted=seed.expand(n=[1, 2]))
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance("transform")
-        ti.map_index = 1
-        ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
-
-        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
-        assert response.status_code == 200
-        assert response.json()["arg_bindings"] == [
-            {"name": "extracted", "kind": "xcom", "task_id": "seed", "map_index": 1}
-        ]
-
-    def test_ti_run_decomposes_multi_kwarg_mapped_stub(self, client, dag_maker):
-        """Cross-product expansion decomposes the map index per kwarg like the task-sdk does."""
-        with dag_maker("test_mapped_stub_multi_kwarg", serialized=True):
-
-            @task.stub
-            def combine(a: str, b: int): ...
-
-            combine.expand(a=["x", "y"], b=[1, 2, 3])
-
-        dr = dag_maker.create_dagrun()
-        tis = {ti.map_index: ti for ti in dr.get_task_instances()}
-        assert set(tis) == set(range(6))
-        for ti in tis.values():
-            ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
-
-        for map_index, (a, b) in enumerate(itertools.product(["x", "y"], [1, 2, 3])):
-            response = client.patch(
-                f"/execution/task-instances/{tis[map_index].id}/run", json=self.RUN_PAYLOAD
-            )
-            assert response.status_code == 200
-            assert response.json()["arg_bindings"] == [
-                {"name": "a", "kind": "literal", "value": a},
-                {"name": "b", "kind": "literal", "value": b},
-            ]
-
-    def test_ti_run_binds_partial_kwargs_of_mapped_stub(self, client, dag_maker):
-        """partial() kwargs bind like an unmapped TaskFlow call alongside the expanded ones."""
-        with dag_maker("test_mapped_stub_partial", serialized=True):
-
-            @task.stub
-            def transform(country: str, extracted: dict): ...
-
-            transform.partial(country="uk").expand(extracted=[{"a": 1}, {"b": 2}])
-
-        dr = dag_maker.create_dagrun()
-        tis = {ti.map_index: ti for ti in dr.get_task_instances()}
-        for ti in tis.values():
-            ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
-
-        for map_index, extracted in enumerate([{"a": 1}, {"b": 2}]):
-            response = client.patch(
-                f"/execution/task-instances/{tis[map_index].id}/run", json=self.RUN_PAYLOAD
-            )
-            assert response.status_code == 200
-            assert response.json()["arg_bindings"] == [
-                {"name": "country", "kind": "literal", "value": "uk"},
-                {"name": "extracted", "kind": "literal", "value": extracted},
-            ]
-
-    def test_ti_run_rejects_expand_kwargs_on_stub(self, client, dag_maker):
-        """expand_kwargs() has no per-parameter spec to derive, so delivery fails structurally."""
-        with dag_maker("test_mapped_stub_expand_kwargs", serialized=True):
-
-            @task.stub
-            def transform(country: str): ...
-
-            transform.expand_kwargs([{"country": "uk"}])
-
-        dr = dag_maker.create_dagrun()
-        (ti,) = dr.get_task_instances()
-        ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
-
-        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
-        assert response.status_code == 500
-        assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
-        assert "expand_kwargs" in response.json()["detail"]["message"]
+        assert "arg_bindings" not in response.json()
 
     def test_arg_bindings_adapter_rejects_unknown_kind(self):
         """The discriminated union refuses serialized specs with an unrecognised kind."""

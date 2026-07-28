@@ -221,6 +221,14 @@ class TestStubTaskflowArgs:
             with pytest.raises(ValueError, match="only direct upstream task outputs"):
                 stub(fn_transform)("uk", extracted.map(lambda v: v))
 
+    def test_mapped_upstream_aggregated_output_rejected(self):
+        def fn_produce(n: int): ...
+
+        with DAG(dag_id="d"):
+            vals = stub(fn_produce).expand(n=[1, 2])
+            with pytest.raises(ValueError, match="aggregated output of the mapped task"):
+                stub(fn_transform)("uk", vals)
+
     def test_arg_bindings_survive_dag_serialization_round_trip(self):
         """The captured spec must survive whichever core serializer the provider runs against."""
         try:
@@ -251,6 +259,7 @@ class TestStubTaskflowArgs:
         ]
 
     def test_expand_builds_mapped_stub_without_parse_time_bindings(self):
+        """Mapped stubs capture no spec: their call args keep the legacy ignored behavior for now."""
         with DAG(dag_id="d"):
             result = stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
         # op_kwargs_expand_input/partial_kwargs (not is_mapped) so the assertions also
@@ -397,3 +406,15 @@ def test_infer_value_schema(annotation, expected):
 @mock.patch("airflow.providers.standard.decorators.stub.TypeAdapter", None)
 def test_infer_value_schema_without_pydantic():
     assert _infer_value_schema(str) is None
+
+
+def test_infer_value_schema_cache_returns_isolated_copies():
+    first = _infer_value_schema(dict)
+    second = _infer_value_schema(dict)
+    assert first == second
+    assert first is not second, "callers embed and serialize the fragment, so it must not alias the cache"
+
+
+def test_infer_value_schema_unhashable_annotation_generates_uncached():
+    annotation = typing.Annotated[int, {"unhashable": True}]
+    assert _infer_value_schema(annotation) == {"type": "integer", "format": "int64"}

@@ -3456,9 +3456,7 @@ def test_stub_task_args_round_trip():
             "task_id": "extract",
         },
     ]
-    assert not hasattr(round_tripped.task_dict["extract"], "_arg_bindings") or (
-        round_tripped.task_dict["extract"]._arg_bindings is None
-    )
+    assert not hasattr(round_tripped.task_dict["extract"], "_arg_bindings")
 
 
 def test_handle_v1_serdag():

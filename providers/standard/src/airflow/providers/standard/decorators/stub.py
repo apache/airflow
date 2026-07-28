@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import ast
+import copy
 import datetime
 import inspect
 import json
 import types
 import typing
 from collections.abc import Callable, Collection, Mapping
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 try:
@@ -38,6 +40,7 @@ except ImportError:
 
 from airflow.providers.common.compat.sdk import (
     KNOWN_CONTEXT_KEYS,
+    XCOM_RETURN_KEY,
     DecoratedOperator,
     PlainXComArg,
     TaskDecorator,
@@ -112,16 +115,103 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
         # that can only ever be None constrains nothing worth shipping.
         return None
     try:
-        schema = TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
+        schema = _generate_value_schema(annotation)
+    except TypeError:
+        # Unhashable annotations cannot key the cache; generate directly.
+        schema = _generate_value_schema.__wrapped__(annotation)
+    # Deep-copy so callers embedding the fragment never alias the cached dict.
+    return copy.deepcopy(schema) if schema else None
+
+
+@cache
+def _generate_value_schema(annotation: Any) -> dict[str, Any] | None:
+    """
+    Generate the schema for one annotation, cached for the process lifetime.
+
+    TypeAdapter construction is one of pydantic's most expensive operations and
+    annotations are static, so re-parses of the same Dag file must not re-pay it.
+    """
+    try:
+        return TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
     except (PydanticSchemaGenerationError, PydanticInvalidForJsonSchema):
         normalized = _normalize_temporal_annotation(annotation)
         if normalized is annotation:
             return None
         try:
-            schema = TypeAdapter(normalized).json_schema(schema_generator=_ValueSchemaGenerator)
+            return TypeAdapter(normalized).json_schema(schema_generator=_ValueSchemaGenerator)
         except (PydanticSchemaGenerationError, PydanticInvalidForJsonSchema):
             return None
-    return schema or None
+
+
+def _validate_stub_signature(signature: inspect.Signature, task_id: str) -> None:
+    for param in signature.parameters.values():
+        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
+            raise ValueError(
+                f"@task.stub task {task_id!r} must declare a fixed number of parameters for the "
+                f"foreign runtime to bind against; *{param.name} is not supported"
+            )
+        if param.name in KNOWN_CONTEXT_KEYS:
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {param.name!r} is an Airflow context key; "
+                "stub signatures declare only data parameters -- the lang-SDK runtime injects its "
+                "own task context natively (e.g. the Go SDK's sdk.TIRunContext parameter)"
+            )
+
+
+def _resolve_param_annotations(python_callable: Callable, signature: inspect.Signature) -> dict[str, Any]:
+    """Map each parameter to its parse-time-resolvable annotation (``Parameter.empty`` when not)."""
+    try:
+        hints = typing.get_type_hints(python_callable)
+    except (NameError, TypeError):
+        # Annotations that cannot be resolved at parse time (e.g. names behind
+        # TYPE_CHECKING with ``from __future__ import annotations``) degrade to "any".
+        hints = {}
+
+    def resolve(name: str, param: inspect.Parameter) -> Any:
+        if name in hints:
+            return hints[name]
+        if isinstance(param.annotation, str):
+            return inspect.Parameter.empty
+        return param.annotation
+
+    return {name: resolve(name, param) for name, param in signature.parameters.items()}
+
+
+def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
+    try:
+        json.dumps(value, allow_nan=False)
+    except (TypeError, ValueError):
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} received a literal of type "
+            f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
+            "to the foreign runtime"
+        )
+
+
+def _validate_xcom_value(value: Any, task_id: str, name: str) -> bool:
+    """Validate an XComArg argument, returning True when it is a bindable direct upstream output."""
+    if isinstance(value, PlainXComArg):
+        if value.key != XCOM_RETURN_KEY:
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {name!r} references the XCom key "
+                f"{value.key!r}; only an upstream task's return value can cross the language "
+                "boundary -- indexing an output by a custom key is not supported"
+            )
+        if value.operator.is_mapped:
+            raise ValueError(
+                f"@task.stub task {task_id!r} parameter {name!r} references the aggregated "
+                f"output of the mapped task {value.operator.task_id!r}; a foreign runtime "
+                "pulls single XCom rows, so a mapped upstream's combined output is not "
+                "supported -- use .expand() on the stub to consume it per element"
+            )
+        return True
+    if isinstance(value, XComArg):
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} received a "
+            f"{type(value).__name__}; only direct upstream task outputs can cross the "
+            "language boundary -- .map()/.zip()/.concat() results are not supported"
+        )
+    return False
 
 
 def _build_arg_bindings(
@@ -146,68 +236,25 @@ def _build_arg_bindings(
         return None
 
     signature = inspect.signature(python_callable)
-
-    for param in signature.parameters.values():
-        if param.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD):
-            raise ValueError(
-                f"@task.stub task {task_id!r} must declare a fixed number of parameters for the "
-                f"foreign runtime to bind against; *{param.name} is not supported"
-            )
-        if param.name in KNOWN_CONTEXT_KEYS:
-            raise ValueError(
-                f"@task.stub task {task_id!r} parameter {param.name!r} is an Airflow context key; "
-                "stub signatures declare only data parameters -- the lang-SDK runtime injects its "
-                "own task context natively (e.g. the Go SDK's sdk.TIRunContext parameter)"
-            )
+    _validate_stub_signature(signature, task_id)
 
     bound = signature.bind(*op_args, **op_kwargs)
     explicitly_bound = set(bound.arguments)
     bound.apply_defaults()
 
-    try:
-        hints = typing.get_type_hints(python_callable)
-    except (NameError, TypeError):
-        # Annotations that cannot be resolved at parse time (e.g. names behind
-        # TYPE_CHECKING with ``from __future__ import annotations``) degrade to "any".
-        hints = {}
-
-    def get_annotation_for(name: str, param: inspect.Parameter) -> Any:
-        if name in hints:
-            return hints[name]
-        if isinstance(param.annotation, str):
-            return inspect.Parameter.empty
-        return param.annotation
+    annotations = _resolve_param_annotations(python_callable, signature)
 
     spec: list[dict[str, Any]] = []
-    for name, param in signature.parameters.items():
+    for name in signature.parameters:
         value = bound.arguments[name]
-        value_schema = _infer_value_schema(get_annotation_for(name, param))
-        if isinstance(value, PlainXComArg):
-            if value.key != "return_value":
-                raise ValueError(
-                    f"@task.stub task {task_id!r} parameter {name!r} references the XCom key "
-                    f"{value.key!r}; only an upstream task's return value can cross the language "
-                    "boundary -- indexing an output by a custom key is not supported"
-                )
+        value_schema = _infer_value_schema(annotations[name])
+        if _validate_xcom_value(value, task_id, name):
             xcom_entry: dict[str, Any] = {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
             if value_schema is not None:
                 xcom_entry["value_schema"] = value_schema
             spec.append(xcom_entry)
             continue
-        if isinstance(value, XComArg):
-            raise ValueError(
-                f"@task.stub task {task_id!r} parameter {name!r} received a "
-                f"{type(value).__name__}; only direct upstream task outputs can cross the "
-                "language boundary -- .map()/.zip()/.concat() results are not supported"
-            )
-        try:
-            json.dumps(value, allow_nan=False)
-        except (TypeError, ValueError):
-            raise ValueError(
-                f"@task.stub task {task_id!r} parameter {name!r} received a literal of type "
-                f"{type(value).__name__} that is not JSON-serializable, so it cannot be passed "
-                "to the foreign runtime"
-            )
+        _ensure_json_literal(value, task_id, name)
         entry: dict[str, Any] = {"name": name, "kind": "literal", "value": value}
         if value_schema is not None:
             # Key omission (never ``None``) is the wire contract for "unconstrained":
@@ -308,6 +355,10 @@ def stub(
     outputs or JSON-serializable literals; the resulting argument-binding spec (parameter
     names, value schemas, and values, in declaration order) is delivered to the foreign
     runtime, which binds the values onto the native task function.
+
+    Mapped (``.expand()``) stubs do not receive TaskFlow arguments yet -- their call args
+    keep the legacy ignored behavior; per-map-index delivery is part of
+    https://github.com/apache/airflow/issues/66937 and lands in a follow-up.
     """
     return task_decorator_factory(
         decorated_operator_class=_StubOperator,
