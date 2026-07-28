@@ -140,6 +140,14 @@ class TestBaseOperator:
             with pytest.raises(ValueError, match="The key has to be less than 250 characters"):
                 BaseOperator(task_id="1" * 249)
 
+    def test_baseoperator_rejects_task_id_with_consecutive_dots(self):
+        with DAG(dag_id="foo"):
+            with pytest.raises(
+                ValueError,
+                match=r"The key 'a\.\.b' must not contain consecutive dots \('\.\.'\) to prevent path traversal",
+            ):
+                BaseOperator(task_id="a..b")
+
     def test_baseoperator_with_task_id_and_taskgroup_id_less_than_250_chars(self):
         with DAG(dag_id="foo", schedule=None), TaskGroup("A" * 10):
             BaseOperator(task_id="1" * 239)
