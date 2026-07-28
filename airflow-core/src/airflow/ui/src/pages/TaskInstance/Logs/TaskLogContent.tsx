@@ -43,8 +43,10 @@ export type TaskLogContentProps = {
   readonly wrap: boolean;
 };
 
-// How close to the bottom (in px) before we consider the user "at the bottom"
-const SCROLL_BOTTOM_THRESHOLD = 100;
+// How close to the very end (in px) the user must be for the log to keep
+// following new lines. Small so that scrolling up even a little to read
+// stops the follow; returning to the end resumes it.
+const SCROLL_BOTTOM_THRESHOLD = 40;
 
 export const TaskLogContent = ({
   currentMatchLineIndex,
