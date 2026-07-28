@@ -283,3 +283,115 @@ class TestCleanUpPodsCommand:
         list_namespaced_pod.assert_has_calls(calls)
         delete_pod.assert_called_with("dummy", "awesome-namespace")
         load_incluster_config.assert_called_once()
+
+    # -- min-completed-minutes tests --
+
+    def _make_pod(self, name, phase, finished_at, reason=None, restart_policy="Never"):
+        """Build a minimal pod mock for min-completed-minutes tests."""
+        pod = MagicMock()
+        pod.metadata.name = name
+        pod.metadata.creation_timestamp = parse("2021-12-20T08:00:00Z")
+        pod.status.phase = phase
+        pod.status.reason = reason
+        pod.spec.restart_policy = restart_policy
+        container_status = MagicMock()
+        container_status.state.terminated.finished_at = finished_at
+        pod.status.container_statuses = [container_status]
+        return pod
+
+    @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
+    @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
+    @mock.patch("kubernetes.config.load_incluster_config")
+    def test_cleanup_succeeded_pod_too_young_not_deleted(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
+        # finished_at far in the future → age is negative → less than 1 min → skip
+        pod = self._make_pod("run-o1sxc2on", "Succeeded", parse("2099-12-20T08:01:07Z"))
+        pods = MagicMock()
+        pods.metadata._continue = None
+        pods.items = [pod]
+        list_namespaced_pod.return_value = pods
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(
+                [
+                    "kubernetes",
+                    "cleanup-pods",
+                    "--namespace",
+                    "awesome-namespace",
+                    "--min-completed-minutes",
+                    "1",
+                ]
+            )
+        )
+        delete_pod.assert_not_called()
+
+    @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
+    @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
+    @mock.patch("kubernetes.config.load_incluster_config")
+    def test_cleanup_succeeded_pod_old_enough_deleted(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
+        # finished_at far in the past → age > 1 min → delete
+        pod = self._make_pod("run-oldpod", "Succeeded", parse("2021-12-20T08:01:07Z"))
+        pods = MagicMock()
+        pods.metadata._continue = None
+        pods.items = [pod]
+        list_namespaced_pod.return_value = pods
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(
+                [
+                    "kubernetes",
+                    "cleanup-pods",
+                    "--namespace",
+                    "awesome-namespace",
+                    "--min-completed-minutes",
+                    "1",
+                ]
+            )
+        )
+        delete_pod.assert_called_with("run-oldpod", "awesome-namespace")
+
+    @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
+    @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
+    @mock.patch("kubernetes.config.load_incluster_config")
+    def test_cleanup_min_completed_zero_deletes_immediately(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
+        # default (0) preserves existing behaviour: delete Succeeded pods regardless of age
+        pod = self._make_pod("run-newpod", "Succeeded", parse("2099-12-20T08:01:07Z"))
+        pods = MagicMock()
+        pods.metadata._continue = None
+        pods.items = [pod]
+        list_namespaced_pod.return_value = pods
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+        )
+        delete_pod.assert_called_with("run-newpod", "awesome-namespace")
+
+    @mock.patch("airflow.providers.cncf.kubernetes.cli.kubernetes_command._delete_pod")
+    @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
+    @mock.patch("kubernetes.config.load_incluster_config")
+    def test_cleanup_failed_pod_too_young_not_deleted(
+        self, load_incluster_config, list_namespaced_pod, delete_pod
+    ):
+        # Failed + restart_policy=Never, but finished too recently → skip
+        pod = self._make_pod(
+            "run-failpod", "Failed", parse("2099-12-20T08:01:07Z"), restart_policy="Never"
+        )
+        pods = MagicMock()
+        pods.metadata._continue = None
+        pods.items = [pod]
+        list_namespaced_pod.return_value = pods
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(
+                [
+                    "kubernetes",
+                    "cleanup-pods",
+                    "--namespace",
+                    "awesome-namespace",
+                    "--min-completed-minutes",
+                    "1",
+                ]
+            )
+        )
+        delete_pod.assert_not_called()

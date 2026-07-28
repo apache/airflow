@@ -119,6 +119,20 @@ def generate_pod_yaml(args):
     print(f"YAML output can be found at {yaml_output_path}")
 
 
+def _get_pod_completion_time(pod):
+    """Return the time the pod entered a terminal state, or its creation time as fallback.
+
+    Uses the latest ``finished_at`` timestamp across all container statuses so that pods
+    with multiple containers (e.g. an init container + a base container) are judged by
+    the time the *last* container finished, not by when the pod was created.
+    """
+    times = []
+    for status in pod.status.container_statuses or []:
+        if status.state and status.state.terminated and status.state.terminated.finished_at:
+            times.append(status.state.terminated.finished_at)
+    return max(times) if times else pod.metadata.creation_timestamp
+
+
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def cleanup_pods(args):
@@ -129,6 +143,8 @@ def cleanup_pods(args):
     # protect newly created pods from deletion
     if min_pending_minutes < 5:
         min_pending_minutes = 5
+
+    min_completed_minutes = args.min_completed_minutes
 
     # https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
     # All Containers in the Pod have terminated in success, and will not be restarted.
@@ -173,10 +189,18 @@ def cleanup_pods(args):
             pod_restart_policy = pod.spec.restart_policy.lower()
             current_time = datetime.now(pod.metadata.creation_timestamp.tzinfo)
 
-            if (
+            terminal = (
                 pod_phase == pod_succeeded
                 or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
                 or (pod_reason == pod_reason_evicted)
+            )
+            terminal_old_enough = terminal and (
+                min_completed_minutes == 0
+                or current_time - _get_pod_completion_time(pod)
+                > timedelta(minutes=min_completed_minutes)
+            )
+            if (
+                terminal_old_enough
                 or (
                     pod_phase == pod_pending
                     and current_time - pod.metadata.creation_timestamp

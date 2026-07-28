@@ -68,6 +68,19 @@ ARG_MIN_PENDING_MINUTES = Arg(
     ),
 )
 
+ARG_MIN_COMPLETED_MINUTES = Arg(
+    ("--min-completed-minutes",),
+    default=0,
+    type=positive_int(allow_zero=True),
+    help=(
+        "Minimum age in minutes of a completed (Succeeded/Failed/Evicted) pod before it is deleted. "
+        "Defaults to 0 (delete immediately, preserving current behaviour). "
+        "Set this to a value greater than the KubernetesPodOperator poll interval (~2 s) to prevent "
+        "a race where the cleanup job removes a pod before KPO observes its terminal phase, "
+        "causing a spurious task failure despite the pod having succeeded."
+    ),
+)
+
 ARG_TEAM = Arg(
     ("--team",),
     default=None,
@@ -84,7 +97,7 @@ KUBERNETES_COMMANDS = (
             "in evicted/failed/succeeded/pending states"
         ),
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
-        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
+        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_MIN_COMPLETED_MINUTES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="generate-dag-yaml",
