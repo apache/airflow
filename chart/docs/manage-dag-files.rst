@@ -103,7 +103,6 @@ Mounting Dags using Git-Sync sidecar without persistence
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option will always use running Git-Sync sidecar on every dag-processor, worker and triggerer pods
-(In Airflow 2.11, if separate dag-processor is not enabled, the Git-Sync sidecar will run on scheduler for Dag parsing as well).
 
 The Git-Sync sidecar containers will sync Dags from a git repository every configured number of
 seconds. If you are using the ``KubernetesExecutor``, Git-Sync will run as an init container on your worker pods.

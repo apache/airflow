@@ -63,11 +63,16 @@ class TestCloudKMSHook:
         ):
             self.kms_hook = CloudKMSHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.kms.CloudKMSHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.kms.CloudKMSHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.kms.KeyManagementServiceClient")
-    def test_kms_client_creation(self, mock_client, mock_get_creds):
+    def test_kms_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         result = self.kms_hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
+        )
         assert mock_client.return_value == result
         assert self.kms_hook._conn == result
 

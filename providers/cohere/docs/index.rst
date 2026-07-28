@@ -19,6 +19,23 @@
 ``apache-airflow-providers-cohere``
 ======================================
 
+The ``cohere`` provider gives Dags direct access to Cohere's own Embed API — this page
+compares that choice against ``common.ai``.
+
+When to use this provider
+--------------------------
+
+Use ``cohere`` when a Dag needs Cohere's native embedding models specifically:
+
+* ``CohereEmbeddingOperator`` — call Cohere's
+  `Embed API <https://docs.cohere.com/docs/embeddings>`__ directly via ``CohereHook``.
+
+Use :doc:`apache-airflow-providers-common-ai:index` instead when the embedding step should
+stay vendor-neutral:
+
+* Document-to-vector-store pipelines with its document loader, embedding, and retrieval
+  operators (see :doc:`apache-airflow-providers-common-ai:operators/index`), which are not
+  tied to Cohere's embedding models.
 
 .. toctree::
     :hidden:
@@ -71,7 +88,7 @@ apache-airflow-providers-cohere package
 `Cohere <https://docs.cohere.com/docs>`__
 
 
-Release: 1.6.5
+Release: 1.6.6
 
 Provider package
 ----------------
@@ -101,30 +118,11 @@ PIP package                                 Version required
 ``fastavro``                                ``>=1.12.1; python_version >= "3.14"``
 ==========================================  ==================================================================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-cohere[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 Downloading official packages
 -----------------------------
 
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-cohere 1.6.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.5.tar.gz.sha512>`__)
-* `The apache-airflow-providers-cohere 1.6.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.5-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-cohere 1.6.6 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6.tar.gz.sha512>`__)
+* `The apache-airflow-providers-cohere 1.6.6 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_cohere-1.6.6-py3-none-any.whl.sha512>`__)

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-jenkins``
 
-Release: ``4.2.5``
+Release: ``4.2.6``
 
 
 `Jenkins <https://jenkins.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``jenkins`` provider. All classes for this provid
 are in ``airflow.providers.jenkins`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jenkins/4.2.5/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jenkins/4.2.6/>`_.
 
 Installation
 ------------
@@ -58,24 +58,5 @@ PIP package                                 Version required
 ``python-jenkins``                          ``>=1.8.2``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-jenkins[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jenkins/4.2.5/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jenkins/4.2.6/changelog.html>`_.

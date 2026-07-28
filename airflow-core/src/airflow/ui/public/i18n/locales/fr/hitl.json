@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Corps",
+    "createdAt": "Créé le",
     "response": {
       "all": "Tous",
       "pending": "En attente",
@@ -14,13 +16,29 @@
   "requiredActionCount_other": "Actions requises ({{count}})",
   "requiredActionState": "État de l'action requise",
   "response": {
+    "created": "Réponse créée le ",
     "error": "Échec de la réponse",
     "optionsDescription": "Choisissez vos options pour cette instance de tâche",
     "optionsLabel": "Options",
     "received": "Réponse reçue à ",
     "respond": "Répondre",
+    "responded_by_user_name": "Répondu par (nom d'utilisateur)",
     "success": "Réponse pour {{taskId}} réussie",
     "title": "Instance de tâche humaine - {{taskId}}"
+  },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Sélectionnez une action requise pour voir les détails"
+    },
+    "list": {
+      "completedRequiredActions": "Actions requises terminées ({{count}})",
+      "loadError": "Impossible de charger les actions requises",
+      "loadingActions": "Chargement des actions requises...",
+      "pendingRequiredActions": "Actions requises en attente ({{count}})"
+    },
+    "openReviewDrawer": "Ouvrir le panneau de revue",
+    "pageLimitHint": "Seules les premières actions sont affichées ici. Utilisez « $t(review.viewAll) » pour toutes les voir.",
+    "viewAll": "Voir toutes les actions requises"
   },
   "state": {
     "approvalReceived": "Approbation reçue",

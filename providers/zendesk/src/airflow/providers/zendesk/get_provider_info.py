@@ -43,8 +43,29 @@ def get_provider_info():
                 "hook-name": "Zendesk",
                 "connection-type": "zendesk",
                 "ui-field-behaviour": {
-                    "hidden-fields": ["schema", "port", "extra"],
-                    "relabeling": {"host": "Zendesk domain", "login": "Zendesk email"},
+                    "hidden-fields": ["schema", "port"],
+                    "relabeling": {
+                        "host": "Zendesk domain",
+                        "login": "Zendesk email",
+                        "password": "Password / API token",
+                    },
+                },
+                "conn-fields": {
+                    "use_token": {
+                        "label": "Use Token",
+                        "schema": {"type": ["boolean", "null"]},
+                        "description": "If enabled, the password field is treated as an API token.",
+                    },
+                    "token": {
+                        "label": "API Token",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                        "description": "Zendesk API token (alternative to password field).",
+                    },
+                    "oauth_token": {
+                        "label": "OAuth Token",
+                        "schema": {"type": ["string", "null"], "format": "password"},
+                        "description": "Zendesk OAuth token.",
+                    },
                 },
             }
         ],

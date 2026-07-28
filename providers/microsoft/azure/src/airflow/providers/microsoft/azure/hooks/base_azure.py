@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
-from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity import AzureAuthorityHosts, ClientSecretCredential, DefaultAzureCredential
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
@@ -33,6 +33,24 @@ if TYPE_CHECKING:
     from azure.core.credentials import AccessToken
 
     from airflow.sdk import Connection
+
+_AZURE_CLOUD_ENVIRONMENTS: dict[str, dict[str, Any]] = {
+    "AzurePublicCloud": {
+        "authority": AzureAuthorityHosts.AZURE_PUBLIC_CLOUD,
+        "base_url": "https://management.azure.com",
+        "credential_scopes": ["https://management.azure.com/.default"],
+    },
+    "AzureUSGovernment": {
+        "authority": AzureAuthorityHosts.AZURE_GOVERNMENT,
+        "base_url": "https://management.usgovcloudapi.net",
+        "credential_scopes": ["https://management.usgovcloudapi.net/.default"],
+    },
+    "AzureChinaCloud": {
+        "authority": AzureAuthorityHosts.AZURE_CHINA,
+        "base_url": "https://management.chinacloudapi.cn",
+        "credential_scopes": ["https://management.chinacloudapi.cn/.default"],
+    },
+}
 
 
 class AzureBaseHook(BaseHook):
@@ -63,6 +81,9 @@ class AzureBaseHook(BaseHook):
         return {
             "tenantId": StringField(lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()),
             "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
+            "cloud_environment": StringField(
+                lazy_gettext("Azure Cloud Environment"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -88,6 +109,7 @@ class AzureBaseHook(BaseHook):
                 "password": "secret (token credentials auth)",
                 "tenantId": "tenantId (token credentials auth)",
                 "subscriptionId": "subscriptionId (token credentials auth)",
+                "cloud_environment": "AzurePublicCloud (default) | AzureUSGovernment | AzureChinaCloud",
             },
         }
 
@@ -163,11 +185,18 @@ class AzureBaseHook(BaseHook):
         extra_dejson = conn.extra_dejson
         tenant = extra_dejson.get("tenantId")
         use_azure_identity_object = extra_dejson.get("use_azure_identity_object", False)
+
+        cloud_env_name = extra_dejson.get("cloud_environment", "AzurePublicCloud")
+        cloud_env = _AZURE_CLOUD_ENVIRONMENTS.get(
+            cloud_env_name, _AZURE_CLOUD_ENVIRONMENTS["AzurePublicCloud"]
+        )
+
         if use_azure_identity_object:
             return ClientSecretCredential(
                 client_id=conn.login,  # type: ignore[arg-type]
                 client_secret=conn.password,  # type: ignore[arg-type]
                 tenant_id=tenant,  # type: ignore[arg-type]
+                authority=cloud_env["authority"],
             )
         return ServicePrincipalCredentials(client_id=conn.login, secret=conn.password, tenant=tenant)
 

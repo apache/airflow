@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
+import ci.prek.common_prek_utils as common_prek_utils
 import pytest
 from ci.prek.common_prek_utils import (
     ConsoleDiff,
@@ -27,15 +29,107 @@ from ci.prek.common_prek_utils import (
     get_provider_id_from_path,
     initialize_breeze_prek,
     insert_documentation,
+    is_hidden_within_root,
     pre_process_mypy_files,
     read_airflow_version,
     read_allowed_kubernetes_versions,
+    read_allowed_python_major_minor_versions,
+    read_current_mysql_versions,
+    read_current_postgres_versions,
     read_default_python_major_minor_version_for_images,
+    resolve_github_token,
+    retrieve_gh_token,
     temporary_tsc_project,
 )
 
 PROVIDERS_AMAZON_S3_PATH = "providers/amazon/hooks/s3.py"
 AIRFLOW_MODELS_DAG_PATH = "airflow/models/dag.py"
+
+
+def _completed_process(returncode: int, stdout: str = "") -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(args=["gh"], returncode=returncode, stdout=stdout, stderr="")
+
+
+class TestResolveGithubToken:
+    def test_keeps_explicit_token(self, monkeypatch):
+        def fail_if_called(*args, **kwargs):
+            raise AssertionError("subprocess.run should not be called")
+
+        monkeypatch.setattr(common_prek_utils.subprocess, "run", fail_if_called)
+
+        assert (
+            resolve_github_token(token="explicit-token", env={"GITHUB_TOKEN": "env-token"})
+            == "explicit-token"
+        )
+
+    def test_prefers_clean_gh_auth_token_over_env_token(self, monkeypatch):
+        calls = []
+
+        def fake_run(*args, **kwargs):
+            calls.append(kwargs)
+            return _completed_process(returncode=0, stdout="stored-gh-token\n")
+
+        monkeypatch.setattr(common_prek_utils.subprocess, "run", fake_run)
+
+        assert (
+            resolve_github_token(env={"GH_TOKEN": "env-gh-token", "GITHUB_TOKEN": "env-github-token"})
+            == "stored-gh-token"
+        )
+
+        assert calls
+        assert "GH_TOKEN" not in calls[0]["env"]
+        assert "GITHUB_TOKEN" not in calls[0]["env"]
+
+    @pytest.mark.parametrize(
+        ("returncode", "stdout"),
+        [
+            pytest.param(1, "", id="gh-auth-failure"),
+            pytest.param(0, "  \n", id="blank-gh-auth-token"),
+        ],
+    )
+    def test_falls_back_to_env_token(self, monkeypatch, returncode, stdout):
+        monkeypatch.setattr(
+            common_prek_utils.subprocess,
+            "run",
+            lambda *args, **kwargs: _completed_process(returncode=returncode, stdout=stdout),
+        )
+
+        assert (
+            resolve_github_token(env={"GH_TOKEN": "env-gh-token", "GITHUB_TOKEN": "env-github-token"})
+            == "env-gh-token"
+        )
+
+    def test_falls_back_to_env_token_when_gh_is_missing(self, monkeypatch):
+        def raise_file_not_found(*args, **kwargs):
+            raise FileNotFoundError
+
+        monkeypatch.setattr(common_prek_utils.subprocess, "run", raise_file_not_found)
+
+        assert resolve_github_token(env={"GITHUB_TOKEN": "env-github-token"}) == "env-github-token"
+
+    def test_retrieve_gh_token_exits_with_help_when_no_token_resolves(self, monkeypatch):
+        class DummyConsole:
+            def __init__(self):
+                self.messages = []
+
+            def print(self, message):
+                self.messages.append(message)
+
+        dummy_console = DummyConsole()
+        monkeypatch.setattr(common_prek_utils, "console", dummy_console)
+        monkeypatch.delenv("GH_TOKEN", raising=False)
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        monkeypatch.setattr(
+            common_prek_utils.subprocess,
+            "run",
+            lambda *args, **kwargs: _completed_process(returncode=1),
+        )
+
+        with pytest.raises(SystemExit):
+            retrieve_gh_token(description="airflow-upgrade-important-versions", scopes="public_repo")
+
+        assert dummy_console.messages
+        assert "GITHUB_TOKEN environment variable is not set" in dummy_console.messages[0]
 
 
 class TestPreProcessMypyFiles:
@@ -78,6 +172,21 @@ class TestPreProcessMypyFiles:
         files = [PROVIDERS_AMAZON_S3_PATH]
         result = pre_process_mypy_files(files)
         assert PROVIDERS_AMAZON_S3_PATH in result
+
+
+class TestIsHiddenWithinRoot:
+    @pytest.mark.parametrize(
+        ("relative_path", "expected"),
+        [
+            ("airflow-core/src/airflow/models/dag.py", False),
+            (".build/mypy-venvs/foo.py", True),
+            ("airflow-core/.venv/lib/foo.py", True),
+            (".hidden.py", True),
+        ],
+    )
+    def test_only_components_below_root_count(self, tmp_path, relative_path, expected):
+        root = tmp_path / ".claude" / "worktrees"
+        assert is_hidden_within_root(root / relative_path, root) is expected
 
 
 class TestGetImportsFromFile:
@@ -278,6 +387,43 @@ class TestReadDefaultPythonMajorMinorVersionForImages:
         assert len(parts) == 2
         assert parts[0].isdigit()
         assert parts[1].isdigit()
+
+
+class TestReadAllowedPythonMajorMinorVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_allowed_python_major_minor_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_versions_look_like_major_minor(self):
+        for version in read_allowed_python_major_minor_versions():
+            parts = version.split(".")
+            assert len(parts) == 2, f"Version {version!r} should be major.minor"
+            assert parts[0].isdigit()
+            assert parts[1].isdigit()
+
+
+class TestReadCurrentPostgresVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_current_postgres_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_versions_are_numeric_major_versions(self):
+        for version in read_current_postgres_versions():
+            assert version.isdigit(), f"Postgres version {version!r} should be a numeric major version"
+
+
+class TestReadCurrentMysqlVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_current_mysql_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_reads_annotated_assignment(self):
+        # MYSQL_LTS_RELEASES is an annotated assignment (``NAME: list[str] = [...]``);
+        # the reader must handle it, so its value must show up here.
+        assert "8.4" in read_current_mysql_versions()
 
 
 class TestConsoleDiff:

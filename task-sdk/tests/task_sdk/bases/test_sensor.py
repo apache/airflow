@@ -41,6 +41,8 @@ from airflow.sdk.exceptions import (
 from airflow.sdk.execution_time.comms import RescheduleTask, TaskRescheduleStartDate
 from airflow.sdk.timezone import datetime
 
+from tests_common.test_utils.config import conf_vars
+
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
@@ -357,6 +359,18 @@ class TestBaseSensor:
         DummySensor(
             task_id="test_sensor_task_3", return_value=None, poke_interval=10, timeout=positive_timeout
         )
+
+    def test_sensor_timeout_default_read_from_conf_at_instantiation(self):
+        """When ``timeout`` is not supplied, it should be read from ``sensors.default_timeout``
+        at instantiation time (not at module import time).
+        """
+        with conf_vars({("sensors", "default_timeout"): "12345"}):
+            sensor = DummySensor(task_id="test_sensor_default_timeout", return_value=None, poke_interval=10)
+            assert sensor.timeout == 12345
+
+        with conf_vars({("sensors", "default_timeout"): "67"}):
+            sensor = DummySensor(task_id="test_sensor_default_timeout_2", return_value=None, poke_interval=10)
+            assert sensor.timeout == 67
 
     def test_sensor_with_exponential_backoff_off(self):
         sensor = DummySensor(

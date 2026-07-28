@@ -137,7 +137,11 @@ def create_permissions_command(args):
         for role_name in TEAM_ROLE_NAMES:
             _ensure_role_policy(client, client_uuid, role_name, _dry_run=args.dry_run)
         _ensure_role_policy(client, client_uuid, SUPER_ADMIN_ROLE_NAME, _dry_run=args.dry_run)
+    else:
+        _ensure_default_role_policies(client, client_uuid, _dry_run=args.dry_run)
     _create_permissions(client, client_uuid, teams=teams, _dry_run=args.dry_run)
+    if not teams:
+        _attach_default_role_permissions(client, client_uuid, _dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
@@ -158,7 +162,11 @@ def create_all_command(args):
         for role_name in TEAM_ROLE_NAMES:
             _ensure_role_policy(client, client_uuid, role_name, _dry_run=args.dry_run)
         _ensure_role_policy(client, client_uuid, SUPER_ADMIN_ROLE_NAME, _dry_run=args.dry_run)
+    else:
+        _ensure_default_role_policies(client, client_uuid, _dry_run=args.dry_run)
     _create_permissions(client, client_uuid, teams=teams, _dry_run=args.dry_run)
+    if not teams:
+        _attach_default_role_permissions(client, client_uuid, _dry_run=args.dry_run)
 
 
 def _get_client(args):
@@ -242,6 +250,59 @@ def _ensure_multi_team_enabled(*, teams: list[str], command_name: str) -> None:
         return
     if not conf.getboolean("core", "multi_team", fallback=False):
         raise SystemExit(f"{command_name} requires core.multi_team=True when --teams is used.")
+
+
+def _ensure_default_role_policies(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False) -> None:
+    for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
+        _ensure_role_policy(client, client_uuid, role_name, _dry_run=_dry_run)
+
+
+def _attach_default_role_permissions(
+    client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False
+) -> None:
+    for role_name in TEAM_ROLE_NAMES:
+        _attach_policy_to_scope_permission(
+            client,
+            client_uuid,
+            permission_name="ReadOnly",
+            policy_name=_role_policy_name(role_name),
+            scope_names=["GET", "MENU", "LIST"],
+            resource_names=[],
+            decision_strategy="AFFIRMATIVE",
+            _dry_run=_dry_run,
+        )
+
+    _attach_policy_to_resource_permission(
+        client,
+        client_uuid,
+        permission_name="User",
+        policy_name=_role_policy_name("User"),
+        resource_names=[KeycloakResource.DAG.value, KeycloakResource.ASSET.value],
+        _dry_run=_dry_run,
+    )
+    _attach_policy_to_resource_permission(
+        client,
+        client_uuid,
+        permission_name="Op",
+        policy_name=_role_policy_name("Op"),
+        resource_names=[
+            KeycloakResource.CONNECTION.value,
+            KeycloakResource.POOL.value,
+            KeycloakResource.VARIABLE.value,
+            KeycloakResource.BACKFILL.value,
+        ],
+        _dry_run=_dry_run,
+    )
+    for role_name in ("Admin", SUPER_ADMIN_ROLE_NAME):
+        _attach_policy_to_scope_permission(
+            client,
+            client_uuid,
+            permission_name="Admin",
+            policy_name=_role_policy_name(role_name),
+            scope_names=_get_extended_resource_methods() + ["LIST"],
+            resource_names=[],
+            _dry_run=_dry_run,
+        )
 
 
 def _preview_scopes(*args, **kwargs):

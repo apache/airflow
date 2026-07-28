@@ -28,7 +28,11 @@ import {
 import { gridQueryKeys } from "./gridViewQueryKeys";
 import { useConfig } from "./useConfig";
 
-export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | undefined) => {
+export const useRefreshOnNewDagRuns = (
+  dagId: string,
+  hasPendingRuns: boolean | undefined,
+  isPaused?: boolean,
+) => {
   const queryClient = useQueryClient();
   const hasSyncedLatestRunRef = useRef(false);
   const previousLatestRunSignatureRef = useRef<string>("");
@@ -38,7 +42,7 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
 
   const { data: latestDagRun } = useDagServiceGetLatestRunInfo({ dagId }, undefined, {
     enabled: Boolean(dagId),
-    refetchInterval: Boolean(dagId) && !hasPendingRuns ? pollIntervalMs : false,
+    refetchInterval: Boolean(dagId) && !hasPendingRuns && !isPaused ? pollIntervalMs : false,
   });
 
   useEffect(() => {

@@ -60,6 +60,11 @@
     "dagVersions": "Версии Dag-а",
     "dataIntervalEnd": "Конец временного интервала",
     "dataIntervalStart": "Начало временного интервала",
+    "durationStats": {
+      "mean": "Среднее",
+      "mode": "Мода"
+    },
+    "expectedDuration": "Ожидаемая Длительность",
     "lastSchedulingDecision": "Последнее решение о расписании",
     "mappedPartitionKey": "Ключ распределенной части",
     "partitionKey": "Ключ части",
@@ -249,7 +254,6 @@
   },
   "task_one": "Задача",
   "task_other": "Задач",
-  "taskGroup": "Группа задач",
   "taskId": "ID задачи",
   "taskInstance": {
     "dagVersion": "Версия Dag-а",

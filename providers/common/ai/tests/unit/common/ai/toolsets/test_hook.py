@@ -28,6 +28,7 @@ from airflow.providers.common.ai.toolsets.hook import (
     _parse_param_docs,
     _serialize_for_llm,
 )
+from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
 
 
 class _FakeHook:
@@ -121,6 +122,16 @@ class TestHookToolsetGetTools:
         ts = HookToolset(hook, allowed_methods=["list_keys"])
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         assert tools["list_keys"].tool_def.sequential is True
+
+    @pytest.mark.skipif(
+        not _SUPPORTS_RETURN_SCHEMA, reason="pydantic-ai too old for ToolDefinition.return_schema"
+    )
+    def test_tools_declare_string_return_schema(self):
+        # call_tool always returns a serialized string, so code mode should see `-> str`.
+        hook = _FakeHook()
+        ts = HookToolset(hook, allowed_methods=["list_keys"])
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        assert tools["list_keys"].tool_def.return_schema == {"type": "string"}
 
     def test_param_docs_enriched_in_schema(self):
         hook = _FakeHook()

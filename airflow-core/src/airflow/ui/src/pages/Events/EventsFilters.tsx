@@ -35,7 +35,7 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
     SearchParamsKeys.TRY_NUMBER,
   ];
 
-  // Only add DAG ID filter if not in URL context
+  // Only add Dag ID filter if not in URL context
   if (urlDagId === undefined) {
     searchParamKeys.push(SearchParamsKeys.DAG_ID);
   }

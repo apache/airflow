@@ -21,7 +21,12 @@ import urllib.parse
 
 import pytest
 
-from airflow.providers.postgres.assets.postgres import sanitize_uri
+from airflow.providers.common.compat.assets import Asset
+from airflow.providers.postgres.assets.postgres import (
+    convert_asset_to_openlineage,
+    create_asset,
+    sanitize_uri,
+)
 
 
 @pytest.mark.parametrize(
@@ -69,3 +74,57 @@ def test_sanitize_uri_fail_non_port() -> None:
     uri_i = urllib.parse.urlsplit("postgres://example.com:abcd/database/schema/table")
     with pytest.raises(ValueError, match="Port could not be cast to integer value as 'abcd'"):
         sanitize_uri(uri_i)
+
+
+@pytest.mark.parametrize(
+    ("host", "database", "schema", "table", "port", "expected_uri"),
+    [
+        pytest.param(
+            "example.com",
+            "mydb",
+            "public",
+            "users",
+            5432,
+            "postgres://example.com:5432/mydb/public/users",
+            id="default-port",
+        ),
+        pytest.param(
+            "example.com",
+            "mydb",
+            "public",
+            "users",
+            5433,
+            "postgres://example.com:5433/mydb/public/users",
+            id="custom-port",
+        ),
+    ],
+)
+def test_create_asset(
+    host: str, database: str, schema: str, table: str, port: int, expected_uri: str
+) -> None:
+    result = create_asset(host=host, database=database, schema=schema, table=table, port=port)
+    assert result == Asset(uri=expected_uri)
+
+
+@pytest.mark.parametrize(
+    ("uri", "expected_namespace", "expected_name"),
+    [
+        pytest.param(
+            "postgres://example.com:5432/mydb/public/users",
+            "postgres://example.com:5432",
+            "mydb.public.users",
+            id="default-port",
+        ),
+        pytest.param(
+            "postgres://db-host:5433/testdb/schema1/events",
+            "postgres://db-host:5433",
+            "testdb.schema1.events",
+            id="custom-port",
+        ),
+    ],
+)
+def test_convert_asset_to_openlineage(uri: str, expected_namespace: str, expected_name: str) -> None:
+    asset = Asset(uri=uri)
+    ol_dataset = convert_asset_to_openlineage(asset=asset, lineage_context=None)
+    assert ol_dataset.namespace == expected_namespace
+    assert ol_dataset.name == expected_name

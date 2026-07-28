@@ -24,9 +24,9 @@ import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
-import { useHover } from "src/context/hover";
-import { useOpenGroups } from "src/context/openGroups";
+import { useGroups } from "src/context/groups";
 
+import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
 
 type Props = {
@@ -36,26 +36,13 @@ type Props = {
   readonly virtualItems?: Array<VirtualItem>;
 };
 
-const ROW_HEIGHT = 20;
-
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
 export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const { hoveredTaskId, setHoveredTaskId } = useHover();
-  const { toggleGroupId } = useOpenGroups();
+  const { toggleGroupId } = useGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
-
-  const handleMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-    const { nodeId } = event.currentTarget.dataset;
-
-    if (nodeId !== undefined) {
-      setHoveredTaskId(nodeId);
-    }
-  };
-
-  const handleMouseLeave = () => setHoveredTaskId(undefined);
 
   const handleToggleGroup = (event: MouseEvent<HTMLSpanElement>) => {
     event.preventDefault();
@@ -99,23 +86,22 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
         }
 
         const isSelected = node.id === taskId || node.id === groupId;
-        const isHovered = hoveredTaskId === node.id;
 
         return (
           <Box
-            bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+            bg={isSelected ? "brand.emphasized" : undefined}
             borderBottomWidth={1}
             borderColor={node.isGroup ? "border.emphasized" : "border"}
             borderTopWidth={virtualItem.index === 0 ? 1 : 0}
             cursor="pointer"
             data-node-id={node.id}
+            data-selected={isSelected}
+            data-task-id={node.id}
             data-testid={`task-${node.id.replaceAll(".", "-")}`}
             height={`${ROW_HEIGHT}px`}
             id={`task-${node.id.replaceAll(".", "-")}`}
             key={node.id}
             left={0}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
             position="absolute"
             right={0}
             top={0}

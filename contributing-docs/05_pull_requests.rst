@@ -102,7 +102,7 @@ these guidelines:
     programmatically (either because they are too hard or just not yet done).
 
 -   Maintainers will not merge a PR that regresses linting or does not pass CI tests (unless you have good
-    justification that it a transient error or something that is being fixed in other PR).
+    justification that it is a transient error or something that is being fixed in other PR).
 
 -   Maintainers will not merge PRs that have unresolved conversation.
 
@@ -171,18 +171,24 @@ tooling, with a comment explaining what needs to be fixed.
    Generic titles such as "Fix bug", "Update code", "Changes", single-word titles, or titles
    that only reference an issue number (e.g. "Fixes #12345") do not meet this bar.
 
-2. **Meaningful description** — The PR body must contain a meaningful description of *what* the
+2. ** Golden Rule ** - in text descriptions - always use imperative mode, never use past
+   tense or conventional commits or any prefixes in the title take precious space and do not add any value, so they should be
+   avoided. For example, instead of "feat: add new feature" or "Added this new feature"
+   use "Add new feature". This is a common convention in many open source projects
+   and it makes the commit history more readable and consistent.
+
+3. **Meaningful description** — The PR body must contain a meaningful description of *what* the
    PR does and *why*. An empty body, a body consisting only of the PR template
    checkboxes/headers with no added text, or a body that merely repeats the title is not
    sufficient.
 
-3. **Passing static checks** — The PR's static checks (pre-commit / ruff / mypy) must pass.
+4. **Passing static checks** — The PR's static checks (pre-commit / ruff / mypy) must pass.
    You can run them locally with ``prek run --from-ref main`` before pushing.
 
-4. **Gen-AI disclosure** — If the PR was created with the assistance of generative AI tools,
+5. **Gen-AI disclosure** — If the PR was created with the assistance of generative AI tools,
    the description must include a disclosure (see `Gen-AI Assisted contributions`_ below).
 
-5. **Coherent changes** — The PR should contain related changes only. Completely unrelated
+6. **Coherent changes** — The PR should contain related changes only. Completely unrelated
    changes bundled together will be flagged.
 
 **What happens when a PR is converted to draft?**
@@ -213,6 +219,12 @@ maliciously, or inject harmful code), **all open PRs by the same author** will b
 and labeled ``suspicious changes detected``. A comment is posted on each PR explaining that
 the closure was triggered by suspicious changes found in the flagged PR.
 
+If a contributor believes any closure described above was applied in error, the appeal channel
+is the PMC private list — see the
+`Community escalation process <../COMMUNITY_ESCALATION.md>`_ for how to email
+``private@airflow.apache.org``. That document also covers the further steps the project may
+take when the same behaviour persists across PRs.
+
 Gen-AI Assisted contributions
 -----------------------------
 
@@ -242,24 +254,15 @@ adhere to the following guidelines:
   unrelated changes should be removed from the PR before it is submitted for review. Relying on
   maintainers to spot such unrelated changes is unfair and adds extra burden on them.
 
-When a contributor does not follow these guidelines, maintainers might decide to close the PR
-(and all the PRs of that contributor) without reviewing them - to avoid extra burden on the
-maintainers and to protect the project from potential risks of merging unvetted code by a tired
-maintainer. This should be accompanied by a comment explaining the reason for closing the PR
-and pointing to this section of the documentation.
-
-If the contributor repeatedly ignores these guidelines, PMC members might decide to block the contributor
-from making further contributions to the project, this is a last resort measure to protect the project
-from potential risks of unvetted code and to avoid overburdening the maintainers. Such blocking is
-accompanied with a LAZY CONSENSUS vote amongst the PMC members to make sure that the decision is
-agreed upon and not vetoed by any of the PMC members and it is kept in the records of the
-Apache Software Foundation. In extreme cases the PMC might request the ASF Infrastructure team
-to block the contributor at the Organization level - for all ASF projects.
-
-If the contributor is evidently spamming the project with the content that is violating GitHub terms and
-condition, maintainers might decide to report such behaviour to GitHub for further actions, which often
-results in deletion of the user account by GitHub or blocking the user from making further contributions at
-GitHub level.
+When a contributor does not follow these guidelines, maintainers may close the PR (or all of
+that contributor's open PRs) with a comment pointing to this section of the documentation, so
+that maintainer review time is not spent on unvetted Gen-AI-generated code. Repeated disregard
+of the Gen-AI guidelines is treated the same way as any other sustained disruptive behaviour
+toward the project: it is handled under the project-wide
+`Community escalation process <../COMMUNITY_ESCALATION.md>`_, which describes the further
+steps that may follow (PMC-level blocking, ASF-Infrastructure-level blocking, reporting the
+account to GitHub) and how a contributor can appeal any such decision by emailing the PMC at
+``private@airflow.apache.org``.
 
 Requirement to resolve all conversations
 ----------------------------------------

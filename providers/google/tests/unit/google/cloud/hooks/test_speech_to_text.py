@@ -40,11 +40,16 @@ class TestCloudSpeechToTextHook:
         ):
             self.gcp_speech_to_text_hook = CloudSpeechToTextHook(gcp_conn_id="test")
 
+    @patch("airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook.get_client_options")
     @patch("airflow.providers.google.cloud.hooks.speech_to_text.CloudSpeechToTextHook.get_credentials")
     @patch("airflow.providers.google.cloud.hooks.speech_to_text.SpeechClient")
-    def test_speech_client_creation(self, mock_client, mock_get_creds):
+    def test_speech_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         result = self.gcp_speech_to_text_hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
+        )
         assert mock_client.return_value == result
         assert self.gcp_speech_to_text_hook._client == result
 

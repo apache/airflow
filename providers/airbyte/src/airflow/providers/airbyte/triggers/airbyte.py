@@ -36,8 +36,11 @@ class AirbyteSyncTrigger(BaseTrigger):
 
     :param conn_id: The connection identifier for connecting to Airbyte.
     :param job_id: The ID of an Airbyte Sync job.
-    :param end_time: Time in seconds to wait for a job run to reach a terminal status. Defaults to 7 days.
+    :param end_time: Absolute timestamp (in seconds since the epoch) by which the job run must reach terminal status.
+        Defaults to 7 days from the trigger start time.
     :param poll_interval:  polling period in seconds to check for the status.
+    :param execution_deadline: Optional absolute timestamp (in seconds since the epoch) after which
+        the task is considered timed out.
     """
 
     def __init__(
@@ -46,11 +49,13 @@ class AirbyteSyncTrigger(BaseTrigger):
         conn_id: str,
         end_time: float,
         poll_interval: float,
+        execution_deadline: float | None = None,
     ):
         super().__init__()
         self.job_id = job_id
         self.conn_id = conn_id
         self.end_time = end_time
+        self.execution_deadline = execution_deadline
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -62,6 +67,7 @@ class AirbyteSyncTrigger(BaseTrigger):
                 "conn_id": self.conn_id,
                 "end_time": self.end_time,
                 "poll_interval": self.poll_interval,
+                "execution_deadline": self.execution_deadline,
             },
         )
 
@@ -69,8 +75,21 @@ class AirbyteSyncTrigger(BaseTrigger):
         """Make async connection to Airbyte, polls for the pipeline run status."""
         hook = AirbyteHook(airbyte_conn_id=self.conn_id)
         try:
-            while await self.is_still_running(hook):
-                if self.end_time < time.time():
+            while True:
+                now = time.time()
+
+                if self.execution_deadline is not None:
+                    if self.execution_deadline <= now:
+                        yield TriggerEvent(
+                            {
+                                "status": "timeout",
+                                "message": f"Job run {self.job_id} has reached execution timeout.",
+                                "job_id": self.job_id,
+                            }
+                        )
+                        return
+
+                if self.end_time <= now:
                     yield TriggerEvent(
                         {
                             "status": "error",
@@ -80,34 +99,46 @@ class AirbyteSyncTrigger(BaseTrigger):
                         }
                     )
                     return
-                await asyncio.sleep(self.poll_interval)
-            job_run_status = hook.get_job_status(self.job_id)
-            if job_run_status == JobStatusEnum.SUCCEEDED:
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": f"Job run {self.job_id} has completed successfully.",
-                        "job_id": self.job_id,
-                    }
-                )
-            elif job_run_status == JobStatusEnum.CANCELLED:
-                yield TriggerEvent(
-                    {
-                        "status": "cancelled",
-                        "message": f"Job run {self.job_id} has been cancelled.",
-                        "job_id": self.job_id,
-                    }
-                )
-            else:
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": f"Job run {self.job_id} has failed.",
-                        "job_id": self.job_id,
-                    }
-                )
+
+                job_run_status = hook.get_job_status(self.job_id)
+
+                if job_run_status == JobStatusEnum.SUCCEEDED:
+                    yield TriggerEvent(
+                        {
+                            "status": "success",
+                            "message": f"Job run {self.job_id} has completed successfully.",
+                            "job_id": self.job_id,
+                        }
+                    )
+                    return
+                elif job_run_status == JobStatusEnum.CANCELLED:
+                    yield TriggerEvent(
+                        {
+                            "status": "cancelled",
+                            "message": f"Job run {self.job_id} has been cancelled.",
+                            "job_id": self.job_id,
+                        }
+                    )
+                    return
+
+                if job_run_status in (
+                    JobStatusEnum.RUNNING,
+                    JobStatusEnum.PENDING,
+                    JobStatusEnum.INCOMPLETE,
+                ):
+                    await asyncio.sleep(self.poll_interval)
+                else:
+                    yield TriggerEvent(
+                        {
+                            "status": "error",
+                            "message": f"Job run {self.job_id} has failed.",
+                            "job_id": self.job_id,
+                        }
+                    )
+                    return
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), "job_id": self.job_id})
+            return
 
     async def is_still_running(self, hook: AirbyteHook) -> bool:
         """

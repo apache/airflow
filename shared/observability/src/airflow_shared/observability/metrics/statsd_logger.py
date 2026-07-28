@@ -52,8 +52,9 @@ def prepare_stat_with_tags(fn: T) -> T:
             if stat is not None and tags is not None:
                 for k, v in tags.items():
                     if self.metric_tags_validator.test(k):
-                        if all(c not in [",", "="] for c in f"{v}{k}"):
-                            stat += f",{k}={v}"
+                        v_str = "true" if v == "" else v
+                        if all(c not in [",", "="] for c in f"{v_str}{k}"):
+                            stat += f",{k}={v_str}"
                         else:
                             log.error("Dropping invalid tag: %s=%s.", k, v)
         return fn(self, stat, *args, tags=tags, **kwargs)
@@ -67,16 +68,16 @@ class SafeStatsdLogger:
     def __init__(
         self,
         statsd_client: StatsClient,
-        metrics_validator: ListValidator = PatternAllowListValidator(),
+        metrics_validator: ListValidator | None = None,
         influxdb_tags_enabled: bool = False,
-        metric_tags_validator: ListValidator = PatternAllowListValidator(),
+        metric_tags_validator: ListValidator | None = None,
         stat_name_handler: Callable[[str], str] | None = None,
         statsd_influxdb_enabled: bool = False,
     ) -> None:
         self.statsd = statsd_client
-        self.metrics_validator = metrics_validator
+        self.metrics_validator = metrics_validator or PatternAllowListValidator()
         self.influxdb_tags_enabled = influxdb_tags_enabled
-        self.metric_tags_validator = metric_tags_validator
+        self.metric_tags_validator = metric_tags_validator or PatternAllowListValidator()
         self.stat_name_handler = stat_name_handler
         self.statsd_influxdb_enabled = statsd_influxdb_enabled
 
@@ -170,7 +171,12 @@ def get_statsd_logger(
     statsd_influxdb_enabled: bool = False,
 ) -> SafeStatsdLogger:
     """Return logger for StatsD."""
-    statsd = stats_class(host, port, prefix, ipv6)
+    statsd = stats_class(
+        host=host,
+        port=port,
+        prefix=prefix,
+        ipv6=ipv6,
+    )
 
     metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
     validator = get_validator(metrics_allow_list, metrics_block_list)

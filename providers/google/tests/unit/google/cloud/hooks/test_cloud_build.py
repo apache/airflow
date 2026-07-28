@@ -68,14 +68,15 @@ class TestCloudBuildHook:
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
-    def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds):
+    def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         result = self.hook.get_conn()
         mock_client.assert_called_once_with(
             credentials=mock_get_creds.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_get_client_options.return_value,
         )
         assert mock_client.return_value == result
         assert self.hook._client["global"] == result
@@ -317,10 +318,11 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
+    @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_client_options"))
     @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_credentials"))
     @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
     async def test_async_cloud_build_service_client_creation_should_execute_successfully(
-        self, mocked_get_build, mock_get_creds, hook, mocker
+        self, mocked_get_build, mock_get_creds, mock_get_client_options, hook, mocker
     ):
         fake_credentials = mock.MagicMock(name="FakeCreds")
         mock_get_creds.return_value = fake_credentials
@@ -340,7 +342,9 @@ class TestAsyncHook:
         mock_get_creds.assert_called_once()
         mocked_get_build.assert_called_once_with(request=request, retry=DEFAULT, timeout=None, metadata=())
         mocked_cloud_build_async_client.assert_called_once_with(
-            client_info=mock.ANY, client_options=None, credentials=fake_credentials
+            client_info=mock.ANY,
+            client_options=mock_get_client_options.return_value,
+            credentials=fake_credentials,
         )
 
     @pytest.mark.asyncio

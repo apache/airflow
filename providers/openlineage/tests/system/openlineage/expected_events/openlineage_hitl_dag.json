@@ -1,0 +1,353 @@
+[
+    {
+        "$absent": "Skipped operator should not emit OL events.",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_hitl_dag.path_b_task"
+        }
+    },
+    {
+        "$absent": "Skipped operator should not emit OL events.",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_hitl_dag.path_b_task"
+        }
+    },
+    {
+        "$absent": "Skipped operator should not emit OL events.",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_hitl_dag.path_b_task"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "hitl_summary": {
+                            "subject": "Base HITL subject",
+                            "body": "Base HITL body for OpenLineage system test.",
+                            "options": [
+                                "Yes",
+                                "No"
+                            ],
+                            "defaults": [
+                                "Yes"
+                            ],
+                            "multiple": false,
+                            "assigned_users": [
+                                {
+                                    "id": "user-001",
+                                    "name": "Test User"
+                                }
+                            ],
+                            "serialized_params": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_hitl_dag.base_hitl"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "hitl_summary": {
+                            "subject": "Base HITL subject",
+                            "body": "Base HITL body for OpenLineage system test.",
+                            "options": [
+                                "Yes",
+                                "No"
+                            ],
+                            "defaults": [
+                                "Yes"
+                            ],
+                            "multiple": false,
+                            "assigned_users": [
+                                {
+                                    "id": "user-001",
+                                    "name": "Test User"
+                                }
+                            ],
+                            "serialized_params": null,
+                            "chosen_options": [
+                                "Yes"
+                            ],
+                            "params_input": {},
+                            "responded_at": "{{ is_datetime(result) }}",
+                            "responded_by_user": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_hitl_dag.base_hitl"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "hitl_summary": {
+                            "subject": "Approval subject",
+                            "body": "Approval body for OpenLineage system test.",
+                            "options": [
+                                "Approve",
+                                "Reject"
+                            ],
+                            "defaults": [
+                                "Approve"
+                            ],
+                            "multiple": false,
+                            "assigned_users": [
+                                {
+                                    "id": "user-002",
+                                    "name": "Approver"
+                                }
+                            ],
+                            "serialized_params": null,
+                            "ignore_downstream_trigger_rules": false,
+                            "fail_on_reject": false
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_hitl_dag.approval"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "hitl_summary": {
+                            "subject": "Approval subject",
+                            "body": "Approval body for OpenLineage system test.",
+                            "options": [
+                                "Approve",
+                                "Reject"
+                            ],
+                            "defaults": [
+                                "Approve"
+                            ],
+                            "multiple": false,
+                            "assigned_users": [
+                                {
+                                    "id": "user-002",
+                                    "name": "Approver"
+                                }
+                            ],
+                            "serialized_params": null,
+                            "ignore_downstream_trigger_rules": false,
+                            "fail_on_reject": false,
+                            "chosen_options": [
+                                "Approve"
+                            ],
+                            "params_input": {},
+                            "responded_at": "{{ is_datetime(result) }}",
+                            "responded_by_user": null,
+                            "approved": true
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_hitl_dag.approval"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "hitl_summary": {
+                            "subject": "Branch HITL subject",
+                            "body": "Branch HITL body — routes to path_a.",
+                            "options": [
+                                "Some task",
+                                "Another task"
+                            ],
+                            "defaults": [
+                                "Some task"
+                            ],
+                            "multiple": false,
+                            "assigned_users": [
+                                {
+                                    "id": "user-003",
+                                    "name": "Branch User"
+                                }
+                            ],
+                            "serialized_params": null,
+                            "options_mapping": {
+                                "Some task": "path_a_task",
+                                "Another task": "path_b_task"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_hitl_dag.branch_hitl"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "hitl_summary": {
+                            "subject": "Branch HITL subject",
+                            "body": "Branch HITL body — routes to path_a.",
+                            "options": [
+                                "Some task",
+                                "Another task"
+                            ],
+                            "defaults": [
+                                "Some task"
+                            ],
+                            "multiple": false,
+                            "assigned_users": [
+                                {
+                                    "id": "user-003",
+                                    "name": "Branch User"
+                                }
+                            ],
+                            "serialized_params": null,
+                            "options_mapping": {
+                                "Some task": "path_a_task",
+                                "Another task": "path_b_task"
+                            },
+                            "chosen_options": [
+                                "Some task"
+                            ],
+                            "params_input": {},
+                            "responded_at": "{{ is_datetime(result) }}",
+                            "responded_by_user": null,
+                            "branches_to_execute": [
+                                "path_a_task"
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_hitl_dag.branch_hitl"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_hitl_dag.path_a_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_hitl_dag.path_a_task"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "hitl_summary": {
+                            "subject": "Entry HITL subject",
+                            "body": "Entry HITL body for OpenLineage system test.",
+                            "options": [
+                                "OK"
+                            ],
+                            "defaults": [
+                                "OK"
+                            ],
+                            "multiple": true,
+                            "assigned_users": [
+                                {
+                                    "id": "user-004",
+                                    "name": "Entry User"
+                                }
+                            ],
+                            "serialized_params": {
+                                "note": {
+                                    "value": "default note",
+                                    "description": "Optional feedback note",
+                                    "schema": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_hitl_dag.entry_hitl"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "hitl_summary": {
+                            "subject": "Entry HITL subject",
+                            "body": "Entry HITL body for OpenLineage system test.",
+                            "options": [
+                                "OK"
+                            ],
+                            "defaults": [
+                                "OK"
+                            ],
+                            "multiple": true,
+                            "assigned_users": [
+                                {
+                                    "id": "user-004",
+                                    "name": "Entry User"
+                                }
+                            ],
+                            "serialized_params": {
+                                "note": {
+                                    "value": "default note",
+                                    "description": "Optional feedback note",
+                                    "schema": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "chosen_options": [
+                                "OK"
+                            ],
+                            "params_input": {},
+                            "responded_at": "{{ is_datetime(result) }}",
+                            "responded_by_user": null
+                        }
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_hitl_dag.entry_hitl"
+        }
+    }
+]

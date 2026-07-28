@@ -27,7 +27,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, inspect as sa_inspect, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
 import airflow.dag_processing.collection
@@ -51,14 +51,22 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagTag
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.trigger import Trigger
+from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.temporal import StartOfDayMapper
+from airflow.partition_mappers.window import DayWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
-from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
+from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetWatcher
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.assets import SerializedAsset
-from airflow.serialization.encoders import ensure_serialized_asset
+from airflow.serialization.encoders import encode_trigger, ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.timetables.simple import PartitionedAtRuntime
+from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -87,8 +95,9 @@ def test_statement_latest_runs_one_dag():
         compiled_stmt = str(stmt.compile())
         actual = [x.strip() for x in compiled_stmt.splitlines()]
         expected = [
-            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
+            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, dag_run.data_interval_start, "
+            "dag_run.data_interval_end, dag_run.run_after, dag_run.partition_key, "
+            "dag_run.partition_date",
             "FROM dag_run",
             "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.logical_date = ("
             "SELECT max(dag_run.logical_date) AS max_logical_date",
@@ -99,11 +108,38 @@ def test_statement_latest_runs_one_dag():
 
 
 @pytest.mark.db_test
-def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+def test_statement_latest_runs_loads_timetable_fields(dag_maker, session):
     with dag_maker("fake-dag", schedule=None):
         pass
     dag_maker.sync_dagbag_to_db()
 
+    logical_date = tz.datetime(2025, 1, 1)
+    run_after = tz.datetime(2025, 1, 2)
+
+    dag_maker.create_dagrun(
+        run_id="latest-run",
+        logical_date=logical_date,
+        data_interval=(logical_date, run_after),
+        run_type=DagRunType.SCHEDULED,
+        run_after=run_after,
+        session=session,
+    )
+    session.flush()
+    session.expunge_all()  # Ensure we load from DB, not from session cache
+
+    latest = session.scalar(_get_latest_runs_stmt("fake-dag"))
+    assert latest is not None
+    assert {"run_after", "partition_date", "partition_key"}.isdisjoint(sa_inspect(latest).unloaded)
+    assert latest.run_after == run_after
+    assert latest.partition_key is None
+    assert latest.partition_date is None
+
+
+@pytest.mark.db_test
+def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, session):
+    with dag_maker("fake-dag", schedule=PartitionedAtRuntime()):
+        pass
+    dag_maker.sync_dagbag_to_db()
     for i, (run_id, partition_key, partition_date) in enumerate(
         (
             ("newest-partition-date", "2025-01-02", tz.datetime(2025, 1, 2)),
@@ -122,8 +158,14 @@ def test_statement_latest_runs_partitioned_sorted_by_partition_date(dag_maker, s
             session=session,
         )
 
+    session.flush()
+    session.expunge_all()  # Ensure we load from DB, not from session cache
+
     latest = session.scalar(_get_latest_runs_stmt_partitioned("fake-dag"))
     assert latest is not None
+    assert {"run_after", "partition_date", "partition_key"}.isdisjoint(sa_inspect(latest).unloaded)
+    assert latest.run_after == tz.datetime(2025, 1, 1)
+    assert latest.partition_key == "2025-01-02"
     assert latest.partition_date == tz.datetime(2025, 1, 2)
 
 
@@ -140,6 +182,130 @@ class TestAssetModelOperation:
         self.clean_db()
         yield
         self.clean_db()
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_sync_assets_preserves_access_control_from_other_bundle(self, dag_maker, session):
+        """When a producer bundle (without access_control) is synced after a consumer bundle
+        (with access_control), the stored access control fields must not be wiped out."""
+        from airflow.models.asset import DagScheduleAssetReference, TaskOutletAssetReference
+        from airflow.sdk import AssetAccessControl
+
+        # First sync: consumer bundle sets access_control on the asset (producer_teams on schedule side).
+        consumer_asset = Asset(
+            "shared_asset",
+            access_control=AssetAccessControl(producer_teams=["team1", "team2"], allow_global=False),
+        )
+        with dag_maker(dag_id="consumer_dag", schedule=[consumer_asset]) as consumer_dag:
+            EmptyOperator(task_id="mytask")
+
+        consumer_dags = {consumer_dag.dag_id: LazyDeserializedDAG.from_dag(consumer_dag)}
+        orm_dags = DagModelOperation(consumer_dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(consumer_dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        ref = session.scalar(
+            select(DagScheduleAssetReference).where(DagScheduleAssetReference.dag_id == "consumer_dag")
+        )
+        assert ref.allow_producer_teams == ["team1", "team2"]
+        assert ref.allow_global_producers is False
+
+        # Second sync: producer bundle references the same asset with consumer_teams on the outlet.
+        producer_asset = Asset(
+            "shared_asset",
+            access_control=AssetAccessControl(consumer_teams=["team_ml"], allow_global=False),
+        )
+        with dag_maker(dag_id="producer_dag", schedule="@once") as producer_dag:
+            EmptyOperator(task_id="produce", outlets=[producer_asset])
+
+        producer_dags = {producer_dag.dag_id: LazyDeserializedDAG.from_dag(producer_dag)}
+        producer_orm_dags = DagModelOperation(producer_dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(producer_dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_task_asset_references(producer_orm_dags, orm_assets, session=session)
+        session.flush()
+
+        # Consumer's schedule-side access control must still be preserved.
+        session.expire(ref)
+        assert ref.allow_producer_teams == ["team1", "team2"]
+        assert ref.allow_global_producers is False
+
+        # Producer's outlet-side access control must be stored.
+        outlet_ref = session.scalar(
+            select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "producer_dag")
+        )
+        assert outlet_ref.allow_consumer_teams == ["team_ml"]
+        assert outlet_ref.allow_global_consumers is False
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_task_outlet_asset_references_updates_consumer_teams_on_change(self, dag_maker, session):
+        """When access_control changes, existing outlet references are updated in place."""
+        from airflow.models.asset import TaskOutletAssetReference
+        from airflow.sdk import AssetAccessControl
+
+        asset = Asset(
+            "evolving_asset",
+            access_control=AssetAccessControl(consumer_teams=["team_old"], allow_global=True),
+        )
+
+        with dag_maker(dag_id="evolving_producer", schedule="@once") as dag:
+            EmptyOperator(task_id="produce", outlets=[asset])
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        ref = session.scalar(
+            select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "evolving_producer")
+        )
+        assert ref.allow_consumer_teams == ["team_old"]
+        assert ref.allow_global_consumers is True
+
+        # Change access_control and re-sync.
+        asset.access_control = AssetAccessControl(consumer_teams=["team_new"], allow_global=False)
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).find_orm_dags(session=session)
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        session.expire(ref)
+        assert ref.allow_consumer_teams == ["team_new"]
+        assert ref.allow_global_consumers is False
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_task_outlet_asset_references_defaults_when_no_access_control(self, dag_maker, session):
+        """Outlet references default to None consumer_teams and allow_global_consumers=True."""
+        from airflow.models.asset import TaskOutletAssetReference
+
+        asset = Asset("plain_asset")
+
+        with dag_maker(dag_id="plain_producer_dag", schedule="@once") as dag:
+            EmptyOperator(task_id="produce", outlets=[asset])
+
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        session.flush()
+
+        ref = session.scalar(
+            select(TaskOutletAssetReference).where(TaskOutletAssetReference.dag_id == "plain_producer_dag")
+        )
+        assert ref is not None
+        assert ref.allow_consumer_teams is None
+        assert ref.allow_global_consumers is True
 
     @pytest.mark.parametrize(
         ("is_active", "is_paused", "expected_num_triggers"),
@@ -183,15 +349,58 @@ class TestAssetModelOperation:
         assert len(asset_model.triggers) == expected_num_triggers
 
     @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("use_team", "expected"),
+        [
+            pytest.param(True, "testing", id="with-team"),
+            pytest.param(False, None, id="no-team"),
+        ],
+    )
+    def test_add_asset_trigger_references_populates_team_name(
+        self, dag_maker, session, testing_team, use_team, expected
+    ):
+        asset = Asset(
+            "test_trigger_team_asset",
+            watchers=[AssetWatcher(name="watcher", trigger=FileDeleteTrigger(mock.Mock()))],
+        )
+
+        with dag_maker(dag_id="test_trigger_team_dag", schedule=[asset]) as dag:
+            EmptyOperator(task_id="mytask")
+
+        # Use raw DagModelOperation (not dag_maker's bulk_write_to_db) to control team_name
+        dags = {dag.dag_id: LazyDeserializedDAG.from_dag(dag)}
+        orm_dags = DagModelOperation(dags, "testing", None).add_dags(session=session)
+        orm_dags[dag.dag_id].is_stale = False
+        orm_dags[dag.dag_id].is_paused = False
+        session.flush()
+
+        asset_op = AssetModelOperation.collect(dags)
+        orm_assets = asset_op.sync_assets(session=session)
+        session.flush()
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
+        session.flush()
+
+        # Clear any triggers created by dag_maker's bulk_write_to_db
+        session.execute(delete(Trigger))
+        for asset_model in orm_assets.values():
+            asset_model.watchers = []
+        session.flush()
+
+        team_name = testing_team.name if use_team else None
+        asset_op.add_asset_trigger_references(orm_assets, team_name=team_name, session=session)
+        session.flush()
+
+        triggers = session.scalars(select(Trigger)).all()
+        assert len(triggers) == 1
+        assert triggers[0].team_name == expected
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_add_asset_trigger_references_hash_consistency(self, dag_maker, session):
         """Trigger hash from the DAG-parsed path must equal the hash computed
         from the DB-stored Trigger row.  A mismatch causes the scheduler to
         recreate trigger rows on every heartbeat.
         """
-        from airflow.models.trigger import Trigger
-        from airflow.serialization.encoders import encode_trigger
-        from airflow.triggers.base import BaseEventTrigger
-
         trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0)
         asset = Asset(
             "test_hash_consistency_asset",
@@ -236,8 +445,6 @@ class TestAssetModelOperation:
         """Calling add_asset_trigger_references twice with the same trigger
         must not create duplicate rows.
         """
-        from airflow.models.trigger import Trigger
-
         trigger = FileDeleteTrigger(filepath="/tmp/test.txt", poke_interval=5.0)
         asset = Asset(
             "test_idempotent_asset",
@@ -535,6 +742,7 @@ class TestUpdateDagParsingResults:
                     mock_dag,
                     bundle_name="testing",
                     bundle_version=None,
+                    version_data=None,
                     min_update_interval=mock.ANY,
                     session=mock_session,
                     _prefetched=mock.ANY,
@@ -564,6 +772,87 @@ class TestUpdateDagParsingResults:
 
         new_serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
         assert new_serialized_dags_count == 1
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_duplicate_dag_id_creates_dag_warning(self, testing_dag_bundle, session):
+        session.add(
+            DagModel(
+                dag_id="duplicated_dag",
+                bundle_name="testing",
+                fileloc="/opt/airflow/dags/existing.py",
+                relative_fileloc="existing.py",
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        dag = DAG(dag_id="duplicated_dag")
+        dag.fileloc = "/opt/airflow/dags/current.py"
+        dag.relative_fileloc = "current.py"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == "duplicated_dag",
+                DagWarning.warning_type == DagWarningType.DUPLICATE_DAG_ID,
+            )
+        )
+
+        assert warning is not None
+        assert "existing.py" in warning.message
+        assert "overwritten" in warning.message
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_duplicate_dag_id_warning_is_removed_when_dag_file_matches(self, testing_dag_bundle, session):
+        session.add(
+            DagModel(
+                dag_id="same_file_dag",
+                bundle_name="testing",
+                fileloc="/opt/airflow/dags/current.py",
+                relative_fileloc="current.py",
+                is_stale=False,
+            )
+        )
+        session.add(
+            DagWarning(
+                dag_id="same_file_dag",
+                warning_type=DagWarningType.DUPLICATE_DAG_ID,
+                message="Previous duplicate dag_id warning",
+            )
+        )
+        session.flush()
+
+        dag = DAG(dag_id="same_file_dag")
+        dag.fileloc = "/opt/airflow/dags/current.py"
+        dag.relative_fileloc = "current.py"
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == "same_file_dag",
+                DagWarning.warning_type == DagWarningType.DUPLICATE_DAG_ID,
+            )
+        )
+
+        assert warning is None
 
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
@@ -1102,6 +1391,24 @@ class TestUpdateDagParsingResults:
         orm_dag = session.get(DagModel, "dag_max_runs")
         assert orm_dag.max_active_runs == 3
 
+    @pytest.mark.parametrize(
+        ("field", "cfg_key", "schema_default"),
+        [
+            ("max_active_runs", "max_active_runs_per_dag", 16),
+            ("max_active_tasks", "max_active_tasks_per_dag", 16),
+            ("max_consecutive_failed_dag_runs", "max_consecutive_failed_dag_runs_per_dag", 0),
+        ],
+    )
+    def test_config_driven_field_equal_to_schema_default_not_overridden_by_conf(
+        self, testing_dag_bundle, session, dag_maker, field, cfg_key, schema_default
+    ):
+        with conf_vars({("core", cfg_key): "1"}):
+            with dag_maker(f"dag_{field}_schema_default", schedule=None, **{field: schema_default}) as dag:
+                ...
+            update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
+            orm_dag = session.get(DagModel, f"dag_{field}_schema_default")
+            assert getattr(orm_dag, field) == schema_default
+
     def test_max_active_runs_defaults_from_conf_when_none(self, testing_dag_bundle, session, dag_maker):
         with conf_vars({("core", "max_active_runs_per_dag"): "4"}):
             with dag_maker("dag_max_runs_default", schedule=None) as dag:
@@ -1158,3 +1465,90 @@ class TestUpdateDagTags:
         session.commit()
 
         assert {t.name for t in dag_model.tags} == expected_tags
+
+
+@pytest.mark.db_test
+class TestPartitionMapperInfoSync:
+    """Verify partition_mapper_info is populated on DagModel during Dag sync."""
+
+    @pytest.fixture(autouse=True)
+    def clean_db_around_test(self) -> Generator:
+        def reset() -> None:
+            clear_db_dags()
+            clear_db_assets()
+            clear_db_serialized_dags()
+
+        reset()
+        yield
+        reset()
+
+    def test_partitioned_dag_with_rollup_mapper(self, dag_maker, session):
+        """Cover regular Asset, name ref, and uri ref entries in partition_mapper_info."""
+        rollup_asset = Asset(uri="s3://bucket/rollup", name="rollup")
+        name_ref = Asset.ref(name="ref_by_name")
+        uri_ref = Asset.ref(uri="s3://ref")
+        rollup_mapper = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+
+        with dag_maker(
+            dag_id="partitioned_with_rollup",
+            schedule=PartitionedAssetTimetable(
+                assets=AssetAll(rollup_asset, name_ref, uri_ref),
+                partition_mapper_config={
+                    rollup_asset: rollup_mapper,
+                    name_ref: rollup_mapper,
+                    uri_ref: rollup_mapper,
+                },
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dag_model = session.get(DagModel, "partitioned_with_rollup")
+        assert dag_model.partition_mapper_info == [
+            {"name": "rollup", "uri": "s3://bucket/rollup", "is_rollup": True},
+            {"name": "ref_by_name", "is_rollup": True},
+            {"uri": "s3://ref", "is_rollup": True},
+        ]
+        assert dag_model.has_rollup_mappers is True
+        assert dag_model.is_rollup_asset(name="rollup", uri="s3://bucket/rollup") is True
+        assert dag_model.is_rollup_asset(name="ref_by_name", uri="") is True
+        assert dag_model.is_rollup_asset(name="", uri="s3://ref") is True
+
+    def test_partitioned_dag_with_default_rollup_mapper(self, dag_maker, session):
+        """
+        Using only ``default_partition_mapper=RollupMapper(...)`` (the primary
+        documented pattern, see ``example_asset_partition.py``) must still
+        produce a non-empty ``partition_mapper_info`` with ``is_rollup=True``,
+        so the UI's ``has_rollup_mappers`` / ``is_rollup_asset`` checks return
+        the right values without inspecting ``partition_mapper_config``.
+        """
+        rollup_asset = Asset(uri="s3://bucket/rollup", name="rollup")
+
+        with dag_maker(
+            dag_id="partitioned_with_default_rollup",
+            schedule=PartitionedAssetTimetable(
+                assets=rollup_asset,
+                default_partition_mapper=RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow()),
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dag_model = session.get(DagModel, "partitioned_with_default_rollup")
+        assert dag_model.partition_mapper_info == [
+            {"name": "rollup", "uri": "s3://bucket/rollup", "is_rollup": True},
+        ]
+        assert dag_model.has_rollup_mappers is True
+        assert dag_model.is_rollup_asset(name="rollup", uri="s3://bucket/rollup") is True
+
+    def test_non_partitioned_dag_leaves_info_empty(self, dag_maker, session):
+        with dag_maker(
+            dag_id="non_partitioned_dag",
+            schedule=[Asset(uri="s3://bucket/A", name="A")],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+
+        dag_model = session.get(DagModel, "non_partitioned_dag")
+        assert dag_model.partition_mapper_info == []
+        assert dag_model.has_rollup_mappers is False

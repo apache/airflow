@@ -26,6 +26,7 @@ import re
 import shlex
 import subprocess
 import sys
+import time
 from functools import lru_cache
 from subprocess import DEVNULL, CompletedProcess
 from typing import TYPE_CHECKING
@@ -52,12 +53,16 @@ except ImportError:
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_DEBIAN_VERSIONS,
+    CURRENT_POSTGRES_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
+    KNOWN_DOCKER_COMPOSE_PROJECT_NAMES,
+    KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
 )
 from airflow_breeze.utils.console import Output, console_print, get_console
+from airflow_breeze.utils.environment_check import check_uv_version
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     check_if_buildx_plugin_installed,
@@ -98,7 +103,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("docs", "/opt/airflow/docs"),
     ("generated", "/opt/airflow/generated"),
     ("go-sdk", "/opt/airflow/go-sdk"),
-    ("helm-tests", "/opt/airflow/helm-tests"),
+    ("java-sdk", "/opt/airflow/java-sdk"),
     ("kubernetes-tests", "/opt/airflow/kubernetes-tests"),
     ("logs", "/root/airflow/logs"),
     ("providers", "/opt/airflow/providers"),
@@ -110,6 +115,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
     ("shared", "/opt/airflow/shared"),
     ("task-sdk", "/opt/airflow/task-sdk"),
+    ("ts-sdk", "/opt/airflow/ts-sdk"),
 ]
 
 
@@ -609,6 +615,7 @@ def perform_environment_checks(quiet: bool = False):
         check_docker_compose_version(quiet)
         check_windows_filesystem_mount(quiet)
         check_executable_entrypoint_permissions(quiet)
+    check_uv_version(quiet)
     if not quiet:
         console_print(f"[success]Host python version is {sys.version}[/]")
 
@@ -694,6 +701,84 @@ def fix_ownership_using_docker(quiet: bool = True):
         ]
     )
     run_command(cmd, text=True, check=False, quiet=quiet)
+
+
+IMAGE_PULL_ATTEMPTS = 5
+IMAGE_PULL_BACKOFF_SECONDS = 15
+
+
+def get_images_to_pull(compose_project_name: str, env: dict[str, str], skip_images: set[str]) -> list[str]:
+    """
+    Returns third-party images of the compose project that are not available locally yet.
+
+    :param compose_project_name: name of the docker compose project
+    :param env: environment variables to resolve the compose files with
+    :param skip_images: images that should never be pulled (the locally built CI/PROD image)
+    """
+    result = run_command(
+        ["docker", "compose", "--project-name", compose_project_name, "config", "--images"],
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    images_to_pull = []
+    for image in dict.fromkeys(line.strip() for line in result.stdout.splitlines() if line.strip()):
+        if image in skip_images:
+            continue
+        image_present = run_command(
+            ["docker", "image", "inspect", image],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if image_present.returncode != 0:
+            images_to_pull.append(image)
+    return images_to_pull
+
+
+def pull_images_with_retries(
+    compose_project_name: str,
+    env: dict[str, str],
+    skip_images: set[str] | None = None,
+    attempts: int = IMAGE_PULL_ATTEMPTS,
+) -> bool:
+    """
+    Pulls the third-party images the compose project needs, retrying with a growing backoff.
+
+    Registries (Docker Hub in particular) regularly time out or throttle CI runners. Left to
+    `docker compose run`, a single such blip fails the whole test job before any test executes,
+    and recovering from it costs a full re-run of the suite. Pulling up front instead retries
+    the operation that actually failed.
+
+    :param compose_project_name: name of the docker compose project
+    :param env: environment variables to resolve the compose files with
+    :param skip_images: images that should never be pulled (the locally built CI/PROD image)
+    :param attempts: how many times to attempt pulling each image
+
+    :return: True if every image needed is available locally
+    """
+    images = get_images_to_pull(compose_project_name, env, skip_images or set())
+    if not images:
+        return True
+    console_print(f"[info]Pulling {len(images)} image(s) before running the tests: {' '.join(images)}[/]")
+    all_pulled = True
+    for image in images:
+        for attempt in range(1, attempts + 1):
+            if run_command(["docker", "pull", image], env=env, check=False).returncode == 0:
+                break
+            if attempt == attempts:
+                console_print(f"[warning]Could not pull {image} in {attempts} attempts.[/]")
+                all_pulled = False
+                break
+            backoff = IMAGE_PULL_BACKOFF_SECONDS * attempt
+            console_print(
+                f"[warning]Failed to pull {image} (attempt {attempt}/{attempts}). Retrying in {backoff}s.[/]"
+            )
+            time.sleep(backoff)
+    return all_pulled
 
 
 def remove_docker_networks(networks: list[str] | None = None) -> None:
@@ -832,6 +917,84 @@ def bring_compose_project_down(preserve_volumes: bool, shell_params: ShellParams
     )
 
 
+def discover_running_compose_projects() -> set[str]:
+    """
+    Return the set of compose project names of every container on the host.
+
+    Reads the ``com.docker.compose.project`` label that ``docker compose``
+    sets on every container/network/volume it creates. Returns an empty set
+    if docker is unreachable or no compose-managed containers exist.
+    """
+    result = run_command(
+        [
+            "docker",
+            "ps",
+            "--all",
+            "--filter",
+            "label=com.docker.compose.project",
+            "--format",
+            '{{ .Label "com.docker.compose.project" }}',
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout:
+        console_print(f"[error] Unable to find running docker container projects: {result.stderr}")
+        return set()
+    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
+def is_known_breeze_compose_project(name: str) -> bool:
+    """Return True if ``name`` matches a project breeze knows it owns."""
+    if name in KNOWN_DOCKER_COMPOSE_PROJECT_NAMES:
+        return True
+    return any(name.startswith(prefix) for prefix in KNOWN_DOCKER_COMPOSE_PROJECT_PREFIXES)
+
+
+def bring_all_compose_projects_down(
+    *,
+    preserve_volumes: bool = False,
+    include_unknown: bool = False,
+    only_project: str | None = None,
+) -> tuple[list[str], list[str]]:
+    """
+    Discover and bring down every docker compose project breeze manages.
+
+    :param preserve_volumes: if True, pass ``--volumes`` is omitted so DB
+        volumes survive (matches the existing ``--preserve-volumes`` flag
+        on ``breeze down``).
+    :param include_unknown: if True, also bring down projects whose names
+        do not match any known breeze prefix. Useful as an emergency
+        cleanup; can wipe out unrelated docker compose projects on the
+        host, so off by default.
+    :param only_project: if set, restrict to exactly this project name and
+        skip discovery entirely (for the ``--project-name`` flag).
+    :returns: ``(brought_down, skipped)`` lists of project names, both
+        sorted, suitable for printing in a session summary.
+    """
+    if only_project:
+        targets = {only_project}
+        skipped: set[str] = set()
+    else:
+        running = discover_running_compose_projects()
+        if include_unknown:
+            targets = running
+            skipped = set()
+        else:
+            targets = {name for name in running if is_known_breeze_compose_project(name)}
+            skipped = running - targets
+    brought_down: list[str] = []
+    for name in sorted(targets):
+        console_print(f"[info]Bringing down docker compose project: {name}[/]")
+        cmd = ["docker", "compose", "--project-name", name, "down", "--remove-orphans"]
+        if not preserve_volumes:
+            cmd.append("--volumes")
+        run_command(cmd, text=True, check=False)
+        brought_down.append(name)
+    return brought_down, sorted(skipped)
+
+
 def execute_command_in_shell(
     shell_params: ShellParams,
     project_name: str,
@@ -948,9 +1111,12 @@ def enter_shell(
             console_print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
 
     if "openlineage" in shell_params.integration or "all" in shell_params.integration:
-        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
+        if (
+            shell_params.backend != "postgres"
+            or shell_params.postgres_version not in CURRENT_POSTGRES_VERSIONS
+        ):
             console_print(
-                "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
+                f"\n[error]Only PostgreSQL {', '.join(CURRENT_POSTGRES_VERSIONS)} are supported "
                 "as a backend with OpenLineage integration via Breeze[/]\n"
             )
             sys.exit(1)

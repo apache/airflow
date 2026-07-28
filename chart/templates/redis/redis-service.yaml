@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+########################
 ## Airflow Redis Service
-#################################
-{{- if and .Values.redis.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+########################
+{{- if and .Values.redis.enabled (contains "CeleryExecutor" .Values.executor) }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -55,4 +55,10 @@ spec:
       {{- if and (eq .Values.redis.service.type "NodePort") (not (empty .Values.redis.service.nodePort)) }}
       nodePort: {{ .Values.redis.service.nodePort }}
       {{- end }}
+  {{- if .Values.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}

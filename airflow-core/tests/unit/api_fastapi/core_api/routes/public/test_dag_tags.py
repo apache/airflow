@@ -100,14 +100,12 @@ class TestDagEndpoint:
 
     def _create_dag_tags(self, session=None):
         session.add(DagTag(dag_id=DAG1_ID, name="tag_2"))
-        session.add(DagTag(dag_id=DAG2_ID, name="tag_1"))
         session.add(DagTag(dag_id=DAG3_ID, name="tag_1"))
+        session.add(DagTag(dag_id=DAG3_ID, name="stale_only"))
 
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup(self, dag_maker, session=None) -> None:
-        self._clear_db()
-
+    def setup(self, dag_maker, *, session=None) -> None:
         with dag_maker(
             DAG1_ID,
             dag_display_name=DAG1_DISPLAY_NAME,
@@ -130,6 +128,7 @@ class TestDagEndpoint:
             params={"foo": 1},
             max_active_tasks=16,
             max_active_runs=16,
+            tags=["tag_1"],
         ):
             EmptyOperator(task_id=TASK_ID)
 
@@ -197,6 +196,12 @@ class TestDagTags(TestDagEndpoint):
                 0,
             ),
             (
+                {"tag_name_pattern": "stale_only"},
+                200,
+                [],
+                0,
+            ),
+            (
                 {"tag_name_pattern": "1"},
                 200,
                 ["tag_1"],
@@ -207,6 +212,25 @@ class TestDagTags(TestDagEndpoint):
                 200,
                 ["tag_1", "tag_2"],
                 2,
+            ),
+            # tag_name_prefix_pattern counterpart
+            (
+                {"tag_name_prefix_pattern": "invalid"},
+                200,
+                [],
+                0,
+            ),
+            (
+                {"tag_name_prefix_pattern": "tag"},
+                200,
+                ["tag_1", "tag_2"],
+                2,
+            ),
+            (
+                {"tag_name_prefix_pattern": "~"},
+                200,
+                ["example", "tag_1", "tag_2"],
+                3,
             ),
             # test order_by
             (

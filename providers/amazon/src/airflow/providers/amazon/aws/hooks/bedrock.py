@@ -38,6 +38,15 @@ class BedrockHook(AwsBaseHook):
         kwargs["client_type"] = self.client_type
         super().__init__(*args, **kwargs)
 
+    def get_guardrail_id_by_name(self, guardrail_name: str) -> str | None:
+        """Get the guardrail ID by name, or None if not found."""
+        paginator = self.conn.get_paginator("list_guardrails")
+        for page in paginator.paginate():
+            for g in page.get("guardrails", []):
+                if g.get("name") == guardrail_name:
+                    return g["id"]
+        return None
+
 
 class BedrockRuntimeHook(AwsBaseHook):
     """
@@ -93,6 +102,46 @@ class BedrockAgentRuntimeHook(AwsBaseHook):
     """
 
     client_type = "bedrock-agent-runtime"
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = self.client_type
+        super().__init__(*args, **kwargs)
+
+
+class BedrockAgentCoreControlHook(AwsBaseHook):
+    """
+    Interact with the Amazon Bedrock AgentCore control plane API.
+
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("bedrock-agentcore-control") <BedrockAgentCoreControl.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    client_type = "bedrock-agentcore-control"
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = self.client_type
+        super().__init__(*args, **kwargs)
+
+
+class BedrockAgentCoreHook(AwsBaseHook):
+    """
+    Interact with the Amazon Bedrock AgentCore runtime plane API.
+
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("bedrock-agentcore") <BedrockAgentCore.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    client_type = "bedrock-agentcore"
 
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = self.client_type

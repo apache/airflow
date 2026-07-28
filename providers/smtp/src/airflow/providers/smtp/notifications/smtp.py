@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.notifier import BaseNotifier
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 from airflow.providers.smtp.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -80,7 +81,7 @@ class SmtpNotifier(BaseNotifier):
         mime_subtype: str = "mixed",
         mime_charset: str = "utf-8",
         custom_headers: dict[str, Any] | None = None,
-        smtp_conn_id: str = SmtpHook.default_conn_name,
+        smtp_conn_id: str | None = None,
         auth_type: str = "basic",
         *,
         template: str | None = None,
@@ -91,7 +92,9 @@ class SmtpNotifier(BaseNotifier):
             super().__init__(**kwargs)
         else:
             super().__init__()
-        self.smtp_conn_id = smtp_conn_id
+        self.smtp_conn_id = smtp_conn_id or conf.get(
+            "email", "email_conn_id", fallback=SmtpHook.default_conn_name
+        )
         self.from_email = from_email
         self.to = to
         self.files = files

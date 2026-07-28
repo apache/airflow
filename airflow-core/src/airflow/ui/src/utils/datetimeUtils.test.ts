@@ -16,11 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import dayjs from "dayjs";
+import dayjsDuration from "dayjs/plugin/duration";
 import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
-import { getDuration, renderDuration, getRelativeTime } from "./datetimeUtils";
+import {
+  getDuration,
+  getDurationTickStep,
+  renderCompactDuration,
+  renderDuration,
+  getRelativeTime,
+} from "./datetimeUtils";
 
-describe("getDuration", () => {
+dayjs.extend(dayjsDuration);
+
+describe("getDuration & formatDuration", () => {
   it("handles durations less than 60 seconds", () => {
     const start = "2024-03-14T10:00:00.000Z";
     const end = "2024-03-14T10:00:05.5111111Z";
@@ -57,12 +67,10 @@ describe("getDuration", () => {
   });
 
   it("handles small, null or undefined values", () => {
-    // eslint-disable-next-line unicorn/no-null
     expect(getDuration(null, null)).toBe(undefined);
     expect(getDuration(undefined, undefined)).toBe(undefined);
-    // eslint-disable-next-line unicorn/no-null
     expect(getDuration(null, "2024-03-14T10:00:10.000Z")).toBe(undefined);
-    expect(renderDuration(0.000_01)).toBe(undefined);
+    expect(renderDuration(0.00001)).toBe(undefined);
   });
 
   it("falls back to current time when endDate is null (running task)", () => {
@@ -71,11 +79,24 @@ describe("getDuration", () => {
 
     const start = "2024-03-14T10:00:00.000Z";
 
-    // eslint-disable-next-line unicorn/no-null
-    expect(getDuration(start, null)).toBe("00:00:10.000");
-    expect(getDuration(start, undefined)).toBe("00:00:10.000");
+    expect(getDuration(start, null)).toBe("00:00:10");
+    expect(getDuration(start, undefined)).toBe("00:00:10");
 
     vi.useRealTimers();
+  });
+
+  it("handles both numbers and duration objects", () => {
+    expect(renderDuration(dayjs.duration(10, "seconds"))).toBe("00:00:10");
+    expect(renderDuration(10)).toBe("00:00:10");
+  });
+
+  it("handles floating point milliseconds", () => {
+    expect(renderDuration(dayjs.duration(10.000499738, "seconds"))).toBe("00:00:10");
+    expect(renderDuration(10.000499738)).toBe("00:00:10");
+    expect(renderDuration(dayjs.duration(10.0005, "seconds"))).toBe("00:00:10.001");
+    expect(renderDuration(10.0005)).toBe("00:00:10.001");
+    expect(renderDuration(dayjs.duration(10.838999738, "seconds"))).toBe("00:00:10.839");
+    expect(renderDuration(10.838999738)).toBe("00:00:10.839");
   });
 });
 
@@ -105,5 +126,47 @@ describe("getRelativeTime", () => {
     const futureDate = "2024-03-14T10:00:20.000Z";
 
     expect(getRelativeTime(futureDate)).toBe("in a few seconds");
+  });
+});
+
+describe("renderCompactDuration", () => {
+  it.each([
+    [0, "0s"],
+    [-5, "0s"],
+    [Number.NaN, "0s"],
+    [Number.POSITIVE_INFINITY, "0s"],
+    [0.25, "250ms"],
+    [45, "45s"],
+    [540, "9m"],
+    [545, "9m 5s"],
+    [3600, "1h"],
+    [5400, "1h 30m"],
+    [86_400, "1d"],
+    [102_600, "1d 4h"],
+  ])("formats %s seconds as %s", (seconds, expected) => {
+    expect(renderCompactDuration(seconds)).toBe(expected);
+  });
+});
+
+describe("getDurationTickStep", () => {
+  it.each([
+    [0, 1],
+    [-1, 1],
+    [Number.NaN, 1],
+    [8, 1],
+    [45, 10],
+    [300, 60],
+    [2000, 300],
+    [36_000, 7200],
+  ])("picks a %s second range step of %s seconds", (maxSeconds, expected) => {
+    expect(getDurationTickStep(maxSeconds)).toBe(expected);
+  });
+
+  it("keeps the tick count within the requested budget", () => {
+    expect(getDurationTickStep(2000) * 8).toBeGreaterThanOrEqual(2000);
+  });
+
+  it("falls back to an even split beyond the largest known step", () => {
+    expect(getDurationTickStep(10_000_000)).toBe(1_250_000);
   });
 });

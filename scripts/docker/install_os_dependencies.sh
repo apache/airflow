@@ -28,6 +28,11 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+TEMURIN_VERSION=${TEMURIN_VERSION:-11}
+NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
+# Keep in sync with the "packageManager" pin in ts-sdk/package.json so the version corepack
+# resolves for ts-sdk is the one baked into the image.
+PNPM_VERSION=${PNPM_VERSION:-10.28.1}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
@@ -162,7 +167,7 @@ function install_docker_cli() {
     apt-get update
     apt-get install ca-certificates curl
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    curl -fsSL --retry 3 --retry-delay 5 https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
     # shellcheck disable=SC1091
     echo \
@@ -267,7 +272,7 @@ function install_cosign() {
         echo "Unsupported architecture for cosign: ${arch}"
         exit 1
     fi
-    curl -fsSL \
+    curl -fsSL --retry 3 --retry-delay 5 \
         "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
         -o /tmp/cosign
     echo "${cosign_sha256}  /tmp/cosign" | sha256sum --check
@@ -296,7 +301,7 @@ function install_python() {
         echo "GOOD! System python is not installed - OK"
         echo
     fi
-    wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    wget --tries=3 --waitretry=5 -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
     local major_minor_version
     major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
     local major minor
@@ -321,7 +326,7 @@ function install_python() {
             [3.13]="https://accounts.google.com"
             [3.14]="https://github.com/login/oauth"
         )
-        wget -O python.tar.xz.sigstore \
+        wget --tries=3 --waitretry=5 -O python.tar.xz.sigstore \
             "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.sigstore"
         install_cosign
         local identity="${sigstore_identities[${major_minor_version}]}"
@@ -339,12 +344,12 @@ function install_python() {
             # https://peps.python.org/pep-0619/#release-manager-and-crew
             [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
         )
-        wget -O python.tar.xz.asc \
+        wget --tries=3 --waitretry=5 -O python.tar.xz.asc \
             "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc"
         GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
         local gpg_key="${keys[${major_minor_version}]}"
         echo "Using GPG key ${gpg_key}"
-        gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+        gpg --batch --import "/scripts/docker/keys/python-${major_minor_version}.asc"
         gpg --batch --verify python.tar.xz.asc python.tar.xz
         gpgconf --kill all
         rm -rf "${GNUPGHOME}" python.tar.xz.asc
@@ -397,8 +402,56 @@ function install_python() {
 }
 
 function install_golang() {
-    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    curl --retry 3 --retry-delay 5 "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
+function install_jdk() {
+    # Install Eclipse Temurin JDK from the Adoptium apt repository (https://adoptium.net/installation/linux/).
+    apt-get update -qq
+    apt-get install -y --no-install-recommends wget gnupg apt-transport-https ca-certificates
+    mkdir -p /etc/apt/keyrings
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
+        | tee /etc/apt/keyrings/adoptium.asc > /dev/null
+    # shellcheck disable=SC1091
+    DISTRO_CODENAME=$(. /etc/os-release; echo "${VERSION_CODENAME}")
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] \
+https://packages.adoptium.net/artifactory/deb ${DISTRO_CODENAME} main" \
+        | tee /etc/apt/sources.list.d/adoptium.list > /dev/null
+    apt-get update -qq
+    apt-get install -y --no-install-recommends "temurin-${TEMURIN_VERSION}-jdk"
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+}
+
+function install_nodejs() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A nodejs_targets=(
+        [amd64]="linux-x64"
+        [arm64]="linux-arm64"
+    )
+    declare -A nodejs_sha256s=(
+        # https://nodejs.org/dist/v${NODEJS_VERSION}/SHASUMS256.txt
+        [amd64]="9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578"
+        [arm64]="0294e8b915ab75f92c7513d2fcb830ae06e10684e6c603e99a87dbf8835389c1"
+    )
+    local target="${nodejs_targets[${arch}]}"
+    local nodejs_sha256="${nodejs_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for nodejs: ${arch}"
+        exit 1
+    fi
+    curl --retry 3 --retry-delay 5 \
+        "https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-${target}.tar.xz" \
+        -o /tmp/nodejs.tar.xz
+    echo "${nodejs_sha256}  /tmp/nodejs.tar.xz" | sha256sum --check
+    tar -xJf /tmp/nodejs.tar.xz --strip-components=1 -C /usr/local --no-same-owner
+    rm -f /tmp/nodejs.tar.xz
+    corepack enable --install-directory /usr/local/bin
+    # corepack enable only writes shims; prepare downloads and caches the pnpm binary into the
+    # image so it is available offline and matches the version ts-sdk pins.
+    corepack prepare "pnpm@${PNPM_VERSION}" --activate
 }
 
 function install_rustup() {
@@ -419,7 +472,7 @@ function install_rustup() {
         echo "Unsupported architecture for rustup: ${arch}"
         exit 1
     fi
-    curl --proto '=https' --tlsv1.2 -sSf \
+    curl --proto '=https' --tlsv1.2 -sSf --retry 3 --retry-delay 5 \
         "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/${target}/rustup-init" \
         -o /tmp/rustup-init
     echo "${rustup_sha256}  /tmp/rustup-init" | sha256sum --check
@@ -446,6 +499,8 @@ else
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
+        install_jdk
+        install_nodejs
     fi
     install_docker_cli
     apt_clean

@@ -75,7 +75,11 @@ class CloudTasksHook(GoogleBaseHook):
         :return: Google Cloud Tasks API Client
         """
         if self._client is None:
-            self._client = CloudTasksClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = CloudTasksClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id

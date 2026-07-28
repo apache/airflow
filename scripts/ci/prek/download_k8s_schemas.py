@@ -43,7 +43,12 @@ from tempfile import NamedTemporaryFile
 
 import requests
 import yaml
-from common_prek_utils import AIRFLOW_ROOT_PATH, console, read_allowed_kubernetes_versions
+from common_prek_utils import (
+    AIRFLOW_ROOT_PATH,
+    console,
+    read_allowed_kubernetes_versions,
+    resolve_github_token,
+)
 
 KUBERNETES_VERSIONS = read_allowed_kubernetes_versions()
 DEFAULT_KUBERNETES_VERSION = KUBERNETES_VERSIONS[0]
@@ -216,8 +221,6 @@ def download_schemas_for_version(
 
 
 def main() -> None:
-    import os
-
     parser = argparse.ArgumentParser(description="Download K8s JSON schemas for helm chart tests.")
     parser.add_argument(
         "--output-dir",
@@ -236,15 +239,7 @@ def main() -> None:
     output_dir: Path = args.output_dir
     versions: list[str] = args.versions if args.versions else KUBERNETES_VERSIONS
 
-    token = os.environ.get("GITHUB_TOKEN")
-    if not token:
-        # Try gh CLI
-        try:
-            result = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True, check=False)
-            if result.returncode == 0 and result.stdout.strip():
-                token = result.stdout.strip()
-        except FileNotFoundError:
-            pass
+    token = resolve_github_token()
 
     if token:
         console.print("[green]Using GitHub token for authenticated requests.[/]")

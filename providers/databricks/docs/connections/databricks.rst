@@ -48,6 +48,12 @@ There are several ways to connect to Databricks using Airflow.
    i.e. automatically fetch JWT tokens from Kubernetes Service Account via projected volume path or TokenRequest API and exchange them for Databricks OAuth tokens.
    This is the recommended method when Airflow runs in Kubernetes. This method requires no secrets to be stored in the connection and eliminates the need
    for token management (no rotation, expiration handling, or credential storage).
+7. Using `OIDC token federation <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation>`_ with a supplied token provider,
+   i.e. a caller-provided callable returns a short-lived OIDC JWT that is exchanged for a Databricks OAuth token. Unlike the Kubernetes method,
+   the subject token is obtained in-process (never read from disk) and can come from any federation-trusted OIDC issuer, so it is not tied to
+   Kubernetes and supports both account-wide and service-principal federation policies. Like the Kubernetes method, no long-lived secret is stored in the connection.
+8. Using AWS IAM `OIDC token federation <https://docs.databricks.com/aws/en/dev-tools/auth/provider-aws-iam>`__ (applicable when Airflow runs with AWS credentials)
+   i.e. mint an AWS-signed OIDC JWT via AWS STS ``GetWebIdentityToken`` and exchange it for a Databricks OAuth token. Stores no secrets; requires the provider's ``amazon`` extra.
 
 Default Connection IDs
 ----------------------
@@ -81,6 +87,36 @@ Extra (optional)
 
     * ``token``: Specify PAT to use. Consider to switch to specification of PAT in the Password field as it's more secure.
 
+    The following optional parameter can be used when Airflow workers need to access Databricks or Azure
+    token endpoints through an HTTP proxy:
+
+    * ``proxies``: JSON object with optional ``http`` and ``https`` keys, using the same shape as the
+      ``requests`` and Azure SDK ``proxies`` argument. Only these two keys are accepted. The configured proxy
+      is applied to Databricks REST API calls, Databricks OAuth token exchanges, and Azure Identity token
+      acquisition for AAD and default Azure credential authentication.
+
+      .. code-block:: json
+
+          {
+            "proxies": {
+              "http": "http://proxy.example.com:8080",
+              "https": "http://proxy.example.com:8443"
+            }
+          }
+
+      **Note:** The ``proxies`` extra is only needed for paths that do not already pick up the standard
+      ``HTTP_PROXY`` / ``HTTPS_PROXY`` / ``NO_PROXY`` environment variables. Synchronous REST API and token
+      requests use ``requests``, and Azure AAD / default-credential token acquisition uses the Azure Identity
+      SDK; both honor those environment variables by default. The asynchronous (deferrable operator and
+      triggerer) REST API and token paths use ``aiohttp`` with a session that does **not** trust the
+      environment, so proxy environment variables are ignored there and the ``proxies`` extra is required to
+      proxy them. Use the extra when you need a proxy on the asynchronous paths, when you want to force a
+      specific proxy regardless of the worker environment, or when proxy access should apply only to selected endpoints.
+      When both are configured, the ``proxies`` extra takes precedence over the environment variables. The
+      Azure managed-identity path (``use_azure_managed_identity``) intentionally does not use the configured proxy. It
+      authenticates against the link-local ``IMDS`` endpoint (``169.254.169.254``), which must be reached
+      directly; keep that address in ``NO_PROXY`` if your environment sets a global proxy.
+
     Following parameters are necessary if using authentication with OAuth token for Databricks-managed Service Principal:
 
     * ``service_principal_oauth``: required boolean flag. If specified as ``true``, use the Client ID and Client Secret as the Username and Password. See `Authentication using OAuth for service principals <https://docs.databricks.com/en/dev-tools/authentication-oauth.html>`_.
@@ -99,6 +135,55 @@ Extra (optional)
     * ``use_default_azure_credential``: required boolean flag to specify if the `DefaultAzureCredential` class should be used to retrieve a AAD token. For example, this can be used when authenticating with workload identity within an Azure Kubernetes Service cluster. Note that this option can't be set together with the `use_azure_managed_identity` parameter.
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
       a user inside workspace)
+    * ``azure_managed_identity_client_id``: optional client ID of the user-assigned managed identity. This parameter is only required if you're using a user-assigned managed identity. If not specified, the hook will attempt to authenticate using a system-assigned managed identity.
+
+    The following parameter enables *OIDC token federation with a supplied token provider* (an alternative to
+    the Kubernetes method below that works in any environment, not only Kubernetes):
+
+    * ``federated_token_provider``: dotted path to a ``Callable[[], str]`` that returns an OIDC JWT (the RFC 8693
+      ``subject_token``). The hook imports and calls it in-process to obtain the token, then exchanges it for a
+      Databricks OAuth token using the `OIDC token exchange API <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-exchange.html>`_;
+      the subject token is never written to disk. It may come from any OIDC issuer trusted by a Databricks
+      `federation policy <https://docs.databricks.com/aws/en/dev-tools/auth/oauth-federation-policy>`_. ``client_id`` is
+      optional here: supply it for a service principal federation policy, or omit it for an account-wide federation
+      policy. When both ``federated_token_provider`` and ``federated_k8s`` are set, the supplied provider takes precedence.
+      Like the other extra-based methods, it is only used when no higher-precedence credential (a PAT in the ``Password``
+      field, ``token``, Azure credentials, or ``service_principal_oauth``) is set on the connection.
+
+      Because the dotted path is imported and executed in the process running the hook, point it only at trusted code.
+      The connection ``extra`` is an operator/admin surface, consistent with how other providers resolve callables from configuration.
+
+      .. code-block:: json
+
+          {
+            "federated_token_provider": "my_package.identity.get_oidc_token"
+          }
+
+      The callable takes no arguments and returns the OIDC JWT as a string. Obtain the token however your
+      environment provides it (for example, request it from your identity provider or a control-plane token
+      endpoint); the returned value is the ``subject_token`` that Databricks exchanges for an OAuth token:
+
+      .. code-block:: python
+
+          # my_package/identity.py
+          import requests
+
+
+          def get_oidc_token() -> str:
+              resp = requests.get("https://id.example.com/oidc/token", timeout=10)
+              resp.raise_for_status()
+              return resp.json()["token"]
+
+    The following parameters enable *AWS IAM OIDC token federation* — mint an AWS-signed OIDC JWT via AWS STS
+    ``GetWebIdentityToken`` and exchange it for a Databricks token. Requires the ``amazon`` extra
+    (``pip install apache-airflow-providers-databricks[amazon]``). See the Databricks `AWS IAM workload identity
+    federation guide <https://docs.databricks.com/aws/en/dev-tools/auth/provider-aws-iam>`_.
+
+    * ``federated_aws``: set ``login`` to ``"federated_aws"`` or add it as a boolean flag (``{"federated_aws": true}``).
+    * ``aws_conn_id``: (optional) AWS connection used for the STS call (default: ``aws_default``).
+    * ``aws_jwt_audience``: (optional) audience of the minted JWT; must match the federation policy (default: ``databricks``).
+    * ``aws_web_identity_token_duration``: (optional) requested JWT lifetime in seconds (default: ``300``, AWS max ``3600``).
+    * ``client_id``: (optional) service principal client UUID for a service principal policy; omit for an account-wide policy.
 
     The following parameters are necessary if using authentication with Kubernetes OIDC token federation:
 

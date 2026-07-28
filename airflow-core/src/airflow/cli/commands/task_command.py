@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, NotMapped, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag_version import DagVersion
@@ -207,14 +207,14 @@ def _get_ti(
             try:
                 total = task.get_parse_time_mapped_ti_count()
                 if map_index >= total:
-                    raise ValueError(
+                    raise RuntimeError(
                         f"map_index {map_index} is out of range. "
                         f"Task '{task.task_id}' has {total} mapped instance(s) [0..{total - 1}]."
                     )
             except NotFullyPopulated:
                 pass  # Dynamic mapping — cannot validate at parse time
             except NotMapped:
-                raise ValueError(f"Task '{task.task_id}' is not mapped; map_index must be -1.")
+                raise RuntimeError(f"Task '{task.task_id}' is not mapped; map_index must be -1.")
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         if not dag_version:
             # TODO: Remove this once DagVersion.get_latest_version is guaranteed to return a DagVersion/raise
@@ -354,11 +354,12 @@ def _guess_debugger() -> _SupportedDebugger:
     raise exc
 
 
+@deprecated_for_airflowctl("airflowctl tasks states-for-dag-run")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
-def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
+def task_states_for_dag_run(args, *, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
     dag_run, _ = fetch_dag_run_from_run_id_or_logical_date_string(
         dag_id=args.dag_id,
@@ -492,6 +493,7 @@ def task_render(args, dag: DAG | None = None) -> None:
         )
 
 
+@deprecated_for_airflowctl("airflowctl tasks clear")
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_clear(args) -> None:

@@ -72,10 +72,12 @@ class TestAlloyDbHook:
                 gcp_conn_id=TEST_GCP_CONN_ID,
             )
 
+    @mock.patch(HOOK_PATH.format("AlloyDbHook.get_client_options"))
     @mock.patch(HOOK_PATH.format("AlloyDbHook.get_credentials"))
     @mock.patch(HOOK_PATH.format("alloydb_v1.AlloyDBAdminClient"))
-    def test_get_alloy_db_admin_client(self, mock_client, mock_get_credentials):
+    def test_get_alloy_db_admin_client(self, mock_client, mock_get_credentials, mock_get_client_options):
         mock_credentials = mock_get_credentials.return_value
+        mock_client_options = mock_get_client_options.return_value
         expected_client = mock_client.return_value
 
         client = self.hook.get_alloy_db_admin_client()
@@ -85,6 +87,7 @@ class TestAlloyDbHook:
         mock_client.assert_called_once_with(
             credentials=mock_credentials,
             client_info=CLIENT_INFO,
+            client_options=mock_client_options,
         )
 
     @pytest.mark.parametrize(

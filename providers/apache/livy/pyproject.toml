@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-livy"
-version = "4.5.5"
+version = "4.5.7"
 description = "Provider package apache-airflow-providers-apache-livy for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -62,7 +62,7 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-http>=6.0.1",
     "apache-airflow-providers-common-compat>=1.12.0",
-    "aiohttp>=3.9.2",
+    "aiohttp>=3.14.0",
 ]
 
 [dependency-groups]
@@ -102,8 +102,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.5"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.5/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.7"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.7/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -115,3 +115,15 @@ provider_info = "airflow.providers.apache.livy.get_provider_info:get_provider_in
 
 [tool.flit.module]
 name = "airflow.providers.apache.livy"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/apache/__init__.py",
+    "tests/",
+]

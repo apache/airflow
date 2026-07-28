@@ -31,23 +31,34 @@ runtime inspection inside breeze for accurate class discovery.
 
 from __future__ import annotations
 
+import concurrent.futures
 import datetime
 import json
 import re
 import shutil
+import subprocess
+import sys
 import urllib.request
 import zlib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-import tomllib
+if sys.version_info >= (3, 11):
+    import tomllib  # Python 3.11+ stdlib
+else:  # pragma: no cover -- Python 3.10 fallback
+    import tomli as tomllib
+
 import yaml
 from registry_contract_models import validate_providers_catalog
 
 # External endpoints used by metadata extraction.
 PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent"
 PYPI_PACKAGE_JSON_URL = "https://pypi.org/pypi/{package_name}/json"
+# ClickHouse's public PyPI dataset (the data behind clickpy.clickhouse.com), sourced
+# from the same PyPI download logs as pypistats.org but queryable for every package
+# in a single SQL request -- no per-package rate limiting.
+CLICKHOUSE_PYPI_URL = "https://sql-clickhouse.clickhouse.com/?user=demo"
 S3_DOC_URL = "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com"
 AIRFLOW_PROVIDER_DOCS_URL = "https://airflow.apache.org/docs/{package_name}/stable/"
 AIRFLOW_PROVIDER_SOURCE_URL = (
@@ -99,6 +110,115 @@ def fetch_pypi_dates(package_name: str) -> dict[str, str]:
     except Exception as e:
         print(f"    Warning: Could not fetch PyPI dates for {package_name}: {e}")
         return {"first_released": "", "last_updated": ""}
+
+
+def fetch_pypi_downloads_clickhouse(package_names: list[str]) -> dict[str, dict[str, int]]:
+    """Fetch weekly/monthly downloads for many packages in ONE query.
+
+    Replaces the previous ~N parallel ``pypistats.org/api/recent`` calls. That burst
+    tripped pypistats' per-IP rate limit, and ``fetch_pypi_downloads`` silently turned
+    each 429 into ``{weekly: 0, monthly: 0}`` -- zeroing roughly a third of providers
+    on the live registry. ClickHouse exposes the same underlying PyPI download data
+    via a single SQL endpoint, so one request covers every package with nothing to
+    rate-limit.
+
+    Returns ``{package_name: {"weekly": int, "monthly": int, "total": 0}}``. On any
+    failure returns ``{}`` so callers fall back to pypistats per-package. ``total`` is
+    left at 0 to match the existing schema (the registry has never populated it).
+    """
+    if not package_names:
+        return {}
+    # Package names are ``apache-airflow-providers-*`` (only [a-z0-9-]); strip any
+    # stray quote defensively before interpolating into the IN-list.
+    in_list = ", ".join("'" + name.replace("'", "") + "'" for name in package_names)
+    # Anchor the rolling windows on the dataset's latest loaded date, not today(): the
+    # public dataset lags a few days, so a today()-relative window would be truncated to
+    # the loaded days and undercount. max(date) gives a true last-7/30-day rolling sum,
+    # matching pypistats' last_week/last_month semantics.
+    query = (
+        "WITH (SELECT max(date) FROM pypi.pypi_downloads_per_day) AS max_date "
+        "SELECT project, "
+        "toUInt64(sumIf(count, date > max_date - 7)) AS weekly, "
+        "toUInt64(sumIf(count, date > max_date - 30)) AS monthly "
+        "FROM pypi.pypi_downloads_per_day "
+        f"WHERE project IN ({in_list}) "
+        "GROUP BY project FORMAT TSV"
+    )
+    try:
+        request = urllib.request.Request(CLICKHOUSE_PYPI_URL, data=query.encode())
+        with urllib.request.urlopen(request, timeout=30) as response:
+            body = response.read().decode()
+    except Exception as e:
+        print(f"    Warning: ClickHouse download query failed ({e}); falling back to pypistats")
+        return {}
+    result: dict[str, dict[str, int]] = {}
+    for line in body.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        project, weekly, monthly = parts
+        try:
+            result[project] = {"weekly": int(weekly), "monthly": int(monthly), "total": 0}
+        except ValueError:
+            continue
+    return result
+
+
+def fetch_pypi_data_parallel(
+    package_names: list[str], max_workers: int = 16
+) -> dict[str, tuple[dict[str, int], dict[str, str]]]:
+    """Fetch downloads + release dates for many packages.
+
+    Downloads come from a single ClickHouse query (``fetch_pypi_downloads_clickhouse``).
+    Any package ClickHouse doesn't return -- or returns zero for, e.g. a just-published
+    provider not yet in its dataset -- falls back to a per-package pypistats.org call;
+    that path is now rare, so it no longer produces a rate-limiting burst. Release dates
+    still come from pypi.org/json, fetched in parallel (a per-package-only endpoint that
+    was never the source of the rate-limiting that motivated the ClickHouse switch).
+
+    Returns ``{package_name: (downloads_dict, dates_dict)}``. Per-package failures are
+    isolated -- the fallbacks return zero-value defaults -- so one flaky response only
+    affects that package.
+    """
+    clickhouse_downloads = fetch_pypi_downloads_clickhouse(package_names)
+    results: dict[str, tuple[dict[str, int], dict[str, str]]] = {}
+
+    def _fetch_one(pkg: str) -> tuple[str, dict[str, int], dict[str, str]]:
+        downloads = clickhouse_downloads.get(pkg)
+        if not downloads or downloads.get("monthly", 0) == 0:
+            # Missing from ClickHouse (or zero) -- fall back to pypistats for this one
+            # package only. No burst because this is the exception, not every package.
+            downloads = fetch_pypi_downloads(pkg)
+        return pkg, downloads, fetch_pypi_dates(pkg)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(_fetch_one, pkg) for pkg in package_names]
+        for future in concurrent.futures.as_completed(futures):
+            pkg, downloads, dates = future.result()
+            results[pkg] = (downloads, dates)
+
+    return results
+
+
+def preserve_nonzero_downloads(new_providers: list[dict], existing_providers: list[dict]) -> int:
+    """Keep a provider's previous download counts when this build fetched zero.
+
+    Defense-in-depth for the case where BOTH ClickHouse and the pypistats fallback fail
+    for a package: rather than overwrite a known-good number on the live registry with a
+    spurious zero, retain the previous ``pypi_downloads`` from the existing catalog.
+    Mutates ``new_providers`` in place; returns the number of providers preserved.
+    """
+    existing_by_id = {p["id"]: p for p in existing_providers}
+    preserved = 0
+    for provider in new_providers:
+        if (provider.get("pypi_downloads") or {}).get("monthly", 0):
+            continue  # this build got a real number; nothing to preserve
+        previous = existing_by_id.get(provider["id"], {}).get("pypi_downloads") or {}
+        if previous.get("monthly", 0) > 0:
+            provider["pypi_downloads"] = previous
+            preserved += 1
+            print(f"    Preserved previous downloads for {provider['id']} (this build fetched 0)")
+    return preserved
 
 
 def _parse_inventory_lines(inv_path: Path) -> list[str]:
@@ -359,6 +479,48 @@ def find_related_providers(provider_id: str, all_provider_yamls: dict[str, dict]
     return related[:5]  # Limit to 5 related providers
 
 
+def load_release_tags() -> set[str]:
+    """Return all ``providers-<id>/<version>`` git tags as a set for fast lookup.
+
+    Used to filter ``provider.yaml`` ``versions:`` lists to only entries that
+    correspond to a real release (excludes phantom version bumps where the
+    next-version entry was prepended to ``versions:`` before the tag landed,
+    or pre-release-only versions like ``providers-celery/3.19.0rc1`` where the
+    ``rc1`` exists but the final does not).
+
+    Returns an empty set if the ``git`` command fails (e.g., outside a checkout);
+    callers can decide whether to fall back to the unfiltered top entry.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "tag", "--list", "providers-*"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return set()
+    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+
+
+def find_latest_released_version(
+    provider_id: str,
+    versions_list: list[str],
+    release_tags: set[str],
+) -> str | None:
+    """Walk ``versions_list`` newest-first, return the first version with a real release tag.
+
+    Returns ``None`` when no entry in ``versions_list`` has a corresponding
+    ``providers-<id>/<version>`` tag, indicating the provider is unreleased
+    (brand-new in-tree, no tags yet) or in an inconsistent state.
+    """
+    for version in versions_list:
+        if f"providers-{provider_id}/{version}" in release_tags:
+            return version
+    return None
+
+
 def main():
     """Main extraction function."""
     import argparse
@@ -369,6 +531,17 @@ def main():
         default=None,
         help="Extract only this provider ID (e.g. 'amazon'). Omit for full build.",
     )
+    parser.add_argument(
+        "--allow-unreleased",
+        action="store_true",
+        help=(
+            "Include providers and versions that don't have a matching "
+            "providers-<id>/<ver> git tag. Use for staging builds and local dev "
+            "where maintainers want to preview unreleased provider pages before "
+            "the tag lands. Default is to filter unreleased entries so live "
+            "builds don't ship phantom pointers."
+        ),
+    )
     args = parser.parse_args()
 
     print("Airflow Registry Metadata Extractor")
@@ -378,6 +551,8 @@ def main():
         print(f"Incremental mode: extracting provider(s) {requested_providers}")
     else:
         requested_providers = None
+    if args.allow_unreleased:
+        print("Unreleased providers: INCLUDED (--allow-unreleased)")
 
     # Ensure output directory exists
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -415,6 +590,39 @@ def main():
     else:
         extraction_ids = set(all_provider_yamls.keys())
 
+    # Load all release tags once. Used below to filter `provider.yaml`'s
+    # `versions:` to only entries that have a real `providers-<id>/<ver>`
+    # git tag, avoiding phantom-version leaks (next-release bumps prepended
+    # to `versions:` before the tag lands, RC-only releases, brand-new
+    # providers with no tags yet).
+    #
+    # Skipped entirely when --allow-unreleased is set: staging builds and
+    # local dev want to preview unreleased provider pages so maintainers
+    # can verify them before tagging.
+    if args.allow_unreleased:
+        release_tags: set[str] = set()
+    else:
+        release_tags = load_release_tags()
+        if not release_tags:
+            print(
+                "  Warning: no providers-* git tags found; "
+                "phantom version filter is disabled (falling back to versions[0]). "
+                "If this is a CI run, ensure the checkout step uses fetch-tags: true."
+            )
+    skipped_unreleased: list[str] = []
+
+    # Pre-fetch PyPI download stats and release dates for every provider in
+    # parallel. This used to be ~2N sequential urlopen calls inside the loop
+    # below (5-10s timeouts each), which dominated wall-clock and serialised
+    # any pypistats slowdowns into a multi-minute build delay. Doing it once
+    # up-front turns ~86 sequential calls into ~6 batches of 16.
+    pypi_package_names = sorted(
+        all_provider_yamls[pid].get("package-name", f"apache-airflow-providers-{pid}")
+        for pid in extraction_ids
+    )
+    print(f"Fetching PyPI metadata for {len(pypi_package_names)} packages (parallel)...")
+    pypi_data = fetch_pypi_data_parallel(pypi_package_names)
+
     # Second pass: Extract full metadata (only for providers in extraction_ids)
     for provider_id in extraction_ids:
         provider_yaml = all_provider_yamls[provider_id]
@@ -447,9 +655,29 @@ def main():
         if len(description) > 200:
             description = description[:197] + "..."
 
-        # Get versions
-        versions = provider_yaml.get("versions", [])
-        version = versions[0] if versions else "0.0.0"
+        # Get versions, filtering to entries that have a real release tag.
+        # Provider release prep prepends the next version to `versions:` BEFORE
+        # the tag lands, and pre-release-only versions match `versions:` but
+        # have no final tag. Without filtering, `version` (the latest pointer)
+        # AND the `versions` list both leak phantoms downstream -- the latter
+        # is consumed by extract_versions.py's backfill, which would try to
+        # `git show` from a non-existent tag.
+        raw_versions = provider_yaml.get("versions", [])
+        if release_tags:
+            versions = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
+            version = find_latest_released_version(provider_id, raw_versions, release_tags)
+            if version is None:
+                skipped_unreleased.append(provider_id)
+                print(
+                    f"  Skipping {provider_id}: no released version found in "
+                    f"versions list {raw_versions} "
+                    f"(no matching providers-{provider_id}/<ver> tag)"
+                )
+                continue
+        else:
+            # No tag information available -- fall back to old behaviour.
+            versions = list(raw_versions)
+            version = versions[0] if versions else "0.0.0"
 
         # Extract categories from integrations
         categories = extract_integrations_as_categories(provider_yaml)
@@ -563,9 +791,12 @@ def main():
                     }
                 )
 
-        # Fetch PyPI download statistics and release dates
-        pypi_downloads = fetch_pypi_downloads(package_name)
-        pypi_dates = fetch_pypi_dates(package_name)
+        # Pre-fetched in parallel before this loop; missing entries fall back
+        # to zero-value defaults so a never-published provider doesn't crash.
+        pypi_downloads, pypi_dates = pypi_data.get(
+            package_name,
+            ({"weekly": 0, "monthly": 0, "total": 0}, {"first_released": "", "last_updated": ""}),
+        )
 
         # Parse pyproject.toml for requires-python and dependencies
         pyproject_path = provider_path / "pyproject.toml"
@@ -603,12 +834,33 @@ def main():
         all_providers.append(provider)
         print(f"  {provider_id}: {len(categories)} categories")
 
+    if skipped_unreleased:
+        print(
+            f"\nSkipped {len(skipped_unreleased)} unreleased provider(s) "
+            f"(no matching git tag): {sorted(skipped_unreleased)}"
+        )
+
     # Find related providers
     for provider in all_providers:
         provider.related_providers = find_related_providers(provider.id, all_provider_yamls)
 
     # Convert to JSON-serializable format
     new_providers = [asdict(p) for p in all_providers]
+
+    # Defense-in-depth: if this build fetched 0 downloads for a provider that had a real
+    # number on the previous (S3) providers.json, keep the previous number rather than
+    # publishing a spurious zero (#1309). No-op when there's no existing catalog on disk.
+    for candidate_dir in (SCRIPT_DIR, OUTPUT_DIR):
+        existing_catalog_path = candidate_dir / "providers.json"
+        if existing_catalog_path.exists():
+            try:
+                previous_catalog = json.loads(existing_catalog_path.read_text())
+            except json.JSONDecodeError:
+                break
+            preserved = preserve_nonzero_downloads(new_providers, previous_catalog.get("providers", []))
+            if preserved:
+                print(f"Preserved previous download counts for {preserved} provider(s) that fetched 0")
+            break
 
     # In incremental mode, merge new providers into existing providers.json
     # so parallel runs for different providers don't clobber each other.

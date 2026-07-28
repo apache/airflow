@@ -31,3 +31,18 @@ An example of running the query using the operator:
     :language: python
     :start-after: [START howto_operator_influxdb]
     :end-before: [END howto_operator_influxdb]
+
+.. _howto/operator:InfluxDB3Operator:
+
+InfluxDB3Operator
+-----------------
+
+The :class:`~airflow.providers.influxdb.operators.influxdb3.InfluxDB3Operator`
+executes SQL queries in an InfluxDB 3.x database.
+
+Example usage:
+
+.. exampleinclude:: /../../influxdb/tests/system/influxdb/example_influxdb3.py
+    :language: python
+    :start-after: [START howto_operator_influxdb3]
+    :end-before: [END howto_operator_influxdb3]

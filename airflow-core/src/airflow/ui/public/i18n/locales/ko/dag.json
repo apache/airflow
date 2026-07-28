@@ -3,7 +3,7 @@
   "blockingDeps": {
     "dependency": "종속성",
     "reason": "이유",
-    "title": "작업 스케줄링을 막는 종속성"
+    "title": "태스크 스케줄링을 막는 종속성"
   },
   "calendar": {
     "daily": "일간",
@@ -40,9 +40,37 @@
     "parseDuration": "파싱 기간:",
     "parsedAt": "파싱 시간:"
   },
+  "deadlineAlerts": {
+    "completionRule": "{{reference}} 기준 {{interval}} 이내에 완료되어야 합니다",
+    "count_one": "데드라인 {{count}}건",
+    "count_other": "데드라인 {{count}}건",
+    "referenceType": {
+      "AverageRuntimeDeadline": "평균 실행 시간",
+      "DagRunLogicalDateDeadline": "논리적 날짜",
+      "DagRunQueuedAtDeadline": "대기열에 등록된 시각"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "실제",
+    "expected": "예상",
+    "finishedEarly": "데드라인보다 {{duration}} 일찍 완료",
+    "finishedLate": "데드라인보다 {{duration}} 늦게 완료",
+    "label": "데드라인",
+    "met": "충족",
+    "missed": "초과",
+    "missedCount_one": "데드라인 초과 {{count}}건",
+    "missedCount_other": "데드라인 초과 {{count}}건",
+    "mixedCount": "데드라인 초과 {{missedCount}}건, 예정 {{upcomingCount}}건",
+    "stillRunning": "실행 중",
+    "upcoming": "예정",
+    "upcomingCount_one": "예정된 데드라인 {{count}}건",
+    "upcomingCount_other": "예정된 데드라인 {{count}}건"
+  },
   "extraLinks": "추가 링크",
   "grid": {
     "buttons": {
+      "newerRuns": "최신 실행",
+      "olderRuns": "이전 실행",
       "resetToLatest": "최신 버전으로 재설정",
       "toggleGroup": "그룹 토글"
     },
@@ -52,6 +80,9 @@
     "buttons": {
       "advanced": "고급",
       "dagDocs": "Dag 문서"
+    },
+    "status": {
+      "deactivated": "비활성화됨"
     }
   },
   "logs": {
@@ -60,19 +91,16 @@
     "critical": "크리티컬",
     "debug": "디버그",
     "error": "오류",
-    "fullscreen": {
-      "button": "전체 화면",
-      "tooltip": "전체 화면을 보려면 {{hotkey}}를 누르세요."
-    },
     "info": "정보",
     "noTryNumber": "시도 횟수 없음",
+    "search": {
+      "matchCount": "{{total}}개 중 {{current}}개",
+      "noMatches": "일치하는 결과 없음",
+      "placeholder": "로그 검색"
+    },
     "settings": "로그 설정",
     "viewInExternal": "{{name}}에서 로그 보기 (시도 {{attempt}})",
     "warning": "경고"
-  },
-  "navigation": {
-    "navigation": "탐색: Shift+{{arrow}}",
-    "toggleGroup": "그룹 전환: Space"
   },
   "notFound": {
     "back": "뒤로",
@@ -84,19 +112,23 @@
     "buttons": {
       "failedRun_one": "실패한 실행",
       "failedRun_other": "실패한 실행",
-      "failedTask_one": "실패한 작업",
-      "failedTask_other": "실패한 작업",
-      "failedTaskInstance_one": "실패한 작업 인스턴스",
-      "failedTaskInstance_other": "실패한 작업 인스턴스"
+      "failedTask_one": "실패한 태스크",
+      "failedTask_other": "실패한 태스크",
+      "failedTaskInstance_one": "실패한 태스크 인스턴스",
+      "failedTaskInstance_other": "실패한 태스크 인스턴스"
     },
     "charts": {
       "assetEvent_one": "생성된 에셋 이벤트",
       "assetEvent_other": "생성된 에셋 이벤트"
     },
+    "deadlines": {
+      "showAll": "모두 표시",
+      "title": "데드라인"
+    },
     "failedLogs": {
       "hideLogs": "로그 숨기기",
       "showLogs": "로그 보기",
-      "title": "최근 실패한 작업 로그",
+      "title": "최근 실패한 태스크 로그",
       "viewFullLogs": "전체 로그 보기"
     }
   },
@@ -115,12 +147,22 @@
       "options": {
         "allDagDependencies": "모든 Dag 종속성",
         "externalConditions": "외부 조건",
-        "onlyTasks": "작업만"
+        "onlyTasks": "태스크만"
       },
       "placeholder": "종속성"
     },
     "graphDirection": {
       "label": "그래프 방향"
+    },
+    "graphFilters": {
+      "clearFilters": "필터 초기화",
+      "durationGte": "최소 실행 시간(초)",
+      "durationGteHint": "매핑된 태스크의 경우 모든 인스턴스에 걸친 총 소요 시간을 기준으로 합니다.",
+      "mapIndex": "최소 맵 인덱스",
+      "mapIndexHint": "매핑된 태스크를 해당 인덱스까지 펼쳐 표시합니다.",
+      "selectStatus": "상태 선택",
+      "selectTaskGroup": "태스크 그룹 선택",
+      "title": "태스크 필터"
     },
     "showVersionIndicator": {
       "label": "버전 인디케이터 표시",
@@ -134,7 +176,7 @@
     "taskStreamFilter": {
       "activeFilter": "필터 적용하기",
       "clearFilter": "필터 지우기",
-      "clickTask": "필터 기준으로 사용할 작업을 선택하려면 클릭하세요",
+      "clickTask": "필터 기준으로 사용할 태스크를 선택하려면 클릭하세요",
       "depth": "깊이",
       "direction": "방향",
       "label": "필터",
@@ -149,7 +191,7 @@
         "downstream": "다운스트림",
         "upstream": "업스트림"
       },
-      "selectedTask": "선택된 작업"
+      "selectedTask": "선택된 태스크"
     }
   },
   "paramsFailed": "매개변수 로드 실패",
@@ -173,18 +215,40 @@
     "code": "코드",
     "details": "세부 정보",
     "logs": "로그",
-    "mappedTaskInstances_one": "작업 인스턴스 [{{count}}]",
-    "mappedTaskInstances_other": "작업 인스턴스 [{{count}}]",
+    "mappedTaskInstances_one": "태스크 인스턴스 [{{count}}]",
+    "mappedTaskInstances_other": "태스크 인스턴스 [{{count}}]",
     "overview": "개요",
     "renderedTemplates": "렌더링된 템플릿",
     "requiredActions": "필수 작업",
     "runs": "실행",
-    "taskInstances": "작업 인스턴스",
-    "tasks": "작업",
+    "storage": "스토리지",
+    "taskInstances": "태스크 인스턴스",
+    "taskStateStore": "태스크 상태 저장소",
+    "tasks": "태스크",
     "xcom": "XCom"
   },
   "taskGroups": {
-    "collapseAll": "모든 작업 그룹 접기",
-    "expandAll": "모든 작업 그룹 펼치기"
+    "collapseAll": "모든 태스크 그룹 접기",
+    "expandAll": "모든 태스크 그룹 펼치기"
+  },
+  "taskStateStore": {
+    "add": "태스크 상태 저장소 추가",
+    "clearAll": {
+      "resource": "모든 태스크 상태 저장소",
+      "title": "모든 태스크 상태 저장소 삭제",
+      "warning": "모든 태스크 상태 저장소가 삭제됩니다. 외부 작업을 추적하기 위해 이 저장소를 사용하는 태스크는 처음부터 다시 실행하지 않으면 작업을 재개할 수 없습니다."
+    },
+    "delete": "태스크 상태 저장소 삭제",
+    "deleteWarning": "태스크가 저장된 메모리를 잃게 됩니다. 태스크가 이 키를 사용하여 외부 작업(예: 외부 작업 ID)을 추적하고 있다면, 해당 작업을 재개할 수 없습니다.",
+    "edit": "태스크 상태 저장소 편집",
+    "emptyStore": "태스크 상태 저장소는 재시도 간에 유지되는 값을 저장합니다. 워커는 Task SDK를 통해 태스크 상태 저장소에 값을 기록할 수 있습니다.",
+    "expiresAt": {
+      "column": "만료 시간",
+      "custom": "사용자 지정",
+      "default": "기본값 ({{interval}})",
+      "label": "만료",
+      "never": "만료 없음"
+    },
+    "title": "태스크 상태 저장소"
   }
 }

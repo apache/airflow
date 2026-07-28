@@ -22,8 +22,8 @@ import traceback
 from collections.abc import AsyncIterator
 from typing import Any
 
-from airflow._shared.module_loading import import_string, qualname
-from airflow.models.callback import CallbackState, _accepts_context
+from airflow._shared.module_loading import accepts_context, import_string, qualname
+from airflow.models.callback import CallbackState
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 log = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ class CallbackTrigger(BaseTrigger):
             # TODO: get full context and run template rendering. Right now, a simple context is included in `callback_kwargs`
             context = self.callback_kwargs.pop("context", None)
 
-            if _accepts_context(callback) and context is not None:
+            if accepts_context(callback) and context is not None:
                 result = await callback(**self.callback_kwargs, context=context)
             else:
                 result = await callback(**self.callback_kwargs)

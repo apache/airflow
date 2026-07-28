@@ -57,7 +57,6 @@ def get_provider_info():
                         "label": "PINECONE_DEBUG_CURL",
                         "schema": {"type": ["boolean", "null"], "default": False},
                     },
-                    "project_id": {"label": "Project ID", "schema": {"type": ["string", "null"]}},
                 },
             }
         ],

@@ -37,11 +37,16 @@ class TestCloudTranslateHook:
         ):
             self.hook = CloudTranslateHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.translate.CloudTranslateHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.translate.CloudTranslateHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.translate.Client")
-    def test_translate_client_creation(self, mock_client, mock_get_creds):
+    def test_translate_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
+        )
         assert mock_client.return_value == result
         assert self.hook._client == result
 
@@ -87,11 +92,16 @@ class TestTranslateHook:
         ):
             self.hook = TranslateHook(gcp_conn_id="test")
 
+    @mock.patch("airflow.providers.google.cloud.hooks.translate.TranslateHook.get_client_options")
     @mock.patch("airflow.providers.google.cloud.hooks.translate.TranslateHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.translate.TranslationServiceClient")
-    def test_translate_client_creation(self, mock_client, mock_get_creds):
+    def test_translate_client_creation(self, mock_client, mock_get_creds, mock_get_client_options):
         result = self.hook.get_client()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
+        )
         assert mock_client.return_value == result
         assert self.hook._client == result
 

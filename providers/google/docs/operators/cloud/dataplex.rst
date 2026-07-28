@@ -15,19 +15,19 @@
     specific language governing permissions and limitations
     under the License.
 
-Google Dataplex Operators
-=========================
+Google Knowledge Catalog Operators
+==================================
 
-Dataplex is an intelligent data fabric that provides unified analytics
+Knowledge Catalog is an intelligent data fabric that provides unified analytics
 and data management across your data lakes, data warehouses, and data marts.
 
-For more information about the task visit `Dataplex production documentation <Product documentation <https://cloud.google.com/dataplex/docs/reference>`__
+For more information about the task visit `Knowledge Catalog production documentation <Product documentation <https://cloud.google.com/dataplex/docs/reference>`__
 
 Create a Task
 -------------
 
 Before you create a dataplex task you need to define its body.
-For more information about the available fields to pass when creating a task, visit `Dataplex create task API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.tasks#Task>`__
+For more information about the available fields to pass when creating a task, visit `Knowledge Catalog create task API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.tasks#Task>`__
 
 A simple task configuration can look as followed:
 
@@ -39,6 +39,9 @@ A simple task configuration can look as followed:
 
 With this configuration we can create the task both synchronously & asynchronously:
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateTaskOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateTaskOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
@@ -59,6 +62,9 @@ To delete a task you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteTaskOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteTaskOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
@@ -72,6 +78,9 @@ To list tasks you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexListTasksOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogListTasksOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
@@ -84,6 +93,9 @@ Get a task
 To get a task you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetTaskOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetTaskOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
@@ -109,7 +121,7 @@ Create a Lake
 
 Before you create a dataplex lake you need to define its body.
 
-For more information about the available fields to pass when creating a lake, visit `Dataplex create lake API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes#Lake>`__
+For more information about the available fields to pass when creating a lake, visit `Knowledge Catalog create lake API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes#Lake>`__
 
 A simple task configuration can look as followed:
 
@@ -122,6 +134,9 @@ A simple task configuration can look as followed:
 With this configuration we can create the lake:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateLakeOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateLakeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
@@ -136,6 +151,9 @@ To delete a lake you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteLakeOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteLakeOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
@@ -145,8 +163,8 @@ To delete a lake you can use:
 Create or update a Data Quality scan
 ------------------------------------
 
-Before you create a Dataplex Data Quality scan you need to define its body.
-For more information about the available fields to pass when creating a Data Quality scan, visit `Dataplex create data quality API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans#DataScan>`__
+Before you create a Knowledge Catalog Data Quality scan you need to define its body.
+For more information about the available fields to pass when creating a Data Quality scan, visit `Knowledge Catalog create data quality API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans#DataScan>`__
 
 A simple Data Quality scan configuration can look as followed:
 
@@ -160,6 +178,9 @@ With this configuration we can create or update the Data Quality scan:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateOrUpdateDataQualityScanOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateOrUpdateDataQualityScanOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
@@ -172,6 +193,9 @@ Get a Data Quality scan
 To get a Data Quality scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataQualityScanOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetDataQualityScanOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
@@ -188,6 +212,9 @@ To delete a Data Quality scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteDataQualityScanOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteDataQualityScanOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
@@ -197,9 +224,12 @@ To delete a Data Quality scan you can use:
 Run a Data Quality scan
 -----------------------
 
-You can run Dataplex Data Quality scan in asynchronous modes to later check its status using sensor:
+You can run Knowledge Catalog Data Quality scan in asynchronous modes to later check its status using sensor:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexRunDataQualityScanOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogRunDataQualityScanOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
@@ -207,7 +237,7 @@ You can run Dataplex Data Quality scan in asynchronous modes to later check its 
     :start-after: [START howto_dataplex_run_data_quality_operator]
     :end-before: [END howto_dataplex_run_data_quality_operator]
 
-To check that running Dataplex Data Quality scan succeeded you can use:
+To check that running Knowledge Catalog Data Quality scan succeeded you can use:
 
 :class:`~airflow.providers.google.cloud.sensors.dataplex.DataplexDataQualityJobStatusSensor`.
 
@@ -232,6 +262,9 @@ To get a Data Quality scan job you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataQualityScanResultOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetDataQualityScanResultOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
@@ -249,9 +282,9 @@ Also for this action you can use operator in the deferrable mode:
 Create a zone
 -------------
 
-Before you create a Dataplex zone you need to define its body.
+Before you create a Knowledge Catalog zone you need to define its body.
 
-For more information about the available fields to pass when creating a zone, visit `Dataplex create zone API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones#Zone>`__
+For more information about the available fields to pass when creating a zone, visit `Knowledge Catalog create zone API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones#Zone>`__
 
 A simple zone configuration can look as followed:
 
@@ -264,6 +297,9 @@ A simple zone configuration can look as followed:
 With this configuration we can create a zone:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateZoneOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateZoneOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
@@ -278,6 +314,9 @@ To delete a zone you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteZoneOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteZoneOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
@@ -287,9 +326,9 @@ To delete a zone you can use:
 Create an asset
 ---------------
 
-Before you create a Dataplex asset you need to define its body.
+Before you create a Knowledge Catalog asset you need to define its body.
 
-For more information about the available fields to pass when creating an asset, visit `Dataplex create asset API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones.assets#Asset>`__
+For more information about the available fields to pass when creating an asset, visit `Knowledge Catalog create asset API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones.assets#Asset>`__
 
 A simple asset configuration can look as followed:
 
@@ -302,6 +341,9 @@ A simple asset configuration can look as followed:
 With this configuration we can create the asset:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateAssetOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateAssetOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
@@ -316,6 +358,9 @@ To delete an asset you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteAssetOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteAssetOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
@@ -325,8 +370,8 @@ To delete an asset you can use:
 Create or update a Data Profile scan
 ------------------------------------
 
-Before you create a Dataplex Data Profile scan you need to define its body.
-For more information about the available fields to pass when creating a Data Profile scan, visit `Dataplex create data profile API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans#DataScan>`__
+Before you create a Knowledge Catalog Data Profile scan you need to define its body.
+For more information about the available fields to pass when creating a Data Profile scan, visit `Knowledge Catalog create data profile API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans#DataScan>`__
 
 A simple Data Profile scan configuration can look as followed:
 
@@ -340,6 +385,9 @@ With this configuration we can create or update the Data Profile scan:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateOrUpdateDataProfileScanOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateOrUpdateDataProfileScanOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
@@ -352,6 +400,9 @@ Get a Data Profile scan
 To get a Data Profile scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataProfileScanOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetDataProfileScanOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
@@ -368,6 +419,9 @@ To delete a Data Profile scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteDataProfileScanOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteDataProfileScanOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
@@ -377,9 +431,12 @@ To delete a Data Profile scan you can use:
 Run a Data Profile scan
 -----------------------
 
-You can run Dataplex Data Profile scan in asynchronous modes to later check its status using sensor:
+You can run Knowledge Catalog Data Profile scan in asynchronous modes to later check its status using sensor:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexRunDataProfileScanOperator`
+
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogRunDataProfileScanOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
@@ -387,7 +444,7 @@ You can run Dataplex Data Profile scan in asynchronous modes to later check its 
     :start-after: [START howto_dataplex_run_data_profile_operator]
     :end-before: [END howto_dataplex_run_data_profile_operator]
 
-To check that running Dataplex Data Profile scan succeeded you can use:
+To check that running Knowledge Catalog Data Profile scan succeeded you can use:
 
 :class:`~airflow.providers.google.cloud.sensors.dataplex.DataplexDataProfileJobStatusSensor`.
 
@@ -412,6 +469,9 @@ To get a Data Profile scan job you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataProfileScanResultOperator`
 
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetDataProfileScanResultOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
@@ -419,22 +479,24 @@ To get a Data Profile scan job you can use:
     :end-before: [END howto_dataplex_get_data_profile_job_operator]
 
 
-Google Dataplex Catalog Operators
-=================================
+Google Knowledge Catalog Entry Operators
+========================================
 
-Dataplex Catalog provides a unified inventory of Google Cloud resources, such as BigQuery, and other resources,
-such as on-premises resources. Dataplex Catalog automatically retrieves metadata for Google Cloud resources,
-and you bring metadata for third-party resources into Dataplex Catalog.
+Knowledge Catalog provides a unified inventory of Google Cloud resources, such as BigQuery, and other resources,
+such as on-premises resources. Knowledge Catalog automatically retrieves metadata for Google Cloud resources,
+and you bring metadata for third-party resources into Knowledge Catalog.
 
-For more information about Dataplex Catalog visit `Dataplex Catalog production documentation <Product documentation <https://cloud.google.com/dataplex/docs/catalog-overview>`__
+For more information about Knowledge Catalog visit `Knowledge Catalog production documentation <Product documentation <https://cloud.google.com/dataplex/docs/catalog-overview>`__
 
 .. _howto/operator:DataplexCatalogCreateEntryGroupOperator:
 
 Create an EntryGroup
 --------------------
 
-To create an Entry Group in specific location in Dataplex Catalog you can
+To create an Entry Group in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateEntryGroupOperator``.
 For more information about the available fields to pass when creating an Entry Group, visit `Entry Group resource configuration. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryGroups#EntryGroup>`__
 
 A simple Entry Group configuration can look as followed:
@@ -448,6 +510,8 @@ A simple Entry Group configuration can look as followed:
 With this configuration you can create an Entry Group resource:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryGroupOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateEntryGroupOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -460,8 +524,10 @@ With this configuration you can create an Entry Group resource:
 Delete an EntryGroup
 --------------------
 
-To delete an Entry Group in specific location in Dataplex Catalog you can
+To delete an Entry Group in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryGroupOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteEntryGroupOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -474,9 +540,11 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDe
 List EntryGroups
 ----------------
 
-To list all Entry Groups in specific location in Dataplex Catalog you can
+To list all Entry Groups in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogListEntryGroupsOperator`.
 This operator also supports filtering and ordering the result of the operation.
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogListEntryGroupsOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -489,8 +557,10 @@ This operator also supports filtering and ordering the result of the operation.
 Get an EntryGroup
 -----------------
 
-To retrieve an Entry Group in specific location in Dataplex Catalog you can
+To retrieve an Entry Group in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryGroupOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetEntryGroupOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -503,8 +573,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGe
 Update an EntryGroup
 --------------------
 
-To update an Entry Group in specific location in Dataplex Catalog you can
+To update an Entry Group in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryGroupOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogUpdateEntryGroupOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -517,8 +589,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUp
 Create an EntryType
 --------------------
 
-To create an Entry Type in specific location in Dataplex Catalog you can
+To create an Entry Type in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateEntryTypeOperator``.
 For more information about the available fields to pass when creating an Entry Type, visit `Entry Type resource configuration. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryTypes#EntryType>`__
 
 A simple Entry Group configuration can look as followed:
@@ -532,6 +606,8 @@ A simple Entry Group configuration can look as followed:
 With this configuration you can create an Entry Type resource:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateEntryTypeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -544,8 +620,10 @@ With this configuration you can create an Entry Type resource:
 Delete an EntryType
 --------------------
 
-To delete an Entry Type in specific location in Dataplex Catalog you can
+To delete an Entry Type in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteEntryTypeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -558,9 +636,11 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDe
 List EntryTypes
 ----------------
 
-To list all Entry Types in specific location in Dataplex Catalog you can
+To list all Entry Types in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogListEntryTypesOperator`.
 This operator also supports filtering and ordering the result of the operation.
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogListEntryTypesOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -573,8 +653,10 @@ This operator also supports filtering and ordering the result of the operation.
 Get an EntryType
 -----------------
 
-To retrieve an Entry Group in specific location in Dataplex Catalog you can
+To retrieve an Entry Group in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetEntryTypeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -587,8 +669,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGe
 Update an EntryType
 --------------------
 
-To update an Entry Type in specific location in Dataplex Catalog you can
+To update an Entry Type in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogUpdateEntryTypeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -601,8 +685,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUp
 Create an AspectType
 --------------------
 
-To create an Aspect Type in specific location in Dataplex Catalog you can
+To create an Aspect Type in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateAspectTypeOperator``.
 For more information about the available fields to pass when creating an Aspect Type, visit `Aspect Type resource configuration. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.aspectTypes#AspectType>`__
 
 A simple Aspect Group configuration can look as followed:
@@ -616,6 +702,8 @@ A simple Aspect Group configuration can look as followed:
 With this configuration you can create an Aspect Type resource:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateAspectTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateAspectTypeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -628,8 +716,10 @@ With this configuration you can create an Aspect Type resource:
 Delete an AspectType
 --------------------
 
-To delete an Aspect Type in specific location in Dataplex Catalog you can
+To delete an Aspect Type in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteAspectTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteAspectTypeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -642,9 +732,11 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDe
 List AspectTypes
 ----------------
 
-To list all Aspect Types in specific location in Dataplex Catalog you can
+To list all Aspect Types in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogListAspectTypesOperator`.
 This operator also supports filtering and ordering the result of the operation.
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogListAspectTypesOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -657,8 +749,10 @@ This operator also supports filtering and ordering the result of the operation.
 Get an AspectType
 -----------------
 
-To retrieve an Aspect Group in specific location in Dataplex Catalog you can
+To retrieve an Aspect Group in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetAspectTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetAspectTypeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -671,8 +765,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGe
 Update an AspectType
 --------------------
 
-To update an Aspect Type in specific location in Dataplex Catalog you can
+To update an Aspect Type in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateAspectTypeOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogUpdateAspectTypeOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -685,8 +781,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUp
 Create an Entry
 ---------------
 
-To create an Entry in specific location in Dataplex Catalog you can
+To create an Entry in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateEntryOperator``.
 For more information about the available fields to pass when creating an Entry, visit `Entry resource configuration. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.entryGroups.entries>`__
 
 A simple Entry configuration can look as followed:
@@ -700,6 +798,8 @@ A simple Entry configuration can look as followed:
 With this configuration you can create an Entry resource:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogCreateEntryOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogCreateEntryOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -712,8 +812,10 @@ With this configuration you can create an Entry resource:
 Delete an Entry
 ---------------
 
-To delete an Entry in specific location in Dataplex Catalog you can
+To delete an Entry in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDeleteEntryOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogDeleteEntryOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -726,9 +828,11 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogDe
 List Entries
 ------------
 
-To list all Entries in specific location in Dataplex Catalog you can
+To list all Entries in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogListEntriesOperator`.
 This operator also supports filtering and ordering the result of the operation.
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogListEntriesOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -741,8 +845,10 @@ This operator also supports filtering and ordering the result of the operation.
 Get an Entry
 ------------
 
-To retrieve an Entry in specific location in Dataplex Catalog you can
+To retrieve an Entry in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGetEntryOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogGetEntryOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -755,8 +861,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogGe
 Update an Entry
 ---------------
 
-To update an Entry in specific location in Dataplex Catalog you can
+To update an Entry in a specific Knowledge Catalog location you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUpdateEntryOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogUpdateEntryOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -769,8 +877,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogUp
 Look up a single Entry
 ----------------------
 
-To look up a single Entry by name using the permission on the source system in Dataplex Catalog you can
+To look up a single Entry by name using the permission on the source system in Knowledge Catalog you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogLookupEntryOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogLookupEntryOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python
@@ -783,8 +893,10 @@ use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogLo
 Search Entries
 --------------
 
-To search for Entries matching the given query and scope in Dataplex Catalog you can
+To search for Entries matching the given query and scope in Knowledge Catalog you can
 use :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCatalogSearchEntriesOperator`
+The executable example below still imports the compatibility name shown above.
+The preferred alias for new code is ``KnowledgeCatalogSearchEntriesOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataplex/example_dataplex_catalog.py
     :language: python

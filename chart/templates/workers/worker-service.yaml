@@ -17,35 +17,32 @@
  under the License.
 */}}
 
-################################
+#########################
 ## Airflow Worker Service
-#################################
+#########################
 {{- $globals := deepCopy . -}}
-{{- $filteredCelery := include "removeNilFields" .Values.workers.celery | fromYaml -}}
-{{- $mergedWorkers := (include "workersMergeValues" (list .Values.workers $filteredCelery "" (list "kerberosInitContainer" "kerberosSidecar")) | fromYaml) -}}
-{{- $_ := unset $mergedWorkers "celery" -}}
 {{- $workerSets := .Values.workers.celery.sets | default list -}}
 {{- if .Values.workers.celery.enableDefault -}}
   {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
 {{- end -}}
 {{- range $workerSet := $workerSets -}}
-  {{- $workers := (include "workersMergeValues" (list $mergedWorkers $workerSet "" list) | fromYaml) -}}
-  {{- $_ := set $globals.Values "workers" $workers -}}
+  {{- $workers := (include "workersMergeValues" (list $.Values.workers.celery $workerSet) | fromYaml) -}}
+  {{- $_ := set $globals.Values.workers "celery" $workers -}}
   {{- with $globals -}}
-{{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+{{- if contains "CeleryExecutor" .Values.executor }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
+  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.celery.name "default" }}-{{ .Values.workers.celery.name }}{{ end }}
   labels:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or .Values.labels .Values.workers.labels }}
-      {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or .Values.labels .Values.workers.celery.labels }}
+      {{- mustMerge .Values.workers.celery.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
 spec:
   clusterIP: None
@@ -53,14 +50,20 @@ spec:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
-    {{- if ne .Values.workers.name "default" }}
-    worker-set: {{ .Values.workers.name }}
+    {{- if ne .Values.workers.celery.name "default" }}
+    worker-set: {{ .Values.workers.celery.name }}
     {{- end }}
   ports:
     - name: worker-logs
       protocol: TCP
       port: {{ .Values.ports.workerLogs }}
       targetPort: {{ .Values.ports.workerLogs }}
+  {{- if .Values.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.ipFamilies | nindent 4 }}
+  {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}

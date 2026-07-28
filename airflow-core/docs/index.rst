@@ -133,10 +133,6 @@ others via the `community <https://airflow.apache.org/community>`_, `Slack <http
 Why not Airflow®?
 =================
 
-Airflow® is designed for finite, batch-oriented workflows. While you can trigger Dags using the CLI or REST API, Airflow is not
-intended for continuously running, event-driven, or streaming workloads. That said, Airflow often complements streaming systems like Apache Kafka.
-Kafka handles real-time ingestion, writing data to storage. Airflow can then periodically pick up that data and process it in batch.
-
 If you prefer clicking over coding, Airflow might not be the best fit. The web UI simplifies workflow management, and the developer
 experience is continuously improving, but defining workflows as code is central to how Airflow works — so some coding is always required.
 

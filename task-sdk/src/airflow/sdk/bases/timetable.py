@@ -47,6 +47,14 @@ class BaseTimetable:
 
     asset_condition: BaseAsset | None = None
 
+    partitioned_at_runtime: bool = False
+    """
+    Whether this timetable defers partition selection to task runtime.
+
+    *True* for :class:`~airflow.sdk.PartitionedAtRuntime`; downstream code can
+    branch on this flag instead of using ``isinstance``.
+    """
+
     def validate(self) -> None:
         """
         Validate the timetable is correctly specified.

@@ -49,11 +49,25 @@ Many operators will auto-push their results into an XCom key called ``return_val
     # Pulls the return_value XCOM from "pushing_task"
     value = task_instance.xcom_pull(task_ids='pushing_task')
 
+If you need to pull a value from a specific DAG run (for example, a DAG run triggered by
+``TriggerDagRunOperator``), specify both ``dag_id`` and ``run_id`` explicitly::
+
+    trigger_run_id = task_instance.xcom_pull(task_ids="trigger_child", key="trigger_run_id")
+    child_value = task_instance.xcom_pull(
+        task_ids="child_task",
+        dag_id="child_dag",
+        run_id=trigger_run_id,
+    )
+
 The return_value key (default key with which XComs are pushed) is defined as a constant XCOM_RETURN_KEY in the :class:`~airflow.sdk.bases.xcom.BaseXCom` class and can be accessed as BaseXCom.XCOM_RETURN_KEY.
 
 You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
+
+.. note::
+
+  ``xcom_pull()`` without a ``task_ids`` argument pulls only from the current task. In Airflow 2, the same call would search all tasks and return the most recent value. Always specify ``task_ids`` explicitly when pulling from other tasks.
 
 XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a Dag run, while Variables are global and designed for overall configuration and value sharing.
 

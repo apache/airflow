@@ -1,0 +1,72 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_edge_labels_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "task_1": {
+                            "downstream_task_ids": [
+                                "task_2",
+                                "task_3"
+                            ],
+                            "downstream_task_edges": {
+                                "task_2": {
+                                    "label": "success path"
+                                },
+                                "task_3": {
+                                    "label": "alternate path"
+                                }
+                            }
+                        },
+                        "task_2": {
+                            "downstream_task_ids": [
+                                "task_4",
+                                "task_5"
+                            ],
+                            "downstream_task_edges": {
+                                "task_4": {
+                                    "label": "follow-up"
+                                },
+                                "task_5": null
+                            }
+                        },
+                        "task_3": {
+                            "downstream_task_ids": [
+                                "check_events"
+                            ],
+                            "downstream_task_edges": {
+                                "check_events": null
+                            }
+                        },
+                        "task_4": {
+                            "downstream_task_ids": [
+                                "check_events"
+                            ],
+                            "downstream_task_edges": {
+                                "check_events": null
+                            }
+                        },
+                        "task_5": {
+                            "downstream_task_ids": [
+                                "task_6"
+                            ],
+                            "downstream_task_edges": {
+                                "task_6": null
+                            }
+                        },
+                        "task_6": {
+                            "downstream_task_ids": [
+                                "check_events"
+                            ],
+                            "downstream_task_edges": {
+                                "check_events": null
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+]

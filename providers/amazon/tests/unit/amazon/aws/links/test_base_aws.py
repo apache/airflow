@@ -194,12 +194,12 @@ class BaseAwsLinksTestCase:
         assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == expected_url, error_msg
 
     def test_link_serialize(self):
-        """Test: Operator links should exist for serialized DAG."""
+        """Test: Operator links should exist for serialized Dag."""
         self.create_op_and_ti(self.link_class, dag_id="test_link_serialize", task_id=self.task_id)
         serialized_dag = self.dag_maker.get_serialized_data()
         deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
         operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
-        error_message = "Operator links should exist for serialized DAG"
+        error_message = "Operator links should exist for serialized Dag"
         assert operator_extra_link.name == self.link_class.name, error_message
 
     def test_empty_xcom(self):

@@ -17,13 +17,26 @@
 from __future__ import annotations
 
 import datetime
+from unittest import mock
 
+import httpx
 import pytest
 
 from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.generated import DAGResponse
+from airflowctl.api.operations import ServerResponseError
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
+
+
+def _make_server_error(status_code: int) -> ServerResponseError:
+    request = httpx.Request("GET", "http://testserver/api/v2/dags/test_dag/dagRuns/test_run")
+    response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+    return ServerResponseError(message="boom", request=request, response=response)
+
+
+def _normalize_rich_output(text: str) -> str:
+    return " ".join(text.split())
 
 
 class TestDagCommands:
@@ -42,6 +55,7 @@ class TestDagCommands:
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
         timetable_partitioned=False,
+        timetable_periodic=True,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -53,6 +67,7 @@ class TestDagCommands:
         next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
+        is_backfillable=True,
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
@@ -70,6 +85,7 @@ class TestDagCommands:
         timetable_summary="timetable_summary",
         timetable_description="timetable_description",
         timetable_partitioned=False,
+        timetable_periodic=True,
         tags=[],
         max_active_tasks=1,
         max_active_runs=1,
@@ -81,6 +97,37 @@ class TestDagCommands:
         next_dagrun_data_interval_end=datetime.datetime(2025, 1, 1, 0, 0, 0),
         next_dagrun_run_after=datetime.datetime(2025, 1, 1, 0, 0, 0),
         owners=["apache-airflow"],
+        is_backfillable=True,
+        file_token="file_token",
+        bundle_name="bundle_name",
+        is_stale=False,
+    )
+
+    dag_response_no_schedule = DAGResponse(
+        dag_id=dag_id,
+        dag_display_name=dag_display_name,
+        is_paused=True,
+        last_parsed_time=datetime.datetime(2024, 12, 31, 23, 59, 59),
+        last_expired=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        fileloc="fileloc",
+        relative_fileloc="relative_fileloc",
+        description="description",
+        timetable_summary=None,
+        timetable_description=None,
+        timetable_partitioned=False,
+        timetable_periodic=False,
+        tags=[],
+        max_active_tasks=1,
+        max_active_runs=1,
+        max_consecutive_failed_dag_runs=1,
+        has_task_concurrency_limits=False,
+        has_import_errors=False,
+        next_dagrun_logical_date=None,
+        next_dagrun_data_interval_start=None,
+        next_dagrun_data_interval_end=None,
+        next_dagrun_run_after=None,
+        owners=["apache-airflow"],
+        is_backfillable=False,
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
@@ -139,3 +186,197 @@ class TestDagCommands:
                 self.parser.parse_args(["dags", "unpause", self.dag_id]),
                 api_client=api_client,
             )
+
+    def test_next_execution(self, api_client_maker):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json=self.dag_response_paused.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        result = dag_command.next_execution(
+            self.parser.parse_args(["dags", "next-execution", self.dag_id]),
+            api_client=api_client,
+        )
+        assert result["next_dagrun_logical_date"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
+        assert result["next_dagrun_data_interval_start"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
+        assert result["next_dagrun_data_interval_end"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
+        assert result["next_dagrun_run_after"] == datetime.datetime(2025, 1, 1, 0, 0, 0)
+
+    def test_next_execution_no_schedule(self, api_client_maker):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json=self.dag_response_no_schedule.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        result = dag_command.next_execution(
+            self.parser.parse_args(["dags", "next-execution", self.dag_id]),
+            api_client=api_client,
+        )
+        assert result is None
+
+    def test_next_execution_fail(self, api_client_maker):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "DAG not found"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.next_execution(
+                self.parser.parse_args(["dags", "next-execution", self.dag_id]),
+                api_client=api_client,
+            )
+
+    def test_state_by_run_id(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.dag_runs.get.return_value = mock.MagicMock(state="success", conf={})
+
+        dag_command.state(
+            self.parser.parse_args(["dags", "state", self.dag_id, "test_run"]),
+            api_client=api_client,
+        )
+
+        assert capsys.readouterr().out.strip() == "success"
+        api_client.dag_runs.get.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id="test_run",
+            suppress_error_log=True,
+        )
+        api_client.dag_runs.list.assert_not_called()
+
+    def test_state_by_logical_date(self, capsys):
+        api_client = mock.MagicMock()
+        logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        api_client.dag_runs.list.return_value.dag_runs = [
+            mock.MagicMock(state="failed", conf={"reason": "[red]test[/red]"})
+        ]
+
+        dag_command.state(
+            self.parser.parse_args(
+                ["dags", "state", self.dag_id, "--logical-date", logical_date.isoformat()]
+            ),
+            api_client=api_client,
+        )
+
+        assert capsys.readouterr().out.strip() == 'failed, {"reason": "[red]test[/red]"}'
+        api_client.dag_runs.list.assert_called_once_with(
+            dag_id=self.dag_id,
+            logical_date_gte=logical_date,
+            logical_date_lte=logical_date,
+            order_by="-id",
+            limit=1,
+            suppress_error_log=True,
+        )
+        api_client.dag_runs.get.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [
+            [],
+            ["test_run", "--logical-date", "2025-01-01T00:00:00+00:00"],
+        ],
+        ids=["neither", "both"],
+    )
+    def test_state_requires_exactly_one_of_run_id_and_logical_date(self, extra_args, capsys):
+        api_client = mock.MagicMock()
+
+        with pytest.raises(SystemExit) as ctx:
+            dag_command.state(
+                self.parser.parse_args(["dags", "state", self.dag_id, *extra_args]),
+                api_client=api_client,
+            )
+
+        assert ctx.value.code == 1
+        api_client.dag_runs.get.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Provide either run_id or --logical-date, but not both"
+        )
+
+    @pytest.mark.parametrize(
+        ("logical_date", "expected_message"),
+        [
+            ("not-a-date", "Invalid --logical-date: 'not-a-date'"),
+            ("2025-01-01T00:00:00", "--logical-date must include a timezone offset"),
+        ],
+        ids=["unparsable", "naive"],
+    )
+    def test_state_rejects_bad_logical_date(self, logical_date, expected_message, capsys):
+        api_client = mock.MagicMock()
+
+        with pytest.raises(SystemExit) as ctx:
+            dag_command.state(
+                self.parser.parse_args(["dags", "state", self.dag_id, "--logical-date", logical_date]),
+                api_client=api_client,
+            )
+
+        assert ctx.value.code == 1
+        api_client.dag_runs.list.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == expected_message
+
+    @pytest.mark.parametrize("list_failure", ["no_matching_run", "dag_not_found_404"])
+    def test_state_dag_run_not_found_by_logical_date(self, list_failure, capsys):
+        api_client = mock.MagicMock()
+        if list_failure == "no_matching_run":
+            api_client.dag_runs.list.return_value.dag_runs = []
+        else:
+            api_client.dag_runs.list.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit) as ctx:
+            dag_command.state(
+                self.parser.parse_args(
+                    ["dags", "state", self.dag_id, "--logical-date", "2025-01-01T00:00:00+00:00"]
+                ),
+                api_client=api_client,
+            )
+
+        assert ctx.value.code == 1
+        api_client.dag_runs.get.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Dag run for test_dag with logical date '2025-01-01T00:00:00+00:00' not found"
+        )
+
+    def test_state_dag_run_not_found_by_run_id(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.dag_runs.get.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit) as ctx:
+            dag_command.state(
+                self.parser.parse_args(["dags", "state", self.dag_id, "missing_run"]),
+                api_client=api_client,
+            )
+
+        assert ctx.value.code == 1
+        api_client.dag_runs.list.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Dag run 'missing_run' of Dag 'test_dag' not found"
+        )
+
+    def test_state_reraises_non_404_dag_run_get_error(self):
+        api_client = mock.MagicMock()
+        api_client.dag_runs.get.side_effect = error = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError) as ctx:
+            dag_command.state(
+                self.parser.parse_args(["dags", "state", self.dag_id, "test_run"]),
+                api_client=api_client,
+            )
+
+        assert ctx.value is error
+        api_client.dag_runs.list.assert_not_called()
+
+    def test_state_reraises_non_404_dag_run_list_error(self):
+        api_client = mock.MagicMock()
+        api_client.dag_runs.list.side_effect = error = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError) as ctx:
+            dag_command.state(
+                self.parser.parse_args(
+                    ["dags", "state", self.dag_id, "--logical-date", "2025-01-01T00:00:00+00:00"]
+                ),
+                api_client=api_client,
+            )
+
+        assert ctx.value is error
+        api_client.dag_runs.get.assert_not_called()

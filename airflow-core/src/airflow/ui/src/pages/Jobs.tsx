@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Box, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -31,7 +31,7 @@ import { FilterBar } from "src/components/FilterBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
+import { useDocumentTitle, useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 const createColumns = (translate: TFunction): Array<ColumnDef<JobResponse>> => [
   {
@@ -95,6 +95,9 @@ const jobsFilterKeys: Array<FilterableSearchParamsKeys> = [
 
 export const Jobs = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
+
+  useDocumentTitle(translate("common:browse.jobs"));
+
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams] = useSearchParams();
 
@@ -131,7 +134,6 @@ export const Jobs = () => {
 
   return (
     <Box p={2}>
-      <Heading>{translate("common:browse.jobs")}</Heading>
       <VStack align="start" gap={4} paddingY="4px">
         <FilterBar
           configs={filterConfigs}

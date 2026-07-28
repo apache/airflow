@@ -8,6 +8,7 @@
     "Variables": "متغيرات"
   },
   "allOperators": "جميع المُشغِّلات",
+  "allTeams": "جميع الفرق",
   "appearance": {
     "appearance": "المظهر",
     "darkMode": "الوضع الداكن",
@@ -26,6 +27,9 @@
   "assetEvent_other": "وقائعات أصول",
   "assetEvent_two": "واقعتا أصل",
   "assetEvent_zero": "لا يوجد أي واقعة أصل",
+  "assetInactive": {
+    "tooltip": "تم إلغاء تفعيل الأصل السابق؛ يحتفظ المُجَدْوِل بتقييم التقسيمات حتى إعادة تفعيله."
+  },
   "backfill_few": "إعادات ملء",
   "backfill_many": "إعادات ملء",
   "backfill_one": "إعادة ملء",
@@ -34,11 +38,14 @@
   "backfill_zero": "لا يوجد أي إعادة ملء",
   "browse": {
     "auditLog": "سجل المراجعة",
+    "deadlines": "المواعيد النهائية",
+    "jobs": "الوظائف",
     "requiredActions": "إجراءات مطلوبة",
     "xcoms": "(XComs) إكس كوم"
   },
   "collapseAllExtra": "طي جميع الJSON الإضافية",
   "collapseDetailsPanel": "طي لوحة التفاصيل",
+  "consumingAsset": "الأصل المستهلك",
   "createdAssetEvent_few": "تم إنشاء واقعات أصل",
   "createdAssetEvent_many": "تم إنشاء واقعات أصل",
   "createdAssetEvent_one": "تم إنشاء واقعة أصل",
@@ -71,7 +78,8 @@
     "owner": "المالك",
     "params": "معاملات",
     "schedule": "جدولة",
-    "tags": "وسوم"
+    "tags": "وسوم",
+    "team": "الفريق"
   },
   "dagId": "معرف Dag",
   "dagRun": {
@@ -79,7 +87,14 @@
     "dagVersions": "إصدار(ات) Dag",
     "dataIntervalEnd": "نهاية فترة البيانات",
     "dataIntervalStart": "بداية فترة البيانات",
+    "durationStats": {
+      "mean": "المتوسط",
+      "mode": "المنوال"
+    },
+    "expectedDuration": "المدة المتوقعة",
     "lastSchedulingDecision": "آخر قرار جدولة",
+    "mappedPartitionKey": "مفتاح التقسيم المعيَّن",
+    "partitionDate": "تاريخ التقسيم",
     "partitionKey": "مفتاح التقسيم",
     "queuedAt": "في الطابور في",
     "runAfter": "تشغيل بعد",
@@ -125,6 +140,12 @@
     "notFound": "غير موجود",
     "title": "خطأ"
   },
+  "errors": {
+    "forbidden": {
+      "description": "ليس لديك إذن لتنفيذ هذا الإجراء.",
+      "title": "تم رفض الوصول"
+    }
+  },
   "expand": {
     "collapse": "طي",
     "expand": "توسيع",
@@ -147,9 +168,15 @@
     "logicalDateTo": "إلى التاريخ المنطقي",
     "runAfterFrom": "من تشغيل بعد",
     "runAfterTo": "إلى تشغيل بعد",
+    "searchAsset": "بحث عن أصل",
     "selectDateRange": "اختر نطاق التاريخ",
     "startTime": "وقت البدء"
   },
+  "fullscreen": {
+    "tooltip": "اضغط {{hotkey}} لملء الشاشة"
+  },
+  "generateToken": "توليد رمز",
+  "key": "المفتاح",
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
   "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
@@ -179,13 +206,50 @@
   "note": {
     "add": "إضافة",
     "dagRun": "تشغيل Dag",
+    "edit": "تعديل الملاحظة",
     "label": "وسم",
     "placeholder": "أضف ملاحظة...",
-    "taskInstance": "مثيل المهمة"
+    "preview": "معاينة",
+    "taskInstance": "مثيل المهمة",
+    "write": "كتابة"
+  },
+  "overallStatus": "الحالة العامة",
+  "partitionedDagRun_few": "تشغيلات Dag مُجزأة",
+  "partitionedDagRun_many": "تشغيل Dag مُجزأ",
+  "partitionedDagRun_one": "تشغيل Dag مُجزأ",
+  "partitionedDagRun_other": "تشغيلات Dag مُجزأة",
+  "partitionedDagRun_two": "تشغيلا Dag مُجزآن",
+  "partitionedDagRun_zero": "لا توجد تشغيلات Dag مُجزأة",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "أحداث الأصول المستلمة"
+  },
+  "pendingDagRun_few": "{{count}} تشغيلات Dag مُعلّقة",
+  "pendingDagRun_many": "{{count}} تشغيل Dag مُعلّق",
+  "pendingDagRun_one": "تشغيل Dag مُعلّق واحد",
+  "pendingDagRun_other": "{{count}} تشغيل Dag مُعلّق",
+  "pendingDagRun_two": "تشغيلا Dag مُعلّقان",
+  "pendingDagRun_zero": "لا توجد تشغيلات Dag مُعلّقة",
+  "presetFilters": {
+    "deleteTitle": "حذف الفلتر المُعدّ مسبقاً",
+    "deleteWarning": "تُحفظ الفلاتر المُعدّة مسبقاً في هذا المتصفح فقط.",
+    "duplicate": "الفلتر المُعدّ مسبقاً \"{{name}}\" يحفظ هذا الإعداد نفسه بالفعل.",
+    "empty": "لا توجد فلاتر مُعدّة مسبقاً بعد",
+    "info": {
+      "default": "ثبّت فلتراً مُعدّاً مسبقاً كافتراضي ليُطبَّق تلقائياً عند فتح هذه الصفحة دون أي فلاتر.",
+      "save": "احفظ الفلاتر والترتيب الحالية كفلتر مُعدّ مسبقاً باسم، ثم عُد إليه في أي وقت.",
+      "storage": "تُحفظ الفلاتر المُعدّة مسبقاً في هذا المتصفح."
+    },
+    "namePlaceholder": "اسم الفلتر المُعدّ مسبقاً",
+    "nothingToSave": "لا يوجد ما يُحفظ. طبّق فلاتر أو ترتيباً لحفظ فلتر مُعدّ مسبقاً.",
+    "save": "حفظ",
+    "setDefault": "تعيين كافتراضي",
+    "title": "الفلاتر المُعدّة مسبقاً",
+    "unsetDefault": "إلغاء التعيين كافتراضي"
   },
   "reset": "إعادة تعيين",
   "runId": "معرف التشغيل",
   "runTypes": {
+    "asset_materialization": "تجسيد الأصل",
     "asset_triggered": "مُشغل بواسطة الأصل",
     "backfill": "تعبئة رجعية",
     "manual": "يدوي",
@@ -198,6 +262,12 @@
     },
     "tooltip": "اضغط {{hotkey}} للتمرير إلى {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "طابِق في أي موضع داخل القيمة (بحث عن سلسلة جزئية). يكون أبطأ في البيئات الكبيرة لأنه لا يمكنه استخدام فهرس B-tree الافتراضي. راجع قسم الوثائق الخاص بفهارس البيانات الوصفية المخصصة للتفاصيل.",
+      "title": "مطابقة في أي موضع"
+    }
+  },
   "security": {
     "actions": "إجراءات",
     "permissions": "صلاحيات",
@@ -206,6 +276,48 @@
     "users": "مستخدمون"
   },
   "selectLanguage": "اختيار اللغة",
+  "selected": "محدد",
+  "shortcuts": {
+    "categories": {
+      "code": "الكود",
+      "dagView": "عرض Dag",
+      "filters": "الفلاتر",
+      "global": "عام",
+      "logs": "السجلات",
+      "navigation": "التنقل",
+      "runActions": "إجراءات التشغيل والمهام",
+      "search": "البحث"
+    },
+    "descriptions": {
+      "clearRun": "مسح $t(dagRun_one)",
+      "clearTaskInstance": "مسح $t(taskInstance_one)",
+      "downloadLogs": "تنزيل السجلات",
+      "focusFilterSearch": "التركيز على بحث الفلاتر",
+      "focusLogSearch": "البحث في السجلات",
+      "focusSearch": "التركيز على البحث",
+      "markRunFailed": "تعليم $t(dagRun_one) كفاشل",
+      "markRunSuccess": "تعليم $t(dagRun_one) كناجح",
+      "markTaskFailed": "تعليم $t(task_one) كفاشلة",
+      "markTaskGroupFailed": "تعليم $t(taskGroup_one) كفاشلة",
+      "markTaskGroupSuccess": "تعليم $t(taskGroup_one) كناجحة",
+      "markTaskSuccess": "تعليم $t(task_one) كناجحة",
+      "navigateTasks": "التنقل بين $t(task_other)",
+      "openGraphFilters": "فتح فلاتر الرسم البياني",
+      "scrollBottom": "التمرير إلى الأسفل",
+      "scrollTop": "التمرير إلى الأعلى",
+      "searchDags": "البحث في $t(dag_other)",
+      "showHelp": "إظهار $t(shortcuts.title)",
+      "toggleExpand": "توسيع أو طي جميع المجموعات",
+      "toggleFullscreen": "تبديل ملء الشاشة",
+      "toggleGraphGrid": "التبديل بين عرض الرسم البياني والشبكة",
+      "toggleSource": "تبديل المصدر",
+      "toggleTaskGroup": "توسيع أو طي $t(taskGroup_one)",
+      "toggleTimestamp": "تبديل الأختام الزمنية",
+      "toggleWrap": "تبديل $t(wrap.wrap)"
+    },
+    "empty": "لا تتوفر اختصارات لوحة مفاتيح في هذه الصفحة.",
+    "title": "اختصارات لوحة المفاتيح"
+  },
   "showDetailsPanel": "إظهار لوحة التفاصيل",
   "signedInAs": "تم تسجيل الدخول باسم",
   "source": {
@@ -222,6 +334,7 @@
   "startDate": "تاريخ البدء",
   "state": "الحالة",
   "states": {
+    "awaiting_input": "بانتظار الإدخال",
     "deferred": "مؤجل",
     "failed": "فشِل",
     "no_status": "بلا حالة",
@@ -253,18 +366,23 @@
     "from": "من",
     "maxActiveRuns": "الحد الأقصى للتشغيلات النشطة",
     "noTagsFound": "لم يتم العثور على وسوم",
+    "noTeamsFound": "لم يتم العثور على فرق",
     "tagMode": {
       "all": "الكل",
       "any": "اي شيء"
     },
     "tagPlaceholder": "تصفية حسب الوسم",
-    "to": "إلى"
+    "to": "إلى",
+    "updatedAt": "تم التحديث في"
   },
   "task": {
+    "dependsOnPast": "يعتمد على الماضي",
     "documentation": "وثائق المهمة",
     "lastInstance": "آخر مثيل",
     "operator": "المشغل",
-    "triggerRule": "احكام التشغيل"
+    "retries": "إعادات المحاولة",
+    "triggerRule": "احكام التشغيل",
+    "waitForDownstream": "انتظار المهام اللاحقة"
   },
   "task_few": "مهام",
   "task_many": "مهام",
@@ -272,13 +390,23 @@
   "task_other": "مهام",
   "task_two": "مهمتان",
   "task_zero": "لا يوجد أي مهمة",
-  "taskGroup": "مجموعة المهام",
+  "taskGroup": {
+    "documentation": "توثيق مجموعة المهام"
+  },
+  "taskGroup_few": "مجموعات المهام",
+  "taskGroup_many": "مجموعة مهام",
+  "taskGroup_one": "مجموعة مهام",
+  "taskGroup_other": "مجموعات المهام",
+  "taskGroup_two": "مجموعتا مهام",
+  "taskGroup_zero": "لا توجد مجموعات مهام",
   "taskId": "معرف المهمة",
   "taskInstance": {
+    "additionalAttributes": "سمات إضافية لمثيل المهمة",
     "dagVersion": "إصدار الDag",
     "executor": "منفذ",
     "executorConfig": "تكوين المنفذ",
     "hostname": "اسم المضيف",
+    "id": "المعرف",
     "maxTries": "الحد الأقصى للمحاولات",
     "pid": "معرف العملية",
     "pool": "مجموعة الموارد",
@@ -286,12 +414,15 @@
     "priorityWeight": "وزن الأولوية",
     "queue": "طابور",
     "queuedWhen": "في الطابور في",
+    "renderedMapIndex": "فهرس الخريطة المعروض",
     "scheduledWhen": "مجدول في",
+    "trigger": "المُحفِّز",
     "triggerer": {
       "assigned": "مُطلِق مُخصص",
       "class": "فئة المُطلِق",
       "createdAt": "تاريخ إنشاء المُطلِق",
       "id": "معرف المُطلِق",
+      "job": "وظيفة المُطلِق",
       "latestHeartbeat": "آخر نبضة للمُطلِق",
       "title": "معلومات المُطلِق"
     },
@@ -322,11 +453,25 @@
     "utc": "UTC (التوقيت العالمي المنسق)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "فشل طلب المسح المجمع لـ{{resourceName}}",
+      "success": {
+        "description": "تم مسح {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "title": "تم إرسال طلب المسح المجمع لـ{{resourceName}}"
+      }
+    },
     "bulkDelete": {
       "error": "فشل طلب حذف الرُزمة ل{{resourceName}}",
       "success": {
         "description": "تم حذف {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
         "title": "تم إرسال طلب الحذف المجمع ل{{resourceName}}"
+      }
+    },
+    "bulkUpdate": {
+      "error": "فشل طلب التحديث المجمع لـ{{resourceName}}",
+      "success": {
+        "description": "تم تحديث {{count}} {{resourceName}} بنجاح. المفاتيح: {{keys}}",
+        "title": "تم إرسال طلب التحديث المجمع لـ{{resourceName}}"
       }
     },
     "create": {
@@ -358,10 +503,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "رمز API",
+    "cliToken": "رمز CLI",
+    "errorDescription": "حدث خطأ أثناء توليد الرمز. يُرجى المحاولة مرة أخرى.",
+    "errorTitle": "فشل توليد الرمز",
+    "generate": "توليد",
+    "selectType": "اختر نوع الرمز المراد توليده.",
+    "title": "توليد رمز",
+    "tokenExpiresIn": "تنتهي صلاحية هذا الرمز خلال {{duration}}.",
+    "tokenGenerated": "تم توليد الرمز الخاص بك.",
+    "tokenShownOnce": "سيتم عرض هذا الرمز مرة واحدة فقط. انسخه الآن."
+  },
   "total": "إجمالي {{state}}",
   "triggered": "مُشغل",
   "tryNumber": "محاولة رقم",
   "user": "المستخدم",
+  "validation": {
+    "mustBeAtLeast": "يجب أن يكون على الأقل {{min}}.",
+    "mustBeValidNumber": "يجب أن يكون رقماً صالحاً."
+  },
+  "value": "القيمة",
   "wrap": {
     "hotkey": "w",
     "tooltip": "اضغط {{hotkey}} لتبديل الالتفاف",

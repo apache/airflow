@@ -41,7 +41,17 @@ with DAG(
         azure_synapse_workspace_dev_endpoint="azure_synapse_workspace_dev_endpoint",
     )
     # [END howto_operator_azure_synapse_run_pipeline]
-    begin >> run_pipeline1
+
+    # [START howto_operator_azure_synapse_run_pipeline_with_deferrable_flag]
+    run_pipeline2 = AzureSynapseRunPipelineOperator(
+        task_id="run_pipeline2",
+        azure_synapse_conn_id="azure_synapse_connection",
+        pipeline_name="Pipeline 2",
+        azure_synapse_workspace_dev_endpoint="azure_synapse_workspace_dev_endpoint",
+        deferrable=True,
+    )
+    # [END howto_operator_azure_synapse_run_pipeline_with_deferrable_flag]
+    begin >> run_pipeline1 >> run_pipeline2
 
     from tests_common.test_utils.watcher import watcher
 

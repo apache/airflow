@@ -64,31 +64,76 @@
             "Connection.DELETE": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Connection"]
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Connection.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Connection"]
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Connection.LIST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Connection"]
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Connection.POST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Connection"]
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Connection.PUT": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Connection"]
+                    "resourceTypes": ["Connection"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Custom.DELETE": {
@@ -142,6 +187,10 @@
                             "dag_entity": {
                                 "type": "String",
                                 "required": false
+                            },
+                            "team_name": {
+                                "type": "String",
+                                "required": false
                             }
                         },
                         "type": "Record"
@@ -155,6 +204,10 @@
                     "context": {
                         "attributes": {
                             "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            },
+                            "team_name": {
                                 "required": false,
                                 "type": "String"
                             }
@@ -172,6 +225,10 @@
                             "dag_entity": {
                                 "required": false,
                                 "type": "String"
+                            },
+                            "team_name": {
+                                "required": false,
+                                "type": "String"
                             }
                         },
                         "type": "Record"
@@ -185,6 +242,10 @@
                     "context": {
                         "attributes": {
                             "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            },
+                            "team_name": {
                                 "required": false,
                                 "type": "String"
                             }
@@ -202,6 +263,10 @@
                             "dag_entity": {
                                 "required": false,
                                 "type": "String"
+                            },
+                            "team_name": {
+                                "required": false,
+                                "type": "String"
                             }
                         },
                         "type": "Record"
@@ -217,61 +282,163 @@
             "Pool.DELETE": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Pool"]
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Pool.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Pool"]
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Pool.LIST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Pool"]
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Pool.POST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Pool"]
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Pool.PUT": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Pool"]
+                    "resourceTypes": ["Pool"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Team.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Team"]
+                }
+            },
+            "Team.LIST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Team"]
                 }
             },
             "Variable.DELETE": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Variable"]
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Variable.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Variable"]
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Variable.LIST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Variable"]
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Variable.POST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Variable"]
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "Variable.PUT": {
                 "appliesTo": {
                     "principalTypes": ["User"],
-                    "resourceTypes": ["Variable"]
+                    "resourceTypes": ["Variable"],
+                    "context": {
+                        "attributes": {
+                            "team_name": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
                 }
             },
             "View.GET": {
@@ -291,6 +458,7 @@
             "Dag": {},
             "Menu": {},
             "Pool": {},
+            "Team": {},
             "Group": {},
             "User": {
                 "memberOfTypes": [

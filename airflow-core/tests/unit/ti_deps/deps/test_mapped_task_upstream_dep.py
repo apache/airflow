@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.exceptions import AirflowFailException, AirflowSkipException
@@ -221,27 +222,39 @@ def test_step_by_step(
     assert sorted(schedulable_tis) == ["t1", "t2_a", "t3", "t4"]
     assert not finished_tis_states
 
-    # Run first schedulable task
-    schedulable_tis["t1"].run()
+    # Simulate running the first schedulable task: t1 returns [0]
+    schedulable_tis["t1"].state = SUCCESS
+    schedulable_tis["t1"].xcom_push(XCOM_RETURN_KEY, [0], session=session)
+    session.add(TaskMap.from_task_instance_xcom(schedulable_tis["t1"], [0]))
+    session.flush()
     schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
     assert sorted(schedulable_tis) == ["t2_a", "t3", "t4"]
     assert finished_tis_states == {"t1": SUCCESS}
 
-    # Run remaining schedulable tasks
+    # Simulate running remaining schedulable tasks
     if failure_mode == UPSTREAM_FAILED:
-        with pytest.raises(AirflowFailException):
-            schedulable_tis["t2_a"].run()
+        schedulable_tis["t2_a"].state = FAILED
+        session.flush()
         _one_scheduling_decision_iteration(dr, session)
     else:
-        schedulable_tis["t2_a"].run()
+        schedulable_tis["t2_a"].state = SUCCESS
+        session.flush()
         schedulable_tis, _ = _one_scheduling_decision_iteration(dr, session)
         if not failure_mode:
-            schedulable_tis["t2_b"].run()
+            schedulable_tis["t2_b"].state = SUCCESS
+            schedulable_tis["t2_b"].xcom_push(XCOM_RETURN_KEY, [1, 2], session=session)
+            session.add(TaskMap.from_task_instance_xcom(schedulable_tis["t2_b"], [1, 2]))
         else:
-            with pytest.raises(AirflowFailException):
-                schedulable_tis["t2_b"].run()
-    schedulable_tis["t3"].run()
-    schedulable_tis["t4"].run()
+            schedulable_tis["t2_b"].state = FAILED
+        session.flush()
+    if skip_upstream:
+        schedulable_tis["t3"].state = SKIPPED
+    else:
+        schedulable_tis["t3"].state = SUCCESS
+        schedulable_tis["t3"].xcom_push(XCOM_RETURN_KEY, [3, 4], session=session)
+        session.add(TaskMap.from_task_instance_xcom(schedulable_tis["t3"], [3, 4]))
+    schedulable_tis["t4"].state = SUCCESS
+    session.flush()
     _one_scheduling_decision_iteration(dr, session)
 
     # Test the mapped task upstream dependency checks
@@ -259,17 +272,21 @@ def test_step_by_step(
     assert finished_tis_states == expected_finished_tis_states
 
     if expect_passed:
-        # Run the m1 tasks
+        # Simulate running the m1 tasks; m2 mapping counts xcoms with map_index >= 0
         for i in range(4):
-            schedulable_tis[f"{mapped_task_1}_{i}"].run()
+            ti = schedulable_tis[f"{mapped_task_1}_{i}"]
+            ti.state = SUCCESS
+            ti.xcom_push(XCOM_RETURN_KEY, i, session=session)
             expected_finished_tis_states[f"{mapped_task_1}_{i}"] = SUCCESS
+        session.flush()
         schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
         assert sorted(schedulable_tis) == [f"{mapped_task_2}_{i}" for i in range(4)]
         assert finished_tis_states == expected_finished_tis_states
-        # Run the m2 tasks
+        # Simulate running the m2 tasks
         for i in range(4):
-            schedulable_tis[f"{mapped_task_2}_{i}"].run()
+            schedulable_tis[f"{mapped_task_2}_{i}"].state = SUCCESS
             expected_finished_tis_states[f"{mapped_task_2}_{i}"] = SUCCESS
+        session.flush()
         schedulable_tis, finished_tis_states = _one_scheduling_decision_iteration(dr, session)
         assert finished_tis_states == expected_finished_tis_states
         assert not schedulable_tis

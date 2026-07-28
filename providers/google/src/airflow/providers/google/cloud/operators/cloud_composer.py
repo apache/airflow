@@ -28,7 +28,7 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment, Exe
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerAirflowCLICommandTrigger,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context
 
-CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environments"
+CLOUD_COMPOSER_BASE_LINK = BASE_LINK + "/composer/environments"
 CLOUD_COMPOSER_DETAILS_LINK = (
     CLOUD_COMPOSER_BASE_LINK + "/detail/{region}/{environment_id}/monitoring?project={project_id}"
 )
@@ -63,6 +63,10 @@ class CloudComposerEnvironmentsLink(BaseGoogleLink):
     name = "Cloud Composer Environment List"
     key = "composer_conf"
     format_str = CLOUD_COMPOSER_ENVIRONMENTS_LINK
+
+
+class ComposerEnvironmentNotRunningError(RuntimeError):
+    """Raised when a Composer environment is not in the RUNNING state."""
 
 
 class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
@@ -137,6 +141,22 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
             "environment_id": self.environment_id,
         }
 
+    def _raise_if_environment_not_running(self, environment: Environment) -> None:
+        env_state = Environment.State(environment.state)
+        self.log.info("Environment state: %s", env_state.name)
+
+        self.log.info(
+            "Composer environment final state: raw=%s, name=%s, value=%s",
+            environment.state,
+            env_state.name,
+            env_state.value,
+        )
+
+        if env_state != Environment.State.RUNNING:
+            raise ComposerEnvironmentNotRunningError(
+                f"Composer environment is not in RUNNING state. Current state: {env_state.name}"
+            )
+
     def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -162,7 +182,22 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
             context["ti"].xcom_push(key="operation_id", value=result.operation.name)
 
             if not self.deferrable:
-                environment = hook.wait_for_operation(timeout=self.timeout, operation=result)
+                self.log.info("Waiting for the create environment operation to complete...")
+                hook.wait_for_operation(timeout=self.timeout, operation=result)
+                self.log.info(
+                    "Create environment operation completed. Checking the state of the environment..."
+                )
+                environment = hook.get_environment(
+                    project_id=self.project_id,
+                    region=self.region,
+                    environment_id=self.environment_id,
+                    retry=self.retry,
+                    timeout=self.timeout,
+                    metadata=self.metadata,
+                )
+                self._raise_if_environment_not_running(environment)
+
+                self.log.info("Environment created and is in RUNNING state")
                 return Environment.to_dict(environment)
             self.defer(
                 trigger=CloudComposerExecutionTrigger(
@@ -184,6 +219,10 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+            self.log.info("Environment already exists. Checking its state...")
+            self._raise_if_environment_not_running(environment)
+
+            self.log.info("Environment already exists and is in RUNNING state")
             return Environment.to_dict(environment)
 
     def execute_complete(self, context: Context, event: dict):
@@ -201,6 +240,9 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+            self._raise_if_environment_not_running(env)
+
+            self.log.info("Environment created and is in RUNNING state")
             return Environment.to_dict(env)
         raise AirflowException(f"Unexpected error in the operation: {event['operation_name']}")
 
@@ -801,13 +843,13 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
 
 class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
     """
-    Trigger DAG run for provided Composer environment.
+    Trigger Dag run for provided Composer environment.
 
     :param project_id: The ID of the Google Cloud project that the service belongs to.
     :param region: The ID of the Google Cloud region that the service belongs to.
     :param environment_id: The ID of the Google Cloud environment that the service belongs to.
-    :param composer_dag_id: The ID of DAG which will be triggered.
-    :param composer_dag_conf: Configuration parameters for the DAG run.
+    :param composer_dag_id: The ID of Dag which will be triggered.
+    :param composer_dag_conf: Configuration parameters for the Dag run.
     :param timeout: The timeout for this request.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud Platform.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -872,7 +914,7 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info(
-            "Triggering the DAG %s on the %s environment...", self.composer_dag_id, self.environment_id
+            "Triggering the Dag %s on the %s environment...", self.composer_dag_id, self.environment_id
         )
         dag_run = hook.trigger_dag_run(
             composer_airflow_uri=composer_airflow_uri,
@@ -881,6 +923,6 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
             composer_airflow_version=composer_airflow_version,
             timeout=self.timeout,
         )
-        self.log.info("The DAG %s was triggered with Run ID: %s", self.composer_dag_id, dag_run["dag_run_id"])
+        self.log.info("The Dag %s was triggered with Run ID: %s", self.composer_dag_id, dag_run["dag_run_id"])
 
         return dag_run

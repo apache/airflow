@@ -235,6 +235,36 @@ class Connection:
             hook_params = {}
         return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
+    def test_connection(self) -> tuple[bool, str]:
+        """
+        Call ``get_hook`` and execute ``test_connection`` on the resulting hook.
+
+        Pre-warms ``_preset_connections`` with ``self`` so the hook can resolve
+        this connection by ``conn_id`` from inside ``hook.test_connection`` even
+        when no metadata-DB or secrets backend has it yet (used by the async
+        connection-test workflow where the worker holds the connection in memory).
+        """
+        from airflow.sdk.execution_time.context import _preset_connections
+
+        outer = _preset_connections.get() or {}
+        reset_token = _preset_connections.set({**outer, self.conn_id: self})
+        try:
+            try:
+                hook = self.get_hook()
+            except AirflowException as e:
+                return False, str(e)
+            if not getattr(hook, "test_connection", None):
+                return (
+                    False,
+                    f"Hook {type(hook).__name__} doesn't implement or inherit test_connection method",
+                )
+            try:
+                return hook.test_connection()
+            except Exception as e:
+                return False, str(e)
+        finally:
+            _preset_connections.reset(reset_token)
+
     @classmethod
     def _handle_connection_error(cls, e: AirflowRuntimeError, conn_id: str) -> None:
         """Handle connection retrieval errors."""

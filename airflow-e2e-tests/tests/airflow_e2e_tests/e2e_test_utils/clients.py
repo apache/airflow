@@ -43,11 +43,6 @@ def get_s3_client():
     )
 
 
-def get_elasticsearch_session():
-    """Return a requests session configured for talking to the local Elasticsearch container."""
-    return create_request_session_with_retries(status_forcelist=[429, 500, 502, 503, 504])
-
-
 def create_request_session_with_retries(status_forcelist: list[int]):
     """Create a requests Session with retry logic for handling transient errors."""
     Retry.DEFAULT_BACKOFF_MAX = 32
@@ -104,9 +99,33 @@ class AirflowClient:
             **kwargs,
         )
         response.raise_for_status()
-        return response.json()
+        # DELETE and other no-content responses (204) have an empty body; json() would choke on it.
+        return response.json() if response.content else None
+
+    def get_dag(self, dag_id: str):
+        return self._make_request(method="GET", endpoint=f"dags/{dag_id}")
+
+    def wait_for_dag(self, dag_id: str, timeout: int = 120, check_interval: int = 3):
+        """Poll until *dag_id* is registered (parsed & serialized) and reachable via the API.
+
+        On remote CI runners the Dag processor may need extra time to parse & serialize
+        new Dag files, so calling ``un_pause_dag`` immediately can return a 404. Retry
+        until the Dag exists or *timeout* seconds elapse.
+        """
+        start = time.monotonic()
+        last_error: Exception | None = None
+        while time.monotonic() - start < timeout:
+            try:
+                return self.get_dag(dag_id)
+            except requests.HTTPError as exc:
+                if exc.response is None or exc.response.status_code != 404:
+                    raise
+                last_error = exc
+            time.sleep(check_interval)
+        raise TimeoutError(f"Dag {dag_id} was not registered within {timeout}s. Last error: {last_error}")
 
     def un_pause_dag(self, dag_id: str):
+        self.wait_for_dag(dag_id)
         return self._make_request(
             method="PATCH",
             endpoint=f"dags/{dag_id}",
@@ -157,6 +176,13 @@ class AirflowClient:
         return self._make_request(
             method="GET",
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
+        )
+
+    def list_dag_runs(self, dag_id: str, limit: int = 100):
+        """List Dag runs for a given Dag."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns?limit={limit}",
         )
 
     def get_task_logs(

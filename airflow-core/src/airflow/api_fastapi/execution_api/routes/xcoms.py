@@ -38,26 +38,70 @@ from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
 
-async def has_xcom_access(
+def has_xcom_access(
     dag_id: str,
     run_id: str,
     task_id: str,
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
+    session: SessionDep,
     token=CurrentTIToken,
 ) -> bool:
-    """Check if the task has access to the XCom."""
-    # TODO: Placeholder for actual implementation
+    """
+    Check whether the requesting task may access the XCom for ``dag_id``.
+
+    In multi-team mode, XCom access is scoped by team ownership (resolved via the
+    ``dag -> bundle -> team`` chain). There is no cross-team XCom sharing:
+
+    * reads (``GET``/``HEAD``) are allowed for the requester's own team or for
+      global (teamless) dags;
+    * writes and deletes are allowed only for the requester's own team; a team
+      task may not mutate a global dag's XCom, mirroring how team-scoped
+      Variables and Connections behave.
+
+    When multi-team mode is disabled this is a no-op and all access is allowed,
+    consistent with Airflow's single-team security model where workers within a
+    deployment trust each other. Note this enforces the boundary at the Execution
+    API only; it does not constrain code paths with direct database access (e.g.
+    the Dag File Processor or Triggerer).
+    """
+    from airflow.configuration import conf
 
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
 
     log.debug(
-        "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",
+        "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
         "write" if write else "read",
         token.id,
         xcom_key,
+        dag_id,
     )
-    return True
+
+    if not conf.getboolean("core", "multi_team"):
+        return True
+
+    from airflow.api_fastapi.execution_api.security import (
+        _team_name_for_dag_stmt,
+        _team_name_for_ti_stmt,
+    )
+
+    requester_team = session.scalar(_team_name_for_ti_stmt(token.id))
+    target_team = session.scalar(_team_name_for_dag_stmt(dag_id))
+
+    # Same team (including a teamless task accessing a global, teamless dag) is always allowed.
+    if target_team == requester_team:
+        return True
+    # Reads may additionally reach global (teamless) dags; writes and deletes may not.
+    if not write and target_team is None:
+        return True
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "reason": "access_denied",
+            "message": "Task does not have access to this XCom in multi-team mode",
+        },
+    )
 
 
 router = APIRouter(
@@ -437,5 +481,4 @@ def delete_xcom(
         XComModel.map_index == map_index,
     )
     session.execute(query)
-    session.commit()
     return {"message": f"XCom with key: {key} successfully deleted."}

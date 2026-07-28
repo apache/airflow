@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import pathlib
@@ -46,7 +47,32 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
-    def upload(self, path: os.PathLike | str, ti: RuntimeTI):
+    @classmethod
+    def from_config(cls) -> S3RemoteLogIO:
+        """Build the remote log IO from Airflow logging configuration."""
+        remote_task_handler_kwargs = conf.getjson("logging", "remote_task_handler_kwargs", fallback={})
+        if not isinstance(remote_task_handler_kwargs, dict):
+            raise ValueError(
+                "logging/remote_task_handler_kwargs must be a JSON object (a python dict), we got "
+                f"{type(remote_task_handler_kwargs)}"
+            )
+        # remote_task_handler_kwargs mixes FileTaskHandler kwargs with IO kwargs; only the
+        # latter belong to this class (same split as airflow_local_settings.py).
+        fth_params = frozenset(inspect.signature(FileTaskHandler.__init__).parameters) - {
+            "self",
+            "base_log_folder",
+        }
+        io_kwargs = {k: v for k, v in remote_task_handler_kwargs.items() if k not in fth_params}
+        return cls(
+            **{
+                "base_log_folder": os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+                "remote_base": conf.get_mandatory_value("logging", "remote_base_log_folder"),
+                "delete_local_copy": conf.getboolean("logging", "delete_local_logs"),
+            }
+            | io_kwargs,
+        )
+
+    def upload(self, path: os.PathLike | str, ti: RuntimeTI | None = None) -> None:
         """Upload the given log path to the remote storage."""
         path = pathlib.Path(path)
         if path.is_absolute():
@@ -62,6 +88,8 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
             has_uploaded = self.write(log, remote_loc)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
+            elif has_uploaded:
+                local_loc.write_text("")
 
     @cached_property
     def hook(self):
@@ -119,21 +147,31 @@ class S3RemoteLogIO(LoggingMixin):  # noqa: D101
         try:
             if append and self.s3_log_exists(remote_log_location):
                 old_log = self.s3_read(remote_log_location)
-                log = f"{old_log}\n{log}" if old_log else log
+                if old_log:
+                    sep = "" if old_log.endswith("\n") else "\n"
+                    log = f"{old_log}{sep}{log}"
         except Exception:
             self.log.exception("Could not verify previous log to append")
             return False
+
+        bucket, key = self.hook.parse_s3_url(remote_log_location)
+        # Upload the log via the boto3 client directly instead of S3Hook.load_string. The hook's
+        # upload helpers report the object to the hook lineage collector, which would make task
+        # logs show up as task outputs in OpenLineage events. Logs are not task data assets.
+        extra_args = {}
+        if conf.getboolean("logging", "ENCRYPT_S3_LOGS"):
+            extra_args["ServerSideEncryption"] = "AES256"
 
         # Default to a single retry attempt because s3 upload failures are
         # rare but occasionally occur.  Multiple retry attempts are unlikely
         # to help as they usually indicate non-ephemeral errors.
         for try_num in range(1 + max_retry):
             try:
-                self.hook.load_string(
-                    log,
-                    key=remote_log_location,
-                    replace=True,
-                    encrypt=conf.getboolean("logging", "ENCRYPT_S3_LOGS"),
+                self.hook.get_conn().put_object(
+                    Bucket=bucket,
+                    Key=key,
+                    Body=log.encode("utf-8"),
+                    **extra_args,
                 )
                 break
             except Exception:

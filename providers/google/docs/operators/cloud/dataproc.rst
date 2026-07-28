@@ -15,20 +15,66 @@
     specific language governing permissions and limitations
     under the License.
 
-Google Cloud Dataproc Operators
-===============================
+Google Managed Service for Apache Spark Operators
+=================================================
 
-Dataproc is a managed Apache Spark and Apache Hadoop service that lets you
+Managed Service for Apache Spark is a managed Apache Spark and Apache Hadoop service that lets you
 take advantage of open source data tools for batch processing, querying, streaming and machine learning.
-Dataproc automation helps you create clusters quickly, manage them easily, and
+Managed Spark automation helps you create clusters quickly, manage them easily, and
 save money by turning clusters off when you don't need them.
 
-For more information about the service visit `Dataproc production documentation <Product documentation <https://cloud.google.com/dataproc/docs/reference>`__
+For more information about the service visit `Managed Spark production documentation <Product documentation <https://cloud.google.com/dataproc/docs/reference>`__
 
 Prerequisite Tasks
 ------------------
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
+
+
+Sovereign Cloud from Google guidance
+------------------------------------
+
+Sovereign Cloud from Google is a Google Cloud deployment with a separate service endpoint surface from
+standard Google Cloud regions. Dataproc support in Sovereign Cloud from Google can therefore differ from
+Dataproc support in standard Google Cloud. If a Dataproc API method or job type is not implemented in
+Sovereign Cloud from Google, the corresponding Airflow operator or job configuration will not run there.
+This is a Dataproc service availability limitation, not a Cloud Composer or Airflow operator limitation.
+
+The following Dataproc job configurations were available in the tested Sovereign Cloud from Google environment:
+
+* Hadoop jobs.
+* Hive jobs.
+* PySpark jobs.
+* Spark jobs.
+* Spark SQL jobs.
+* Trino jobs.
+
+The following Dataproc job configurations were not available in the tested environment:
+
+* ``PigJob``.
+* ``PrestoJob``.
+* ``SparkRJob``.
+* ``FlinkJob``.
+
+The following operators do not work in Sovereign Cloud from Google because the corresponding Dataproc API
+methods are not implemented there yet:
+
+* Workflow template operators:
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateWorkflowTemplateOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator`, and
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`.
+* Batch operators:
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocGetBatchOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocListBatchesOperator`,
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator`, and
+  :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCancelOperationOperator`.
+
+The same limitation was observed with ``gcloud`` commands, so this is not a Cloud Composer or Airflow
+operator limitation.
+
+When running in Sovereign Cloud from Google, verify that the Dataproc API method and job type are available
+in that environment before relying on the corresponding Airflow operator in a production DAG.
 
 
 .. _howto/operator:DataprocCreateClusterOperator:
@@ -37,22 +83,22 @@ Prerequisite Tasks
 Create a Cluster
 ----------------
 
-When you create a Dataproc cluster, you have the option to choose Compute Engine as the deployment platform.
-In this configuration, Dataproc automatically provisions the required Compute Engine VM instances to run the cluster.
+When you create a Managed Spark cluster, you have the option to choose Compute Engine as the deployment platform.
+In this configuration, Managed Spark automatically provisions the required Compute Engine VM instances to run the cluster.
 The VM instances are used for the main node, primary worker and secondary worker nodes (if specified).
-These VM instances are created and managed by Compute Engine, while Dataproc takes care of configuring the software and
+These VM instances are created and managed by Compute Engine, while Managed Spark takes care of configuring the software and
 orchestration required for the big data processing tasks.
 By providing the configuration for your nodes, you describe the configuration of primary and
 secondary nodes, and status of a cluster of Compute Engine instances.
 Configuring secondary worker nodes, you can specify the number of workers and their types. By
 enabling the Preemptible option to use Preemptible VMs (equivalent to Spot instances) for those nodes, you
-can take advantage of the cost savings provided by these instances for your Dataproc workloads.
+can take advantage of the cost savings provided by these instances for your Managed Spark workloads.
 The primary node, which typically hosts the cluster main and various control services, does not have the Preemptible
 option because it's crucial for the primary node to maintain stability and availability.
 Once a cluster is created, the configuration settings, including the preemptibility of secondary worker nodes,
 cannot be modified directly.
 
-For more information about the available fields to pass when creating a cluster, visit `Dataproc create cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#Cluster>`__
+For more information about the available fields to pass when creating a cluster, visit `Managed Spark create cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#Cluster>`__
 
 A cluster configuration can look as followed:
 
@@ -65,24 +111,28 @@ A cluster configuration can look as followed:
 With this configuration we can create the cluster:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
 
+The executable example below still imports the compatibility name
+``DataprocCreateClusterOperator``. The preferred alias for new code is
+``ManagedSparkCreateClusterOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_hive.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
-Dataproc on GKE deploys Dataproc virtual clusters on a GKE cluster. Unlike Dataproc on Compute Engine clusters,
-Dataproc on GKE virtual clusters do not include separate main and worker VMs. Instead, when you create a Dataproc on
-GKE virtual cluster, Dataproc on GKE creates node pools within a GKE cluster. Dataproc on GKE jobs are run as pods on
+Managed Spark on GKE deploys Managed Spark virtual clusters on a GKE cluster. Unlike Managed Spark on Compute Engine clusters,
+Managed Spark on GKE virtual clusters do not include separate main and worker VMs. Instead, when you create a Managed Spark on
+GKE virtual cluster, Managed Spark on GKE creates node pools within a GKE cluster. Managed Spark on GKE jobs are run as pods on
 these node pools. The node pools and scheduling of pods on the node pools are managed by GKE.
 
-When creating a GKE Dataproc cluster, you can specify the usage of Preemptible VMs for the underlying compute resources.
+When creating a GKE Managed Spark cluster, you can specify the usage of Preemptible VMs for the underlying compute resources.
 GKE supports the use of Preemptible VMs as a cost-saving measure.
 By enabling Preemptible VMs, GKE will provision the cluster nodes using Preemptible VMs. Or you can create nodes as
 Spot VM instances, which are the latest update to legacy preemptible VMs.
-This can be beneficial for running Dataproc workloads on GKE while optimizing costs.
+This can be beneficial for running Managed Spark workloads on GKE while optimizing costs.
 
-To create Dataproc cluster in Google Kubernetes Engine you could pass cluster configuration:
+To create Managed Spark cluster in Google Kubernetes Engine you could pass cluster configuration:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_gke.py
     :language: python
@@ -93,13 +143,17 @@ To create Dataproc cluster in Google Kubernetes Engine you could pass cluster co
 With this configuration we can create the cluster:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
 
+The executable example below still imports the compatibility name
+``DataprocCreateClusterOperator``. The preferred alias for new code is
+``ManagedSparkCreateClusterOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_gke.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
 
-You can also create Dataproc cluster with optional component Presto.
+You can also create Managed Spark cluster with optional component Presto.
 To do so, please use the following configuration.
 Note that default image might not support the chosen optional component.
 If this is your case, please specify correct ``image_version`` that you can find in the
@@ -111,7 +165,7 @@ If this is your case, please specify correct ``image_version`` that you can find
     :start-after: [START how_to_cloud_dataproc_create_cluster]
     :end-before: [END how_to_cloud_dataproc_create_cluster]
 
-You can also create Dataproc cluster with optional component Trino.
+You can also create Managed Spark cluster with optional component Trino.
 To do so, please use the following configuration.
 Note that default image might not support the chosen optional component.
 If this is your case, please specify correct ``image_version`` that you can find in the
@@ -147,14 +201,18 @@ You can generate and use config as followed:
 
 Diagnose a cluster
 ------------------
-Dataproc supports the collection of `cluster diagnostic information <https://cloud.google.com/dataproc/docs/support/diagnose-cluster-command#diagnostic_summary_and_archive_contents>`_
-like system, Spark, Hadoop, and Dataproc logs, cluster configuration files that can be used to troubleshoot a Dataproc cluster or job.
+Managed Spark supports the collection of `cluster diagnostic information <https://cloud.google.com/dataproc/docs/support/diagnose-cluster-command#diagnostic_summary_and_archive_contents>`_
+like system, Spark, Hadoop, and Managed Spark logs, cluster configuration files that can be used to troubleshoot a Managed Spark cluster or job.
 It is important to note that this information can only be collected before the cluster is deleted.
 For more information about the available fields to pass when diagnosing a cluster, visit
-`Dataproc diagnose cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters/diagnose>`_
+`Managed Spark diagnose cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters/diagnose>`_
 
-To diagnose a Dataproc cluster use:
+To diagnose a Managed Spark cluster use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDiagnoseClusterOperator`.
+
+The executable example below still imports the compatibility name
+``DataprocDiagnoseClusterOperator``. The preferred alias for new code is
+``ManagedSparkDiagnoseClusterOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_diagnose.py
     :language: python
@@ -174,7 +232,7 @@ Update a cluster
 ----------------
 You can scale the cluster up or down by providing a cluster config and a updateMask.
 In the updateMask argument you specifies the path, relative to Cluster, of the field to update.
-For more information on updateMask and other parameters take a look at `Dataproc update cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters/patch>`__
+For more information on updateMask and other parameters take a look at `Managed Spark update cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters/patch>`__
 
 An example of a new cluster config and the updateMask:
 
@@ -186,6 +244,10 @@ An example of a new cluster config and the updateMask:
 
 To update a cluster you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocUpdateClusterOperator`
+
+The executable example below still imports the compatibility name
+``DataprocUpdateClusterOperator``. The preferred alias for new code is
+``ManagedSparkUpdateClusterOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_update.py
     :language: python
@@ -207,6 +269,10 @@ Starting a cluster
 To start a cluster you can use the
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocStartClusterOperator`:
 
+The executable example below still imports the compatibility name
+``DataprocStartClusterOperator``. The preferred alias for new code is
+``ManagedSparkStartClusterOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_start_stop.py
     :language: python
     :dedent: 4
@@ -219,6 +285,10 @@ Stopping a cluster
 To stop a cluster you can use the
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocStopClusterOperator`:
 
+The executable example below still imports the compatibility name
+``DataprocStopClusterOperator``. The preferred alias for new code is
+``ManagedSparkStopClusterOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_cluster_start_stop.py
     :language: python
     :dedent: 4
@@ -230,6 +300,10 @@ Deleting a cluster
 
 To delete a cluster you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator`.
+
+The executable example below still imports the compatibility name
+``DataprocDeleteClusterOperator``. The preferred alias for new code is
+``ManagedSparkDeleteClusterOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_hive.py
     :language: python
@@ -248,15 +322,19 @@ You can use deferrable mode for this action in order to run the operator asynchr
 Submit a job to a cluster
 -------------------------
 
-Dataproc supports submitting jobs of different big data components.
+Managed Spark supports submitting jobs of different big data components.
 The list currently includes Spark, PySpark, Hadoop, Trino, Pig, Flink and Hive.
-For more information on versions and images take a look at `Cloud Dataproc Image version list <https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions>`__
+For more information on versions and images take a look at `Cloud Managed Spark Image version list <https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions>`__
 
 To submit a job to the cluster you need to provide a job source file. The job source file can be on GCS, the cluster or on your local
 file system. You can specify a file:/// path to refer to a local file on a cluster's primary node.
 
 The job configuration can be submitted by using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`.
+
+The executable example below still imports the compatibility name
+``DataprocSubmitJobOperator``. The preferred alias for new code is
+``ManagedSparkSubmitJobOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_pyspark.py
     :language: python
@@ -362,10 +440,14 @@ Example of the configuration for a Flink Job:
 Working with workflows templates
 --------------------------------
 
-Dataproc supports creating workflow templates that can be triggered later on.
+Managed Spark supports creating workflow templates that can be triggered later on.
 
 A workflow template can be created using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateWorkflowTemplateOperator`.
+
+The executable example below still imports the compatibility name
+``DataprocCreateWorkflowTemplateOperator``. The preferred alias for new code is
+``ManagedSparkCreateWorkflowTemplateOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_workflow.py
     :language: python
@@ -375,6 +457,10 @@ A workflow template can be created using:
 
 Once a workflow is created users can trigger it using
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator`:
+
+The executable example below still imports the compatibility name
+``DataprocInstantiateWorkflowTemplateOperator``. The preferred alias for new code is
+``ManagedSparkInstantiateWorkflowTemplateOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_workflow.py
     :language: python
@@ -392,6 +478,10 @@ Also for all this action you can use operator in the deferrable mode:
 
 The inline operator is an alternative. It creates a workflow, run it, and delete it afterwards:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`:
+
+The executable example below still imports the compatibility name
+``DataprocInstantiateInlineWorkflowTemplateOperator``. The preferred alias for new code is
+``ManagedSparkInstantiateInlineWorkflowTemplateOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_workflow.py
     :language: python
@@ -411,10 +501,14 @@ Also for all this action you can use operator in the deferrable mode:
 Create a Batch
 --------------
 
-Dataproc supports creating a batch workload.
+Managed Spark supports creating a batch workload.
 
 A batch can be created using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator`.
+
+The executable example below still imports the compatibility name
+``DataprocCreateBatchOperator``. The preferred alias for new code is
+``ManagedSparkCreateBatchOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_batch.py
     :language: python
@@ -422,7 +516,7 @@ A batch can be created using:
     :start-after: [START how_to_cloud_dataproc_create_batch_operator]
     :end-before: [END how_to_cloud_dataproc_create_batch_operator]
 
-For creating a batch with Persistent History Server first you should create a Dataproc Cluster
+For creating a batch with Persistent History Server first you should create a Managed Spark Cluster
 with specific parameters. Documentation how create cluster you can find
 `here <https://cloud.google.com/dataproc/docs/concepts/jobs/history-server#setting_up_a_persistent_history_server>`__:
 
@@ -463,6 +557,10 @@ Get a Batch
 To get a batch you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocGetBatchOperator`.
 
+The executable example below still imports the compatibility name
+``DataprocGetBatchOperator``. The preferred alias for new code is
+``ManagedSparkGetBatchOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_batch.py
     :language: python
     :dedent: 4
@@ -474,6 +572,10 @@ List a Batch
 
 To get a list of exists batches you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocListBatchesOperator`.
+
+The executable example below still imports the compatibility name
+``DataprocListBatchesOperator``. The preferred alias for new code is
+``ManagedSparkListBatchesOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_batch.py
     :language: python
@@ -487,6 +589,10 @@ Delete a Batch
 To delete a batch you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator`.
 
+The executable example below still imports the compatibility name
+``DataprocDeleteBatchOperator``. The preferred alias for new code is
+``ManagedSparkDeleteBatchOperator``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_batch.py
     :language: python
     :dedent: 4
@@ -498,6 +604,10 @@ Cancel a Batch Operation
 
 To cancel a operation you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCancelOperationOperator`.
+
+The executable example below still imports the compatibility name
+``DataprocCancelOperationOperator``. The preferred alias for new code is
+``ManagedSparkCancelOperationOperator``.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataproc/example_dataproc_batch.py
     :language: python

@@ -127,7 +127,7 @@ def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session)
             .where(DagVersion.id.in_(all_version_ids))
             .options(joinedload(DagVersion.bundle))
         )
-        versions_by_id = {dv.id: dv for dv in session.scalars(dv_query).unique()}
+        versions_by_id = {dv.id: dv for dv in session.scalars(dv_query)}
 
     versions_per_run: dict[tuple[str, str], dict[UUID, DagVersion]] = defaultdict(dict)
     for row in rows:

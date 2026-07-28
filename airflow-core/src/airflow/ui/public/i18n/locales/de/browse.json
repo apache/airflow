@@ -11,6 +11,24 @@
     },
     "title": "Prüf-Log"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Alarmname",
+      "deadlineTime": "Fristablauf",
+      "status": "Status"
+    },
+    "deadline_one": "Frist",
+    "deadline_other": "Fristen",
+    "filters": {
+      "status": "Status",
+      "statusOptions": {
+        "all": "Alle",
+        "missed": "Verpasst",
+        "pending": "Ausstehend"
+      }
+    },
+    "title": "Fristen"
+  },
   "xcom": {
     "add": {
       "error": "Fehler beim Hinzufügen von Task Kommunikation (XCom)",

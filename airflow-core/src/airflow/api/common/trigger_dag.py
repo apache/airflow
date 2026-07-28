@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Triggering DAG runs APIs."""
+"""Triggering Dag runs APIs."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -38,6 +39,14 @@ if TYPE_CHECKING:
     from airflow.timetables.base import DataInterval
 
 
+def _normalize_conf(conf: dict | str | None) -> dict | None:
+    if isinstance(conf, str):
+        conf = json.loads(conf)
+    if conf is not None and not isinstance(conf, dict):
+        raise ValueError("DagRun conf must be a JSON object or null")
+    return conf
+
+
 @provide_session
 def _trigger_dag(
     dag_id: str,
@@ -48,7 +57,7 @@ def _trigger_dag(
     triggering_user_name: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
-    conf: dict | str | None = None,
+    conf: dict | str | None | ArgNotSet = NOTSET,
     logical_date: datetime | None = None,
     replace_microseconds: bool = True,
     note: str | None = None,
@@ -56,10 +65,10 @@ def _trigger_dag(
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
     """
-    Triggers DAG run.
+    Triggers Dag run.
 
-    :param dag_id: DAG ID
-    :param dag_bag: DAG Bag model
+    :param dag_id: Dag ID
+    :param dag_bag: Dag Bag model
     :param triggered_by: the entity which triggers the dag_run
     :param run_type: the type of dag run (default: MANUAL)
     :param triggering_user_name: the user name who triggers the dag_run
@@ -87,7 +96,7 @@ def _trigger_dag(
             if min_dag_start_date and logical_date < min_dag_start_date:
                 raise ValueError(
                     f"Logical date [{logical_date.isoformat()}] should be >= start_date "
-                    f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
+                    f"[{min_dag_start_date.isoformat()}] from Dag's default_args"
                 )
         coerced_logical_date = timezone.coerce_datetime(logical_date)
         data_interval: DataInterval | None = dag.timetable.infer_manual_data_interval(
@@ -109,9 +118,11 @@ def _trigger_dag(
     if dag_run := DagRun.find_duplicate(dag_id=dag_id, run_id=run_id):
         raise DagRunAlreadyExists(dag_run)
 
+    partition_date = dag.timetable.resolve_partition_date(partition_key)
+
     run_conf = None
-    if conf:
-        run_conf = conf if isinstance(conf, dict) else json.loads(conf)
+    if is_arg_set(conf):
+        run_conf = _normalize_conf(conf)
     dag_run = dag.create_dagrun(
         run_id=run_id,
         logical_date=coerced_logical_date,
@@ -124,6 +135,7 @@ def _trigger_dag(
         note=note,
         state=DagRunState.QUEUED,
         partition_key=partition_key,
+        partition_date=partition_date,
         session=session,
     )
 
@@ -139,7 +151,7 @@ def trigger_dag(
     triggering_user_name: str | None = None,
     run_after: datetime | None = None,
     run_id: str | None = None,
-    conf: dict | str | None = None,
+    conf: dict | str | None | ArgNotSet = NOTSET,
     logical_date: datetime | None = None,
     replace_microseconds: bool = True,
     note: str | None = None,
@@ -147,9 +159,9 @@ def trigger_dag(
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
     """
-    Triggers execution of DAG specified by dag_id.
+    Triggers execution of Dag specified by dag_id.
 
-    :param dag_id: DAG ID
+    :param dag_id: Dag ID
     :param triggered_by: the entity which triggers the dag_run
     :param run_type: the type of dag run (default: MANUAL)
     :param triggering_user_name: the user name who triggers the dag_run

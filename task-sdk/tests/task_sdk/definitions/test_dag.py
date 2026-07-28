@@ -21,13 +21,23 @@ import warnings
 import weakref
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from unittest import mock
 
 import pytest
 
-from airflow.sdk import Context, Label, TaskGroup
+from airflow.sdk import (
+    DAG,
+    Context,
+    Label,
+    Param,
+    PartitionedAtRuntime,
+    TaskGroup,
+    dag as dag_decorator,
+    task,
+)
 from airflow.sdk.bases.operator import BaseOperator
-from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
-from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
+from airflow.sdk.bases.timetable import BaseTimetable
+from airflow.sdk.definitions.param import DagParam, ParamsDict
 from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.utils.types import DagRunType
 
@@ -437,6 +447,17 @@ class TestDag:
         with pytest.raises(ValueError, match="ContinuousTimetable requires max_active_runs <= 1"):
             dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=25)
 
+    def test_only_partitioned_at_runtime_has_partitioned_at_runtime_flag(self):
+        """Regression guard: across every BaseTimetable subclass, only PartitionedAtRuntime sets partitioned_at_runtime=True."""
+
+        def all_subclasses(cls):
+            for sub in cls.__subclasses__():
+                yield sub
+                yield from all_subclasses(sub)
+
+        flagged = {c for c in all_subclasses(BaseTimetable) if c.partitioned_at_runtime}
+        assert flagged == {PartitionedAtRuntime}
+
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
         from airflow.sdk import TriggerRule
@@ -690,6 +711,15 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
         assert dag.fileloc == __file__
 
+    def test_bundle_name_defaults_to_none(self):
+        dag = DAG("test_dag", schedule=None)
+        assert dag.bundle_name is None
+
+    def test_bundle_name_can_be_set(self):
+        dag = DAG("test_dag", schedule=None)
+        dag.bundle_name = "my_bundle"
+        assert dag.bundle_name == "my_bundle"
+
     def test_set_dag_id(self):
         """Test that checks you can set dag_id from decorator."""
 
@@ -775,7 +805,6 @@ class TestDagDecorator:
 
     def test_dag_param_resolves(self):
         """Test that dag param is correctly resolved by operator"""
-        from airflow.decorators import task
 
         @dag_decorator(schedule=None, default_args=self.DEFAULT_ARGS)
         def xcom_pass_to_op(value=self.VALUE):
@@ -791,6 +820,34 @@ class TestDagDecorator:
         assert isinstance(self.operator.op_args[0], DagParam)
         self.operator.render_template_fields({})
         assert self.operator.op_args[0] == 42
+
+    def test_ignore_function_result(self, monkeypatch):
+        monkeypatch.setattr(DAG, "add_result", mock.create_autospec(DAG.add_result))
+
+        @dag_decorator
+        def d():
+            @task
+            def return_num(num):
+                return num
+
+            return_num(123)
+            return 123
+
+        dag = d()
+        assert dag.get_task("return_num").returns_dag_result is False
+        assert DAG.add_result.mock_calls == []
+
+    def test_function_result_set_to_xcom_arg(self):
+        @dag_decorator
+        def d():
+            @task
+            def return_num(num):
+                return num
+
+            return return_num(123)
+
+        dag = d()
+        assert dag.get_task("return_num").returns_dag_result is True
 
 
 class DoNothingOperator(BaseOperator):
@@ -941,3 +998,44 @@ class TestCycleTester:
                 op1 >> Label("label") >> op2
 
         assert not dag.check_cycle()
+
+
+class TestDagGetItem:
+    def test_getitem_returns_task(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            op = DoNothingOperator(task_id="my_task")
+        assert dag["my_task"] is op
+
+    def test_getitem_returns_task_group(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            with TaskGroup(group_id="section") as tg:
+                DoNothingOperator(task_id="t")
+        assert dag["section"] is tg
+
+    def test_getitem_nested_task_by_qualified_id(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            with TaskGroup(group_id="section"):
+                op = DoNothingOperator(task_id="t")
+        assert dag["section.t"] is op
+
+    def test_getitem_nested_task_via_chained_access(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with dag:
+            with TaskGroup(group_id="section"):
+                op = DoNothingOperator(task_id="t")
+        assert dag["section"]["t"] is op
+
+    def test_getitem_missing_raises_node_not_found(self):
+        from airflow.sdk.exceptions import NodeNotFound
+
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with pytest.raises(NodeNotFound):
+            dag["nonexistent"]
+
+    def test_getitem_missing_is_key_error(self):
+        dag = DAG("test_dag", schedule=None, start_date=DEFAULT_DATE)
+        with pytest.raises(KeyError):
+            dag["nonexistent"]

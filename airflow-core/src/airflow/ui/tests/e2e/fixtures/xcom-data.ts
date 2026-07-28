@@ -18,19 +18,17 @@
  */
 
 /**
- * XCom data fixture — triggers example_xcom DAG runs to generate XCom entries.
+ * XCom data fixture — triggers example_xcom Dag runs to generate XCom entries.
  */
-
-/* eslint-disable react-hooks/rules-of-hooks -- Playwright's `use` is not a React Hook. */
 import { testConfig } from "playwright.config";
 import { test as base } from "tests/e2e/fixtures";
 import {
   apiCreateDagRun,
   safeCleanupDagRun,
-  uniqueRunId,
   waitForDagReady,
   waitForDagRunStatus,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/dag-runs";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 export type XcomRunsData = {
   dagId: string;
@@ -67,6 +65,7 @@ export const test = base.extend<Record<never, never>, { xcomRunsData: XcomRunsDa
           });
         }
 
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         await use({ dagId, xcomKey: "return_value" });
       } finally {
         for (const runId of createdRunIds) {

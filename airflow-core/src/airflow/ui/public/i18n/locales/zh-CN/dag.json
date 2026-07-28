@@ -40,9 +40,37 @@
     "parseDuration": "解析耗时：",
     "parsedAt": "解析时间："
   },
+  "deadlineAlerts": {
+    "completionRule": "必须在 {{reference}} 后的 {{interval}} 内完成",
+    "count_one": "{{count}} 个截止期限",
+    "count_other": "{{count}} 个截止期限",
+    "referenceType": {
+      "AverageRuntimeDeadline": "平均运行时间",
+      "DagRunLogicalDateDeadline": "逻辑日期",
+      "DagRunQueuedAtDeadline": "排队时间"
+    }
+  },
+  "deadlineStatus": {
+    "actual": "实际",
+    "expected": "预期",
+    "finishedEarly": "在截止期限前 {{duration}} 完成",
+    "finishedLate": "在截止期限后 {{duration}} 完成",
+    "label": "截止期限",
+    "met": "已达成",
+    "missed": "已错过",
+    "missedCount_one": "{{count}} 个已错过的截止期限",
+    "missedCount_other": "{{count}} 个已错过的截止期限",
+    "mixedCount": "{{missedCount}} 个已错过，{{upcomingCount}} 个即将到期",
+    "stillRunning": "仍在运行",
+    "upcoming": "即将到期",
+    "upcomingCount_one": "{{count}} 个即将到期的截止期限",
+    "upcomingCount_other": "{{count}} 个即将到期的截止期限"
+  },
   "extraLinks": "额外链接",
   "grid": {
     "buttons": {
+      "newerRuns": "较新的执行",
+      "olderRuns": "较早的执行",
       "resetToLatest": "重置为最新",
       "toggleGroup": "切换分组状态"
     },
@@ -52,6 +80,9 @@
     "buttons": {
       "advanced": "高级功能",
       "dagDocs": "Dag 文档"
+    },
+    "status": {
+      "deactivated": "已停用"
     }
   },
   "logs": {
@@ -66,13 +97,14 @@
     },
     "info": "INFO",
     "noTryNumber": "没有重试次数",
+    "search": {
+      "matchCount": "{{current}} / {{total}}",
+      "noMatches": "无匹配项",
+      "placeholder": "搜索日志…"
+    },
     "settings": "日志设置",
     "viewInExternal": "在 {{name}} 中查看日志(重试 {{attempt}})",
     "warning": "WARNING"
-  },
-  "navigation": {
-    "navigation": "导航: {{arrow}}",
-    "toggleGroup": "展开/收起分组: 空格键"
   },
   "notFound": {
     "back": "返回",
@@ -92,6 +124,10 @@
     "charts": {
       "assetEvent_one": "已创建资源事件",
       "assetEvent_other": "已创建资源事件"
+    },
+    "deadlines": {
+      "showAll": "全部显示",
+      "title": "截止期限"
     },
     "failedLogs": {
       "hideLogs": "隐藏日志",
@@ -121,6 +157,16 @@
     },
     "graphDirection": {
       "label": "图表方向"
+    },
+    "graphFilters": {
+      "clearFilters": "清除筛选器",
+      "durationGte": "最短持续时间 (秒)",
+      "durationGteHint": "对于已映射任务，统计所有实例的总时长",
+      "mapIndex": "最小映射索引",
+      "mapIndexHint": "展开已映射任务，至少显示到此索引",
+      "selectStatus": "选择状态",
+      "selectTaskGroup": "选择任务分组",
+      "title": "任务筛选器"
     },
     "showVersionIndicator": {
       "label": "显示版本指示器",
@@ -179,12 +225,34 @@
     "renderedTemplates": "渲染后的模板",
     "requiredActions": "待响应的任务实例",
     "runs": "执行记录",
+    "storage": "存储",
     "taskInstances": "任务实例",
+    "taskStateStore": "任务存储",
     "tasks": "任务",
     "xcom": "XCom"
   },
   "taskGroups": {
     "collapseAll": "收起所有任务分组",
     "expandAll": "展开所有任务分组"
+  },
+  "taskStateStore": {
+    "add": "新增任务存储",
+    "clearAll": {
+      "resource": "所有任务存储",
+      "title": "清除所有任务存储",
+      "warning": "所有任务存储都将被清空。使用此存储跟踪外部工作的任务将无法恢复，必须从头重新运行。"
+    },
+    "delete": "删除任务存储",
+    "deleteWarning": "该任务将丢失此持久化数据。如果任务使用此键跟踪外部工作（例如外部作业 ID），将无法恢复该工作。",
+    "edit": "编辑任务存储",
+    "emptyStore": "任务存储保存可在多次重试之间持久化的值。工作节点可以通过 Task SDK 写入任务存储。",
+    "expiresAt": {
+      "column": "过期时间",
+      "custom": "自定义",
+      "default": "默认 ({{interval}})",
+      "label": "过期",
+      "never": "永不"
+    },
+    "title": "任务存储"
   }
 }

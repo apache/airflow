@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow_shared.logging.percent_formatter import PercentFormatRender
 
 
@@ -40,3 +42,19 @@ class TestPercentFormatRender:
         )
 
         assert formatted == "test.py:0 our msg"
+
+    @pytest.mark.parametrize(
+        "event",
+        [
+            pytest.param({"event": "our msg"}, id="missing"),
+            pytest.param({"event": "our msg", "process": None, "thread": None}, id="none"),
+        ],
+    )
+    def test_numeric_callsite_without_process_or_thread(self, event):
+        # Regression for a scheduler crash: a %d specifier for process/thread with no callsite
+        # info (e.g. a warning routed through the logging bridge) must not raise TypeError.
+        fmter = PercentFormatRender("%(process)d:%(thread)d %(message)s")
+
+        formatted = fmter(mock.Mock(name="Logger"), "info", event)
+
+        assert formatted == "0:0 our msg"

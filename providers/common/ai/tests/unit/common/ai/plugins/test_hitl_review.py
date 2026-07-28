@@ -29,6 +29,7 @@ from unittest import mock
 
 import time_machine
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from airflow.api_fastapi.app import create_app, purge_cached_app
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -88,7 +89,6 @@ def _clear_db():
 
 @provide_session
 def _create_hitl_session(
-    session=None,
     *,
     dag_id=TEST_DAG_ID,
     run_id=TEST_RUN_ID,
@@ -98,6 +98,7 @@ def _create_hitl_session(
     iteration=1,
     prompt="Summarize",
     current_output="Initial output",
+    session=None,
 ):
     """Create HITL session and output XCom entries in the database."""
     sess = AgentSessionData(
@@ -107,23 +108,23 @@ def _create_hitl_session(
         prompt=prompt,
         current_output=current_output,
     )
-    XComModel.set(
+    _write_xcom(
+        session,
         key=XCOM_AGENT_SESSION,
         value=sess.model_dump(mode="json"),
         dag_id=dag_id,
         task_id=task_id,
         run_id=run_id,
         map_index=map_index,
-        session=session,
     )
-    XComModel.set(
+    _write_xcom(
+        session,
         key=f"{XCOM_AGENT_OUTPUT_PREFIX}{iteration}",
         value=current_output,
         dag_id=dag_id,
         task_id=task_id,
         run_id=run_id,
         map_index=map_index,
-        session=session,
     )
 
 
@@ -311,14 +312,14 @@ class TestReadXcomByPrefix:
         dag_maker.sync_dagbag_to_db()
 
         for suffix, val in xcom_entries:
-            XComModel.set(
+            _write_xcom(
+                session,
                 key=f"{prefix}{suffix}",
                 value=val,
                 dag_id="d",
                 task_id="t",
                 run_id="r",
                 map_index=-1,
-                session=session,
             )
         session.commit()
 
@@ -383,16 +384,26 @@ class TestReadXcomByPrefix:
         dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
         dag_maker.sync_dagbag_to_db()
 
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
             value=output_value,
             dag_id="d",
             task_id="t",
             run_id="r",
             map_index=-1,
-            session=session,
         )
         session.commit()
+
+        stored = session.scalar(
+            select(XComModel.value).where(
+                XComModel.dag_id == "d",
+                XComModel.task_id == "t",
+                XComModel.run_id == "r",
+                XComModel.key == f"{XCOM_AGENT_OUTPUT_PREFIX}1",
+            )
+        )
+        assert stored == output_value
 
         result = _read_xcom_by_prefix(
             session,
@@ -420,14 +431,14 @@ class TestReadXcomByPrefix:
             (4, "Final summary text."),
         ]
         for i, val in entries:
-            XComModel.set(
+            _write_xcom(
+                session,
                 key=f"{XCOM_AGENT_OUTPUT_PREFIX}{i}",
                 value=val,
                 dag_id="d",
                 task_id="t",
                 run_id="r",
                 map_index=-1,
-                session=session,
             )
         session.commit()
 
@@ -508,14 +519,14 @@ class TestReadXcom:
         dag_maker.sync_dagbag_to_db()
 
         if value is not None:
-            XComModel.set(
+            _write_xcom(
+                session,
                 key=key,
                 value=value,
                 dag_id="d",
                 task_id="t",
                 run_id="r",
                 map_index=-1,
-                session=session,
             )
         session.commit()
 
@@ -730,11 +741,11 @@ class TestBuildSessionResponse:
         dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
         dag_maker.sync_dagbag_to_db()
         _create_hitl_session(
-            session=session,
             status=status,
             iteration=iteration,
             prompt=prompt,
             current_output=current_output,
+            session=session,
         )
         session.commit()
 
@@ -757,11 +768,11 @@ class TestBuildSessionResponse:
         dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
         dag_maker.sync_dagbag_to_db()
         _create_hitl_session(
-            session=session,
             status=SessionStatus.PENDING_REVIEW,
             iteration=1,
             prompt="Summarize",
             current_output="First output",
+            session=session,
         )
         session.commit()
 
@@ -785,20 +796,20 @@ class TestBuildSessionResponse:
         dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
         dag_maker.sync_dagbag_to_db()
         _create_hitl_session(
-            session=session,
             status=SessionStatus.PENDING_REVIEW,
             iteration=1,
             prompt="p",
             current_output="Initial",
+            session=session,
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
             value="Please add more detail",
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
         session.commit()
 
@@ -832,50 +843,50 @@ class TestBuildSessionResponse:
             prompt="p",
             current_output="Output 2",
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=XCOM_AGENT_SESSION,
             value=sess.model_dump(mode="json"),
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
             value="Output 1",
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}2",
             value="Output 2",
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
             value="Feedback 1",
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}2",
             value="Feedback 2",
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
         session.commit()
 
@@ -986,11 +997,11 @@ class TestFindSessionEndpoint:
     def test_returns_max_iterations_exceeded_status(self, test_client, session, dag_maker):
         """Find endpoint returns max_iterations_exceeded when session has that status."""
         _create_hitl_session(
-            session=session,
             status=SessionStatus.MAX_ITERATIONS_EXCEEDED,
             iteration=5,
             prompt="p",
             current_output="output",
+            session=session,
         )
         session.commit()
 
@@ -1012,11 +1023,11 @@ class TestFindSessionEndpoint:
     def test_returns_timeout_exceeded_status(self, test_client, session, dag_maker):
         """Find endpoint returns timeout_exceeded when session has that status."""
         _create_hitl_session(
-            session=session,
             status=SessionStatus.TIMEOUT_EXCEEDED,
             iteration=2,
             prompt="p",
             current_output="output",
+            session=session,
         )
         session.commit()
 
@@ -1042,41 +1053,41 @@ class TestFindSessionEndpoint:
             prompt="Summarize",
             current_output="Revised output",
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=XCOM_AGENT_SESSION,
             value=sess.model_dump(mode="json"),
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}1",
             value="First output",
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}2",
             value="Revised output",
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
-        XComModel.set(
+        _write_xcom(
+            session,
             key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
             value="Add more detail",
             dag_id=TEST_DAG_ID,
             task_id=TEST_TASK_ID,
             run_id=TEST_RUN_ID,
             map_index=-1,
-            session=session,
         )
         session.commit()
 

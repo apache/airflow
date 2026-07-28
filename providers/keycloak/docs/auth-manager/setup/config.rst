@@ -35,7 +35,6 @@ or
 
   export AIRFLOW__CORE__AUTH_MANAGER='airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager'
 
-Additionally, you'll need to provide some Keycloak-specific configuration options.
 
 Config Options
 --------------
@@ -51,6 +50,21 @@ Required config options:
 - ``client_id``. Client ID configured in Keycloak to integrate with Airflow. This client must follow the standard ``OpenID Connect authentication flow``.
 - ``client_secret``. Secret associated to the client configured in Keycloak to integrate with Airflow.
 - ``realm``. Realm configured in Keycloak associated to Airflow. This realm define all users, roles, groups and permissions used by Airflow.
+
+Additionally, you must set the ``base_url`` option in the ``[api]`` section of your Airflow configuration. This is
+required for the Keycloak auth manager to construct correct redirect URIs (e.g. for logout). Without it, redirect
+URIs will be relative paths without a hostname, causing Keycloak to reject them as invalid.
+
+.. code-block:: ini
+
+  [api]
+  base_url = https://your-airflow-host.example.com
+
+or
+
+.. code-block:: bash
+
+  export AIRFLOW__API__BASE_URL='https://your-airflow-host.example.com'
 
 Optional config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~

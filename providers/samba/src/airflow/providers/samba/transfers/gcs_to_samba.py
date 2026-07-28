@@ -177,7 +177,17 @@ class GCSToSambaOperator(BaseOperator):
                 source_object = os.path.relpath(source_object, start=prefix)
             else:
                 source_object = os.path.basename(source_object)
-        return os.path.join(self.destination_path, source_object)
+        # Source object names come from the GCS bucket and may contain ".." segments.
+        # Normalize the joined path and make sure it stays within destination_path so a
+        # crafted object name cannot resolve a write target outside the configured directory.
+        resolved = os.path.normpath(os.path.join(self.destination_path, source_object))
+        base = os.path.normpath(self.destination_path)
+        if resolved != base and not resolved.startswith(base + os.sep):
+            raise ValueError(
+                f"Resolved destination path {resolved!r} is outside the configured "
+                f"destination_path {base!r}; refusing to write outside it."
+            )
+        return resolved
 
     def _copy_single_object(
         self,

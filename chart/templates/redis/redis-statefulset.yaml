@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+############################
 ## Airflow Redis StatefulSet
-#################################
-{{- if and .Values.redis.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+############################
+{{- if and .Values.redis.enabled (contains "CeleryExecutor" .Values.executor) }}
 {{- $nodeSelector := or .Values.redis.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.redis.affinity .Values.affinity }}
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
@@ -83,6 +83,7 @@ spec:
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.redis.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "redis.serviceAccountName" . }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       {{- if .Values.schedulerName }}
       schedulerName: {{ .Values.schedulerName }}
       {{- end }}

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import ANY, MagicMock, Mock, patch
 
 import pytest
 
@@ -260,6 +260,64 @@ class TestLockboxSecretBackend:
         )._build_secret_name(prefix, key)
 
         assert res == expected
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
+    def test_get_conn_value_uses_team_specific_secret_first(self, mock_get_payload, mock_get_secrets):
+        mock_get_secrets.return_value = [
+            secret_pb.Secret(
+                id="123",
+                name="airflow/connections/team_a//my_db",
+            ),
+            secret_pb.Secret(
+                id="456",
+                name="airflow/connections/my_db",
+            ),
+        ]
+        mock_get_payload.return_value = payload_pb.Payload(
+            entries=[payload_pb.Payload.Entry(text_value="team-conn")]
+        )
+
+        backend = LockboxSecretBackend()
+        result = backend.get_conn_value("my_db", team_name="team_a")
+
+        assert result == "team-conn"
+        mock_get_payload.assert_called_once_with("123", ANY)
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
+    def test_get_variable_falls_back_to_global_secret_when_team_secret_is_missing(
+        self, mock_get_payload, mock_get_secrets
+    ):
+        mock_get_secrets.return_value = [
+            secret_pb.Secret(
+                id="456",
+                name="airflow/variables/hello",
+            ),
+        ]
+        mock_get_payload.return_value = payload_pb.Payload(
+            entries=[payload_pb.Payload.Entry(text_value="global-value")]
+        )
+
+        backend = LockboxSecretBackend()
+        result = backend.get_variable("hello", team_name="team_a")
+
+        assert result == "global-value"
+        mock_get_payload.assert_called_once_with("456", ANY)
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    def test_get_variable_returns_none_for_team_scoped_key_without_team_name(self, mock_get_secrets):
+        backend = LockboxSecretBackend()
+
+        assert backend.get_variable("teama//hello") is None
+        mock_get_secrets.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    def test_get_conn_value_returns_none_for_team_scoped_id_without_team_name(self, mock_get_secrets):
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("teama//my_db") is None
+        mock_get_secrets.assert_not_called()
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")

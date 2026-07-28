@@ -57,7 +57,10 @@ export const useDagTagsInfinite = <TError = unknown>(
     ) => (firstPageParam > 0 ? -firstPage.tags.length + firstPageParam : undefined),
     initialPageParam: 0,
     queryFn: ({ pageParam }: { pageParam: number }) =>
-      DagService.getDagTags({ limit, offset: pageParam, orderBy, tagNamePattern }),
-    queryKey: UseDagServiceGetDagTagsKeyFn({ limit, orderBy, tagNamePattern }, queryKey),
+      DagService.getDagTags({ limit, offset: pageParam, orderBy, tagNamePrefixPattern: tagNamePattern }),
+    queryKey: UseDagServiceGetDagTagsKeyFn(
+      { limit, orderBy, tagNamePrefixPattern: tagNamePattern },
+      queryKey,
+    ),
     ...options,
   });

@@ -1242,6 +1242,68 @@ class TestSparkKubernetesOperator:
 
         assert returned_pod is valid_mock_pod
 
+    def test_execute_deferrable_does_not_call_super(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+        mocker,
+    ):
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        mock_create_job_name.return_value = "test_deferrable"
+        op = SparkKubernetesOperator(
+            task_id="test_deferrable",
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            deferrable=True,
+            reattach_on_restart=False,
+        )
+        context = create_context(op)
+        mock_execute_async = mocker.patch.object(op, "execute_async")
+
+        result = op.execute(context)
+
+        mock_execute_async.assert_called_once_with(context)
+        mock_parent_execute.assert_not_called()
+        assert result is None
+
+    def test_execute_non_deferrable_calls_super(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+        mock_create_job_name.return_value = "test_non_deferrable"
+        op = SparkKubernetesOperator(
+            task_id="test_non_deferrable",
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            deferrable=False,
+            reattach_on_restart=False,
+        )
+        context = create_context(op)
+
+        op.execute(context)
+
+        mock_parent_execute.assert_called_once_with(context)
+
     @pytest.mark.asyncio
     def test_execute_deferrable(
         self,

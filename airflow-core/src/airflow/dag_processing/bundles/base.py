@@ -30,7 +30,7 @@ from datetime import timedelta
 from fcntl import LOCK_SH, LOCK_UN, flock
 from operator import attrgetter
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 from pendulum.parsing import ParserError
@@ -229,6 +229,50 @@ class BundleUsageTrackingManager:
             self._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
 
 
+@dataclass(frozen=True)
+class BundleVersion:
+    """
+    Version information returned by a DAG bundle.
+
+    Bundles return this from ``get_current_version()`` to provide both a version
+    identifier and optional structured data (e.g., a manifest) atomically.
+
+    :param version: A string identifier for this bundle version (e.g., git SHA, content hash).
+    :param data: Optional structured data associated with this version (e.g., S3 manifest).
+        Mutating ``data`` after construction is undefined behavior.
+    """
+
+    version: str
+    data: dict[str, Any] | None = None
+
+
+def unpack_bundle_version(
+    result: str | BundleVersion | None, bundle: BaseDagBundle
+) -> tuple[str | None, dict[str, Any] | None]:
+    """
+    Unpack the return value of get_current_version().
+
+    Handles both the new BundleVersion dataclass and legacy str | None returns.
+    Emits a deprecation warning for bare string returns from versioned bundles.
+
+    :return: Tuple of (version_string, version_data)
+    """
+    if result is None:
+        return None, None
+    if isinstance(result, BundleVersion):
+        return result.version, result.data
+    # Legacy path: bare string return
+    if bundle.supports_versioning:
+        warnings.warn(
+            f"Bundle '{bundle.name}' returned a plain string from get_current_version(). "
+            f"Return a BundleVersion instance instead. "
+            f"Plain string returns are deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    return result, None
+
+
 class BaseDagBundle(ABC):
     """
     Base class for DAG bundles.
@@ -248,6 +292,8 @@ class BaseDagBundle(ABC):
     :param refresh_interval: How often the bundle should be refreshed from the source in seconds
         (Optional - defaults to [dag_processor] refresh_interval)
     :param version: Version of the DAG bundle (Optional)
+    :param version_data: Structured metadata for this bundle version, e.g. an S3 manifest.
+        Only populated for pinned runs (where dag_run.bundle_version is not None). (Optional)
     """
 
     supports_versioning: bool = False
@@ -260,10 +306,12 @@ class BaseDagBundle(ABC):
         name: str,
         refresh_interval: int = conf.getint("dag_processor", "refresh_interval"),
         version: str | None = None,
+        version_data: dict[str, Any] | None = None,
         view_url_template: str | None = None,
     ) -> None:
         self.name = name
         self.version = version
+        self.version_data = version_data
         self.refresh_interval = refresh_interval
         self.is_initialized: bool = False
 
@@ -313,11 +361,18 @@ class BaseDagBundle(ABC):
         """
 
     @abstractmethod
-    def get_current_version(self) -> str | None:
+    def get_current_version(self) -> str | BundleVersion | None:
         """
-        Retrieve a string that represents the version of the DAG bundle.
+        Retrieve the version of the DAG bundle.
 
         Airflow can use this value to retrieve this same bundle version later.
+
+        May return:
+
+        - A ``BundleVersion`` instance (preferred) containing both a version string and
+          optional structured data (e.g., a manifest).
+        - A plain string (deprecated; will emit a warning in a future release).
+        - None if the bundle does not support versioning.
         """
 
     @abstractmethod

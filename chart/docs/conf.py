@@ -38,6 +38,10 @@ import re
 from typing import Any
 
 import yaml
+from airflow_breeze.global_constants import (
+    ALLOWED_KUBERNETES_VERSIONS,
+    HELM_VERSION,
+)
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
@@ -292,13 +296,24 @@ for name in chart_schema["x-docsSectionOrder"]:
 if sections:
     raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections.keys())}")
 
+deprecations_exist = False
+for param in (param for sec in ordered_sections for param in sec["params"]):
+    if "deprecated" in param["description"]:
+        deprecations_exist = True
+        break
+
 jinja_contexts = {
-    "params_ctx": {"sections": ordered_sections},
+    "params_ctx": {"sections": ordered_sections, "deprecations_exist": deprecations_exist},
     "official_download_page": {
         "base_url": "https://downloads.apache.org/airflow/helm-chart",
         "closer_lua_url": "https://www.apache.org/dyn/closer.lua/airflow/helm-chart",
         "package_name": PACKAGE_NAME,
         "package_version": PACKAGE_VERSION,
+    },
+    "global_ctx": {
+        "package_version": PACKAGE_VERSION,
+        "min_k8s_version": ALLOWED_KUBERNETES_VERSIONS[0],
+        "helm_version": HELM_VERSION,
     },
 }
 

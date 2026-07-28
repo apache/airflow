@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import base64
 import json
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from unittest.mock import Mock, patch
 
@@ -38,6 +39,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_2_PLUS:
@@ -56,6 +58,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
+    CONF_REQUESTS_POOL_SIZE_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
@@ -64,8 +67,6 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     KeycloakAuthManager,
 )
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-
-from tests_common.test_utils.config import conf_vars
 
 
 def _build_access_token(payload: dict[str, object]) -> str:
@@ -386,6 +387,23 @@ class TestKeycloakAuthManager:
 
             assert "Unexpected error" in str(e.value)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_is_authorized_missing_keycloak_resource(self, auth_manager, user, caplog):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_resource", "error_description": "Resource with id [Dag:team-a] does not exist."}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager.is_authorized_dag(
+            method="GET", details=DagDetails(id="dag_0", team_name="team-a"), user=user
+        )
+
+        assert result is False
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
+        assert "Resource with id [Dag:team-a] does not exist." in caplog.text
+
     @pytest.mark.parametrize(
         "function",
         [
@@ -651,6 +669,31 @@ class TestKeycloakAuthManager:
 
         mock_is_authorized.assert_called_once()
         assert result == {"dag-a"}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_filter_authorized_dag_ids_missing_keycloak_resource(self, auth_manager_multi_team, user, caplog):
+        def post_response(*_, data, **__):
+            claims = json.loads(base64.b64decode(data["claim_token"]).decode())
+            dag_id = claims[RESOURCE_ID_ATTRIBUTE_NAME][0]
+            response = Mock()
+            if dag_id == "dag-missing":
+                response.status_code = 400
+                response.text = '{"error":"invalid_resource", "error_description": "Resource with id [Dag:team-a] does not exist."}'
+            else:
+                response.status_code = 200
+            return response
+
+        auth_manager_multi_team.http_session.post = Mock(side_effect=post_response)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag-allowed", "dag-missing"}, user=user, team_name="team-a"
+        )
+
+        assert result == {"dag-allowed"}
+        assert auth_manager_multi_team.http_session.post.call_count == 2
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
@@ -1106,3 +1149,33 @@ class TestKeycloakAuthManager:
         assert result2 == dag_ids
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
         assert mock_is_authorized.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("dag_count", "pool_size", "expected_max_workers"),
+        [
+            pytest.param(5, 10, 5, id="dag-count-smaller-than-pool"),
+            pytest.param(50, 10, 10, id="dag-count-larger-than-pool"),
+            pytest.param(10, 10, 10, id="dag-count-same-as-pool"),
+        ],
+    )
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
+    @patch(
+        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.ThreadPoolExecutor",
+        wraps=ThreadPoolExecutor,
+    )
+    def test_filter_authorized_dag_ids_caps_max_workers(
+        self,
+        mock_executor,
+        _mock_is_authorized,
+        auth_manager,
+        user,
+        dag_count,
+        pool_size,
+        expected_max_workers,
+    ):
+        dag_ids = {f"dag-{index}" for index in range(dag_count)}
+
+        with conf_vars({(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY): str(pool_size)}):
+            auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user)
+
+        mock_executor.assert_called_once_with(max_workers=expected_max_workers)

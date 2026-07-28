@@ -66,9 +66,19 @@ def get_provider_info():
             }
         ],
         "asset-uris": [
-            {"schemes": ["mysql", "mariadb"], "handler": "airflow.providers.mysql.assets.mysql.sanitize_uri"}
+            {
+                "schemes": ["mysql", "mariadb"],
+                "handler": "airflow.providers.mysql.assets.mysql.sanitize_uri",
+                "factory": "airflow.providers.mysql.assets.mysql.create_asset",
+                "to_openlineage_converter": "airflow.providers.mysql.assets.mysql.convert_asset_to_openlineage",
+            }
         ],
         "dataset-uris": [
-            {"schemes": ["mysql", "mariadb"], "handler": "airflow.providers.mysql.assets.mysql.sanitize_uri"}
+            {
+                "schemes": ["mysql", "mariadb"],
+                "handler": "airflow.providers.mysql.assets.mysql.sanitize_uri",
+                "factory": "airflow.providers.mysql.assets.mysql.create_asset",
+                "to_openlineage_converter": "airflow.providers.mysql.assets.mysql.convert_asset_to_openlineage",
+            }
         ],
     }

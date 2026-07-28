@@ -30,6 +30,7 @@ from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.models.backfill import ReprocessBehavior
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, parse_and_sync_to_db
 
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
@@ -48,7 +49,8 @@ class TestCliBackfill:
 
     @classmethod
     def setup_class(cls):
-        parse_and_sync_to_db(os.devnull, include_examples=True)
+        with conf_vars({("core", "load_examples"): "True"}):
+            parse_and_sync_to_db(os.devnull)
         cls.parser = cli_parser.get_parser()
 
     @classmethod
@@ -90,6 +92,9 @@ class TestCliBackfill:
                     repro,
                 ]
             )
+        # When --run-on-latest-version is not passed, the resolver kicks in.
+        # With no DAG config and no global config set, the backfill fallback=True applies,
+        # preserving the historical default.
         airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
 
         mock_create.assert_called_once_with(
@@ -159,7 +164,8 @@ class TestCliBackfill:
             from_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
             to_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
             reverse=reverse,
-            reprocess_behavior="none",
+            reprocess_behavior=ReprocessBehavior.NONE,
+            dag_run_conf=None,
             session=mock.ANY,
         )
 
@@ -209,9 +215,36 @@ class TestCliBackfill:
         with pytest.raises(ValueError, match="Invalid JSON in --dag-run-conf"):
             airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
 
+    def test_backfill_create_missing_from_date_raises(self):
+        """Test that omitting --from-date causes argparse to exit with an error."""
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+        ]
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(args)
+
+    def test_backfill_create_missing_to_date_raises(self):
+        """Test that omitting --to-date causes argparse to exit with an error."""
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+        ]
+        with pytest.raises(SystemExit):
+            self.parser.parse_args(args)
+
+    @mock.patch("airflow.cli.commands.backfill_command.getuser", return_value="test_user")
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
-    def test_backfill_with_empty_dag_run_conf(self, mock_create):
-        """Test that empty dag_run_conf is properly parsed."""
+    def test_backfill_with_empty_dag_run_conf(self, mock_create, mock_getuser):
+        """Test that empty dag_run_conf ({}) is parsed as an empty dict, not None."""
         args = [
             "backfill",
             "create",
@@ -234,6 +267,57 @@ class TestCliBackfill:
             reverse=False,
             dag_run_conf={},
             reprocess_behavior=None,
-            triggering_user_name="root",
+            triggering_user_name="test_user",
             run_on_latest_version=True,
         )
+
+    @mock.patch("airflow.cli.commands.backfill_command._do_dry_run", autospec=True)
+    def test_backfill_dry_run_passes_dag_run_conf(self, mock_dry_run):
+        """dry-run path forwards parsed dag_run_conf dict (not raw string) to _do_dry_run."""
+        mock_dry_run.return_value = iter([])
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--dry-run",
+            "--reprocess-behavior",
+            "failed",
+            "--dag-run-conf",
+            '{"key": "val"}',
+        ]
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        mock_dry_run.assert_called_once_with(
+            dag_id="example_bash_operator",
+            from_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
+            to_date=DEFAULT_DATE.replace(tzinfo=timezone.utc),
+            reverse=False,
+            reprocess_behavior=ReprocessBehavior.FAILED,
+            dag_run_conf={"key": "val"},
+            session=mock.ANY,
+        )
+
+    @mock.patch("airflow.cli.commands.backfill_command._create_backfill", autospec=True)
+    def test_backfill_empty_window_shows_friendly_message(self, mock_create):
+        """Empty-window backfill exits with code 1 and prints a message, no traceback."""
+        from airflow.models.backfill import NoBackfillRunsToCreate
+
+        mock_create.side_effect = NoBackfillRunsToCreate("No runs to create for Dag example_bash_operator")
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+        ]
+        with pytest.raises(SystemExit) as exc_info:
+            airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+        assert exc_info.value.code == 1

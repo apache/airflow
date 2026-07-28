@@ -1,0 +1,34 @@
+Add ``rerun_with_latest_version`` configuration for DAG bundle versioning
+
+When clearing, rerunning, or backfilling tasks, this setting controls whether the
+new DAG run uses the latest bundle version or the original version from the
+initial run. It applies to clear/rerun actions (UI and API) and to backfill
+creation (API and CLI). The default is resolved using the following precedence:
+
+1. **Explicit request**: ``run_on_latest_version`` parameter in the API request body
+   or the ``--run-on-latest-version`` / ``--no-run-on-latest-version`` CLI flag.
+2. **DAG-level**: ``rerun_with_latest_version`` parameter on the DAG definition.
+3. **Global config**: ``[core] rerun_with_latest_version`` in ``airflow.cfg``.
+4. **Default**: ``False`` for clear/rerun, ``True`` for backfills (preserves
+   historical behavior).
+
+In Airflow 2.x, reruns always used the latest code. Airflow 3.x introduced bundle
+versioning, defaulting to the original version. This setting gives users control
+over which behaviour is the default.
+
+See :doc:`/administration-and-deployment/dag-bundles` for full details.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [x] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
+
+* Migration rules needed
+
+  * None - this is a new optional feature with backwards-compatible defaults

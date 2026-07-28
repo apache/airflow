@@ -26,7 +26,7 @@ def version_info(arg):
     """Get version information."""
     version_dict = {"airflowctl_version": airflowctl_version}
     if arg.remote:
-        with get_client(kind=ClientKind.CLI, api_token=getattr(arg, "api_token", None)) as api_client:
+        with get_client(kind=ClientKind.NO_AUTH) as api_client:
             version_response = api_client.version.get()
             version_dict.update(version_response.model_dump())
     rich.print(version_dict)

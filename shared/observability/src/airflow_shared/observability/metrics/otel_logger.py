@@ -30,9 +30,11 @@ from opentelemetry.sdk.metrics._internal.export import (
     ConsoleMetricExporter,
     PeriodicExportingMetricReader,
 )
+from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 from ..common import get_otel_data_exporter
+from ..exceptions import InvalidStatsNameException
 from ..otel_env_config import load_metrics_env_config
 from .protocols import Timer
 from .validators import (
@@ -102,7 +104,11 @@ def name_is_otel_safe(prefix: str, name: str) -> bool:
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
     """
-    return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
+    try:
+        return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
+    except InvalidStatsNameException:
+        log.warning("Invalid stat name: %s.%s.", prefix, name)
+        return False
 
 
 def _type_as_str(obj: Instrument) -> str:
@@ -144,9 +150,10 @@ def _skip_due_to_rate(rate: float) -> bool:
 
 class _OtelTimer(Timer):
     """
-    An implementation of Stats.Timer() which records the result in the OTel Metrics Map.
+    An implementation of stats.Timer() which records the result in the OTel Metrics Map.
 
-    OpenTelemetry does not have a native timer, we will store the values as a Gauge.
+    OpenTelemetry does not have a native timer; values are stored as a Histogram so that
+    all observations (count, sum, bucket distribution) are preserved across multiple recordings.
 
     :param name: The name of the timer.
     :param tags: Tags to append to the timer.
@@ -160,9 +167,9 @@ class _OtelTimer(Timer):
 
     def stop(self, send: bool = True) -> None:
         super().stop(send)
-        if self.name and send and self.duration:
-            self.otel_logger.metrics_map.set_gauge_value(
-                full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, False, self.tags
+        if self.name and send and self.duration is not None:
+            self.otel_logger.metrics_map.record_histogram_value(
+                full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, self.tags
             )
 
 
@@ -173,17 +180,29 @@ class SafeOtelLogger:
         self,
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
-        metrics_validator: ListValidator = PatternAllowListValidator(),
+        metrics_validator: ListValidator | None = None,
         stat_name_handler: Callable[[str], str] | None = None,
         statsd_influxdb_enabled: bool = False,
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
-        self.metrics_validator = metrics_validator
+        self.metrics_validator = metrics_validator or PatternAllowListValidator()
         self.meter = otel_provider.get_meter(__name__)
         self.metrics_map = MetricsMap(self.meter)
         self.stat_name_handler = stat_name_handler
         self.statsd_influxdb_enabled = statsd_influxdb_enabled
+
+    def _is_recordable(self, stat: str | None) -> bool:
+        """
+        Return True if ``stat`` may be recorded: non-empty, allowed by the validator, and OTel-safe.
+
+        Every recording method must gate on this before emitting; otherwise an unsafe name reaches
+        the OTel SDK, which raises and crashes the emitting process. Keeping the check in one place
+        stops a new recording method from silently omitting it.
+        """
+        if not stat:
+            return False
+        return self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat)
 
     def incr(
         self,
@@ -206,7 +225,7 @@ class SafeOtelLogger:
         if count < 0:
             raise ValueError("count must be a positive value.")
 
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+        if self._is_recordable(stat):
             counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat), attributes=tags)
             counter.add(count, attributes=tags)
             return counter
@@ -232,7 +251,7 @@ class SafeOtelLogger:
         if count < 0:
             raise ValueError("count must be a positive value.")
 
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+        if self._is_recordable(stat):
             counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat))
             counter.add(-count, attributes=tags)
             return counter
@@ -263,12 +282,12 @@ class SafeOtelLogger:
         if _skip_due_to_rate(rate):
             return
 
-        if back_compat_name and self.metrics_validator.test(back_compat_name):
+        if self._is_recordable(back_compat_name):
             self.metrics_map.set_gauge_value(
                 full_name(prefix=self.prefix, name=back_compat_name), value, delta, tags
             )
 
-        if self.metrics_validator.test(stat):
+        if self._is_recordable(stat):
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
 
     def timing(
@@ -278,11 +297,11 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        """OTel does not have a native timer, stored as a Gauge whose value is elapsed ms."""
-        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+        """Record a timing observation as a Histogram to preserve distribution information."""
+        if self._is_recordable(stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds() * 1000.0
-            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
+            self.metrics_map.record_histogram_value(full_name(prefix=self.prefix, name=stat), float(dt), tags)
 
     def timer(
         self,
@@ -292,7 +311,8 @@ class SafeOtelLogger:
         **kwargs,
     ) -> Timer:
         """Timer context manager returns the duration and can be cancelled."""
-        return _OtelTimer(self, stat, tags)
+        safe_stat = stat if self._is_recordable(stat) else None
+        return _OtelTimer(self, safe_stat, tags)
 
 
 class InternalGauge:
@@ -314,15 +334,29 @@ class InternalGauge:
         self.gauge.set(new_value, attributes=self.attributes)
 
 
+class InternalHistogram:
+    """Stores a histogram instrument for timer/timing metrics."""
+
+    def __init__(self, meter, name: str):
+        otel_safe_name = _get_otel_safe_name(name)
+        self.histogram = meter.create_histogram(name=otel_safe_name, unit="ms")
+        log.debug("Created %s as type: %s", otel_safe_name, _type_as_str(self.histogram))
+
+    def record(self, value: float, tags: Attributes) -> None:
+        self.histogram.record(value, attributes=tags)
+
+
 class MetricsMap:
     """Stores Otel Instruments."""
 
     def __init__(self, meter):
         self.meter = meter
         self.map = {}
+        self.histograms: dict[str, InternalHistogram] = {}
 
     def clear(self) -> None:
         self.map.clear()
+        self.histograms.clear()
 
     def _create_counter(self, name):
         """Create a new counter or up_down_counter for the provided name."""
@@ -376,6 +410,21 @@ class MetricsMap:
 
         self.map[key].set_value(value, delta)
 
+    def record_histogram_value(self, name: str, value: float, tags: Attributes) -> None:
+        """
+        Record a timing observation in a Histogram instrument.
+
+        Unlike a Gauge, a Histogram accumulates all observations so that count, sum,
+        and bucket distribution are preserved across multiple recordings.
+
+        :param name: The name of the histogram to record.
+        :param value: The timing observation in milliseconds.
+        :param tags: Attributes to attach to the observation.
+        """
+        if name not in self.histograms:
+            self.histograms[name] = InternalHistogram(meter=self.meter, name=name)
+        self.histograms[name].record(value, tags)
+
 
 def flush_otel_metrics():
     provider = metrics.get_meter_provider()
@@ -400,6 +449,15 @@ def get_otel_logger(
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
+    """
+    Build and return a :class:`SafeOtelLogger` backed by a configured :class:`MeterProvider`.
+
+    Histogram instruments (used for ``timing()`` / ``timer()`` metrics) are aggregated with
+    :class:`~opentelemetry.sdk.metrics.view.ExponentialBucketHistogramAggregation`
+    so that bucket boundaries adapt automatically to the observed data range.  This avoids
+    the need to hand-tune explicit bucket boundaries for metrics that span very different
+    scales (milliseconds to hours).
+    """
     otel_env_config = load_metrics_env_config()
 
     effective_service_name: str = otel_env_config.service_name or service_name or "airflow"
@@ -418,7 +476,7 @@ def get_otel_logger(
 
     readers = [
         PeriodicExportingMetricReader(
-            exporter=metric_exporter,
+            exporter=metric_exporter,  # type: ignore[arg-type]
             export_interval_millis=interval,  # type: ignore[arg-type]
         )
     ]
@@ -453,6 +511,12 @@ def get_otel_logger(
         MeterProvider(
             resource=resource,
             metric_readers=readers,
+            views=[
+                View(
+                    instrument_type=metrics.Histogram,
+                    aggregation=ExponentialBucketHistogramAggregation(),
+                )
+            ],
             shutdown_on_exit=False,
         ),
     )

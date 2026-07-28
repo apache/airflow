@@ -54,6 +54,8 @@ class PapermillOperator(BaseOperator):
     :param parameters: the notebook parameters to set
     :param kernel_name: (optional) name of kernel to execute the notebook against
         (ignores kernel name in the notebook document metadata)
+    :param log_output: (optional) Log the notebook cell output to the task log.
+        When True, the stdout/stderr of each cell execution is visible in the Airflow task log.
     """
 
     # TODO: Remove this when provider drops 2.x support.
@@ -79,6 +81,7 @@ class PapermillOperator(BaseOperator):
         kernel_name: str | None = None,
         language_name: str | None = None,
         kernel_conn_id: str | None = None,
+        log_output: bool = False,
         nbconvert: bool = False,
         nbconvert_args: list[str] | None = None,
         **kwargs,
@@ -86,21 +89,22 @@ class PapermillOperator(BaseOperator):
         super().__init__(**kwargs)
         self.parameters = parameters
 
-        if not input_nb:
-            raise ValueError("Input notebook is not specified")
         self.input_nb = input_nb
 
-        if not output_nb:
-            raise ValueError("Output notebook is not specified")
         self.output_nb = output_nb
 
         self.kernel_name = kernel_name
         self.language_name = language_name
         self.kernel_conn_id = kernel_conn_id
+        self.log_output = log_output
         self.nbconvert = nbconvert
         self.nbconvert_args = nbconvert_args
 
     def execute(self, context: Context):
+        if not self.input_nb:
+            raise ValueError("Input notebook is not specified")
+        if not self.output_nb:
+            raise ValueError("Output notebook is not specified")
         if not isinstance(self.input_nb, NoteBook):
             self.input_nb = NoteBook(url=self.input_nb, parameters=self.parameters)
         if not isinstance(self.output_nb, NoteBook):
@@ -131,6 +135,7 @@ class PapermillOperator(BaseOperator):
             parameters=self.input_nb.parameters,
             progress_bar=False,
             report_mode=True,
+            log_output=self.log_output,
             kernel_name=self.kernel_name,
             language=self.language_name,
             engine_name=engine_name,

@@ -29,7 +29,6 @@ export const FieldNumber = ({ name, namespace = "default", onUpdate }: FlexibleF
       // If input is cleared, set the value to null or undefined
       if (paramsDict[name]) {
         // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-        // eslint-disable-next-line unicorn/no-null
         paramsDict[name].value = null;
       }
     } else {

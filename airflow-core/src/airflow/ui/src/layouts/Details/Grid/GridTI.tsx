@@ -22,11 +22,13 @@ import { Link, useLocation, useParams, useSearchParams } from "react-router-dom"
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
-import { useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
+
+import { NOTE_GRADIENT } from "./constants";
 
 type Props = {
   readonly dagId: string;
+  readonly hasNote?: boolean;
   readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
@@ -36,8 +38,16 @@ type Props = {
   readonly taskId: string;
 };
 
-export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
-  const { hoveredTaskId, setHoveredTaskId } = useHover();
+export const GridTI = ({
+  dagId,
+  hasNote = false,
+  instance,
+  isGroup,
+  isMapped,
+  onClick,
+  runId,
+  taskId,
+}: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const location = useLocation();
 
@@ -52,35 +62,36 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
     taskId,
   });
 
-  const handleMouseEnter = () => setHoveredTaskId(taskId);
-  const handleMouseLeave = () => setHoveredTaskId(undefined);
-
   // Remove try_number query param when navigating to reset to the
   // latest try of the task instance and avoid issues with invalid try numbers:
   // https://github.com/apache/airflow/issues/56977
   searchParams.delete("try_number");
   const redirectionSearch = searchParams.toString();
 
-  // Determine background: selected takes priority over hovered
   const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
-  const isHovered = hoveredTaskId === taskId;
 
   return (
     <Flex
       alignItems="center"
-      bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+      bg={isSelected ? "brand.emphasized" : undefined}
+      data-run-id={runId}
+      data-selected={isSelected}
+      data-task-id={taskId}
       height="20px"
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
       key={taskId}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       position="relative"
       px="2px"
       py={0}
       transition="background-color 0.2s"
     >
-      <TaskInstanceTooltip openDelay={500} positioning={{ placement: "bottom" }} taskInstance={instance}>
+      <TaskInstanceTooltip
+        openDelay={500}
+        positioning={{ placement: "bottom" }}
+        runId={runId}
+        taskInstance={instance}
+      >
         <Box as="span" display="inline-block">
           <Link
             data-testid={`grid-${runId}-${taskId}`}
@@ -102,6 +113,7 @@ export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, tas
               justifyContent="center"
               minH={0}
               p={0}
+              style={hasNote ? { background: NOTE_GRADIENT } : undefined}
               variant="solid"
               width="14px"
             >

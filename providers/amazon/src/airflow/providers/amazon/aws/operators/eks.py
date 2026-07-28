@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import stat
@@ -1277,10 +1278,8 @@ class EksPodOperator(KubernetesPodOperator):
                     f.write(f"export AWS_SESSION_TOKEN='{session_token}'\n")
         except Exception:
             # If fdopen fails, we need to close the file descriptor manually
-            try:
+            with contextlib.suppress(OSError):
                 os.close(fd)
-            except OSError:
-                pass
             raise
 
     def _refresh_cached_properties(self) -> None:

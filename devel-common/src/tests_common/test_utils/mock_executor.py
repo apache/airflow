@@ -22,6 +22,7 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_utils import ExecutorName
 from airflow.models.taskinstance import TaskInstance
@@ -57,7 +58,7 @@ class MockExecutor(BaseExecutor):
         self.mock_task_results = defaultdict(self.success)
 
         # Mock JWT generator for token generation
-        mock_jwt_generator = MagicMock()
+        mock_jwt_generator = MagicMock(spec=JWTGenerator)
         mock_jwt_generator.generate.return_value = "mock-token"
 
         self.jwt_generator = mock_jwt_generator

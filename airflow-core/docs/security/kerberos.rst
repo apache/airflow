@@ -91,6 +91,16 @@ If you need more granular options for your Kerberos ticket the following options
     # This is particularly useful if you use Airflow inside a VM NATted behind host system IP.
     include_ip = True
 
+.. warning::
+
+    The default ``ccache`` location ``/tmp/airflow_krb5_ccache`` is in a world-readable directory on most
+    Unix systems, which means other local users on the same host could read or modify the Kerberos
+    credential cache and impersonate the Airflow service principal. In production deployments, point
+    ``ccache`` at a directory only the Airflow service account can access — for example a per-service
+    runtime directory like ``/run/airflow/krb5_ccache`` (or ``/var/lib/airflow/krb5_ccache``) created
+    with mode ``0700`` and owned by the Airflow user. Apply the same principle as the keytab, which
+    should already be ``chmod 600``.
+
 Keep in mind that Kerberos ticket are generated via ``kinit`` and will your use your local ``krb5.conf`` by default.
 
 Launch the ticket renewer by

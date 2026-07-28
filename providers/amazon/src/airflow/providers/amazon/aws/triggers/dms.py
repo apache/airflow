@@ -219,3 +219,51 @@ class DmsReplicationDeprovisionedTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+
+class DmsTaskModifyCompleteTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger when a DMS classic replication task modification completes.
+
+    :param replication_task_arn: The ARN of the replication task.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param verify: Whether or not to verify SSL certificates.
+    :param botocore_config: Configuration dictionary (key-values) for botocore client.
+    """
+
+    def __init__(
+        self,
+        replication_task_arn: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={"replication_task_arn": replication_task_arn},
+            waiter_name="replication_task_modified",
+            waiter_delay=waiter_delay,
+            waiter_args={
+                "Filters": [{"Name": "replication-task-arn", "Values": [replication_task_arn]}],
+                "WithoutSettings": True,
+            },
+            waiter_max_attempts=waiter_max_attempts,
+            failure_message="Replication task modification failed to complete.",
+            status_message="Status replication task is",
+            status_queries=["ReplicationTasks[0].Status"],
+            return_key="replication_task_arn",
+            return_value=replication_task_arn,
+            aws_conn_id=aws_conn_id,
+            verify=verify,
+            botocore_config=botocore_config,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return DmsHook(
+            self.aws_conn_id,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

@@ -24,6 +24,7 @@ import argparse
 import ast
 import datetime
 import inspect
+import json
 import os
 import sys
 from argparse import Namespace
@@ -35,12 +36,12 @@ from typing import Any, NamedTuple, cast
 
 import httpx
 import rich
-import yaml
 
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -195,11 +196,24 @@ def string_lower_type(val):
     return val.strip().lower()
 
 
+def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
+    """Parse JSON object argument."""
+    if isinstance(val, dict):
+        return val
+    try:
+        parsed = json.loads(val)
+    except json.JSONDecodeError as e:
+        raise argparse.ArgumentTypeError(f"invalid JSON object: {val!r}") from e
+    if not isinstance(parsed, dict):
+        raise argparse.ArgumentTypeError(f"expected JSON object: {val!r}")
+    return parsed
+
+
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
     """Load the help texts yaml for the auto-generated commands."""
     help_texts_path = Path(__file__).parent / "help_texts.yaml"
     with open(help_texts_path) as yaml_file:
-        help_texts = yaml.safe_load(yaml_file)
+        help_texts = safe_load(yaml_file)
     return help_texts
 
 
@@ -265,7 +279,31 @@ ARG_AUTH_PASSWORD = Arg(
 ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
-    help="The DAG ID of the DAG to pause or unpause",
+    help="The Dag ID",
+)
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
+)
+
+# Task Commands Args
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
@@ -394,7 +432,21 @@ class CommandFactory:
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
         # This list is used to determine if the command/operation needs to output data
-        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger", "add", "edit"]
+        self.output_command_list = [
+            "list",
+            "get",
+            "create",
+            "delete",
+            "update",
+            "trigger",
+            "add",
+            "edit",
+            "clear",
+        ]
+        # Datamodels whose generated bool flags follow the datamodel field defaults instead of
+        # defaulting to False, so the CLI keeps the API semantics (e.g. a bare ``tasks clear``
+        # must keep ``dry_run=True`` and preview instead of clearing).
+        self.field_bool_default_datamodels = ["ClearTaskInstancesBody"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -423,11 +475,19 @@ class CommandFactory:
             args = []
             return_annotation: str = ""
 
-            for arg in node.args.args:
+            # In ``ast.arguments``, ``defaults`` aligns with the *tail* of
+            # ``args``. A parameter is required when its position from the
+            # left is *before* the first defaulted position. Equivalent to
+            # ``len(args) - len(defaults)``.
+            positional_args = [a for a in node.args.args if a.arg != "self"]
+            defaults_count = len(node.args.defaults)
+            required_count = len(positional_args) - defaults_count
+            required_param_names: set[str] = {a.arg for a in positional_args[:required_count]}
+
+            for arg in positional_args:
                 arg_name = arg.arg
                 arg_type = ast.unparse(arg.annotation) if arg.annotation else "Any"
-                if arg_name != "self":
-                    args.append({arg_name: arg_type})
+                args.append({arg_name: arg_type})
 
             if node.returns:
                 return_annotation = [
@@ -437,6 +497,7 @@ class CommandFactory:
             return {
                 "name": func_name,
                 "parameters": args,
+                "required_param_names": required_param_names,
                 "return_type": return_annotation,
                 "parent": parent_node,
             }
@@ -507,11 +568,11 @@ class CommandFactory:
             "str": str,
             "bytes": bytes,
             "list": list,
-            "dict": dict,
+            "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
             "datetime.datetime": datetime.datetime,
-            "dict[str, typing.Any]": dict,
+            "dict[str, typing.Any]": json_dict_type,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
         # type names while still allowing the CLI to function.
@@ -537,6 +598,34 @@ class CommandFactory:
             action=arg_action,
         )
 
+    @staticmethod
+    def _create_positional_arg(
+        parameter_key: str,
+        arg_type: type | Callable,
+        arg_help: str,
+    ) -> Arg:
+        """
+        Build a positional ``Arg`` for a required primitive parameter.
+
+        ``argparse`` rejects ``default`` and ``dest`` on positional arguments,
+        so this helper keeps both unset and uses the raw parameter name (with
+        underscores) as the flag so the parsed ``Namespace`` attribute lines up
+        with the operation method's signature.
+        """
+        return Arg(
+            flags=(parameter_key,),
+            type=arg_type,
+            help=arg_help,
+        )
+
+    def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
+        """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
+        if parameter_type in self.field_bool_default_datamodels and (
+            field_default is None or isinstance(field_default, bool)
+        ):
+            return field_default
+        return False
+
     def _create_arg_for_non_primitive_type(
         self,
         parameter_type: str,
@@ -552,50 +641,68 @@ class CommandFactory:
                 continue
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
-                    )
-                )
+                annotation = field_type.annotation
             else:
                 try:
                     annotation = field_type.annotation.__args__[0]
                 except AttributeError:
                     annotation = field_type.annotation
 
-                commands.append(
-                    self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
-                        arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
-                    )
+            commands.append(
+                self._create_arg(
+                    arg_flags=(f"--{self._sanitize_arg_parameter_key(field)}",),
+                    arg_type=self._python_type_from_string(annotation),
+                    arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                    arg_help=f"{field} for {parameter_key} operation",
+                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
+                    if annotation is bool
+                    else None,
                 )
+            )
         return commands
 
     def _create_args_map_from_operation(self):
         """Create Arg from Operation Method checking for parameters and return types."""
         for operation in self.operations:
             args = []
+            required_names: set[str] = operation.get("required_param_names") or set()
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
                         base_parameter_type = parameter_type.replace(" | None", "").strip()
                         is_bool = base_parameter_type == "bool"
-                        args.append(
-                            self._create_arg(
-                                arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=self._python_type_from_string(parameter_type),
-                                arg_action=argparse.BooleanOptionalAction if is_bool else None,
-                                arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                arg_default=None,
-                            )
+                        # Required, non-bool primitives are exposed as positional
+                        # arguments per the dev-list lazy consensus
+                        # (https://lists.apache.org/thread/m1qvcvow3l17ytv40vhslh40wn3rntrm).
+                        # Bool stays --flag/--no-flag and ``parameter_type``
+                        # ending in ``| None`` is treated as optional.
+                        is_required_positional = (
+                            parameter_key in required_names and not is_bool and "| None" not in parameter_type
                         )
+                        if is_required_positional:
+                            args.append(
+                                self._create_positional_arg(
+                                    parameter_key=parameter_key,
+                                    arg_type=self._python_type_from_string(parameter_type),
+                                    arg_help=(
+                                        f"{parameter_key} for {operation.get('name')} "
+                                        f"operation in {operation.get('parent').name}"
+                                    ),
+                                )
+                            )
+                        else:
+                            args.append(
+                                self._create_arg(
+                                    arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
+                                    arg_type=self._python_type_from_string(parameter_type),
+                                    arg_action=argparse.BooleanOptionalAction if is_bool else None,
+                                    arg_help=(
+                                        f"{parameter_key} for {operation.get('name')} "
+                                        f"operation in {operation.get('parent').name}"
+                                    ),
+                                    arg_default=None,
+                                )
+                            )
                     else:
                         args.extend(
                             self._create_arg_for_non_primitive_type(
@@ -630,6 +737,20 @@ class CommandFactory:
             and params["logical_date"] is None
         ):
             params["logical_date"] = datetime.datetime.now(datetime.timezone.utc)
+
+        # Handle ClearTaskInstancesBody: --task-ids arrives as a single string but the API expects
+        # a list of task_id or [task_id, map_index]; accept comma-separated ids or a JSON list
+        if datamodel.__name__ == "ClearTaskInstancesBody" and isinstance(params.get("task_ids"), str):
+            raw_task_ids = params["task_ids"]
+            if raw_task_ids.lstrip().startswith("["):
+                try:
+                    params["task_ids"] = json.loads(raw_task_ids)
+                except json.JSONDecodeError as e:
+                    raise SystemExit(f"Invalid JSON list for --task-ids {raw_task_ids!r}: {e}")
+            else:
+                params["task_ids"] = [
+                    task_id.strip() for task_id in raw_task_ids.split(",") if task_id.strip()
+                ]
 
         return params
 
@@ -917,12 +1038,31 @@ CONNECTION_COMMANDS = (
 
 DAG_COMMANDS = (
     ActionCommand(
+        name="next-execution",
+        help="Show the next scheduled execution time for a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.next_execution"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
         name="pause",
         help="Pause a Dag",
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.pause"),
         args=(
             ARG_DAG_ID,
             ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="state",
+        help="Get the status of a Dag run",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
+        args=(
+            ARG_DAG_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
         ),
     ),
     ActionCommand(
@@ -949,6 +1089,24 @@ POOL_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
         args=(
             ARG_FILE,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
+TASK_COMMANDS = (
+    ActionCommand(
+        name="states-for-dag-run",
+        help="Get the status of all task instances in a Dag run",
+        description=(
+            "Get the status of all task instances in a Dag run. "
+            "Select the run with either run_id or --logical-date (pass exactly one)."
+        ),
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.states_for_dag_run"),
+        args=(
+            ARG_DAG_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
             ARG_OUTPUT,
         ),
     ),
@@ -989,6 +1147,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="tasks",
+        help="Manage Airflow tasks",
+        subcommands=TASK_COMMANDS,
     ),
     ActionCommand(
         name="version",

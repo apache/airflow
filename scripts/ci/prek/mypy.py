@@ -33,7 +33,7 @@ from common_prek_utils import (
     console,
     initialize_breeze_prek,
     pre_process_mypy_files,
-    run_command_via_breeze_shell,
+    run_command_via_breeze_run,
 )
 
 initialize_breeze_prek(__name__, __file__)
@@ -52,7 +52,7 @@ cmd = [
     f"TERM=ansi mypy {' '.join([shlex.quote(str(Path(file).absolute().relative_to(repo_root))) for file in files_to_test])}",
 ]
 
-res = run_command_via_breeze_shell(
+res = run_command_via_breeze_run(
     cmd=cmd,
     warn_image_upgrade_needed=True,
     extra_env={

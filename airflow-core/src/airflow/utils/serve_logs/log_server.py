@@ -67,7 +67,7 @@ class JWTAuthStaticFiles(StaticFiles):
             payload = await signer.avalidated_claims(auth)
             token_filename = payload.get("filename")
             # Extract filename from url path
-            request_filename = request.url.path.lstrip("/log/")
+            request_filename = request.url.path.removeprefix("/log/")
             if token_filename is None:
                 logger.warning("The payload does not contain 'filename' key: %s.", payload)
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)

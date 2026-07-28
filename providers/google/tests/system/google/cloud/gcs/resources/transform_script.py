@@ -23,6 +23,6 @@ destination = sys.argv[2]
 
 print("Running script")
 with open(source) as src, open(destination, "w+") as dest:
-    lines = [line.upper() for line in src.readlines()]
+    lines = [line.upper() for line in src]
     print(lines)
     dest.writelines(lines)

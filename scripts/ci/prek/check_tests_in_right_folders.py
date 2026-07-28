@@ -72,6 +72,7 @@ POSSIBLE_TEST_FOLDERS = [
     "security",
     "sensors",
     "serialization",
+    "state",
     "task",
     "template",
     "test_utils",

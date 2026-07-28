@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import importlib.metadata
 
-import werkzeug
+try:
+    import werkzeug
+except ModuleNotFoundError:
+    werkzeug = None
 
 pytest_plugins = "tests_common.pytest_plugin"
 
 # Flask 2.2.x test client reads werkzeug.__version__ which Werkzeug 3.x removed.
 # Connexion 2.x used to pin Werkzeug<3, but connexion is now removed from FAB provider.
-if not hasattr(werkzeug, "__version__"):
+if werkzeug is not None and not hasattr(werkzeug, "__version__"):
     werkzeug.__version__ = importlib.metadata.version("werkzeug")

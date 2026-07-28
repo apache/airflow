@@ -27,14 +27,29 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
+from sqlalchemy import ForeignKey, Integer, String, Text, select
+from sqlalchemy.orm import Mapped, mapped_column, reconstructor
 
 from airflow._shared.module_loading import import_string
+from airflow._shared.secrets_backend.base import call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
-from airflow.models.crypto import get_fernet
+from airflow.models.crypto import FernetFieldsMixin, get_fernet
+
+# AirflowSecretsBackendAccessDenied was added to task-sdk in 1.2.2. When
+# airflow-core is installed alongside an older published task-sdk (e.g. 1.2.1 or earlier),
+# the import fails at module load time. The fallback class is never raised by
+# old task-sdk, so the except clause below simply never fires — behaviour is
+# identical to pre-1.2.2 task-sdk.
+try:
+    from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+except ImportError:
+
+    class AirflowSecretsBackendAccessDenied(PermissionError):  # type: ignore[no-redef]
+        """Compat stub — never raised by task-sdk <1.2.2."""
+
+
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -95,7 +110,7 @@ def _parse_netloc_to_hostname(uri_parts):
     return hostname
 
 
-class Connection(Base, LoggingMixin):
+class Connection(Base, FernetFieldsMixin, LoggingMixin):
     """
     Placeholder to store information about different database instances connection information.
 
@@ -131,16 +146,12 @@ class Connection(Base, LoggingMixin):
     host: Mapped[str | None] = mapped_column(String(500), nullable=True)
     schema: Mapped[str | None] = mapped_column(String(500), nullable=True)
     login: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
     port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
-    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
-    is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     team_name: Mapped[str | None] = mapped_column(
         String(50),
         ForeignKey("team.name", ondelete="SET NULL"),
         nullable=True,
     )
-    _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
 
     def __init__(
         self,
@@ -253,9 +264,10 @@ class Connection(Base, LoggingMixin):
             else:
                 for key, value in query.items():
                     try:
-                        query[key] = json.loads(value)
-                    except (JSONDecodeError, TypeError):
-                        self.log.info("Failed parsing the json for key %s", key)
+                        if value:
+                            query[key] = json.loads(value)
+                    except JSONDecodeError:
+                        self.log.debug("Failed parsing the json for key %s", key, exc_info=True)
                 self.extra = json.dumps(query)
 
     @staticmethod
@@ -353,62 +365,18 @@ class Connection(Base, LoggingMixin):
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
         return uri
 
-    def get_password(self) -> str | None:
-        """Return encrypted password."""
-        if self._password and self.is_encrypted:
-            fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    f"Can't decrypt encrypted password for login={self.login}  "
-                    f"FERNET_KEY configuration is missing"
-                )
-            return fernet.decrypt(bytes(self._password, "utf-8")).decode()
-        return self._password
-
-    def set_password(self, value: str | None):
-        """Encrypt password and set in object attribute."""
-        if value:
-            fernet = get_fernet()
-            self._password = fernet.encrypt(bytes(value, "utf-8")).decode()
-            self.is_encrypted = fernet.is_encrypted
-
-    @declared_attr
-    def password(cls):
-        """Password. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
-
     def get_extra(self) -> str | None:
-        """Return encrypted extra-data."""
-        extra_val: str | None
-        if self._extra and self.is_extra_encrypted:
-            fernet = get_fernet()
-            if not fernet.is_encrypted:
-                raise AirflowException(
-                    f"Can't decrypt `extra` params for login={self.login}, "
-                    f"FERNET_KEY configuration is missing"
-                )
-            extra_val = fernet.decrypt(bytes(self._extra, "utf-8")).decode()
-        else:
-            extra_val = self._extra
+        """Return decrypted extra-data, validating its JSON shape."""
+        extra_val = super().get_extra()
         if extra_val:
             self._validate_extra(extra_val, self.conn_id)
         return extra_val
 
     def set_extra(self, value: str | None):
-        """Encrypt extra-data and save in object attribute to object."""
+        """Validate JSON shape, then delegate encrypt-and-store to the mixin."""
         if value:
             self._validate_extra(value, self.conn_id)
-            fernet = get_fernet()
-            self._extra = fernet.encrypt(bytes(value, "utf-8")).decode()
-            self.is_extra_encrypted = fernet.is_encrypted
-        else:
-            self._extra = value
-            self.is_extra_encrypted = False
-
-    @declared_attr
-    def extra(cls):
-        """Extra data. The value is decrypted/encrypted when reading/setting the value."""
-        return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
+        super().set_extra(value)
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
@@ -550,10 +518,15 @@ class Connection(Base, LoggingMixin):
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
-                conn = secrets_backend.get_connection(conn_id=conn_id, team_name=team_name)
+                conn = call_secrets_backend_method(
+                    secrets_backend.get_connection, team_name=team_name, conn_id=conn_id
+                )
                 if conn:
                     SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=team_name)
                     return conn
+            except AirflowSecretsBackendAccessDenied:
+                # Authoritative deny — must NOT fall through to a less-restrictive backend.
+                raise
             except Exception:
                 log.debug(
                     "Unable to retrieve connection from secrets backend (%s). "
@@ -628,14 +601,14 @@ class Connection(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_team_name(connection_id: str, session=NEW_SESSION) -> str | None:
+    def get_team_name(connection_id: str, *, session=NEW_SESSION) -> str | None:
         stmt = select(Connection.team_name).where(Connection.conn_id == connection_id)
         return session.scalar(stmt)
 
     @staticmethod
     @provide_session
     def get_conn_id_to_team_name_mapping(
-        connection_ids: list[str], session=NEW_SESSION
+        connection_ids: list[str], *, session=NEW_SESSION
     ) -> dict[str, str | None]:
         stmt = select(Connection.conn_id, Connection.team_name).where(Connection.conn_id.in_(connection_ids))
         return {conn_id: team_name for conn_id, team_name in session.execute(stmt)}

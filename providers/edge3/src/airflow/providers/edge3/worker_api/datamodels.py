@@ -17,17 +17,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import (
-    Annotated,
-    Any,
-)
+from typing import Annotated
 
 from fastapi import Path
 from pydantic import BaseModel, Field
 
-from airflow.executors.workloads import ExecuteTask  # noqa: TCH001
 from airflow.providers.common.compat.sdk import TaskInstanceKey
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState  # noqa: TCH001
+from airflow.providers.edge3.models.types import ExecuteTypeBody  # noqa: TCH001
 
 
 class WorkerApiDocs:
@@ -42,25 +39,6 @@ class WorkerApiDocs:
         description="For dynamically mapped tasks the mapping number, -1 if the task is not mapped.",
     )
     state = Path(title="Task State", description="State of the assigned task under execution.")
-
-
-class JsonRpcRequestBase(BaseModel):
-    """Base JSON RPC request model to define just the method."""
-
-    method: Annotated[
-        str,
-        Field(description="Fully qualified python module method name that is called via JSON RPC."),
-    ]
-
-
-class JsonRpcRequest(JsonRpcRequestBase):
-    """JSON RPC request model."""
-
-    jsonrpc: Annotated[str, Field(description="JSON RPC Version", examples=["2.0"])]
-    params: Annotated[
-        dict[str, Any] | None,
-        Field(description="Dictionary of parameters passed to the method."),
-    ]
 
 
 class EdgeJobBase(BaseModel):
@@ -91,7 +69,7 @@ class EdgeJobFetched(EdgeJobBase):
     """Job that is to be executed on the edge worker."""
 
     command: Annotated[
-        ExecuteTask,
+        ExecuteTypeBody,
         Field(
             title="Command",
             description="Command line to use to execute the job in Airflow",
@@ -125,7 +103,14 @@ class WorkerQueuesBase(BaseModel):
         str | None,
         Field(
             None,
-            description="Team name for multi-team setups. If not provided, worker operates without team isolation.",
+            description=(
+                "Team name for the experimental ``[core] multi_team`` feature. "
+                "This is a UI/REST API-level hint; the Execution API does not "
+                "currently enforce team-based access boundaries -- see "
+                "``airflow-core/docs/security/workload.rst`` (section: "
+                "'No team-level isolation in Execution API'). Workers without "
+                "team_name behave as default-team workers."
+            ),
         ),
     ] = None
 
@@ -148,11 +133,12 @@ class WorkerStateBody(WorkerQueuesBase):
         ),
     ] = None
     sysinfo: Annotated[
-        dict[str, str | int],
+        dict[str, str | int | float | datetime],
         Field(
             description="System information of the worker.",
             examples=[
                 {
+                    "status": 20,
                     "concurrency": 4,
                     "free_concurrency": 3,
                     "airflow_version": "2.0.0",
@@ -191,6 +177,14 @@ class WorkerRegistrationReturn(BaseModel):
     """The return class for the worker registration."""
 
     last_update: Annotated[datetime, Field(description="Time of the last update of the worker.")]
+    versions_match: Annotated[
+        bool,
+        Field(
+            description="Whether the worker and the server have matching versions of Airflow and the Edge Provider. "
+            "If False, the worker version is not matching and might need to be upgraded. But version is still "
+            "compatible enough to work. If True, worker and server versions match.",
+        ),
+    ] = False  # If not explicitly given assume it is not compatible
 
 
 class WorkerSetStateReturn(BaseModel):
@@ -214,3 +208,11 @@ class WorkerSetStateReturn(BaseModel):
             "None means no remote override; the worker uses its startup value.",
         ),
     ] = None
+    versions_match: Annotated[
+        bool,
+        Field(
+            description="Whether the worker and the server have matching versions of Airflow and the Edge Provider. "
+            "If False, the worker version is not matching and might need to be upgraded. But version is still "
+            "compatible enough to work. If True, worker and server versions match.",
+        ),
+    ] = False  # If not explicitly given assume it is not compatible

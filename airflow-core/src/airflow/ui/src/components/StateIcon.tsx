@@ -18,7 +18,14 @@
  */
 import type { IconBaseProps } from "react-icons";
 import { FiActivity, FiCalendar, FiRepeat, FiSkipForward, FiSlash, FiWatch, FiX } from "react-icons/fi";
-import { LuCalendarSync, LuCheck, LuCircleDashed, LuCircleFadingArrowUp, LuRedo2 } from "react-icons/lu";
+import {
+  LuCalendarSync,
+  LuCheck,
+  LuCircleDashed,
+  LuCircleFadingArrowUp,
+  LuRedo2,
+  LuUserRoundPen,
+} from "react-icons/lu";
 import { PiQueue } from "react-icons/pi";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
@@ -31,6 +38,8 @@ export const StateIcon = ({ state, ...rest }: Props) => {
   // false positive eslint - we have a default.
   // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check
   switch (state) {
+    case "awaiting_input":
+      return <LuUserRoundPen {...rest} />;
     case "deferred":
       return <FiWatch {...rest} />;
     case "failed":

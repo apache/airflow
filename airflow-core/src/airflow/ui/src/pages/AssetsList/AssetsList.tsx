@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, Link, useDisclosure, VStack } from "@chakra-ui/react";
+import { Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
-import { useSearchParams, Link as RouterLink } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssets } from "openapi/queries";
 import type { AssetResponse } from "openapi/requests/types.gen";
@@ -30,8 +30,11 @@ import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
+import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { CreateAssetEvent } from "src/pages/Asset/CreateAssetEvent";
+import { useDocumentTitle } from "src/utils";
 
 import { DependencyPopover } from "./DependencyPopover";
 
@@ -44,9 +47,9 @@ const createColumns = (
   {
     accessorKey: "name",
     cell: ({ row: { original } }: AssetRow) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/assets/${original.id}`}>{original.name}</RouterLink>
-      </Link>
+      <RouterLink fontWeight="bold" to={`/assets/${original.id}`}>
+        {original.name}
+      </RouterLink>
     ),
     header: () => translate("name"),
   },
@@ -115,9 +118,13 @@ const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
 
 export const AssetsList = () => {
   const { t: translate } = useTranslation(["assets", "common"]);
+
+  useDocumentTitle(translate("common:nav.assets"));
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   const namePattern = searchParams.get(NAME_PATTERN) ?? "";
+  const advancedSearch = useAdvancedSearch("assets");
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -128,7 +135,7 @@ export const AssetsList = () => {
 
   const { data, error, isLoading } = useAssetServiceGetAssets({
     limit: pagination.pageSize,
-    namePattern,
+    ...(advancedSearch.enabled ? { namePattern } : { namePrefixPattern: namePattern }),
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
   });
@@ -153,6 +160,7 @@ export const AssetsList = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
+          advancedSearch={advancedSearch}
           defaultValue={namePattern}
           onChange={handleSearchChange}
           placeholder={translate("searchPlaceholder")}
@@ -165,6 +173,7 @@ export const AssetsList = () => {
           <ExpandCollapseButtons
             collapseLabel={translate("common:collapseAllExtra")}
             expandLabel={translate("common:expandAllExtra")}
+            isExpanded={open}
             onCollapse={onClose}
             onExpand={onOpen}
           />

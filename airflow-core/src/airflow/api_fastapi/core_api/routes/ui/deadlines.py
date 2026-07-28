@@ -94,10 +94,10 @@ def get_deadlines(
     ],
 ) -> DeadlineCollectionResponse:
     """
-    Get deadlines for a DAG run.
+    Get deadlines for a Dag run.
 
     This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
-    DAGs and DAG runs.
+    Dags and Dag runs.
     """
     query = (
         select(Deadline)
@@ -129,7 +129,7 @@ def get_deadlines(
         session=session,
     )
 
-    deadlines = session.scalars(deadlines_select).unique()
+    deadlines = session.scalars(deadlines_select)
 
     if dag_run_id != "~" and total_entries == 0:
         dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
@@ -172,7 +172,7 @@ def get_dag_deadline_alerts(
         ),
     ],
 ) -> DeadlineAlertCollectionResponse:
-    """Get all deadline alerts defined on a DAG."""
+    """Get all deadline alerts defined on a Dag."""
     serialized_dag = session.scalar(
         select(SerializedDagModel)
         .where(SerializedDagModel.dag_id == dag_id)

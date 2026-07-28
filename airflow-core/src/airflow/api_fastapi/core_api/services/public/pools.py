@@ -149,7 +149,14 @@ class BulkPoolService(BulkService[PoolBody]):
                 if pool.pool in create_pool_names:
                     if pool.pool in matched_pool_names:
                         existed_pool = existing_pools_dict[pool.pool]
-                        for key, val in pool.model_dump().items():
+                        # Only overwrite fields the request actually provided. Plain ``model_dump()``
+                        # emits every field at its default, so an overwrite that omits e.g.
+                        # ``team_name``/``description``/``include_deferred`` silently resets them on the
+                        # existing pool — most damagingly nulling its multi-team ``team_name`` ownership.
+                        # ``exclude_unset=True`` writes only fields present in the request body, so
+                        # omitted fields keep their current value while an explicitly-set field (even
+                        # ``None``) is still applied.
+                        for key, val in pool.model_dump(exclude_unset=True).items():
                             setattr(existed_pool, key, val)
                     else:
                         self.session.add(Pool(**pool.model_dump()))
@@ -188,7 +195,9 @@ class BulkPoolService(BulkService[PoolBody]):
     def handle_bulk_delete(self, action: BulkDeleteAction[PoolBody], results: BulkActionResponse) -> None:
         """Bulk delete pools."""
         to_delete_pool_names = set(action.entities)
-        _, matched_pool_names, not_found_pool_names = self.categorize_pools(to_delete_pool_names)
+        existing_pools_dict, matched_pool_names, not_found_pool_names = self.categorize_pools(
+            to_delete_pool_names
+        )
 
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
@@ -196,16 +205,10 @@ class BulkPoolService(BulkService[PoolBody]):
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail=f"The pools with these pool names: {not_found_pool_names} were not found.",
                 )
-            if action.action_on_non_existence == BulkActionNotOnExistence.SKIP:
-                delete_pool_names = matched_pool_names
-            else:
-                delete_pool_names = to_delete_pool_names
 
-            for pool_name in delete_pool_names:
-                existing_pool = self.session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
-                if existing_pool:
-                    self.session.delete(existing_pool)
-                    results.success.append(pool_name)
+            for pool_name in matched_pool_names:
+                self.session.delete(existing_pools_dict[pool_name])
+                results.success.append(pool_name)
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

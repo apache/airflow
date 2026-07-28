@@ -73,7 +73,11 @@ class CloudBatchHook(GoogleBaseHook):
         :return: Google Batch Service client object.
         """
         if self._client is None:
-            self._client = BatchServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = BatchServiceClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -150,12 +154,12 @@ class CloudBatchHook(GoogleBaseHook):
                 if status == JobStatus.State.FAILED:
                     message = (
                         "Unexpected error in the operation: "
-                        "Batch job with name {job_name} has failed its execution."
+                        f"Batch job with name {job_name} has failed its execution."
                     )
                     raise AirflowException(message)
                 if status == JobStatus.State.DELETION_IN_PROGRESS:
                     message = (
-                        "Unexpected error in the operation: Batch job with name {job_name} is being deleted."
+                        f"Unexpected error in the operation: Batch job with name {job_name} is being deleted."
                     )
                     raise AirflowException(message)
                 time.sleep(polling_period_seconds)
@@ -199,7 +203,9 @@ class CloudBatchAsyncHook(GoogleBaseHook):
     def get_conn(self):
         if self._client is None:
             self._client = BatchServiceAsyncClient(
-                credentials=self.get_credentials(), client_info=CLIENT_INFO
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
             )
 
         return self._client

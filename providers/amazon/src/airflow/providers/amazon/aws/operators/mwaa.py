@@ -41,23 +41,23 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         :ref:`howto/operator:MwaaTriggerDagRunOperator`
 
     :param env_name: The MWAA environment name (templated)
-    :param trigger_dag_id: The ID of the DAG to be triggered (templated)
+    :param trigger_dag_id: The ID of the Dag to be triggered (templated)
     :param trigger_run_id: The Run ID. This together with trigger_dag_id are a unique key. (templated)
     :param logical_date: The logical date (previously called execution date). This is the time or interval
-        covered by this DAG run, according to the DAG definition. This together with trigger_dag_id are a
+        covered by this Dag run, according to the Dag definition. This together with trigger_dag_id are a
         unique key. This field is required if your environment is running with Airflow 3. (templated)
-    :param data_interval_start: The beginning of the interval the DAG run covers
-    :param data_interval_end: The end of the interval the DAG run covers
+    :param data_interval_start: The beginning of the interval the Dag run covers
+    :param data_interval_end: The end of the interval the Dag run covers
     :param conf: Additional configuration parameters. The value of this field can be set only when creating
         the object. (templated)
     :param note: Contains manually entered notes by the user about the DagRun. (templated)
     :param airflow_version: The Airflow major version the MWAA environment runs.
             This parameter is only used if the local web token method is used to call Airflow API. (templated)
 
-    :param wait_for_completion: Whether to wait for DAG run to stop. (default: False)
+    :param wait_for_completion: Whether to wait for Dag run to stop. (default: False)
     :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
-    :param waiter_max_attempts: Maximum number of attempts to check for DAG run completion. (default: 720)
-    :param deferrable: If True, the operator will wait asynchronously for the DAG run to stop.
+    :param waiter_max_attempts: Maximum number of attempts to check for Dag run completion. (default: 720)
+    :param deferrable: If True, the operator will wait asynchronously for the Dag run to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -122,10 +122,10 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict:
         validated_event = validate_execute_complete_event(event)
         if validated_event["status"] != "success":
-            raise AirflowException(f"DAG run failed: {validated_event}")
+            raise AirflowException(f"Dag run failed: {validated_event}")
 
         dag_run_id = validated_event["dag_run_id"]
-        self.log.info("DAG run %s of DAG %s completed", dag_run_id, self.trigger_dag_id)
+        self.log.info("Dag run %s of Dag %s completed", dag_run_id, self.trigger_dag_id)
         return self.hook.invoke_rest_api(
             env_name=self.env_name,
             path=f"/dags/{self.trigger_dag_id}/dagRuns/{dag_run_id}",
@@ -157,9 +157,9 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         )
 
         dag_run_id = response["RestApiResponse"]["dag_run_id"]
-        self.log.info("DAG run %s of DAG %s created", dag_run_id, self.trigger_dag_id)
+        self.log.info("Dag run %s of Dag %s created", dag_run_id, self.trigger_dag_id)
 
-        task_description = f"DAG run {dag_run_id} of DAG {self.trigger_dag_id} to complete"
+        task_description = f"Dag run {dag_run_id} of Dag {self.trigger_dag_id} to complete"
         if self.deferrable:
             self.log.info("Deferring for %s", task_description)
             self.defer(

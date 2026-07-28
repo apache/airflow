@@ -1,4 +1,6 @@
 {
+  "deferredSlotsNotCounted": "Diferides no comptades en slots: {{count}}",
+  "deferredSlotsNotCountedTooltip": "Les tasques diferides que es mostren a la barra compten per als slots del Pool. Les tasques diferides que es mostren sota la barra provenen de Pools que no compten les tasques diferides per als slots.",
   "favorite": {
     "favoriteDags_one": "Primer {{count}} Dag favorit",
     "favoriteDags_other": "Primers {{count}} Dags favorits",

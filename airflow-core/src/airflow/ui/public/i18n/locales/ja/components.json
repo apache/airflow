@@ -21,7 +21,6 @@
         "title": "過去分再実行処理を生成しました"
       }
     },
-    "tooltip": "過去分再実行処理には Dag にスケジューリングが必要です",
     "unpause": "{{dag_display_name}} がトリガーされると一時停止を解除します",
     "validation": {
       "datesRequired": "データ範囲の開始日と終了日は必須です",

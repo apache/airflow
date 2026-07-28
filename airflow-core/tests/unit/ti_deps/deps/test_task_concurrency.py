@@ -35,7 +35,7 @@ class TestTaskConcurrencyDep:
         return BaseOperator(task_id="test_task", dag=DAG("test_dag", schedule=None), **kwargs)
 
     @pytest.mark.parametrize(
-        ("kwargs", "num_running_tis", "is_task_concurrency_dep_met"),
+        ("kwargs", "num_active_tis", "is_task_concurrency_dep_met"),
         [
             ({}, None, True),
             ({"max_active_tis_per_dag": 1}, 0, True),
@@ -47,12 +47,17 @@ class TestTaskConcurrencyDep:
             ({"max_active_tis_per_dag": 1, "max_active_tis_per_dagrun": 2}, 1, False),
             ({"max_active_tis_per_dag": 2, "max_active_tis_per_dagrun": 1}, 1, False),
             ({"max_active_tis_per_dag": 1, "max_active_tis_per_dagrun": 1}, 1, False),
+            # Deferred-specific scenarios: the count returned by
+            # 1 deferred TI fills a limit of 1 -> blocked
+            ({"max_active_tis_per_dag": 1}, 1, False),
+            # 1 deferred + 1 running = 2, limit 3 -> allowed
+            ({"max_active_tis_per_dag": 3}, 2, True),
         ],
     )
-    def test_concurrency(self, kwargs, num_running_tis, is_task_concurrency_dep_met):
+    def test_concurrency(self, kwargs, num_active_tis, is_task_concurrency_dep_met):
         task = self._get_task(start_date=datetime(2016, 1, 1), **kwargs)
         dep_context = DepContext()
         ti = Mock(task=task, logical_date=datetime(2016, 1, 1))
-        if num_running_tis is not None:
-            ti.get_num_running_task_instances.return_value = num_running_tis
+        if num_active_tis is not None:
+            ti.get_num_active_task_instances.return_value = num_active_tis
         assert TaskConcurrencyDep().is_met(ti=ti, dep_context=dep_context) == is_task_concurrency_dep_met

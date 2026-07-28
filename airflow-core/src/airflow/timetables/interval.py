@@ -110,6 +110,20 @@ class _DataIntervalTimetable(Timetable):
             else:
                 # Data interval starts from the end of the previous interval.
                 start = align_last_data_interval_end
+
+            # CronTriggerTimetable stores its runs as point-in-time intervals
+            # (start == end == logical_date). After a switch to a
+            # CronDataIntervalTimetable the aligned `start` lands back on that
+            # same logical_date, so without this guard we'd propose a run
+            # identical to the existing one — which collides with the
+            # (dag_id, logical_date) unique constraint and leaves the scheduler
+            # looping on "run already exists; skipping dagrun creation" until
+            # the next period elapses. Advance one period to skip past it.
+            if (
+                last_automated_data_interval.start == last_automated_data_interval.end
+                and start == last_automated_data_interval.start
+            ):
+                start = self._get_next(start)
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
@@ -210,8 +224,26 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
             + delta.seconds
         )
 
-    def _round(self, dt: DateTime) -> DateTime:
-        """Round the given time to the nearest interval."""
+    def _round(self, dt: DateTime, anchor: DateTime) -> DateTime:
+        """
+        Floor ``dt`` to the latest schedule boundary at or before it.
+
+        Months/years have no fixed second count, so the epoch-grid rounding
+        used for fixed deltas would drift. For them we anchor on ``anchor``
+        (the start_date) and advance one period at a time, so boundaries match
+        the catchup=True grid -- relativedelta day-clamping is path-dependent
+        (e.g. Jan 31 -> Feb 28 -> Mar 28), so a multiplied jump would land
+        elsewhere. Fixed deltas keep the historical epoch rounding and ignore
+        ``anchor``.
+
+        ``anchor`` must be at or before ``dt``; otherwise the forward stepping
+        cannot reach ``dt`` and the result is meaningless.
+        """
+        if isinstance(self._delta, relativedelta) and (self._delta.months or self._delta.years):
+            boundary = anchor
+            while self._get_next(boundary) <= dt:
+                boundary = self._get_next(boundary)
+            return boundary
         if isinstance(self._delta, datetime.timedelta):
             delta_in_seconds = self._delta.total_seconds()
         else:
@@ -229,8 +261,8 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
 
         This is slightly different from the cron version at terminal values.
         """
-        round_current_time = self._round(coerce_datetime(utcnow()))
-        new_start = self._get_prev(round_current_time)
+        now = coerce_datetime(utcnow())
+        new_start = self._get_prev(self._round(now, earliest or now))
         if earliest is None:
             return new_start
         return max(new_start, earliest)

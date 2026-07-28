@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
-import { Tooltip } from "src/components/ui";
+import { IconButton } from "src/components/ui";
 import { useDeleteTaskInstance } from "src/queries/useDeleteTaskInstance";
 
 type DeleteTaskInstanceButtonProps = {
@@ -45,21 +45,15 @@ const DeleteTaskInstanceButton = ({ taskInstance }: DeleteTaskInstanceButtonProp
 
   return (
     <>
-      <Tooltip
-        content={translate("dags:runAndTaskActions.delete.button", { type: translate("taskInstance_one") })}
+      <IconButton
+        colorPalette="danger"
+        label={translate("dags:runAndTaskActions.delete.button", {
+          type: translate("taskInstance_one"),
+        })}
+        onClick={onOpen}
       >
-        <IconButton
-          aria-label={translate("dags:runAndTaskActions.delete.button", {
-            type: translate("taskInstance_one"),
-          })}
-          colorPalette="danger"
-          onClick={onOpen}
-          size="md"
-          variant="ghost"
-        >
-          <FiTrash2 />
-        </IconButton>
-      </Tooltip>
+        <FiTrash2 />
+      </IconButton>
 
       <DeleteDialog
         isDeleting={isPending}

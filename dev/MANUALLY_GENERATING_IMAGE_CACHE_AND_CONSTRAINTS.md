@@ -31,6 +31,7 @@
   - [What the command does](#what-the-command-does)
 - [Manually generating constraint files](#manually-generating-constraint-files)
   - [Why we need to generate constraint files manually](#why-we-need-to-generate-constraint-files-manually)
+  - [How to refresh constraints via the CI workflow (recommended)](#how-to-refresh-constraints-via-the-ci-workflow-recommended)
   - [How to generate constraint files](#how-to-generate-constraint-files)
   - [Is it safe to generate constraints manually?](#is-it-safe-to-generate-constraints-manually)
 - [Manually updating already tagged constraint files](#manually-updating-already-tagged-constraint-files)
@@ -213,6 +214,57 @@ with tests, but we KNOW that the tip of the branch is good and we want to releas
 we want to move the PRs of contributors to start using the new constraints. This should be done with caution
 and you need to be sure what you are doing, but you can always do it manually if you want.
 
+## How to refresh constraints via the CI workflow (recommended)
+
+The easiest way to refresh the constraints - for example to pick up newly released
+providers/dependencies from PyPI just before promoting an RC - is to trigger the
+[`Update constraints`](../.github/workflows/update-constraints-on-push.yml) workflow manually
+instead of running the `breeze` commands locally. The workflow runs exactly the same steps
+that run automatically when `uv.lock` changes, builds the CI images, generates all constraint
+flavours and commits/pushes them to the matching `constraints-*` branch.
+
+The manual run is always launched from `main` and takes a `ref` input that selects the
+commit-ish (branch, tag or commit hash) whose sources the constraints are refreshed from. You
+do **not** select the release branch in GitHub's branch dropdown, and you do **not** need to
+cherry-pick anything to the `vX-Y-test` / `vX-Y-stable` branch first - the workflow definition
+and `breeze` come from `main`, while the sources come from the `ref` you pass. The only
+requirement is that the `breeze` constraint-generation commands work against that `ref` (they
+are stable across recent branches).
+
+Manual runs are restricted to release managers (the same allowlist as the prod image release
+workflow); the automatic `uv.lock`-push runs are not restricted.
+
+To run it:
+
+![Run the Update constraints workflow](images/update_constraints_run_workflow.png)
+
+1. Go to the [`Update constraints`](https://github.com/apache/airflow/actions/workflows/update-constraints-on-push.yml)
+   workflow in the Actions tab.
+2. Click **Run workflow** and keep the branch set to `main` (this is where the workflow runs
+   from - it is not the branch whose constraints get refreshed).
+3. In the **Optional repo reference to build constraints** field, enter the ref to refresh
+   constraints from - for example `v3-3-test`, `v3-3-stable`, `constraints-3-3`, an RC tag, or a
+   commit hash. Leave it empty to refresh the branch you run from (`main` -> `constraints-main`).
+   The matching `constraints-X-Y` branch to push to is derived automatically from that ref's
+   `dev/breeze/src/airflow_breeze/branch_defaults.py`, so pointing at anything on the 3.3 line
+   refreshes `constraints-3-3`.
+4. Keep **Upgrade deps to newest from PyPI** enabled (the default) so the run picks up the
+   latest released providers/dependencies from PyPI. Disable it only if you want to regenerate
+   constraints strictly from that ref's `uv.lock` without upgrading.
+5. Once the run finishes, verify the new commit on the matching constraints branch
+   (for example `constraints-3-3` for a 3.3 refresh):
+
+   https://github.com/apache/airflow/commits/constraints-<major>-<minor>/
+
+> [!NOTE]
+> Because `v3-3-test` and `v3-3-stable` can diverge while RCs are being voted on (fixes are
+> cherry-picked to `v3-3-test`), be deliberate about which `ref` you refresh from. Refresh from
+> the ref that matches the artifacts you are about to promote - typically `v3-3-stable` (or the
+> RC tag) for a release, not `v3-3-test`.
+
+If you cannot or do not want to use the workflow, you can still generate the constraints
+locally with the `breeze` commands below.
+
 ## How to generate constraint files
 
 ```bash
@@ -279,13 +331,15 @@ This is a step-by-step instruction on how to use it:
 1. You need to have "airflow" repository checked out separately from the repository you are working on. For
    example in `/home/myuser/airflow-constraints` folder.
 2. You need to checkout `constraints-main` branch in this repository. By default the command expects that
-   there is a remote named "apache" pointing to the official Apache repository. You can override this
-    by passing `--remote-name` option to the command.
-3. You need to run `breeze release-management update-constraints` command. The `breeze` command comes usually
-   from another clone of airflow repository - usually from the `main` branch. You should pass those options to
+   there is a remote named "upstream" pointing to the `apache/airflow` repository (the standard remote
+   naming convention — see
+   [`contributing-docs/10_working_with_git.rst`](../contributing-docs/10_working_with_git.rst#git-remote-naming-conventions)).
+   You can override this by passing `--remote-name` option to the command.
+3. You need to run `breeze release-management update-constraints` command. Typically, `breeze` is run
+   from a separate clone of the Airflow repository, on the `main` branch. You should pass those options to
    the command:
       * path to the "constraints" repository
-      * remote name where the constraints should be pushed (optionally - default "apache")
+      * remote name where the constraints should be pushed (optionally - default "upstream")
       * list of airflow versions to update constraints for
       * list of constraints to update in the form of "package==version" (you can specify it multiple times)
       * message to be used in the commit message

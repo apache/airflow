@@ -42,6 +42,7 @@ class AvpEntities(Enum):
     DAG = "Dag"
     MENU = "Menu"
     POOL = "Pool"
+    TEAM = "Team"
     VARIABLE = "Variable"
     VIEW = "View"
 

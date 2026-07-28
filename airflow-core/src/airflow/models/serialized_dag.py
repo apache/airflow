@@ -28,7 +28,7 @@ from uuid import UUID
 
 import uuid6
 from sqlalchemy import JSON, ForeignKey, LargeBinary, String, Uuid, exists, select, tuple_, update
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
 
@@ -58,6 +58,7 @@ from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.attributes import InstrumentedAttribute
+    from sqlalchemy.sql import Select
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -375,6 +376,7 @@ class SerializedDagModel(Base):
         # bundle_path and relative fileloc more correctly determines the
         # dag file location.
         data_["dag"].pop("fileloc", None)
+        data_["dag"].pop("bundle_name", None)
         data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
         return md5(data_json).hexdigest()
 
@@ -383,7 +385,7 @@ class SerializedDagModel(Base):
         """Recursively sort json_dict and its nested dictionaries and lists."""
         if isinstance(serialized_dag, dict):
             return {k: cls._sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
-        if isinstance(serialized_dag, list):
+        if isinstance(serialized_dag, (list, tuple)):
             if all(isinstance(i, dict) for i in serialized_dag):
                 if all(
                     isinstance(i.get("__var", {}), Iterable) and "task_id" in i.get("__var", {})
@@ -431,7 +433,7 @@ class SerializedDagModel(Base):
         existing_deadline_uuids: list[str],
         new_deadline_data: list[dict],
         session: Session,
-    ) -> dict[str, dict] | None:
+    ) -> tuple[dict[str, dict], dict[str, str | None]] | None:
         """
         Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
 
@@ -440,7 +442,11 @@ class SerializedDagModel(Base):
         :param existing_deadline_uuids: List of UUID strings from existing serialized Dag
         :param new_deadline_data: List of new deadline alert data dicts from the Dag
         :param session: Database session
-        :return: UUID mapping dict if all match, None if any mismatch detected
+        :return: Tuple of (uuid_mapping, name_updates) if all definitions match, None if any
+            mismatch detected.  ``uuid_mapping`` maps UUID string → new deadline data dict.
+            ``name_updates`` maps UUID string → new name **only** for entries whose name
+            changed relative to the existing DB row, so callers can issue targeted UPDATEs
+            and reliably detect whether any DB write occurred.
         """
         # defensive check for old 3.1.x format
         if existing_deadline_uuids and not isinstance(existing_deadline_uuids[0], str):
@@ -468,6 +474,7 @@ class SerializedDagModel(Base):
 
         matched_uuids: set[UUID] = set()
         uuid_mapping: dict[str, dict] = {}
+        name_updates: dict[str, str | None] = {}
 
         for deadline_alert in new_deadline_data:
             deadline_data = deadline_alert.get(Encoding.VAR, deadline_alert)
@@ -479,9 +486,13 @@ class SerializedDagModel(Base):
 
                 if _definitions_match(deadline_data, existing_alert):
                     # Found a match, reuse this UUID
-                    uuid_mapping[str(existing_alert.id)] = deadline_data
+                    uuid_str = str(existing_alert.id)
+                    uuid_mapping[uuid_str] = deadline_data
                     matched_uuids.add(existing_alert.id)
                     found_match = True
+                    new_name = deadline_data.get(DeadlineAlertFields.NAME)
+                    if new_name != existing_alert.name:
+                        name_updates[uuid_str] = new_name
                     break
 
             if not found_match:
@@ -490,7 +501,7 @@ class SerializedDagModel(Base):
                 # to another deadline), so partial reuse would risk stale cross-references.
                 return None
 
-        return uuid_mapping
+        return uuid_mapping, name_updates
 
     @classmethod
     def _create_deadline_alert_records(
@@ -510,6 +521,7 @@ class SerializedDagModel(Base):
         for uuid_str, deadline_data in uuid_mapping.items():
             alert = DeadlineAlertModel(
                 id=UUID(uuid_str),
+                name=deadline_data.get(DeadlineAlertFields.NAME),
                 reference=deadline_data[DeadlineAlertFields.REFERENCE],
                 interval=deadline_data[DeadlineAlertFields.INTERVAL],
                 callback_def=deadline_data[DeadlineAlertFields.CALLBACK],
@@ -534,15 +546,18 @@ class SerializedDagModel(Base):
         if not dag_id_list:
             return {}
 
-        # Fetch latest serialized_dag (last_updated, dag_hash) per dag_id
-        # using a window function to pick the most recent row.
+        # Fetch the serialized_dag (last_updated, dag_hash) of the latest DagVersion per dag_id,
+        # ordering by version_number so it stays consistent with the DagVersion picked by dv_subq.
         sd_subq = (
             select(
                 cls.dag_id.label("dag_id"),
                 cls.last_updated.label("last_updated"),
                 cls.dag_hash.label("dag_hash"),
-                func.row_number().over(partition_by=cls.dag_id, order_by=cls.created_at.desc()).label("rn"),
+                func.row_number()
+                .over(partition_by=cls.dag_id, order_by=DagVersion.version_number.desc())
+                .label("rn"),
             )
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
             .where(cls.dag_id.in_(dag_id_list))
             .subquery()
         )
@@ -553,14 +568,13 @@ class SerializedDagModel(Base):
             row.dag_id: (row.last_updated, row.dag_hash) for row in sd_rows
         }
 
-        # Fetch latest DagVersion per dag_id using a window function,
-        # matching the original write_dag ordering (ORDER BY created_at DESC).
+        # Fetch latest DagVersion per dag_id, ordering by version_number to match write_dag.
         dv_subq = (
             select(
                 DagVersion.id.label("id"),
                 DagVersion.dag_id.label("dag_id"),
                 func.row_number()
-                .over(partition_by=DagVersion.dag_id, order_by=DagVersion.created_at.desc())
+                .over(partition_by=DagVersion.dag_id, order_by=DagVersion.version_number.desc())
                 .label("rn"),
             )
             .where(DagVersion.dag_id.in_(dag_id_list))
@@ -587,7 +601,9 @@ class SerializedDagModel(Base):
         dag: LazyDeserializedDAG,
         bundle_name: str,
         bundle_version: str | None = None,
+        version_data: dict | None = None,
         min_update_interval: int | None = None,
+        *,
         session: Session = NEW_SESSION,
         _prefetched: DagWriteMetadata | None = None,
     ) -> bool:
@@ -600,6 +616,7 @@ class SerializedDagModel(Base):
         :param dag: a DAG to be written into database
         :param bundle_name: bundle name of the DAG
         :param bundle_version: bundle version of the DAG
+        :param version_data: optional structured data associated with this version
         :param min_update_interval: minimal interval in seconds to update serialized DAG
         :param session: ORM Session
         :param _prefetched: Pre-fetched metadata to skip per-DAG queries; used by bulk callers
@@ -625,6 +642,8 @@ class SerializedDagModel(Base):
         serialized_dag_hash = _prefetched.dag_hash
         dag_version = _prefetched.dag_version
 
+        name_updated = False
+        reused_deadline_data: dict[str, dict] | None = None
         if dag.data.get("dag", {}).get("deadline"):
             # Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
             # This preserves the hash and avoids unnecessary SerializedDagModel recreations.
@@ -637,17 +656,26 @@ class SerializedDagModel(Base):
                 and existing_serialized_dag.data
                 and (existing_deadline_uuids := existing_serialized_dag.data.get("dag", {}).get("deadline"))
             ):
-                deadline_uuid_mapping = cls._try_reuse_deadline_uuids(
+                reuse_result = cls._try_reuse_deadline_uuids(
                     existing_deadline_uuids,
                     dag.data["dag"]["deadline"],
                     session,
                 )
 
-                if deadline_uuid_mapping is not None:
+                if reuse_result is not None:
+                    deadline_uuid_mapping, name_updates = reuse_result
                     # All deadlines matched — reuse the UUIDs to preserve hash.
-                    # Clear the mapping since the alert rows already exist in the DB;
-                    # no need to delete and recreate identical records.
+                    # Only issue UPDATE statements for rows whose name actually changed to
+                    # avoid unnecessary writes and to make the return value accurate.
+                    for uuid_str, new_name in name_updates.items():
+                        session.execute(
+                            update(DeadlineAlertModel)
+                            .where(DeadlineAlertModel.id == UUID(uuid_str))
+                            .values(name=new_name)
+                        )
+                    name_updated = bool(name_updates)
                     dag.data["dag"]["deadline"] = existing_deadline_uuids
+                    reused_deadline_data = deadline_uuid_mapping
                     deadline_uuid_mapping = {}
                 else:
                     # At least one deadline has changed, generate new UUIDs and update the hash.
@@ -658,13 +686,25 @@ class SerializedDagModel(Base):
         else:
             deadline_uuid_mapping = {}
 
-        new_serialized_dag = cls(dag)
+        new_dag_hash = cls.hash(dag.data)
 
-        if (
-            serialized_dag_hash == new_serialized_dag.dag_hash
-            and dag_version
-            and dag_version.bundle_name == bundle_name
-        ):
+        if serialized_dag_hash == new_dag_hash and dag_version and dag_version.bundle_name == bundle_name:
+            # Serialized content is unchanged, so we don't create a new DagVersion.
+            # But if the bundle advanced, refresh the latest version's pointer in place — tasks resolve
+            # their code from ``ti.dag_version.bundle_version`` at run time, so a stale
+            # pointer makes runs execute an outdated commit.
+            bundle_metadata_changed = (
+                dag_version.bundle_version != bundle_version or dag_version.version_data != version_data
+            )
+            if bundle_metadata_changed:
+                dag_version.bundle_version = bundle_version
+                dag_version.version_data = version_data
+                session.merge(dag_version)
+                DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            if name_updated or bundle_metadata_changed:
+                # A write occurred — a deadline alert name update and/or a bundle
+                # metadata refresh — so report True so callers know the DB changed.
+                return True
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
 
@@ -686,6 +726,7 @@ class SerializedDagModel(Base):
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
+            new_serialized_dag = cls(dag)
 
             # Use direct UPDATE to avoid loading the full serialized DAG
             result = session.execute(
@@ -717,6 +758,7 @@ class SerializedDagModel(Base):
             # Update the latest dag version
             dag_version.bundle_name = bundle_name
             dag_version.bundle_version = bundle_version
+            dag_version.version_data = version_data
             session.merge(dag_version)
             # Update the latest DagCode
             DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
@@ -726,11 +768,19 @@ class SerializedDagModel(Base):
             dag_id=dag.dag_id,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
+            version_data=version_data,
             session=session,
         )
         log.debug("Writing Serialized DAG: %s to the DB", dag.dag_id)
+
+        if reused_deadline_data:
+            deadline_uuid_mapping = {str(uuid6.uuid7()): data for data in reused_deadline_data.values()}
+            dag.data["dag"]["deadline"] = list(deadline_uuid_mapping.keys())
+
+        new_serialized_dag = cls(dag)
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
+
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
@@ -740,14 +790,55 @@ class SerializedDagModel(Base):
     def latest_item_select_object(cls, dag_id):
         from airflow.settings import engine
 
+        # Order by the version's version_number (monotonic, unique per dag_id), not created_at,
+        # so the latest serialized DAG is picked deterministically even when two versions share a
+        # created_at timestamp.
         if engine.dialect.name == "mysql":
             # Prevent "Out of sort memory" caused by large values in cls.data column for MySQL.
             # Details in https://github.com/apache/airflow/pull/55589
             latest_item_id = (
-                select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+                select(cls.id)
+                .join(DagVersion, cls.dag_version_id == DagVersion.id)
+                .where(cls.dag_id == dag_id)
+                .order_by(DagVersion.version_number.desc())
+                .limit(1)
             )
             return select(cls).where(cls.id == latest_item_id)
-        return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+        return (
+            select(cls)
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
+            .where(cls.dag_id == dag_id)
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
+
+    @classmethod
+    def _latest_by_version_select(cls, dag_ids: list[str] | None = None) -> Select:
+        """
+        Select the serialized DAG with the highest ``version_number`` per dag_id.
+
+        Ordering by ``version_number`` (monotonic and unique per dag_id) is deterministic and,
+        unlike ``max(created_at)``, never returns two rows for a dag_id when versions share a
+        ``created_at`` timestamp.
+
+        :param dag_ids: If given, restrict to these dag_ids; otherwise cover all dags.
+        """
+        max_version_query = select(
+            DagVersion.dag_id, func.max(DagVersion.version_number).label("max_version")
+        ).join(cls, cls.dag_version_id == DagVersion.id)
+        if dag_ids is not None:
+            max_version_query = max_version_query.where(DagVersion.dag_id.in_(dag_ids))
+        max_version_subquery = max_version_query.group_by(DagVersion.dag_id).subquery()
+
+        return (
+            select(cls)
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
+            .join(
+                max_version_subquery,
+                (DagVersion.dag_id == max_version_subquery.c.dag_id)
+                & (DagVersion.version_number == max_version_subquery.c.max_version),
+            )
+        )
 
     @classmethod
     @provide_session
@@ -761,42 +852,19 @@ class SerializedDagModel(Base):
         :param session: The database session.
         :return: The latest serialized dag of the DAGs.
         """
-        # Subquery to get the latest serdag per dag_id
-        latest_serdag_subquery = (
-            select(cls.dag_id, func.max(cls.created_at).label("created_at"))
-            .where(cls.dag_id.in_(dag_ids))
-            .group_by(cls.dag_id)
-            .subquery()
-        )
-        latest_serdags = session.scalars(
-            select(cls)
-            .join(
-                latest_serdag_subquery,
-                cls.created_at == latest_serdag_subquery.c.created_at,
-            )
-            .where(cls.dag_id.in_(dag_ids))
-        ).all()
+        latest_serdags = session.scalars(cls._latest_by_version_select(dag_ids)).all()
         return latest_serdags or []
 
     @classmethod
     @provide_session
-    def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
+    def read_all_dags(cls, *, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
         """
         Read all DAGs in serialized_dag table.
 
         :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
-        latest_serialized_dag_subquery = (
-            select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
-        )
-        serialized_dags = session.scalars(
-            select(cls).join(
-                latest_serialized_dag_subquery,
-                (cls.dag_id == latest_serialized_dag_subquery.c.dag_id)
-                and (cls.created_at == latest_serialized_dag_subquery.c.max_created),
-            )
-        )
+        serialized_dags = session.scalars(cls._latest_by_version_select())
 
         dags = {}
         for row in serialized_dags:
@@ -839,7 +907,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
+    def has_dag(cls, dag_id: str, *, session: Session = NEW_SESSION) -> bool:
         """
         Check a DAG exist in serialized_dag table.
 
@@ -850,7 +918,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDAG | None:
+    def get_dag(cls, dag_id: str, *, session: Session = NEW_SESSION) -> SerializedDAG | None:
         row = cls.get(dag_id, session=session)
         if row:
             return row.dag
@@ -858,7 +926,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDagModel | None:
+    def get(cls, dag_id: str, *, session: Session = NEW_SESSION) -> SerializedDagModel | None:
         """
         Get the SerializedDAG for the given dag ID.
 
@@ -869,7 +937,7 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
-    def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
+    def get_dag_dependencies(cls, *, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
         Get the dependencies between DAGs.
 
@@ -887,7 +955,9 @@ class SerializedDagModel(Base):
             elif dialect == "postgresql":
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
-                data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
+                data_col_to_select = cls._data.op("#>")(
+                    literal(["dag", "dag_dependencies"], type_=ARRAY(String))
+                )
                 load_json = lambda x: x
             else:
                 data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")

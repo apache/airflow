@@ -31,6 +31,16 @@ __all__ = ["NOTSET", "ArgNotSet", "is_arg_set"]
 class ArgNotSet:
     """Sentinel type for annotations, useful when None is not viable."""
 
+    @staticmethod
+    def serialize() -> str:
+        return "NOTSET"
+
+    def __repr__(self) -> str:
+        return self.serialize()
+
+    def __str__(self) -> str:
+        return self.serialize()
+
 
 NOTSET = ArgNotSet()
 """Sentinel value for argument default. See ``ArgNotSet``."""

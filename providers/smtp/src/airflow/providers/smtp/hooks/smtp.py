@@ -118,7 +118,7 @@ class SmtpHook(BaseHook):
             except AirflowNotFoundException:
                 raise AirflowException("SMTP connection is not found.")
 
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(self.smtp_retry_limit + 1):
                 try:
                     self._smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:
@@ -126,7 +126,7 @@ class SmtpHook(BaseHook):
                         raise AirflowException("Unable to connect to smtp server")
                 else:
                     if self.smtp_starttls:
-                        self._smtp_client.starttls()
+                        self._smtp_client.starttls(context=self._build_ssl_context())
                         self._smtp_client.ehlo()
 
                     # choose auth
@@ -163,7 +163,7 @@ class SmtpHook(BaseHook):
             except AirflowNotFoundException:
                 raise AirflowException("SMTP connection is not found.")
 
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(self.smtp_retry_limit + 1):
                 try:
                     async_client = await self._abuild_client()
                     self._smtp_client = async_client
@@ -172,7 +172,7 @@ class SmtpHook(BaseHook):
                         raise AirflowException("Unable to connect to smtp server")
                 else:
                     if self.smtp_starttls:
-                        await async_client.starttls()
+                        await async_client.starttls(tls_context=self._build_ssl_context())
                         await async_client.ehlo()
 
                     # choose auth
@@ -191,10 +191,27 @@ class SmtpHook(BaseHook):
 
         return self
 
+    def _build_ssl_context(self) -> ssl.SSLContext | None:
+        """
+        Return the SSL context configured via the ``ssl_context`` connection extra.
+
+        The default (unset or ``"default"``) returns
+        :func:`ssl.create_default_context`, which validates the server
+        certificate against the system's trusted CAs. ``"none"`` returns
+        ``None`` so callers that explicitly want to skip validation (for
+        example, against a self-signed SMTP server in a lab environment)
+        can opt out.
+        """
+        valid_contexts = (None, "default", "none")  # Values accepted for ssl_context configuration
+        if self.ssl_context not in valid_contexts:
+            raise RuntimeError(
+                f"The connection extra field `ssl_context` must "
+                f"be set to 'default' or 'none' but it is set to '{self.ssl_context}'."
+            )
+        return None if self.ssl_context == "none" else ssl.create_default_context()
+
     def _build_client_kwargs(self, is_async: bool) -> dict[str, Any]:
         """Build kwargs appropriate for sync or async SMTP client."""
-        valid_contexts = (None, "default", "none")  # Values accepted for ssl_context configuration
-
         kwargs: dict[str, Any] = {"timeout": self.timeout}
 
         if self.port:
@@ -204,15 +221,11 @@ class SmtpHook(BaseHook):
             kwargs["hostname"] = self.host
             kwargs["use_tls"] = self.use_ssl
             kwargs["start_tls"] = self.smtp_starttls if not self.use_ssl else None
+            kwargs["tls_context"] = self._build_ssl_context()
         else:
             kwargs["host"] = self.host
             if self.use_ssl:
-                if self.ssl_context not in valid_contexts:
-                    raise RuntimeError(
-                        f"The connection extra field `ssl_context` must "
-                        f"be set to 'default' or 'none' but it is set to '{self.ssl_context}'."
-                    )
-                kwargs["context"] = None if self.ssl_context == "none" else ssl.create_default_context()
+                kwargs["context"] = self._build_ssl_context()
 
         return kwargs
 
@@ -286,9 +299,10 @@ class SmtpHook(BaseHook):
         """Test SMTP connectivity from UI."""
         try:
             smtp_client = self.get_conn()._smtp_client
-            if smtp_client:
+            if smtp_client is not None:
+                smtp_client = cast("smtplib.SMTP_SSL | smtplib.SMTP", smtp_client)
                 status = smtp_client.noop()
-                if status == 250:
+                if status[0] == 250:
                     return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
@@ -418,7 +432,7 @@ class SmtpHook(BaseHook):
             # Casting here to make MyPy happy.
             smtp_client = cast("smtplib.SMTP_SSL | smtplib.SMTP", self._smtp_client)
 
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(self.smtp_retry_limit + 1):
                 try:
                     smtp_client.sendmail(
                         from_addr=msg["from_email"],
@@ -487,7 +501,7 @@ class SmtpHook(BaseHook):
         smtp_client = cast("aiosmtplib.SMTP", self._smtp_client)
 
         if not dryrun:
-            for attempt in range(1, self.smtp_retry_limit + 1):
+            for attempt in range(self.smtp_retry_limit + 1):
                 try:
                     #  The async version of sendmail only supports positional arguments for some reason.
                     await smtp_client.sendmail(

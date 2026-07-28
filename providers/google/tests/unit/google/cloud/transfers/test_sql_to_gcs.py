@@ -49,13 +49,15 @@ INPUT_DATA = [
     ["102", "business", "2017-05-24"],
     ["103", "non-profit", "2018-10-01"],
 ]
-OUTPUT_DATA = json.dumps(
+EXPECTED_JSON_ROW = json.dumps(
     {
         "column_a": "convert_type_return_value",
         "column_b": "convert_type_return_value",
         "column_c": "convert_type_return_value",
-    }
-).encode("utf-8")
+    },
+    sort_keys=True,
+    ensure_ascii=False,
+)
 SCHEMA_FILE = "schema_file.json"
 APP_JSON = "application/json"
 
@@ -163,6 +165,7 @@ class TestBaseSQLToGCSOperator:
         mock_file.flush.reset_mock()
         mock_upload.reset_mock()
         mock_file.close.reset_mock()
+        mock_file.write.reset_mock()
         cursor_mock.reset_mock()
 
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
@@ -183,14 +186,8 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        mock_file.write.call_args_list == [
-            mock.call(OUTPUT_DATA),
-            mock.call(b"\n"),
-            mock.call(OUTPUT_DATA),
-            mock.call(b"\n"),
-            mock.call(OUTPUT_DATA),
-            mock.call(b"\n"),
-        ]
+        written = "".join(c.args[0] for c in mock_file.write.call_args_list)
+        assert written == (EXPECTED_JSON_ROW + "\n") * 3
         mock_upload.assert_called_once_with(
             BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type=APP_JSON, gzip=False, metadata=None
         )
@@ -227,14 +224,8 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        mock_file.write.call_args_list == [
-            mock.call(OUTPUT_DATA),
-            mock.call(b"\n"),
-            mock.call(OUTPUT_DATA),
-            mock.call(b"\n"),
-            mock.call(OUTPUT_DATA),
-            mock.call(b"\n"),
-        ]
+        written = "".join(c.args[0] for c in mock_file.write.call_args_list)
+        assert written == (EXPECTED_JSON_ROW + "\n") * 3
 
         mock_file.flush.assert_called_once()
         mock_upload.assert_called_once_with(

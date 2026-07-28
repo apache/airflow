@@ -56,8 +56,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
       ? (options.find((opt) => opt.value === NULL_STRING_VALUE) ?? null)
       : enumTypes.includes(typeof param.value)
         ? (options.find((opt) => opt.value === String(param.value)) ?? null)
-        : // eslint-disable-next-line unicorn/no-null
-          null;
+        : null;
 
   const handleChange = (
     selected: SingleValue<{
@@ -67,7 +66,6 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
   ) => {
     if (paramsDict[name]) {
       if (!selected || selected.value === NULL_STRING_VALUE) {
-        // eslint-disable-next-line unicorn/no-null
         paramsDict[name].value = null;
       } else {
         // Map the string value back to the original typed enum value (e.g. number, string)

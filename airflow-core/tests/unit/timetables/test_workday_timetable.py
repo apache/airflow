@@ -112,3 +112,27 @@ def test_next_schedule_after_friday(timetable: Timetable, restriction: TimeRestr
         restriction=restriction,
     )
     assert next_info == expected_next_info
+
+
+def test_holiday_calendar_is_cached(monkeypatch):
+    """The holiday calendar should be initialized once and reused across calls."""
+    pytest.importorskip("pandas.tseries.holiday")
+
+    monkeypatch.setattr(AfterWorkdayTimetable, "_holiday_calendar", AfterWorkdayTimetable._NOT_LOADED)
+
+    first = AfterWorkdayTimetable._get_holiday_calendar()
+    second = AfterWorkdayTimetable._get_holiday_calendar()
+
+    assert first is not None
+    assert first is second
+
+
+def test_holiday_calendar_falls_back_to_none_on_import_error(monkeypatch):
+    """If the pandas import fails, the calendar should fall back to None."""
+    import sys
+
+    monkeypatch.setattr(AfterWorkdayTimetable, "_holiday_calendar", AfterWorkdayTimetable._NOT_LOADED)
+    monkeypatch.setitem(sys.modules, "pandas.tseries.holiday", None)
+
+    assert AfterWorkdayTimetable._get_holiday_calendar() is None
+    assert AfterWorkdayTimetable._holiday_calendar is None

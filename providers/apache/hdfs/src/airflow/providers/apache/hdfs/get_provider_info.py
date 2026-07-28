@@ -46,6 +46,22 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.apache.hdfs.sensors.web_hdfs"],
             }
         ],
+        "asset-uris": [
+            {
+                "schemes": ["hdfs"],
+                "handler": "airflow.providers.apache.hdfs.assets.hdfs.sanitize_uri",
+                "factory": "airflow.providers.apache.hdfs.assets.hdfs.create_asset",
+                "to_openlineage_converter": "airflow.providers.apache.hdfs.assets.hdfs.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["hdfs"],
+                "handler": "airflow.providers.apache.hdfs.assets.hdfs.sanitize_uri",
+                "factory": "airflow.providers.apache.hdfs.assets.hdfs.create_asset",
+                "to_openlineage_converter": "airflow.providers.apache.hdfs.assets.hdfs.convert_asset_to_openlineage",
+            }
+        ],
         "hooks": [
             {"integration-name": "WebHDFS", "python-modules": ["airflow.providers.apache.hdfs.hooks.webhdfs"]}
         ],

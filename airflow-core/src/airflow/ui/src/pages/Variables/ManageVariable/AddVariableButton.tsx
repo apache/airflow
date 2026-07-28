@@ -18,7 +18,7 @@
  */
 import { Button, Heading, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiPlusCircle } from "react-icons/fi";
+import { MdAdd } from "react-icons/md";
 
 import { Dialog, Toaster } from "src/components/ui";
 import { useAddVariable } from "src/queries/useAddVariable";
@@ -51,11 +51,11 @@ const AddVariableButton = ({ disabled }: Props) => {
   return (
     <>
       <Toaster />
-      <Button colorPalette="brand" disabled={disabled} onClick={onOpen}>
-        <FiPlusCircle /> {translate("variables.add")}
+      <Button disabled={disabled} onClick={onOpen}>
+        <MdAdd /> {translate("variables.add")}
       </Button>
 
-      <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={handleClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <Heading size="xl">{translate("variables.add")}</Heading>

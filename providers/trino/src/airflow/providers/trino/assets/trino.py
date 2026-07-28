@@ -19,8 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.assets import Asset
+
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
+
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
 def sanitize_uri(uri: SplitResult) -> SplitResult:
@@ -32,3 +36,20 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
     if len(uri.path.split("/")) != 4:  # Leading slash, catalog, schema, and table names.
         raise ValueError("URI format trino:// must contain catalog, schema, and table names")
     return uri
+
+
+def create_asset(
+    *, host: str, catalog: str, schema: str, table: str, port: int = 8080, extra: dict | None = None
+) -> Asset:
+    return Asset(uri=f"trino://{host}:{port}/{catalog}/{schema}/{table}", extra=extra)
+
+
+def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:
+    """Translate Asset with valid AIP-60 uri to OpenLineage with assistance from the hook."""
+    from urllib.parse import urlsplit
+
+    from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+
+    parsed = urlsplit(asset.uri)
+    _, catalog, schema, table = parsed.path.split("/")  # Leading slash, catalog, schema, and table names.
+    return OpenLineageDataset(namespace=f"trino://{parsed.netloc}", name=f"{catalog}.{schema}.{table}")

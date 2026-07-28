@@ -1,0 +1,1 @@
+Add ``max_downstream_keys`` parameter to ``PartitionMapper`` to override ``[scheduler] partition_mapper_max_downstream_keys`` per mapper instance.

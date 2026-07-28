@@ -27,6 +27,49 @@
 Changelog
 ---------
 
+9.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Beeline JDBC parameters to HiveCliHook (#68144)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Hive metastore partition sensor initialization (#69612)``
+
+Misc
+~~~~
+
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
+9.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``refactor: word changed from DAG to Dag in providers/apache/ (#66153)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Add team name to task CTX (#65617)``
+   * ``Fix stale system test documentation links (#65071)``
+
 9.4.2
 .....
 

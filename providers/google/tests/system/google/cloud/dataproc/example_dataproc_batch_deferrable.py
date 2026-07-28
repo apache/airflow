@@ -60,7 +60,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc", "batch", "deferrable"],
+    tags=["example", "managed-spark", "batch", "deferrable"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_batch_operator_async]
     create_batch = DataprocCreateBatchOperator(

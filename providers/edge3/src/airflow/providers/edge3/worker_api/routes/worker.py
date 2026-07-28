@@ -17,21 +17,19 @@
 
 from __future__ import annotations
 
-import json
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Path, status
+from packaging.version import Version
 from sqlalchemy import select
 
+from airflow import __version__ as airflow_version
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.providers.common.compat.sdk import Stats, timezone
-
-try:
-    from airflow.sdk.observability.stats import DualStatsManager
-except ImportError:
-    DualStatsManager = None  # type: ignore[assignment,misc]  # Airflow < 3.2 compat
+from airflow.providers.common.compat.sdk import Stats, conf, timezone
+from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -40,6 +38,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerSetStateReturn,
     WorkerStateBody,
 )
+from airflow.utils.helpers import prune_dict
 
 worker_router = AirflowRouter(
     tags=["Worker"],
@@ -54,38 +53,55 @@ worker_router = AirflowRouter(
 )
 
 
-def _assert_version(sysinfo: dict[str, str | int]) -> None:
-    """Check if the Edge Worker version matches the central API site."""
-    from airflow import __version__ as airflow_version
-    from airflow.providers.edge3 import __version__ as edge_provider_version
+def _version(version_str: str) -> tuple[int, int, int]:
+    """Convert a version string into a tuple of integers for comparison."""
+    version = Version(version_str)
+    return version.major, version.minor, version.micro
 
-    # Note: In future, more stable versions we might be more liberate, for the
-    #       moment we require exact version match for Edge Worker and core version
+
+def _assert_version(sysinfo: dict[str, str | int | float | datetime]) -> bool:
+    """Check if the Edge Worker version matches the central API site."""
+    versions_match = True
     if "airflow_version" in sysinfo:
-        airflow_on_worker = sysinfo["airflow_version"]
+        airflow_on_worker: str = sysinfo["airflow_version"]  # type: ignore
         if airflow_on_worker != airflow_version:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                f"Edge Worker runs on Airflow {airflow_on_worker} "
-                f"and the core runs on {airflow_version}. Rejecting access due to difference.",
+            versions_match = False
+            minimum_acceptable_core_version_for_workers = conf.get(
+                "edge", "minimum_acceptable_core_version_for_workers", fallback=None
             )
+            if not minimum_acceptable_core_version_for_workers or _version(airflow_on_worker) < _version(
+                minimum_acceptable_core_version_for_workers
+            ):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Edge Worker runs on Airflow {airflow_on_worker} which is below the minimum acceptable version "
+                    f"{minimum_acceptable_core_version_for_workers}. Rejecting access due to incompatible version.",
+                )
     else:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "Edge Worker does not specify the version it is running on."
         )
 
     if "edge_provider_version" in sysinfo:
-        provider_on_worker = sysinfo["edge_provider_version"]
+        provider_on_worker: str = sysinfo["edge_provider_version"]  # type: ignore
         if provider_on_worker != edge_provider_version:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                f"Edge Worker runs on Edge Provider {provider_on_worker} "
-                f"and the core runs on {edge_provider_version}. Rejecting access due to difference.",
+            versions_match = False
+            minimum_acceptable_edge_version_for_workers = conf.get(
+                "edge", "minimum_acceptable_edge_version_for_workers", fallback=None
             )
+            if not minimum_acceptable_edge_version_for_workers or _version(provider_on_worker) < _version(
+                minimum_acceptable_edge_version_for_workers
+            ):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Edge Worker runs on Edge Provider {provider_on_worker} "
+                    f"and the core runs on {edge_provider_version}. Rejecting access due to difference.",
+                )
     else:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, "Edge Worker does not specify the provider version it is running on."
         )
+    return versions_match
 
 
 _worker_name_doc = Path(title="Worker Name", description="Hostname or instance name of the worker")
@@ -149,10 +165,19 @@ def redefine_state(worker_state: EdgeWorkerState, body_state: EdgeWorkerState) -
 
 
 def redefine_maintenance_comments(
-    worker_maintenance_comment: str | None, body_maintenance_comments: str | None
+    worker_state: EdgeWorkerState,
+    worker_maintenance_comment: str | None,
+    body_maintenance_comments: str | None,
 ) -> str | None:
     """Add new maintenance comments or overwrite the old ones if it is too long."""
-    if body_maintenance_comments:
+    if worker_state not in (
+        EdgeWorkerState.MAINTENANCE_REQUEST,
+        EdgeWorkerState.MAINTENANCE_PENDING,
+        EdgeWorkerState.MAINTENANCE_MODE,
+        EdgeWorkerState.OFFLINE_MAINTENANCE,
+    ):
+        return None
+    if body_maintenance_comments and body_maintenance_comments != worker_maintenance_comment:
         if (
             worker_maintenance_comment
             and len(body_maintenance_comments) + len(worker_maintenance_comment) < 1020
@@ -169,7 +194,7 @@ def register(
     session: SessionDep,
 ) -> WorkerRegistrationReturn:
     """Register a new worker to the backend."""
-    _assert_version(body.sysinfo)
+    versions_match = _assert_version(body.sysinfo)
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
@@ -191,14 +216,14 @@ def register(
             )
     worker.state = redefine_state(worker.state, body.state)
     worker.maintenance_comment = redefine_maintenance_comments(
-        worker.maintenance_comment, body.maintenance_comments
+        worker.state, worker.maintenance_comment, body.maintenance_comments
     )
     worker.queues = body.queues
-    worker.sysinfo = json.dumps(body.sysinfo)
+    worker.sysinfo = body.sysinfo
     worker.last_update = timezone.utcnow()
     worker.team_name = body.team_name
     session.add(worker)
-    return WorkerRegistrationReturn(last_update=worker.last_update)
+    return WorkerRegistrationReturn(last_update=worker.last_update, versions_match=versions_match)
 
 
 @worker_router.patch("/{worker_name}", dependencies=[Depends(jwt_token_authorization_rest)])
@@ -214,37 +239,37 @@ def set_state(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Worker not found")
     worker.state = redefine_state(worker.state, body.state)
     worker.maintenance_comment = redefine_maintenance_comments(
-        worker.maintenance_comment, body.maintenance_comments
+        worker.state, worker.maintenance_comment, body.maintenance_comments
     )
     worker.jobs_active = body.jobs_active
-    worker.sysinfo = json.dumps(body.sysinfo)
+    worker.sysinfo = body.sysinfo
     worker.last_update = timezone.utcnow()
     session.commit()
-    if DualStatsManager is not None:
-        DualStatsManager.incr(
-            "edge_worker.heartbeat_count",
-            1,
-            1,
-            tags={},
-            extra_tags={"worker_name": worker_name},
-        )
-    else:
-        Stats.incr(f"edge_worker.heartbeat_count.{worker_name}", 1, 1)
-        Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})
+    Stats.incr(
+        "edge_worker.heartbeat_count",
+        1,
+        1,
+        tags=prune_dict({"worker_name": worker_name, "team_name": worker.team_name}),
+    )
+    concurrency: int = body.sysinfo.get("concurrency", -1)  # type: ignore
+    free_concurrency: int = body.sysinfo.get("free_concurrency", -1)  # type: ignore
     set_metrics(
         worker_name=worker_name,
         state=body.state,
         jobs_active=body.jobs_active,
-        concurrency=int(body.sysinfo.get("concurrency", -1)),
-        free_concurrency=int(body.sysinfo["free_concurrency"]),
+        concurrency=concurrency,
+        free_concurrency=free_concurrency,
         queues=worker.queues,
+        sysinfo=body.sysinfo,
+        team_name=worker.team_name,
     )
-    _assert_version(body.sysinfo)  # Exception only after worker state is in the DB
+    versions_match = _assert_version(body.sysinfo)  # Exception only after worker state is in the DB
     return WorkerSetStateReturn(
         state=worker.state,
         queues=worker.queues,
         maintenance_comments=worker.maintenance_comment,
         concurrency=worker.concurrency,
+        versions_match=versions_match,
     )
 
 

@@ -28,7 +28,8 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.id_generator import RandomIdGenerator
-from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags
+from opentelemetry.sdk.trace.sampling import Decision
+from opentelemetry.trace import NonRecordingSpan, Span, SpanContext, TraceFlags, TraceState
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
 if TYPE_CHECKING:
@@ -56,14 +57,95 @@ class OverrideableRandomIdGenerator(RandomIdGenerator):
         return super().generate_trace_id()
 
 
-def new_dagrun_trace_carrier() -> dict[str, str]:
-    """Generate a fresh W3C traceparent carrier without creating a recordable span."""
+TASK_SPAN_DETAIL_LEVEL_KEY = "airflow/task_span_detail_level"
+DEFAULT_TASK_SPAN_DETAIL_LEVEL = 1
+TRACE_SAMPLED_KEY = "airflow/trace_sampled"
+DAGRUN_PARENT_TRACE_CONTEXT_KEY = "airflow/dagrun_parent_trace_context"
+
+
+def new_dagrun_trace_carrier(
+    task_span_detail_level=None, attributes=None, force_sampled=None, parent_context=None
+) -> dict[str, str]:
+    """
+    Generate a fresh W3C traceparent carrier without creating a recordable span.
+
+    The SAMPLED flag is set from an honest *root* sampling decision made by the
+    configured tracer provider's sampler (driven by ``OTEL_TRACES_SAMPLER`` /
+    ``OTEL_TRACES_SAMPLER_ARG``), rather than being hardcoded. This makes the
+    carrier the head-sampling decision point for a DAG run: every downstream span
+    (dag_run, task_run, worker) rides on this flag.
+
+    ``attributes`` are forwarded to the sampler as ``should_sample`` attributes so
+    a custom sampler can differentiate the decision by run kind (e.g. by
+    ``airflow.dag_id`` / ``airflow.dag_run.run_type``). The built-in samplers ignore them.
+    They are decision input only -- they are not persisted in the carrier.
+
+    ``force_sampled`` overrides the sampler entirely: when not None it sets the
+    SAMPLED flag directly (True = always trace this run, False = never) and the
+    sampler is not consulted. Airflow wires this from the ``airflow/trace_sampled``
+    run conf key; when None the configured sampler makes the decision.
+
+    ``parent_context`` optionally embeds the run in an *external* trace: when it
+    carries a valid span the carrier reuses that trace_id (so the whole run --
+    dag_run, task_run, worker spans -- lives inside the external trace) and the
+    sampling decision is made with that parent, so parent-based samplers inherit
+    the external SAMPLED flag. Airflow wires this from the
+    ``airflow/dagrun_parent_trace_context`` run conf key; when None the run is a root
+    trace as before.
+    """
+    parent_span_context = (
+        trace.get_current_span(context=parent_context).get_span_context() if parent_context else None
+    )
     gen = RandomIdGenerator()
+    if parent_span_context is not None and parent_span_context.is_valid:
+        # Embed in the external trace: ride its trace_id, inherit its tracestate, and
+        # let the sampler decide with this parent (so parent-based samplers follow it).
+        trace_id = parent_span_context.trace_id
+        parent_trace_state: TraceState | None = parent_span_context.trace_state
+        sampler_parent_context = parent_context
+    else:
+        trace_id = gen.generate_trace_id()
+        parent_trace_state = None
+        sampler_parent_context = None
+
+    if force_sampled is not None:
+        sampled = force_sampled
+        sampler_trace_state = None
+    else:
+        provider = trace.get_tracer_provider()
+        sampler = getattr(provider, "sampler", None)
+        if sampler is not None:
+            result = sampler.should_sample(
+                parent_context=sampler_parent_context,  # None => root decision; else inherit parent
+                trace_id=trace_id,
+                name="dag_run",
+                attributes=attributes or {},
+            )
+            sampled = result.decision == Decision.RECORD_AND_SAMPLE
+            sampler_trace_state = result.trace_state
+        else:
+            # No sampler attribute means a proxy/no-op provider (otel disabled).
+            # Nothing exports in that case, so the flag is irrelevant; mirror the
+            # observable behavior of today when otel is off.
+            sampled = False
+            sampler_trace_state = None
+
+    # Preserve the detail-level tracestate by merging it onto whatever the sampler
+    # returned, falling back to the external parent's tracestate when embedding
+    # without a sampler decision. TraceState is immutable, so update() returns a new one.
+    trace_state = sampler_trace_state
+    if trace_state is None and parent_trace_state is not None:
+        trace_state = parent_trace_state
+    trace_state = trace_state or TraceState()
+    for key, value in build_trace_state_entries(task_span_detail_level):
+        trace_state = trace_state.update(key, value)
+
     span_ctx = SpanContext(
-        trace_id=gen.generate_trace_id(),
+        trace_id=trace_id,
         span_id=gen.generate_span_id(),
         is_remote=False,
-        trace_flags=TraceFlags(TraceFlags.SAMPLED),
+        trace_flags=TraceFlags(TraceFlags.SAMPLED if sampled else 0),
+        trace_state=trace_state,
     )
     ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
     carrier: dict[str, str] = {}
@@ -80,6 +162,31 @@ def new_task_run_carrier(dag_run_context_carrier):
     carrier: dict[str, str] = {}
     TraceContextTextMapPropagator().inject(carrier, context=new_ctx)
     return carrier
+
+
+def build_trace_state_entries(task_span_detail_level) -> list[tuple[str, str]]:
+    trace_state_entries = []
+    if task_span_detail_level is not None:
+        try:
+            level = int(task_span_detail_level)
+        except (TypeError, ValueError):
+            level = None
+        if level:
+            trace_state_entries.append((TASK_SPAN_DETAIL_LEVEL_KEY, str(level)))
+    return trace_state_entries
+
+
+def get_task_span_detail_level(span: Span):
+    span_ctx = span.get_span_context()
+    trace_state = span_ctx.trace_state
+    raw = trace_state.get(TASK_SPAN_DETAIL_LEVEL_KEY)
+    if raw is None:
+        return DEFAULT_TASK_SPAN_DETAIL_LEVEL
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        log.warning("%s config in dag run conf must be integer.", TASK_SPAN_DETAIL_LEVEL_KEY)
+        return DEFAULT_TASK_SPAN_DETAIL_LEVEL
 
 
 @contextmanager

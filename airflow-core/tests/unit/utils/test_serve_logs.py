@@ -124,6 +124,19 @@ class TestServeLogs:
         )
         assert response.status_code == 403
 
+    def test_forbidden_lstrip_character_overlap(self, client: TestClient, jwt_generator):
+        # The request path and the JWT filename intersect on the set {/, l, o, g}:
+        # str.lstrip("/log/") on "/log/log_sample.log" returns "_sample.log",
+        # which would have matched the JWT, but StaticFiles serves "log_sample.log".
+        # removeprefix preserves the literal prefix so the two paths agree.
+        response = client.get(
+            "/log/log_sample.log",
+            headers={
+                "Authorization": jwt_generator.generate({"filename": "_sample.log"}),
+            },
+        )
+        assert response.status_code == 403
+
     def test_forbidden_expired(self, client: TestClient, jwt_generator):
         with time_machine.travel("2010-01-14"):
             token = jwt_generator.generate({"filename": "sample.log"})

@@ -271,20 +271,18 @@ Example:
 
     ExecuteTask(
         token="mock",
-        ti=TaskInstance(
+        ti=TaskInstanceDTO(
             id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
             task_id="mock",
             dag_id="mock",
             run_id="mock",
             try_number=1,
+            dag_version_id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
             map_index=-1,
             pool_slots=1,
             queue="default",
             priority_weight=1,
             executor_config=None,
-            parent_context_carrier=None,
-            context_carrier=None,
-            queued_dttm=None,
         ),
         dag_rel_path=PurePosixPath("mock.py"),
         bundle_info=BundleInfo(name="n/a", version="no matter"),

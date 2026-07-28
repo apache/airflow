@@ -67,8 +67,6 @@ export const LimitedItemsList = ({
             <Popover.Root lazyMount unmountOnExit>
               <Popover.Trigger asChild>
                 <Button
-                  colorPalette="brand"
-                  cursor="pointer"
                   data-testid="limited-items-expand-button"
                   fontSize="sm"
                   minH="auto"

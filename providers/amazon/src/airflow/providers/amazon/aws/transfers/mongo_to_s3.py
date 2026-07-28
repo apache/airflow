@@ -84,9 +84,7 @@ class MongoToS3Operator(BaseOperator):
         self.mongo_db = mongo_db
         self.mongo_collection = mongo_collection
 
-        # Grab query and determine if we need to run an aggregate pipeline
         self.mongo_query = mongo_query
-        self.is_pipeline = isinstance(self.mongo_query, list)
         self.mongo_projection = mongo_projection
 
         self.s3_bucket = s3_bucket
@@ -99,8 +97,12 @@ class MongoToS3Operator(BaseOperator):
         """Is written to depend on transform method."""
         s3_conn = S3Hook(self.aws_conn_id)
 
+        # mongo_query is a template field; decide aggregate-vs-find from the rendered value
+        # here rather than in __init__, where it would inspect the un-rendered value.
+        is_pipeline = isinstance(self.mongo_query, list)
+
         # Grab collection and execute query according to whether or not it is a pipeline
-        if self.is_pipeline:
+        if is_pipeline:
             results: CommandCursor[Any] | Cursor = MongoHook(self.mongo_conn_id).aggregate(
                 mongo_collection=self.mongo_collection,
                 aggregate_query=cast("list", self.mongo_query),

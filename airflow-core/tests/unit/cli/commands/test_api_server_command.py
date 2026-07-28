@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ssl
 import sys
 from unittest import mock
 
@@ -145,12 +146,18 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "ssl_cert_path_placeholder",
                     "--ssl-key",
                     "ssl_key_path_placeholder",
+                    "--ssl-ca-file",
+                    "ssl_ca_file_placeholder",
+                    "--ssl-cert-reqs",
+                    "required",
                     "--apps",
                     "core",
                 ],
                 {
                     "ssl_keyfile": "ssl_key_path_placeholder",
                     "ssl_certfile": "ssl_cert_path_placeholder",
+                    "ssl_ca_certs": "ssl_ca_file_placeholder",
+                    "ssl_cert_reqs": ssl.CERT_REQUIRED,
                 },
                 id="api-server with SSL cert and key",
             ),
@@ -163,20 +170,25 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 {
                     "ssl_keyfile": None,
                     "ssl_certfile": None,
+                    "ssl_ca_certs": None,
+                    "ssl_cert_reqs": ssl.CERT_NONE,
                     "log_config": "my_log_config.yaml",
                 },
                 id="api-server with log config",
             ),
         ],
     )
-    def test_args_to_uvicorn(self, ssl_cert_and_key, cli_args, expected_additional_kwargs):
-        cert_path, key_path = ssl_cert_and_key
+    def test_args_to_uvicorn(self, ssl_cert_key_and_ca, cli_args, expected_additional_kwargs):
+        cert_path, key_path, ca_path = ssl_cert_key_and_ca
         if "ssl_cert_path_placeholder" in cli_args:
             cli_args[cli_args.index("ssl_cert_path_placeholder")] = str(cert_path)
             expected_additional_kwargs["ssl_certfile"] = str(cert_path)
         if "ssl_key_path_placeholder" in cli_args:
             cli_args[cli_args.index("ssl_key_path_placeholder")] = str(key_path)
             expected_additional_kwargs["ssl_keyfile"] = str(key_path)
+        if "ssl_ca_file_placeholder" in cli_args:
+            cli_args[cli_args.index("ssl_ca_file_placeholder")] = str(ca_path)
+            expected_additional_kwargs["ssl_ca_certs"] = str(ca_path)
 
         with (
             mock.patch("uvicorn.run") as mock_run,
@@ -247,6 +259,8 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             timeout_worker_healthcheck=60,
             ssl_keyfile=None,
             ssl_certfile=None,
+            ssl_ca_certs=None,
+            ssl_cert_reqs=ssl.CERT_NONE,
             access_log=False,
             log_level="info",
             proxy_headers=False,
@@ -302,7 +316,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                 ]
         else:
             assert mock_daemon.mock_calls == []
-            mock_setup_locations.mock_calls == []
+            assert mock_setup_locations.mock_calls == []
             mock_pid_file.assert_not_called()
             mock_open.assert_not_called()
 
@@ -314,22 +328,24 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             (["--ssl-key", "_.key"], "Need both.*key.*certificate"),
         ],
     )
-    def test_get_ssl_cert_and_key_filepaths_with_incorrect_usage(self, ssl_arguments, error_pattern):
+    def test_get_ssl_filepaths_with_incorrect_usage(self, ssl_arguments, error_pattern):
         args = self.parser.parse_args(["api-server"] + ssl_arguments)
         with pytest.raises(AirflowConfigException, match=error_pattern):
-            api_server_command._get_ssl_cert_and_key_filepaths(args)
+            api_server_command._get_ssl_filepaths(args)
 
-    def test_get_ssl_cert_and_key_filepaths_with_correct_usage(self, ssl_cert_and_key):
-        cert_path, key_path = ssl_cert_and_key
+    def test_get_ssl_filepaths_with_correct_usage(self, ssl_cert_key_and_ca):
+        cert_path, key_path, ca_path = ssl_cert_key_and_ca
 
         args = self.parser.parse_args(
-            ["api-server"] + ["--ssl-cert", str(cert_path), "--ssl-key", str(key_path)]
+            ["api-server"]
+            + ["--ssl-cert", str(cert_path), "--ssl-key", str(key_path), "--ssl-ca-file", str(ca_path)]
         )
-        assert api_server_command._get_ssl_cert_and_key_filepaths(args) == (str(cert_path), str(key_path))
+        assert api_server_command._get_ssl_filepaths(args) == (str(cert_path), str(key_path), str(ca_path))
 
     @pytest.fixture
-    def ssl_cert_and_key(self, tmp_path):
-        cert_path, key_path = tmp_path / "_.crt", tmp_path / "_.key"
+    def ssl_cert_key_and_ca(self, tmp_path):
+        cert_path, key_path, ca_path = tmp_path / "_.crt", tmp_path / "_.key", tmp_path / "ca.crt"
         cert_path.touch()
         key_path.touch()
-        return cert_path, key_path
+        ca_path.touch()
+        return cert_path, key_path, ca_path

@@ -53,7 +53,7 @@ with DAG(
     start_date=start_date,
     catchup=False,
     schedule=None,
-    tags=["example2"],
+    tags=["example", "example2"],
 ) as parent_dag:
     # [START howto_operator_external_task_marker]
     parent_task = ExternalTaskMarker(
@@ -68,7 +68,7 @@ with DAG(
     start_date=start_date,
     schedule=None,
     catchup=False,
-    tags=["example2"],
+    tags=["example", "example2"],
 ) as child_dag:
     # [START howto_operator_external_task_sensor]
     child_task1 = ExternalTaskSensor(

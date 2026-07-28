@@ -20,6 +20,20 @@
 Changelog
 ---------
 
+2.4.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop passing 'project_id' to the Pinecone client constructor (#66601)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#66600)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 2.4.4
 .....
 

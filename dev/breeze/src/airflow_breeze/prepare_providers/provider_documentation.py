@@ -100,7 +100,7 @@ Changelog
 Initial version of the provider.
 """
 
-SHORT_HASH_TO_TYPE_DICT = {}
+SHORT_HASH_TO_TYPE_DICT: dict[str, TypeOfChange] = {}
 
 
 class TypeOfChange(Enum):
@@ -249,6 +249,50 @@ def classify_provider_pr_files(provider_id: str, commit_hash: str) -> str:
         return "other"
 
     return classification_result(provider_id, changed_files)
+
+
+# Classification value emitted when no high-confidence hard-coded rule matches and
+# an LLM/agent must assess the type of change. The deterministic rules only ever
+# decide ``documentation``/``skip``/``misc`` (the cases that can be decided with
+# near-certainty from changed files or the commit subject); everything else is
+# deliberately left to an LLM, because ``Fix``/``Add`` subjects are too often wrong
+# (e.g. an "Add ..." that is actually a breaking change).
+NEEDS_LLM_CLASSIFICATION = "needs_llm"
+
+# Maps the deterministic file/subject verdicts to the human-readable classification
+# names used by the prepare-providers-documentation skill and changelog sections.
+_DETERMINISTIC_CLASSIFICATION_NAMES = {
+    TypeOfChange.DOCUMENTATION: "documentation",
+    TypeOfChange.SKIP: "skip",
+    TypeOfChange.MISC: "misc",
+}
+
+_BUMP_SUBJECT_RE = re.compile(r"^\s*bump\b", re.IGNORECASE)
+
+
+def classify_change_deterministically(provider_id: str, change: Change) -> tuple[str, str]:
+    """Classify a single provider change using only hard-coded, high-confidence rules.
+
+    Returns a ``(classification, reason)`` tuple where ``classification`` is one of
+    ``documentation``, ``skip``, ``misc`` (decided here) or ``needs_llm`` (no
+    high-confidence rule matched - an LLM/agent must assess the type of change).
+
+    Intentionally conservative: only changed-files heuristics and a ``Bump``
+    dependency-bump subject are trusted. ``Fix``/``Add`` subjects are NOT
+    auto-classified as bugfix/feature, since they are wrong too often to be safe.
+    """
+    files_class = classify_provider_pr_files(provider_id, change.full_hash)
+    if files_class == "documentation":
+        return _DETERMINISTIC_CLASSIFICATION_NAMES[TypeOfChange.DOCUMENTATION], (
+            "only provider documentation (*.rst) files changed"
+        )
+    if files_class == "test_or_example_only":
+        return _DETERMINISTIC_CLASSIFICATION_NAMES[TypeOfChange.SKIP], ("only tests / example DAGs changed")
+    if _BUMP_SUBJECT_RE.match(change.message):
+        return _DETERMINISTIC_CLASSIFICATION_NAMES[TypeOfChange.MISC], (
+            "dependency bump (subject starts with 'Bump')"
+        )
+    return NEEDS_LLM_CLASSIFICATION, "no high-confidence deterministic rule matched"
 
 
 def _get_git_log_command(

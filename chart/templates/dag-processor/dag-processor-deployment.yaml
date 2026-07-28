@@ -17,14 +17,10 @@
  under the License.
 */}}
 
-################################
+###################################
 ## Airflow Dag Processor Deployment
 #################################
-{{- $enabled := .Values.dagProcessor.enabled }}
-{{- if eq $enabled nil}}
-  {{ $enabled = ternary true false (semverCompare ">=3.0.0" .Values.airflowVersion) }}
-{{- end }}
-{{- if $enabled }}
+{{- if .Values.dagProcessor.enabled }}
 {{- $nodeSelector := or .Values.dagProcessor.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
@@ -114,6 +110,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.dagProcessor.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "dagProcessor.serviceAccountName" . }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
@@ -125,7 +122,7 @@ spec:
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
               {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
@@ -163,7 +160,7 @@ spec:
           resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
           volumeMounts:
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
               {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
@@ -210,11 +207,11 @@ spec:
           args: {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.args) . | nindent 12 }}
           {{- end }}
           env:
-          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
+          {{- if ne .Values.dagProcessor.logGroomerSidecar.retentionDays nil }}
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
           {{- end }}
-          {{- if .Values.dagProcessor.logGroomerSidecar.retentionMinutes }}
+          {{- if ne .Values.dagProcessor.logGroomerSidecar.retentionMinutes nil }}
             - name: AIRFLOW__LOG_RETENTION_MINUTES
               value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionMinutes }}"
           {{- end }}
@@ -242,13 +239,10 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
               {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
-            {{- end }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
           {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
@@ -258,11 +252,6 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
-        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-        - name: webserver-config
-          configMap:
-            name: {{ template "airflow_webserver_config_configmap_name" . }}
-        {{- end }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
@@ -275,7 +264,7 @@ spec:
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
         {{- if .Values.volumes }}
-          {{- toYaml .Values.volumes | nindent 8 }}
+          {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraVolumes }}
           {{- tpl (toYaml .Values.dagProcessor.extraVolumes) . | nindent 8 }}

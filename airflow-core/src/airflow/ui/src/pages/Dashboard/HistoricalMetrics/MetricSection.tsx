@@ -30,6 +30,7 @@ const BAR_HEIGHT = 5;
 type MetricSectionProps = {
   readonly capped?: boolean;
   readonly endDate?: string;
+  readonly isTotalTruncated?: boolean;
   readonly kind: string;
   readonly runs: number;
   readonly startDate: string;
@@ -40,6 +41,7 @@ type MetricSectionProps = {
 export const MetricSection = ({
   capped = false,
   endDate,
+  isTotalTruncated = false,
   kind,
   runs,
   startDate,
@@ -48,11 +50,12 @@ export const MetricSection = ({
 }: MetricSectionProps) => {
   const stateWidth = capped ? BAR_WIDTH : total === 0 ? 0 : (runs / total) * BAR_WIDTH;
   const remainingWidth = BAR_WIDTH - stateWidth;
-  const statePercent = capped ? undefined : total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
+  const hidePercent = isTotalTruncated;
+  const statePercent = hidePercent ? undefined : total === 0 ? 0 : ((runs / total) * 100).toFixed(2);
 
   const stateParam = kind === "task_instances" ? SearchParamsKeys.TASK_STATE : SearchParamsKeys.STATE;
   const searchParams = new URLSearchParams(
-    `?${stateParam}=${state}&${SearchParamsKeys.START_DATE}=${startDate}`,
+    `?${stateParam}=${state}&${SearchParamsKeys.START_DATE_GTE}=${startDate}`,
   );
   const { t: translate } = useTranslation();
 
@@ -65,7 +68,6 @@ export const MetricSection = ({
       <Flex justify="space-between">
         <HStack>
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
-            {/* eslint-disable-next-line unicorn/no-null */}
             <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
               {}
               {capped ? `${runs}+` : runs}

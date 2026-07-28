@@ -18,7 +18,7 @@
  */
 import { Button, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiPlusCircle } from "react-icons/fi";
+import { MdAdd } from "react-icons/md";
 
 import { Dialog } from "src/components/ui";
 import { useAddConnection } from "src/queries/useAddConnection";
@@ -45,11 +45,11 @@ const AddConnectionButton = () => {
 
   return (
     <>
-      <Button colorPalette="brand" onClick={onOpen}>
-        <FiPlusCircle /> {translate("connections.add")}
+      <Button onClick={onOpen}>
+        <MdAdd /> {translate("connections.add")}
       </Button>
 
-      <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
+      <Dialog.Root lazyMount onOpenChange={onClose} open={open} unmountOnExit>
         <Dialog.Content backdrop>
           <Dialog.Header paddingBottom={0}>
             <VStack align="start" gap={4}>

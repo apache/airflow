@@ -16,46 +16,81 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, HStack, Link } from "@chakra-ui/react";
+import { Box, HStack, Text } from "@chakra-ui/react";
 import { FiDatabase } from "react-icons/fi";
 import { PiRectangleDashed } from "react-icons/pi";
-import { Link as RouterLink } from "react-router-dom";
+
+import type {
+  AssetExpressionAlias,
+  AssetExpressionAsset,
+  NextRunAssetEventResponse,
+} from "openapi/requests/types.gen";
+import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
+import { RouterLink } from "src/components/ui";
 
 import Time from "../Time";
-import type { AssetSummary, NextRunEvent } from "./types";
 
 export const AssetNode = ({
   asset,
   event,
 }: {
-  readonly asset: AssetSummary;
-  readonly event?: NextRunEvent;
-}) => (
-  <Box
-    bg="bg.muted"
-    border="1px solid"
-    borderColor={Boolean(event?.lastUpdate) ? "success.solid" : "border.emphasized"}
-    borderRadius="md"
-    borderWidth={Boolean(event?.lastUpdate) ? 3 : 1}
-    display="inline-block"
-    minW="fit-content"
-    p={2}
-    position="relative"
-  >
-    <HStack gap={2}>
-      {"asset" in asset ? <FiDatabase /> : <PiRectangleDashed />}
-      {"alias" in asset ? (
-        <Text fontSize="sm">{asset.alias.name}</Text>
-      ) : (
-        <Link asChild color="fg.info" display="block" py={2}>
-          <RouterLink to={`/assets/${asset.asset.id}`}>{asset.asset.name}</RouterLink>
-        </Link>
-      )}
-    </HStack>
-    {event?.lastUpdate === undefined ? undefined : (
-      <Text color="fg.muted" fontSize="sm">
-        <Time datetime={event.lastUpdate} />
-      </Text>
-    )}
-  </Box>
-);
+  readonly asset: AssetExpressionAlias | AssetExpressionAsset;
+  readonly event?: NextRunAssetEventResponse;
+}) => {
+  const isFullyReceived = Boolean(event?.last_update);
+  const isPartial =
+    !isFullyReceived &&
+    (event?.received_count ?? 0) > 0 &&
+    (event?.received_count ?? 0) < (event?.required_count ?? 1);
+  // In a partitioned Dag with a pending partition, `last_update` is the last
+  // asset event, not the pending partition key's arrival — so suppress it for
+  // non-rollup partitioned nodes. We detect that case via `required_keys`,
+  // which only the partitioned + pending-APDR branch of `next_run_assets`
+  // populates. Plain non-partitioned events leave `required_keys` empty and
+  // must keep showing their timestamp.
+  const isPartitionedNonRollup = event?.is_rollup === false && (event.required_keys?.length ?? 0) > 0;
+  const showTime = isFullyReceived && !isPartitionedNonRollup;
+  const showRollupChecklist =
+    (event?.is_rollup ?? false) && (event?.required_keys?.length ?? 0) > 0 && (isPartial || isFullyReceived);
+
+  return (
+    <Box
+      bg="bg.muted"
+      border="1px solid"
+      borderColor={isFullyReceived ? "success.solid" : isPartial ? "warning.solid" : "border.emphasized"}
+      borderRadius="md"
+      borderWidth={isFullyReceived || isPartial ? 3 : 1}
+      display="inline-block"
+      minW="fit-content"
+      p={2}
+      position="relative"
+    >
+      <HStack gap={2}>
+        {"asset" in asset ? <FiDatabase /> : <PiRectangleDashed />}
+        {"alias" in asset ? (
+          <Text fontSize="sm">{asset.alias.name}</Text>
+        ) : (
+          <RouterLink display="block" py={2} to={`/assets/${asset.asset.id}`}>
+            {asset.asset.name}
+          </RouterLink>
+        )}
+      </HStack>
+      {showRollupChecklist ? (
+        <RollupKeyChecklistPopover
+          receivedCount={event?.received_count ?? 0}
+          receivedKeys={event?.received_keys ?? []}
+          requiredCount={event?.required_count ?? 0}
+          requiredKeys={event?.required_keys ?? []}
+        />
+      ) : showTime ? (
+        <Text color="fg.muted" fontSize="sm">
+          <Time datetime={event?.last_update ?? null} />
+        </Text>
+      ) : isPartial ? (
+        <Text color="warning.fg" fontSize="sm">
+          {event?.received_count} / {event?.required_count}
+        </Text>
+      ) : undefined}
+    </Box>
+  );
+};

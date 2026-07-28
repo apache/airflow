@@ -356,6 +356,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
         if self.deferrable:
             self.execute_async(context)
+            return
 
         return super().execute(context)
 

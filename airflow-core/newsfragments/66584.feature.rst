@@ -1,0 +1,1 @@
+Sibling ``BaseEventTrigger`` instances on different ``AssetWatcher`` s can now share a single underlying poll loop in the triggerer by overriding ``shared_stream_key``, ``open_shared_stream``, and ``filter_shared_stream``. Triggers that opt out (the default) keep their existing independent ``run()`` loop behavior.

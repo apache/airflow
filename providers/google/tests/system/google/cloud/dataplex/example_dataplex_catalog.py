@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG that shows how to use Dataplex Catalog.
+Example Airflow DAG that shows how to use Knowledge Catalog Catalog.
 """
 
 from __future__ import annotations

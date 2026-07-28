@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -32,7 +33,9 @@ from airflow.providers.edge3.models.db import EdgeDBManager, check_db_manager_co
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
+from airflow.providers.edge3.models.types import is_callback_execute
 from airflow.utils.db import DBLocks, create_global_lock
+from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
@@ -73,7 +76,7 @@ class EdgeExecutor(BaseExecutor):
             self.team_name = None
 
     @provide_session
-    def start(self, session: Session = NEW_SESSION):
+    def start(self, *, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
         check_db_manager_config()
         edge_db_manager = EdgeDBManager(session)
@@ -94,51 +97,79 @@ class EdgeExecutor(BaseExecutor):
         self.edge_queued_tasks = deepcopy(self.queued_tasks)
         super()._process_tasks(task_tuples)  # type: ignore[misc]
 
-    @provide_session
     def queue_workload(
         self,
         workload: workloads.All,
-        session: Session = NEW_SESSION,
+        session: Session,
     ) -> None:
         """Put new workload to queue. Airflow 3 entry point to execute a task."""
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
+        if is_callback_execute(workload):
+            from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
 
-        task_instance = workload.ti
-        key = task_instance.key
-
-        # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
-        existing_job = session.scalars(
-            select(EdgeJobModel).where(
-                EdgeJobModel.dag_id == key.dag_id,
-                EdgeJobModel.task_id == key.task_id,
-                EdgeJobModel.run_id == key.run_id,
-                EdgeJobModel.map_index == key.map_index,
-                EdgeJobModel.try_number == key.try_number,
-            )
-        ).first()
-
-        if existing_job:
-            existing_job.state = TaskInstanceState.QUEUED
-            existing_job.queue = task_instance.queue
-            existing_job.concurrency_slots = task_instance.pool_slots
-            existing_job.command = workload.model_dump_json()
-            existing_job.team_name = self.team_name
-        else:
-            session.add(
-                EdgeJobModel(
-                    dag_id=key.dag_id,
-                    task_id=key.task_id,
-                    run_id=key.run_id,
-                    map_index=key.map_index,
-                    try_number=key.try_number,
-                    state=TaskInstanceState.QUEUED,
-                    queue=task_instance.queue,
-                    concurrency_slots=task_instance.pool_slots,
-                    command=workload.model_dump_json(),
-                    team_name=self.team_name,
+            existing_job = session.scalars(
+                select(EdgeJobModel).where(
+                    EdgeJobModel.dag_id == EXECUTE_CALLBACK_TAG,
+                    EdgeJobModel.task_id == workload.callback.id,
+                    EdgeJobModel.run_id == f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}",
                 )
-            )
+            ).first()
+
+            if existing_job:
+                existing_job.state = TaskInstanceState.QUEUED
+                existing_job.command = workload.model_dump_json()
+            else:
+                session.add(
+                    EdgeJobModel(
+                        dag_id=EXECUTE_CALLBACK_TAG,
+                        task_id=str(workload.callback.id),
+                        run_id=f"{EXECUTE_CALLBACK_TAG}-{workload.callback.id}",
+                        map_index=-1,
+                        try_number=0,
+                        queue=self.conf.get_mandatory_value("operators", "default_queue"),
+                        concurrency_slots=1,
+                        state=TaskInstanceState.QUEUED,
+                        command=workload.model_dump_json(),
+                        team_name=self.team_name,
+                    )
+                )
+        elif isinstance(workload, workloads.ExecuteTask):
+            task_instance = workload.ti
+            key = task_instance.key
+
+            # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
+            existing_job = session.scalars(
+                select(EdgeJobModel).where(
+                    EdgeJobModel.dag_id == key.dag_id,
+                    EdgeJobModel.task_id == key.task_id,
+                    EdgeJobModel.run_id == key.run_id,
+                    EdgeJobModel.map_index == key.map_index,
+                    EdgeJobModel.try_number == key.try_number,
+                )
+            ).first()
+
+            if existing_job:
+                existing_job.state = TaskInstanceState.QUEUED
+                existing_job.queue = task_instance.queue
+                existing_job.concurrency_slots = task_instance.pool_slots
+                existing_job.command = workload.model_dump_json()
+                existing_job.team_name = self.team_name
+            else:
+                session.add(
+                    EdgeJobModel(
+                        dag_id=key.dag_id,
+                        task_id=key.task_id,
+                        run_id=key.run_id,
+                        map_index=key.map_index,
+                        try_number=key.try_number,
+                        state=TaskInstanceState.QUEUED,
+                        queue=task_instance.queue,
+                        concurrency_slots=task_instance.pool_slots,
+                        command=workload.model_dump_json(),
+                        team_name=self.team_name,
+                    )
+                )
+        else:
+            raise TypeError(f"Don't know how to queue workload of type {type(workload).__name__}")
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         """
@@ -153,7 +184,7 @@ class EdgeExecutor(BaseExecutor):
         """Reset worker state if heartbeat timed out."""
         changed = False
         heartbeat_interval: int = self.conf.getint("edge", "heartbeat_interval")
-        lifeless_workers: Sequence[EdgeWorkerModel] = session.scalars(
+        lifeless_workers = session.scalars(
             select(EdgeWorkerModel)
             .with_for_update(skip_locked=True)
             .where(
@@ -182,14 +213,20 @@ class EdgeExecutor(BaseExecutor):
                 )
                 else EdgeWorkerState.UNKNOWN
             )
-            reset_metrics(worker.worker_name)
+            # Reset presented status
+            sysinfo = dict(worker.sysinfo or {})  # copy needed to have alembic detect change in content
+            sysinfo["status"] = logging.NOTSET
+            sysinfo.pop("status_text", None)  # Remove old status text if exists
+            worker.sysinfo = sysinfo
+            self.log.warning("Worker %s is lifeless. Setting state to %s", worker.worker_name, worker.state)
+            reset_metrics(worker.worker_name, team_name=worker.team_name)
 
         return changed
 
     def _update_orphaned_jobs(self, session: Session) -> bool:
         """Update status ob jobs when workers die and don't update anymore."""
         heartbeat_interval: int = self.conf.getint("scheduler", "task_instance_heartbeat_timeout")
-        lifeless_jobs: Sequence[EdgeJobModel] = session.scalars(
+        lifeless_jobs = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
             .where(
@@ -217,12 +254,9 @@ class EdgeExecutor(BaseExecutor):
                     "task_id": job.task_id,
                     "queue": job.queue,
                     "state": str(TaskInstanceState.FAILED),
+                    "team_name": job.team_name,
                 }
-                Stats.incr(
-                    f"edge_worker.ti.finish.{job.queue}.{TaskInstanceState.FAILED}.{job.dag_id}.{job.task_id}",
-                    tags=tags,
-                )
-                Stats.incr("edge_worker.ti.finish", tags=tags)
+                Stats.incr("edge_worker.ti.finish", tags=prune_dict(tags))
 
         return bool(lifeless_jobs)
 
@@ -231,7 +265,7 @@ class EdgeExecutor(BaseExecutor):
         purged_marker = False
         job_success_purge = self.conf.getint("edge", "job_success_purge")
         job_fail_purge = self.conf.getint("edge", "job_fail_purge")
-        jobs: Sequence[EdgeJobModel] = session.scalars(
+        jobs = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
             .where(
@@ -306,9 +340,9 @@ class EdgeExecutor(BaseExecutor):
         return purged_marker
 
     @provide_session
-    def sync(self, session: Session = NEW_SESSION) -> None:
+    def sync(self, *, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        with Stats.timer("edge_executor.sync.duration"):
+        with Stats.timer("edge_executor.sync.duration", tags=prune_dict({"team_name": self.team_name})):
             orphaned = self._update_orphaned_jobs(session)
             purged = self._purge_jobs(session)
             liveness = self._check_worker_liveness(session)

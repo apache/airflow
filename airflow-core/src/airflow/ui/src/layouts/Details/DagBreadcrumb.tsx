@@ -65,7 +65,7 @@ export const DagBreadcrumb = () => {
     [
       {
         label: dag?.dag_display_name ?? dagId,
-        labelExtra: (
+        labelExtra: dag?.is_stale ? undefined : (
           <TogglePause
             dagDisplayName={dag?.dag_display_name}
             dagId={dagId}

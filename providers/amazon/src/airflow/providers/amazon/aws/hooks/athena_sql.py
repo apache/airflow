@@ -177,6 +177,37 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             aws_domain=self.conn.extra_dejson.get("aws_domain", "amazonaws.com"),
         )
 
+    def get_openlineage_database_info(self, connection):
+        """Return Amazon Athena specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        region_name = self.region_name or connection.extra_dejson.get("region_name")
+        aws_domain = connection.extra_dejson.get("aws_domain", "amazonaws.com")
+        authority = f"athena.{region_name}.{aws_domain}" if region_name else f"athena.{aws_domain}"
+
+        return DatabaseInfo(
+            scheme="awsathena",
+            authority=authority,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            database=connection.extra_dejson.get("catalog", "AwsDataCatalog"),
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        """Return Athena dialect. Athena uses Trino SQL engine."""
+        return "trino"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return Athena default schema."""
+        return self.conn.schema or "default"
+
     def get_uri(self) -> str:
         """Overridden to use the Athena dialect as driver name."""
         from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException

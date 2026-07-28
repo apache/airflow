@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-snowflake``
 
-Release: ``6.12.1``
+Release: ``6.15.0``
 
 
 `Snowflake <https://www.snowflake.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``snowflake`` provider. All classes for this prov
 are in ``airflow.providers.snowflake`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.12.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.15.0/>`_.
 
 Installation
 ------------
@@ -62,15 +62,15 @@ PIP package                                 Version required
 ``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
 ``pyarrow``                                 ``>=18.0.0; python_version >= "3.13" and python_version < "3.14"``
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
-``snowflake-connector-python``              ``>=3.16.0``
+``snowflake-connector-python``              ``>=3.17.0``
 ``snowflake-sqlalchemy``                    ``>=1.7.0``
 ``snowflake-snowpark-python``               ``>=1.17.0,<9999; python_version < "3.12"``
 ``snowflake-snowpark-python``               ``>=1.27.0,<9999; python_version >= "3.12" and python_version < "3.14"``
 ``setuptools``                              ``>=80.0.0,<9999``
 ==========================================  ========================================================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -79,14 +79,12 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-snowflake[common.compat]
+    pip install apache-airflow-providers-snowflake[microsoft.azure]
 
 
 ======================================================================================================================  ===================
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
 ======================================================================================================================  ===================
@@ -102,4 +100,4 @@ Extra                Dependencies
 ===================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.12.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.15.0/changelog.html>`_.

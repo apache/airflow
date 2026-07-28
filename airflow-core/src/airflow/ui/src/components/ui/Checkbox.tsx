@@ -31,7 +31,9 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>((props
   return (
     <ChakraCheckbox.Root ref={rootRef} {...rest}>
       <ChakraCheckbox.HiddenInput ref={ref} {...inputProps} />
-      <ChakraCheckbox.Control>{icon ?? <ChakraCheckbox.Indicator />}</ChakraCheckbox.Control>
+      <ChakraCheckbox.Control _disabled={{ cursor: "not-allowed" }} cursor="pointer">
+        {icon ?? <ChakraCheckbox.Indicator />}
+      </ChakraCheckbox.Control>
       {children !== undefined && <ChakraCheckbox.Label>{children}</ChakraCheckbox.Label>}
     </ChakraCheckbox.Root>
   );

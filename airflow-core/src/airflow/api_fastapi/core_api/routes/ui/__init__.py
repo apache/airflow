@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from fastapi import Depends
+
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
 from airflow.api_fastapi.core_api.routes.ui.auth import auth_router
@@ -23,6 +25,7 @@ from airflow.api_fastapi.core_api.routes.ui.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.ui.calendar import calendar_router
 from airflow.api_fastapi.core_api.routes.ui.config import config_router
 from airflow.api_fastapi.core_api.routes.ui.connections import connections_router
+from airflow.api_fastapi.core_api.routes.ui.dag_runs import dag_runs_router
 from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
 from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
 from airflow.api_fastapi.core_api.routes.ui.deadlines import deadlines_router
@@ -32,11 +35,15 @@ from airflow.api_fastapi.core_api.routes.ui.grid import grid_router
 from airflow.api_fastapi.core_api.routes.ui.partitioned_dag_runs import partitioned_dag_runs_router
 from airflow.api_fastapi.core_api.routes.ui.structure import structure_router
 from airflow.api_fastapi.core_api.routes.ui.teams import teams_router
+from airflow.api_fastapi.core_api.security import get_user
 
-ui_router = AirflowRouter(prefix="/ui", include_in_schema=False)
+# Every UI route requires an authenticated user; the router-level dependency makes that
+# the default so future routes added here cannot accidentally skip authentication.
+ui_router = AirflowRouter(prefix="/ui", include_in_schema=False, dependencies=[Depends(get_user)])
 
 ui_router.include_router(auth_router)
 ui_router.include_router(assets_router)
+ui_router.include_router(dag_runs_router)
 ui_router.include_router(partitioned_dag_runs_router)
 ui_router.include_router(config_router)
 ui_router.include_router(connections_router)

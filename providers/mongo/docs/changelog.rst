@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+5.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``providers/mongo: ping mongod before yielding from mongodb_container fixture (#67066)``
+   * ``Use contextlib.suppress instead of try-except-pass and re-enable SIM105 (#66193)``
+   * ``Make mongo testcontainer fixture resilient to Docker Hub flakes (#66154)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
 5.3.5
 .....
 

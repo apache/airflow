@@ -55,6 +55,8 @@ class GenericTransfer(BaseOperator):
     preoperator: Incomplete
     insert_args: Incomplete
     page_size: Incomplete
+    paginated_sql_statement_clause: Incomplete
+    deferrable: bool
     def __init__(
         self,
         *,
@@ -68,6 +70,8 @@ class GenericTransfer(BaseOperator):
         preoperator: str | list[str] | None = None,
         insert_args: dict | None = None,
         page_size: int | None = None,
+        paginated_sql_statement_clause: str | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None: ...
     @classmethod

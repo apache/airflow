@@ -25,10 +25,14 @@ from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_d
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import RangeFilter, datetime_range_filter_factory
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.calendar import CalendarTimeRangeCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
+    CalendarDeadlineCollectionResponse,
+    CalendarTimeRangeCollectionResponse,
+)
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.ui.calendar import CalendarService
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 
 calendar_router = AirflowRouter(prefix="/calendar", tags=["Calendar"])
 
@@ -58,7 +62,7 @@ def get_calendar(
     partition_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("partition_date", DagRun))],
     granularity: Literal["hourly", "daily"] = "daily",
 ) -> CalendarTimeRangeCollectionResponse:
-    """Get calendar data for a DAG including historical and planned DAG runs."""
+    """Get calendar data for a Dag including historical and planned Dag runs."""
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
 
     calendar_service = CalendarService()
@@ -69,5 +73,33 @@ def get_calendar(
         dag=dag,
         logical_date=logical_date,
         partition_date=partition_date,
+        granularity=granularity,
+    )
+
+
+@calendar_router.get(
+    "/{dag_id}/deadlines",
+    dependencies=[
+        Depends(
+            requires_access_dag(
+                method="GET",
+                access_entity=DagAccessEntity.RUN,
+            )
+        ),
+    ],
+)
+def get_calendar_deadlines(
+    dag_id: str,
+    session: SessionDep,
+    deadline_time: Annotated[RangeFilter, Depends(datetime_range_filter_factory("deadline_time", Deadline))],
+    granularity: Literal["hourly", "daily"] = "daily",
+) -> CalendarDeadlineCollectionResponse:
+    """Get aggregated deadline counts for a Dag, bucketed by deadline_time and missed status."""
+    calendar_service = CalendarService()
+
+    return calendar_service.get_deadline_calendar_data(
+        dag_id=dag_id,
+        session=session,
+        deadline_time=deadline_time,
         granularity=granularity,
     )

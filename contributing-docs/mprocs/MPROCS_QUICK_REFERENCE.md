@@ -70,12 +70,20 @@ use it outside of Breeze if needed.
 | `q`  | Quit mprocs                |
 | `?`  | Show help                  |
 
+When stopping the Breeze environment, press `q` rather than stopping only the
+selected process. Quitting mprocs lets the `breeze start-airflow` container exit
+and release its forwarded ports. After returning to the host shell, run:
+
+```bash
+breeze down
+```
+
 ## Components Managed
 
 - **scheduler** - Airflow scheduler
 - **api_server** (3.x+) / **webserver** (2.x) - Web interface
 - **triggerer** - Handles deferred tasks
-- **dag_processor** - Standalone DAG processor (when enabled)
+- **dag_processor** - Standalone Dag processor (when enabled)
 - **celery_worker** - Celery worker (with CeleryExecutor)
 - **flower** - Celery monitoring (when enabled)
 - **edge_worker** - Edge worker (with EdgeExecutor)
@@ -87,7 +95,7 @@ use it outside of Breeze if needed.
 | `TERMNAL_MULTIPLEXER`      | Use mprocs when set to "mprocs" |
 | `INTEGRATION_CELERY`       | Enable Celery components        |
 | `CELERY_FLOWER`            | Enable Flower UI                |
-| `STANDALONE_DAG_PROCESSOR` | Enable standalone DAG processor |
+| `STANDALONE_DAG_PROCESSOR` | Enable standalone Dag processor |
 | `BREEZE_DEBUG_*`           | Enable component debugging      |
 | `DEV_MODE`                 | Enable development mode         |
 

@@ -21,11 +21,17 @@ labelPRBasedOnFilePath:
   provider:airbyte:
     - providers/airbyte/**
 
+  provider:akeyless:
+    - providers/akeyless/**
+
   provider:alibaba:
     - providers/alibaba/**
 
   provider:amazon:
     - providers/amazon/**
+
+  provider:anthropic:
+    - providers/anthropic/**
 
   provider:apache-beam:
     - providers/apache/beam/**
@@ -90,6 +96,9 @@ labelPRBasedOnFilePath:
   provider:celery:
     - providers/celery/**
 
+  provider:clickhousedb:
+    - providers/clickhousedb/**
+
   provider:cloudant:
     - providers/cloudant/**
 
@@ -104,6 +113,9 @@ labelPRBasedOnFilePath:
 
   provider:common-compat:
     - providers/common/compat/**
+
+  provider:common-dataquality:
+    - providers/common/dataquality/**
 
   provider:common-io:
     - providers/common/io/**
@@ -167,6 +179,9 @@ labelPRBasedOnFilePath:
 
   provider:http:
     - providers/http/**
+
+  provider:ibm-mq:
+    - providers/ibm/mq/**
 
   provider:imap:
     - providers/imap/**
@@ -348,17 +363,31 @@ labelPRBasedOnFilePath:
     - .readthedocs.yml
 
   # This should be copy of the "area:dev-tools" above minus contributing docs and some files that should
-  # only make sense in main - it should be updated when we switch maintenance branch
-  backport-to-v3-2-test:
-    - scripts/**/*
-    - dev/**/*
-    - .github/**/*
-    - Dockerfile.ci
-    - yamllint-config.yml
-    - .dockerignore
-    - .hadolint.yaml
-    - .pre-commit-config.yaml
-    - .rat-excludes
+  # only make sense in main - it should be updated when we switch maintenance branch.
+  # Scoped to PRs targeting `main` only — a PR opened directly against v3-3-test
+  # does not need a backport-to-v3-3-test label.
+  backport-to-v3-3-test:
+    paths:
+      - scripts/**/*
+      - dev/**/*
+      - .github/**/*
+      - Dockerfile.ci
+      - yamllint-config.yml
+      - .dockerignore
+      - .hadolint.yaml
+      - .pre-commit-config.yaml
+      - .rat-excludes
+    targetBranchFilter:
+      - ^main$
+
+  # Apply to PRs touching airflow-ctl code so the release manager notices when a
+  # fix should land on the airflow-ctl/v0-1-test maintenance branch.
+  # Scoped to PRs targeting `main` only.
+  backport-to-airflow-ctl/v0-1-test:
+    paths:
+      - airflow-ctl/**/*
+    targetBranchFilter:
+      - ^main$
 
   kind:documentation:
     - airflow-core/docs/**/*
@@ -531,6 +560,18 @@ labelPRBasedOnFilePath:
   area:go-sdk:
     - go-sdk/**/*
 
+  area:java-sdk:
+    - java-sdk/**/*
+
+  area:ts-sdk:
+    - ts-sdk/**/*
+
+  area:coordinator:
+    - task-sdk/src/airflow/sdk/coordinators/**/*
+    - task-sdk/src/airflow/sdk/execution_time/coordinator.py
+    - task-sdk/tests/task_sdk/coordinators/**/*
+    - task-sdk/tests/task_sdk/execution_time/test_coordinator.py
+
   area:db-migrations:
     - airflow-core/src/airflow/migrations/versions/*
 
@@ -554,6 +595,9 @@ labelPRBasedOnFilePath:
 
   area:docker-tests:
     - docker-tests/**/*
+
+  area:e2e-tests:
+    - airflow-e2e-tests/**/*
 
   area:kubernetes-tests:
     - kubernetes-tests/**/*
@@ -589,7 +633,7 @@ firstPRWelcomeComment: >
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).
   Adding a new operator? Check this short
   [guide](https://github.com/apache/airflow/blob/main/airflow-core/docs/howto/custom-operator.rst)
-  Consider adding an example DAG that shows how users should use it.
+  Consider adding an example Dag that shows how users should use it.
 
   - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
   for testing locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.

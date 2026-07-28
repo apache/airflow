@@ -133,8 +133,18 @@ The following file formats are supported:
  * ``xlib``
  * ``x11``
 
-By default, Airflow looks for Dags in the directory specified by the ``dags_folder`` option in the
-``[core]`` section of the ``airflow.cfg`` file. You can select a new directory with the ``--subdir`` argument.
+By default, Airflow looks for DAGs in the directory specified by the ``dags_folder`` option in the
+``[core]`` section of the ``airflow.cfg`` file.
+
+.. note::
+
+   The ``--subdir`` argument is no longer supported in Airflow 3.x.
+
+   To test a DAG from a specific file, use:
+
+   .. code-block:: bash
+
+      airflow dags test <DAG_ID> -f <path_to_dag_file>
 
 Display Dag structure
 ---------------------
@@ -221,6 +231,34 @@ By default, ``db clean`` will archive purged rows in tables of the form ``_airfl
 
 When you encounter an error without using ``--skip-archive``,  ``_airflow_deleted__<table>__<timestamp>`` would still exist in the DB. You can use  ``db drop-archived`` command to manually drop these tables.
 
+Detecting cleanup failures
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, ``db clean`` suppresses per-table errors (such as a database ``statement_timeout``
+being exceeded on a very large table) and exits with code 0 even if one or more tables were not
+cleaned. A WARNING is emitted in the logs listing which tables were skipped due to errors.
+
+To make the command exit with a non-zero code whenever any table cleanup fails — useful when
+``airflow db clean`` is invoked from a DAG task and you want the task to turn red on failure —
+pass ``--error-on-cleanup-failure``:
+
+.. code-block:: bash
+
+    airflow db clean \
+        --clean-before-timestamp "$(date -u -d '21 days ago' '+%Y-%m-%dT%H:%M:%S+00:00')" \
+        --yes \
+        --error-on-cleanup-failure
+
+When ``--error-on-cleanup-failure`` is set, the raised ``RuntimeError`` includes the list of
+tables that failed cleanup, so the command still surfaces which tables were not cleaned.
+
+.. tip::
+
+    On large deployments where the archival ``CREATE TABLE … AS SELECT`` step itself can time
+    out, combining ``--error-on-cleanup-failure`` with ``--skip-archive`` is recommended.
+    ``--skip-archive`` deletes rows directly without the intermediate archive table, making the
+    operation both faster and less likely to hit ``statement_timeout``.
+
 Export the purged records from the archive tables
 -------------------------------------------------
 The ``db export-archived`` command exports the contents of the archived tables, created by the ``db clean`` command,
@@ -295,6 +333,22 @@ For a mapping between Airflow version and Alembic revision see :doc:`/migrations
 
     It's highly recommended that you reserialize your Dags with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
     This is to ensure that the serialized Dags are compatible with the downgraded version of Airflow.
+
+.. _cli-reserialize-dags:
+
+Reserializing Dags
+------------------
+
+The ``dags reserialize`` command parses the Dag files visible to it and updates their
+serialized representation in the metadata database. It is a maintenance command, useful
+for example to refresh serialized Dags after upgrading or downgrading Airflow.
+
+.. note::
+
+    ``airflow dags reserialize`` serializes the Dag files visible to the process
+    running it. It does not deploy or synchronize Dag source files, and does not
+    replace normal Dag Processor bundle refreshes. In a distributed deployment,
+    run it from an environment that sees the same Dag bundle contents as the Dag Processor.
 
 .. _cli-export-connections:
 

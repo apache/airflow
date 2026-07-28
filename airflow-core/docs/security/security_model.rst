@@ -92,9 +92,9 @@ Non-authenticated UI users
 
 Airflow doesn't support unauthenticated users by default. If allowed, potential vulnerabilities
 must be assessed and addressed by the Deployment Manager. However, there are exceptions to this.
-The ``/health`` endpoint responsible to get health check updates should be publicly accessible.
-This is because other systems would want to retrieve that information. Another exception is the
-``/login`` endpoint, as the users are expected to be unauthenticated to use it.
+The ``/api/v2/monitor/health`` endpoint responsible for health check updates should be publicly
+accessible. This is because other systems would want to retrieve that information. Another exception
+is the ``/login`` endpoint, as the users are expected to be unauthenticated to use it.
 
 Capabilities of authenticated UI users
 --------------------------------------
@@ -218,13 +218,50 @@ have access to all Dags in the Airflow installation and they can
 modify any of those Dags - no matter which Dag the task code is executed for. This means that Dag authors can
 modify state of any task instance of any Dag, and there are no finer-grained access controls to limit that access.
 
+This applies to every interface a Dag author's code can reach — including the Task Execution API
+that workers use via the Task SDK. The Execution JWT issued to a running task does **not** carry
+per-Dag authorization: a task holding a valid token can call state-mutating Execution API endpoints
+(triggering Dag runs, clearing Dag runs, reading or writing variables, connections and XComs, etc.)
+for **any** Dag in the installation. The ``ti:self`` token scope restricts cross-task-instance state
+mutation only; it is not a per-Dag access control.
+
 There is an **experimental** multi-team feature in Airflow (``[core] multi_team``) that provides UI-level and
-REST API-level RBAC isolation between teams. However, this feature **does not yet guarantee task-level isolation**.
+REST API-level RBAC isolation between teams. In multi-team mode, the team-scoped resources reachable through
+the Task Execution API are also isolated by team: a task may only access **Variables** and **Connections**
+belonging to its own team (falling back to global values), and may only access **XComs** of Dags in its own
+team (reads may additionally reach global Dags, but writes and deletes may not).
+
+However, this feature **does not yet guarantee task-level isolation**.
 At the task execution level, workloads from different teams still share the same Execution API, signing keys,
 connections, and variables. A task from one team can access the same shared resources as a task from another team.
 The multi-team feature is a work in progress — task-level isolation and Execution API enforcement of team
 boundaries will be improved in future versions of Airflow. Until then, you should assume that all Dag authors
 have access to all Dags and shared resources, and can modify their state regardless of team assignment.
+
+
+Per-Dag read access and source-code retrieval
+---------------------------------------------
+
+The dag-source retrieval endpoint (``GET /api/v2/dagSources/{dag_id}``) honors
+per-Dag read scoping for the **current** Dag-to-file mapping: if the file
+backing the requested Dag also defines other Dags the caller is not authorized
+to read, the endpoint returns a redacted placeholder instead of the source.
+
+The endpoint also supports retrieving historical source via the optional
+``version_number`` query parameter. For historical versions, the per-Dag scope
+is enforced using the **current** file membership, which may differ from the
+file's contents at the time the requested version was stored. As a consequence,
+requesting an older version may return source containing a Dag that has since
+been removed from the file, even if the caller does not currently have read
+access to that removed Dag. Conversely, requesting an older version may return
+the redacted placeholder when a later-added co-located Dag is not in the
+caller's readable set, even though the requested historical source predates
+that addition.
+
+Deployments that rely on per-Dag read scoping for source isolation should
+either keep one Dag per source file, or restrict ``DagAccessEntity.CODE`` to
+roles that are trusted to read every Dag that has ever co-existed in any
+source file.
 
 
 Security contexts for Dag author submitted code
@@ -322,6 +359,77 @@ Execution API. For a detailed description of the JWT authentication flows, token
 configuration, see :doc:`/security/jwt_token_authentication`. For the current state of workload
 isolation protections and their limitations, see :ref:`workload-isolation`.
 
+The diagram below summarizes the trust boundaries between Airflow components and the metadata
+database. Solid arrows are authenticated network calls (JWT-bearing HTTP). Dashed arrows are
+direct database access — components on the right of the dashed line can read and write the
+metadata DB, so any code they execute is implicitly trusted with the metadata database.
+
+.. mermaid::
+
+    flowchart LR
+        subgraph users["Users (untrusted by default)"]
+            UI[UI / browser]
+            CLI[CLI]
+            EXT[External REST clients]
+        end
+
+        subgraph dataplane["Worker plane (no metadata DB access)"]
+            WRK[Worker / Task]
+        end
+
+        subgraph controlplane["Control plane (metadata DB access)"]
+            APISVR[API Server]
+            SCH[Scheduler]
+            DFP[Dag File Processor]
+            TRG[Triggerer]
+        end
+
+        DB[(Metadata DB)]
+
+        UI -->|JWT| APISVR
+        CLI -->|JWT| APISVR
+        EXT -->|JWT| APISVR
+        WRK -->|JWT<br/>Execution API| APISVR
+
+        APISVR -. SQL .-> DB
+        SCH -. SQL .-> DB
+        DFP -. SQL .-> DB
+        TRG -. SQL .-> DB
+
+        DFP -. in-process<br/>JWT bypassed .-> APISVR
+        TRG -. in-process<br/>JWT bypassed .-> APISVR
+
+        classDef untrusted fill:#ffcdd2,stroke:#c62828,stroke-width:2px,color:#000
+        classDef trusted fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
+        classDef data fill:#fff9c4,stroke:#f57f17,stroke-width:2px,color:#000
+        class UI,CLI,EXT,WRK untrusted
+        class APISVR,SCH,DFP,TRG trusted
+        class DB data
+
+The intentional asymmetry: **workers have no direct DB credentials and reach data only through
+the JWT-authenticated Execution API**, while DFP and Triggerer share the control plane's DB
+access and use an *in-process* transport that bypasses the JWT bearer dependency. This is why
+Dag File Processor and Triggerer are treated as part of the control-plane trust boundary even
+though they run user-supplied code — see :ref:`workload-isolation` and the limitations below.
+
+Defense in depth at the router level
+....................................
+
+Both the public REST API router (``/api/v2``) and the UI router (``/ui``) declare
+``Depends(get_user)`` at the router level. This is purely a defense-in-depth backstop: every
+authenticated route already declares its own ``GetUserDep`` or ``requires_access_*`` dependency
+that itself resolves ``get_user``, and FastAPI caches dependency resolutions per request, so
+the duplicate declaration is resolved only once and the runtime cost is zero. The value is preventing a future route from being added
+under either router without an authentication check — the router-level dependency catches the
+regression at registration time. The explicit no-auth carve-outs are limited to
+``monitor_router`` (health probes), ``version_router``, and the public ``auth_router`` (login
+endpoints), which are mounted directly on the public router rather than under
+``authenticated_router``.
+
+A structural test asserts both routers carry the router-level ``Depends(get_user)``, so a
+refactor that drops the dependency without considering its purpose fails CI rather than
+silently widening the unauthenticated surface.
+
 Current isolation limitations
 .............................
 
@@ -402,6 +510,24 @@ potentially still executes with direct database access in the Dag File Processor
    variables, and XComs are accessible to all tasks. There is no isolation between tasks belonging to
    different teams or Dag authors at the Execution API level.
 
+   What the Execution API **does** enforce, beyond ``ti:self``:
+
+   * **Secrets-backend deny is honoured.** When the Execution API returns ``401``/``403`` for a
+     connection or variable lookup, the SDK's ``ExecutionAPISecretsBackend`` raises
+     ``AirflowSecretsBackendAccessDenied`` (a subclass of ``PermissionError``) instead of returning
+     ``None``. The secrets-backend dispatcher must not fall through to a less-restrictive backend
+     (such as ``EnvironmentVariablesBackend``, which performs no authorization checks) when the
+     authoritative backend has explicitly denied the request. ``NOT_FOUND`` responses keep the
+     existing fall-through behaviour so the not-found-here path remains usable. This closes a
+     "Type C" gap where the authorization control fired but its rejection was treated as a miss.
+   * **Tightened deserialization allowlist.** The serializer's class-name allowlist regex is
+     anchored to require a full-string match, so attacker-controlled values cannot smuggle
+     untrusted class names by appending an allowed suffix to a non-allowed name.
+   * **Typed JWT claims schema.** Even after cryptographic validation, claims are run through a
+     typed Pydantic schema (``TIClaims``) that enforces the ``scope`` literal, and then through
+     ``TIToken`` which parses ``sub`` as a UUID. A token whose ``scope`` is unknown or whose
+     ``sub`` is not a valid UUID is rejected before any route handler runs.
+
 **Token signing key might be a shared secret**
    In symmetric key mode (``[api_auth] jwt_secret``), the same secret key is used to both generate and
    validate tokens. Any component that has access to this secret can forge tokens with arbitrary claims,
@@ -458,6 +584,109 @@ model — Airflow does not enforce these natively.
    ``ptrace``. In contrast, configuration files on disk are readable by any process running as
    the same Unix user. Environment variables can also be scoped to individual processes or
    containers, making it easier to restrict which components have access to which secrets.
+
+   The diagram and table below summarize which components need which classes of sensitive value
+   in a well-hardened deployment. Workers should not see DB credentials or the JWT signing key
+   at all; the API Server is the only component that needs *all* of the privileged values.
+   Components are arranged from least-privileged (Worker, green) to most-privileged
+   (API Server, blue) — the growing column visually conveys "more privilege ⇒ more secrets":
+
+   .. mermaid::
+
+       flowchart LR
+           subgraph WRK["Worker (least privileged)"]
+               direction TB
+               W1[Fernet key]
+               W2[Worker secrets backend credentials]
+               W3[Remote log handler kwargs]
+           end
+
+           subgraph TRG["Triggerer"]
+               direction TB
+               T1[DB connection]
+               T2[Fernet key]
+               T3[Non-worker secrets backend credentials]
+               T4[Remote log handler kwargs]
+           end
+
+           subgraph DFP["Dag File Processor"]
+               direction TB
+               D1[DB connection]
+               D2[Fernet key]
+               D3[Non-worker secrets backend credentials]
+           end
+
+           subgraph SCH["Scheduler"]
+               direction TB
+               S1[DB connection]
+               S2[JWT signing key]
+               S3[Fernet key]
+               S4[Non-worker secrets backend credentials]
+               S5[Remote log handler kwargs]
+           end
+
+           subgraph API["API Server (most privileged)"]
+               direction TB
+               A1[DB connection]
+               A2[JWT signing key]
+               A3[Fernet key]
+           end
+
+           classDef wrk fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px,color:#000
+           classDef ctrl fill:#bbdefb,stroke:#1565c0,stroke-width:2px,color:#000
+           class WRK wrk
+           class API,SCH,DFP,TRG ctrl
+
+   Read row-by-row to check which components need a given secret; read column-by-column to
+   check what one component is allowed to see:
+
+   .. list-table::
+      :header-rows: 1
+      :widths: 32 14 14 13 14 13
+      :align: left
+
+      * - Sensitive value
+        - API Server
+        - Scheduler
+        - Dag File Processor
+        - Triggerer
+        - Worker
+      * - DB connection
+        - ✓
+        - ✓
+        - ✓
+        - ✓
+        - —
+      * - JWT signing key
+        - ✓
+        - ✓
+        - —
+        - —
+        - —
+      * - Fernet key
+        - ✓
+        - ✓
+        - ✓
+        - ✓
+        - ✓
+      * - Secrets backend credentials (non-worker)
+        - —
+        - ✓
+        - ✓
+        - ✓
+        - —
+      * - Secrets backend credentials (worker)
+        - —
+        - —
+        - —
+        - —
+        - ✓
+      * - Remote log handler kwargs
+        - —
+        - ✓
+        - —
+        - ✓
+        - ✓
 
    The following tables list all security-sensitive configuration variables (marked ``sensitive: true``
    in Airflow's configuration). Deployment Managers should review each variable and ensure it is only
@@ -819,3 +1048,22 @@ significantly from typical web applications — many scanner findings (such as "
 code" or "database credentials accessible in configuration") are expected behavior. Reports must
 include a proof-of-concept that demonstrates how the finding violates the security model described
 in this document, including identifying the specific user role involved and the attack scenario.
+
+Supported deployment platforms
+..............................
+
+Apache Airflow officially supports Linux-based deployment environments only. The reference
+deployment, the CI matrix, and the official Docker image are all Linux-targeted (Debian Bookworm).
+macOS is supported for local development but is not a deployment platform. Windows is not supported
+for deployment - except WSL2 for develop (buy only with POSIX filesystem which is the same as Linux).
+
+Vulnerability reports that only manifest on a non-Linux platform — behavior that depends on Windows
+path separators, macOS-specific filesystem semantics, etc. — are **out of scope** for the security
+process. We do not issue CVEs or advisories for platform-specific bugs in deployment configurations
+the project does not support.
+
+Reports where the bug affects both supported (Linux) and unsupported (Windows, macOS) platforms are
+judged on the Linux behavior; the non-Linux aspect is informational.
+
+Reporters who identify a non-Linux-only bug should still report it through the regular contribution
+process — fixes are welcome as defense-in-depth hardening, with no CVE or advisory.

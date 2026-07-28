@@ -17,7 +17,7 @@
 ---
 services:
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.70.0
+    image: otel/opentelemetry-collector-contrib:0.155.0
     labels:
       breeze.description: "Integration required for OTEL/opentelemetry hooks."
     container_name: "breeze-otel-collector"
@@ -29,9 +29,12 @@ services:
       - "28889:8889"    # Prometheus exporter metrics
 
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:v3.5.4
     container_name: "breeze-prometheus"
     user: "0"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--enable-feature=native-histograms"
     ports:
       - "29090:9090"
     volumes:
@@ -59,11 +62,15 @@ services:
     environment:
       COLLECTOR_OTLP_ENABLED: true
       COLLLECTOR_ZIPKIN_HOST_PORT: 9411
+    # Host ports are intentionally below 32768 to stay outside Linux's default
+    # ephemeral port range (32768-60999). Picking high ports inside that range
+    # causes intermittent CI failures when the kernel transiently grabs the
+    # same port for an outbound connection from another process on the runner.
     ports:
-      - "36686:16686"
-      - "34317:4317"
-      - "34318:4318"
-      - "39422:9422"
+      - "26686:16686"
+      - "24317:4317"
+      - "27318:4318"
+      - "29422:9422"
 
   airflow:
     environment:
@@ -77,7 +84,7 @@ services:
       - OTEL_METRIC_EXPORT_INTERVAL=30000
       - AIRFLOW__METRICS__OTEL_ON=True
       - AIRFLOW__TRACES__OTEL_ON=True
-      - AIRFLOW__TRACES__OTEL_TASK_LOG_EVENT=True
+      - AIRFLOW__TRACES__OTEL_TASK_LOG_EVENT=True  # todo: deprecate
 
     depends_on:
       - otel-collector

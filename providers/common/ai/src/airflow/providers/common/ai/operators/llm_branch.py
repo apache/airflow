@@ -60,6 +60,8 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
+        if kwargs.get("require_approval"):
+            raise ValueError("require_approval=True is not supported by LLMBranchOperator.")
         super().__init__(**kwargs)
         self.allow_multiple_branches = allow_multiple_branches
 
@@ -81,7 +83,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             instructions=self.system_prompt,
             **self.agent_params,
         )
-        result = agent.run_sync(self.prompt)
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
         output = result.output
 

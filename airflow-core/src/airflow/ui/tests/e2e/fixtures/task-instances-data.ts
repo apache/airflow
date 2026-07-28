@@ -20,17 +20,11 @@
 /**
  * Task instances data fixture — creates runs with success/failed task instances.
  */
-
-/* eslint-disable react-hooks/rules-of-hooks -- Playwright's `use` is not a React Hook. */
 import { expect, type APIRequestContext } from "@playwright/test";
 import { testConfig } from "playwright.config";
 import { test as base } from "tests/e2e/fixtures";
-import {
-  apiCreateDagRun,
-  safeCleanupDagRun,
-  uniqueRunId,
-  waitForDagReady,
-} from "tests/e2e/utils/test-helpers";
+import { apiCreateDagRun, safeCleanupDagRun, waitForDagReady } from "tests/e2e/utils/api/dag-runs";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 export type TaskInstancesData = {
   dagId: string;
@@ -100,6 +94,7 @@ export const test = base.extend<Record<never, never>, { taskInstancesData: TaskI
         createdRunIds.push(runId2);
         await setAllTaskInstanceStates(authenticatedRequest, { dagId, runId: runId2, state: "failed" });
 
+        // eslint-disable-next-line react-hooks/rules-of-hooks
         await use({ dagId });
       } finally {
         for (const runId of createdRunIds) {

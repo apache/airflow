@@ -54,7 +54,6 @@ RUN_OTHER = "run_other"  # has 1 deadline; used to verify per-run isolation
 RUN_DAG2 = "run_dag2"  # belongs to DAG_ID_2, which is used for cross-dag filter tests
 
 ALERT_NAME = "SLA Breach Alert"
-ALERT_DESCRIPTION = "Fires when SLA is breached"
 
 _CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.ui.test_deadlines._noop_callback"
 
@@ -156,7 +155,6 @@ def setup(dag_maker, session):
     alert = DeadlineAlert(
         serialized_dag_id=serialized_dag.id,
         name=ALERT_NAME,
-        description=ALERT_DESCRIPTION,
         reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
         interval=3600.0,
         callback_def={"path": _CALLBACK_PATH},
@@ -246,7 +244,7 @@ class TestGetDagRunDeadlines:
         assert deadline1["deadline_time"] == "2025-01-01T12:00:00Z"
         assert deadline1["missed"] is False
         assert deadline1["alert_name"] is None
-        assert deadline1["alert_description"] is None
+        assert deadline1["alert_id"] is None
         assert deadline1["dag_id"] == DAG_ID
         assert deadline1["dag_run_id"] == RUN_SINGLE
         assert "id" in deadline1
@@ -259,14 +257,16 @@ class TestGetDagRunDeadlines:
         assert data["total_entries"] == 1
         assert data["deadlines"][0]["missed"] is True
 
-    def test_deadline_with_alert_name_and_description(self, test_client):
+    def test_deadline_with_alert_name(self, test_client, session):
+        alert = session.scalar(select(DeadlineAlert).where(DeadlineAlert.name == ALERT_NAME))
         with assert_queries_count(4):
             response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_ALERT}/deadlines")
         assert response.status_code == 200
         data = response.json()
         assert data["total_entries"] == 1
-        assert data["deadlines"][0]["alert_name"] == ALERT_NAME
-        assert data["deadlines"][0]["alert_description"] == ALERT_DESCRIPTION
+        dl = data["deadlines"][0]
+        assert dl["alert_name"] == ALERT_NAME
+        assert dl["alert_id"] == str(alert.id)
 
     def test_deadlines_ordered_by_deadline_time_ascending(self, test_client):
         with assert_queries_count(4):
@@ -436,15 +436,19 @@ class TestGetDeadlines:
         assert [dl["id"] for dl in page1] == all_ids[:3]
         assert [dl["id"] for dl in page2] == all_ids[3:6]
 
-    def test_alert_name_present_when_linked(self, test_client):
-        """Deadlines linked to a DeadlineAlert include alert_name and alert_description."""
+    def test_alert_name_present_when_linked(self, test_client, session):
+        """Deadlines linked to a DeadlineAlert include both alert_name and alert_id."""
+        alert = session.scalar(select(DeadlineAlert).where(DeadlineAlert.name == ALERT_NAME))
         response = test_client.get(f"/dags/{DAG_ID}/dagRuns/~/deadlines")
         assert response.status_code == 200
         deadlines = response.json()["deadlines"]
-        alerts = [dl for dl in deadlines if dl["alert_name"] is not None]
-        assert len(alerts) == 1
-        assert alerts[0]["alert_name"] == ALERT_NAME
-        assert alerts[0]["alert_description"] == ALERT_DESCRIPTION
+        linked = [dl for dl in deadlines if dl["alert_name"] is not None]
+        assert len(linked) == 1
+        assert linked[0]["alert_name"] == ALERT_NAME
+        assert linked[0]["alert_id"] == str(alert.id)
+        # Unlinked deadlines must have null alert_id
+        unlinked = [dl for dl in deadlines if dl["alert_name"] is None]
+        assert all(dl["alert_id"] is None for dl in unlinked)
 
     def test_filter_nonexistent_dag_returns_empty(self, test_client):
         """Filtering by a dag_id that doesn't exist returns an empty list."""
@@ -483,7 +487,6 @@ class TestGetDagDeadlineAlerts:
         assert response.status_code == 200
         alert = response.json()["deadline_alerts"][0]
         assert alert["name"] == ALERT_NAME
-        assert alert["description"] == ALERT_DESCRIPTION
         assert alert["interval"] == 3600.0
         assert alert["reference_type"] == "DagRunQueuedAtDeadline"
         assert "id" in alert

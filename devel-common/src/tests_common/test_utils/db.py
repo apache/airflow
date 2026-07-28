@@ -64,7 +64,12 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 
 log = logging.getLogger(__name__)
 
@@ -185,7 +190,17 @@ def initial_db_init():
     _bootstrap_dagbag()
 
 
-def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
+def parse_and_sync_to_db(folder: Path | str):
+    """
+    Parse DAGs in ``folder`` and sync them to the metadata database.
+
+    On Airflow 3.3+, example DAGs are exposed as dedicated bundles
+    (``example_dags`` for core, ``apache-airflow-providers-*-example-dags``
+    for each provider that ships an ``example_dags`` folder), and whether
+    they are loaded is controlled by the ``[core] load_examples``
+    configuration option. Tests that need example DAGs should set
+    ``conf_vars({("core", "load_examples"): "true"})``.
+    """
     if AIRFLOW_V_3_2_PLUS:
         from airflow.dag_processing.dagbag import DagBag
     else:
@@ -199,17 +214,35 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
             DagBundlesManager().sync_bundles_to_db(session=session)
             session.flush()
 
-        dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
-        if AIRFLOW_V_3_1_PLUS:
+        if AIRFLOW_V_3_3_PLUS:
+            from airflow.dag_processing.dagbag import sync_bag_to_db
+
+            # On 3.3+, example DAGs are exposed as their own bundles
+            # (``example_dags`` for core, ``apache-airflow-providers-*-example-dags``
+            # for each provider that ships an ``example_dags`` folder). The
+            # bundle loop below already syncs every one of them, so the
+            # ``dags-folder`` DagBag must NOT pull example DAGs in too,
+            # otherwise the same DAG gets registered under two bundles and
+            # ``dag_schedule_asset_reference`` rows collide on the unique
+            # ``(asset_id, dag_id)`` constraint.
+            dagbag = DagBag(dag_folder=folder)
+            sync_bag_to_db(dagbag, "dags-folder", None, session=session)
+            for bundle in DagBundlesManager().get_all_dag_bundles():
+                bundle_dagbag = DagBag(dag_folder=bundle.path)
+                sync_bag_to_db(bundle_dagbag, bundle.name, None, session=session)
+
+        elif AIRFLOW_V_3_1_PLUS:
             try:
                 from airflow.dag_processing.dagbag import sync_bag_to_db
             except ImportError:
                 from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
-
+            dagbag = DagBag(dag_folder=folder, include_examples=False)  # type: ignore[call-arg]
             sync_bag_to_db(dagbag, "dags-folder", None, session=session)
         elif AIRFLOW_V_3_0_PLUS:
+            dagbag = DagBag(dag_folder=folder, include_examples=False)  # type: ignore[call-arg]
             dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:
+            dagbag = DagBag(dag_folder=folder, include_examples=False)  # type: ignore[call-arg]
             dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
 
     return dagbag
@@ -331,7 +364,7 @@ def clear_db_serialized_dags():
 def clear_db_pools():
     with create_session() as session:
         session.execute(delete(Pool))
-        add_default_pool_if_not_exists(session)
+        add_default_pool_if_not_exists(session=session)
 
 
 def clear_test_connections(add_default_connections_back=True):
@@ -350,7 +383,7 @@ def clear_db_connections(add_default_connections_back=True):
     with create_session() as session:
         session.execute(delete(Connection))
         if add_default_connections_back:
-            create_default_connections(session)
+            create_default_connections(session=session)
 
 
 @_retry_db
@@ -380,7 +413,7 @@ def clear_db_callbacks():
 @_retry_db
 def set_default_pool_slots(slots):
     with create_session() as session:
-        default_pool = Pool.get_default_pool(session)
+        default_pool = Pool.get_default_pool(session=session)
         default_pool.slots = slots
 
 
@@ -468,6 +501,16 @@ def clear_db_teams():
         from airflow.models.team import Team
 
         session.execute(delete(Team))
+
+
+def clear_db_connection_tests():
+    with create_session() as session:
+        try:
+            from airflow.models.connection_test import ConnectionTestRequest
+
+            session.execute(delete(ConnectionTestRequest))
+        except ImportError:
+            pass
 
 
 @_retry_db
@@ -1001,3 +1044,4 @@ def clear_all():
         clear_db_backfills()
         clear_db_dag_bundles()
         clear_db_dag_parsing_requests()
+    clear_db_connection_tests()

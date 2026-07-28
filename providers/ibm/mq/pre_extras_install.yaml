@@ -1,0 +1,33 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+downloads:
+  - url: https://public.dhe.ibm.com/ibmdl/export/pub/software/websphere/messaging/mqdev/redist/9.4.0.0-IBM-MQC-Redist-LinuxX64.tar.gz  # yamllint disable-line rule:line-length
+    sha256: a839db8f14cef59319639336e951a52dc320fd6a42ab5bee9bc925e43985f457
+    extract_to: /opt/mqm
+    # Anycast IPs published by IBM for public.dhe.ibm.com (see
+    # https://www.ibm.com/support/pages/node/6826677). Used only when DNS
+    # resolution of the hostname fails inside the test container; TLS SNI
+    # and certificate verification remain bound to public.dhe.ibm.com.
+    fallback_ips:
+      - 170.225.126.18
+      - 129.35.224.1
+      - 129.124.168.5
+      - 9.133.44.11
+env:
+  MQ_FILE_PATH: /opt/mqm

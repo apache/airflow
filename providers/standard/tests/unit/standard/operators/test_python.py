@@ -23,6 +23,7 @@ import logging
 import os
 import pickle
 import re
+import shutil
 import sys
 import tempfile
 import warnings
@@ -65,12 +66,14 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import TriggerRule, timezone
 from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.in_process_taskrun import pushed_xcom, run_task_no_db
 from tests_common.test_utils.taskinstance import get_template_context, run_task_instance
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
     NOTSET,
 )
 
@@ -85,7 +88,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.sdk import Context
 
-pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 AIRFLOW_ROOT_PATH = Path(__file__).parents[6]
 
@@ -201,12 +203,21 @@ class BasePythonTest:
             return ti
         return ti.task
 
+    @staticmethod
+    def _pull_xcom(ran):
+        """Pull the return-value XCom for whatever ``run_as_task(return_ti=True)`` returned.
+
+        Overridden in the DB-free venv mixin to read from the in-memory runtime result.
+        """
+        return TaskInstance.xcom_pull(ran)
+
     def render_templates(self, fn, **kwargs):
         """Create TaskInstance and render templates without actual run."""
         return self.create_ti(fn, **kwargs).render_templates()
 
 
 class TestPythonOperator(BasePythonTest):
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
     opcls = PythonOperator
 
     @pytest.fixture(autouse=True)
@@ -399,6 +410,7 @@ class TestPythonOperator(BasePythonTest):
 
 
 class TestBranchOperator(BasePythonTest):
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
     opcls = BranchPythonOperator
 
     @pytest.fixture(autouse=True)
@@ -617,6 +629,7 @@ class TestBranchOperator(BasePythonTest):
 
 
 class TestShortCircuitOperator(BasePythonTest):
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
     opcls = ShortCircuitOperator
 
     @pytest.fixture(autouse=True)
@@ -951,6 +964,8 @@ class TestDagBundleImportInSubprocess(BasePythonTest):
     from their Dag bundle by verifying PYTHONPATH is correctly set (Airflow 3.x+).
     """
 
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
+
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Dag Bundle import fix is for Airflow 3.x+")
     @mock.patch("airflow.providers.standard.operators.python._execute_in_subprocess")
     def test_dag_bundle_import_in_subprocess(
@@ -1045,7 +1060,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return None
 
         ti = self.run_as_task(f, return_ti=True)
-        assert TaskInstance.xcom_pull(ti) is None
+        assert self._pull_xcom(ti) is None
 
     def test_return_false(self):
         def f():
@@ -1053,7 +1068,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         ti = self.run_as_task(f, return_ti=True)
 
-        assert TaskInstance.xcom_pull(ti) is False
+        assert self._pull_xcom(ti) is False
 
     def test_lambda(self):
         with pytest.raises(
@@ -1071,8 +1086,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f(templates_dict):
             return templates_dict["ds"]
 
-        task = self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
-        assert task.templates_dict == {"ds": self.ds_templated}
+        # the callable receives (and returns) the rendered templates_dict value
+        ti = self.run_as_task(f, return_ti=True, templates_dict={"ds": "{{ ds }}"})
+        assert self._pull_xcom(ti) == self.ds_templated
 
     @pytest.mark.parametrize(
         "serializer",
@@ -1111,6 +1127,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         with pytest.raises(AirflowException, match=r"cannot be pickled.*\['bad_obj'\]"):
             op._write_args(tmp_path / "args.pkl")
 
+    @pytest.mark.db_test
+    @pytest.mark.need_serialized_dag
     def test_virtualenv_serializable_context_fields(self, create_task_instance):
         """Ensure all template context fields are listed in the operator.
 
@@ -1131,6 +1149,11 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             "inlet_events",
             "outlet_events",
         }
+        if AIRFLOW_V_3_3_PLUS:
+            # AIP-103: task_state is a live accessor backed by the supervisor pipe —
+            # not serializable and meaningless in a virtualenv subprocess.
+            # asset_state is excluded via its absence: only present when a task has inlets.
+            intentionally_excluded_context_keys.add("task_state_store")
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()
@@ -1238,7 +1261,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return os.environ["MY_ENV_VAR"]
 
         ti = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"}, return_ti=True)
-        assert TaskInstance.xcom_pull(ti) == "ABCDE"
+        assert self._pull_xcom(ti) == "ABCDE"
 
     def test_environment_variables_with_inherit_env_true(self, monkeypatch):
         monkeypatch.setenv("MY_ENV_VAR", "QWERT")
@@ -1249,7 +1272,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return os.environ["MY_ENV_VAR"]
 
         ti = self.run_as_task(f, inherit_env=True, return_ti=True)
-        assert TaskInstance.xcom_pull(ti) == "QWERT"
+        assert self._pull_xcom(ti) == "QWERT"
 
     def test_environment_variables_with_inherit_env_false(self, monkeypatch):
         monkeypatch.setenv("MY_ENV_VAR", "TYUIO")
@@ -1271,10 +1294,114 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return os.environ["MY_ENV_VAR"]
 
         ti = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True, return_ti=True)
-        assert TaskInstance.xcom_pull(ti) == "EFGHI"
+        assert self._pull_xcom(ti) == "EFGHI"
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _cleanup_venv_cache_path():
+    """Remove the shared (per-process / per-xdist-worker) venv cache dir after the session."""
+    yield
+    shutil.rmtree(venv_cache_path, ignore_errors=True)
+
+
+class _DBFreeVenvRun:
+    """Run venv-operator tests DB-free via the real-socket in-process supervisor.
+
+    PythonVirtualenvOperator / ExternalPythonOperator spawn a subprocess that
+    reconnects to the supervisor over a socket, so they cannot run under the
+    plain ``run_task`` mock (no socket). This mixin overrides ``BasePythonTest``'s
+    DB-backed execution to use ``run_task_no_db`` (real socketpair + in-memory
+    backend), so these classes need no ``db_test`` mark and run under xdist.
+    """
+
+    @pytest.fixture(autouse=True)
+    def base_tests_setup(self, request, create_runtime_ti):  # overrides the DB-backed base fixture
+        from airflow.sdk import DAG
+
+        self.dag_id = f"dag_{slugify(request.cls.__name__)}"
+        self.task_id = f"task_{slugify(request.node.name, max_length=40)}"
+        self.run_id = f"run_{slugify(request.node.name, max_length=40)}"
+        self.ds_templated = self.default_date.date().isoformat()
+        self._create_runtime_ti = create_runtime_ti
+        # A plain (un-serialized, no-DB) DAG for tests that instantiate operators directly.
+        self.dag_non_serialized = DAG(
+            self.dag_id, schedule=None, start_date=self.default_date, template_searchpath=TEMPLATE_SEARCHPATH
+        )
+
+    def _run_dbfree(self, fn, **kwargs):
+        from airflow.sdk import DAG
+
+        # Fresh DAG per run, carrying template_searchpath so templated fields
+        # (e.g. requirements="requirements.txt") resolve like the DB path's dag_maker.
+        dag = DAG(
+            self.dag_id,
+            schedule=None,
+            start_date=self.default_date,
+            template_searchpath=TEMPLATE_SEARCHPATH,
+        )
+        with dag:
+            task = self.opcls(task_id=self.task_id, python_callable=fn, **self.default_kwargs(**kwargs))
+        # keep the pushed XComs so assertions can read them back
+        result, self._last_xcoms = run_task_no_db(
+            task, self._create_runtime_ti, logical_date=self.default_date
+        )
+        return task, result
+
+    def run_as_task(self, fn, return_ti=False, **kwargs):
+        task, result = self._run_dbfree(fn, **kwargs)
+        if return_ti:
+            return result
+        if result.error is not None:
+            raise result.error
+        return task
+
+    def run_as_operator(self, fn, **kwargs):
+        task, result = self._run_dbfree(fn, **kwargs)
+        if result.error is not None:
+            raise result.error
+        return task
+
+    def _pull_xcom(self, ran):  # ``ran`` is the TaskRunResult from run_as_task(return_ti=True)
+        return pushed_xcom(self._last_xcoms, ran.ti)
+
+
+def _dbfree_venv_supported() -> bool:
+    """Whether venv operators can run DB-free here.
+
+    Needs the Task SDK ``InProcessTestSupervisor`` with the ``client=`` parameter on
+    ``run_task_in_process`` (no ``InProcessTestSupervisor`` on Airflow 2.x; the parameter
+    is newer than 3.0/3.1, where the dry-run client cannot serve all calls).
+    """
+    if not AIRFLOW_V_3_0_PLUS:
+        return False
+    try:
+        import inspect
+
+        from airflow.sdk.execution_time.supervisor import run_task_in_process
+    except ImportError:
+        return False
+    return "client" in inspect.signature(run_task_in_process).parameters
+
+
+_DBFREE_VENV = _dbfree_venv_supported()
+
+# Where supported, run the venv classes DB-free (no ``db_test``, xdist-friendly) via the
+# ``_DBFreeVenvRun`` mixin; otherwise fall back to the DB-backed BasePythonTest path.
+if _DBFREE_VENV:
+
+    class _VenvTestBase(_DBFreeVenvRun, BaseTestPythonVirtualenvOperator):
+        pass
+
+    _VENV_DB_MARKS: list = []
+else:
+
+    class _VenvTestBase(BaseTestPythonVirtualenvOperator):  # type: ignore[no-redef]
+        pass
+
+    _VENV_DB_MARKS = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
@@ -1282,7 +1409,8 @@ venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 # therefore we have to extend timeouts for those tests
 @pytest.mark.execution_timeout(120)
 @pytest.mark.virtualenv_operator
-class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
+class TestPythonVirtualenvOperator(_VenvTestBase):
+    pytestmark = _VENV_DB_MARKS
     opcls = PythonVirtualenvOperator
 
     @staticmethod
@@ -1970,7 +2098,8 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 # therefore we have to extend timeouts for those tests
 @pytest.mark.execution_timeout(120)
 @pytest.mark.external_python_operator
-class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
+class TestExternalPythonOperator(_VenvTestBase):
+    pytestmark = _VENV_DB_MARKS
     opcls = ExternalPythonOperator
 
     @staticmethod
@@ -2332,6 +2461,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 @pytest.mark.execution_timeout(120)
 @pytest.mark.virtualenv_operator
 class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator):
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
     opcls = BranchPythonVirtualenvOperator
 
     @staticmethod
@@ -2350,6 +2480,7 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
 # therefore we have to extend timeouts for those tests
 @pytest.mark.external_python_operator
 class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
     opcls = BranchExternalPythonOperator
 
     @staticmethod
@@ -2362,6 +2493,8 @@ class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
 
 
 class TestCurrentContext:
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
+
     def test_current_context_no_context_raise(self):
         if AIRFLOW_V_3_0_PLUS:
             with pytest.warns(AirflowProviderDeprecationWarning):
@@ -2451,6 +2584,8 @@ def clear_db():
 
 @pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
+
     def test_context_in_task(self, dag_maker):
         with dag_maker(dag_id="assert_context_dag", serialized=True):
             op = MyContextAssertOperator(task_id="assert_context")
@@ -2474,6 +2609,8 @@ class TestCurrentContextRuntime:
 
 @pytest.mark.need_serialized_dag(False)
 class TestShortCircuitWithTeardown:
+    pytestmark = [pytest.mark.db_test]  # keep the class's own need_serialized_dag(False)
+
     @pytest.mark.parametrize(
         ("ignore_downstream_trigger_rules", "with_teardown", "should_skip", "expected"),
         [
@@ -2605,6 +2742,8 @@ class TestShortCircuitWithTeardown:
 
 
 class TestPythonAsyncOperator(TestPythonOperator):
+    pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
+
     def test_run_async_task(self, caplog):
         caplog.set_level(logging.INFO, logger=LOGGER_NAME)
 

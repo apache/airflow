@@ -383,6 +383,29 @@ provide selected options in the connection's extra field.
     }
 
 
+.. _howto/connection:aws:s3-transfer-config:
+
+S3 Transfer Config
+------------------
+
+You can use the service config to set transfer config options in :class:`~airflow.providers.amazon.aws.hooks.s3.S3Hook` methods.
+
+.. code-block:: json
+
+    {
+      "service_config": {
+        "s3": {
+          "transfer_config_args": {
+            "max_concurrency": 10,
+            "num_download_attempts": 10
+          }
+        }
+      }
+    }
+
+.. seealso::
+    - Boto3 TransferConfig: :external:py:class:`boto3.s3.transfer.TransferConfig`
+
 .. _howto/connection:aws:avoid-throttling-exceptions:
 
 Avoid Throttling exceptions

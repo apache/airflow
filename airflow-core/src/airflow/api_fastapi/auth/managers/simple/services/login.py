@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import hmac
+
 from fastapi import HTTPException, status
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -53,10 +55,17 @@ class SimpleAuthManagerLogin:
 
         users = SimpleAuthManager.get_users()
         passwords = SimpleAuthManager.get_passwords()
+        # Use hmac.compare_digest for constant-time password comparison (CWE-208).
+        # `passwords.get(..., "")` keeps the comparison constant-time against an
+        # empty string when the user record exists but the password entry is missing.
         found_users = [
             user
             for user in users
-            if user.username == body.username and passwords[user.username] == body.password
+            if user.username == body.username
+            and hmac.compare_digest(
+                passwords.get(user.username, "").encode("utf-8"),
+                body.password.encode("utf-8"),
+            )
         ]
 
         if len(found_users) == 0:

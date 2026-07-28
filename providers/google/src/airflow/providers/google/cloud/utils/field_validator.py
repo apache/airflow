@@ -23,11 +23,11 @@ is sent in the API request to Google Cloud (via ``googleclient`` API usually).
 
 Context
 -------
-The specification mostly focuses on helping Airflow DAG developers in the development
+The specification mostly focuses on helping Airflow Dag developers in the development
 phase. You can build your own Google Cloud operator (such as GcfDeployOperator for example) which
 can have built-in validation specification for the particular API. It's super helpful
 when developer plays with different fields and their values at the initial phase of
-DAG development. Most of the Google Cloud APIs perform their own validation on the
+Dag development. Most of the Google Cloud APIs perform their own validation on the
 server side, but most of the requests are asynchronous and you need to wait for result
 of the operation. This takes precious times and slows
 down iteration over the API. BodyFieldValidator is meant to be used on the client side

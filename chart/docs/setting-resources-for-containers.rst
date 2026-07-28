@@ -28,48 +28,26 @@ You can define different resources for various Airflow containers. By default th
 
 Possible containers where resources can be configured include:
 
-* Main Airflow containers and their sidecars. You can add the resources for these containers through the following parameters:
+.. jinja:: params_ctx
 
-   * ``workers.resources``
-   * ``workers.celery.logGroomerSidecar.resources``
-   * ``workers.kerberosSidecar.resources``
-   * ``workers.kerberosInitContainer.resources``
-   * ``scheduler.resources``
-   * ``scheduler.logGroomerSidecar.resources``
-   * ``dags.gitSync.resources``
-   * ``apiServer.resources``
-   * ``webserver.resources``
-   * ``flower.resources``
-   * ``dagProcessor.resources``
-   * ``dagProcessor.logGroomerSidecar.resources``
-   * ``triggerer.resources``
-   * ``triggerer.logGroomerSidecar.resources``
+   {% for section in sections %}
+      {% for param in section["params"] %}
+         {% if param["name"].endswith("resources") %}
+   * ``{{ param["name"] }}``
+         {% endif %}
+      {% endfor %}
+   {% endfor %}
 
-* Containers used for Airflow Kubernetes jobs or cron jobs. You can add the resources for these containers through the following parameters:
-
-   * ``cleanup.resources``
-   * ``createUserJob.resources``
-   * ``migrateDatabaseJob.resources``
-   * ``databaseCleanup.resources``
-
-* Other containers that can be deployed by the chart. You can add the resources for these containers through the following parameters:
-
-   * ``statsd.resources``
-   * ``pgbouncer.resources``
-   * ``pgbouncer.metricsExporterSidecar.resources``
-   * ``redis.resources``
-
-For example, specifying resources for worker Kerberos sidecar:
+For example, specifying resources for scheduler container:
 
 .. code-block:: yaml
    :caption: values.yaml
 
-   workers:
-     kerberosSidecar:
-       resources:
-         limits:
-           cpu: 200m
-           memory: 256Mi
-         requests:
-           cpu: 100m
-           memory: 128Mi
+   scheduler:
+      resources:
+      limits:
+         cpu: 1
+         memory: 1Gi
+      requests:
+         cpu: 500m
+         memory: 512Gi

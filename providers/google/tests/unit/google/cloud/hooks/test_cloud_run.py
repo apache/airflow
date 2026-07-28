@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -74,14 +75,15 @@ class TestCloudRunHook:
         hook = CloudRunHook(gcp_conn_id="google_cloud_default")
         hook.get_credentials = mock.MagicMock(return_value=mock.Mock())
 
-        location = "us-central1"
-        hook.get_conn(location=location, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
-        assert mock_jobs_client_cls.call_count == 1
+        with mock.patch.dict(os.environ, {}, clear=True):
+            location = "us-central1"
+            hook.get_conn(location=location, use_regional_endpoint=USE_REGIONAL_ENDPOINT)
+            assert mock_jobs_client_cls.call_count == 1
 
-        _, kwargs = mock_jobs_client_cls.call_args
-        client_options = kwargs.get("client_options")
-        assert isinstance(client_options, ClientOptions)
-        assert client_options.api_endpoint == f"{location}-run.googleapis.com:443"
+            _, kwargs = mock_jobs_client_cls.call_args
+            client_options = kwargs.get("client_options")
+            assert isinstance(client_options, ClientOptions)
+            assert client_options.api_endpoint == f"{location}-run.googleapis.com:443"
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",

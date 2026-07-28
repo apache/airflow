@@ -79,7 +79,15 @@ def app():
     ):
         app = application.create_app(enable_plugins=False)
         app.config["WTF_CSRF_ENABLED"] = False
-        yield app
+        try:
+            yield app
+        finally:
+            # flask_sqlalchemy creates a per-app engine in init_app(); a
+            # function-scoped app fixture without disposal would leak that
+            # engine's connection pool every test.
+            with app.app_context():
+                for fab_engine in app.extensions["sqlalchemy"].engines.values():
+                    fab_engine.dispose()
 
 
 @pytest.fixture

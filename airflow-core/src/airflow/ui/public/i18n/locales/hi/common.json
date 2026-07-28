@@ -18,16 +18,21 @@
   "asset_other": "एसेट्स",
   "assetEvent_one": "एसेट इवेंट",
   "assetEvent_other": "एसेट इवेंट्स",
+  "assetInactive": {
+    "tooltip": "अपस्ट्रीम एसेट निष्क्रिय कर दिया गया है; शेड्यूलर इसके पुनः सक्रिय होने तक पार्टिशन मूल्यांकन रोक रहा है।"
+  },
   "backfill_one": "बैकफ़िल",
   "backfill_other": "बैकफ़िल्स",
   "browse": {
     "auditLog": "ऑडिट लॉग",
+    "deadlines": "डेडलाइन",
     "jobs": "जॉब्स",
     "requiredActions": "आवश्यक क्रियाएं",
-    "xcoms": "XComs"
+    "xcoms": "एक्सकॉम्स"
   },
   "collapseAllExtra": "सभी अतिरिक्त JSON को संकुचित करें",
   "collapseDetailsPanel": "विवरण पैनल को छुपाएं",
+  "consumingAsset": "उपभोग करने वाला एसेट",
   "createdAssetEvent_one": "बनाया गया एसेट इवेंट",
   "createdAssetEvent_other": "बनाए गए एसेट इवेंट्स",
   "dag_one": "डैग",
@@ -60,8 +65,14 @@
     "dagVersions": "डैग संस्करण",
     "dataIntervalEnd": "डेटा अंतराल अंत",
     "dataIntervalStart": "डेटा अंतराल प्रारंभ",
+    "durationStats": {
+      "mean": "माध्य",
+      "mode": "बहुलक"
+    },
+    "expectedDuration": "अपेक्षित अवधि",
     "lastSchedulingDecision": "अंतिम शेड्यूलिंग निर्णय",
     "mappedPartitionKey": "मैप्ड पार्टीशन कुंजी",
+    "partitionDate": "पार्टीशन तिथि",
     "partitionKey": "पार्टीशन कुंजी",
     "queuedAt": "कतार में",
     "runAfter": "के बाद चलाएं",
@@ -103,6 +114,12 @@
     "notFound": "पेज नहीं मिला",
     "title": "त्रुटि"
   },
+  "errors": {
+    "forbidden": {
+      "description": "आपके पास यह कार्य करने की अनुमति नहीं है।",
+      "title": "पहुँच अस्वीकृत"
+    }
+  },
   "expand": {
     "collapse": "संकुचित करें",
     "expand": "विस्तृत करें",
@@ -125,9 +142,15 @@
     "logicalDateTo": "तार्किक तिथि तक",
     "runAfterFrom": "रन आफ़्टर से",
     "runAfterTo": "रन आफ़्टर तक",
+    "searchAsset": "एसेट खोजें",
     "selectDateRange": "तिथि रेंज चुनें",
     "startTime": "प्रारंभ समय"
   },
+  "fullscreen": {
+    "tooltip": "फ़ुलस्क्रीन के लिए {{hotkey}} दबाएं"
+  },
+  "generateToken": "टोकन जनरेट करें",
+  "key": "कुंजी",
   "logicalDate": "तार्किक तिथि",
   "logout": "लॉग आउट",
   "logoutConfirmation": "आप एप्लिकेशन से लॉग आउट करने वाले हैं।",
@@ -157,13 +180,42 @@
   "note": {
     "add": "नोट जोड़ें",
     "dagRun": "डैग रन नोट",
+    "edit": "नोट संपादित करें",
     "label": "नोट",
     "placeholder": "नोट जोड़ें...",
-    "taskInstance": "टास्क इंस्टेंस नोट"
+    "preview": "पूर्वावलोकन",
+    "taskInstance": "टास्क इंस्टेंस नोट",
+    "write": "लिखें"
+  },
+  "overallStatus": "समग्र स्थिति",
+  "partitionedDagRun_one": "विभाजित Dag रन",
+  "partitionedDagRun_other": "विभाजित Dag रन",
+  "partitionedDagRunDetail": {
+    "receivedAssetEvents": "प्राप्त एसेट इवेंट"
+  },
+  "pendingDagRun_one": "{{count}} लंबित Dag रन",
+  "pendingDagRun_other": "{{count}} लंबित Dag रन",
+  "presetFilters": {
+    "deleteTitle": "प्रीसेट फ़िल्टर हटाएं",
+    "deleteWarning": "प्रीसेट फ़िल्टर केवल इस ब्राउज़र में संग्रहीत होते हैं।",
+    "duplicate": "प्रीसेट फ़िल्टर \"{{name}}\" पहले से ही ठीक यही सेटअप सहेजता है।",
+    "empty": "अभी तक कोई प्रीसेट फ़िल्टर नहीं",
+    "info": {
+      "default": "किसी प्रीसेट फ़िल्टर को डिफ़ॉल्ट के रूप में पिन करें और जब आप बिना किसी फ़िल्टर के इस पृष्ठ पर आते हैं तो यह स्वचालित रूप से लागू हो जाता है।",
+      "save": "वर्तमान फ़िल्टर और सॉर्टिंग को नामित प्रीसेट फ़िल्टर के रूप में सहेजें, फिर किसी भी समय उस पर वापस स्विच करें।",
+      "storage": "प्रीसेट फ़िल्टर इस ब्राउज़र में संग्रहीत होते हैं।"
+    },
+    "namePlaceholder": "प्रीसेट फ़िल्टर का नाम",
+    "nothingToSave": "सहेजने के लिए कुछ नहीं। प्रीसेट फ़िल्टर सहेजने के लिए फ़िल्टर या सॉर्टिंग लागू करें।",
+    "save": "सहेजें",
+    "setDefault": "डिफ़ॉल्ट के रूप में सेट करें",
+    "title": "प्रीसेट फ़िल्टर",
+    "unsetDefault": "डिफ़ॉल्ट हटाएं"
   },
   "reset": "रीसेट करें",
   "runId": "रन ID",
   "runTypes": {
+    "asset_materialization": "एसेट मटेरियलाइज़ेशन",
     "asset_triggered": "एसेट द्वारा ट्रिगर",
     "backfill": "बैकफ़िल",
     "manual": "मैन्युअल",
@@ -176,6 +228,12 @@
     },
     "tooltip": "{{direction}} तक स्क्रॉल करने के लिए {{hotkey}} दबाएं"
   },
+  "search": {
+    "advanced": {
+      "description": "मान में कहीं भी मिलान करें (सबस्ट्रिंग खोज)। बड़े डिप्लॉयमेंट पर धीमा क्योंकि यह डिफ़ॉल्ट B-tree इंडेक्स का उपयोग नहीं कर सकता। विवरण के लिए कस्टम मेटाडेटा इंडेक्स पर दस्तावेज़ अनुभाग देखें।",
+      "title": "कहीं भी मिलान करें"
+    }
+  },
   "security": {
     "actions": "क्रियाएं",
     "permissions": "अनुमतियां",
@@ -184,6 +242,48 @@
     "users": "उपयोगकर्ता"
   },
   "selectLanguage": "भाषा चुनें",
+  "selected": "चयनित",
+  "shortcuts": {
+    "categories": {
+      "code": "कोड",
+      "dagView": "डैग व्यू",
+      "filters": "फ़िल्टर्स",
+      "global": "वैश्विक",
+      "logs": "लॉग्स",
+      "navigation": "नेविगेशन",
+      "runActions": "रन और टास्क क्रियाएं",
+      "search": "खोज"
+    },
+    "descriptions": {
+      "clearRun": "$t(dagRun_one) साफ़ करें",
+      "clearTaskInstance": "$t(taskInstance_one) साफ़ करें",
+      "downloadLogs": "लॉग्स डाउनलोड करें",
+      "focusFilterSearch": "फ़िल्टर खोज पर फ़ोकस करें",
+      "focusLogSearch": "लॉग्स खोजें",
+      "focusSearch": "खोज पर फ़ोकस करें",
+      "markRunFailed": "$t(dagRun_one) को विफल के रूप में चिह्नित करें",
+      "markRunSuccess": "$t(dagRun_one) को सफल के रूप में चिह्नित करें",
+      "markTaskFailed": "$t(task_one) को विफल के रूप में चिह्नित करें",
+      "markTaskGroupFailed": "$t(taskGroup_one) को विफल के रूप में चिह्नित करें",
+      "markTaskGroupSuccess": "$t(taskGroup_one) को सफल के रूप में चिह्नित करें",
+      "markTaskSuccess": "$t(task_one) को सफल के रूप में चिह्नित करें",
+      "navigateTasks": "$t(task_other) पर नेविगेट करें",
+      "openGraphFilters": "ग्राफ़ फ़िल्टर खोलें",
+      "scrollBottom": "नीचे तक स्क्रॉल करें",
+      "scrollTop": "ऊपर तक स्क्रॉल करें",
+      "searchDags": "$t(dag_other) खोजें",
+      "showHelp": "$t(shortcuts.title) दिखाएं",
+      "toggleExpand": "सभी ग्रुप्स को विस्तृत या संकुचित करें",
+      "toggleFullscreen": "फ़ुलस्क्रीन टॉगल करें",
+      "toggleGraphGrid": "ग्राफ़ / ग्रिड व्यू टॉगल करें",
+      "toggleSource": "स्रोत टॉगल करें",
+      "toggleTaskGroup": "$t(taskGroup_one) को विस्तृत या संकुचित करें",
+      "toggleTimestamp": "टाइमस्टैम्प टॉगल करें",
+      "toggleWrap": "$t(wrap.wrap) टॉगल करें"
+    },
+    "empty": "इस पेज पर कोई कीबोर्ड शॉर्टकट उपलब्ध नहीं है।",
+    "title": "कीबोर्ड शॉर्टकट"
+  },
   "showDetailsPanel": "विवरण पैनल दिखाएं",
   "signedInAs": "के रूप में लॉग इन",
   "source": {
@@ -196,6 +296,7 @@
   "startDate": "प्रारंभ तिथि",
   "state": "स्थिति",
   "states": {
+    "awaiting_input": "इनपुट की प्रतीक्षा में",
     "deferred": "स्थगित",
     "failed": "विफल",
     "no_status": "कोई स्थिति नहीं",
@@ -228,23 +329,33 @@
       "any": "कोई भी"
     },
     "tagPlaceholder": "टैग द्वारा फ़िल्टर करें",
-    "to": "तक"
+    "to": "तक",
+    "updatedAt": "अपडेट किया गया"
   },
   "task": {
+    "dependsOnPast": "पिछले पर निर्भर",
     "documentation": "टास्क प्रलेखन",
     "lastInstance": "अंतिम इंस्टेंस",
     "operator": "ऑपरेटर",
-    "triggerRule": "ट्रिगर नियम"
+    "retries": "पुनः प्रयास",
+    "triggerRule": "ट्रिगर नियम",
+    "waitForDownstream": "डाउनस्ट्रीम की प्रतीक्षा करें"
   },
   "task_one": "टास्क",
   "task_other": "टास्क्स",
-  "taskGroup": "टास्क ग्रुप",
+  "taskGroup": {
+    "documentation": "Task Group दस्तावेज़"
+  },
+  "taskGroup_one": "Task Group",
+  "taskGroup_other": "Task Group",
   "taskId": "टास्क ID",
   "taskInstance": {
+    "additionalAttributes": "अतिरिक्त Task Instance विशेषताएँ",
     "dagVersion": "डैग संस्करण",
     "executor": "एक्जीक्यूटर",
     "executorConfig": "एक्जीक्यूटर कॉन्फ़िग",
     "hostname": "होस्टनेम",
+    "id": "ID",
     "maxTries": "अधिकतम प्रयास",
     "pid": "PID",
     "pool": "पूल",
@@ -252,12 +363,15 @@
     "priorityWeight": "प्राथमिकता भार",
     "queue": "कतार",
     "queuedWhen": "कब कतार में",
+    "renderedMapIndex": "रेंडर किया गया Map Index",
     "scheduledWhen": "कब निर्धारित",
+    "trigger": "ट्रिगर",
     "triggerer": {
       "assigned": "निर्धारित ट्रिगरर",
       "class": "ट्रिगर क्लास",
       "createdAt": "ट्रिगर निर्माण समय",
       "id": "ट्रिगर ID",
+      "job": "Triggerer जॉब",
       "latestHeartbeat": "नवीनतम हार्टबीट",
       "title": "ट्रिगरर जानकारी"
     },
@@ -284,11 +398,25 @@
     "utc": "UTC (समन्वयित सार्वभौमिक समय)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "बल्क क्लियर {{resourceName}} अनुरोध विफल",
+      "success": {
+        "description": "{{count}} {{resourceName}} सफलतापूर्वक साफ़ कर दिए गए। कुंजियाँ: {{keys}}",
+        "title": "बल्क क्लियर {{resourceName}} अनुरोध सबमिट किया गया"
+      }
+    },
     "bulkDelete": {
       "error": "बल्क डिलीट {{resourceName}} अनुरोध विफल",
       "success": {
         "description": "{{count}} {{resourceName}} सफलतापूर्वक हटा दिए गए हैं। keys: {{keys}}",
         "title": "बल्क डिलीट {{resourceName}} अनुरोध सबमिट किया गया"
+      }
+    },
+    "bulkUpdate": {
+      "error": "बल्क अपडेट {{resourceName}} अनुरोध विफल",
+      "success": {
+        "description": "{{count}} {{resourceName}} सफलतापूर्वक अपडेट कर दिए गए। कुंजियाँ: {{keys}}",
+        "title": "बल्क अपडेट {{resourceName}} अनुरोध सबमिट किया गया"
       }
     },
     "create": {
@@ -320,10 +448,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "API टोकन",
+    "cliToken": "CLI टोकन",
+    "errorDescription": "टोकन जनरेट करते समय एक त्रुटि हुई। कृपया पुनः प्रयास करें।",
+    "errorTitle": "टोकन जनरेशन विफल",
+    "generate": "जनरेट करें",
+    "selectType": "जनरेट करने के लिए टोकन का प्रकार चुनें।",
+    "title": "टोकन जनरेट करें",
+    "tokenExpiresIn": "यह टोकन {{duration}} में समाप्त हो जाएगा।",
+    "tokenGenerated": "आपका टोकन जनरेट हो गया है।",
+    "tokenShownOnce": "यह टोकन केवल एक बार दिखाया जाएगा। इसे अभी कॉपी करें।"
+  },
   "total": "कुल {{state}}",
   "triggered": "ट्रिगर किया गया",
   "tryNumber": "प्रयास संख्या",
   "user": "उपयोगकर्ता",
+  "validation": {
+    "mustBeAtLeast": "कम से कम {{min}} होना चाहिए।",
+    "mustBeValidNumber": "एक मान्य संख्या होनी चाहिए।"
+  },
+  "value": "मान",
   "wrap": {
     "hotkey": "w",
     "tooltip": "रैप को टॉगल करने के लिए {{hotkey}} दबाएं",

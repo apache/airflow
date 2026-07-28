@@ -16,18 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from pydantic_ai import Agent
 from pydantic_ai.models import infer_model
 from pydantic_ai.providers import infer_provider, infer_provider_class
 
+from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.compat.sdk import BaseHook
 
 OutputT = TypeVar("OutputT")
 
+# Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
+# ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
+# do not auto-enable it either").
+_UNSET: Any = object()
+
 if TYPE_CHECKING:
     from pydantic_ai.models import KnownModelName, Model
+
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class PydanticAIHook(BaseHook):
@@ -44,10 +53,10 @@ class PydanticAIHook(BaseHook):
     Connection fields:
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
-        - **extra** JSON: ``{"model": "openai:gpt-5.3"}``
+        - **extra** JSON: ``{"model": "openai:gpt-5.6-sol"}``
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
-    :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.3"``).
+    :param model_id: Model identifier in ``provider:model`` format (e.g. ``"openai:gpt-5.6-sol"``).
         Overrides the model stored in the connection's extra field.
     """
 
@@ -70,6 +79,8 @@ class PydanticAIHook(BaseHook):
         self.llm_conn_id = llm_conn_id if llm_conn_id is not None else self.default_conn_name
         self.model_id = model_id
         self._model: Model | None = None
+        self._conn: Connection | None = None
+        self._conn_extra_dejson: dict[str, Any] | None = None
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -79,7 +90,7 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1  (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5.3"}',
+                "extra": '{"model": "openai:gpt-5.6-sol"}',
             },
         }
 
@@ -133,9 +144,11 @@ class PydanticAIHook(BaseHook):
         if self._model is not None:
             return self._model
 
-        conn = self.get_connection(self.llm_conn_id)
+        conn = self.get_connection(self.llm_conn_id) if self._conn is None else self._conn
+        extra: dict[str, Any] = (
+            conn.extra_dejson if self._conn_extra_dejson is None else self._conn_extra_dejson
+        )
 
-        extra: dict[str, Any] = conn.extra_dejson
         model_name: str | KnownModelName = self.model_id or extra.get("model", "")
         if not model_name:
             raise ValueError(
@@ -171,25 +184,107 @@ class PydanticAIHook(BaseHook):
         self._model = infer_model(model_name)
         return self._model
 
+    def _get_conn_if_model_configured(self) -> Model | None:
+        """Return the hook model only when the hook or connection explicitly configures one."""
+        if self.model_id:
+            return self.get_conn()
+
+        conn = self.get_connection(self.llm_conn_id)
+        self._conn = conn
+        self._conn_extra_dejson = conn.extra_dejson
+
+        if self._conn_extra_dejson.get("model"):
+            return self.get_conn()
+
+        return None
+
     @overload
     def create_agent(
         self, output_type: type[OutputT], *, instructions: str, **agent_kwargs
-    ) -> Agent[None, OutputT]: ...
+    ) -> Agent[object, OutputT]: ...
 
     @overload
-    def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[None, str]: ...
+    def create_agent(self, *, instructions: str, **agent_kwargs) -> Agent[object, str]: ...
+
+    @overload
+    def create_agent(
+        self,
+        output_type: type[OutputT],
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[object, OutputT]: ...
+
+    @overload
+    def create_agent(
+        self,
+        *,
+        spec_file: str | Path,
+        instructions: str | None = ...,
+        **agent_kwargs,
+    ) -> Agent[object, str]: ...
 
     def create_agent(
-        self, output_type: type[Any] = str, *, instructions: str, **agent_kwargs
-    ) -> Agent[None, Any]:
+        self,
+        output_type: type[Any] = str,
+        *,
+        instructions: str | None = None,
+        spec_file: str | Path | None = None,
+        **agent_kwargs,
+    ) -> Agent[object, Any]:
         """
         Create a pydantic-ai Agent configured with this hook's model.
 
+        When ``[common.ai] otel_export_enabled`` is set and the worker has an
+        OpenTelemetry exporter configured, the agent is instrumented to emit
+        GenAI spans through Airflow's tracing pipeline. See
+        :mod:`airflow.providers.common.ai.observability`.
+
         :param output_type: The expected output type from the agent (default: ``str``).
         :param instructions: System-level instructions for the agent.
+            Required when *spec_file* is not given. When *spec_file* is given,
+            this value is merged with the instructions in the file; omit it to
+            use only the file value.
+        :param spec_file: Path to a YAML or JSON ``AgentSpec`` file.  When supplied,
+            delegates to ``Agent.from_file``. If ``model_id`` or the connection's
+            ``model`` extra is set, that model is passed to pydantic-ai; otherwise
+            the spec file's ``model`` is used.
         :param agent_kwargs: Additional keyword arguments passed to the Agent constructor.
         """
-        return Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+        # ``instrument`` is no longer an ``Agent()`` / ``Agent.from_file()``
+        # constructor argument in pydantic-ai 2.x; it is configured through the
+        # ``agent.instrument`` property (which is unchanged across the 2.x line).
+        # Pop any caller-supplied value out of the constructor kwargs and apply
+        # it after construction so a caller that passes its own ``instrument``
+        # still wins over the provider's auto-instrumentation.
+        caller_instrument = agent_kwargs.pop("instrument", _UNSET)
+
+        if spec_file is not None:
+            from_file_kwargs = dict(agent_kwargs)
+            model = self._get_conn_if_model_configured()
+            if model is not None:
+                from_file_kwargs["model"] = model
+            if instructions is not None:
+                from_file_kwargs["instructions"] = instructions
+
+            agent = Agent.from_file(
+                spec_file,
+                output_type=output_type,
+                **from_file_kwargs,
+            )
+        else:
+            if instructions is None:
+                raise ValueError("instructions is required when spec_file is not provided.")
+            agent = Agent(self.get_conn(), output_type=output_type, instructions=instructions, **agent_kwargs)
+
+        if caller_instrument is not _UNSET:
+            agent.instrument = caller_instrument
+        else:
+            settings = genai_instrumentation_settings()
+            if settings is not None:
+                agent.instrument = settings
+        return agent
 
     def test_connection(self) -> tuple[bool, str]:
         """

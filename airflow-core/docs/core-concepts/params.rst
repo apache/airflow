@@ -145,6 +145,11 @@ This way, the :class:`~airflow.sdk.definitions.param.Param`'s type is respected 
         ),
     )
 
+Because ``render_template_as_native_obj=True`` uses Jinja's native rendering, values that look like
+Python literals can also be converted. For example, a string value of ``"42"`` may be rendered as the
+integer ``42``. Leave native rendering disabled, use a callable template field, or quote the value
+explicitly when the task must receive a string.
+
 Another way to access your param is via a task's ``context`` kwarg.
 
 .. code-block::
@@ -242,6 +247,9 @@ The following features are supported in the Trigger UI Form:
             * | ``format="date-time"``: Generate a date and
               | time-picker with calendar pop-up
             * ``format="time"``: Generate a time-picker
+            * | ``format="duration"``: Generate a duration
+              | input field accepting ISO 8601 duration
+              | strings (e.g. ``P1D``, ``PT15M``, ``PT2H``)
             * ``format="multiline"``: Generate a multi-line textarea
             * | ``enum=["a", "b", "c"]``: Generates a
               | drop-down select list for scalar values.
@@ -340,6 +348,42 @@ The following features are supported in the Trigger UI Form:
             | values.
           -
           - ``Param(None, type=["null", "string"])``
+
+        * - Multiple non-null types
+
+            e.g. ``["string", "object"]``,
+            ``["integer", "string"]``
+          - | Generates a plain multi-line textarea.
+            | The stored value type is resolved at
+            | input time: the input is first parsed as
+            | JSON; if the parsed type matches one of
+            | the declared schema types it is stored as
+            | that type, otherwise the raw string is
+            | stored. This means:
+            |
+            | * ``"nightly"`` → always stored as a string
+            |   (JSON parse fails).
+            | * ``"45"`` with ``["string", "object"]`` →
+            |   stored as the string ``"45"`` (number is
+            |   not in the schema).
+            | * ``"45"`` with ``["integer", "string"]`` →
+            |   stored as the integer ``45`` (number
+            |   matches ``"integer"``).
+            | * ``'{"key": "val"}'`` with
+            |   ``["string", "object"]`` → stored as an
+            |   object.
+
+            .. note::
+
+               If the schema also defines ``enum`` or
+               ``examples``, the normal dropdown or
+               multi-select widget is used instead of
+               the textarea, because the set of valid
+               values is already constrained.
+          - none.
+          - ``Param("nightly", type=["string", "object"])``
+
+            ``Param(5, type=["integer", "string"])``
 
 - If a form field is left empty, it is passed as ``None`` value to the params dict.
 - Form fields are rendered in the order of definition of ``params`` in the Dag.

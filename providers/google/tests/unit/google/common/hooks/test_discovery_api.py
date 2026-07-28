@@ -39,9 +39,10 @@ class TestGoogleDiscoveryApiHook:
             )
         )
 
+    @patch("airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook.get_client_options")
     @patch("airflow.providers.google.common.hooks.discovery_api.build")
     @patch("airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook._authorize")
-    def test_get_conn(self, mock_authorize, mock_build):
+    def test_get_conn(self, mock_authorize, mock_build, mock_get_client_options):
         google_discovery_api_hook = GoogleDiscoveryApiHook(
             gcp_conn_id="google_test", api_service_name="youtube", api_version="v2"
         )
@@ -53,6 +54,7 @@ class TestGoogleDiscoveryApiHook:
             version=google_discovery_api_hook.api_version,
             http=mock_authorize.return_value,
             cache_discovery=False,
+            client_options=mock_get_client_options.return_value,
         )
 
     @patch("airflow.providers.google.common.hooks.discovery_api.getattr")

@@ -25,6 +25,7 @@ import os
 import sys
 import textwrap
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -33,9 +34,13 @@ from structlog.dev import BLUE, BRIGHT, CYAN, DIM, GREEN, MAGENTA, RESET_ALL as 
 from structlog.processors import CallsiteParameter
 
 from airflow_shared.logging import structlog as structlog_module
-from airflow_shared.logging.structlog import configure_logging
+from airflow_shared.logging.structlog import (
+    NAME_TO_LEVEL,
+    configure_logging,
+    parse_namespace_log_levels,
+)
 
-# We don't want to use the caplog fixture in this test, as the main purpose of this file is to capture the
+# We avoid the caplog fixture for most tests here; the main purpose of this file is to capture the
 # _rendered_ output of the tests to make sure it is correct.
 
 PY_3_11 = sys.version_info >= (3, 11)
@@ -459,6 +464,19 @@ def test_logger_respects_configured_level(structlog_config):
     assert "[my_logger] Debug message\n" in written
 
 
+def test_alembic_runtime_plugin_setup_logs_are_suppressed(structlog_config):
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="INFO",
+    ) as sio:
+        logger = logging.getLogger("alembic.runtime.plugins")
+        logger.info("Filtered plugin setup message")
+        logger.warning("Visible warning")
+
+    assert sio.getvalue() == "[alembic.runtime.plugins] Visible warning\n"
+
+
 def test_excepthook_installed_when_json_output_true(structlog_config):
     import sys
 
@@ -510,6 +528,14 @@ def test_excepthook_passes_keyboard_interrupt_to_original():
         assert calls == [KeyboardInterrupt]
     finally:
         sys.excepthook = original
+
+
+def test_init_log_folder_does_not_raise_on_permission_error():
+    from airflow_shared.logging.structlog import init_log_folder
+
+    with mock.patch.object(Path, "mkdir", side_effect=PermissionError("not allowed")):
+        # Must not raise — CLI commands like `airflow db migrate` rely on this.
+        init_log_folder("/tmp/blocked", 0o775)
 
 
 class TestWarningsInterceptor:
@@ -698,3 +724,78 @@ def test_dict_positional_arg_formatting(structlog_config, get_logger, message, a
 
     written = json.load(bio)
     assert written["event"] == expected_event
+
+
+def test_named_bytes_logger_preserves_name():
+    """
+    structlog 26.1.0 (hynek/structlog#786) gives ``BytesLogger`` its own ``name``
+    slot and sets ``self.name`` in ``__init__``; older releases do not. This test
+    runs against whichever version is installed and pins the contract that the
+    supplied name survives construction on both.
+    """
+    from airflow_shared.logging.structlog import NamedBytesLogger
+
+    assert NamedBytesLogger("my.logger").name == "my.logger"
+    assert NamedBytesLogger().name is None
+
+
+def test_named_write_logger_preserves_name():
+    """Same contract for NamedWriteLogger in case structlog mirrors #786 for WriteLogger."""
+    from airflow_shared.logging.structlog import NamedWriteLogger
+
+    assert NamedWriteLogger("my.logger").name == "my.logger"
+    assert NamedWriteLogger().name is None
+
+
+class TestParseNamespaceLogLevels:
+    """Unit tests for the best-effort ``namespace_levels`` parser."""
+
+    @pytest.mark.parametrize("value", (None, "", "   ", " , , "))
+    def test_blank_yields_no_overrides(self, value):
+        assert parse_namespace_log_levels(value) == {}
+
+    def test_parses_string_pairs(self):
+        assert parse_namespace_log_levels("sqlalchemy=INFO sqlalchemy.engine=DEBUG") == {
+            "sqlalchemy": NAME_TO_LEVEL["info"],
+            "sqlalchemy.engine": NAME_TO_LEVEL["debug"],
+        }
+
+    def test_accepts_commas_and_mixed_separators(self):
+        expected = {"a": NAME_TO_LEVEL["info"], "b": NAME_TO_LEVEL["debug"]}
+        assert parse_namespace_log_levels("a=INFO,b=DEBUG") == expected
+        assert parse_namespace_log_levels("  a=INFO ,, b=DEBUG ") == expected
+
+    def test_level_names_are_case_insensitive(self):
+        assert parse_namespace_log_levels("a=info") == {"a": NAME_TO_LEVEL["info"]}
+
+    def test_last_value_wins(self):
+        assert parse_namespace_log_levels("a=INFO a=ERROR") == {"a": NAME_TO_LEVEL["error"]}
+
+    def test_accepts_mapping_input(self):
+        assert parse_namespace_log_levels({"my.logger": "warning"}) == {
+            "my.logger": NAME_TO_LEVEL["warning"],
+        }
+
+    def test_valid_input_logs_nothing(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            parse_namespace_log_levels("a=INFO")
+        assert not caplog.records
+
+    def test_entry_without_equals_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("sqlalchemy=INFO botocore")
+        assert result == {"sqlalchemy": NAME_TO_LEVEL["info"]}
+        assert "botocore" in caplog.text
+        assert "<logger>=<level>" in caplog.text
+
+    def test_empty_logger_name_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("=INFO a=DEBUG")
+        assert result == {"a": NAME_TO_LEVEL["debug"]}
+        assert "logger name is empty" in caplog.text
+
+    def test_unknown_level_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("sqlalchemy=VERBOSE")
+        assert result == {}
+        assert "VERBOSE" in caplog.text

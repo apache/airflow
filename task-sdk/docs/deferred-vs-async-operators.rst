@@ -25,6 +25,15 @@ Deferred vs Async Operators
 Airflow 3.2 introduces Python-native async support for tasks, allowing concurrent I/O within a single worker slot.
 This page explains how async operators differ from deferred operators and when to use each.
 
+.. versionchanged:: 3.3.0
+
+   Airflow 3.3 adds a third pattern for long-running tasks: resumable tasks, which use the
+   task state store to checkpoint progress across retries. For guidance on when to use
+   resumable tasks versus deferrable operators, see
+   :ref:`apache-airflow:concepts-resumable-tasks`. For details on the
+   :class:`~airflow.sdk.ResumableJobMixin` for external job crash recovery, see
+   :doc:`resumable-job-mixin`.
+
 Deferred Operators
 ------------------
 

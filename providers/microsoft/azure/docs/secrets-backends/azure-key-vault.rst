@@ -67,6 +67,26 @@ Storing and Retrieving Variables
 If you have set ``variables_prefix`` as ``airflow-variables``, then for an Variable key of ``hello``,
 you would want to store your Variable at ``airflow-variables-hello``.
 
+Multi-team lookup
+"""""""""""""""""
+
+In multi-team mode, this backend looks for team-scoped secrets first and falls back to the global
+secret name when a team-scoped secret is not found.
+
+For connections:
+
+* Team-scoped: ``{connections_prefix}-{team_name}--{conn_id}``
+* Global fallback: ``{connections_prefix}-{conn_id}``
+
+For variables:
+
+* Team-scoped: ``{variables_prefix}-{team_name}--{key}``
+* Global fallback: ``{variables_prefix}-{key}``
+
+Underscores are normalized to the configured separator, so with ``connections_prefix="airflow-connections"``,
+``team_name="team_a"``, and ``conn_id="my_db"``, the backend looks up
+``airflow-connections-team-a--my-db`` before falling back to ``airflow-connections-my-db``.
+
 
 Authentication
 """"""""""""""

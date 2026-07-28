@@ -21,7 +21,14 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
+
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    # On Airflow 3.3+ the review parks the task in the first-class AWAITING_INPUT state instead
+    # of deferring to a trigger. On older cores this name is absent and defer() is used.
+    from airflow.sdk.exceptions import TaskAwaitingInput
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +52,8 @@ class LLMApprovalMixin:
 
     When ``require_approval=True`` on the operator, the generated output is
     presented to a human reviewer via the Airflow Human-in-the-Loop (HITL)
-    interface.  The task defers until the reviewer approves or rejects.
+    interface.  The task waits (``awaiting_input`` on Airflow 3.3+, deferred on
+    older versions) until the reviewer approves or rejects.
 
     If ``allow_modifications=True``, the reviewer can also edit the output
     before approving.  The (possibly modified) output is then returned as the
@@ -71,7 +79,11 @@ class LLMApprovalMixin:
         body: str | None = None,
     ) -> None:
         """
-        Write HITL detail, then defer to HITLTrigger for human review.
+        Write HITL detail, then pause the task for human review.
+
+        On Airflow 3.3+ the task parks in the ``awaiting_input`` state (no trigger or triggerer
+        involved); on older versions it defers to :class:`HITLTrigger`. Either way it resumes in
+        ``execute_complete`` once a response (or timeout default) arrives.
 
         :param context: Airflow task context.
         :param output: The generated output to present for review.
@@ -84,14 +96,22 @@ class LLMApprovalMixin:
         from airflow.sdk.execution_time.hitl import upsert_hitl_detail
         from airflow.sdk.timezone import utcnow
 
+        if not isinstance(self.prompt, str):
+            raise TypeError(
+                "require_approval=True is not supported with a non-string prompt. "
+                "The approval review body renders the prompt as text; passing a "
+                "Sequence[UserContent] would expose object reprs (and any embedded "
+                "bytes) in the human review UI. Return a str prompt, or disable "
+                "require_approval."
+            )
+
         if isinstance(output, BaseModel):
             output = output.model_dump_json()
-        if not isinstance(output, str):
-            # Always make string output so that when comparing in the execute_complete matches
-            output = str(output)
+        elif not isinstance(output, str):
+            # JSON round-trip: execute_complete validates the string back into output_type.
+            output = TypeAdapter(type(output)).dump_json(output).decode()
 
         ti_id = context["task_instance"].id
-        timeout_datetime = utcnow() + self.approval_timeout if self.approval_timeout else None
 
         if subject is None:
             subject = f"Review output for task `{self.task_id}`"
@@ -119,6 +139,16 @@ class LLMApprovalMixin:
             params=hitl_params,
         )
 
+        if AIRFLOW_V_3_3_PLUS:
+            # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The
+            # task is resumed by the Core API response handler or the scheduler timeout sweep.
+            raise TaskAwaitingInput(
+                method_name="execute_complete",
+                kwargs={"generated_output": output},
+                timeout=self.approval_timeout,
+            )
+
+        # Fallback for cores < 3.3: defer the response check to HITLTrigger on the triggerer.
         self.defer(
             trigger=HITLTrigger(
                 ti_id=ti_id,
@@ -126,7 +156,7 @@ class LLMApprovalMixin:
                 defaults=None,
                 params=hitl_params,
                 multiple=False,
-                timeout_datetime=timeout_datetime,
+                timeout_datetime=utcnow() + self.approval_timeout if self.approval_timeout else None,
             ),
             method_name="execute_complete",
             kwargs={"generated_output": output},
@@ -173,6 +203,16 @@ class LLMApprovalMixin:
         # when allow_modifications=False, bypassing the read-only approval flow.
         if getattr(self, "allow_modifications", False) and params_input:
             modified = params_input.get("output")
+            if modified is not None and not isinstance(modified, str):
+                # On the awaiting_input path nothing upstream schema-validates params_input
+                # (HITLTrigger did on the legacy path), so enforce the string contract here
+                # rather than returning a non-string as the task's output.
+                raise HITLTriggerEventError(
+                    {
+                        "error": f"Modified output must be a string, got {type(modified).__name__}.",
+                        "error_type": "validation",
+                    }
+                )
             if modified is not None and modified != generated_output:
                 log.info("output=%s modified by the reviewer=%s ", modified, responded_by_user)
                 return modified

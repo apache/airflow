@@ -253,7 +253,7 @@ as shown below:
 
 .. tab-set::
 
-    .. tab-item:: @tash.bash
+    .. tab-item:: @task.bash
         :sync: taskflow
 
         .. code-block:: python

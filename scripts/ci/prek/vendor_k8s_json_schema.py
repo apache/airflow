@@ -32,7 +32,7 @@ from common_prek_utils import AIRFLOW_ROOT_PATH
 
 K8S_DEFINITIONS = (
     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema"
-    "/master/v1.29.0-standalone-strict/_definitions.json"
+    "/master/v1.31.0-standalone-strict/_definitions.json"
 )
 VALUES_SCHEMA_FILE = AIRFLOW_ROOT_PATH / "chart/values.schema.json"
 

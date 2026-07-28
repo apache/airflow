@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+3.15.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Close FTP file handles when a transfer raises (#69083)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+3.15.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enable the protected data channel in 'FTPSHook' by calling 'prot_p()' after login (#67946)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+
+Misc
+~~~~
+
+* ``Some nits in asset normalization (#66710)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 3.14.3
 ......
 

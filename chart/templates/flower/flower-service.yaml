@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+###################################
 ## Airflow Flower Service Component
-#################################
-{{- if and .Values.flower.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+###################################
+{{- if and .Values.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -55,5 +55,11 @@ spec:
   {{- end }}
   {{- if .Values.flower.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges: {{- toYaml .Values.flower.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
+  {{- if .Values.ipFamilyPolicy }}
+  ipFamilyPolicy: {{ .Values.ipFamilyPolicy }}
+  {{- end }}
+  {{- if .Values.ipFamilies }}
+  ipFamilies: {{- toYaml .Values.ipFamilies | nindent 4 }}
   {{- end }}
 {{- end }}

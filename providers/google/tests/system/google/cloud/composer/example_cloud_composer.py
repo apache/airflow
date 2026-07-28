@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timedelta
+from typing import Any
 
+from google.api_core.exceptions import NotFound
+from google.cloud.orchestration.airflow.service_v1.types import Environment
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -33,6 +37,7 @@ else:
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerCreateEnvironmentOperator,
     CloudComposerDeleteEnvironmentOperator,
@@ -61,7 +66,7 @@ PROJECT_NUMBER = "{{ task_instance.xcom_pull('get_project_number') }}"
 DAG_ID = "composer"
 REGION = "us-central1"
 
-# [START howto_operator_composer_simple_environment]
+# [START howto_operator_managed_airflow_simple_environment]
 
 ENVIRONMENT_ID = f"test-{DAG_ID}-{ENV_ID}".replace("_", "-")
 ENVIRONMENT_ID_ASYNC = f"test-deferrable-{DAG_ID}-{ENV_ID}".replace("_", "-")
@@ -74,18 +79,19 @@ ENVIRONMENT = {
         },
     },
 }
-# [END howto_operator_composer_simple_environment]
+# [END howto_operator_managed_airflow_simple_environment]
 
-# [START howto_operator_composer_update_environment]
+# [START howto_operator_managed_airflow_update_environment]
 UPDATED_ENVIRONMENT = {
     "labels": {
         "label": "testing",
     }
 }
 UPDATE_MASK = {"paths": ["labels.label"]}
-# [END howto_operator_composer_update_environment]
+# [END howto_operator_managed_airflow_update_environment]
 
 COMMAND = "dags list -o json --verbose"
+log = logging.getLogger(__name__)
 
 
 @task(task_id="get_project_number")
@@ -104,6 +110,63 @@ def get_project_number():
         raise exc
 
 
+# [START howto_operator_composer_retry_cleanup]
+def cleanup_failed_environment_before_retry(context: dict[str, Any]) -> None:
+    task = context["task"]
+
+    hook = CloudComposerHook(
+        gcp_conn_id=task.gcp_conn_id,
+        impersonation_chain=task.impersonation_chain,
+    )
+
+    environment_id = task.environment_id
+    project_id = task.project_id
+    region = task.region
+
+    log.info(
+        "Retry cleanup started for Composer env. project_id=%s region=%s environment_id=%s",
+        project_id,
+        region,
+        environment_id,
+    )
+
+    try:
+        environment = hook.get_environment(
+            project_id=project_id,
+            region=region,
+            environment_id=environment_id,
+        )
+    except NotFound:
+        log.info("Environment does not exist. Nothing to clean up.")
+        return
+
+    env_state = Environment.State(environment.state)
+    log.info(
+        "Environment exists before retry. state=%s value=%s",
+        env_state.name,
+        env_state.value,
+    )
+
+    if env_state != Environment.State.ERROR:
+        log.info(
+            "Skipping cleanup before retry because environment is not in ERROR state. current_state=%s",
+            env_state.name,
+        )
+        return
+
+    log.info("Deleting Composer environment %s in ERROR state before retry.", environment_id)
+    delete_operation = hook.delete_environment(
+        project_id=project_id,
+        region=region,
+        environment_id=environment_id,
+    )
+    hook.wait_for_operation(operation=delete_operation)
+    log.info("Environment %s deleted before retry.", environment_id)
+
+
+# [END howto_operator_composer_retry_cleanup]
+
+
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -111,25 +174,28 @@ with DAG(
     catchup=False,
     tags=["example", "composer"],
 ) as dag:
-    # [START howto_operator_composer_image_list]
+    # [START howto_operator_managed_airflow_image_list]
     image_versions = CloudComposerListImageVersionsOperator(
         task_id="image_versions",
         project_id=PROJECT_ID,
         region=REGION,
     )
-    # [END howto_operator_composer_image_list]
+    # [END howto_operator_managed_airflow_image_list]
 
-    # [START howto_operator_create_composer_environment]
+    # [START howto_operator_create_managed_airflow_environment]
     create_env = CloudComposerCreateEnvironmentOperator(
         task_id="create_env",
         project_id=PROJECT_ID,
         region=REGION,
         environment_id=ENVIRONMENT_ID,
         environment=ENVIRONMENT,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+        on_retry_callback=cleanup_failed_environment_before_retry,
     )
-    # [END howto_operator_create_composer_environment]
+    # [END howto_operator_create_managed_airflow_environment]
 
-    # [START howto_operator_create_composer_environment_deferrable_mode]
+    # [START howto_operator_create_managed_airflow_environment_deferrable_mode]
     defer_create_env = CloudComposerCreateEnvironmentOperator(
         task_id="defer_create_env",
         project_id=PROJECT_ID,
@@ -137,25 +203,28 @@ with DAG(
         environment_id=ENVIRONMENT_ID_ASYNC,
         environment=ENVIRONMENT,
         deferrable=True,
+        retries=1,
+        retry_delay=timedelta(minutes=1),
+        on_retry_callback=cleanup_failed_environment_before_retry,
     )
-    # [END howto_operator_create_composer_environment_deferrable_mode]
+    # [END howto_operator_create_managed_airflow_environment_deferrable_mode]
 
-    # [START howto_operator_list_composer_environments]
+    # [START howto_operator_list_managed_airflow_environments]
     list_envs = CloudComposerListEnvironmentsOperator(
         task_id="list_envs", project_id=PROJECT_ID, region=REGION
     )
-    # [END howto_operator_list_composer_environments]
+    # [END howto_operator_list_managed_airflow_environments]
 
-    # [START howto_operator_get_composer_environment]
+    # [START howto_operator_get_managed_airflow_environment]
     get_env = CloudComposerGetEnvironmentOperator(
         task_id="get_env",
         project_id=PROJECT_ID,
         region=REGION,
         environment_id=ENVIRONMENT_ID,
     )
-    # [END howto_operator_get_composer_environment]
+    # [END howto_operator_get_managed_airflow_environment]
 
-    # [START howto_operator_update_composer_environment]
+    # [START howto_operator_update_managed_airflow_environment]
     update_env = CloudComposerUpdateEnvironmentOperator(
         task_id="update_env",
         project_id=PROJECT_ID,
@@ -164,9 +233,9 @@ with DAG(
         update_mask=UPDATE_MASK,
         environment=UPDATED_ENVIRONMENT,
     )
-    # [END howto_operator_update_composer_environment]
+    # [END howto_operator_update_managed_airflow_environment]
 
-    # [START howto_operator_update_composer_environment_deferrable_mode]
+    # [START howto_operator_update_managed_airflow_environment_deferrable_mode]
     defer_update_env = CloudComposerUpdateEnvironmentOperator(
         task_id="defer_update_env",
         project_id=PROJECT_ID,
@@ -176,7 +245,7 @@ with DAG(
         environment=UPDATED_ENVIRONMENT,
         deferrable=True,
     )
-    # [END howto_operator_update_composer_environment_deferrable_mode]
+    # [END howto_operator_update_managed_airflow_environment_deferrable_mode]
 
     # [START howto_operator_run_airflow_cli_command]
     run_airflow_cli_cmd = CloudComposerRunAirflowCLICommandOperator(
@@ -259,17 +328,17 @@ with DAG(
     )
     # [END howto_sensor_external_task_deferrable_mode]
 
-    # [START howto_operator_delete_composer_environment]
+    # [START howto_operator_delete_managed_airflow_environment]
     delete_env = CloudComposerDeleteEnvironmentOperator(
         task_id="delete_env",
         project_id=PROJECT_ID,
         region=REGION,
         environment_id=ENVIRONMENT_ID,
     )
-    # [END howto_operator_delete_composer_environment]
+    # [END howto_operator_delete_managed_airflow_environment]
     delete_env.trigger_rule = TriggerRule.ALL_DONE
 
-    # [START howto_operator_delete_composer_environment_deferrable_mode]
+    # [START howto_operator_delete_managed_airflow_environment_deferrable_mode]
     defer_delete_env = CloudComposerDeleteEnvironmentOperator(
         task_id="defer_delete_env",
         project_id=PROJECT_ID,
@@ -277,7 +346,7 @@ with DAG(
         environment_id=ENVIRONMENT_ID_ASYNC,
         deferrable=True,
     )
-    # [END howto_operator_delete_composer_environment_deferrable_mode]
+    # [END howto_operator_delete_managed_airflow_environment_deferrable_mode]
     defer_delete_env.trigger_rule = TriggerRule.ALL_DONE
 
     chain(

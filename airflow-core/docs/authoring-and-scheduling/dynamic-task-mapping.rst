@@ -23,7 +23,7 @@ Dynamic Task Mapping
 
 Dynamic Task Mapping allows a way for a workflow to create a number of tasks at runtime based upon current data, rather than the Dag author having to know in advance how many tasks would be needed.
 
-This is similar to defining your tasks in a for loop, but instead of having the DAG file fetch the data and do that itself, the scheduler can do this based on the output of a previous task.
+This is similar to defining your tasks in a for loop, but instead of having the DAG file fetch the data and do that itself, the scheduler can do this based on the output of an upstream task.
 Unlike a Python for-loop executed at DAG parse time, dynamic task mapping defers task creation until runtime, allowing the scheduler to determine the exact number of task instances based on upstream task outputs.
 Right before a mapped task is executed the scheduler will create *n* copies of the task, one for each input.
 
@@ -120,7 +120,7 @@ The ``make_list`` task runs as a normal task and must return a list or dict (see
 Repeated mapping
 ----------------
 
-The result of one mapped task can also be used as input to the next mapped task.
+The result of one mapped task can also be used as input to the downstream mapped task.
 
 .. code-block:: python
 
@@ -676,3 +676,33 @@ Automatically skipping zero-length maps
 =======================================
 
 If the input is empty (zero length), no new tasks will be created and the mapped task will be marked as ``SKIPPED``.
+
+This can be useful when a Dag discovers work to do at runtime, but sometimes there is no work for that run.
+For example, a scan-and-repair Dag can return an empty list when it does not find anything to repair.
+In that case, the mapped task is skipped, and a downstream summary task can still treat the run as a successful no-op if it uses a trigger rule that allows skipped upstream tasks.
+
+.. code-block:: python
+
+    from airflow.sdk import TriggerRule, task
+
+
+    @task
+    def find_work_items():
+        # Return an empty list when no files, records, or partitions need repair.
+        return []
+
+
+    @task
+    def repair(item): ...
+
+
+    @task(trigger_rule=TriggerRule.NONE_FAILED)
+    def summarize(repaired_items):
+        if not repaired_items:
+            print("No work found; nothing to repair.")
+            return
+        print(f"Repaired {len(repaired_items)} item(s).")
+
+
+    repaired_items = repair.expand(item=find_work_items())
+    summarize(repaired_items)

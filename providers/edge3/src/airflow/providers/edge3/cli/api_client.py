@@ -144,7 +144,7 @@ async def worker_set_state(
     state: EdgeWorkerState,
     jobs_active: int,
     queues: list[str] | None,
-    sysinfo: dict,
+    sysinfo: dict[str, str | int | float | datetime],
     maintenance_comments: str | None = None,
     team_name: str | None = None,
 ) -> WorkerSetStateReturn:

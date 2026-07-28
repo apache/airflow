@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, useDisclosure } from "@chakra-ui/react";
-import { useHotkeys } from "react-hotkeys-hook";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
-import { Tooltip } from "src/components/ui";
+import { IconButton } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 
 import ClearRunDialog from "./ClearRunDialog";
 
@@ -35,37 +36,27 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
-  useHotkeys(
-    "shift+c",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.runActions.clearRun,
+    callback: () => {
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    options: { enabled: isHotkeyEnabled },
+  });
 
   return (
     <>
-      <Tooltip
-        closeDelay={100}
-        content={
+      <IconButton
+        label={
           isHotkeyEnabled
             ? translate("dags:runAndTaskActions.clear.buttonTooltip")
             : translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })
         }
-        openDelay={100}
+        onClick={onOpen}
       >
-        <IconButton
-          aria-label={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
-          colorPalette="brand"
-          onClick={onOpen}
-          size="md"
-          variant="ghost"
-        >
-          <CgRedo />
-        </IconButton>
-      </Tooltip>
-
-      {open ? <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} /> : undefined}
+        <CgRedo />
+      </IconButton>
+      <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} />
     </>
   );
 };

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG that show how to create a Dataproc cluster in Google Kubernetes Engine.
+Example Airflow DAG that show how to create a Managed Spark cluster in Google Kubernetes Engine.
 
 Required environment variables:
 GKE_NAMESPACE = os.environ.get("GKE_NAMESPACE", f"{CLUSTER_NAME}")
@@ -102,7 +102,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc", "gke"],
+    tags=["example", "managed-spark", "gke"],
 ) as dag:
     create_gke_cluster = GKECreateClusterOperator(
         task_id="create_gke_cluster",

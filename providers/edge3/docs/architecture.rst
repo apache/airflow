@@ -156,17 +156,12 @@ The following features are known missing and will be implemented in increments:
 
   - Overview about queues / jobs per queue
   - Allow starting Edge Worker REST API separate to api-server
-  - Add some hints how to setup an additional worker
+  - Fine granular access control (e.g. separate read only vs. management permissions for workers) (if demanded by somebody)
 
 - Edge Worker CLI
 
   - Use WebSockets instead of HTTP calls for communication
   - Send logs also to TaskFileHandler if external logging services are used
-  - Integration into telemetry to send metrics from remote site
-  - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
-  - Be more liberal e.g. on patch version. Currently requires exact version match
-    (In current state if versions do not match, the worker will gracefully shut
-    down when jobs are completed, no new jobs will be started)
 
 - Tests
 

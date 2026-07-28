@@ -37,7 +37,7 @@ def asset2_producer(self, context, asset1_producer):
     | Asset(uri="s3://bucket/object", name="asset2_producer"),
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=["consumes", "asset-scheduled"],
+    tags=["example", "consumes", "asset-scheduled"],
 )
 def consumes_asset_decorator():
     @task(outlets=[Asset(name="process_nothing")])

@@ -25,9 +25,8 @@ if TYPE_CHECKING:
     from airflow._shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
 
 
-def get_dogstatsd_logger(cls) -> SafeDogStatsdLogger:
+def get_dogstatsd_logger() -> SafeDogStatsdLogger:
     return datadog_logger.get_dogstatsd_logger(
-        cls,
         tags_in_string=conf.get("metrics", "statsd_datadog_tags"),
         host=conf.get("metrics", "statsd_host"),
         port=conf.getint("metrics", "statsd_port"),

@@ -60,16 +60,27 @@ def merge(
     if new_modules_path.exists():
         new_modules = json.loads(new_modules_path.read_text())["modules"]
 
-    # IDs being replaced
-    new_ids = {p["id"] for p in new_providers}
+    # Provider IDs being replaced in providers.json
+    new_provider_ids = {p["id"] for p in new_providers}
 
     # Merge providers: keep existing (except those being replaced), add new
-    merged_providers = [p for p in existing_providers if p["id"] not in new_ids]
+    merged_providers = [p for p in existing_providers if p["id"] not in new_provider_ids]
     merged_providers.extend(new_providers)
     merged_providers.sort(key=lambda p: p["name"].lower())
 
-    # Merge modules: keep existing (except for replaced providers), add new
-    merged_modules = [m for m in existing_modules if m["provider_id"] not in new_ids]
+    # Merge modules: replace ONLY for providers present in the new modules
+    # payload. Driving the drop off new_modules (rather than new_providers)
+    # avoids silent catalog corruption when an extract run wrote providers.json
+    # but no modules.json -- previously every targeted provider's modules were
+    # dropped with nothing to replace them.
+    #
+    # Trade-off: a provider that genuinely went from N modules to 0 between
+    # releases (refactored away, deprecated to config-only) leaves stale
+    # entries here -- they'd need a full build to clear. That's preferable to
+    # the previous behaviour where every single-provider incremental update
+    # silently wiped the targeted provider's modules.
+    new_module_provider_ids = {m["provider_id"] for m in new_modules}
+    merged_modules = [m for m in existing_modules if m["provider_id"] not in new_module_provider_ids]
     merged_modules.extend(new_modules)
 
     # Sort modules by provider's last_updated date (newest first)
@@ -84,7 +95,7 @@ def merge(
     (output_dir / "providers.json").write_text(json.dumps(providers_payload, indent=2) + "\n")
     (output_dir / "modules.json").write_text(json.dumps(modules_payload, indent=2) + "\n")
 
-    print(f"Merged {len(new_ids)} updated provider(s) into {len(merged_providers)} total providers")
+    print(f"Merged {len(new_provider_ids)} updated provider(s) into {len(merged_providers)} total providers")
     print(f"Total modules: {len(merged_modules)}")
 
 

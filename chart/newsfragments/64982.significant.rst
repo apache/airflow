@@ -1,1 +1,0 @@
-``workers.annotations`` field is now deprecated in favor of ``workers.celery.annotations``. Please update your configuration accordingly.

@@ -34,6 +34,8 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 0)
+# BaseTrigger.on_kill() was introduced in 3.3.0; use this flag to guard trigger migrations
+AIRFLOW_V_3_3_PLUS = get_base_airflow_version_tuple() >= (3, 3, 0)
 
 # Version-compatible imports
 # BaseOperator: Use 3.1+ due to xcom_push method missing in SDK BaseOperator 3.0.x
@@ -47,4 +49,4 @@ else:
 
 
 # Explicitly export these imports to protect them from being removed by linters
-__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "BaseOperator"]
+__all__ = ["AIRFLOW_V_3_0_PLUS", "AIRFLOW_V_3_1_PLUS", "AIRFLOW_V_3_3_PLUS", "BaseOperator"]

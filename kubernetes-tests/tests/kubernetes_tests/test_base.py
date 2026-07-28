@@ -130,8 +130,8 @@ class BaseK8STest:
     @staticmethod
     def _num_pods_in_namespace(namespace: str):
         air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
-        air_pod = air_pod.splitlines()
-        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
+        pod_lines = air_pod.splitlines()
+        names = [re.compile(r"\s+").split(x)[0] for x in pod_lines if "airflow" in x]
         return len(names)
 
     @staticmethod
@@ -241,6 +241,32 @@ class BaseK8STest:
         if state != expected_final_state:
             print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
         assert state == expected_final_state
+
+    def wait_until_task_in_executor(self, host, dag_run_id, dag_id, task_id, timeout=60):
+        """Poll until the task instance has been handed to the executor.
+
+        Once the state is ``queued`` (or any post-queued state), the scheduler
+        has already pushed the task to the executor queue, so a subsequent
+        scheduler crash does not race with the very first scheduling step.
+        """
+        deadline = time.monotonic() + timeout
+        post_queued_states = {"queued", "running", "success", "failed", "upstream_failed", "removed"}
+        get_string = f"http://{host}/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+        state: str | None = None
+        while time.monotonic() < deadline:
+            try:
+                result = self.session.get(get_string)
+                if result.status_code == 200:
+                    state = result.json().get("state")
+                    print(f"[wait_until_task_in_executor] {task_id} state={state}")
+                    if state in post_queued_states:
+                        return state
+            except requests.exceptions.ConnectionError as exc:
+                print(f"[wait_until_task_in_executor] api call failed, retrying. error={exc}")
+            time.sleep(2)
+        raise AssertionError(
+            f"task {task_id} did not reach a post-queued state within {timeout}s (last seen state: {state})"
+        )
 
     @staticmethod
     def ensure_resource_health(

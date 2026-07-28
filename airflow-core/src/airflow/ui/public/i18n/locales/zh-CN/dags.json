@@ -34,6 +34,11 @@
       "error": "清除 {{type}} 时发生错误",
       "title": "清除 {{type}}"
     },
+    "clearAllMapped": {
+      "button": "清除所有已映射任务",
+      "buttonTooltip": "按下 shift+c 清除所有已映射任务实例",
+      "title": "清除所有已映射任务实例"
+    },
     "confirmationDialog": {
       "description": "任务当前处于 {{state}} 状态，由用户 {{user}} 于 {{time}} 启动。\n在任务完成执行前，或用户在清除任务对话框中取消勾选「防止重复执行执行中的任务」选项前，无法清除此任务。",
       "title": "无法清除任务实例"

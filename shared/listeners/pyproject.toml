@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "opentelemetry-api>=1.27.0",
     "pluggy>=1.5.0",
     "structlog>=25.4.0",
 ]
@@ -31,16 +32,22 @@ dependencies = [
 [dependency-groups]
 dev = [
     "apache-airflow-devel-common",
+    "apache-airflow-shared-observability",
+    "opentelemetry-sdk>=1.27.0",
 ]
+mypy = [
+    "apache-airflow-devel-common[mypy]",
+]
+
 
 [build-system]
 requires = [
-    "hatchling==1.29.0",
-    "packaging==26.0",
-    "pathspec==1.0.4",
+    "hatchling==1.31.0",
+    "packaging==26.2",
+    "pathspec==1.1.1",
     "pluggy==1.6.0",
     "tomli==2.4.1; python_version < '3.11'",
-    "trove-classifiers==2026.1.14.14",
+    "trove-classifiers==2026.6.1.19",
 ]
 build-backend = "hatchling.build"
 

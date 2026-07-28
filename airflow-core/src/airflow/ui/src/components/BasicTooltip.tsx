@@ -32,10 +32,10 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [showOnTop, setShowOnTop] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
-    if (timeoutRef.current) {
+    if (timeoutRef.current !== null) {
       clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
@@ -44,9 +44,8 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
   };
 
   const handleMouseLeave = () => {
-    if (timeoutRef.current) {
+    if (timeoutRef.current !== null) {
       clearTimeout(timeoutRef.current);
-      // eslint-disable-next-line unicorn/no-null
       timeoutRef.current = null;
     }
     setIsOpen(false);
@@ -66,7 +65,7 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
   // Cleanup on unmount
   useEffect(
     () => () => {
-      if (timeoutRef.current) {
+      if (timeoutRef.current !== null) {
         clearTimeout(timeoutRef.current);
       }
     },

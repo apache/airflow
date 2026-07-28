@@ -78,12 +78,13 @@ export const useEditVariable = (
 
     const parsedDescription =
       editVariableRequestBody.description === "" ? undefined : editVariableRequestBody.description;
+    const teamName = editVariableRequestBody.team_name === "" ? undefined : editVariableRequestBody.team_name;
 
     mutate({
       requestBody: {
         description: parsedDescription,
         key: editVariableRequestBody.key,
-        team_name: editVariableRequestBody.team_name,
+        team_name: teamName,
         value: editVariableRequestBody.value,
       },
       updateMask,

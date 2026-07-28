@@ -167,7 +167,7 @@ class BaseImpersonationTest:
     @staticmethod
     def get_dagbag(dag_folder):
         """Get DagBag and print statistic into the log."""
-        dagbag = DagBag(dag_folder=dag_folder, include_examples=False)
+        dagbag = DagBag(dag_folder=dag_folder)
         logger.info("Loaded DAGs:")
         logger.info(dagbag.dagbag_report())
         return dagbag

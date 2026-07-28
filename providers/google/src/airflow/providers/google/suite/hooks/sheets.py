@@ -22,7 +22,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from google.api_core.client_options import ClientOptions
 from googleapiclient.discovery import build
 
 from airflow.providers.common.compat.sdk import AirflowException
@@ -73,15 +72,12 @@ class GSheetsHook(GoogleBaseHook):
         """
         if not self._conn:
             http_authorized = self._authorize()
-            client_options = None
-            if self.api_endpoint:
-                client_options = ClientOptions(api_endpoint=self.api_endpoint)
             self._conn = build(
                 "sheets",
                 self.api_version,
                 http=http_authorized,
                 cache_discovery=False,
-                client_options=client_options,
+                client_options=self.get_client_options(api_endpoint_override=self.api_endpoint),
             )
 
         return self._conn

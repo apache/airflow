@@ -38,10 +38,13 @@ from airflow.providers.opensearch.log.os_task_handler import (
     _build_log_fields,
     _format_error_detail,
     _render_log_id,
+    _safe_build_structured_log_message,
+    _strip_userinfo,
     get_os_kwargs_from_config,
     getattr_nested,
 )
 from airflow.utils import timezone
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -110,9 +113,10 @@ def _assert_log_events(logs, metadatas, *, expected_events: list[str], expected_
     if AIRFLOW_V_3_0_PLUS:
         logs = list(logs)
         assert logs[0].event == "::group::Log message source details"
-        assert logs[0].sources == expected_sources
-        assert logs[1].event == "::endgroup::"
-        assert [log.event for log in logs[2:]] == expected_events
+        for i, source in enumerate(expected_sources, start=1):
+            assert logs[i].event == source
+        assert logs[1 + len(expected_sources)].event == "::endgroup::"
+        assert [log.event for log in logs[(2 + len(expected_sources)) :]] == expected_events
     else:
         assert len(logs) == 1
         assert len(logs[0]) == 1
@@ -222,6 +226,21 @@ class TestOpensearchTaskHandler:
         else:
             assert OpensearchTaskHandler.format_url(host) == expected
 
+    @pytest.mark.parametrize(
+        ("host", "expected"),
+        [
+            ("https://user:pass@opensearch.example.com:9200", "https://opensearch.example.com:9200"),
+            ("http://USER:PASS@opensearch.example.com", "http://opensearch.example.com"),
+            ("https://opensearch.example.com:9200", "https://opensearch.example.com:9200"),
+            ("http://localhost:9200", "http://localhost:9200"),
+            ("https://user@opensearch.example.com", "https://opensearch.example.com"),
+            ("not-a-url", "not-a-url"),
+            ("", ""),
+        ],
+    )
+    def test_strip_userinfo(self, host, expected):
+        assert _strip_userinfo(host) == expected
+
     def test_client(self):
         assert isinstance(self.os_task_handler.client, opensearchpy.OpenSearch)
         assert self.os_task_handler.index_patterns == "_all"
@@ -273,6 +292,9 @@ class TestOpensearchTaskHandler:
     @pytest.mark.db_test
     @pytest.mark.parametrize("metadata_mode", ["provided", "none", "empty"])
     def test_read(self, ti, metadata_mode):
+        # A finished task reads from OpenSearch directly. A running task is delegated to the
+        # base handler (covered by test_read_running_task_delegates_to_base_handler).
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now()
         response = _make_os_response(self.os_task_handler.io, self.base_log_source)
 
@@ -301,6 +323,7 @@ class TestOpensearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_defaults_offset_when_missing_from_metadata(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now()
         with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
             logs, metadatas = self.os_task_handler.read(ti, 1, {"end_of_log": False})
@@ -313,6 +336,7 @@ class TestOpensearchTaskHandler:
     @pytest.mark.db_test
     @pytest.mark.parametrize("seconds", [3, 6])
     def test_read_missing_logs(self, ti, seconds):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now().add(seconds=-seconds)
         with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
             logs, metadatas = self.os_task_handler.read(
@@ -333,6 +357,7 @@ class TestOpensearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_timeout(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         start_time = pendulum.now().subtract(minutes=5)
         with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
             logs, metadatas = self.os_task_handler.read(
@@ -348,6 +373,7 @@ class TestOpensearchTaskHandler:
 
     @pytest.mark.db_test
     def test_read_with_custom_offset_and_host_fields(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
         self.os_task_handler.host_field = "host.name"
         self.os_task_handler.offset_field = "log.offset"
         self.os_task_handler.io.host_field = "host.name"
@@ -378,6 +404,63 @@ class TestOpensearchTaskHandler:
         )
         assert metadata["offset"] == "1"
         assert not metadata["end_of_log"]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage fallback is Airflow 3+ only")
+    @pytest.mark.db_test
+    def test_read_with_malformed_event_falls_back_to_stringified_event(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
+        malformed_event = ["not", "a", "string"]
+        malformed_source = {
+            "message": self.test_message,
+            "event": malformed_event,
+            "log_id": self.LOG_ID,
+            "offset": 2,
+        }
+        response = _make_os_response(self.os_task_handler.io, self.base_log_source, malformed_source)
+
+        with patch.object(self.os_task_handler.io, "_os_read", return_value=response):
+            with patch("airflow.providers.opensearch.log.os_task_handler.logger") as mock_logger:
+                logs, metadatas = self.os_task_handler.read(ti, 1)
+
+        metadata = _assert_log_events(
+            logs,
+            metadatas,
+            expected_events=[self.test_message, str(malformed_event)],
+            expected_sources=["http://localhost"],
+        )
+        assert not metadata["end_of_log"]
+        mock_logger.debug.assert_called_once()
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Live-log delegation only applies to Airflow 3")
+    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
+    def test_read_running_task_delegates_to_base_handler(self, ti, state):
+        ti.state = state
+        base_result = (["live log line"], {"end_of_log": False})
+        with (
+            patch.object(FileTaskHandler, "_read", return_value=base_result) as base_read,
+            patch.object(self.os_task_handler.io, "_os_read") as os_read,
+        ):
+            result = self.os_task_handler._read(ti, 1, {})
+
+        assert result == base_result
+        base_read.assert_called_once()
+        os_read.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Live-log delegation only applies to Airflow 3")
+    def test_read_old_try_of_running_task_does_not_delegate(self, ti):
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 2
+        response = _make_os_response(self.os_task_handler.io, self.base_log_source)
+        with (
+            patch.object(FileTaskHandler, "_read") as base_read,
+            patch.object(self.os_task_handler.io, "_os_read", return_value=response) as os_read,
+        ):
+            self.os_task_handler.read(ti, 1, {"offset": 0})
+
+        base_read.assert_not_called()
+        os_read.assert_called_once()
 
     @pytest.mark.db_test
     def test_set_context(self, ti):
@@ -699,6 +782,11 @@ class TestOpensearchRemoteLogIO:
         mock_callable.assert_called_once_with({})
         assert result == "callable_index_pattern"
 
+    def test_upload_returns_early_when_ti_is_none(self, tmp_path):
+        log_file = tmp_path / "1.log"
+        log_file.write_text('{"message": "test"}\n')
+        self.opensearch_io.upload(log_file, ti=None)
+
 
 class TestFormatErrorDetail:
     def test_returns_none_for_empty(self):
@@ -816,3 +904,20 @@ class TestBuildStructuredLogFields:
         hit = {"event": "msg", "error_detail": []}
         result = _build_log_fields(hit)
         assert "error_detail" not in result
+
+
+class TestSafeBuildStructuredLogMessage:
+    def test_string_event_returns_unchanged_and_does_not_log(self):
+        hit = {"event": "hello", "level": "info"}
+        with patch("airflow.providers.opensearch.log.os_task_handler.logger") as mock_logger:
+            result = _safe_build_structured_log_message(hit)
+        assert result.event == "hello"
+        mock_logger.debug.assert_not_called()
+
+    def test_non_string_event_falls_back_to_stringified_event(self):
+        hit = {"event": ["a", "b"], "timestamp": "2024-01-01T00:00:00Z"}
+        with patch("airflow.providers.opensearch.log.os_task_handler.logger") as mock_logger:
+            result = _safe_build_structured_log_message(hit)
+        assert result.event == str(["a", "b"])
+        assert result.timestamp is not None
+        mock_logger.debug.assert_called_once()

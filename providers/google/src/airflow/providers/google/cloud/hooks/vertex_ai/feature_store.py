@@ -23,7 +23,6 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1beta1 import (
     FeatureOnlineStoreAdminServiceClient,
@@ -65,18 +64,17 @@ class FeatureStoreHook(GoogleBaseHook):
         originating account.
     """
 
-    @staticmethod
-    def _get_client_options(
+    def _get_api_endpoint(
+        self,
         location: str | None = None,
         custom_endpoint: str | None = None,
-    ) -> ClientOptions:
-        if custom_endpoint:
-            client_options = ClientOptions(api_endpoint=custom_endpoint)
-        elif location and location != "global":
-            client_options = ClientOptions(api_endpoint=f"{location}-aiplatform.googleapis.com:443")
-        else:
-            client_options = ClientOptions()
-        return client_options
+    ) -> str | None:
+        if self.is_default_universe():
+            if custom_endpoint:
+                return custom_endpoint
+            if location and location != "global":
+                return f"{location}-aiplatform.googleapis.com:443"
+        return None
 
     def get_feature_online_store_admin_service_client(
         self,
@@ -95,7 +93,7 @@ class FeatureStoreHook(GoogleBaseHook):
         return FeatureOnlineStoreAdminServiceClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=self._get_client_options(location),
+            client_options=self.get_client_options(api_endpoint_override=self._get_api_endpoint(location)),
         )
 
     def get_feature_online_store_service_client(
@@ -106,7 +104,9 @@ class FeatureStoreHook(GoogleBaseHook):
         return FeatureOnlineStoreServiceClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=self._get_client_options(location, custom_endpoint),
+            client_options=self.get_client_options(
+                api_endpoint_override=self._get_api_endpoint(location, custom_endpoint)
+            ),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id

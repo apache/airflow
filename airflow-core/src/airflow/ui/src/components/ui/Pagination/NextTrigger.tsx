@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Pagination as ChakraPagination, IconButton } from "@chakra-ui/react";
+import { Pagination as ChakraPagination } from "@chakra-ui/react";
 import { forwardRef } from "react";
 import { HiChevronRight } from "react-icons/hi2";
 
+import { IconButton } from "..";
 import { paginationContext } from "./context";
 
 const [, useRootProps] = paginationContext;

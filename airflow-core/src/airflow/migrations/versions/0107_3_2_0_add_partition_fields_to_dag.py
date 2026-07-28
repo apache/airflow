@@ -62,3 +62,15 @@ def downgrade():
             batch_op.drop_column("next_dagrun_partition_date")
         with op.batch_alter_table("dag_run", schema=None) as batch_op:
             batch_op.drop_column("partition_date")
+
+    # When downgrading from 3.2.0 to 3.1.x, the run_id generation semantics change:
+    # 3.2.0 generates run_id from run_after (data interval end),
+    # 3.1.x generates run_id from next_dagrun (logical date / data interval start).
+    # If next_dagrun/next_dagrun_create_after are left pointing at values set by 3.2.0,
+    # the 3.1.x scheduler will try to create runs with run_ids that already exist in
+    # dag_run, causing DB insert violation. Nulling these fields forces the 3.1.x
+    # scheduler to recalculate them from the last completed run using 3.1.x semantics.
+    op.execute(
+        "UPDATE dag SET next_dagrun = NULL, next_dagrun_create_after = NULL, "
+        "next_dagrun_data_interval_start = NULL, next_dagrun_data_interval_end = NULL"
+    )

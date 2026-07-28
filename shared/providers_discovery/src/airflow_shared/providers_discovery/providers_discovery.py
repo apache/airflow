@@ -337,9 +337,9 @@ def discover_all_providers_from_packages(
         if project_urls:
             for entry in project_urls:
                 if "," in entry:
-                    name, url = entry.split(",")
+                    name, url = entry.split(",", 1)
                     if name.strip().lower() == "documentation":
-                        documentation_url = url
+                        documentation_url = url.strip()
                         break
 
         provider_info["documentation-url"] = documentation_url

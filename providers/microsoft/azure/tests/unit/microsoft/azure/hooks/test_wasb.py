@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import create_autospec
 
 import pytest
+from azure.core.credentials import AzureSasCredential
 from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
 from azure.storage.blob._models import BlobProperties
@@ -44,6 +45,11 @@ CONN_STRING = (
 
 ACCESS_KEY_STRING = "AccountName=name;skdkskd"
 PROXIES = {"http": "http_proxy_uri", "https": "https_proxy_uri"}
+
+# https://learn.microsoft.com/en-us/rest/api/storageservices/create-service-sas
+# The hook wraps plain SAS tokens in AzureSasCredential for the SDK to sign requests.
+SAS_TOKEN = "sv=2021-08-06&ss=b&srt=sco&sp=r&sig=samplesignature"
+HTTPS_SAS_TOKEN = f"https://login.blob.core.windows.net/?{SAS_TOKEN}"
 
 
 @pytest.fixture
@@ -147,24 +153,24 @@ class TestWasbHook:
                 conn_id="sas_conn_id",
                 conn_type=self.connection_type,
                 login=self.login,
-                extra={"sas_token": "token", "proxies": self.proxies},
+                extra={"sas_token": SAS_TOKEN, "proxies": self.proxies},
             ),
             Connection(
                 conn_id=self.extra__wasb__sas_conn_id,
                 conn_type=self.connection_type,
                 login=self.login,
-                extra={"extra__wasb__sas_token": "token", "proxies": self.proxies},
+                extra={"extra__wasb__sas_token": SAS_TOKEN, "proxies": self.proxies},
             ),
             Connection(
                 conn_id=self.http_sas_conn_id,
                 conn_type=self.connection_type,
-                extra={"sas_token": "https://login.blob.core.windows.net/token", "proxies": self.proxies},
+                extra={"sas_token": HTTPS_SAS_TOKEN, "proxies": self.proxies},
             ),
             Connection(
                 conn_id=self.extra__wasb__http_sas_conn_id,
                 conn_type=self.connection_type,
                 extra={
-                    "extra__wasb__sas_token": "https://login.blob.core.windows.net/token",
+                    "extra__wasb__sas_token": HTTPS_SAS_TOKEN,
                     "proxies": self.proxies,
                 },
             ),
@@ -304,8 +310,12 @@ class TestWasbHook:
         self, mocked_connection, mocked_blob_service_client
     ):
         WasbHook(wasb_conn_id="testconn").get_conn()
+        called_credential = mocked_blob_service_client.call_args[1]["credential"]
+        assert isinstance(called_credential, AzureSasCredential)
+        assert called_credential.signature == "SAStoken"
         mocked_blob_service_client.assert_called_once_with(
-            account_url="https://testaccountname.blob.core.windows.net/SAStoken",
+            account_url="https://testaccountname.blob.core.windows.net/",
+            credential=called_credential,
             sas_token="SAStoken",
         )
 
@@ -361,10 +371,14 @@ class TestWasbHook:
         hook_conn = hook.get_connection(hook.conn_id)
         sas_token = hook_conn.extra_dejson[extra_key]
         assert isinstance(conn, BlobServiceClient)
-        assert conn.url.startswith("https://")
-        if hook_conn.login:
-            assert hook_conn.login in conn.url
-        assert conn.url.endswith(sas_token + "/")
+        if sas_token.startswith("https"):
+            # HTTPS SAS URL: the full URL is passed to BlobServiceClient as-is;
+            # credential handling is left to the SDK.
+            assert sas_token in conn.url
+        else:
+            # Plain SAS token: the hook wraps it in AzureSasCredential.
+            assert isinstance(conn.credential, AzureSasCredential)
+            assert conn.credential.signature == sas_token
 
     @pytest.mark.parametrize(
         argnames="conn_id_str",

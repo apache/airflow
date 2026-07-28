@@ -27,7 +27,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import insert, select
 
 from airflow import settings
 from airflow._shared.template_rendering import truncate_rendered_value
@@ -116,11 +116,11 @@ class TestRenderedTaskInstanceFields:
             pytest.param([], [], id="list"),
             pytest.param({}, {}, id="empty_dict"),
             pytest.param((), [], id="empty_tuple"),
-            pytest.param(set(), "set()", id="empty_set"),
+            pytest.param(set(), [], id="empty_set"),
             pytest.param("test-string", "test-string", id="string"),
             pytest.param({"foo": "bar"}, {"foo": "bar"}, id="dict"),
             pytest.param(("foo", "bar"), ["foo", "bar"], id="tuple"),
-            pytest.param({"foo"}, "{'foo'}", id="set"),
+            pytest.param({"foo"}, ["foo"], id="set"),
             (date(2018, 12, 6), "2018-12-06"),
             pytest.param(datetime(2018, 12, 6, 10, 55), "2018-12-06 10:55:00+00:00", id="datetime"),
             pytest.param(
@@ -371,6 +371,66 @@ class TestRenderedTaskInstanceFields:
             "test",
             {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
         )
+
+    def test_write_upsert_existing_record(self, dag_maker, session):
+        """
+        Verify that write() updates an existing row instead of failing on its primary key.
+
+        A row is seeded via a direct INSERT (bypassing write()) to represent a record
+        already present for this task instance. Calling write() with different values
+        must update that row via the upsert's DO UPDATE branch.
+
+        This exercises the upsert's update path within a single transaction; it does not
+        reproduce the concurrent-transaction race from #61705, which needs two separate
+        uncommitted transactions and cannot be triggered reliably in a unit test. The
+        atomic single-statement upsert is what closes that race in production.
+        """
+        with dag_maker("test_write_upsert", session=session):
+            task = BashOperator(task_id="test", bash_command="echo original")
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+
+        # Seed the row via a direct INSERT to simulate a row already committed by
+        # the first request. Using write() here would mask whether write() itself
+        # correctly handles conflicts, since merge() also handles existing rows.
+        session.execute(
+            insert(RTIF).values(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                rendered_fields={"bash_command": "echo original"},
+                k8s_pod_yaml=None,
+            )
+        )
+        session.flush()
+
+        result = session.scalar(
+            select(RTIF).where(
+                RTIF.dag_id == ti.dag_id,
+                RTIF.task_id == ti.task_id,
+                RTIF.run_id == ti.run_id,
+                RTIF.map_index == ti.map_index,
+            )
+        )
+        assert result.rendered_fields == {"bash_command": "echo original"}
+
+        # write() must not raise IntegrityError even though the row already exists.
+        rtif = RTIF(ti=ti, render_templates=False, rendered_fields={"bash_command": "echo updated"})
+        rtif.write(session=session)
+        session.flush()
+        session.expire_all()
+
+        result = session.scalar(
+            select(RTIF).where(
+                RTIF.dag_id == ti.dag_id,
+                RTIF.task_id == ti.task_id,
+                RTIF.run_id == ti.run_id,
+                RTIF.map_index == ti.map_index,
+            )
+        )
+        assert result.rendered_fields == {"bash_command": "echo updated"}
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
     def test_redact(self, dag_maker):

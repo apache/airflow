@@ -87,7 +87,10 @@ class CloudMemorystoreHook(GoogleBaseHook):
     def get_conn(self) -> CloudRedisClient:
         """Retrieve client library object that allow access to Cloud Memorystore service."""
         if not self._client:
-            self._client = CloudRedisClient(credentials=self.get_credentials())
+            self._client = CloudRedisClient(
+                credentials=self.get_credentials(),
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     @staticmethod
@@ -521,7 +524,10 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     def get_conn(self):
         """Retrieve client library object that allow access to Cloud Memorystore Memcached service."""
         if not self._client:
-            self._client = CloudMemcacheClient(credentials=self.get_credentials())
+            self._client = CloudMemcacheClient(
+                credentials=self.get_credentials(),
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     @staticmethod

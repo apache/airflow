@@ -60,10 +60,7 @@ class TaskLogReader:
         else:
             msg = "No logs available for this task."
 
-        yield StructuredLogMessage(
-            timestamp=None,
-            event="::group::Log message source details",
-        )
+        yield StructuredLogMessage(timestamp=None, event="::group::Log message source details")
         yield StructuredLogMessage(timestamp=None, event="::endgroup::")
         yield StructuredLogMessage(
             timestamp=ti.updated_at or datetime.now(timezone.utc),

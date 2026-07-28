@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-influxdb``
 
-Release: ``2.10.4``
+Release: ``2.11.0``
 
 
 `InfluxDB <https://www.influxdata.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``influxdb`` provider. All classes for this provi
 are in ``airflow.providers.influxdb`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.10.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.11.0/>`_.
 
 Installation
 ------------
@@ -56,27 +56,9 @@ PIP package                                 Version required
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``influxdb-client``                         ``>=1.19.0``
+``influxdb3-python``                        ``>=0.7.0``
 ``requests``                                ``>=2.32.0,<3``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-influxdb[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.10.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-influxdb/2.11.0/changelog.html>`_.

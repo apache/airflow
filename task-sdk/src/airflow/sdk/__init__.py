@@ -22,6 +22,7 @@ __all__ = [
     "__version__",
     "AllowedKeyMapper",
     "Asset",
+    "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
     "AssetAny",
@@ -45,23 +46,40 @@ __all__ = [
     "CronPartitionTimetable",
     "DAG",
     "DagRunState",
+    "DayWindow",
     "DeadlineAlert",
     "DeadlineReference",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "ExceptionRetryPolicy",
+    "FanOutMapper",
+    "FixedKeyMapper",
+    "HourWindow",
     "IdentityMapper",
     "Label",
     "Metadata",
+    "MinimumCount",
+    "MonthWindow",
     "MultipleCronTriggerTimetable",
+    "NEVER_EXPIRE",
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
+    "PartitionedAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "PokeReturnValue",
     "ProductMapper",
+    "QuarterWindow",
+    "ResumableJobMixin",
+    "RetryAction",
+    "RetryDecision",
+    "RetryPolicy",
+    "RetryRule",
+    "RollupMapper",
+    "SegmentWindow",
     "SkipMixin",
     "SyncCallback",
     "StartOfDayMapper",
@@ -75,8 +93,12 @@ __all__ = [
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
+    "WaitForAll",
+    "WeekWindow",
     "WeightRule",
+    "Window",
     "XComArg",
+    "YearWindow",
     "asset",
     "chain",
     "chain_linear",
@@ -88,13 +110,14 @@ __all__ = [
     "literal",
     "lineage",
     "macros",
+    "result",
     "setup",
     "task",
     "task_group",
     "teardown",
 ]
 
-__version__ = "1.2.0"
+__version__ = "1.4.0"
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
@@ -109,11 +132,19 @@ if TYPE_CHECKING:
         cross_downstream,
     )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
+    from airflow.sdk.bases.resumablejobmixin import ResumableJobMixin
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
     from airflow.sdk.bases.skipmixin import SkipMixin
     from airflow.sdk.bases.xcom import BaseXCom
     from airflow.sdk.configuration import AirflowSDKConfigParser
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
+    from airflow.sdk.definitions.asset import (
+        Asset,
+        AssetAccessControl,
+        AssetAlias,
+        AssetAll,
+        AssetAny,
+        AssetWatcher,
+    )
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
     from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
@@ -121,16 +152,21 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context, get_current_context, get_parsing_context
     from airflow.sdk.definitions.dag import DAG, dag
     from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-    from airflow.sdk.definitions.decorators import setup, task, teardown
+    from airflow.sdk.definitions.decorators import result, setup, task, teardown
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
-    from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mappers.base import (
+        PartitionMapper,
+        RollupMapper,
+    )
     from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
+    from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
     from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
     from airflow.sdk.definitions.partition_mappers.product import ProductMapper
     from airflow.sdk.definitions.partition_mappers.temporal import (
+        FanOutMapper,
         StartOfDayMapper,
         StartOfHourMapper,
         StartOfMonthMapper,
@@ -138,11 +174,33 @@ if TYPE_CHECKING:
         StartOfWeekMapper,
         StartOfYearMapper,
     )
+    from airflow.sdk.definitions.partition_mappers.wait_policy import (
+        MinimumCount,
+        WaitForAll,
+    )
+    from airflow.sdk.definitions.partition_mappers.window import (
+        DayWindow,
+        HourWindow,
+        MonthWindow,
+        QuarterWindow,
+        SegmentWindow,
+        WeekWindow,
+        Window,
+        YearWindow,
+    )
+    from airflow.sdk.definitions.retry_policy import (
+        ExceptionRetryPolicy,
+        RetryAction,
+        RetryDecision,
+        RetryPolicy,
+        RetryRule,
+    )
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
         AssetOrTimeSchedule,
         PartitionedAssetTimetable,
+        PartitionedAtRuntime,
     )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
@@ -158,6 +216,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.execution_time import macros
+    from airflow.sdk.execution_time.context import NEVER_EXPIRE
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.types import TaskInstance
 
@@ -166,6 +225,7 @@ if TYPE_CHECKING:
 __lazy_imports: dict[str, str] = {
     "AllowedKeyMapper": ".definitions.partition_mappers.allowed_key",
     "Asset": ".definitions.asset",
+    "AssetAccessControl": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
@@ -189,24 +249,40 @@ __lazy_imports: dict[str, str] = {
     "CronPartitionTimetable": ".definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
+    "DayWindow": ".definitions.partition_mappers.window",
     "DeadlineAlert": ".definitions.deadline",
     "DeadlineReference": ".definitions.deadline",
     "DeltaDataIntervalTimetable": ".definitions.timetables.interval",
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
+    "ExceptionRetryPolicy": ".definitions.retry_policy",
+    "FanOutMapper": ".definitions.partition_mappers.temporal",
+    "FixedKeyMapper": ".definitions.partition_mappers.fixed_key",
+    "HourWindow": ".definitions.partition_mappers.window",
     "IdentityMapper": ".definitions.partition_mappers.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "MinimumCount": ".definitions.partition_mappers.wait_policy",
+    "MonthWindow": ".definitions.partition_mappers.window",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
+    "PartitionedAtRuntime": ".definitions.timetables.assets",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
     "PartitionMapper": ".definitions.partition_mappers.base",
     "PokeReturnValue": ".bases.sensor",
     "ProductMapper": ".definitions.partition_mappers.product",
+    "QuarterWindow": ".definitions.partition_mappers.window",
+    "ResumableJobMixin": ".bases.resumablejobmixin",
+    "RetryAction": ".definitions.retry_policy",
+    "RetryDecision": ".definitions.retry_policy",
+    "RetryPolicy": ".definitions.retry_policy",
+    "RetryRule": ".definitions.retry_policy",
+    "RollupMapper": ".definitions.partition_mappers.base",
     "SecretCache": ".execution_time.cache",
+    "SegmentWindow": ".definitions.partition_mappers.window",
     "SkipMixin": ".bases.skipmixin",
     "SyncCallback": ".definitions.callback",
     "StartOfDayMapper": ".definitions.partition_mappers.temporal",
@@ -220,19 +296,25 @@ __lazy_imports: dict[str, str] = {
     "TaskInstanceState": ".api.datamodels._generated",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
+    "WaitForAll": ".definitions.partition_mappers.wait_policy",
+    "WeekWindow": ".definitions.partition_mappers.window",
     "WeightRule": ".api.datamodels._generated",
+    "Window": ".definitions.partition_mappers.window",
     "XComArg": ".definitions.xcom_arg",
+    "YearWindow": ".definitions.partition_mappers.window",
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",
     "chain_linear": ".bases.operator",
     "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
+    "NEVER_EXPIRE": ".execution_time.context",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
     "literal": ".definitions.template",
     "lineage": ".lineage",
     "macros": ".execution_time",
+    "result": ".definitions.decorators",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",

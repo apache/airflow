@@ -19,48 +19,88 @@
 
 from __future__ import annotations
 
-from airflow.triggers.base import BaseTrigger
+import asyncio
+from typing import Any
+
+from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class SageMakerNotebookJobTrigger(BaseTrigger):
-    """
-    Watches for a notebook job, triggers when it finishes.
+    """Async trigger for SageMaker Unified Studio notebook executions."""
 
-    Examples:
-     .. code-block:: python
-
-        from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import SageMakerNotebookJobTrigger
-
-        notebook_trigger = SageMakerNotebookJobTrigger(
-            execution_id="notebook_job_1234",
-            execution_name="notebook_task",
-            waiter_delay=10,
-            waiter_max_attempts=1440,
-        )
-
-    :param execution_id: A unique, meaningful id for the task.
-    :param execution_name: A unique, meaningful name for the task.
-    :param waiter_delay: Interval in seconds to check the notebook execution status.
-    :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
-    """
-
-    def __init__(self, execution_id, execution_name, waiter_delay, waiter_max_attempts, **kwargs):
+    def __init__(
+        self,
+        *,
+        execution_id: str,
+        execution_name: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.execution_id = execution_id
         self.execution_name = execution_name
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
-    def serialize(self):
+    def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            # dynamically generate the fully qualified name of the class
-            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            "airflow.providers.amazon.aws.triggers.sagemaker_unified_studio.SageMakerNotebookJobTrigger",
             {
                 "execution_id": self.execution_id,
                 "execution_name": self.execution_name,
-                "poll_interval": self.poll_interval,
+                "waiter_delay": self.waiter_delay,
+                "waiter_max_attempts": self.waiter_max_attempts,
             },
         )
 
     async def run(self):
-        pass
+        hook = SageMakerNotebookHook(execution_name=self.execution_name)
+        attempts = 0
+
+        terminal_success = {"COMPLETED", "SUCCEEDED"}
+        terminal_failure = {"FAILED", "ERROR", "CANCELLED", "STOPPED"}
+
+        while attempts < self.waiter_max_attempts:
+            attempts += 1
+
+            # CI-safe async execution (NO run_in_executor)
+            response = await asyncio.to_thread(
+                hook.get_notebook_execution,
+                self.execution_id,
+            )
+
+            status = response.get("status")
+            error_message = response.get("error_details", {}).get("error_message")
+
+            if status in terminal_success:
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "execution_id": self.execution_id,
+                        "files": response.get("files"),
+                        "s3_path": response.get("s3_path"),
+                    }
+                )
+                return
+
+            if status in terminal_failure:
+                yield TriggerEvent(
+                    {
+                        "status": "failed",
+                        "execution_id": self.execution_id,
+                        "error": error_message or f"Execution ended with status: {status}",
+                    }
+                )
+                return
+
+            await asyncio.sleep(self.waiter_delay)
+
+        yield TriggerEvent(
+            {
+                "status": "failed",
+                "execution_id": self.execution_id,
+                "error": "Execution timed out",
+            }
+        )

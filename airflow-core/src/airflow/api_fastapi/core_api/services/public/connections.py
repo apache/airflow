@@ -121,7 +121,12 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                 if connection.connection_id in create_connection_ids:
                     if connection.connection_id in matched_connection_ids:
                         existed_connection = existed_connections_dict[connection.connection_id]
-                        for key, val in connection.model_dump(by_alias=True).items():
+                        # Only overwrite fields the request actually provided (see pools.py for the
+                        # full rationale). Plain ``model_dump()`` resets omitted fields to their
+                        # defaults on the existing connection — e.g. silently nulling ``team_name``
+                        # multi-team ownership. ``exclude_unset=True`` writes only the fields present
+                        # in the request body.
+                        for key, val in connection.model_dump(by_alias=True, exclude_unset=True).items():
                             setattr(existed_connection, key, val)
                     else:
                         self.session.add(Connection(**connection.model_dump(by_alias=True)))

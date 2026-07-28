@@ -21,7 +21,10 @@ import {
   UseDagServiceGetDagDetailsKeyFn,
   UseDagServiceGetLatestRunInfoKeyFn,
   UseGridServiceGetGridRunsKeyFn,
+  useTaskInstanceServiceGetExtraLinksKey,
+  useTaskInstanceServiceGetLogKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
+  useTaskInstanceServiceGetTaskInstanceTryDetailsKey,
 } from "openapi/queries";
 
 export const gridQueryKeys = (dagId: string) =>
@@ -32,3 +35,10 @@ export const gridQueryKeys = (dagId: string) =>
     UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
     UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
   ] as const;
+
+/** Prefix keys for per-attempt TI caches that become stale after any mutation. */
+export const tiPerAttemptQueryKeys = [
+  [useTaskInstanceServiceGetLogKey],
+  [useTaskInstanceServiceGetExtraLinksKey],
+  [useTaskInstanceServiceGetTaskInstanceTryDetailsKey],
+] as const;

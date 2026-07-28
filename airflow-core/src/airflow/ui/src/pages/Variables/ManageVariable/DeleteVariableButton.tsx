@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Code, Flex, Heading, IconButton, Text, useDisclosure, VStack } from "@chakra-ui/react";
+import { Button, Code, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { Dialog, Tooltip } from "src/components/ui";
+import { IconButton, Dialog } from "src/components/ui";
 import { useDeleteVariable } from "src/queries/useDeleteVariable";
 
 type Props = {
@@ -37,20 +37,16 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
 
   return (
     <>
-      <Tooltip content={translate("variables.delete.title")}>
-        <IconButton
-          aria-label={translate("variables.delete.title")}
-          colorPalette="danger"
-          disabled={disabled}
-          onClick={onOpen}
-          size="md"
-          variant="ghost"
-        >
-          <FiTrash2 />
-        </IconButton>
-      </Tooltip>
+      <IconButton
+        colorPalette="danger"
+        disabled={disabled}
+        label={translate("variables.delete.title")}
+        onClick={onOpen}
+      >
+        <FiTrash2 />
+      </IconButton>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={onClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>

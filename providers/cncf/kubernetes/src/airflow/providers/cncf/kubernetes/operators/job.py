@@ -22,12 +22,13 @@ import copy
 import json
 import logging
 import os
+import sys
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
-from kubernetes.client import BatchV1Api, models as k8s
+from kubernetes.client import BatchV1Api, Configuration, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
@@ -41,9 +42,9 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
+from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, OnKillAction
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, conf
 from airflow.utils import yaml
 
 if AIRFLOW_V_3_1_PLUS:
@@ -218,44 +219,49 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
 
-        if self.wait_until_job_complete:
-            self.pods: Sequence[k8s.V1Pod] = self.get_pods(
-                pod_request_obj=self.pod_request_obj, context=context
-            )
-
-            if self.deferrable:
-                self.execute_deferrable()
-                return
-
-            if self.do_xcom_push:
-                xcom_result = []
-                for pod in self.pods:
-                    self.pod_manager.await_container_completion(
-                        pod=pod, container_name=self.base_container_name
-                    )
-                    self.pod_manager.await_xcom_sidecar_container_start(pod=pod)
-                    xcom_result.append(self.extract_xcom(pod=pod))
-            self.job = self.hook.wait_until_job_complete(
-                job_name=self.job.metadata.name,
-                namespace=self.job.metadata.namespace,
-                job_poll_interval=self.job_poll_interval,
-            )
-            if self.get_logs:
-                for pod in self.pods:
-                    self.pod_manager.fetch_requested_container_logs(
-                        pod=pod,
-                        containers=self.container_logs,
-                        follow_logs=True,
-                    )
-
-        ti.xcom_push(key="job", value=self.job.to_dict())
-        if self.wait_until_job_complete:
-            if error_message := self.hook.is_job_failed(job=self.job):
-                raise AirflowException(
-                    f"Kubernetes job '{self.job.metadata.name}' is failed with error '{error_message}'"
+        try:
+            if self.wait_until_job_complete:
+                self.pods: Sequence[k8s.V1Pod] = self.get_pods(
+                    pod_request_obj=self.pod_request_obj, context=context
                 )
-            if self.do_xcom_push:
-                return xcom_result
+
+                if self.deferrable:
+                    self.execute_deferrable()
+                    # execute_deferrable raises TaskDeferred; cleanup is handled
+                    # by execute_complete on resume.
+                    return
+
+                if self.do_xcom_push:
+                    xcom_result = []
+                    for pod in self.pods:
+                        self.pod_manager.await_container_completion(
+                            pod=pod, container_name=self.base_container_name
+                        )
+                        self.pod_manager.await_xcom_sidecar_container_start(pod=pod)
+                        xcom_result.append(self.extract_xcom(pod=pod))
+                self.job = self.hook.wait_until_job_complete(
+                    job_name=self.job.metadata.name,
+                    namespace=self.job.metadata.namespace,
+                    job_poll_interval=self.job_poll_interval,
+                )
+                if self.get_logs:
+                    for pod in self.pods:
+                        self.pod_manager.fetch_requested_container_logs(
+                            pod=pod,
+                            containers=self.container_logs,
+                            follow_logs=True,
+                        )
+
+            ti.xcom_push(key="job", value=self.job.to_dict())
+            if self.wait_until_job_complete:
+                if error_message := self.hook.is_job_failed(job=self.job):
+                    raise AirflowException(
+                        f"Kubernetes job '{self.job.metadata.name}' is failed with error '{error_message}'"
+                    )
+                if self.do_xcom_push:
+                    return xcom_result[0] if self.unwrap_single and len(xcom_result) == 1 else xcom_result
+        finally:
+            self._cleanup_monitoring_pods(context)
 
     def execute_deferrable(self):
         self.defer(
@@ -277,39 +283,81 @@ class KubernetesJobOperator(KubernetesPodOperator):
         )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
-        ti = context["ti"]
-        ti.xcom_push(key="job", value=event["job"])
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
+        # Resolve monitoring pods up front so the log-retrieval path and the
+        # cleanup path in the finally block share the same lookup (no double
+        # ``hook.get_pod`` calls).
+        pods_by_name: dict[str, k8s.V1Pod] = {}
+        event_job = event.get("job")
+        job_namespace = (
+            event_job.get("metadata", {}).get("namespace") if isinstance(event_job, dict) else None
+        )
+        pod_namespace = event.get("pod_namespace") or event.get("namespace") or job_namespace
+        unresolved_pods: list[tuple[str, str]] = []
+        for pod_name in event.get("pod_names") or []:
+            if not pod_namespace:
+                self.log.warning(
+                    "Skipping pod %s lookup because no pod namespace was provided in trigger event.",
+                    pod_name,
+                )
+                continue
+            try:
+                pod = self.hook.get_pod(pod_name, pod_namespace)
+            except ApiException as e:
+                if e.status == 404:
+                    self.log.warning(
+                        "Pod %s in namespace %s not found (possibly deleted).",
+                        pod_name,
+                        pod_namespace,
+                    )
+                else:
+                    self.log.warning(
+                        "Failed to retrieve pod %s in namespace %s: %s. Skipping.",
+                        pod_name,
+                        pod_namespace,
+                        e,
+                    )
+                    unresolved_pods.append((pod_name, pod_namespace))
+                continue
+            except Exception as e:
+                self.log.warning(
+                    "Failed to retrieve pod %s in namespace %s: %s. Skipping.",
+                    pod_name,
+                    pod_namespace,
+                    e,
+                )
+                unresolved_pods.append((pod_name, pod_namespace))
+                continue
+            if pod is not None:
+                pods_by_name[pod_name] = pod
 
-        if self.get_logs:
-            for pod_name in event["pod_names"]:
-                pod_namespace = event["pod_namespace"]
-                try:
-                    pod = self.hook.get_pod(pod_name, pod_namespace)
-                except ApiException as e:
-                    if e.status == 404:
-                        self.log.warning(
-                            "Pod %s in namespace %s not found (possibly deleted). Skipping log retrieval.",
-                            pod_name,
-                            pod_namespace,
-                        )
+        try:
+            ti = context["ti"]
+            ti.xcom_push(key="job", value=event["job"])
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
+
+            if self.get_logs:
+                for pod_name in event.get("pod_names") or []:
+                    if pod_name not in pods_by_name:
+                        # Pod was reported by the trigger but missing now (e.g. 404)
+                        self.log.warning("Skipping log retrieval for pod %s (not found).", pod_name)
                         continue
-                    raise
-                if not pod:
-                    raise PodNotFoundException("Could not find pod after resuming from deferral")
-                self._write_logs(pod)
+                    self._write_logs(pods_by_name[pod_name])
 
-        if self.do_xcom_push:
-            xcom_results: list[Any | None] = []
-            for xcom_result in event["xcom_result"]:
-                if isinstance(xcom_result, str) and xcom_result.rstrip() == EMPTY_XCOM_RESULT:
-                    self.log.info("xcom result file is empty.")
-                    xcom_results.append(None)
-                    continue
-                self.log.info("xcom result: \n%s", xcom_result)
-                xcom_results.append(json.loads(xcom_result))
-            return xcom_results[0] if self.unwrap_single and len(xcom_results) == 1 else xcom_results
+            if self.do_xcom_push:
+                xcom_results: list[Any | None] = []
+                for xcom_result in event["xcom_result"]:
+                    if isinstance(xcom_result, str) and xcom_result.rstrip() == EMPTY_XCOM_RESULT:
+                        self.log.info("xcom result file is empty.")
+                        xcom_results.append(None)
+                        continue
+                    self.log.info("xcom result: \n%s", xcom_result)
+                    xcom_results.append(json.loads(xcom_result))
+                return xcom_results[0] if self.unwrap_single and len(xcom_results) == 1 else xcom_results
+        finally:
+            self._cleanup_monitoring_pods_from_dict(
+                context, pods_by_name, unresolved_pods=unresolved_pods, event_status=event.get("status")
+            )
 
     @staticmethod
     def deserialize_job_template_file(path: str) -> k8s.V1Job:
@@ -330,10 +378,11 @@ class KubernetesJobOperator(KubernetesPodOperator):
             job = None
             log.warning("Template file %s does not exist", path)
 
-        api_client = ApiClient()
+        api_client = ApiClient(configuration=Configuration())
         return api_client._ApiClient__deserialize_model(job, k8s.V1Job)
 
     def on_kill(self) -> None:
+        self._killed = True
         if self.job:
             job = self.job
             kwargs = {
@@ -344,6 +393,97 @@ class KubernetesJobOperator(KubernetesPodOperator):
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
             self.job_client.delete_namespaced_job(**kwargs)
+        if self.on_kill_action == OnKillAction.KEEP_POD:
+            self.log.info(
+                "Skipping monitoring pod deletion since on_kill_action is set to %r.",
+                self.on_kill_action.value,
+            )
+            return
+        # Monitoring pods discovered via get_pods() have no ownerReferences and
+        # are not reaped by the Job's foreground cascade. Delete them directly.
+        for pod in getattr(self, "pods", None) or []:
+            try:
+                self.pod_manager.delete_pod(pod)
+            except ApiException:
+                self.log.exception(
+                    "Unable to delete monitoring pod %s",
+                    getattr(pod.metadata, "name", "<unknown>"),
+                )
+
+    def _cleanup_monitoring_pods(self, context: Context) -> None:
+        """
+        Run ``post_complete_action`` on each monitoring pod from ``self.pods``.
+
+        Honours ``on_finish_action`` (inherited from ``KubernetesPodOperator``)
+        and runs as a side-effect: any per-pod cleanup error is logged but never
+        masks the in-flight exception (e.g. an ``AirflowException`` raised because
+        the Job itself failed).
+        """
+        # Skip cleanup when control is leaving execute() via TaskDeferred: the
+        # deferred trigger still needs the monitoring pods to exist; the pods
+        # will be cleaned up by execute_complete() on resume.
+        exc = sys.exc_info()[1]
+        if isinstance(exc, TaskDeferred):
+            return
+        for pod in getattr(self, "pods", None) or []:
+            remote_pod = pod
+            try:
+                pod_name = getattr(pod.metadata, "name", None)
+                pod_namespace = getattr(pod.metadata, "namespace", None)
+                if pod_name and pod_namespace:
+                    remote_pod = self.hook.get_pod(name=pod_name, namespace=pod_namespace) or pod
+            except Exception:
+                remote_pod = pod
+            try:
+                self.post_complete_action(
+                    pod=pod,
+                    remote_pod=remote_pod,
+                    context=context,
+                    result=None,
+                )
+            except Exception:
+                # cleanup() can raise AirflowException for failed pods, and the
+                # k8s client can raise transport errors. For the Job operator we
+                # prefer the Job-level failure (or the original exception) to
+                # propagate instead of any per-pod cleanup error.
+                self.log.warning(
+                    "Error while cleaning up monitoring pod %s",
+                    getattr(pod.metadata, "name", "<unknown>"),
+                    exc_info=True,
+                )
+
+    def _cleanup_monitoring_pods_from_dict(
+        self,
+        context: Context,
+        pods_by_name: dict[str, k8s.V1Pod],
+        *,
+        unresolved_pods: list[tuple[str, str]] | None = None,
+        event_status: str | None = None,
+    ) -> None:
+        """
+        Run ``post_complete_action`` on each pod previously resolved via the trigger event.
+
+        Same semantics as :meth:`_cleanup_monitoring_pods` - errors are logged
+        but never mask the in-flight exception.
+        """
+        for pod_name, pod in pods_by_name.items():
+            try:
+                self.post_complete_action(pod=pod, remote_pod=pod, context=context, result=None)
+            except Exception:
+                self.log.warning(
+                    "Error while cleaning up monitoring pod %s",
+                    pod_name,
+                    exc_info=True,
+                )
+        pod_phase = (
+            "Succeeded" if event_status == "success" else "Failed" if event_status == "error" else None
+        )
+        for pod_name, pod_namespace in unresolved_pods or []:
+            fallback_pod = k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(name=pod_name, namespace=pod_namespace),
+                status=k8s.V1PodStatus(phase=pod_phase),
+            )
+            self.process_pod_deletion(fallback_pod, reraise=False)
 
     def build_job_request_obj(self, context: Context | None = None) -> k8s.V1Job:
         """

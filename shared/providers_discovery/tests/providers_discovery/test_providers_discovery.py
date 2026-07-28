@@ -17,9 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+from email.message import Message
+from unittest.mock import Mock
+
 import pytest
 
-from airflow_shared.providers_discovery import LazyDictWithCache
+from airflow_shared.providers_discovery import (
+    LazyDictWithCache,
+    discover_all_providers_from_packages,
+    providers_discovery as providers_discovery_module,
+)
 
 
 @pytest.mark.parametrize(
@@ -110,3 +117,30 @@ def test_lazy_cache_dict_clear():
     assert len(lazy_cache_dict) == 0
     assert not lazy_cache_dict._raw_dict
     assert not lazy_cache_dict._resolved
+
+
+def test_discover_all_providers_preserves_commas_in_project_url(monkeypatch):
+    provider_info = {
+        "package-name": "apache-airflow-providers-test",
+        "name": "Test",
+        "description": "Test provider",
+        "versions": ["1.0.0"],
+    }
+    metadata = Message()
+    metadata["Name"] = "apache-airflow-providers-test"
+    metadata["Project-URL"] = " Documentation , https://example.invalid/docs?query=a,b "
+    dist = Mock(metadata=metadata, version="1.0.0")
+    entry_point = Mock()
+    entry_point.load.return_value = lambda: provider_info
+    monkeypatch.setattr(
+        providers_discovery_module,
+        "entry_points_with_dist",
+        lambda group: [(entry_point, dist)],
+    )
+
+    providers = {}
+    discover_all_providers_from_packages(providers, Mock())
+
+    assert providers["apache-airflow-providers-test"].data["documentation-url"] == (
+        "https://example.invalid/docs?query=a,b"
+    )

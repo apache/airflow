@@ -22,6 +22,7 @@ import logging
 import os
 from unittest import mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 import yaml
@@ -49,7 +50,7 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
@@ -88,7 +89,7 @@ def mock_executor(set_env_vars) -> AwsBatchExecutor:
 
 @pytest.fixture(autouse=True)
 def mock_airflow_key():
-    return mock.Mock(spec=list)
+    return mock.Mock(spec=TaskInstanceKey)
 
 
 @pytest.fixture(autouse=True)
@@ -108,10 +109,10 @@ class TestBatchJobCollection:
         self.collection = BatchJobCollection()
         # Add first task
         self.first_job_id = "001"
-        self.first_airflow_key = mock.Mock(spec=tuple)
+        self.first_airflow_key = mock.Mock(spec=TaskInstanceKey)
         self.collection.add_job(
             job_id=self.first_job_id,
-            airflow_task_key=self.first_airflow_key,
+            airflow_workload_key=self.first_airflow_key,
             airflow_cmd="command1",
             queue="queue1",
             exec_config={},
@@ -119,10 +120,10 @@ class TestBatchJobCollection:
         )
         # Add second task
         self.second_job_id = "002"
-        self.second_airflow_key = mock.Mock(spec=tuple)
+        self.second_airflow_key = mock.Mock(spec=TaskInstanceKey)
         self.collection.add_job(
             job_id=self.second_job_id,
-            airflow_task_key=self.second_airflow_key,
+            airflow_workload_key=self.second_airflow_key,
             airflow_cmd="command2",
             queue="queue2",
             exec_config={},
@@ -190,7 +191,7 @@ class TestAwsBatchExecutor:
 
     def test_execute(self, mock_executor):
         """Test execution from end-to-end"""
-        airflow_key = mock.Mock(spec=tuple)
+        airflow_key = mock.Mock(spec=TaskInstanceKey)
         airflow_cmd = ["1", "2"]
 
         mock_executor.batch.submit_job.return_value = {"jobId": MOCK_JOB_ID, "jobName": "some-job-name"}
@@ -210,6 +211,7 @@ class TestAwsBatchExecutor:
         workload = mock.Mock(spec=ExecuteTask)
         workload.ti = mock.Mock(spec=TaskInstance)
         workload.ti.key = mock_airflow_key()
+        workload.ti.queue = "some-job-queue"
         tags_exec_config = [{"key": "FOO", "value": "BAR"}]
         workload.ti.executor_config = {"tags": tags_exec_config}
         ser_workload = json.dumps({"test_key": "test_value"})
@@ -269,6 +271,98 @@ class TestAwsBatchExecutor:
         assert job_id == ARN1
         running_state_mock.assert_called_once_with(workload.ti.key, ARN1)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
+    def test_task_sdk_callback(self, running_state_mock, mock_airflow_key, mock_executor, mock_cmd):
+        """Test task sdk execution for callbacks from end-to-end."""
+        from airflow.executors.workloads import ExecuteCallback
+
+        workload = mock.Mock(spec=ExecuteCallback)
+        workload.callback = mock.Mock()
+        workload.callback.key = mock_airflow_key()
+        ser_workload = json.dumps({"test_key": "test_value"})
+        workload.model_dump_json.return_value = ser_workload
+
+        mock_executor.queue_workload(workload, mock.Mock())
+
+        mock_executor.batch.submit_job.return_value = {"jobId": ARN1, "jobName": "some-job-name"}
+
+        assert mock_executor.queued_callbacks[workload.callback.key] == workload
+        assert len(mock_executor.pending_jobs) == 0
+        assert len(mock_executor.running) == 0
+        mock_executor._process_workloads([workload])
+        assert len(mock_executor.queued_callbacks) == 0
+        assert len(mock_executor.running) == 1
+        assert workload.callback.key in mock_executor.running
+        assert len(mock_executor.pending_jobs) == 1
+        assert mock_executor.pending_jobs[0].command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            '{"test_key": "test_value"}',
+        ]
+
+        mock_executor.attempt_submit_jobs()
+        mock_executor.batch.submit_job.assert_called_once()
+        assert len(mock_executor.pending_jobs) == 0
+        mock_executor.batch.submit_job.assert_called_once_with(
+            jobDefinition="some-job-def",
+            jobName="some-job-name",
+            jobQueue="some-job-queue",
+            containerOverrides={
+                "command": [
+                    "python",
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "--json-string",
+                    ser_workload,
+                ],
+                "environment": [
+                    {
+                        "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                        "value": "true",
+                    },
+                ],
+            },
+        )
+
+        # Task is stored in active worker.
+        assert len(mock_executor.active_workers) == 1
+        # Get the job_id for this task key
+        job_id = next(
+            job_id
+            for job_id, key in mock_executor.active_workers.id_to_key.items()
+            if key == workload.callback.key
+        )
+        assert job_id == ARN1
+        running_state_mock.assert_called_once_with(workload.callback.key, ARN1)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
+    def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
+        """Test task sdk execution for callbacks with queue from end-to-end."""
+        from airflow.executors.workloads import ExecuteCallback
+
+        workload = mock.Mock(spec=ExecuteCallback)
+        workload.callback = mock.Mock()
+        workload.callback.key = mock_airflow_key()
+        workload.callback.data = {"queue": "fast-queue"}
+
+        mock_executor.queue_workload(workload, mock.Mock())
+
+        mock_executor.batch.submit_job.return_value = {"jobId": ARN1, "jobName": "some-job-name"}
+
+        assert mock_executor.queued_callbacks[workload.callback.key] == workload
+        assert len(mock_executor.pending_jobs) == 0
+        assert len(mock_executor.running) == 0
+        mock_executor._process_workloads([workload])
+        assert len(mock_executor.queued_callbacks) == 0
+        assert len(mock_executor.running) == 1
+        assert workload.callback.key in mock_executor.running
+        assert len(mock_executor.pending_jobs) == 1
+        assert mock_executor.pending_jobs[0].queue == "fast-queue"
+
     @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_attempt_all_jobs_when_some_jobs_fail(self, _, mock_executor):
         """
@@ -304,7 +398,7 @@ class TestAwsBatchExecutor:
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
         assert len(mock_executor.pending_jobs) == 1
-        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 1
 
         # Add more tasks to pending_jobs. This simulates tasks being scheduled by Airflow
@@ -324,7 +418,7 @@ class TestAwsBatchExecutor:
             submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
         assert len(mock_executor.pending_jobs) == 1
-        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 3
 
         airflow_commands.append(airflow_cmd1)
@@ -387,7 +481,7 @@ class TestAwsBatchExecutor:
 
     def test_attempt_submit_jobs_failure(self, mock_executor):
         mock_executor.batch.submit_job.side_effect = NoCredentialsError()
-        mock_executor.execute_async("airflow_key", "airflow_cmd")
+        mock_executor.execute_async(mock.Mock(spec=TaskInstanceKey), "airflow_cmd")
         assert len(mock_executor.pending_jobs) == 1
         with pytest.raises(NoCredentialsError, match="Unable to locate credentials"):
             mock_executor.attempt_submit_jobs()
@@ -408,7 +502,10 @@ class TestAwsBatchExecutor:
     @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_task_retry_on_api_failure(self, _, mock_executor, caplog):
         """Test API failure retries"""
-        airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
+        airflow_keys = [
+            TaskInstanceKey("dag", "task1", "run", 1, -1),
+            TaskInstanceKey("dag", "task2", "run", 1, -1),
+        ]
         airflow_cmds = [["1", "2"], ["3", "4"]]
 
         mock_executor.execute_async(airflow_keys[0], airflow_cmds[0])
@@ -445,7 +542,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 1 out of {mock_executor.max_submit_job_attempts} occurred on {jobs[i]['jobId']}. Rescheduling."
+                f"Airflow workload {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 1 out of {mock_executor.max_submit_job_attempts} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -454,7 +551,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 2 out of {mock_executor.max_submit_job_attempts} occurred on {jobs[i]['jobId']}. Rescheduling."
+                f"Airflow workload {airflow_keys[i]} failed due to {jobs[i]['statusReason']}. Failure 2 out of {mock_executor.max_submit_job_attempts} occurred on {jobs[i]['jobId']}. Rescheduling."
                 in caplog.messages[i]
             )
 
@@ -463,7 +560,7 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.max_submit_job_attempts} times. Marking as failed"
+                f"Airflow workload {airflow_keys[i]} has failed a maximum of {mock_executor.max_submit_job_attempts} times. Marking as failed"
                 in caplog.text
             )
 
@@ -479,10 +576,10 @@ class TestAwsBatchExecutor:
         caplog.set_level("DEBUG")
         assert len(mock_executor.active_workers.get_all_jobs()) == 0
         mock_executor.sync_running_jobs()
-        assert "No active Airflow tasks, skipping sync" in caplog.messages[0]
+        assert "No active Airflow workloads, skipping sync" in caplog.messages[0]
 
     def test_sync_client_error(self, mock_executor, caplog):
-        mock_executor.execute_async("airflow_key", "airflow_cmd")
+        mock_executor.execute_async(mock.Mock(spec=TaskInstanceKey), "airflow_cmd")
         assert len(mock_executor.pending_jobs) == 1
         mock_resp = {
             "Error": {
@@ -498,7 +595,7 @@ class TestAwsBatchExecutor:
     def test_sync_exception(self, mock_executor, caplog):
         mock_executor.active_workers.add_job(
             job_id="job_id",
-            airflow_task_key="airflow_key",
+            airflow_workload_key="airflow_key",
             airflow_cmd="command",
             queue="queue",
             exec_config={},
@@ -616,7 +713,7 @@ class TestAwsBatchExecutor:
     def test_terminate_failure(self, mock_executor, caplog):
         mock_executor.active_workers.add_job(
             job_id="job_id",
-            airflow_task_key="airflow_key",
+            airflow_workload_key="airflow_key",
             airflow_cmd="command",
             queue="queue",
             exec_config={},
@@ -662,7 +759,7 @@ class TestAwsBatchExecutor:
         """
         executor.active_workers.add_job(
             job_id=job_id,
-            airflow_task_key=airflow_key,
+            airflow_workload_key=airflow_key,
             airflow_cmd="airflow_cmd",
             queue="queue",
             exec_config={},
@@ -680,7 +777,6 @@ class TestAwsBatchExecutor:
         }
         executor.batch.describe_jobs.return_value = {"jobs": [after_batch_job]}
 
-    @pytest.mark.skip(reason="Adopting task instances hasn't been ported over to Airflow 3 yet")
     def test_try_adopt_task_instances(self, mock_executor):
         """Test that executor can adopt orphaned task instances from a SchedulerJob shutdown event."""
         mock_executor.batch.describe_jobs.return_value = {
@@ -698,8 +794,42 @@ class TestAwsBatchExecutor:
         orphaned_tasks[0].external_executor_id = "001"  # Matches a running task_arn
         orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
         orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
-        for task in orphaned_tasks:
+
+        for idx, task in enumerate(orphaned_tasks):
             task.try_number = 1
+            task.key = mock.Mock(spec=TaskInstanceKey)
+            task.queue = "default"
+            task.executor_config = {}
+            task.id = uuid4()
+            task.dag_version_id = uuid4()
+            task.task_id = f"task_{idx}"
+            task.dag_id = "test_dag"
+            task.run_id = "test_run"
+            task.hostname = "host"
+            task.map_index = -1
+            task.pool_slots = 1
+            task.priority_weight = 1
+            task.context_carrier = {}
+            task.queued_dttm = dt.datetime(2024, 1, 1, tzinfo=dt.timezone.utc)
+            task.dag_model = mock.Mock()
+            task.dag_model.bundle_name = "test_bundle"
+            task.dag_model.relative_fileloc = "test_dag.py"
+            task.dag_version = mock.Mock(version_data=None)
+            task.dag_run = mock.Mock()
+            task.dag_run.bundle_version = "1.0.0"
+            # ExecuteTask.make() sources version_data from the run's pinned version.
+            task.dag_run.created_dag_version = mock.Mock(version_data=None)
+            task.dag_run.context_carrier = {}
+
+            if not AIRFLOW_V_3_0_PLUS:
+                task.command_as_list.return_value = [
+                    "airflow",
+                    "tasks",
+                    "run",
+                    "dag",
+                    f"task_{idx}",
+                    "2024-01-01",
+                ]
 
         not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
@@ -708,6 +838,59 @@ class TestAwsBatchExecutor:
         assert len(orphaned_tasks) - 1 == len(mock_executor.active_workers)
         # The remaining one task is unable to be adopted.
         assert len(not_adopted_tasks) == 1
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    def test_serialize_workload_to_command(self, mock_executor):
+        """Test that _serialize_workload_to_command properly serializes a Task SDK workload."""
+        from airflow.executors.workloads import ExecuteTask
+
+        workload = mock.Mock(spec=ExecuteTask)
+        ser_workload = json.dumps({"test_key": "test_value"})
+        workload.model_dump_json.return_value = ser_workload
+
+        command = mock_executor._serialize_workload_to_command(workload)
+
+        assert command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            ser_workload,
+        ]
+        workload.model_dump_json.assert_called_once()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @mock.patch("airflow.executors.workloads.ExecuteTask")
+    def test_build_task_command_airflow3(self, mock_execute_task_class, mock_executor):
+        """Test _build_task_command for Airflow 3.x+ using Task SDK."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        mock_workload = mock.Mock()
+        ser_workload = json.dumps({"task": "data"})
+        mock_workload.model_dump_json.return_value = ser_workload
+        mock_execute_task_class.make.return_value = mock_workload
+
+        command = mock_executor._build_task_command(mock_ti)
+
+        mock_execute_task_class.make.assert_called_once_with(mock_ti)
+        assert command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            ser_workload,
+        ]
+
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 2.x")
+    def test_build_task_command_airflow2(self, mock_executor):
+        """Test _build_task_command for Airflow 2.x using command_as_list."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        expected_command = ["airflow", "tasks", "run", "dag_id", "task_id", "execution_date"]
+        mock_ti.command_as_list.return_value = expected_command
+
+        command = mock_executor._build_task_command(mock_ti)
+
+        mock_ti.command_as_list.assert_called_once()
+        assert command == expected_command
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+")
     def test_team_config(self):
@@ -749,6 +932,31 @@ class TestAwsBatchExecutor:
             assert submit_kwargs["jobQueue"] == "some-job-queue"
             assert submit_kwargs["jobDefinition"] == "some-job-def"
             assert submit_kwargs["jobName"] == "some-job-name"
+
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param(None, {}, id="without_team"),
+            pytest.param(
+                "team_a",
+                {"team_name": "team_a"},
+                id="with_team",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_1_PLUS, reason="Multi-team support requires Airflow 3.1+"
+                ),
+            ),
+        ],
+    )
+    @mock.patch.object(batch_executor.Stats, "timer")
+    def test_try_adopt_task_instances_emits_team_name_tag(
+        self, mock_timer, mock_executor, team_name, expected_tags
+    ):
+        """Test that the adopt task instances duration metric is tagged with the team name."""
+        mock_executor.team_name = team_name
+
+        mock_executor.try_adopt_task_instances([])
+
+        mock_timer.assert_called_once_with("batch_executor.adopt_task_instances.duration", tags=expected_tags)
 
 
 class TestBatchExecutorConfig:
@@ -960,12 +1168,14 @@ class TestBatchExecutorConfig:
         )
         os.environ[submit_job_kwargs_env_key] = json.dumps(submit_job_kwargs)
 
-        mock_ti_key = mock.Mock(spec=tuple)
+        mock_ti_key = mock.Mock(spec=TaskInstanceKey)
         command = ["command"]
 
         executor = AwsBatchExecutor()
 
-        final_run_task_kwargs = executor._submit_job_kwargs(mock_ti_key, command, "queue", exec_config)
+        final_run_task_kwargs = executor._submit_job_kwargs(
+            mock_ti_key, command, expected_result["jobQueue"], exec_config
+        )
 
         assert final_run_task_kwargs == expected_result
 

@@ -36,20 +36,31 @@ AIRFLOW_V_3_0_PLUS: bool = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 AIRFLOW_V_3_1_3_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 3)
 AIRFLOW_V_3_2_PLUS: bool = get_base_airflow_version_tuple() >= (3, 2, 0)
+AIRFLOW_V_3_3_PLUS: bool = get_base_airflow_version_tuple() >= (3, 3, 0)
 
 # BaseOperator: Use 3.1+ due to xcom_push method missing in SDK BaseOperator 3.0.x
 # This is needed for DecoratedOperator compatibility
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
-    from airflow.sdk.definitions._internal.types import ArgNotSet
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.utils.types import ArgNotSet  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+
+try:
+    from airflow.sdk.definitions._internal.types import is_arg_set
+except ImportError:
+
+    def is_arg_set(value):  # type: ignore[misc,no-redef]
+        return value is not NOTSET
+
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
     "AIRFLOW_V_3_1_PLUS",
     "AIRFLOW_V_3_2_PLUS",
+    "AIRFLOW_V_3_3_PLUS",
     "ArgNotSet",
     "BaseOperator",
+    "is_arg_set",
 ]

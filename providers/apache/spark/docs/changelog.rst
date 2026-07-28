@@ -25,9 +25,91 @@
 ``apache-airflow-providers-apache-spark``
 
 
-
 Changelog
 ---------
+
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Surface YARN diagnostics for spark on yarn clusters (#70183)``
+
+Misc
+~~~~
+
+* ``Include spark submit canonical logs in failure exceptions (#70178)``
+* ``Better log when spark k8s driver remains in Unknown Phase (#70176)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a standard toggle for resumability to ResumableJobMixin (#68623)``
+* ``Add crash recovery ability to SparkSubmitOperator against Kubernetes (#68067)``
+* ``Crash recovery for YARN cluster mode in SparkSubmitOperator built on AIP-103 (#67473)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Align spark provider with the task state store terminology (#68430)``
+   * ``fix: fix missing rename in test_spark_submit (#68565)``
+   * ``Rename task_store/asset_store to task_state_store/asset_state_store (#68438)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'ResumableJobMixin' with 'SparkSubmitOperator' as a case study for surviving worker failures (standalone) (#67118)``
+* ``Track Spark job status for YARN cluster mode via RM REST API to free JVM (#65991)``
+* ``Use K8s API to track Spark on K8s instead of JVM based spark-submit (#67715)``
+* ``Enhance 'ResumableJobMixin.get_job_status' with context for better job status tracking (#68009)``
+
+Misc
+~~~~
+
+* ``Rename resumablemixin file to match class name (#68137)``
+
+Doc-only
+~~~~~~~~
+
+* ``Auto-sync provider README.rst Requirements with pyproject.toml (#67669)``
+* ``Document REST scheme and port connection fields for Spark (#67682)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Rename task_state/asset_state to task_state_store/asset_state_store across the codebase (#67833)``
+
+
+6.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SparkPipelinesHook for Spark Connect (sc://) connections (#66498)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
 
 6.0.1
 .....

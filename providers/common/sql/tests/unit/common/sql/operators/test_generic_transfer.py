@@ -382,7 +382,50 @@ class TestGenericTransfer:
                 "table": "NEW_HR.EMPLOYEES",
             }
 
-    def test_paginated_read(self):
+    def test_non_deferred_paginated_read(self):
+        """
+        Test that GenericTransfer paginates eagerly (non-deferred) when page_size is set and deferrable is False.
+        It stops early when fewer rows than page_size are returned (no need for an extra empty-page fetch).
+        """
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
+                operator = GenericTransfer(
+                    task_id="transfer_table",
+                    source_conn_id="my_source_conn_id",
+                    destination_conn_id="my_destination_conn_id",
+                    sql="SELECT * FROM HR.EMPLOYEES",
+                    destination_table="NEW_HR.EMPLOYEES",
+                    page_size=2,
+                    insert_args=INSERT_ARGS,
+                    execution_timeout=timedelta(hours=1),
+                )
+
+                operator.execute(context=mock_context(task=operator))
+
+        assert self.mocked_source_hook.get_records.call_count == 3
+        assert (
+            self.mocked_source_hook.get_records.call_args_list[0].args[0]
+            == "SELECT * FROM HR.EMPLOYEES LIMIT 2 OFFSET 0"
+        )
+        assert (
+            self.mocked_source_hook.get_records.call_args_list[1].args[0]
+            == "SELECT * FROM HR.EMPLOYEES LIMIT 2 OFFSET 2"
+        )
+        assert (
+            self.mocked_source_hook.get_records.call_args_list[2].args[0]
+            == "SELECT * FROM HR.EMPLOYEES LIMIT 2 OFFSET 4"
+        )
+        assert self.mocked_destination_hook.insert_rows.call_count == 2
+        assert self.mocked_destination_hook.insert_rows.call_args_list[0].kwargs == {
+            **INSERT_ARGS,
+            **{"rows": [[1, 2], [11, 12], [3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
+        }
+        assert self.mocked_destination_hook.insert_rows.call_args_list[1].kwargs == {
+            **INSERT_ARGS,
+            **{"rows": [[3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
+        }
+
+    def test_deferred_paginated_read(self):
         """
         This unit test is based on the example described in the medium article:
         https://medium.com/apache-airflow/transfering-data-from-sap-hana-to-mssql-using-the-airflow-generictransfer-d29f147a9f1f
@@ -399,6 +442,7 @@ class TestGenericTransfer:
                     page_size=1000,  # Fetch data in chunks of 1000 rows for pagination
                     insert_args=INSERT_ARGS,
                     execution_timeout=timedelta(hours=1),
+                    deferrable=True,
                 )
 
                 results, events = execute_operator(operator)
@@ -413,6 +457,14 @@ class TestGenericTransfer:
         assert (
             self.mocked_source_hook.get_records.call_args_list[0].args[0]
             == "SELECT * FROM HR.EMPLOYEES LIMIT 1000 OFFSET 0"
+        )
+        assert (
+            self.mocked_source_hook.get_records.call_args_list[1].args[0]
+            == "SELECT * FROM HR.EMPLOYEES LIMIT 1000 OFFSET 1000"
+        )
+        assert (
+            self.mocked_source_hook.get_records.call_args_list[2].args[0]
+            == "SELECT * FROM HR.EMPLOYEES LIMIT 1000 OFFSET 2000"
         )
         assert self.mocked_destination_hook.insert_rows.call_count == 2
         assert self.mocked_destination_hook.insert_rows.call_args_list[0].kwargs == {

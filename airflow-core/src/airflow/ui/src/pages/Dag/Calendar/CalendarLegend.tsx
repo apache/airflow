@@ -18,19 +18,22 @@
  */
 import { Box, HStack, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
 import { Tooltip } from "src/components/ui";
 
+import { LegendIcon } from "./LegendIcon";
 import { PLANNED_COLOR } from "./calendarUtils";
 import type { CalendarScale, CalendarColorMode } from "./types";
 
 type Props = {
+  readonly hasDeadlines?: boolean;
   readonly scale: CalendarScale;
   readonly vertical?: boolean;
   readonly viewMode: CalendarColorMode;
 };
 
-export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => {
+export const CalendarLegend = ({ hasDeadlines = false, scale, vertical = false, viewMode }: Props) => {
   const { t: translate } = useTranslation("dag");
 
   const legendTitle =
@@ -54,7 +57,9 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
             <VStack gap={0.5}>
               {[...scale.legendItems].reverse().map(({ color, label }) => (
                 <Tooltip content={`${label} ${viewMode === "failed" ? "failed" : "runs"}`} key={label}>
-                  <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
+                  <Box>
+                    <LegendIcon color={color} cursor="pointer" />
+                  </Box>
                 </Tooltip>
               ))}
             </VStack>
@@ -70,7 +75,9 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
             <HStack gap={0.5}>
               {scale.legendItems.map(({ color, label }) => (
                 <Tooltip content={`${label} ${viewMode === "failed" ? "failed" : "runs"}`} key={label}>
-                  <Box bg={color} borderRadius="2px" cursor="pointer" height="14px" width="14px" />
+                  <Box>
+                    <LegendIcon color={color} cursor="pointer" />
+                  </Box>
                 </Tooltip>
               ))}
             </HStack>
@@ -83,46 +90,79 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
 
       <Box>
         <HStack gap={4} justify="center" wrap="wrap">
+          {viewMode === "total" && (
+            <>
+              <HStack gap={2}>
+                <LegendIcon color={{ _dark: "green.700", _light: "green.400" }} />
+                <Text color="fg.muted" fontSize="xs">
+                  {translate("common:states.success")}
+                </Text>
+              </HStack>
+              <HStack gap={2}>
+                <LegendIcon color={{ _dark: "cyan.700", _light: "cyan.400" }} />
+                <Text color="fg.muted" fontSize="xs">
+                  {translate("common:states.running")}
+                </Text>
+              </HStack>
+            </>
+          )}
+
+          <HStack gap={2}>
+            <LegendIcon color={{ _dark: "red.700", _light: "red.400" }} />
+            <Text color="fg.muted" fontSize="xs">
+              {translate("common:states.failed")}
+            </Text>
+          </HStack>
+
           <HStack gap={2}>
             <Box bg={PLANNED_COLOR} borderRadius="2px" boxShadow="sm" height="14px" width="14px" />
             <Text color="fg.muted" fontSize="xs">
               {translate("common:states.planned")}
             </Text>
           </HStack>
+
           <HStack gap={2}>
-            <Box
-              borderRadius="2px"
-              boxShadow="sm"
-              height="14px"
-              overflow="hidden"
-              position="relative"
-              width="14px"
-            >
-              <Box
-                bg={PLANNED_COLOR}
-                clipPath="polygon(0 100%, 100% 100%, 0 0)"
-                height="100%"
-                position="absolute"
-                width="100%"
-              />
-              <Box
-                bg={
+            <LegendIcon
+              color={{
+                primary:
                   viewMode === "failed"
                     ? { _dark: "red.700", _light: "red.400" }
-                    : { _dark: "green.700", _light: "green.400" }
-                }
-                clipPath="polygon(100% 0, 100% 100%, 0 0)"
-                height="100%"
-                position="absolute"
-                width="100%"
-              />
-            </Box>
+                    : { _dark: "green.700", _light: "green.400" },
+                secondary: PLANNED_COLOR,
+              }}
+            />
             <Text color="fg.muted" fontSize="xs">
-              {translate("calendar.legend.mixed")}
+              {translate("dag:calendar.legend.mixed")}
             </Text>
           </HStack>
         </HStack>
       </Box>
+
+      {Boolean(hasDeadlines) && (
+        <Box mt={4}>
+          <Text color="fg.muted" fontSize="sm" fontWeight="medium" mb={3} textAlign="center">
+            {translate("overview.deadlines.title")}
+          </Text>
+          <HStack gap={4} justify="center" wrap="wrap">
+            <HStack gap={2}>
+              <Box fontSize="sm" lineHeight={1}>
+                <FiClock />
+              </Box>
+              <Text color="fg.muted" fontSize="xs">
+                {translate("deadlineStatus.upcoming")}
+              </Text>
+            </HStack>
+            <HStack gap={2}>
+              <Box fontSize="sm" lineHeight={1}>
+                <FiAlertTriangle />
+              </Box>
+              <Text color="fg.muted" fontSize="xs">
+                {translate("deadlineStatus.missed")}
+              </Text>
+            </HStack>
+          </HStack>
+        </Box>
+      )}
     </Box>
   );
 };

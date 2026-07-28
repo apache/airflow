@@ -17,7 +17,7 @@
 # under the License.
 
 """
-add timetable_type to dag table for filtering.
+Add timetable_type to dag table for filtering.
 
 Revision ID: e79fc784f145
 Revises: 0b112f49112d
@@ -42,12 +42,12 @@ def upgrade():
     """Apply add timetable_type to dag table for filtering."""
     from airflow.migrations.utils import disable_sqlite_fkeys
 
-    with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("timetable_type", sa.String(length=255)))
-
-    op.execute("UPDATE dag SET timetable_type = '' WHERE timetable_type IS NULL")
-
     with disable_sqlite_fkeys(op):
+        with op.batch_alter_table("dag", schema=None) as batch_op:
+            batch_op.add_column(sa.Column("timetable_type", sa.String(length=255)))
+
+        op.execute("UPDATE dag SET timetable_type = '' WHERE timetable_type IS NULL")
+
         with op.batch_alter_table("dag", schema=None) as batch_op:
             batch_op.alter_column("timetable_type", existing_type=sa.String(length=255), nullable=False)
 

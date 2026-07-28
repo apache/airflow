@@ -108,11 +108,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
         command_invocations = response.get("CommandInvocations", [])
 
         if not command_invocations:
-            self.log.info(
-                "No command invocations found",
-                "command_id=%s yet, waiting...",
-                self.command_id,
-            )
+            self.log.info("No command invocations found, command_id=%s yet, waiting...", self.command_id)
             return False
 
         for invocation in command_invocations:

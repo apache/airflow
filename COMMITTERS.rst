@@ -259,16 +259,13 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
    * https://github.com/orgs/apache/teams/airflow-committers/members
    * https://whimsy.apache.org/roster/committee/airflow
 
-5.  Ask in ``#internal-airflow-ci-cd`` channel to be
-    `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_
-    by the CI team. Wait for confirmation that this is done and some helpful tips from the CI team (Temporarily disabled)
-6.  After confirming that step 5 is done, open a PR to include your GitHub ID in:
+5.  After confirming that step 5 is done, open a PR to include your GitHub ID in:
 
     * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
     * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/airflow-core/docs/project.rst>`__.
     * If you had been a collaborator role before getting committer, remove your GitHub ID from ``.asf.yaml``.
 
-7.  Raise a PR to `airflow-site <https://github.com/apache/airflow-site>`_ repository with the following additions:
+6.  Raise a PR to `airflow-site <https://github.com/apache/airflow-site>`_ repository with the following additions:
     (A kind request: If there are other committers who joined around the same time, please create a unified PR for
     all of you together.)
 
@@ -277,7 +274,6 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
     * Post an entry in
       `Announcements <https://github.com/apache/airflow-site/blob/main/landing-pages/site/content/en/announcements/_index.md>`__.
 
-8.  Ask a release manager to make Slack announcement
 
 
 New PMC Member Onboarding steps
@@ -289,4 +285,5 @@ New PMC Member Onboarding steps
 3.  Ask another PMC member to add you to ``#pmc-private`` channel on slack
 4.  Make a PR in https://github.com/apache/airflow-site to move your data from the ``landing-pages/site/data/committers.json``
     to the ``landing-pages/site/data/pmc.json``. if more than one PMC member was added, coordinate with the others
-    to make a single PR for everyone.
+    to make a single PR for everyone. In the same PR, post an entry in
+    `Announcements <https://github.com/apache/airflow-site/blob/main/landing-pages/site/content/en/announcements/_index.md>`__.

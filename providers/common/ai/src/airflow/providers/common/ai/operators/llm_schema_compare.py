@@ -127,6 +127,8 @@ class LLMSchemaCompareOperator(LLMOperator):
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
+        if kwargs.get("require_approval"):
+            raise ValueError("require_approval=True is not supported by LLMSchemaCompareOperator.")
         super().__init__(**kwargs)
         self.data_sources = data_sources or []
         self.db_conn_ids = db_conn_ids or []
@@ -309,7 +311,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             **self.agent_params,
         )
         self.log.info("Running LLM schema comparison...")
-        result = agent.run_sync(self.prompt)
+        result = agent.run_sync(self.prompt, usage_limits=self.usage_limits)
         log_run_summary(self.log, result)
 
         output_result = result.output.model_dump()

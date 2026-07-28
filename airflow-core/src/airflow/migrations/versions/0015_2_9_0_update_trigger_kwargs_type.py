@@ -17,7 +17,7 @@
 # under the License.
 
 """
-update trigger kwargs type and encrypt.
+Update trigger kwargs type and encrypt.
 
 Revision ID: 1949afb29106
 Revises: ee1467d4aa35

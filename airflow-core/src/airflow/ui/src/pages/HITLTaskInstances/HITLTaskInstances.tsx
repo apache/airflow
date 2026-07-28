@@ -16,23 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link, VStack } from "@chakra-ui/react";
+import { HStack, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import type { ReactNode } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
+import { LuPanelRightOpen } from "react-icons/lu";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 import type { HITLDetail } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { HITLReviewDrawer } from "src/components/HITLReview/HITLReviewDrawer.tsx";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { IconButton, RouterLink } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { useAutoRefresh } from "src/utils";
-import { getHITLState } from "src/utils/hitl";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useAutoRefresh, useDocumentTitle } from "src/utils";
+import { getHITLState, isHITLPending } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import { HITLFilters } from "./HITLFilters";
@@ -52,13 +58,50 @@ const {
   TASK_ID_PATTERN,
 }: SearchParamsKeysType = SearchParamsKeys;
 
+const HITLReviewDrawerButton = ({
+  detail,
+  onOpen,
+}: {
+  readonly detail: HITLDetail;
+  readonly onOpen: (detail: HITLDetail) => void;
+}) => {
+  const { t: translate } = useTranslation("hitl");
+
+  return (
+    <IconButton label={translate("review.openReviewDrawer")} onClick={() => onOpen(detail)}>
+      <LuPanelRightOpen />
+    </IconButton>
+  );
+};
+
+const useHITLReviewDrawer = () => {
+  const [selectedDetail, setSelectedDetail] = useState<HITLDetail | undefined>(undefined);
+
+  const openHITLReviewDrawer = (detail: HITLDetail) => {
+    setSelectedDetail(detail);
+  };
+
+  const closeHITLReviewDrawer = () => {
+    setSelectedDetail(undefined);
+  };
+
+  return {
+    closeHITLReviewDrawer,
+    isHITLReviewDrawerOpen: selectedDetail !== undefined,
+    openHITLReviewDrawer,
+    selectedDetail,
+  };
+};
+
 const taskInstanceColumns = ({
   dagId,
+  renderHITLReviewDrawerButton,
   runId,
   taskId,
   translate,
 }: {
   dagId?: string;
+  renderHITLReviewDrawerButton?: (detail: HITLDetail) => ReactNode;
   runId?: string;
   taskId?: string;
   translate: TFunction;
@@ -66,18 +109,23 @@ const taskInstanceColumns = ({
   {
     accessorKey: "task_instance_state",
     cell: ({ row: { original } }: HITLRow) => (
-      <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
+      <HStack justifyContent="space-between">
+        <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
+        {renderHITLReviewDrawerButton?.(original)}
+      </HStack>
     ),
     header: translate("requiredActionState"),
   },
   {
     accessorKey: "subject",
     cell: ({ row: { original } }: HITLRow) => (
-      <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
-          <TruncatedText text={original.subject} />
-        </RouterLink>
-      </Link>
+      <RouterLink
+        fontWeight="bold"
+        onClick={(event) => event.stopPropagation()}
+        to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+      >
+        <TruncatedText text={original.subject} />
+      </RouterLink>
     ),
     header: translate("subject"),
   },
@@ -87,11 +135,12 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_instance.dag_id",
           cell: ({ row: { original } }: HITLRow) => (
-            <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
-                <TruncatedText text={original.task_instance.dag_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink
+              onClick={(event) => event.stopPropagation()}
+              to={`/dags/${original.task_instance.dag_id}`}
+            >
+              <TruncatedText text={original.task_instance.dag_display_name} />
+            </RouterLink>
           ),
           enableSorting: false,
           header: translate("common:dagId"),
@@ -103,13 +152,12 @@ const taskInstanceColumns = ({
         {
           accessorKey: "run_id",
           cell: ({ row: { original } }: HITLRow) => (
-            <Link asChild color="fg.info">
-              <RouterLink
-                to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
-              >
-                <TruncatedText text={original.task_instance.dag_run_id} />
-              </RouterLink>
-            </Link>
+            <RouterLink
+              onClick={(event) => event.stopPropagation()}
+              to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
+            >
+              <TruncatedText text={original.task_instance.dag_run_id} />
+            </RouterLink>
           ),
           header: translate("common:dagRunId"),
         },
@@ -129,11 +177,13 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: HITLRow) => (
-            <Link asChild color="fg.info" fontWeight="bold">
-              <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
-                <TruncatedText text={original.task_instance.task_display_name} />
-              </RouterLink>
-            </Link>
+            <RouterLink
+              fontWeight="bold"
+              onClick={(event) => event.stopPropagation()}
+              to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}
+            >
+              <TruncatedText text={original.task_instance.task_display_name} />
+            </RouterLink>
           ),
           header: translate("common:taskId"),
         },
@@ -165,9 +215,19 @@ const taskInstanceColumns = ({
   },
 ];
 
-export const HITLTaskInstances = () => {
+export const HITLTaskInstances = ({
+  enableHITLReviewDrawer = false,
+}: {
+  readonly enableHITLReviewDrawer?: boolean;
+}) => {
   const { t: translate } = useTranslation("hitl");
   const { dagId, runId, taskId } = useParams();
+
+  // Only the standalone required-actions page owns the tab title; nested tabs inherit their parent's.
+  useDocumentTitle(enableHITLReviewDrawer ? translate("common:browse.requiredActions") : undefined);
+
+  const { closeHITLReviewDrawer, isHITLReviewDrawerOpen, openHITLReviewDrawer, selectedDetail } =
+    useHITLReviewDrawer();
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -181,7 +241,7 @@ export const HITLTaskInstances = () => {
   const createdAtLte = searchParams.get(CREATED_AT_LTE) ?? undefined;
   const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
   const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
-  const mapIndex = searchParams.get(MAP_INDEX) ?? "-1";
+  const mapIndexParam = searchParams.get(MAP_INDEX);
   const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
   const respondedByUserName = searchParams.get(RESPONDED_BY_USER_NAME) ?? undefined;
   const subjectSearch = searchParams.get(SUBJECT_SEARCH) ?? undefined;
@@ -189,16 +249,29 @@ export const HITLTaskInstances = () => {
   // Use the filter value if available, otherwise fall back to the old responseReceived param
   const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
 
+  const dagIdArg = useAdvancedSearchArg({
+    patternApiKey: "dagIdPattern",
+    prefixApiKey: "dagIdPrefixPattern",
+    storageKey: DAG_DISPLAY_NAME_PATTERN,
+    value: dagIdPattern,
+  });
+  const taskIdArg = useAdvancedSearchArg({
+    patternApiKey: "taskIdPattern",
+    prefixApiKey: "taskIdPrefixPattern",
+    storageKey: TASK_ID_PATTERN,
+    value: taskIdPattern,
+  });
+
   const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
       bodySearch,
       createdAtGte,
       createdAtLte,
       dagId: dagId ?? "~",
-      dagIdPattern,
+      ...dagIdArg,
       dagRunId: runId ?? "~",
       limit: pagination.pageSize,
-      mapIndex: parseInt(mapIndex, 10),
+      mapIndex: mapIndexParam === null ? undefined : parseInt(mapIndexParam, 10),
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
       respondedByUserName: respondedByUserName === undefined ? undefined : [respondedByUserName],
@@ -206,24 +279,23 @@ export const HITLTaskInstances = () => {
         Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
           ? effectiveResponseReceived === "true"
           : undefined,
-      state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
+      state: effectiveResponseReceived === "false" ? ["deferred", "awaiting_input"] : undefined,
       subjectSearch,
       taskId,
-      taskIdPattern,
+      ...taskIdArg,
     },
     undefined,
     {
       // Only continue auto-refetching when filtering for unreceived responses
-      // and at least one TaskInstance is still deferred without a response.
+      // and at least one TaskInstance is still pending (parked) without a response.
       refetchInterval: (query) => {
-        const hasDeferredWithoutResponse = Boolean(
+        const hasPendingWithoutResponse = Boolean(
           query.state.data?.hitl_details.some(
-            (detail: HITLDetail) =>
-              detail.responded_at === undefined && detail.task_instance.state === "deferred",
+            (detail: HITLDetail) => detail.responded_at === null && isHITLPending(detail.task_instance.state),
           ),
         );
 
-        return hasDeferredWithoutResponse ? baseRefetchInterval : false;
+        return hasPendingWithoutResponse ? baseRefetchInterval : false;
       },
     },
   );
@@ -239,6 +311,9 @@ export const HITLTaskInstances = () => {
 
   const columns = taskInstanceColumns({
     dagId,
+    renderHITLReviewDrawerButton: enableHITLReviewDrawer
+      ? (detail) => <HITLReviewDrawerButton detail={detail} onOpen={openHITLReviewDrawer} />
+      : undefined,
     runId,
     taskId,
     translate,
@@ -257,6 +332,13 @@ export const HITLTaskInstances = () => {
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
+      {enableHITLReviewDrawer ? (
+        <HITLReviewDrawer
+          detail={selectedDetail}
+          onClose={closeHITLReviewDrawer}
+          open={isHITLReviewDrawerOpen}
+        />
+      ) : null}
     </VStack>
   );
 };

@@ -23,7 +23,6 @@ from collections.abc import MutableSequence, Sequence
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
-from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataplex_v1 import (
     DataplexServiceClient,
@@ -115,26 +114,26 @@ class DataplexHook(GoogleBaseHook, OperationHelper):
 
     def get_dataplex_client(self) -> DataplexServiceClient:
         """Return DataplexServiceClient."""
-        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
-
         return DataplexServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
         )
 
     def get_dataplex_data_scan_client(self) -> DataScanServiceClient:
         """Return DataScanServiceClient."""
-        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
-
         return DataScanServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
         )
 
     def get_dataplex_catalog_client(self) -> CatalogServiceClient:
         """Return CatalogServiceClient."""
-        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
-
         return CatalogServiceClient(
-            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
@@ -1906,12 +1905,12 @@ class DataplexAsyncHook(GoogleBaseAsyncHook):
 
     async def get_dataplex_data_scan_client(self) -> DataScanServiceAsyncClient:
         """Return DataScanServiceAsyncClient."""
-        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
+        sync_hook = await self.get_sync_hook()
 
         return DataScanServiceAsyncClient(
-            credentials=(await self.get_sync_hook()).get_credentials(),
+            credentials=sync_hook.get_credentials(),
             client_info=CLIENT_INFO,
-            client_options=client_options,
+            client_options=sync_hook.get_client_options(),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id

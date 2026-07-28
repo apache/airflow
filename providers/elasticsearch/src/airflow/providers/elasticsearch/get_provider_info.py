@@ -151,6 +151,13 @@ def get_provider_info():
                         "example": None,
                         "default": "1000",
                     },
+                    "es_compat_with": {
+                        "description": 'Pin the ``compatible-with`` HTTP content-negotiation level used by the\nElasticsearch client. Accepts a server major version string (e.g. ``"7"``,\n``"8"``, ``"9"``). When unset, the elasticsearch-py client negotiates its\nown major version, which makes an ``elasticsearch>=9`` client (the default\nfor fresh installs) incompatible with Elasticsearch 8.x servers — every\nrequest is rejected with HTTP 400 ``media_type_header_exception``.\nSetting this option keeps a single Airflow image compatible with both\n``elasticsearch<9`` and ``elasticsearch>=9`` servers.\n',
+                        "version_added": "6.5.4",
+                        "type": "string",
+                        "example": "8",
+                        "default": "",
+                    },
                 },
             },
             "elasticsearch_configs": {

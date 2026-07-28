@@ -58,7 +58,7 @@ spec:
   {{- end }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.pgbouncer.hosts | default (list .Values.ingress.pgbouncer.host) }}
+    {{- range .Values.ingress.pgbouncer.hosts | default (list "") }}
     - http:
         paths:
           - backend:

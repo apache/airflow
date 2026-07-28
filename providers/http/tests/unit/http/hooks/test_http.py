@@ -29,7 +29,6 @@ import aiohttp
 import pytest
 import requests
 import tenacity
-from aioresponses import aioresponses
 from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
@@ -38,14 +37,7 @@ from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, _process_extra_options_from_connection
 
-
-@pytest.fixture
-def aioresponse():
-    """
-    Creates mock async API response.
-    """
-    with aioresponses() as async_response:
-        yield async_response
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 
 
 def get_airflow_dummy_connection(conn_id: str = "http_default"):
@@ -694,37 +686,59 @@ class TestHttpAsyncHook:
         create_connection_without_db(Connection(conn_id="http_empty_conn", conn_type="http"))
 
     @pytest.mark.asyncio
-    async def test_do_api_call_async_non_retryable_error(self, aioresponse):
+    async def test_do_api_call_async_non_retryable_error(self):
         """Test api call asynchronously with non retryable error."""
         hook = HttpAsyncHook(method="GET")
-        aioresponse.get("http://httpbin.org/non_existent_endpoint", status=400)
 
-        with (
-            pytest.raises(AirflowException, match="400:Bad Request"),
-            mock.patch.dict(
+        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
+            mocked_get.return_value = MockAiohttpClientResponse(
+                status=400,
+                reason="Bad Request",
+                method="GET",
+                url="http://httpbin.org/non_existent_endpoint",
+            )
+            with mock.patch.dict(
                 "os.environ",
                 AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
-            ),
-        ):
-            async with aiohttp.ClientSession() as session:
-                await hook.run(session=session, endpoint="non_existent_endpoint")
+            ):
+                async with aiohttp.ClientSession() as session:
+                    with pytest.raises(AirflowException, match="400:Bad Request"):
+                        await hook.run(session=session, endpoint="non_existent_endpoint")
 
     @pytest.mark.asyncio
-    async def test_do_api_call_async_retryable_error(self, caplog, aioresponse):
+    async def test_do_api_call_async_retryable_error(self, caplog):
         """Test api call asynchronously with retryable error."""
         caplog.set_level(logging.WARNING, logger="airflow.providers.http.hooks.http")
         hook = HttpAsyncHook(method="GET")
-        aioresponse.get("http://httpbin.org/non_existent_endpoint", status=500, repeat=True)
 
-        with (
-            pytest.raises(AirflowException, match="500:Internal Server Error"),
-            mock.patch.dict(
+        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
+            mocked_get.side_effect = [
+                MockAiohttpClientResponse(
+                    status=500,
+                    reason="Internal Server Error",
+                    method="GET",
+                    url="http://httpbin.org/non_existent_endpoint",
+                ),
+                MockAiohttpClientResponse(
+                    status=500,
+                    reason="Internal Server Error",
+                    method="GET",
+                    url="http://httpbin.org/non_existent_endpoint",
+                ),
+                MockAiohttpClientResponse(
+                    status=500,
+                    reason="Internal Server Error",
+                    method="GET",
+                    url="http://httpbin.org/non_existent_endpoint",
+                ),
+            ]
+            with mock.patch.dict(
                 "os.environ",
                 AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
-            ),
-        ):
-            async with aiohttp.ClientSession() as session:
-                await hook.run(session=session, endpoint="non_existent_endpoint")
+            ):
+                async with aiohttp.ClientSession() as session:
+                    with pytest.raises(AirflowException, match="500:Internal Server Error"):
+                        await hook.run(session=session, endpoint="non_existent_endpoint")
 
         assert "[Try 3 of 3] Request to http://httpbin.org/non_existent_endpoint failed" in caplog.text
 
@@ -743,12 +757,12 @@ class TestHttpAsyncHook:
         """Test api call asynchronously for POST request."""
         hook = HttpAsyncHook()
 
-        with aioresponses() as m:
-            m.get(
-                "http://test:8080/v1/test",
+        with mock.patch("aiohttp.ClientSession.get", new_callable=mock.AsyncMock) as mocked_get:
+            mocked_get.return_value = MockAiohttpClientResponse(
                 status=200,
-                payload='{"status":{"status": 200}}',
-                reason="OK",
+                payload={"status": {"status": 200}},
+                method="GET",
+                url="http://test:8080/v1/test",
             )
             async with hook.session(method="GET") as session:
                 resp = await session.run(endpoint="v1/test")
@@ -759,12 +773,12 @@ class TestHttpAsyncHook:
         """Test api call asynchronously for POST request."""
         hook = HttpAsyncHook()
 
-        with aioresponses() as m:
-            m.post(
-                "http://test:8080/v1/test",
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_post:
+            mocked_post.return_value = MockAiohttpClientResponse(
                 status=200,
-                payload='{"status":{"status": 200}}',
-                reason="OK",
+                payload={"status": {"status": 200}},
+                method="POST",
+                url="http://test:8080/v1/test",
             )
             async with aiohttp.ClientSession() as session:
                 resp = await hook.run(session=session, endpoint="v1/test")
@@ -775,12 +789,13 @@ class TestHttpAsyncHook:
         """Test api call asynchronously for POST request with error."""
         hook = HttpAsyncHook()
 
-        with aioresponses() as m:
-            m.post(
-                "http://test:8080/v1/test",
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_post:
+            mocked_post.return_value = MockAiohttpClientResponse(
                 status=418,
-                payload='{"status":{"status": 418}}',
                 reason="I am teapot",
+                payload={"status": {"status": 418}},
+                method="POST",
+                url="http://test:8080/v1/test",
             )
             async with aiohttp.ClientSession() as session:
                 with pytest.raises(AirflowException):
@@ -792,22 +807,20 @@ class TestHttpAsyncHook:
 
         connection_extra = {"bearer": "test"}
 
-        with aioresponses() as m:
-            m.post(
-                "http://test:8080/v1/test",
+        hook = HttpAsyncHook()
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+            mocked_function.return_value = MockAiohttpClientResponse(
                 status=200,
-                payload='{"status":{"status": 200}}',
-                reason="OK",
+                payload={"status": {"status": 200}},
+                method="POST",
+                url="http://test:8080/v1/test",
             )
-
-            hook = HttpAsyncHook()
-            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
-                async with aiohttp.ClientSession() as session:
-                    await hook.run(session=session, endpoint="v1/test")
-                    headers = mocked_function.call_args.kwargs.get("headers")
-                    assert all(
-                        key in headers and headers[key] == value for key, value in connection_extra.items()
-                    )
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="v1/test")
+                headers = mocked_function.call_args.kwargs.get("headers")
+                assert all(
+                    key in headers and headers[key] == value for key, value in connection_extra.items()
+                )
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -834,27 +847,25 @@ class TestHttpAsyncHook:
 
         hook = HttpAsyncHook(http_conn_id="http_conn_with_extras")
 
-        with aioresponses() as m:
-            m.post(
-                "http://test:8080/v1/test",
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+            mocked_function.return_value = MockAiohttpClientResponse(
                 status=200,
-                payload='{"status":{"status": 200}}',
-                reason="OK",
+                payload={"status": {"status": 200}},
+                method="POST",
+                url="http://test:8080/v1/test",
             )
-
-            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
-                async with aiohttp.ClientSession() as session:
-                    await hook.run(session=session, endpoint="v1/test")
-                    headers = mocked_function.call_args.kwargs.get("headers")
-                    assert all(
-                        key in headers and headers[key] == value for key, value in connection_extra.items()
-                    )
-                    assert mocked_function.call_args.kwargs.get("proxy") == proxy
-                    assert mocked_function.call_args.kwargs.get("timeout") == 60
-                    assert mocked_function.call_args.kwargs.get("verify_ssl") is False
-                    assert mocked_function.call_args.kwargs.get("allow_redirects") is False
-                    assert mocked_function.call_args.kwargs.get("max_redirects") == 3
-                    assert mocked_function.call_args.kwargs.get("trust_env") is False
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="v1/test")
+                headers = mocked_function.call_args.kwargs.get("headers")
+                assert all(
+                    key in headers and headers[key] == value for key, value in connection_extra.items()
+                )
+                assert mocked_function.call_args.kwargs.get("proxy") == proxy
+                assert mocked_function.call_args.kwargs.get("timeout") == 60
+                assert mocked_function.call_args.kwargs.get("verify_ssl") is False
+                assert mocked_function.call_args.kwargs.get("allow_redirects") is False
+                assert mocked_function.call_args.kwargs.get("max_redirects") == 3
+                assert mocked_function.call_args.kwargs.get("trust_env") is False
 
     @pytest.mark.asyncio
     async def test_build_request_url_from_connection(self):
@@ -862,15 +873,13 @@ class TestHttpAsyncHook:
         schema = conn.schema or "http"  # default to http
         hook = HttpAsyncHook()
 
-        with aioresponses() as m:
-            m.post(
-                f"{schema}://test:8080/v1/test",
-                status=200,
-                payload='{"status":{"status": 200}}',
-                reason="OK",
-            )
-
         with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+            mocked_function.return_value = MockAiohttpClientResponse(
+                status=200,
+                payload={"status": {"status": 200}},
+                method="POST",
+                url=f"{schema}://test:8080/v1/test",
+            )
             async with aiohttp.ClientSession() as session:
                 await hook.run(session=session, endpoint="v1/test")
                 assert mocked_function.call_args.args[0] == f"{schema}://{conn.host}v1/test"
@@ -879,14 +888,13 @@ class TestHttpAsyncHook:
     async def test_build_request_url_from_endpoint_param(self):
         hook = HttpAsyncHook(http_conn_id="http_empty_conn")
 
-        with aioresponses() as m:
-            m.post(
-                "http://test.com:8080/v1/test", status=200, payload='{"status":{"status": 200}}', reason="OK"
+        with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+            mocked_function.return_value = MockAiohttpClientResponse(
+                status=200,
+                payload={"status": {"status": 200}},
+                method="POST",
+                url="http://test.com:8080/v1/test",
             )
-
-            with (
-                mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function,
-            ):
-                async with aiohttp.ClientSession() as session:
-                    await hook.run(session=session, endpoint="test.com:8080/v1/test")
-                    assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"
+            async with aiohttp.ClientSession() as session:
+                await hook.run(session=session, endpoint="test.com:8080/v1/test")
+                assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"

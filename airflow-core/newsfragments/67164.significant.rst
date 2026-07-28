@@ -1,0 +1,34 @@
+SDK temporal partition mappers: ``timezone`` kwarg and keyword-only constructor
+
+``StartOfHourMapper``, ``StartOfDayMapper``, ``StartOfWeekMapper``,
+``StartOfMonthMapper``, ``StartOfQuarterMapper``, and ``StartOfYearMapper``
+(imported from ``airflow.sdk``) now accept a ``timezone`` keyword argument,
+matching the core ``_BaseTemporalMapper`` signature. The constructor is now
+keyword-only.
+
+**Behaviour changes:**
+
+- ``input_format`` and ``output_format`` are no longer accepted positionally.
+  Callers that relied on ``StartOfDayMapper("%Y-%m-%dT%H:%M:%S")`` (valid in
+  ``task-sdk`` 1.2.1) must switch to
+  ``StartOfDayMapper(input_format="%Y-%m-%dT%H:%M:%S")``.
+- A string ``timezone`` is now resolved via ``parse_timezone`` at
+  construction, so unknown names raise ``pendulum.tz.exceptions.InvalidTimezone``
+  immediately instead of being stored verbatim and failing later (or, in some
+  paths, being silently dropped during serialization).
+
+**Migration:**
+
+- Update any ``StartOf*Mapper(...)`` call sites to pass ``input_format`` and
+  ``output_format`` by name.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes

@@ -44,7 +44,7 @@ class DataformHook(GoogleBaseHook):
 
     def get_dataform_client(self) -> DataformClient:
         """Retrieve client library object that allow access to Cloud Dataform service."""
-        return DataformClient(credentials=self.get_credentials())
+        return DataformClient(credentials=self.get_credentials(), client_options=self.get_client_options())
 
     @GoogleBaseHook.fallback_to_default_project_id
     def wait_for_workflow_invocation(
@@ -187,6 +187,8 @@ class DataformHook(GoogleBaseHook):
         """
         client = self.get_dataform_client()
         parent = f"projects/{project_id}/locations/{region}/repositories/{repository_id}"
+        if isinstance(workflow_invocation, dict):
+            workflow_invocation = WorkflowInvocation(workflow_invocation)
         return client.create_workflow_invocation(
             request={"parent": parent, "workflow_invocation": workflow_invocation},
             retry=retry,

@@ -40,9 +40,7 @@ log = structlog.get_logger(logger_name=__name__)
 
 
 def execute_workload(workload: ExecuteTask) -> None:
-    from airflow.executors import workloads
-    from airflow.sdk.configuration import conf
-    from airflow.sdk.execution_time.supervisor import supervise
+    from airflow.executors.base_executor import BaseExecutor
     from airflow.sdk.log import configure_logging
     from airflow.settings import dispose_orm
 
@@ -50,28 +48,10 @@ def execute_workload(workload: ExecuteTask) -> None:
 
     configure_logging(output=sys.stdout.buffer, json_output=True)
 
-    if not isinstance(workload, workloads.ExecuteTask):
-        raise ValueError(f"Executor does not know how to handle {type(workload)}")
-
     log.info("Executing workload", workload=workload)
 
-    base_url = conf.get("api", "base_url", fallback="/")
-    # If it's a relative URL, use localhost:8080 as the default
-    if base_url.startswith("/"):
-        base_url = f"http://localhost:8080{base_url}"
-    default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
-    server = conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
-    log.info("Connecting to server:", server=server)
-
-    supervise(
-        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-        ti=workload.ti,  # type: ignore[arg-type]
-        dag_rel_path=workload.dag_rel_path,
-        bundle_info=workload.bundle_info,
-        token=workload.token,
-        server=server,
-        log_path=workload.log_path,
-        sentry_integration=workload.sentry_integration,
+    BaseExecutor.run_workload(
+        workload,
         # Include the output of the task to stdout too, so that in process logs can be read from via the
         # kubeapi as pod logs.
         subprocess_logs_to_stdout=True,

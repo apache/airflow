@@ -32,7 +32,6 @@ export const QuickFilterButton = ({ children, isActive, ...rest }: QuickFilterBu
     color="colorPalette.fg"
     data-testid="quick-filter-button"
     fontWeight="normal"
-    size="sm"
     variant={isActive ? "solid" : "outline"}
     {...rest}
   >

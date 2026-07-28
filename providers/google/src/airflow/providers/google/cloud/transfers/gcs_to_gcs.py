@@ -31,6 +31,9 @@ from airflow.providers.google.version_compat import BaseOperator
 WILDCARD = "*"
 
 if TYPE_CHECKING:
+    from datetime import datetime
+    from typing import Any
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -96,6 +99,14 @@ class GCSToGCSOperator(BaseOperator):
         copied.
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string (
         e.g, ``'**/*/.json'``)
+    :param retain_until_time: (Optional) A datetime specifying until when the destination
+        objects should be retained. Requires the destination bucket to have object retention
+        enabled. The retention is applied after each object is copied/moved.
+        The value is passed to the GCS client as-is; timezone handling follows the
+        GCS client behavior.
+    :param retention_mode: (Optional) The retention mode for destination objects.
+        Must be ``"Locked"`` or ``"Unlocked"``. Defaults to ``"Unlocked"`` when
+        ``retain_until_time`` is set. Cannot be provided without ``retain_until_time``.
 
     :Example:
 
@@ -199,6 +210,8 @@ class GCSToGCSOperator(BaseOperator):
         source_object_required=False,
         exact_match=False,
         match_glob: str | None = None,
+        retain_until_time: datetime | None = None,
+        retention_mode: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -237,6 +250,8 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
+        self.retain_until_time = retain_until_time
+        self.retention_mode = retention_mode
 
     def execute(self, context: Context) -> list[str]:
         hook = GCSHook(
@@ -416,11 +431,20 @@ class GCSToGCSOperator(BaseOperator):
         # and copy directly
         if len(objects) == 0 and prefix:
             if hook.exists(self.source_bucket, prefix):
-                uri = self._copy_single_object(
-                    hook=hook, source_object=prefix, destination_object=self.destination_object
-                )
-                if uri:
-                    result_uris.append(uri)
+                # `objects` may have been emptied by _ignore_existing_files; respect replace=False here too.
+                destination_object = self.destination_object or prefix
+                if not self.replace and hook.exists(self.destination_bucket, destination_object):
+                    self.log.info(
+                        "Skipped object %s; already exists in destination bucket %s.",
+                        destination_object,
+                        self.destination_bucket,
+                    )
+                else:
+                    uri = self._copy_single_object(
+                        hook=hook, source_object=prefix, destination_object=self.destination_object
+                    )
+                    if uri:
+                        result_uris.append(uri)
             elif self.source_object_required:
                 msg = f"{prefix} does not exist in bucket {self.source_bucket}"
                 self.log.warning(msg)
@@ -566,7 +590,18 @@ class GCSToGCSOperator(BaseOperator):
             dest_bucket,
             destination_object,
         )
-        hook.rewrite(self.source_bucket, source_object, dest_bucket, destination_object)
+        rewrite_kwargs: dict[str, Any] = {}
+        if self.retain_until_time is not None:
+            rewrite_kwargs["retain_until_time"] = self.retain_until_time
+            if self.retention_mode is not None:
+                rewrite_kwargs["retention_mode"] = self.retention_mode
+        hook.rewrite(
+            self.source_bucket,
+            source_object,
+            dest_bucket,
+            destination_object,
+            **rewrite_kwargs,
+        )
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)

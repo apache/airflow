@@ -42,13 +42,20 @@ class TestNoteBook:
 class TestPapermillOperator:
     """Test PapermillOperator."""
 
+    def test_init_does_not_validate_notebooks(self):
+        """__init__ must not validate template fields; input_nb/output_nb are rendered after construction."""
+        op = PapermillOperator(task_id="missing_input_nb", output_nb="foo-bar")
+        assert op.input_nb is None
+        op = PapermillOperator(task_id="missing_output_nb", input_nb="foo-bar")
+        assert op.output_nb is None
+
     def test_mandatory_attributes(self):
-        """Test missing Input or Output notebooks."""
+        """Test missing Input or Output notebooks are validated at execute() time, after templating."""
         with pytest.raises(ValueError, match="Input notebook is not specified"):
-            PapermillOperator(task_id="missing_input_nb", output_nb="foo-bar")
+            PapermillOperator(task_id="missing_input_nb", output_nb="foo-bar").execute(context={})
 
         with pytest.raises(ValueError, match="Output notebook is not specified"):
-            PapermillOperator(task_id="missing_input_nb", input_nb="foo-bar")
+            PapermillOperator(task_id="missing_output_nb", input_nb="foo-bar").execute(context={})
 
     @pytest.mark.parametrize(
         ("output_nb_url", "output_as_object"),
@@ -118,6 +125,7 @@ class TestPapermillOperator:
             language=language_name,
             progress_bar=False,
             report_mode=True,
+            log_output=False,
             engine_name=None,
         )
 
@@ -166,6 +174,7 @@ class TestPapermillOperator:
             language=language_name,
             progress_bar=False,
             report_mode=True,
+            log_output=False,
             engine_name=REMOTE_KERNEL_ENGINE,
             kernel_session_key="notebooks",
             kernel_shell_port=JUPYTER_KERNEL_SHELL_PORT,
@@ -175,6 +184,20 @@ class TestPapermillOperator:
             kernel_hb_port=JUPYTER_KERNEL_HB_PORT,
             kernel_ip="127.0.0.1",
         )
+
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_with_log_output(self, mock_papermill):
+        from airflow.providers.papermill.operators.papermill import PapermillOperator
+
+        op = PapermillOperator(
+            input_nb="/tmp/in.ipynb",
+            output_nb="/tmp/out.ipynb",
+            task_id="test_log_output",
+            log_output=True,
+        )
+        op.execute(context={})
+        call_kwargs = mock_papermill.execute_notebook.call_args
+        assert call_kwargs.kwargs["log_output"] is True
 
     @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):

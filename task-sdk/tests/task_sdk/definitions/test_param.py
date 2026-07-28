@@ -138,6 +138,39 @@ class TestParam:
         with pytest.raises(ParamValidationError, match="is not a 'date'"):
             Param(date_string, type="string", format="date").resolve()
 
+    @pytest.mark.parametrize(
+        "duration",
+        [
+            pytest.param("PT15M", id="minutes-only"),
+            pytest.param("P1Y", id="years-only"),
+            pytest.param("P1W", id="weeks-only"),
+            pytest.param("P1D", id="days-only"),
+            pytest.param("PT1H", id="hours-only"),
+            pytest.param("PT30S", id="seconds-only"),
+            pytest.param("P1DT2H", id="days-and-hours"),
+            pytest.param("P1Y2M3DT4H5M6S", id="full-duration"),
+            pytest.param("PT1.5H", id="fractional-hours-dot"),
+        ],
+    )
+    def test_string_duration_format(self, duration):
+        """Test valid ISO 8601 duration strings."""
+        assert Param(duration, type="string", format="duration").resolve() == duration
+
+    @pytest.mark.parametrize(
+        "duration",
+        [
+            pytest.param("P", id="bare-P"),
+            pytest.param("PT", id="bare-PT"),
+            pytest.param("invalid", id="plain-text"),
+            pytest.param("15M", id="missing-P-prefix"),
+            pytest.param("1Y2M", id="no-P-prefix"),
+        ],
+    )
+    def test_string_duration_format_error(self, duration):
+        """Test invalid ISO 8601 duration strings."""
+        with pytest.raises(ParamValidationError, match="is not a 'duration'"):
+            Param(duration, type="string", format="duration").resolve()
+
     def test_int_param(self):
         p = Param(5)
         assert p.resolve() == 5

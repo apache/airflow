@@ -19,7 +19,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiBarChart, FiCode, FiUser, FiCalendar } from "react-icons/fi";
+import { FiBarChart, FiCode, FiCalendar } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
@@ -29,10 +29,9 @@ import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "opena
 import { ApiError } from "openapi/requests/core/ApiError";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
-import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
 import { DagNotFound } from "./DagNotFound";
 import { Header } from "./Header";
@@ -49,7 +48,6 @@ export const Dag = () => {
     { icon: <FiBarChart />, label: translate("tabs.runs"), value: "runs" },
     { icon: <TaskIcon />, label: translate("tabs.tasks"), value: "tasks" },
     { icon: <FiCalendar />, label: translate("tabs.calendar"), value: "calendar" },
-    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     { icon: <RiArrowGoBackFill />, label: translate("tabs.backfills"), value: "backfills" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
@@ -86,9 +84,11 @@ export const Dag = () => {
     },
   );
 
+  useDocumentTitle(dag?.dag_display_name ?? dagId);
+
   // Ensures continuous refresh to detect new runs when there's no
   // pending state and new runs are initiated from other page
-  useRefreshOnNewDagRuns(dagId, hasPendingRuns);
+  useRefreshOnNewDagRuns(dagId, hasPendingRuns, dag?.is_paused);
 
   const {
     data: latestRun,
@@ -121,14 +121,7 @@ export const Dag = () => {
     },
   );
 
-  const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
-    refetchInterval:
-      (dag?.active_runs_count ?? 0) > 0 || (latestRun && isStatePending(latestRun.state))
-        ? refetchInterval
-        : false,
-  });
-
-  const displayTabs = processedTabs.filter((tab) => {
+  const displayTabs = tabs.filter((tab) => {
     if (dag?.timetable_summary === null && tab.value === "backfills") {
       return false;
     }

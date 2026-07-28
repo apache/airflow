@@ -45,6 +45,9 @@ def get_latest_prometheus_statsd_exporter_version() -> str:
         # Skip "v0"
         if name == "v0":
             continue
+        # Skip the ones advertised as distroless
+        if "distroless" in name:
+            continue
         return name
     raise RuntimeError("ERROR! No version found")
 

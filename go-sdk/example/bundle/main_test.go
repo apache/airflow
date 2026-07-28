@@ -52,6 +52,8 @@ var _ sdk.VariableClient = (*mockVars)(nil)
 func Test_transform(t *testing.T) {
 	log := slog.Default()
 	// This is not the best test, but it is a good proof of concept -- you can just call the function.
-	err := transform(context.Background(), &mockVars{}, log)
+	// sdk.NewTIRunContext wraps any context to build a TIRunContext in a test.
+	ctx := sdk.NewTIRunContext(context.Background(), sdk.TaskInstance{}, sdk.DagRun{})
+	err := transform(ctx, &mockVars{}, log)
 	assert.NoError(t, err)
 }

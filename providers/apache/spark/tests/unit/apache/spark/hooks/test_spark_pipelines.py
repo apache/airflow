@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -183,3 +184,132 @@ class TestSparkPipelinesHook:
         with patch.object(self.hook, "submit_pipeline") as mock_submit_pipeline:
             self.hook.submit("dummy_application")
             mock_submit_pipeline.assert_called_once()
+
+    # ------------------------------------------------------------------ #
+    # Spark Connect path: spark_connect-typed conn_id should bypass the   #
+    # spark-submit launcher and the cluster-manager flags entirely, and   #
+    # set SPARK_REMOTE in the subprocess environment instead.             #
+    # ------------------------------------------------------------------ #
+
+    @patch(
+        "airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook.get_connection_url",
+        return_value="sc://spark-connect.example:15002/",
+    )
+    @patch("airflow.providers.apache.spark.hooks.spark_pipelines.SparkPipelinesHook.get_connection")
+    def test_build_pipelines_command_spark_connect_skips_cluster_args(
+        self, mock_get_connection, mock_get_url
+    ):
+        spark_connect_conn = MagicMock()
+        spark_connect_conn.conn_type = "spark_connect"
+        spark_connect_conn.host = "spark-connect.example"
+        spark_connect_conn.port = 15002
+        spark_connect_conn.login = None
+        spark_connect_conn.password = None
+        # SparkSubmitHook.__init__ -> _resolve_connection() reads
+        # extra_dejson.get("queue"|"deploy-mode"|"spark-binary"|"namespace");
+        # an empty dict makes it default-and-skip cleanly.
+        spark_connect_conn.extra_dejson = {}
+        mock_get_connection.return_value = spark_connect_conn
+
+        hook = SparkPipelinesHook(
+            pipeline_spec="test_pipeline.yml",
+            pipeline_command="run",
+            conn_id="spark_connect_default",
+            num_executors=2,
+            executor_memory="2G",
+            deploy_mode="client",
+        )
+
+        cmd = hook._build_spark_pipelines_command()
+
+        # Connect-native CLI is invoked via the python module — bypassing the
+        # bash launcher that would otherwise start a colliding JVM Connect server.
+        assert cmd[:3] == [sys.executable, "-m", "pyspark.pipelines.cli"]
+        assert "run" in cmd
+        assert "--spec" in cmd
+        assert "test_pipeline.yml" in cmd
+        # Cluster-manager args MUST NOT appear: the Connect-native CLI rejects
+        # them with `Remote cannot be specified with master and/or deploy mode`.
+        assert "--master" not in cmd
+        assert "--deploy-mode" not in cmd
+        assert "--name" not in cmd
+        assert "--num-executors" not in cmd
+        assert "--executor-memory" not in cmd
+
+    @patch("subprocess.Popen")
+    @patch(
+        "airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook.get_connection_url",
+        return_value="sc://spark-connect.example:15002/",
+    )
+    @patch("airflow.providers.apache.spark.hooks.spark_pipelines.SparkPipelinesHook.get_connection")
+    def test_submit_pipeline_spark_connect_sets_spark_remote(
+        self, mock_get_connection, mock_get_url, mock_popen
+    ):
+        spark_connect_conn = MagicMock()
+        spark_connect_conn.conn_type = "spark_connect"
+        spark_connect_conn.host = "spark-connect.example"
+        spark_connect_conn.port = 15002
+        spark_connect_conn.login = None
+        spark_connect_conn.password = None
+        # SparkSubmitHook.__init__ -> _resolve_connection() reads
+        # extra_dejson.get("queue"|"deploy-mode"|"spark-binary"|"namespace");
+        # an empty dict makes it default-and-skip cleanly.
+        spark_connect_conn.extra_dejson = {}
+        mock_get_connection.return_value = spark_connect_conn
+
+        mock_process = MagicMock()
+        mock_process.wait.return_value = 0
+        mock_process.stdout = ["Run is COMPLETED."]
+        mock_popen.return_value = mock_process
+
+        hook = SparkPipelinesHook(
+            pipeline_spec="test_pipeline.yml",
+            pipeline_command="run",
+            conn_id="spark_connect_default",
+        )
+        hook.submit_pipeline()
+
+        mock_popen.assert_called_once()
+        _, popen_kwargs = mock_popen.call_args
+        env = popen_kwargs["env"]
+        assert env["SPARK_REMOTE"] == "sc://spark-connect.example:15002/"
+
+    @patch("subprocess.Popen")
+    @patch(
+        "airflow.providers.apache.spark.hooks.spark_connect.SparkConnectHook.get_connection_url",
+        return_value="sc://spark-connect.example:15002/",
+    )
+    @patch("airflow.providers.apache.spark.hooks.spark_pipelines.SparkPipelinesHook.get_connection")
+    def test_submit_pipeline_spark_connect_preserves_caller_spark_remote(
+        self, mock_get_connection, mock_get_url, mock_popen
+    ):
+        # If the operator caller has already set SPARK_REMOTE via env_vars
+        # (e.g. routing to a different daemon for failover), the hook must
+        # not clobber it with the connection's URI.
+        spark_connect_conn = MagicMock()
+        spark_connect_conn.conn_type = "spark_connect"
+        spark_connect_conn.host = "spark-connect.example"
+        spark_connect_conn.port = 15002
+        spark_connect_conn.login = None
+        spark_connect_conn.password = None
+        # SparkSubmitHook.__init__ -> _resolve_connection() reads
+        # extra_dejson.get("queue"|"deploy-mode"|"spark-binary"|"namespace");
+        # an empty dict makes it default-and-skip cleanly.
+        spark_connect_conn.extra_dejson = {}
+        mock_get_connection.return_value = spark_connect_conn
+
+        mock_process = MagicMock()
+        mock_process.wait.return_value = 0
+        mock_process.stdout = []
+        mock_popen.return_value = mock_process
+
+        hook = SparkPipelinesHook(
+            pipeline_spec="test_pipeline.yml",
+            pipeline_command="run",
+            conn_id="spark_connect_default",
+            env_vars={"SPARK_REMOTE": "sc://override.example:15002/"},
+        )
+        hook.submit_pipeline()
+
+        _, popen_kwargs = mock_popen.call_args
+        assert popen_kwargs["env"]["SPARK_REMOTE"] == "sc://override.example:15002/"

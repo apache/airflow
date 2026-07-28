@@ -29,8 +29,6 @@ if TYPE_CHECKING:
 class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
-    instance: StatsLogger | NoStatsLogger | None = None
-
     @classmethod
     def initialize(
         cls,
@@ -112,7 +110,7 @@ class NoStatsLogger:
     def gauge(
         cls,
         stat: str,
-        value: int,
+        value: float,
         rate: int = 1,
         delta: bool = False,
         *,

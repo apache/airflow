@@ -125,15 +125,15 @@ class Resources:
 
     def __init__(
         self,
-        cpus=conf.getint("operators", "default_cpus"),
-        ram=conf.getint("operators", "default_ram"),
-        disk=conf.getint("operators", "default_disk"),
-        gpus=conf.getint("operators", "default_gpus"),
+        cpus=None,
+        ram=None,
+        disk=None,
+        gpus=None,
     ):
-        self.cpus = CpuResource(cpus)
-        self.ram = RamResource(ram)
-        self.disk = DiskResource(disk)
-        self.gpus = GpuResource(gpus)
+        self.cpus = CpuResource(cpus if cpus is not None else conf.getint("operators", "default_cpus"))
+        self.ram = RamResource(ram if ram is not None else conf.getint("operators", "default_ram"))
+        self.disk = DiskResource(disk if disk is not None else conf.getint("operators", "default_disk"))
+        self.gpus = GpuResource(gpus if gpus is not None else conf.getint("operators", "default_gpus"))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):

@@ -29,9 +29,7 @@ def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-    )
+    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -56,6 +54,15 @@ class TestLLMBranchOperator:
         # the real output_type is built dynamically from downstream_task_ids
         assert op.output_type is str
 
+    def test_require_approval_rejected(self):
+        with pytest.raises(ValueError, match="require_approval=True is not supported"):
+            LLMBranchOperator(
+                task_id="test",
+                prompt="pick a branch",
+                llm_conn_id="my_llm",
+                require_approval=True,
+            )
+
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_single_branch(self, mock_hook_cls, mock_do_branch):
@@ -79,7 +86,7 @@ class TestLLMBranchOperator:
 
         assert result == "task_a"
         mock_do_branch.assert_called_once_with(ctx, "task_a")
-        mock_agent.run_sync.assert_called_once_with("Pick a branch")
+        mock_agent.run_sync.assert_called_once_with("Pick a branch", usage_limits=None)
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)

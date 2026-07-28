@@ -154,7 +154,10 @@ class GCSHook(GoogleBaseHook):
         """Return a Google Cloud Storage service object."""
         if not self._conn:
             self._conn = storage.Client(
-                credentials=self.get_credentials(), client_info=CLIENT_INFO, project=self.project_id
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                project=self.project_id,
+                client_options=self.get_client_options(),
             )
 
         return self._conn
@@ -222,6 +225,8 @@ class GCSHook(GoogleBaseHook):
         source_object: str,
         destination_bucket: str,
         destination_object: str | None = None,
+        retain_until_time: datetime | None = None,
+        retention_mode: str | None = None,
     ) -> None:
         """
         Similar to copy; supports files over 5 TB, and copying between locations and/or storage classes.
@@ -233,6 +238,13 @@ class GCSHook(GoogleBaseHook):
         :param destination_bucket: The destination of the object to copied to.
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
+        :param retain_until_time: Optional datetime specifying until when the destination
+            object should be retained. Requires the destination bucket to have
+            object retention enabled. The value is passed to the GCS client as-is;
+            timezone handling follows the GCS client behavior.
+        :param retention_mode: Optional retention mode for the destination object.
+            Must be ``"Locked"`` or ``"Unlocked"``. Defaults to ``"Unlocked"`` when
+            ``retain_until_time`` is set. Cannot be provided without ``retain_until_time``.
         """
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and source_object == destination_object:
@@ -242,24 +254,40 @@ class GCSHook(GoogleBaseHook):
             )
         if not source_bucket or not source_object:
             raise ValueError("source_bucket and source_object cannot be empty.")
+        if retention_mode is not None and retain_until_time is None:
+            raise ValueError("retention_mode cannot be set without retain_until_time.")
+        if retention_mode is not None and retention_mode not in ("Locked", "Unlocked"):
+            raise ValueError(f"retention_mode must be 'Locked' or 'Unlocked', got {retention_mode!r}.")
 
         client = self.get_conn()
         source_bucket = client.bucket(source_bucket)
         source_object = source_bucket.blob(blob_name=source_object)  # type: ignore[attr-defined]
         destination_bucket = client.bucket(destination_bucket)
 
-        token, bytes_rewritten, total_bytes = destination_bucket.blob(  # type: ignore[attr-defined]
+        destination_blob = destination_bucket.blob(  # type: ignore[attr-defined]
             blob_name=destination_object
-        ).rewrite(source=source_object)
+        )
+
+        token, bytes_rewritten, total_bytes = destination_blob.rewrite(source=source_object)
 
         self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
 
         while token is not None:
-            token, bytes_rewritten, total_bytes = destination_bucket.blob(  # type: ignore[attr-defined]
-                blob_name=destination_object
-            ).rewrite(source=source_object, token=token)
+            token, bytes_rewritten, total_bytes = destination_blob.rewrite(source=source_object, token=token)
 
             self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
+
+        if retain_until_time is not None:
+            destination_blob.retention.mode = retention_mode or "Unlocked"
+            destination_blob.retention.retain_until_time = retain_until_time
+            destination_blob.patch()
+            self.log.info(
+                "Applied retention (mode=%s, retain_until_time=%s) to object %s in bucket %s",
+                destination_blob.retention.mode,
+                retain_until_time,
+                destination_object,
+                destination_bucket.name,  # type: ignore[attr-defined]
+            )
         get_hook_lineage_collector().add_input_asset(
             context=self,
             scheme="gs",
@@ -1334,6 +1362,7 @@ class GCSHook(GoogleBaseHook):
         gcs_bucket = self.get_bucket(bucket_name)
         local_gcs_objects = []
 
+        local_dir_resolved = local_dir_path.resolve()
         for blob in gcs_bucket.list_blobs(prefix=prefix):
             # GCS lists "directories" as objects ending with a slash. We should skip them.
             if blob.name.endswith("/"):
@@ -1341,6 +1370,16 @@ class GCSHook(GoogleBaseHook):
 
             blob_path = Path(blob.name)
             local_target_path = local_dir_path.joinpath(blob_path.relative_to(prefix))
+            # Containment check: ``blob.name`` originates outside the worker, and GCS allows
+            # object names containing ``..``. Resolve the target and assert it stays under
+            # ``local_dir`` so a hostile blob name cannot write outside the intended directory
+            # (CWE-22).
+            if not local_target_path.resolve().is_relative_to(local_dir_resolved):
+                raise ValueError(
+                    f"Refusing to write GCS blob {blob.name!r}: resolved path "
+                    f"{local_target_path} escapes the target directory {local_dir_path}."
+                )
+
             if not local_target_path.parent.exists():
                 local_target_path.parent.mkdir(parents=True, exist_ok=True)
                 self.log.debug("Created local directory: %s", local_target_path.parent)

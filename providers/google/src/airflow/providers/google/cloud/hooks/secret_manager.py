@@ -58,15 +58,13 @@ class GoogleCloudSecretManagerHook(GoogleBaseHook):
 
         :return: Secret Manager client.
         """
-        if self.location is not None:
-            return SecretManagerServiceClient(
-                credentials=self.get_credentials(),
-                client_info=CLIENT_INFO,
-                client_options={"api_endpoint": f"secretmanager.{self.location}.rep.googleapis.com"},
-            )
+        api_endpoint_override = None
+        if self.location is not None and self.is_default_universe():
+            api_endpoint_override = f"secretmanager.{self.location}.rep.googleapis.com"
         return SecretManagerServiceClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
+            client_options=self.get_client_options(api_endpoint_override=api_endpoint_override),
         )
 
     def get_conn(self) -> SecretManagerServiceClient:

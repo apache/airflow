@@ -20,7 +20,7 @@ from __future__ import annotations
 import pendulum
 import pytest
 
-from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict
+from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict, task_group_to_dict_grid
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -155,9 +155,12 @@ EXPECTED_JSON_LEGACY = {
     ],
 }
 
+TASK_COLORS = {"ui_color": "#e8f7e4", "ui_fgcolor": "#000"}
+GROUP_COLORS = {"ui_color": "CornflowerBlue", "ui_fgcolor": "#000"}
+
 EXPECTED_JSON = {
     "children": [
-        {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task"},
+        {"id": "task1", "label": "task1", "operator": "EmptyOperator", "type": "task", **TASK_COLORS},
         {
             "children": [
                 {
@@ -167,12 +170,14 @@ EXPECTED_JSON = {
                             "label": "task3",
                             "operator": "EmptyOperator",
                             "type": "task",
+                            **TASK_COLORS,
                         },
                         {
                             "id": "group234.group34.task4",
                             "label": "task4",
                             "operator": "EmptyOperator",
                             "type": "task",
+                            **TASK_COLORS,
                         },
                         {"id": "group234.group34.downstream_join_id", "label": "", "type": "join"},
                     ],
@@ -181,12 +186,14 @@ EXPECTED_JSON = {
                     "label": "group34",
                     "tooltip": "",
                     "type": "task",
+                    **GROUP_COLORS,
                 },
                 {
                     "id": "group234.task2",
                     "label": "task2",
                     "operator": "EmptyOperator",
                     "type": "task",
+                    **TASK_COLORS,
                 },
                 {"id": "group234.upstream_join_id", "label": "", "type": "join"},
             ],
@@ -195,14 +202,16 @@ EXPECTED_JSON = {
             "label": "group234",
             "tooltip": "",
             "type": "task",
+            **GROUP_COLORS,
         },
-        {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task"},
+        {"id": "task5", "label": "task5", "operator": "EmptyOperator", "type": "task", **TASK_COLORS},
     ],
     "id": None,
     "is_mapped": False,
     "label": "",
     "tooltip": "",
     "type": "task",
+    **GROUP_COLORS,
 }
 
 
@@ -241,6 +250,24 @@ def test_task_group_to_dict_alternative_syntax():
     serialized_dag = create_scheduler_dag(dag)
 
     assert task_group_to_dict(serialized_dag.task_group) == EXPECTED_JSON
+
+
+def test_task_group_to_dict_grid_includes_task_group_doc_md(dag_maker):
+    logical_date = pendulum.parse("20200101")
+    with dag_maker("test_task_group_to_dict_doc_md", schedule=None, start_date=logical_date) as dag:
+        with TaskGroup("group234", doc_md="### TaskGroup Documentation"):
+            EmptyOperator(task_id="task1", doc_md="### Task Documentation")
+
+    serialized_dag = create_scheduler_dag(dag)
+    group = serialized_dag.task_group_dict["group234"]
+
+    graph_node = task_group_to_dict(group)
+    assert "doc_md" not in graph_node
+    assert "doc_md" not in graph_node["children"][0]
+
+    grid_node = task_group_to_dict_grid(group)
+    assert grid_node["doc_md"] == "### TaskGroup Documentation"
+    assert "doc_md" not in grid_node["children"][0]
 
 
 def extract_node_id(node, include_label=False):
@@ -1082,6 +1109,21 @@ def test_hierarchical_alphabetical_sort():
     ]
 
 
+def _make_padded_reverse_chain(chain_length: int, independent_count: int) -> DAG:
+    with DAG(
+        f"padded_reverse_chain_{chain_length}_{independent_count}",
+        schedule=None,
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        tasks = [EmptyOperator(task_id=f"r{chain_length - 1 - i}") for i in range(chain_length)]
+        by_id = {task.task_id: task for task in tasks}
+        for i in range(chain_length - 1):
+            by_id[f"r{i}"] >> by_id[f"r{i + 1}"]
+        for i in range(independent_count):
+            EmptyOperator(task_id=f"i{i}")
+    return dag
+
+
 def test_topological_group_dep():
     logical_date = pendulum.parse("20200101")
     with DAG("test_dag_edges", schedule=None, start_date=logical_date) as dag:
@@ -1115,6 +1157,61 @@ def test_topological_group_dep():
         ],
         task6,
     ]
+
+
+def test_topological_sort_serialized_layered():
+    """SerializedTaskGroup.topological_sort emits a valid order after DAG round-trip.
+
+    Exercises the projected-sweep path on the serialization variant (which is otherwise
+    untested), using a layered shape that forces multi-pass behavior.
+    """
+    with DAG("test_topo_sort_serialized", schedule=None, start_date=DEFAULT_DATE) as dag:
+        layers: list[list[BaseOperator]] = []
+        for layer_idx in range(4):
+            cur = [EmptyOperator(task_id=f"L{layer_idx}_t{i}") for i in range(3)]
+            if layers:
+                for upstream in layers[-1]:
+                    upstream >> cur
+            layers.append(cur)
+
+    serialized = create_scheduler_dag(dag)
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+    position = {nid: i for i, nid in enumerate(order)}
+
+    assert set(position) == {t.task_id for layer in layers for t in layer}
+    for layer_idx in range(len(layers) - 1):
+        for upstream in layers[layer_idx]:
+            for downstream in layers[layer_idx + 1]:
+                assert position[upstream.task_id] < position[downstream.task_id], (
+                    f"{upstream.task_id!r} must precede {downstream.task_id!r}, got {order!r}"
+                )
+
+
+def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(monkeypatch):
+    dag = _make_padded_reverse_chain(chain_length=80, independent_count=80)
+    serialized = create_scheduler_dag(dag)
+    serialized.task_group.children = {
+        **{f"r{i}": serialized.task_group.children[f"r{i}"] for i in range(79, -1, -1)},
+        **{f"i{i}": serialized.task_group.children[f"i{i}"] for i in range(80)},
+    }
+
+    called = {"value": False}
+    serialized_task_group_cls = type(serialized.task_group)
+    original = serialized_task_group_cls._sort_via_pass_numbering
+
+    def spy(self, nodes, projected):
+        called["value"] = True
+        return original(self, nodes, projected)
+
+    monkeypatch.setattr(serialized_task_group_cls, "_sort_via_pass_numbering", spy)
+
+    order = [node.node_id for node in serialized.task_group.topological_sort()]
+    position = {node_id: i for i, node_id in enumerate(order)}
+
+    assert called["value"]
+    assert set(position) == {*(f"r{i}" for i in range(80)), *(f"i{i}" for i in range(80))}
+    for i in range(79):
+        assert position[f"r{i}"] < position[f"r{i + 1}"]
 
 
 def test_task_group_arrow_with_setup_group():

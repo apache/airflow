@@ -28,6 +28,8 @@ from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 from pydantic_core import SchemaValidator, core_schema
 
+from airflow.providers.common.ai.utils.tool_definition import return_schema_kwargs
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -110,11 +112,16 @@ class HookToolset(AbstractToolset[Any]):
 
             # sequential=True because hook methods perform synchronous I/O
             # (network calls, DB queries) and should not run concurrently.
+            # return_schema is "string": call_tool serializes every result with
+            # _serialize_for_llm, so the tool always returns a (JSON-encoded)
+            # string regardless of the method's own return annotation. This lets
+            # code mode render `-> str` instead of `-> Any`.
             tool_def = ToolDefinition(
                 name=tool_name,
                 description=description,
                 parameters_json_schema=json_schema,
                 sequential=True,
+                **return_schema_kwargs({"type": "string"}),
             )
             tools[tool_name] = ToolsetTool(
                 toolset=self,

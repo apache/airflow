@@ -17,10 +17,10 @@
  under the License.
 */}}
 
-################################
+###############################
 ## Airflow Flower NetworkPolicy
-#################################
-{{- if and .Values.flower.enabled .Values.networkPolicies.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+###############################
+{{- if and .Values.flower.enabled .Values.networkPolicies.enabled (contains "CeleryExecutor" .Values.executor) }}
 {{- $from := or .Values.flower.networkPolicy.ingress.from .Values.flower.extraNetworkPolicies }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

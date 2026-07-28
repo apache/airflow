@@ -25,7 +25,7 @@ from shutil import which
 
 from airflow_breeze.global_constants import MIN_GH_VERSION
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.github import run_gh_command
 
 
 def tigger_workflow(workflow_name: str, repo: str, branch: str = "main", **kwargs):
@@ -50,7 +50,7 @@ def tigger_workflow(workflow_name: str, repo: str, branch: str = "main", **kwarg
         command.extend(["-f", f"{key}={value}"])
 
     console_print(f"[blue]Running command: {' '.join(command)}[/blue]")
-    result = run_command(command, capture_output=True, check=False)
+    result = run_gh_command(command, capture_output=True)
 
     if result.returncode != 0:
         console_print(f"[red]Error running workflow: {result.stderr}[/red]")
@@ -109,7 +109,7 @@ def get_workflow_run_id(workflow_name: str, repo: str) -> int:
         "databaseId",
     ]
 
-    result = run_command(command, capture_output=True, check=False)
+    result = run_gh_command(command, capture_output=True)
     if result.returncode != 0:
         console_print(f"[red]Error fetching workflow run ID: {result.stderr}[/red]")
         sys.exit(1)
@@ -139,7 +139,7 @@ def get_workflow_run_info(run_id: str, repo: str, fields: str) -> dict:
     make_sure_gh_is_installed()
     command = ["gh", "run", "view", run_id, "--json", fields, "--repo", repo]
 
-    result = run_command(command, capture_output=True, check=False)
+    result = run_gh_command(command, capture_output=True)
     if result.returncode != 0:
         console_print(f"[red]Error fetching workflow run status: {result.stderr}[/red]")
         sys.exit(1)

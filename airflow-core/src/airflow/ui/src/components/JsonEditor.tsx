@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useRef } from "react";
 
-import { useColorMode } from "src/context/colorMode";
+import Editor, { type EditorProps } from "src/components/MonacoEditor";
+import { useMonacoTheme } from "src/context/colorMode";
 
 type JsonEditorProps = {
   readonly editable?: boolean;
@@ -28,6 +28,8 @@ type JsonEditorProps = {
   readonly name?: string;
   readonly onBlur?: () => void;
   readonly onChange?: (value: string) => void;
+  readonly onError?: (error: string | undefined) => void;
+  readonly prettify?: boolean;
   readonly value?: string;
 };
 
@@ -36,10 +38,12 @@ export const JsonEditor = ({
   height = "200px",
   onBlur,
   onChange,
+  onError,
+  prettify = false,
   value,
   ...rest
 }: JsonEditorProps) => {
-  const { colorMode } = useColorMode();
+  const { beforeMount, theme } = useMonacoTheme();
   const onBlurRef = useRef(onBlur);
 
   onBlurRef.current = onBlur;
@@ -55,10 +59,23 @@ export const JsonEditor = ({
     scrollBeyondLastLine: false,
   };
 
-  const theme = colorMode === "dark" ? "vs-dark" : "vs-light";
+  const handleChange = (val: string | undefined = "") => {
+    if (!prettify) {
+      onChange?.(val);
 
-  const handleChange = (val: string | undefined) => {
-    onChange?.(val ?? "");
+      return;
+    }
+
+    try {
+      const formattedJson = JSON.stringify(JSON.parse(val) as unknown, undefined, 2);
+
+      onError?.(undefined);
+      if (formattedJson !== value) {
+        onChange?.(formattedJson);
+      }
+    } catch (error) {
+      onError?.(error instanceof Error ? error.message : String(error));
+    }
   };
 
   return (
@@ -72,6 +89,7 @@ export const JsonEditor = ({
       {...rest}
     >
       <Editor
+        beforeMount={beforeMount}
         height={height}
         language="json"
         onChange={handleChange}

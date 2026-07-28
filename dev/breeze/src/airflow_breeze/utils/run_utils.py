@@ -151,7 +151,11 @@ def run_command(
             kwargs["stderr"] = subprocess.STDOUT
     command_to_print = " ".join(shlex.quote(c) for c in cmd) if isinstance(cmd, list) else cmd
     env_to_print = get_environments_to_print(env)
-    if not get_verbose(verbose_override) and not get_dry_run(dry_run_override) or quiet:
+    verbose = get_verbose(verbose_override)
+    dry_run = get_dry_run(dry_run_override)
+    if dry_run and quiet:
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+    if not dry_run and (not verbose or quiet):
         if quiet and not kwargs.get("capture_output"):
             kwargs["stdout"] = subprocess.DEVNULL
             kwargs["stderr"] = subprocess.DEVNULL
@@ -166,7 +170,7 @@ def run_command(
         get_console(output=output).print(
             f"\n[info]{env_to_print}{escape(command_to_print)}[/]\n", soft_wrap=True
         )
-        if get_dry_run(dry_run_override):
+        if dry_run:
             return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
         try:
             if output_outside_the_group and os.environ.get("GITHUB_ACTIONS") == "true":
@@ -263,7 +267,13 @@ def assert_prek_installed():
         need_to_reinstall_prek = True
         console_print(f"\n[error]Error checking for prek installation: [/]\n{e}\n")
     if need_to_reinstall_prek:
-        console_print("[info]Reinstall breeze: 'uv tool install -e ./dev/breeze --force'[/]")
+        console_print(
+            "[info]Reinstall breeze:[/]\n"
+            "  - For the recommended uvx-based setup, clear the cached env:\n"
+            "        uv cache clean apache-airflow-breeze\n"
+            "  - For a legacy global install:\n"
+            "        uv tool install -e ./dev/breeze --force"
+        )
         sys.exit(1)
 
 

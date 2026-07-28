@@ -20,13 +20,15 @@ export COLOR_RED=$'\e[31m'
 export COLOR_YELLOW=$'\e[33m'
 export COLOR_RESET=$'\e[0m'
 
+TEST_TO_RUN="${*:-all configured system tests}"
+
 set +e
 breeze testing system-tests "${@}"
 RESULT=$?
 set -e
 if [[ ${RESULT} != "0" ]]; then
     echo
-    echo "${COLOR_RED}The ${TEST_GROUP} system test ${TEST_TO_RUN} failed! Giving up${COLOR_RESET}"
+    echo "${COLOR_RED}The system tests (${TEST_TO_RUN}) failed! Giving up${COLOR_RESET}"
     echo
     exit ${RESULT}
 fi

@@ -100,8 +100,8 @@ class TestMwaaDagRunSuccessSensor:
 
     def test_execute_complete_error(self):
         sensor = MwaaDagRunSensor(**SENSOR_DAG_RUN_KWARGS, **SENSOR_STATE_KWARGS)
-        error_event = {"status": "error", "message": "DAG run failed", "dag_run_id": "test_run"}
-        with pytest.raises(AirflowException, match="Error in MWAA DAG run"):
+        error_event = {"status": "error", "message": "Dag run failed", "dag_run_id": "test_run"}
+        with pytest.raises(AirflowException, match="Error in MWAA Dag run"):
             sensor.execute_complete({}, error_event)
 
     def test_execute_complete_success(self):

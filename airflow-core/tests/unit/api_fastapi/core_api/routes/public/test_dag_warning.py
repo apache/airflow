@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dag_warnings, clear_db_dags
@@ -48,7 +49,7 @@ expected_display_names = {
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(dag_maker, testing_dag_bundle, session=None) -> None:
+def setup(dag_maker, testing_dag_bundle, *, session: Session = NEW_SESSION) -> None:
     clear_db_dags()
     clear_db_dag_warnings()
 
@@ -116,5 +117,5 @@ class TestGetDagWarnings:
         assert response.status_code == 422
         assert (
             response_json["detail"][0]["msg"]
-            == "Input should be 'asset conflict', 'non-existent pool' or 'runtime varying value'"
+            == "Input should be 'asset conflict', 'duplicate dag id', 'non-existent pool' or 'runtime varying value'"
         )

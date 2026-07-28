@@ -66,7 +66,11 @@ from airflow.providers.standard.utils.python_virtualenv import (
     prepare_virtualenv,
     write_python_script,
 )
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
 
@@ -449,6 +453,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
     }
     if AIRFLOW_V_3_0_PLUS:
         BASE_SERIALIZABLE_CONTEXT_KEYS.add("task_reschedule_count")
+    if AIRFLOW_V_3_3_PLUS:
+        BASE_SERIALIZABLE_CONTEXT_KEYS.add("partition_key")
 
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
@@ -464,6 +470,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "prev_execution_date",
         "prev_execution_date_success",
     }
+    if AIRFLOW_V_3_3_PLUS:
+        PENDULUM_SERIALIZABLE_CONTEXT_KEYS.add("partition_date")
 
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",
@@ -948,7 +956,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             "requirements_list": self._requirements_list(exclude_cloudpickle=exclude_cloudpickle),
             "pip_install_options": self.pip_install_options,
             "index_urls": self.index_urls,
-            "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
+            "cache_key": str(Variable.get("python_virtualenv_operator_cache_key", "")),
             "python_version": self.python_version,
             "system_site_packages": self.system_site_packages,
         }

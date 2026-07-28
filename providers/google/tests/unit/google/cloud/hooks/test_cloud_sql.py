@@ -21,20 +21,20 @@ import base64
 import json
 import os
 import platform
+import stat
 import tempfile
+from pathlib import Path
 from unittest import mock
 from unittest.mock import PropertyMock, call, mock_open
 from urllib.parse import parse_qsl, unquote, urlsplit
 
-import aiohttp
 import httplib2
 import pytest
-from aiohttp.helpers import TimerNoop
 from googleapiclient.errors import HttpError
-from yarl import URL
 
 from airflow.providers.common.compat.sdk import AirflowException
 
+from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
@@ -527,6 +527,42 @@ class TestGcpSqlHookDefaultProjectId:
             operation_name="operation_id", project_id="example-project"
         )
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
+    def test_get_operation(self, mock_get_conn):
+        operations_method = mock_get_conn.return_value.operations
+        get_method = operations_method.return_value.get
+        execute_method = get_method.return_value.execute
+
+        mock_response = {"name": "operation_id", "status": "DONE"}
+        execute_method.return_value = mock_response
+
+        result = self.cloudsql_hook.get_operation(project_id="gcp-project", operation_name="operation_id")
+
+        assert result == mock_response
+        operations_method.assert_called_once()
+        get_method.assert_called_once_with(project="gcp-project", operation="operation_id")
+        execute_method.assert_called_once_with(num_retries=self.cloudsql_hook.num_retries)
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.build")
+    def test_get_conn_obj_caching(self, mock_build):
+        self.cloudsql_hook._authorize = mock.MagicMock()
+        self.cloudsql_hook.get_client_options = mock.MagicMock()
+        mock_service_obj = mock.MagicMock()
+        mock_build.return_value = mock_service_obj
+
+        conn1 = self.cloudsql_hook.get_conn()
+        conn2 = self.cloudsql_hook.get_conn()
+
+        assert conn1 is conn2
+        assert mock_build.call_count == 1
+        mock_build.assert_called_once_with(
+            "sqladmin",
+            self.cloudsql_hook.api_version,
+            http=self.cloudsql_hook._authorize.return_value,
+            cache_discovery=False,
+            client_options=self.cloudsql_hook.get_client_options.return_value,
+        )
+
 
 class TestGcpSqlHookNoDefaultProjectID:
     def setup_method(self):
@@ -785,6 +821,12 @@ def _parse_from_uri(uri: str):
         query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
         connection_parameters["extra"] = json.dumps(query)
     return connection_parameters
+
+
+def _connection_from_uri(uri: str):
+    if AIRFLOW_V_3_1_PLUS:
+        return Connection(conn_id="test_conn_id", **_parse_from_uri(uri))
+    return Connection(uri=uri)  # type: ignore[call-arg]
 
 
 class TestCloudSqlDatabaseHook:
@@ -1640,6 +1682,106 @@ class TestCloudSqlDatabaseQueryHook:
         assert connection.schema == "testdb"
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
+    def test_hook_with_proxy_iam_postgres_tcp(self, get_connection):
+        uri = (
+            "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:5432/"
+            "testdb?database_type=postgres&project_id=example-project&location=europe-west1&"
+            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True"
+        )
+        get_connection.side_effect = [_connection_from_uri(uri)]
+        with mock.patch(
+            "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._generate_login_token"
+        ) as generate_login_token:
+            hook = CloudSQLDatabaseHook()
+            connection = hook.create_connection()
+
+        assert connection.conn_type == "postgres"
+        assert connection.login == "service-account@project.iam"
+        assert connection.password in ("", None)
+        assert connection.host == "127.0.0.1"
+        assert connection.port != 5432
+        assert connection.schema == "testdb"
+        generate_login_token.assert_not_called()
+
+        sqlproxy_runner = hook.get_sqlproxy_runner()
+        assert sqlproxy_runner.sql_proxy_enable_iam_login is True
+        assert "-enable_iam_login" in sqlproxy_runner.command_line_parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
+    def test_hook_with_proxy_iam_generates_uri_with_empty_password(self, get_connection):
+        uri = (
+            "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:5432/"
+            "testdb?database_type=postgres&project_id=example-project&location=europe-west1&"
+            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True"
+        )
+        get_connection.side_effect = [_connection_from_uri(uri)]
+        hook = CloudSQLDatabaseHook()
+
+        connection_uri = hook._generate_connection_uri()
+
+        assert connection_uri.startswith("postgresql://service-account%40project.iam:@127.0.0.1:")
+        assert ":@" in connection_uri
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
+    def test_hook_with_proxy_iam_mutually_exclusive_with_use_iam(self, get_connection):
+        uri = (
+            "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:5432/"
+            "testdb?database_type=postgres&project_id=example-project&location=europe-west1&"
+            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&use_iam=True&"
+            "sql_proxy_enable_iam_login=True"
+        )
+        get_connection.side_effect = [_connection_from_uri(uri)]
+
+        with mock.patch(
+            "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._generate_login_token"
+        ):
+            with pytest.raises(ValueError, match="mutually exclusive"):
+                CloudSQLDatabaseHook()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
+    def test_hook_with_proxy_iam_requires_use_proxy(self, get_connection):
+        uri = (
+            "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:5432/"
+            "testdb?database_type=postgres&project_id=example-project&location=europe-west1&"
+            "instance=testdb&use_proxy=False&sql_proxy_enable_iam_login=True"
+        )
+        get_connection.side_effect = [_connection_from_uri(uri)]
+
+        with mock.patch(
+            "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._generate_login_token"
+        ) as generate_login_token:
+            with pytest.raises(ValueError, match="requires use_proxy to be True"):
+                CloudSQLDatabaseHook()
+
+        generate_login_token.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
+    def test_hook_with_proxy_iam_mysql_tcp(self, get_connection):
+        uri = (
+            "gcpcloudsql://service-account%40project.iam.gserviceaccount.com:@127.0.0.1:3306/"
+            "testdb?database_type=mysql&project_id=example-project&location=europe-west1&"
+            "instance=testdb&use_proxy=True&sql_proxy_use_tcp=True&sql_proxy_enable_iam_login=True"
+        )
+        get_connection.side_effect = [_connection_from_uri(uri)]
+        with mock.patch(
+            "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook._generate_login_token"
+        ) as generate_login_token:
+            hook = CloudSQLDatabaseHook()
+            connection = hook.create_connection()
+
+        assert connection.conn_type == "mysql"
+        assert connection.login == "service-account"
+        assert connection.password in ("", None)
+        assert connection.host == "127.0.0.1"
+        assert connection.port != 3306
+        assert connection.schema == "testdb"
+        generate_login_token.assert_not_called()
+
+        sqlproxy_runner = hook.get_sqlproxy_runner()
+        assert sqlproxy_runner.sql_proxy_enable_iam_login is True
+        assert "-enable_iam_login" in sqlproxy_runner.command_line_parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook.get_connection")
     def test_hook_with_correct_parameters_mysql(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=mysql&"
@@ -1756,6 +1898,70 @@ class TestCloudSqlProxyRunner:
         with pytest.raises(ValueError, match="The sql_proxy_version should match the regular expression"):
             runner._get_sql_proxy_download_url()
 
+    def test_cloud_sql_proxy_runner_adds_enable_iam_login_flag(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_enable_iam_login=True,
+        )
+
+        assert "-enable_iam_login" in runner.command_line_parameters
+
+    def test_cloud_sql_proxy_runner_does_not_add_enable_iam_login_by_default(self):
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+        )
+
+        assert "-enable_iam_login" not in runner.command_line_parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
+    def test_cloud_sql_proxy_runner_keeps_key_path_credentials_with_iam_login(self, get_connection):
+        connection = Connection(conn_id="google_conn", conn_type="google_cloud_platform")
+        if AIRFLOW_V_3_1_PLUS:
+            connection.extra = json.dumps({"key_path": "/tmp/key.json"})
+        else:
+            connection.set_extra(json.dumps({"key_path": "/tmp/key.json"}))
+        get_connection.return_value = connection
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            # Non-empty instance specification avoids adding -projects for forwarding all instances.
+            instance_specification="project:us-east-1:instance",
+            gcp_conn_id="google_conn",
+            sql_proxy_enable_iam_login=True,
+        )
+
+        assert runner._get_credential_parameters() == ["-credential_file", "/tmp/key.json"]
+        assert "-enable_iam_login" in runner.command_line_parameters
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
+    def test_credentials_file_from_keyfile_dict_is_chmod_0600(self, get_connection, tmp_path):
+        """The keyfile_dict credentials file must be written with explicit 0600 permissions.
+
+        Plain ``open(...)`` inherits the process umask (typically 0644), leaving the
+        service-account private key world-readable on shared worker hosts.
+        """
+        keyfile_dict = {"type": "service_account", "private_key": "PRIVATE"}
+        connection = Connection(conn_id="google_conn", conn_type="google_cloud_platform")
+        extra = json.dumps({"keyfile_dict": json.dumps(keyfile_dict)})
+        if AIRFLOW_V_3_1_PLUS:
+            connection.extra = extra
+        else:
+            connection.set_extra(extra)
+        get_connection.return_value = connection
+
+        runner = CloudSqlProxyRunner(
+            path_prefix=str(tmp_path / "creds"),
+            instance_specification="project:us-east-1:instance",
+            gcp_conn_id="google_conn",
+        )
+        runner._get_credential_parameters()
+
+        creds_path = Path(runner.credentials_path)
+        assert creds_path.exists()
+        # Mask off the file-type bits, keep only the permission bits.
+        assert stat.S_IMODE(creds_path.stat().st_mode) == 0o600
+
 
 class TestCloudSQLAsyncHook:
     @pytest.mark.asyncio
@@ -1772,21 +1978,12 @@ class TestCloudSQLAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation_name"))
     async def test_async_get_operation_completed_should_execute_successfully(self, mocked_get, hook_async):
-        response = aiohttp.ClientResponse(
-            "get",
-            URL(OPERATION_URL),
-            request_info=mock.Mock(),
-            writer=mock.Mock(),
-            continue100=None,
-            timer=TimerNoop(),
-            traces=[],
-            loop=mock.Mock(),
-            session=None,
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"status": "DONE"},
+            method="GET",
+            url=OPERATION_URL,
         )
-        response.status = 200
-        mocked_get.return_value = response
-        mocked_get.return_value._headers = {"Authorization": "test-token"}
-        mocked_get.return_value._body = b'{"status": "DONE"}'
 
         operation = await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
         mocked_get.assert_awaited_once()
@@ -1795,21 +1992,12 @@ class TestCloudSQLAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation_name"))
     async def test_async_get_operation_running_should_execute_successfully(self, mocked_get, hook_async):
-        response = aiohttp.ClientResponse(
-            "get",
-            URL(OPERATION_URL),
-            request_info=mock.Mock(),
-            writer=mock.Mock(),
-            continue100=None,
-            timer=TimerNoop(),
-            traces=[],
-            loop=mock.Mock(),
-            session=None,
+        mocked_get.return_value = MockAiohttpClientResponse(
+            status=200,
+            payload={"status": "RUNNING"},
+            method="GET",
+            url=OPERATION_URL,
         )
-        response.status = 200
-        mocked_get.return_value = response
-        mocked_get.return_value._headers = {"Authorization": "test-token"}
-        mocked_get.return_value._body = b'{"status": "RUNNING"}'
 
         operation = await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
         mocked_get.assert_awaited_once()
@@ -1826,3 +2014,17 @@ class TestCloudSQLAsyncHook:
         )
         with pytest.raises(HttpError):
             await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
+
+    @pytest.mark.asyncio
+    async def test_get_sync_hook_override_sets_custom_api_version(self):
+        hook = CloudSQLAsyncHook(gcp_conn_id="test_conn")
+        with mock.patch(
+            "airflow.providers.google.common.hooks.base_google.GoogleBaseAsyncHook.get_sync_hook",
+            new_callable=mock.AsyncMock,
+        ) as mock_super_get_sync:
+            mock_super_get_sync.return_value = mock.MagicMock()
+
+            await hook.get_sync_hook(api_version="api_v42")
+
+            assert hook._hook_kwargs["api_version"] == "api_v42"
+            mock_super_get_sync.assert_called_once()

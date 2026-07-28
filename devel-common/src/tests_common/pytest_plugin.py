@@ -161,7 +161,7 @@ UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
 
 # Deliberately copied from breeze - we want to keep it in sync but we do not want to import code from
 # Breeze here as we want to do it quickly
-ALL_PYPROJECT_TOML_FILES = []
+ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
 
 def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
@@ -225,6 +225,15 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+# PyJWT 2.12.0 (2026-03-12) added strict type validation that rejects iss=None.
+# Current main's airflow-core deletes iss from the claims when the configured
+# `[api_auth] jwt_issuer` is falsy (commit a440d1db93, 2026-01-31), but the
+# `Compat 3.0.x` matrix tests install older airflow-core releases (e.g. 3.0.6,
+# 2025-08-25) that predate that fix. Setting a default test issuer here keeps
+# every JWT-generating test path safe across all supported airflow-core versions
+# without leaking the upper bound to user-facing dependencies. Tests that need
+# to override this still can via `conf_vars(...)`.
+os.environ.setdefault("AIRFLOW__API_AUTH__JWT_ISSUER", "test-airflow-issuer")
 
 
 @pytest.fixture
@@ -869,6 +878,23 @@ class DagMaker(Generic[Dag], Protocol):
     def serialized_dag(self) -> SerializedDAG: ...
 
 
+def _delete_bundle_if_unreferenced(session, bundle_name):
+    """Delete a DagBundleModel row, but only once no DagModel still references it.
+
+    ``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action, and the bundle is
+    shared across tests, so it can only be dropped after the last referencing Dag is gone.
+    """
+    from sqlalchemy import delete, func, select
+
+    from airflow.models.dag import DagModel
+    from airflow.models.dagbundle import DagBundleModel
+
+    if not session.scalar(
+        select(func.count()).select_from(DagModel).where(DagModel.bundle_name == bundle_name)
+    ):
+        session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
+
+
 @pytest.fixture
 def dag_maker(request) -> Generator[DagMaker, None, None]:
     """
@@ -910,6 +936,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         AIRFLOW_V_3_0_PLUS,
         AIRFLOW_V_3_1_PLUS,
         AIRFLOW_V_3_2_PLUS,
+        AIRFLOW_V_3_3_PLUS,
         NOTSET,
     )
 
@@ -932,7 +959,11 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.models import DagBag
 
             # Keep all the serialized dags we've created in this test
-            self.dagbag = DagBag(os.devnull, include_examples=False)
+            if AIRFLOW_V_3_3_PLUS:
+                self.dagbag = DagBag(os.devnull)
+            else:
+                self.dagbag = DagBag(os.devnull, include_examples=False)  # type: ignore[call-arg]
+            self.created_bundle_names: set[str] = set()
 
         def __enter__(self):
             self.serialized_model = None
@@ -1180,7 +1211,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
-                if AIRFLOW_V_3_0_PLUS:
+                if AIRFLOW_V_3_3_PLUS:
+                    ti.refresh_from_task(dag.get_task(ti.task_id), dag_run=self.dag_run)
+                elif AIRFLOW_V_3_0_PLUS:
                     ti.refresh_from_task(dag.get_task(ti.task_id))
                 else:
                     ti.refresh_from_task(self.dag.get_task(ti.task_id))
@@ -1365,6 +1398,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 ):
                     self.session.add(DagBundleModel(name=self.bundle_name))
                     self.session.commit()
+                    self.created_bundle_names.add(self.bundle_name)
 
             return self
 
@@ -1409,6 +1443,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
                     self.session.execute(delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)))
                     self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
+                    if AIRFLOW_V_3_0_PLUS:
+                        for bundle_name in self.created_bundle_names:
+                            _delete_bundle_if_unreferenced(self.session, bundle_name)
                     self.session.commit()
                     if self._own_session:
                         self.session.expunge_all()
@@ -1728,11 +1765,17 @@ def session():
 
 @pytest.fixture
 def get_test_dag():
+    created = {"bundle": False, "import_error_files": set()}
+
     def _get(dag_id: str):
         from airflow import settings
         from airflow.models.serialized_dag import SerializedDagModel
 
-        from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+        from tests_common.test_utils.version_compat import (
+            AIRFLOW_V_3_0_PLUS,
+            AIRFLOW_V_3_2_PLUS,
+            AIRFLOW_V_3_3_PLUS,
+        )
 
         if AIRFLOW_V_3_2_PLUS:
             from airflow.dag_processing.dagbag import DagBag
@@ -1740,7 +1783,10 @@ def get_test_dag():
             from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
         dag_file = AIRFLOW_CORE_TESTS_PATH / "unit" / "dags" / f"{dag_id}.py"
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        if AIRFLOW_V_3_3_PLUS:
+            dagbag = DagBag(dag_folder=dag_file)
+        else:
+            dagbag = DagBag(dag_folder=dag_file, include_examples=False)  # type: ignore[call-arg]
 
         dag = dagbag.get_dag(dag_id)
 
@@ -1762,6 +1808,7 @@ def get_test_dag():
                         stacktrace=stacktrace,
                     )
                 )
+            created["import_error_files"].add(str(dag_file))
 
             return
 
@@ -1776,6 +1823,7 @@ def get_test_dag():
             session = settings.Session()
             if not session.scalar(select(func.count()).where(DagBundleModel.name == "testing")):
                 session.add(DagBundleModel(name="testing"))
+                created["bundle"] = True
                 session.flush()
             SerializedDAG.bulk_write_to_db("testing", None, [dag], session=session)
             session.commit()
@@ -1786,7 +1834,25 @@ def get_test_dag():
 
         return dag
 
-    return _get
+    yield _get
+
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+    if not AIRFLOW_V_3_0_PLUS:
+        return
+
+    from sqlalchemy import delete
+
+    from airflow.models.errors import ParseImportError
+    from airflow.utils.session import create_session
+
+    with create_session() as session:
+        if created["import_error_files"]:
+            session.execute(
+                delete(ParseImportError).where(ParseImportError.filename.in_(created["import_error_files"]))
+            )
+        if created["bundle"]:
+            _delete_bundle_if_unreferenced(session, "testing")
 
 
 @pytest.fixture
@@ -1878,7 +1944,7 @@ def clear_lru_cache():
         return
 
     try:
-        from airflow._shared.module_loading import _get_grouped_entry_points
+        from airflow_shared.module_loading import _get_grouped_entry_points
     except ImportError:
         # compat for airflow < 3.2
         from airflow.utils.entry_points import _get_grouped_entry_points
@@ -1888,6 +1954,31 @@ def clear_lru_cache():
         yield
     finally:
         _get_grouped_entry_points.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_team_name_cache():
+    """Reset the per-process Dag team-name cache between tests.
+
+    ``DagModel.get_team_name`` caches by dag_id; tests reuse dag_ids with different team
+    setups, so a stale entry would otherwise leak a wrong team into the next case.
+    """
+    if importlib.util.find_spec("airflow") is None:
+        yield
+        return
+
+    try:
+        from airflow.models.dag import clear_team_name_cache
+    except ImportError:
+        # compat for airflow versions without the team-name cache
+        yield
+        return
+
+    clear_team_name_cache()
+    try:
+        yield
+    finally:
+        clear_team_name_cache()
 
 
 @pytest.fixture(autouse=True)
@@ -2510,7 +2601,6 @@ def create_runtime_ti(mocked_parse):
     from uuid6 import uuid7
 
     from airflow.sdk import DAG
-    from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
     from airflow.timetables.base import TimeRestriction
 
@@ -2538,7 +2628,12 @@ def create_runtime_ti(mocked_parse):
         should_retry: bool | None = None,
         max_tries: int | None = None,
     ) -> RuntimeTaskInstance:
-        from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, TIRunContext
+        from airflow.sdk.api.datamodels._generated import (
+            DagRun,
+            DagRunState,
+            TaskInstance as TaskInstanceDTO,
+            TIRunContext,
+        )
         from airflow.utils.types import DagRunType
 
         if isinstance(logical_date, str):
@@ -2615,14 +2710,15 @@ def create_runtime_ti(mocked_parse):
         }
 
         startup_details = StartupDetails(
-            ti=TaskInstance(
+            ti=TaskInstanceDTO(
                 id=ti_id,
                 task_id=task.task_id,
                 dag_id=dag_id,
                 run_id=run_id,
                 try_number=try_number,
-                map_index=map_index,
+                map_index=map_index,  # type: ignore[arg-type]
                 dag_version_id=uuid7(),
+                queue="default",
             ),
             dag_rel_path="",
             bundle_info=BundleInfo(name="anything", version="any"),
@@ -2866,40 +2962,60 @@ def mock_xcom_backend():
 def testing_dag_bundle():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    if AIRFLOW_V_3_0_PLUS:
-        from sqlalchemy import func, select
+    if not AIRFLOW_V_3_0_PLUS:
+        yield
+        return
 
-        from airflow.models.dagbundle import DagBundleModel
-        from airflow.utils.session import create_session
+    from sqlalchemy import func, select
 
+    from airflow.models.dagbundle import DagBundleModel
+    from airflow.utils.session import create_session
+
+    created = False
+    with create_session() as session:
+        if (
+            session.scalar(
+                select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
+            )
+            == 0
+        ):
+            session.add(DagBundleModel(name="testing"))
+            created = True
+
+    yield
+
+    if created:
         with create_session() as session:
-            if (
-                session.scalar(
-                    select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
-                )
-                == 0
-            ):
-                testing = DagBundleModel(name="testing")
-                session.add(testing)
+            _delete_bundle_if_unreferenced(session, "testing")
 
 
 @pytest.fixture
 def testing_team():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
-    if AIRFLOW_V_3_0_PLUS:
-        from sqlalchemy import select
+    if not AIRFLOW_V_3_0_PLUS:
+        yield None
+        return
 
-        from airflow.models.team import Team
-        from airflow.utils.session import create_session
+    from sqlalchemy import delete, select
 
+    from airflow.models.team import Team
+    from airflow.utils.session import create_session
+
+    created = False
+    with create_session() as session:
+        team = session.scalar(select(Team).where(Team.name == "testing"))
+        if not team:
+            team = Team(name="testing")
+            session.add(team)
+            session.commit()
+            created = True
+        yield team
+
+    if created:
+        # FKs to team.name are CASCADE / SET NULL, so deleting the row is safe.
         with create_session() as session:
-            team = session.scalar(select(Team).where(Team.name == "testing"))
-            if not team:
-                team = Team(name="testing")
-                session.add(team)
-                session.flush()
-            yield team
+            session.execute(delete(Team).where(Team.name == "testing"))
 
 
 @pytest.fixture

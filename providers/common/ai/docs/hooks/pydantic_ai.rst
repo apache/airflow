@@ -66,3 +66,33 @@ Define a Pydantic model for the expected output shape, then pass it as ``output_
     :language: python
     :start-after: [START howto_hook_pydantic_ai_structured_output]
     :end-before: [END howto_hook_pydantic_ai_structured_output]
+
+Loading Agent Config from a Spec File
+--------------------------------------
+
+Instead of hard-coding model name, instructions, and settings in Python, you can
+store them in a YAML or JSON `AgentSpec
+<https://ai.pydantic.dev/agents/#agent-spec>`__ file and pass its path via
+``spec_file``.  This keeps prompt engineering separate from Dag logic and lets
+you version-control agent configs independently.
+
+.. code-block:: yaml
+   :caption: agent_spec.yaml
+
+   model: openai:gpt-4o-mini
+   instructions: >
+     You are a concise summarizer. Given any text, respond with a single
+     paragraph that captures the key points.
+   model_settings:
+     temperature: 0.3
+   retries: 2
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_pydantic_ai_hook.py
+    :language: python
+    :start-after: [START howto_hook_pydantic_ai_spec_file]
+    :end-before: [END howto_hook_pydantic_ai_spec_file]
+
+The model declared in the spec file is used unless ``model_id`` or the
+connection's ``model`` extra is set, in which case the hook model takes
+precedence. Passing ``instructions`` to ``create_agent`` when a ``spec_file`` is
+also given appends additional instructions to the file value.

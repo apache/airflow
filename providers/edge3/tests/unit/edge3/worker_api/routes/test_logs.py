@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -53,8 +54,8 @@ class TestLogsApiRoutes:
     def test_logfile_path(self, session: Session):
         p: str = logfile_path(dag_id=DAG_ID, task_id=TASK_ID, run_id=RUN_ID, try_number=1, map_index=-1)
         assert p
-        assert f"dag_id={DAG_ID}/run_id={RUN_ID}/task_id={TASK_ID}/attempt=1" in p
-        assert "/-1" not in p
+        assert str(Path(f"dag_id={DAG_ID}") / f"run_id={RUN_ID}" / f"task_id={TASK_ID}" / "attempt=1") in p
+        assert "-1" not in Path(p).parts
 
     def test_push_logs(self, session: Session):
         log_data = PushLogsBody(

@@ -16,9 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, HStack, Skeleton, Separator } from "@chakra-ui/react";
-import type { BoxProps } from "@chakra-ui/react";
-import { createListCollection } from "@chakra-ui/react/collection";
+import {
+  Box,
+  Heading,
+  Flex,
+  HStack,
+  Skeleton,
+  Separator,
+  type BoxProps,
+  createListCollection,
+} from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
 

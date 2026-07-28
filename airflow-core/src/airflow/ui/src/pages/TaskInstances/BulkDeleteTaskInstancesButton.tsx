@@ -22,21 +22,21 @@ import { FiTrash2 } from "react-icons/fi";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { getColumns } from "src/components/ActionAccordion/columns";
+import { ActionErrors } from "src/components/ActionErrors";
 import { DataTable } from "src/components/DataTable";
-import { ErrorAlert } from "src/components/ErrorAlert";
 import { Accordion, Dialog } from "src/components/ui";
 import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
 
 type Props = {
-  readonly clearSelections: VoidFunction;
+  readonly deselectKeys: (keys: Array<string>) => void;
   readonly selectedTaskInstances: Array<TaskInstanceResponse>;
 };
 
-const BulkDeleteTaskInstancesButton = ({ clearSelections, selectedTaskInstances }: Props) => {
+const BulkDeleteTaskInstancesButton = ({ deselectKeys, selectedTaskInstances }: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
-  const { bulkAction, error, isPending } = useBulkTaskInstances({
-    clearSelections,
+  const { bulkAction, data, error, isPending } = useBulkTaskInstances({
+    deselectKeys,
     onSuccessConfirm: onClose,
   });
 
@@ -56,12 +56,12 @@ const BulkDeleteTaskInstancesButton = ({ clearSelections, selectedTaskInstances 
 
   return (
     <>
-      <Button colorPalette="danger" onClick={onOpen} size="sm" variant="outline">
+      <Button colorPalette="danger" onClick={onOpen} variant="outline">
         <FiTrash2 />
         {translate("dags:runAndTaskActions.delete.button", { type: translate("taskInstance_other") })}
       </Button>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Root onOpenChange={onClose} open={open}>
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={4}>
@@ -117,7 +117,7 @@ const BulkDeleteTaskInstancesButton = ({ clearSelections, selectedTaskInstances 
               )}
             </Box>
 
-            <ErrorAlert error={error} />
+            <ActionErrors actionResponse={data?.delete} error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
                 colorPalette="danger"

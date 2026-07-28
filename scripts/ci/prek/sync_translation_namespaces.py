@@ -26,7 +26,7 @@ from common_prek_utils import AIRFLOW_ROOT_PATH, insert_documentation
 EN_LOCALE_DIR = (
     AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales" / "en"
 )
-SKILL_FILE = AIRFLOW_ROOT_PATH / ".github" / "skills" / "airflow-translations" / "SKILL.md"
+SKILL_FILE = AIRFLOW_ROOT_PATH / ".agents" / "skills" / "airflow-translations" / "SKILL.md"
 
 START_MARKER = "<!-- START namespace-files, please keep comment here to allow auto update -->"
 END_MARKER = "<!-- END namespace-files, please keep comment here to allow auto update -->"

@@ -29,11 +29,16 @@ from extract_metadata import (
     determine_airflow_versions,
     extract_integrations_as_categories,
     fetch_provider_inventory,
+    fetch_pypi_data_parallel,
     fetch_pypi_dates,
     fetch_pypi_downloads,
+    fetch_pypi_downloads_clickhouse,
+    find_latest_released_version,
     find_related_providers,
+    load_release_tags,
     module_path_to_file_path,
     parse_pyproject_toml,
+    preserve_nonzero_downloads,
     read_connection_urls,
     read_inventory,
     resolve_connection_docs_url,
@@ -256,6 +261,119 @@ class TestFetchPypiDates:
     def test_network_error(self, _mock):
         result = fetch_pypi_dates("nonexistent-package")
         assert result == {"first_released": "", "last_updated": ""}
+
+
+# ---------------------------------------------------------------------------
+# fetch_pypi_downloads_clickhouse (mocked network)
+# ---------------------------------------------------------------------------
+class TestFetchPypiDownloadsClickhouse:
+    @patch("extract_metadata.urllib.request.urlopen")
+    def test_parses_tsv(self, mock_urlopen):
+        body = (
+            b"apache-airflow-providers-amazon\t766462\t8218125\n"
+            b"apache-airflow-providers-common-ai\t30881\t171721\n"
+        )
+        mock_response = MagicMock(spec=http.client.HTTPResponse)
+        mock_response.read.return_value = body
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = mock_response
+
+        result = fetch_pypi_downloads_clickhouse(
+            ["apache-airflow-providers-amazon", "apache-airflow-providers-common-ai"]
+        )
+        assert result["apache-airflow-providers-amazon"] == {"weekly": 766462, "monthly": 8218125, "total": 0}
+        assert result["apache-airflow-providers-common-ai"] == {
+            "weekly": 30881,
+            "monthly": 171721,
+            "total": 0,
+        }
+
+    def test_empty_input_skips_query(self):
+        with patch("extract_metadata.urllib.request.urlopen") as mock_urlopen:
+            assert fetch_pypi_downloads_clickhouse([]) == {}
+            mock_urlopen.assert_not_called()
+
+    @patch("extract_metadata.urllib.request.urlopen", side_effect=OSError("clickhouse down"))
+    def test_failure_returns_empty(self, _mock):
+        # On any failure, return {} so callers fall back to pypistats.
+        assert fetch_pypi_downloads_clickhouse(["apache-airflow-providers-amazon"]) == {}
+
+
+# ---------------------------------------------------------------------------
+# fetch_pypi_data_parallel
+# ---------------------------------------------------------------------------
+class TestFetchPypiDataParallel:
+    def test_uses_clickhouse_without_pypistats(self):
+        # When ClickHouse returns real numbers, pypistats is never called (no burst).
+        pkgs = ["pkg-a", "pkg-b"]
+        clickhouse = {p: {"weekly": 1, "monthly": 10, "total": 0} for p in pkgs}
+        with (
+            patch("extract_metadata.fetch_pypi_downloads_clickhouse", return_value=clickhouse),
+            patch("extract_metadata.fetch_pypi_downloads") as dl,
+            patch(
+                "extract_metadata.fetch_pypi_dates",
+                return_value={"first_released": "2024-01-01", "last_updated": "2024-06-01"},
+            ),
+        ):
+            result = fetch_pypi_data_parallel(pkgs, max_workers=4)
+
+        assert set(result) == set(pkgs)
+        for pkg in pkgs:
+            downloads, dates = result[pkg]
+            assert downloads == {"weekly": 1, "monthly": 10, "total": 0}
+            assert dates == {"first_released": "2024-01-01", "last_updated": "2024-06-01"}
+        dl.assert_not_called()
+
+    def test_falls_back_to_pypistats_when_clickhouse_missing_or_zero(self):
+        # ClickHouse is missing 'b' and returns zero for 'c' -- both fall back to pypistats.
+        pkgs = ["a", "b", "c"]
+        clickhouse = {
+            "a": {"weekly": 1, "monthly": 10, "total": 0},
+            "c": {"weekly": 0, "monthly": 0, "total": 0},
+        }
+        with (
+            patch("extract_metadata.fetch_pypi_downloads_clickhouse", return_value=clickhouse),
+            patch(
+                "extract_metadata.fetch_pypi_downloads",
+                return_value={"weekly": 9, "monthly": 99, "total": 0},
+            ) as dl,
+            patch(
+                "extract_metadata.fetch_pypi_dates",
+                return_value={"first_released": "", "last_updated": ""},
+            ),
+        ):
+            result = fetch_pypi_data_parallel(pkgs)
+
+        assert result["a"][0] == {"weekly": 1, "monthly": 10, "total": 0}  # from ClickHouse
+        assert result["b"][0] == {"weekly": 9, "monthly": 99, "total": 0}  # fallback (missing)
+        assert result["c"][0] == {"weekly": 9, "monthly": 99, "total": 0}  # fallback (zero)
+        assert {call.args[0] for call in dl.call_args_list} == {"b", "c"}
+
+    def test_empty_input(self):
+        assert fetch_pypi_data_parallel([]) == {}
+
+
+# ---------------------------------------------------------------------------
+# preserve_nonzero_downloads
+# ---------------------------------------------------------------------------
+class TestPreserveNonzeroDownloads:
+    def test_preserves_when_new_is_zero_and_previous_nonzero(self):
+        new = [{"id": "amazon", "pypi_downloads": {"weekly": 0, "monthly": 0, "total": 0}}]
+        existing = [{"id": "amazon", "pypi_downloads": {"weekly": 766462, "monthly": 8218125, "total": 0}}]
+        assert preserve_nonzero_downloads(new, existing) == 1
+        assert new[0]["pypi_downloads"]["monthly"] == 8218125
+
+    def test_keeps_new_when_it_has_a_number(self):
+        new = [{"id": "amazon", "pypi_downloads": {"weekly": 5, "monthly": 50, "total": 0}}]
+        existing = [{"id": "amazon", "pypi_downloads": {"weekly": 9, "monthly": 99, "total": 0}}]
+        assert preserve_nonzero_downloads(new, existing) == 0
+        assert new[0]["pypi_downloads"]["monthly"] == 50
+
+    def test_no_previous_entry_leaves_zero(self):
+        new = [{"id": "brand-new", "pypi_downloads": {"weekly": 0, "monthly": 0, "total": 0}}]
+        assert preserve_nonzero_downloads(new, []) == 0
+        assert new[0]["pypi_downloads"]["monthly"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -568,3 +686,145 @@ class TestResolveConnectionDocsUrl:
         conn_map = {"tableau": "connections/tableau.html"}
         url = resolve_connection_docs_url("tableau", conn_map, self.BASE)
         assert url == f"{self.BASE}/connections/tableau.html"
+
+
+# ---------------------------------------------------------------------------
+# load_release_tags
+# ---------------------------------------------------------------------------
+class TestLoadReleaseTags:
+    def test_parses_subprocess_output(self):
+        from unittest.mock import MagicMock, patch
+
+        mock_result = MagicMock()
+        mock_result.stdout = (
+            "providers-amazon/9.25.0\n"
+            "providers-amazon/9.26.0\n"
+            "providers-celery/3.18.0\n"
+            "providers-celery/3.19.0rc1\n"
+            "\n"  # blank line
+            "  providers-google/21.2.0  \n"  # whitespace tolerated
+        )
+        with patch("extract_metadata.subprocess.run", return_value=mock_result) as mock_run:
+            tags = load_release_tags()
+
+        assert tags == {
+            "providers-amazon/9.25.0",
+            "providers-amazon/9.26.0",
+            "providers-celery/3.18.0",
+            "providers-celery/3.19.0rc1",
+            "providers-google/21.2.0",
+        }
+        # The git command runs against the providers-* glob
+        cmd = mock_run.call_args[0][0]
+        assert cmd[:3] == ["git", "tag", "--list"]
+        assert cmd[3] == "providers-*"
+
+    def test_returns_empty_set_on_subprocess_failure(self):
+        from subprocess import CalledProcessError
+        from unittest.mock import patch
+
+        with patch(
+            "extract_metadata.subprocess.run",
+            side_effect=CalledProcessError(1, ["git", "tag", "--list"]),
+        ):
+            tags = load_release_tags()
+        assert tags == set()
+
+    def test_returns_empty_set_when_git_not_installed(self):
+        from unittest.mock import patch
+
+        with patch("extract_metadata.subprocess.run", side_effect=FileNotFoundError):
+            tags = load_release_tags()
+        assert tags == set()
+
+
+# ---------------------------------------------------------------------------
+# find_latest_released_version
+# ---------------------------------------------------------------------------
+class TestFindLatestReleasedVersion:
+    def test_returns_top_when_top_has_tag(self):
+        tags = {"providers-amazon/9.26.0", "providers-amazon/9.25.0"}
+        assert find_latest_released_version("amazon", ["9.26.0", "9.25.0"], tags) == "9.26.0"
+
+    def test_walks_past_phantom_top(self):
+        # celery 3.19.0 is in versions: but no final tag -- only rc1.
+        tags = {
+            "providers-celery/3.19.0rc1",
+            "providers-celery/3.18.0",
+            "providers-celery/3.17.2",
+        }
+        result = find_latest_released_version("celery", ["3.19.0", "3.18.0", "3.17.2"], tags)
+        assert result == "3.18.0"
+
+    def test_returns_none_when_no_versions_have_tags(self):
+        # akeyless: brand-new provider, listed in versions: but never tagged.
+        tags = {"providers-amazon/9.26.0"}  # different provider
+        result = find_latest_released_version("akeyless", ["1.0.0"], tags)
+        assert result is None
+
+    def test_returns_none_for_empty_versions_list(self):
+        result = find_latest_released_version("amazon", [], {"providers-amazon/9.26.0"})
+        assert result is None
+
+    def test_rc_only_treated_as_phantom(self):
+        # Final 3.19.0 is missing; rc1/rc2 exist. Final must match exactly.
+        tags = {"providers-celery/3.19.0rc1", "providers-celery/3.19.0rc2", "providers-celery/3.18.0"}
+        # versions: list contains only the would-be final
+        result = find_latest_released_version("celery", ["3.19.0"], tags)
+        assert result is None
+        # When fallback also exists in versions, returns the fallback
+        result = find_latest_released_version("celery", ["3.19.0", "3.18.0"], tags)
+        assert result == "3.18.0"
+
+    def test_does_not_match_other_providers_tags(self):
+        # provider id is part of the tag prefix; pure version coincidence shouldn't match
+        tags = {"providers-google/9.26.0"}
+        result = find_latest_released_version("amazon", ["9.26.0"], tags)
+        assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Filter behaviour applied to the `versions` list (not just the latest pointer)
+# ---------------------------------------------------------------------------
+class TestVersionsListFiltering:
+    """Regression test for the bug where Provider.version (singular) was
+    filtered to a real release but Provider.versions (list) still contained
+    phantom entries. Downstream consumers like extract_versions.py read the
+    list and would chase non-existent backfill tags.
+    """
+
+    def test_filter_drops_phantom_top_from_list(self):
+        # This mirrors the in-loop logic. We don't have to test main()
+        # end-to-end -- the filter is a single comprehension that we can
+        # exercise directly to lock in the contract.
+        provider_id = "celery"
+        raw_versions = ["3.19.0", "3.18.0", "3.17.2"]
+        release_tags = {
+            "providers-celery/3.19.0rc1",  # not the final
+            "providers-celery/3.18.0",
+            "providers-celery/3.17.2",
+        }
+        filtered = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
+        assert filtered == ["3.18.0", "3.17.2"]
+        # And the latest pointer agrees
+        assert find_latest_released_version(provider_id, raw_versions, release_tags) == "3.18.0"
+
+    def test_filter_drops_unreleased_provider(self):
+        provider_id = "akeyless"
+        raw_versions = ["1.0.0"]
+        release_tags = {"providers-amazon/9.26.0"}  # different provider
+        filtered = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
+        assert filtered == []
+        assert find_latest_released_version(provider_id, raw_versions, release_tags) is None
+
+    def test_filter_preserves_order(self):
+        provider_id = "amazon"
+        raw_versions = ["9.27.0", "9.26.0", "9.25.0", "9.24.0"]  # 9.27.0 phantom
+        release_tags = {
+            "providers-amazon/9.26.0",
+            "providers-amazon/9.25.0",
+            "providers-amazon/9.24.0",
+        }
+        filtered = [v for v in raw_versions if f"providers-{provider_id}/{v}" in release_tags]
+        # Order from raw_versions is preserved; only the phantom is dropped
+        assert filtered == ["9.26.0", "9.25.0", "9.24.0"]

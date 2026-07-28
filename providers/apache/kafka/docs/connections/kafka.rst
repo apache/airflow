@@ -43,3 +43,35 @@ of parameters are described in the
 If you are defining the Airflow connection from the Airflow UI, the ``extra`` field will be renamed to ``Config Dict``.
 
 Most operators and hooks will check that at the minimum the ``bootstrap.servers`` key exists and has a value set to be valid.
+
+Amazon MSK with IAM authentication
+----------------------------------
+
+`Amazon MSK <https://aws.amazon.com/msk/>`_ clusters (both provisioned and serverless) can be
+authenticated with `IAM <https://docs.aws.amazon.com/msk/latest/developerguide/iam-access-control.html>`_.
+This requires the ``aws-msk-iam-sasl-signer-python`` package, which is installed with the ``msk`` extra:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-kafka[msk]
+
+When the ``bootstrap.servers`` point at an Amazon MSK endpoint (for example
+``*.kafka.<region>.amazonaws.com`` or ``*.kafka-serverless.<region>.amazonaws.com``) and
+``sasl.mechanism`` is set to ``OAUTHBEARER``, the hook automatically generates and refreshes the
+IAM authentication token, deriving the AWS region from the bootstrap servers. The credentials are
+resolved by the signer using the standard AWS credential provider chain (environment variables,
+shared config/credentials files, instance/task IAM roles, etc.).
+
+An example ``extra`` (``Config Dict``) for an MSK connection:
+
+.. code-block:: json
+
+    {
+        "bootstrap.servers": "boot-abcde1.c2.kafka-serverless.us-east-1.amazonaws.com:9098",
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "OAUTHBEARER",
+        "group.id": "my-group"
+    }
+
+An explicit ``oauth_cb`` provided in the connection configuration is always respected and is never
+overwritten by the automatic MSK IAM callback.

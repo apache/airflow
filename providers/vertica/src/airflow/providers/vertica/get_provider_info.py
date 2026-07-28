@@ -38,6 +38,22 @@ def get_provider_info():
         "hooks": [
             {"integration-name": "Vertica", "python-modules": ["airflow.providers.vertica.hooks.vertica"]}
         ],
+        "asset-uris": [
+            {
+                "schemes": ["vertica"],
+                "handler": "airflow.providers.vertica.assets.vertica.sanitize_uri",
+                "factory": "airflow.providers.vertica.assets.vertica.create_asset",
+                "to_openlineage_converter": "airflow.providers.vertica.assets.vertica.convert_asset_to_openlineage",
+            }
+        ],
+        "dataset-uris": [
+            {
+                "schemes": ["vertica"],
+                "handler": "airflow.providers.vertica.assets.vertica.sanitize_uri",
+                "factory": "airflow.providers.vertica.assets.vertica.create_asset",
+                "to_openlineage_converter": "airflow.providers.vertica.assets.vertica.convert_asset_to_openlineage",
+            }
+        ],
         "connection-types": [
             {
                 "hook-class-name": "airflow.providers.vertica.hooks.vertica.VerticaHook",

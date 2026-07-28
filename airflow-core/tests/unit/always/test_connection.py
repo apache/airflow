@@ -107,6 +107,46 @@ class TestConnection:
     def teardown_method(self):
         self.patcher.stop()
 
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+    def test_password_setter_sets_is_encrypted(self):
+        """Connection's ``set_password`` override must win over FernetFieldsMixin's."""
+        crypto.get_fernet.cache_clear()
+        test_connection = Connection(conn_type="postgres")
+        assert not test_connection.is_encrypted
+
+        test_connection.password = "foo"
+
+        assert test_connection.is_encrypted
+        assert test_connection.password == "foo"
+        assert test_connection._password != "foo"
+
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+    def test_password_setter_noop_on_falsy_value(self):
+        """Setting password to None/empty must not wipe an already-stored password."""
+        crypto.get_fernet.cache_clear()
+        test_connection = Connection(conn_type="postgres")
+        test_connection.password = "secret"
+        assert test_connection.password == "secret"
+
+        test_connection.password = None
+        assert test_connection.password == "secret"
+
+        test_connection.password = ""
+        assert test_connection.password == "secret"
+
+    @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
+    def test_extra_setter_sets_is_extra_encrypted(self):
+        """Connection's ``set_extra`` override must win over FernetFieldsMixin's."""
+        crypto.get_fernet.cache_clear()
+        test_connection = Connection(conn_type="postgres")
+        assert not test_connection.is_extra_encrypted
+
+        test_connection.extra = '{"k": "v"}'
+
+        assert test_connection.is_extra_encrypted
+        assert test_connection.extra == '{"k": "v"}'
+        assert test_connection._extra != '{"k": "v"}'
+
     @conf_vars({("core", "fernet_key"): ""})
     def test_connection_extra_no_encryption(self):
         """
@@ -344,6 +384,19 @@ class TestConnection:
                 login="login/!@#$%^&*(){}",
             ),
             description="login only",
+        ),
+        UriTestCaseConfig(
+            test_conn_uri="scheme://host/schema?valid_json=%7B%22key%22%3A%22val%22%7D&invalid_json=just_a_string&empty_val=",
+            test_conn_attributes=dict(
+                conn_type="scheme",
+                host="host",
+                schema="schema",
+                login=None,
+                password=None,
+                port=None,
+                extra_dejson={"valid_json": {"key": "val"}, "invalid_json": "just_a_string", "empty_val": ""},
+            ),
+            description="with valid json, invalid json fallback, and empty strings in extras",
         ),
     ]
 

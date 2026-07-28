@@ -97,8 +97,8 @@ services:
         source: ../../../go-sdk
         target: /opt/airflow/go-sdk
       - type: bind
-        source: ../../../helm-tests
-        target: /opt/airflow/helm-tests
+        source: ../../../java-sdk
+        target: /opt/airflow/java-sdk
       - type: bind
         source: ../../../kubernetes-tests
         target: /opt/airflow/kubernetes-tests
@@ -132,6 +132,9 @@ services:
       - type: bind
         source: ../../../task-sdk
         target: /opt/airflow/task-sdk
+      - type: bind
+        source: ../../../ts-sdk
+        target: /opt/airflow/ts-sdk
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
 volumes:
   root-airflow-volume:

@@ -41,3 +41,20 @@ class DAGRunLightResponse(BaseModel):
         if self.end_date and self.start_date:
             return (self.end_date - self.start_date).total_seconds()
         return None
+
+
+class DurationStats(BaseModel):
+    """Duration statistics for a DAG across historical runs."""
+
+    mean: float
+    mode: float | None
+    p50: float
+    p90: float
+    p95: float
+    p99: float
+
+
+class DagRunStatsResponse(BaseModel):
+    """DAG Run statistics serializer for responses."""
+
+    duration: DurationStats | None

@@ -28,6 +28,31 @@
 Changelog
 ---------
 
+4.5.7
+.....
+
+Misc
+~~~~
+
+* ``Bump aiohttp>=3.14.0 (#67978)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.5.6
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Include endpoint_prefix in LivyTrigger serialization (#66966)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``refactor: word changed from DAG to Dag in providers/apache/ (#66153)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Fix stale system test documentation links (#65071)``
+
 4.5.5
 .....
 

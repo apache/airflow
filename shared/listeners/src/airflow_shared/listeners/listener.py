@@ -17,24 +17,70 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 from typing import TYPE_CHECKING
 
 import pluggy
 import structlog
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
+from ..observability.traces import DEFAULT_TASK_SPAN_DETAIL_LEVEL, TASK_SPAN_DETAIL_LEVEL_KEY
 
 if TYPE_CHECKING:
+    from opentelemetry.trace import Span
     from pluggy._hooks import _HookRelay
 
 log = structlog.get_logger(__name__)
+tracer = trace.get_tracer(__name__)
+
+
+def _detail_level(span: Span) -> int:
+    raw = span.get_span_context().trace_state.get(TASK_SPAN_DETAIL_LEVEL_KEY)
+    if raw is None:
+        return DEFAULT_TASK_SPAN_DETAIL_LEVEL
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_TASK_SPAN_DETAIL_LEVEL
+
+
+_span_state = threading.local()
+
+
+def _stack() -> list:
+    stack = getattr(_span_state, "stack", None)
+    if stack is None:
+        stack = _span_state.stack = []
+    return stack
 
 
 def _before_hookcall(hook_name, hook_impls, kwargs):
     log.debug("Calling %r with %r", hook_name, kwargs)
     log.debug("Hook impls: %s", hook_impls)
+    if not hook_impls or _detail_level(trace.get_current_span()) <= 1:
+        _stack().append(None)
+        return
+    cm = tracer.start_as_current_span(f"listener.{hook_name}")
+    span = cm.__enter__()
+    _stack().append((cm, span))
 
 
 def _after_hookcall(outcome, hook_name, hook_impls, kwargs):
-    log.debug("Result from %r: %s", hook_name, outcome.get_result())
+    excinfo = getattr(outcome, "excinfo", None)
+    if excinfo:
+        log.debug("Hook %r raised %s", hook_name, excinfo[0].__name__)
+    else:
+        log.debug("Result from %r: %s", hook_name, outcome.get_result())
+    entry = _stack().pop()
+    if entry is None:
+        return
+    cm, span = entry
+    if excinfo:
+        exc_type, exc, _tb = excinfo
+        span.record_exception(exc)
+        span.set_status(Status(StatusCode.ERROR, description=f"Exception: {exc_type.__name__}"))
+    cm.__exit__(None, None, None)
 
 
 class ListenerManager:

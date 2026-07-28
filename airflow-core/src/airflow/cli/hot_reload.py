@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import signal
 import sys
@@ -94,10 +95,8 @@ def _terminate_process_tree(
 
         # Terminate all children first
         for child in children:
-            try:
+            with contextlib.suppress(psutil.NoSuchProcess, psutil.AccessDenied):
                 child.terminate()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
 
         # Terminate the parent
         parent.terminate()

@@ -17,11 +17,14 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from unittest import mock
 
 import pytest
+from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models.log import Log
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
@@ -39,14 +42,13 @@ OWNER = "TEST_OWNER"
 OWNER_DISPLAY_NAME = "Test Owner"
 OWNER_AIRFLOW = "airflow"
 TASK_INSTANCE_EVENT = "TASK_INSTANCE_EVENT"
-TASK_INSTANCE_OWNER = "TASK_INSTANCE_OWNER"
-TASK_INSTANCE_OWNER_DISPLAY_NAME = "Task Instance Owner"
 
 
 EVENT_NORMAL = "NORMAL_EVENT"
 EVENT_WITH_OWNER = "EVENT_WITH_OWNER"
 EVENT_WITH_TASK_INSTANCE = "EVENT_WITH_TASK_INSTANCE"
 EVENT_WITH_OWNER_AND_TASK_INSTANCE = "EVENT_WITH_OWNER_AND_TASK_INSTANCE"
+EVENT_WITHOUT_DTTM = "EVENT_WITHOUT_DTTM"
 EVENT_NON_EXISTED_ID = 9999
 
 
@@ -60,7 +62,7 @@ class TestEventLogsEndpoint:
 
     @pytest.fixture(autouse=True)
     @provide_session
-    def setup(self, create_task_instance, session=None) -> dict[str, Log]:
+    def setup(self, create_task_instance, *, session: Session = NEW_SESSION) -> dict[str, Log]:
         """
         Setup event logs for testing.
         :return: Dictionary with event log keys and their corresponding IDs.
@@ -124,6 +126,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                 {
                     "event": EVENT_WITH_OWNER,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                 },
             ),
             (
@@ -135,6 +138,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "event": TASK_INSTANCE_EVENT,
                     "map_index": -1,
                     "owner": OWNER_AIRFLOW,
+                    "owner_display_name": OWNER_AIRFLOW,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
                     "task_display_name": TASK_DISPLAY_NAME,
@@ -149,6 +153,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "event": EVENT_WITH_OWNER_AND_TASK_INSTANCE,
                     "map_index": -1,
                     "owner": OWNER,
+                    "owner_display_name": OWNER_DISPLAY_NAME,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
                     "task_display_name": TASK_DISPLAY_NAME,
@@ -181,6 +186,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             if event_log.logical_date
             else None,
             "owner": expected_body.get("owner"),
+            "owner_display_name": expected_body.get("owner_display_name"),
             "extra": expected_body.get("extra"),
         }
 
@@ -195,6 +201,53 @@ class TestGetEventLog(TestEventLogsEndpoint):
         event_log_id = setup[EVENT_NORMAL].id
         response = unauthorized_test_client.get(f"/eventLogs/{event_log_id}")
         assert response.status_code == 403
+
+    def test_should_respond_403_when_user_lacks_dag_audit_log_permission(self, test_client, setup):
+        """The detail endpoint must enforce the per-DAG audit log permission of the event log's dag_id."""
+        event_log_id = setup[TASK_INSTANCE_EVENT].id
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+            return_value=False,
+        ) as mock_is_authorized_dag:
+            response = test_client.get(f"/eventLogs/{event_log_id}")
+
+        assert response.status_code == 403
+        mock_is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.AUDIT_LOG,
+            details=DagDetails(id=DAG_ID, team_name=None),
+            user=mock.ANY,
+        )
+
+    def test_should_authorize_with_event_log_dag_id(self, test_client, setup):
+        """When the event log is bound to a DAG, authorization must scope to that DAG id."""
+        event_log_id = setup[TASK_INSTANCE_EVENT].id
+        with mock.patch(
+            "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.is_authorized_dag",
+            return_value=True,
+        ) as mock_is_authorized_dag:
+            response = test_client.get(f"/eventLogs/{event_log_id}")
+
+        assert response.status_code == 200
+        mock_is_authorized_dag.assert_called_once_with(
+            method="GET",
+            access_entity=DagAccessEntity.AUDIT_LOG,
+            details=DagDetails(id=DAG_ID, team_name=None),
+            user=mock.ANY,
+        )
+
+    @provide_session
+    def test_should_return_404_for_log_without_dttm(self, test_client, *, session: Session = NEW_SESSION):  # noqa: PT028
+        event_log = Log(event=EVENT_WITHOUT_DTTM)
+        session.add(event_log)
+        session.flush()
+        event_log_id = event_log.id
+        event_log.dttm = None
+        session.commit()
+
+        response = test_client.get(f"/eventLogs/{event_log_id}")
+
+        assert response.status_code == 404
 
 
 class TestGetEventLogs(TestEventLogsEndpoint):
@@ -312,6 +365,43 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         assert resp_json["total_entries"] == expected_total_entries
         for event_log, expected_event in zip(resp_json["event_logs"], expected_events):
             assert event_log["event"] == expected_event
+
+    @provide_session
+    def test_get_event_logs_excludes_logs_without_dttm(
+        self,
+        test_client,
+        *,
+        session: Session = NEW_SESSION,  # noqa: PT028
+    ):
+        event_log = Log(event=EVENT_WITHOUT_DTTM)
+        session.add(event_log)
+        session.flush()
+        event_log.dttm = None
+        session.commit()
+
+        with assert_queries_count(3):
+            response = test_client.get("/eventLogs", params={"order_by": "-when"})
+
+        assert response.status_code == 200
+        resp_json = response.json()
+        assert resp_json["total_entries"] == 4
+        assert EVENT_WITHOUT_DTTM not in {event_log["event"] for event_log in resp_json["event_logs"]}
+
+    def test_get_event_logs_includes_owner_display_name(self, test_client):
+        response = test_client.get("/eventLogs", params={"event": EVENT_WITH_OWNER})
+        assert response.status_code == 200
+
+        event_log = response.json()["event_logs"][0]
+        assert event_log["owner"] == OWNER
+        assert event_log["owner_display_name"] == OWNER_DISPLAY_NAME
+
+    def test_get_event_logs_falls_back_to_owner_when_display_name_is_unavailable(self, test_client):
+        response = test_client.get("/eventLogs", params={"event": TASK_INSTANCE_EVENT})
+
+        assert response.status_code == 200
+        event_log = response.json()["event_logs"][0]
+        assert event_log["owner"] == OWNER_AIRFLOW
+        assert event_log["owner_display_name"] == OWNER_AIRFLOW
 
     # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")

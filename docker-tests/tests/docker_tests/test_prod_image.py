@@ -39,7 +39,7 @@ AIRFLOW_CORE_PYPROJECT_TOML = AIRFLOW_ROOT_PATH / "airflow-core" / "pyproject.to
 try:
     from tomllib import loads as load_tomllib
 except ImportError:
-    from tomli import loads as load_tomllib
+    from tomli import loads as load_tomllib  # type: ignore[no-redef]
 
 airflow_core_pyproject_toml = load_tomllib(AIRFLOW_CORE_PYPROJECT_TOML.read_text())
 

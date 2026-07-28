@@ -17,17 +17,21 @@
 
 from __future__ import annotations
 
+import hashlib
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
+from airflow.providers.databricks.operators.databricks import DatabricksNotebookOperator
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
     WorkflowRunMetadata,
@@ -35,9 +39,15 @@ from airflow.providers.databricks.operators.databricks_workflow import (
     _flatten_node,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
+
+ACCESS_CONTROL_LIST = [
+    {
+        "user_name": "jsmith@example.com",
+        "permission_level": "CAN_MANAGE",
+    }
+]
 
 
 @pytest.fixture
@@ -97,6 +107,49 @@ def test_create_workflow_json(mock_databricks_hook, context, mock_task_group):
     assert workflow_json["job_clusters"] == []
     assert workflow_json["max_concurrent_runs"] == 1
     assert workflow_json["timeout_seconds"] == 0
+
+    assert "access_control_list" not in workflow_json
+
+
+@pytest.mark.parametrize("access_control_list", [ACCESS_CONTROL_LIST, []])
+def test_create_workflow_json_access_control_list(
+    mock_databricks_hook, context, mock_task_group, access_control_list
+):
+    """Test that _CreateDatabricksWorkflowOperator.create_workflow_json includes access_control_list."""
+    operator = _CreateDatabricksWorkflowOperator(
+        task_id="test_task",
+        databricks_conn_id="databricks_default",
+        access_control_list=access_control_list,
+    )
+    operator.task_group = mock_task_group
+
+    task = MagicMock(spec=BaseOperator, task_id="task_1")
+    task._convert_to_databricks_workflow_task = MagicMock(return_value={})
+    operator.add_task(task.task_id, task)
+
+    workflow_json = operator.create_workflow_json(context=context)
+
+    # Only validate the access_control_list parameter; everything else has been tested above
+    assert workflow_json["access_control_list"] == access_control_list
+
+
+def test_create_or_reset_job_empty_access_control_list(mock_databricks_hook, context, mock_task_group):
+    """Test that access_control_list=[] reaches reset_job unchanged."""
+    operator = _CreateDatabricksWorkflowOperator(
+        task_id="test_task",
+        databricks_conn_id="databricks_default",
+        access_control_list=[],
+    )
+    operator.task_group = mock_task_group
+    operator._hook.list_jobs.return_value = [{"job_id": 123}]
+
+    operator._create_or_reset_job(context)
+
+    operator._hook.reset_job.assert_called_once()
+    _, job_spec = operator._hook.reset_job.call_args.args
+
+    assert "access_control_list" in job_spec
+    assert job_spec["access_control_list"] == []
 
 
 def test_create_or_reset_job_existing(mock_databricks_hook, context, mock_task_group):
@@ -214,6 +267,7 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
         task_group=task_group,
         task_id="launch",
         databricks_conn_id="databricks_conn",
+        access_control_list=None,
         existing_clusters=[],
         extra_job_params={},
         jar_params=[],
@@ -223,6 +277,32 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
         python_params=[],
         spark_submit_params=[],
     )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Uses Airflow 3 task SDK TaskGroupContext layout")
+def test_task_group_context_cleaned_up_on_internal_exception():
+    """
+    Regression test for GH-42164.
+
+    When DatabricksWorkflowTaskGroup.__exit__ raises (e.g. an added task does not
+    support conversion), super().__exit__ must still run so TaskGroupContext does
+    not leak the workflow group onto the global stack and break later DAGs with
+    "Cannot mix TaskGroups from different DAGs".
+    """
+    from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
+
+    TaskGroupContext._context.clear()
+
+    with pytest.raises(AirflowException, match="does not support conversion"):  # noqa: PT012 raise happens on context exit
+        with DAG(dag_id="example_databricks_workflow_dag_err", schedule=None, start_date=DEFAULT_DATE):
+            with DatabricksWorkflowTaskGroup(
+                group_id="test_databricks_workflow_err", databricks_conn_id="databricks_conn"
+            ):
+                # EmptyOperator does not implement _convert_to_databricks_workflow_task,
+                # which makes DatabricksWorkflowTaskGroup.__exit__ raise mid-way.
+                EmptyOperator(task_id="not_convertible")
+
+    assert not TaskGroupContext._context, "TaskGroupContext leaked the workflow task group"
 
 
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
@@ -254,3 +334,316 @@ def test_on_kill(mock_databricks_hook, context, mock_workflow_run_metadata):
     operator.on_kill()
 
     operator._hook.cancel_run.assert_called_once_with(RUN_ID)
+
+
+class TestWorkflowDependsOn:
+    """End-to-end coverage that ``depends_on`` references the *parent's* ``task_key``.
+
+    Regression coverage for issue apache/airflow#47614 (root cause fixed by #48492).
+    Each test builds a real ``DAG`` + ``DatabricksWorkflowTaskGroup`` populated with
+    real ``DatabricksNotebookOperator`` tasks (no operator mocks), then drives
+    ``_CreateDatabricksWorkflowOperator.create_workflow_json`` and asserts the
+    resulting ``tasks[*]['depends_on']`` payload.
+    """
+
+    DAG_ID = "test_depends_on_dag"
+    GROUP_ID = "wf_group"
+    CONN_ID = "databricks_conn"
+
+    @staticmethod
+    def _build_notebook(task_id: str, **kwargs) -> DatabricksNotebookOperator:
+        return DatabricksNotebookOperator(
+            task_id=task_id,
+            notebook_path=f"/path/{task_id}",
+            source="WORKSPACE",
+            **kwargs,
+        )
+
+    def _expected_default_key(self, group_task_id: str) -> str:
+        full_task_id = f"{self.GROUP_ID}.{group_task_id}"
+        return hashlib.md5(f"{self.DAG_ID}__{full_task_id}".encode()).hexdigest()
+
+    def _launch_task(self, dag: DAG) -> _CreateDatabricksWorkflowOperator:
+        launch = dag.task_dict[f"{self.GROUP_ID}.launch"]
+        assert isinstance(launch, _CreateDatabricksWorkflowOperator)
+        return launch
+
+    @staticmethod
+    def _tasks_by_key(workflow_json: dict) -> dict:
+        return {t["task_key"]: t for t in workflow_json["tasks"]}
+
+    def test_depends_on_uses_parent_key_default_keys(self):
+        """``task_A >> task_B`` — ``task_B.depends_on`` references ``task_A``'s key."""
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                task_a = self._build_notebook("task_a")
+                task_b = self._build_notebook("task_b")
+                task_a >> task_b
+
+        tasks_by_key = self._tasks_by_key(self._launch_task(dag).create_workflow_json())
+        a_key = self._expected_default_key("task_a")
+        b_key = self._expected_default_key("task_b")
+
+        assert set(tasks_by_key) == {a_key, b_key}
+        assert tasks_by_key[a_key]["depends_on"] == []
+        assert tasks_by_key[b_key]["depends_on"] == [{"task_key": a_key}]
+
+    def test_depends_on_uses_parent_key_custom_parent_key(self):
+        """An explicit ``databricks_task_key`` on the parent flows into ``depends_on``."""
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                task_a = self._build_notebook("task_a", databricks_task_key="custom_a")
+                task_b = self._build_notebook("task_b")
+                task_a >> task_b
+
+        tasks_by_key = self._tasks_by_key(self._launch_task(dag).create_workflow_json())
+        b_key = self._expected_default_key("task_b")
+
+        assert "custom_a" in tasks_by_key
+        assert tasks_by_key[b_key]["depends_on"] == [{"task_key": "custom_a"}]
+
+    def test_depends_on_falls_back_to_hash_when_parent_key_too_long(self):
+        """A >100-char explicit key is rejected; both task and ``depends_on`` use the hash."""
+        too_long_key = "x" * 101
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                task_a = self._build_notebook("task_a", databricks_task_key=too_long_key)
+                task_b = self._build_notebook("task_b")
+                task_a >> task_b
+
+        tasks_by_key = self._tasks_by_key(self._launch_task(dag).create_workflow_json())
+        a_key = self._expected_default_key("task_a")
+        b_key = self._expected_default_key("task_b")
+
+        assert too_long_key not in tasks_by_key
+        assert a_key in tasks_by_key
+        assert tasks_by_key[b_key]["depends_on"] == [{"task_key": a_key}]
+
+    def test_depends_on_diamond_dependency(self):
+        """``A >> [B, C] >> D`` — D depends on both B and C; B and C each depend only on A."""
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                task_a = self._build_notebook("task_a")
+                task_b = self._build_notebook("task_b")
+                task_c = self._build_notebook("task_c")
+                task_d = self._build_notebook("task_d")
+                task_a >> [task_b, task_c] >> task_d
+
+        tasks_by_key = self._tasks_by_key(self._launch_task(dag).create_workflow_json())
+        a_key = self._expected_default_key("task_a")
+        b_key = self._expected_default_key("task_b")
+        c_key = self._expected_default_key("task_c")
+        d_key = self._expected_default_key("task_d")
+
+        assert tasks_by_key[a_key]["depends_on"] == []
+        assert tasks_by_key[b_key]["depends_on"] == [{"task_key": a_key}]
+        assert tasks_by_key[c_key]["depends_on"] == [{"task_key": a_key}]
+        d_parent_keys = {entry["task_key"] for entry in tasks_by_key[d_key]["depends_on"]}
+        assert d_parent_keys == {b_key, c_key}
+
+    def test_depends_on_fan_out_dependency(self):
+        """``A >> [B, C]`` — both downstreams reference A's key only."""
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                task_a = self._build_notebook("task_a")
+                task_b = self._build_notebook("task_b")
+                task_c = self._build_notebook("task_c")
+                task_a >> [task_b, task_c]
+
+        tasks_by_key = self._tasks_by_key(self._launch_task(dag).create_workflow_json())
+        a_key = self._expected_default_key("task_a")
+        b_key = self._expected_default_key("task_b")
+        c_key = self._expected_default_key("task_c")
+
+        assert tasks_by_key[a_key]["depends_on"] == []
+        assert tasks_by_key[b_key]["depends_on"] == [{"task_key": a_key}]
+        assert tasks_by_key[c_key]["depends_on"] == [{"task_key": a_key}]
+
+    def test_root_tasks_have_empty_depends_on(self):
+        """Root tasks' Airflow upstream is the launch task; that must never appear in ``depends_on``."""
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                root_a = self._build_notebook("root_a")
+                root_b = self._build_notebook("root_b")
+                self._build_notebook("downstream").set_upstream([root_a, root_b])
+
+        launch_task = self._launch_task(dag)
+        # Sanity: both roots actually have the launch task as an Airflow upstream.
+        for root_task_id in (f"{self.GROUP_ID}.root_a", f"{self.GROUP_ID}.root_b"):
+            assert launch_task.task_id in dag.task_dict[root_task_id].upstream_task_ids
+
+        tasks_by_key = self._tasks_by_key(launch_task.create_workflow_json())
+        root_a_key = self._expected_default_key("root_a")
+        root_b_key = self._expected_default_key("root_b")
+
+        assert tasks_by_key[root_a_key]["depends_on"] == []
+        assert tasks_by_key[root_b_key]["depends_on"] == []
+
+    def test_depends_on_filters_out_external_upstream(self):
+        """An Airflow upstream outside the workflow group must not appear in ``depends_on``."""
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            external_op = EmptyOperator(task_id="external_op")
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                dbx_task = self._build_notebook("dbx_task")
+            external_op >> dbx_task
+
+        tasks_by_key = self._tasks_by_key(self._launch_task(dag).create_workflow_json())
+        dbx_key = self._expected_default_key("dbx_task")
+
+        assert tasks_by_key[dbx_key]["depends_on"] == []
+
+
+class TestWorkflowDependsOnWirePayload:
+    """Wire-boundary coverage: the spec sent to the Databricks Jobs API carries ``depends_on``.
+
+    :class:`TestWorkflowDependsOn` asserts the in-process ``create_workflow_json`` payload.
+    These tests assert the *wire* payload — what ``_create_or_reset_job`` actually hands to
+    ``DatabricksHook.create_job`` (new job) or ``DatabricksHook.reset_job`` (existing job),
+    which is what the Databricks REST API receives.
+    """
+
+    DAG_ID = "test_depends_on_wire_dag"
+    GROUP_ID = "wf_group"
+    CONN_ID = "databricks_conn"
+
+    @staticmethod
+    def _build_notebook(task_id: str, **kwargs) -> DatabricksNotebookOperator:
+        return DatabricksNotebookOperator(
+            task_id=task_id,
+            notebook_path=f"/path/{task_id}",
+            source="WORKSPACE",
+            **kwargs,
+        )
+
+    def _expected_default_key(self, group_task_id: str) -> str:
+        full_task_id = f"{self.GROUP_ID}.{group_task_id}"
+        return hashlib.md5(f"{self.DAG_ID}__{full_task_id}".encode()).hexdigest()
+
+    def _launch_task(self, dag: DAG) -> _CreateDatabricksWorkflowOperator:
+        launch = dag.task_dict[f"{self.GROUP_ID}.launch"]
+        assert isinstance(launch, _CreateDatabricksWorkflowOperator)
+        return launch
+
+    @staticmethod
+    def _tasks_by_key(workflow_json: dict) -> dict:
+        return {t["task_key"]: t for t in workflow_json["tasks"]}
+
+    def _build_two_task_dag(self) -> DAG:
+        with DAG(dag_id=self.DAG_ID, schedule=None, start_date=DEFAULT_DATE) as dag:
+            with DatabricksWorkflowTaskGroup(group_id=self.GROUP_ID, databricks_conn_id=self.CONN_ID):
+                task_a = self._build_notebook("task_a")
+                task_b = self._build_notebook("task_b")
+                task_a >> task_b
+        return dag
+
+    def _assert_parent_depends_on(self, job_spec: dict) -> None:
+        tasks_by_key = self._tasks_by_key(job_spec)
+        a_key = self._expected_default_key("task_a")
+        b_key = self._expected_default_key("task_b")
+
+        assert len(job_spec["tasks"]) == 2
+        assert set(tasks_by_key) == {a_key, b_key}
+        assert tasks_by_key[a_key]["depends_on"] == []
+        assert tasks_by_key[b_key]["depends_on"] == [{"task_key": a_key}]
+
+    def test_create_job_payload_carries_parent_depends_on(self, mock_databricks_hook):
+        """No existing job → ``create_job`` receives a spec whose ``depends_on`` references the parent key."""
+        launch_task = self._launch_task(self._build_two_task_dag())
+        launch_task._hook.list_jobs.return_value = []
+        launch_task._hook.create_job.return_value = 999
+
+        launch_task._create_or_reset_job(context=MagicMock())
+
+        launch_task._hook.create_job.assert_called_once()
+        launch_task._hook.reset_job.assert_not_called()
+        (job_spec,) = launch_task._hook.create_job.call_args.args
+        self._assert_parent_depends_on(job_spec)
+
+    def test_reset_job_payload_carries_parent_depends_on(self, mock_databricks_hook):
+        """Existing job → ``reset_job`` receives a spec whose ``depends_on`` references the parent key."""
+        launch_task = self._launch_task(self._build_two_task_dag())
+        launch_task._hook.list_jobs.return_value = [{"job_id": 42}]
+
+        launch_task._create_or_reset_job(context=MagicMock())
+
+        launch_task._hook.reset_job.assert_called_once()
+        launch_task._hook.create_job.assert_not_called()
+        job_id, job_spec = launch_task._hook.reset_job.call_args.args
+        assert job_id == 42
+        self._assert_parent_depends_on(job_spec)
+
+
+class TestTaskGroupExternalDependencyTransfer:
+    """Verify that task-group-level ``>>`` deps transfer to the launch / leaf tasks.
+
+    When ``>>`` is called *before* the ``with`` block, the launch task doesn't
+    exist yet; ``__exit__`` must transfer ``self.upstream_task_ids`` to the
+    launch task and ``self.downstream_task_ids`` to the leaf tasks.
+    """
+
+    JOB_CLUSTERS = [
+        {
+            "job_cluster_key": "c",
+            "new_cluster": {
+                "spark_version": "15.4.x-scala2.12",
+                "num_workers": 0,
+                "node_type_id": "i3.xlarge",
+            },
+        }
+    ]
+
+    def test_upstream_set_before_with_block(self):
+        with DAG(dag_id="test_up_before", start_date=DEFAULT_DATE, schedule=None) as dag:
+            start = EmptyOperator(task_id="start")
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="tg", databricks_conn_id="databricks_conn", job_clusters=self.JOB_CLUSTERS
+            )
+            start >> tg
+            with tg:
+                DatabricksNotebookOperator(
+                    task_id="nb", notebook_path="/t", source="WORKSPACE", job_cluster_key="c"
+                )
+        launch = dag.get_task("tg.launch")
+        assert "start" in launch.upstream_task_ids
+
+    def test_upstream_set_after_with_block(self):
+        with DAG(dag_id="test_up_after", start_date=DEFAULT_DATE, schedule=None) as dag:
+            start = EmptyOperator(task_id="start")
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="tg", databricks_conn_id="databricks_conn", job_clusters=self.JOB_CLUSTERS
+            )
+            with tg:
+                DatabricksNotebookOperator(
+                    task_id="nb", notebook_path="/t", source="WORKSPACE", job_cluster_key="c"
+                )
+            start >> tg
+        launch = dag.get_task("tg.launch")
+        assert "start" in launch.upstream_task_ids
+
+    def test_downstream_set_before_with_block(self):
+        with DAG(dag_id="test_down_before", start_date=DEFAULT_DATE, schedule=None) as dag:
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="tg", databricks_conn_id="databricks_conn", job_clusters=self.JOB_CLUSTERS
+            )
+            end = EmptyOperator(task_id="end")
+            tg >> end
+            with tg:
+                DatabricksNotebookOperator(
+                    task_id="nb", notebook_path="/t", source="WORKSPACE", job_cluster_key="c"
+                )
+        nb = dag.get_task("tg.nb")
+        assert "end" in nb.downstream_task_ids
+
+    def test_downstream_set_after_with_block(self):
+        with DAG(dag_id="test_down_after", start_date=DEFAULT_DATE, schedule=None) as dag:
+            tg = DatabricksWorkflowTaskGroup(
+                group_id="tg", databricks_conn_id="databricks_conn", job_clusters=self.JOB_CLUSTERS
+            )
+            end = EmptyOperator(task_id="end")
+            with tg:
+                DatabricksNotebookOperator(
+                    task_id="nb", notebook_path="/t", source="WORKSPACE", job_cluster_key="c"
+                )
+            tg >> end
+        nb = dag.get_task("tg.nb")
+        assert "end" in nb.downstream_task_ids

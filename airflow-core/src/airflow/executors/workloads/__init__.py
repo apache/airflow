@@ -24,15 +24,22 @@ from pydantic import Field
 
 from airflow.executors.workloads.base import BaseWorkload, BundleInfo
 from airflow.executors.workloads.callback import CallbackFetchMethod, ExecuteCallback
+from airflow.executors.workloads.connection_test import TestConnection
 from airflow.executors.workloads.task import ExecuteTask, TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
 
 All = Annotated[
-    ExecuteTask | ExecuteCallback | RunTrigger,
+    ExecuteTask | ExecuteCallback | RunTrigger | TestConnection,
     Field(discriminator="type"),
 ]
 
 TaskInstance = TaskInstanceDTO
+
+ExecutorWorkload = Annotated[
+    ExecuteTask | ExecuteCallback | TestConnection,
+    Field(discriminator="type"),
+]
+"""Workload types that can be sent to executors (excludes RunTrigger, which is handled by the triggerer)."""
 
 __all__ = [
     "All",
@@ -41,6 +48,8 @@ __all__ = [
     "CallbackFetchMethod",
     "ExecuteCallback",
     "ExecuteTask",
+    "ExecutorWorkload",
     "TaskInstance",
     "TaskInstanceDTO",
+    "TestConnection",
 ]

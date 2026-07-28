@@ -39,7 +39,9 @@ from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager
+    from airflow.models.deadline import DeadlineReferenceType
     from airflow.partition_mappers.base import PartitionMapper
+    from airflow.partition_mappers.window import Window
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import Timetable
 
@@ -85,7 +87,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
 
     Plugins are only loaded if they have not been previously loaded.
     """
-    from airflow._shared.observability.metrics.stats import Stats
+    from airflow._shared.observability.metrics import stats
 
     if not settings.PLUGINS_FOLDER:
         raise ValueError("Plugins folder is not set")
@@ -99,7 +101,10 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     def __register_plugins(plugin_instances: list[AirflowPlugin], errors: dict[str, str]) -> None:
         for plugin_instance in plugin_instances:
             if plugin_instance.name in loaded_plugins:
-                log.warning("Plugin %r already registered, skipping", plugin_instance.name)
+                message = f"Plugin {plugin_instance.name!r} already registered, skipping"
+                log.warning(message)
+                name = str(plugin_instance.source) if plugin_instance.source else plugin_instance.name or ""
+                import_errors[name] = message
                 continue
 
             loaded_plugins.add(plugin_instance.name)
@@ -112,7 +117,7 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
                 import_errors[name] = str(e)
         import_errors.update(errors)
 
-    with Stats.timer() as timer:
+    with stats.timer() as timer:
         load_examples = conf.getboolean("core", "LOAD_EXAMPLES")
         ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
         __register_plugins(
@@ -228,6 +233,10 @@ def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
     """Collect extension points for the API."""
     log.debug("Initialize FastAPI plugins")
 
+    # Validate here (the API-server, DB-available path) so callers cannot mount
+    # plugins without the team check running.
+    validate_plugin_teams()
+
     fastapi_apps: list[Any] = []
     fastapi_root_middlewares: list[Any] = []
     for plugin in _get_plugins()[0]:
@@ -280,6 +289,26 @@ def get_partition_mapper_plugins() -> dict[str, type[PartitionMapper]]:
         qualname(partition_mapper_cls): partition_mapper_cls
         for plugin in _get_plugins()[0]
         for partition_mapper_cls in plugin.partition_mappers
+    }
+
+
+@cache
+def get_windows_plugins() -> dict[str, type[Window]]:
+    """Collect and get window classes registered by plugins."""
+    log.debug("Initialize extra window plugins")
+
+    return {qualname(window_cls): window_cls for plugin in _get_plugins()[0] for window_cls in plugin.windows}
+
+
+@cache
+def get_deadline_references_plugins() -> dict[str, type[DeadlineReferenceType]]:
+    """Collect and get deadline reference classes registered by plugins."""
+    log.debug("Initialize extra deadline reference plugins")
+
+    return {
+        qualname(deadline_ref_cls): deadline_ref_cls
+        for plugin in _get_plugins()[0]
+        for deadline_ref_cls in plugin.deadline_references
     }
 
 
@@ -341,7 +370,7 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
         }
     plugins_info = []
     for plugin in _get_plugins()[0]:
-        info: dict[str, Any] = {"name": plugin.name}
+        info: dict[str, Any] = {"name": plugin.name, "team_name": plugin.team_name}
         for attr in attrs_to_dump:
             if attr in ("global_operator_extra_links", "operator_extra_links"):
                 info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
@@ -397,3 +426,36 @@ def get_priority_weight_strategy_plugins() -> dict[str, type[PriorityWeightStrat
 def get_import_errors() -> dict[str, str]:
     """Get import errors encountered during plugin loading."""
     return _get_plugins()[1]
+
+
+def validate_plugin_teams() -> None:
+    """
+    Validate that every team-scoped plugin references a team that exists in the database.
+
+    Only enforced when multi-team mode is enabled. This must run in a context with
+    metadata database access (the API server) — never in the Dag processor, triggerer,
+    or workers, which reach the database only through the Execution API.
+
+    A plugin that declares a ``team_name`` not present in the database is recorded as a
+    plugin import error (surfaced like any other plugin load failure) and logged, rather
+    than raising, so a single misconfigured plugin does not stop the API server and every
+    other plugin from starting.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return
+
+    from airflow.models.team import Team
+
+    plugins, import_errors = _get_plugins()
+    known_teams = Team.get_all_team_names()
+    for plugin in plugins:
+        if plugin.team_name is None or plugin.team_name in known_teams:
+            continue
+        message = (
+            f"Plugin '{plugin.name}' is assigned to team '{plugin.team_name}', which does not exist. "
+            "Create a team with `airflow teams create <team_name>`, "
+            "or update the plugin to use an existing team."
+        )
+        log.warning(message)
+        source = str(plugin.source) if plugin.source else plugin.name or ""
+        import_errors[source] = message

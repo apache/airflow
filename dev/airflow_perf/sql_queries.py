@@ -145,7 +145,7 @@ def make_report() -> list[Query]:
     """
     queries = []
     with open(LOG_FILE, "r+") as f:
-        raw_queries = [line for line in f.readlines() if is_query(line)]
+        raw_queries = [line for line in f if is_query(line)]
 
     for query in raw_queries:
         time, info, stack, sql = query.replace("@SQLALCHEMY ", "").split("|$")

@@ -16,15 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
 from sqlalchemy import select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -33,6 +35,7 @@ from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortP
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
+    BackfillDagRunCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
     DryRunBackfillCollectionResponse,
@@ -49,16 +52,33 @@ from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
     BackfillDagRun,
-    DagNoScheduleException,
+    DagNonPeriodicScheduleException,
+    InvalidBackfillConf,
     InvalidBackfillDate,
+    InvalidBackfillDateRange,
     InvalidBackfillDirection,
     InvalidReprocessBehavior,
+    NoBackfillRunsToCreate,
     _create_backfill,
     _do_dry_run,
 )
+from airflow.utils.sqlalchemy import is_lock_not_available_error
 from airflow.utils.state import DagRunState
 
 backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
+
+
+def _raise_locked_response_or_reraise(e: OperationalError, action: str) -> NoReturn:
+    """Map a database lock OperationalError to HTTP 503, or re-raise if not a lock error."""
+    if not is_lock_not_available_error(e):
+        raise
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=(
+            f"Database is locked. Backfill {action} is not supported on SQLite "
+            "under concurrent access. Please use PostgreSQL or MySQL."
+        ),
+    )
 
 
 @backfills_router.get(
@@ -109,6 +129,44 @@ def get_backfill(
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
 
 
+@backfills_router.get(
+    path="/{backfill_id}/dag_runs",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_backfill(method="GET")),
+    ],
+)
+def list_backfill_dag_runs(
+    backfill_id: NonNegativeInt,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(SortParam(["id", "sort_ordinal"], BackfillDagRun).dynamic_depends(default="sort_ordinal")),
+    ],
+    session: SessionDep,
+) -> BackfillDagRunCollectionResponse:
+    """List Dag runs associated with a backfill, including skipped slots."""
+    backfill = session.get(Backfill, backfill_id)
+    if not backfill:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Backfill with id {backfill_id} not found")
+
+    select_stmt, total_entries = paginated_select(
+        statement=select(BackfillDagRun)
+        .where(BackfillDagRun.backfill_id == backfill_id)
+        # Load backfill for dag_id; dag_run may be null for skipped slots.
+        .options(joinedload(BackfillDagRun.backfill), joinedload(BackfillDagRun.dag_run)),
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+    return BackfillDagRunCollectionResponse(
+        backfill_dag_runs=list(session.scalars(select_stmt).unique()),
+        total_entries=total_entries,
+    )
+
+
 @backfills_router.put(
     path="/{backfill_id}/pause",
     responses=create_openapi_http_exception_doc(
@@ -132,7 +190,6 @@ def pause_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfill
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused is False:
         b.is_paused = True
-    session.commit()
     return b
 
 
@@ -216,7 +273,12 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 @backfills_router.post(
     path="",
     responses=create_openapi_http_exception_doc(
-        [status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]
     ),
     dependencies=[
         Depends(action_logging()),
@@ -226,9 +288,16 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
 def create_backfill(
     backfill_request: BackfillPostBody,
     user: GetUserDep,
+    session: SessionDep,
 ) -> BackfillResponse:
     from_date = timezone.coerce_datetime(backfill_request.from_date)
     to_date = timezone.coerce_datetime(backfill_request.to_date)
+    resolved_run_on_latest = resolve_run_on_latest_version(
+        backfill_request.run_on_latest_version,
+        backfill_request.dag_id,
+        session,
+        fallback=True,
+    )
     try:
         backfill_obj = _create_backfill(
             dag_id=backfill_request.dag_id,
@@ -239,9 +308,11 @@ def create_backfill(
             dag_run_conf=backfill_request.dag_run_conf,
             triggering_user_name=user.get_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
-            run_on_latest_version=backfill_request.run_on_latest_version,
+            run_on_latest_version=resolved_run_on_latest,
         )
         return BackfillResponse.model_validate(backfill_obj)
+    except OperationalError as e:
+        _raise_locked_response_or_reraise(e, "creation")
 
     except AlreadyRunningBackfill:
         raise HTTPException(
@@ -262,15 +333,24 @@ def create_backfill(
     except (
         InvalidReprocessBehavior,
         InvalidBackfillDirection,
-        DagNoScheduleException,
+        DagNonPeriodicScheduleException,
         InvalidBackfillDate,
+        InvalidBackfillDateRange,
+        InvalidBackfillConf,
+        NoBackfillRunsToCreate,
     ) as e:
         raise RequestValidationError(str(e))
 
 
 @backfills_router.post(
     path="/dry_run",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        ]
+    ),
     dependencies=[
         Depends(requires_access_backfill(method="POST")),
     ],
@@ -289,27 +369,37 @@ def create_backfill_dry_run(
             to_date=to_date,
             reverse=body.run_backwards,
             reprocess_behavior=body.reprocess_behavior,
+            dag_run_conf=body.dag_run_conf,
             session=session,
         )
         backfills = [
             DryRunBackfillResponse(
-                logical_date=d.logical_date, partition_key=d.partition_key, partition_date=d.partition_date
+                logical_date=d.logical_date,
+                partition_key=d.partition_key,
+                partition_date=d.partition_date,
             )
             for d in backfills_dry_run
         ]
-
         return DryRunBackfillCollectionResponse(backfills=backfills, total_entries=len(backfills))
-
+    except OperationalError as e:
+        _raise_locked_response_or_reraise(e, "dry-run")
     except DagNotFound:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Could not find dag {body.dag_id}",
         )
+    except DagRunTypeNotAllowed as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
     except (
         InvalidReprocessBehavior,
         InvalidBackfillDirection,
-        DagNoScheduleException,
+        DagNonPeriodicScheduleException,
         InvalidBackfillDate,
+        InvalidBackfillDateRange,
+        InvalidBackfillConf,
     ) as e:
         raise RequestValidationError(str(e))

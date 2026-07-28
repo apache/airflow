@@ -106,7 +106,11 @@ class CloudDLPHook(GoogleBaseHook):
         :return: Google Cloud DLP API Client
         """
         if not self._client:
-            self._client = DlpServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            self._client = DlpServiceClient(
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
+            )
         return self._client
 
     def _project_deidentify_template_path(self, project_id, template_id):

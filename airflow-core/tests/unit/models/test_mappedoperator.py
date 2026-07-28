@@ -421,7 +421,7 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
 @pytest.mark.parametrize(
     ("template", "expected_rendered_names"),
     [
-        pytest.param(None, [None, None], id="unset"),
+        pytest.param(None, ["0", "1"], id="unset"),
         pytest.param("", ["", ""], id="constant"),
         pytest.param("{{ ti.task_id }}-{{ ti.map_index }}", ["task1-0", "task1-1"], id="builtin"),
         pytest.param("{{ ti.task_id }}-{{ map_name }}", ["task1-a", "task1-b"], id="custom"),
@@ -459,7 +459,7 @@ def test_expand_mapped_task_instance_with_named_index(
     session.flush()
 
     indices = session.scalars(
-        select(TaskInstance.rendered_map_index)
+        select(TaskInstance.rendered_map_index)  # type: ignore[call-overload]
         .where(
             TaskInstance.dag_id == dag_id,
             TaskInstance.task_id == "task1",
@@ -1599,6 +1599,193 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
     dr.task_instance_scheduling_decisions()
     ti3 = dr.get_task_instance(task_id="tg1.t3")
     assert not ti3.state
+
+
+def test_one_failed_trigger_rule_in_mapped_task_group_is_per_index(dag_maker):
+    """Regression test for #50210.
+
+    A task with the ``ONE_FAILED`` trigger rule inside a mapped task group must
+    be evaluated against the upstream instance that shares its own map index,
+    not against every upstream instance of the group. Otherwise a single failed
+    upstream instance would wrongly trigger the rule for every expanded instance.
+    """
+    with dag_maker(dag_id="test_one_failed_in_mapped_task_group") as dag:
+
+        @task
+        def divide(i):
+            return 30 / i
+
+        @task(trigger_rule=TriggerRule.ONE_FAILED)
+        def report_failure(i):
+            pass
+
+        @task
+        def report_success(i):
+            pass
+
+        @task
+        def gen_examples():
+            return [0, 1, 2, 3]
+
+        @task_group
+        def divide_and_report(i):
+            divide(i) >> [report_success(i), report_failure(i)]
+
+        divide_and_report.expand(i=gen_examples())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    # divide(0) fails (ZeroDivisionError); the rest succeed.
+    assert states["divide_and_report.divide"] == {0: "failed", 1: "success", 2: "success", 3: "success"}
+    # Only report_failure sharing divide(0)'s map index should run; the rest are skipped.
+    assert states["divide_and_report.report_failure"] == {
+        0: "success",
+        1: "skipped",
+        2: "skipped",
+        3: "skipped",
+    }
+    # report_success mirrors the opposite: it is upstream_failed only where divide failed.
+    assert states["divide_and_report.report_success"] == {
+        0: "upstream_failed",
+        1: "success",
+        2: "success",
+        3: "success",
+    }
+
+
+def test_one_failed_trigger_rule_runs_on_indirect_failure_in_mapped_task_group(dag_maker):
+    """Regression test for #34023.
+
+    A ``ONE_FAILED`` task at the end of a chain inside a mapped task group must
+    still run for every expanded instance whose (indirect) upstream failed, and
+    must not be skipped prematurely before the group has expanded. This guards
+    the end-to-end outcome of the fix that the per-index change in #50210 builds on.
+    """
+    with dag_maker(dag_id="test_one_failed_indirect_in_mapped_task_group") as dag:
+
+        @task
+        def get_records():
+            return ["a", "b", "c"]
+
+        @task
+        def submit_job(record):
+            pass
+
+        @task
+        def fake_sensor(record):
+            raise RuntimeError("boo")
+
+        @task
+        def deliver_record(record):
+            pass
+
+        @task(trigger_rule=TriggerRule.ONE_FAILED)
+        def handle_failed_delivery(record):
+            pass
+
+        @task_group(group_id="deliver_records")
+        def deliver_record_task_group(record):
+            (
+                submit_job(record)
+                >> fake_sensor(record)
+                >> deliver_record(record)
+                >> handle_failed_delivery(record)
+            )
+
+        deliver_record_task_group.expand(record=get_records())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    # fake_sensor fails for every index, so handle_failed_delivery must run everywhere.
+    assert states["deliver_records.fake_sensor"] == {0: "failed", 1: "failed", 2: "failed"}
+    assert states["deliver_records.handle_failed_delivery"] == {0: "success", 1: "success", 2: "success"}
+
+
+def test_none_failed_min_one_success_trigger_rule_expands_in_mapped_task_group(dag_maker):
+    """Regression test for #39801.
+
+    A task with the ``NONE_FAILED_MIN_ONE_SUCCESS`` trigger rule inside a dynamically
+    expanded task group must expand and run once its upstream (also inside the group)
+    succeeds, instead of being skipped prematurely at its unexpanded (map_index -1)
+    summary ti before the task group has expanded.
+    """
+    with dag_maker(dag_id="test_none_failed_min_one_success_in_mapped_task_group") as dag:
+
+        @task
+        def init():
+            return ["seize", "the", "day"]
+
+        @task_group(group_id="tg")
+        def tg(message):
+            @task
+            def imsleepy(message):
+                return message
+
+            @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+            def imawake(message):
+                pass
+
+            imawake(imsleepy(message))
+
+        tg.expand(message=init())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    assert states["tg.imsleepy"] == {0: "success", 1: "success", 2: "success"}
+    assert states["tg.imawake"] == {0: "success", 1: "success", 2: "success"}
+
+
+def test_none_failed_min_one_success_trigger_rule_expands_in_nested_task_group(dag_maker):
+    """Regression test for #39801, nested-group shape.
+
+    Same as above, but the ``NONE_FAILED_MIN_ONE_SUCCESS`` task lives in a plain task
+    group nested inside the mapped one (the exact shape of the issue's reproducer), so
+    its immediate ``task_group`` is not mapped — only an ancestor is.
+    """
+    with dag_maker(dag_id="test_none_failed_min_one_success_in_nested_task_group") as dag:
+
+        @task
+        def init():
+            return ["seize", "the", "day"]
+
+        @task_group(group_id="tg")
+        def tg(message):
+            @task
+            def imsleepy(message):
+                return message
+
+            @task_group(group_id="inner")
+            def inner(message):
+                @task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+                def imawake(message):
+                    pass
+
+                imawake(message)
+
+            inner(imsleepy(message))
+
+        tg.expand(message=init())
+
+    dr = dag.test()
+
+    states: dict[str, dict[int, str | None]] = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        states[ti.task_id][ti.map_index] = ti.state
+
+    assert states["tg.imsleepy"] == {0: "success", 1: "success", 2: "success"}
+    assert states["tg.inner.imawake"] == {0: "success", 1: "success", 2: "success"}
 
 
 def test_mapped_operator_retry_delay_default(dag_maker):

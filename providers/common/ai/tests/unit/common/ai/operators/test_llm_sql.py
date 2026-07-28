@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+import sys
 from datetime import timedelta
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -30,16 +32,22 @@ from airflow.providers.common.ai.utils.sql_validation import SQLSafetyError
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.config import DataSourceConfig
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+
+if AIRFLOW_V_3_3_PLUS:
+    # On 3.3+ cores require_approval pauses the task in AWAITING_INPUT; older cores defer to
+    # HITLTrigger. Both signals carry method_name/kwargs/timeout, so the approval tests assert
+    # against whichever pause signal the running core uses.
+    from airflow.sdk.exceptions import TaskAwaitingInput as ApprovalPauseSignal
+else:
+    ApprovalPauseSignal = TaskDeferred  # type: ignore[assignment, misc]
 
 
 def _make_mock_run_result(output):
     """Create a mock AgentRunResult compatible with log_run_summary."""
     mock_result = MagicMock()
     mock_result.output = output
-    mock_result.usage.return_value = MagicMock(
-        requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0
-    )
+    mock_result.usage = MagicMock(requests=1, tool_calls=0, input_tokens=0, output_tokens=0, total_tokens=0)
     mock_result.response = MagicMock(model_name="test-model")
     mock_result.all_messages.return_value = []
     return mock_result
@@ -50,6 +58,77 @@ def _make_mock_agent(output: str):
     mock_agent = MagicMock(spec=["run_sync"])
     mock_agent.run_sync.return_value = _make_mock_run_result(output)
     return mock_agent
+
+
+def _run_python_without_datafusion(code: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            f"""
+import builtins
+
+real_import = builtins.__import__
+
+
+def blocked_import(name, *args, **kwargs):
+    if name == "datafusion" or name.startswith("datafusion."):
+        raise ModuleNotFoundError("No module named 'datafusion'")
+    return real_import(name, *args, **kwargs)
+
+
+builtins.__import__ = blocked_import
+{code}
+""",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+class TestDataFusionOptionalDependency:
+    def test_relational_sql_imports_do_not_require_datafusion(self):
+        result = _run_python_without_datafusion(
+            """
+from airflow.providers.common.ai.decorators.llm_sql import llm_sql_task
+from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+"""
+        )
+
+        assert result.returncode == 0, result.stderr
+
+    def test_object_storage_error_explains_how_to_install_datafusion(self):
+        result = _run_python_without_datafusion(
+            """
+from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.common.sql.config import DataSourceConfig
+
+operator = LLMSQLQueryOperator(
+    task_id="test",
+    prompt="test",
+    llm_conn_id="test",
+    datasource_config=DataSourceConfig(
+        conn_id="aws_default",
+        table_name="sales",
+        uri="s3://bucket/sales/",
+        format="parquet",
+    ),
+)
+
+try:
+    operator._introspect_object_storage_schema()
+except AirflowOptionalProviderFeatureException as error:
+    expected = 'pip install "apache-airflow-providers-common-sql[datafusion]"'
+    if expected not in str(error):
+        raise AssertionError(f"Missing installation guidance in: {{error}}") from error
+else:
+    raise AssertionError("Expected object-storage introspection to require DataFusion")
+"""
+        )
+
+        assert result.returncode == 0, result.stderr
 
 
 class TestStripLLMOutput:
@@ -71,10 +150,48 @@ class TestStripLLMOutput:
                 "SELECT 1",
                 id="missing_closing_fence",
             ),
+            pytest.param(
+                "```SELECT 1```",
+                "SELECT 1",
+                id="single_line_fence_no_language_tag",
+            ),
+            pytest.param(
+                "```SELECT * FROM users LIMIT 10```",
+                "SELECT * FROM users LIMIT 10",
+                id="single_line_fence_with_query",
+            ),
+            pytest.param(
+                "```sql SELECT 1```",
+                "SELECT 1",
+                id="single_line_fence_with_language_tag",
+            ),
+            pytest.param(
+                "```SQL SELECT 1```",
+                "SELECT 1",
+                id="single_line_fence_with_uppercase_language_tag",
+            ),
         ),
     )
     def test_strip_llm_output(self, raw, expected):
         assert LLMSQLQueryOperator._strip_llm_output(raw) == expected
+
+    @pytest.mark.parametrize(
+        ("raw", "dialect", "expected"),
+        (
+            pytest.param("```postgres SELECT 1```", "postgres", "SELECT 1", id="dialect_tag_matches"),
+            pytest.param(
+                "```POSTGRES SELECT 1```", "postgres", "SELECT 1", id="dialect_tag_case_insensitive"
+            ),
+            pytest.param(
+                "```mysql SELECT 1```",
+                "postgres",
+                "mysql SELECT 1",
+                id="dialect_tag_mismatch_left_alone",
+            ),
+        ),
+    )
+    def test_strip_llm_output_with_dialect(self, raw, dialect, expected):
+        assert LLMSQLQueryOperator._strip_llm_output(raw, dialect=dialect) == expected
 
 
 class TestLLMSQLQueryOperator:
@@ -111,7 +228,7 @@ class TestLLMSQLQueryOperator:
         result = op.execute(context=MagicMock())
 
         assert result == "SELECT id, name FROM users WHERE active = true"
-        mock_agent.run_sync.assert_called_once_with("Get active users")
+        mock_agent.run_sync.assert_called_once_with("Get active users", usage_limits=None)
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_execute_validation_blocks_unsafe_sql(self, mock_hook_cls):
@@ -233,7 +350,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert op._get_schema_context() == "My custom schema info"
 
     @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
         autospec=True,
     )
     def test_introspect_object_storage_schema(self, mock_engine_cls):
@@ -261,7 +378,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert result == schema_text
 
     @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
         autospec=True,
     )
     def test_introspect_schemas_with_db_and_datasource_config(self, mock_engine_cls):
@@ -299,7 +416,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert object_schema in result
 
     @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
         autospec=True,
     )
     def test_introspect_schemas_datasource_config_without_db_tables(self, mock_engine_cls):
@@ -330,11 +447,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
         assert "Table: s3_data" in result
         assert "ts: TIMESTAMP\nvalue: DOUBLE" in result
 
-    @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
-        autospec=True,
-    )
-    def test_introspect_schemas_raises_when_no_tables_and_no_datasource(self, mock_engine_cls):
+    def test_introspect_schemas_raises_when_no_tables_and_no_datasource(self):
         """ValueError is raised when no db tables return schema and no datasource_config is set."""
         mock_db_hook = MagicMock(spec=["get_table_schema", "dialect_name"])
         mock_db_hook.get_table_schema.return_value = []
@@ -353,7 +466,7 @@ class TestLLMSQLQueryOperatorSchemaIntrospection:
 
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     @patch(
-        "airflow.providers.common.ai.operators.llm_sql.DataFusionEngine",
+        "airflow.providers.common.sql.datafusion.engine.DataFusionEngine",
         autospec=True,
     )
     def test_execute_with_datasource_config_and_db_tables(self, mock_engine_cls, mock_hook_cls):
@@ -477,7 +590,7 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.method_name == "execute_complete"
@@ -523,7 +636,7 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred):
+        with pytest.raises(ApprovalPauseSignal):
             op.execute(context=ctx)
 
         upsert_kwargs = mock_upsert.call_args[1]
@@ -547,7 +660,7 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.timeout == timeout
@@ -585,7 +698,7 @@ class TestLLMSQLQueryOperatorApproval:
         )
         ctx = _make_context()
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with pytest.raises(ApprovalPauseSignal) as exc_info:
             op.execute(context=ctx)
 
         assert exc_info.value.kwargs["generated_output"] == "SELECT 1"
@@ -655,3 +768,29 @@ class TestLLMSQLQueryOperatorApproval:
         result = op.execute_complete({}, generated_output="SELECT 1", event=event)
 
         assert result == "SELECT 1"
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
+class TestLLMSQLQueryOperatorMultimodalPromptGuard:
+    """LLMSQLQueryOperator.execute raises before agent.run_sync when require_approval=True
+    and self.prompt is not a string."""
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_execute_rejects_sequence_prompt_with_require_approval(self, mock_hook_cls):
+        mock_agent = MagicMock(spec=["run_sync"])
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+
+        op = LLMSQLQueryOperator(
+            task_id="t",
+            prompt="placeholder",
+            llm_conn_id="c",
+            require_approval=True,
+        )
+        op.prompt = ["x", object()]
+
+        with pytest.raises(TypeError, match="require_approval=True"):
+            op.execute(context=_make_context())
+
+        mock_agent.run_sync.assert_not_called()

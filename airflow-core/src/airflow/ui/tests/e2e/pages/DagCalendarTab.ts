@@ -33,10 +33,6 @@ export class DagCalendarTab extends BasePage {
     return this.page.getByTestId("calendar-cell");
   }
 
-  public get tooltip(): Locator {
-    return this.page.getByTestId("calendar-tooltip");
-  }
-
   public constructor(page: Page) {
     super(page);
 
@@ -92,49 +88,44 @@ export class DagCalendarTab extends BasePage {
     const count = await this.activeCells.count();
     const states: Array<string> = [];
 
+    // Read run states from the cell's `data-states` attribute rather than hovering to
+    // read the tooltip. The tooltip (BasicTooltip) opens on a `mouseenter` after a
+    // 500ms delay and renders through a portal; synthetic pointer events do not open
+    // it reliably in headless Firefox, which made these tests flaky. `data-states` is
+    // populated with the same view-mode-aware logic the tooltip uses (see
+    // CalendarCell), so the assertions are unchanged and now backend-independent.
     for (let i = 0; i < count; i++) {
-      const cell = this.activeCells.nth(i);
+      const raw = (await this.activeCells.nth(i).getAttribute("data-states")) ?? "";
 
-      let text = "";
-
-      await expect(async () => {
-        await cell.hover({ force: true });
-        await expect(this.tooltip).toBeVisible({ timeout: 3000 });
-        text = ((await this.tooltip.textContent()) ?? "").toLowerCase();
-      }).toPass({ intervals: [500], timeout: 20_000 });
-
-      if (text.includes("success")) states.push("success");
-      if (text.includes("failed")) states.push("failed");
-      if (text.includes("running")) states.push("running");
+      for (const state of raw.split(" ").filter(Boolean)) {
+        states.push(state);
+      }
     }
 
     return states;
   }
 
-  public async navigateToCalendar(dagId: string) {
+  public async navigateToCalendar(dagId: string): Promise<void> {
     await expect(async () => {
-      await this.safeGoto(`/dags/${dagId}/calendar`);
+      await this.page.goto(`/dags/${dagId}/calendar`);
       await expect(this.page.getByTestId("dag-calendar-root")).toBeVisible({ timeout: 5000 });
     }).toPass({ intervals: [2000], timeout: 60_000 });
     await this.waitForCalendarReady();
   }
 
-  public async switchToFailedView() {
+  public async switchToFailedView(): Promise<void> {
     await this.failedToggle.click();
   }
 
-  public async switchToHourly() {
+  public async switchToHourly(): Promise<void> {
     await this.hourlyToggle.click();
 
     await expect(this.page.getByTestId("calendar-hourly-view")).toBeVisible({ timeout: 30_000 });
-  }
-
-  public async switchToTotalView() {
-    await this.totalToggle.click();
-  }
-
-  public async verifyMonthGridRendered() {
     await this.waitForCalendarReady();
+  }
+
+  public async switchToTotalView(): Promise<void> {
+    await this.totalToggle.click();
   }
 
   private async waitForCalendarReady(): Promise<void> {

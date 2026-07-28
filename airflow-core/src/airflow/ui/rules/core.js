@@ -279,7 +279,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * @see [max-lines](https://eslint.org/docs/latest/rules/max-lines)
      */
-    "max-lines": [ERROR, { max: 250, skipBlankLines: true, skipComments: true }],
+    "max-lines": [ERROR, { max: 500, skipBlankLines: true, skipComments: true }],
 
     /**
      * Enforce a maximum depth that callbacks can be nested to 3.
@@ -426,6 +426,24 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * @see [no-duplicate-case](https://eslint.org/docs/latest/rules/no-duplicate-case)
      */
     "no-duplicate-case": ERROR,
+
+    /**
+     * Disallow duplicate value imports from the same module.
+     * Separate `import type` statements are allowed.
+     *
+     * @example
+     * ```typescript
+     * // ❌ Incorrect
+     * import { Foo } from "src/components/ui";
+     * import { Bar } from "src/components/ui";
+     *
+     * // ✅ Correct
+     * import { Foo, Bar } from "src/components/ui";
+     * import type { Baz } from "src/components/ui";
+     * ```
+     * @see [no-duplicate-imports](https://eslint.org/docs/latest/rules/no-duplicate-imports)
+     */
+    "no-duplicate-imports": [ERROR, { allowSeparateTypeImports: true }],
 
     /**
      * Disallow empty block statements.

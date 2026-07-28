@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import logging
 import os
 import traceback
 from collections.abc import Callable, Sequence
@@ -27,7 +28,7 @@ from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
 
-from airflow._shared.observability.metrics.stats import Stats
+from airflow._shared.observability.metrics import stats
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -37,7 +38,9 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.models.dag import DagModel
 from airflow.sdk.exceptions import TaskNotFound
+from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
@@ -49,6 +52,7 @@ from airflow.sdk.execution_time.comms import (
     GetTaskStates,
     GetTICount,
     GetVariable,
+    GetVariableKeys,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -60,20 +64,41 @@ from airflow.sdk.execution_time.comms import (
     PrevSuccessfulDagRunResult,
     PutVariable,
     TaskStatesResult,
+    VariableKeysResult,
     VariableResult,
     XComCountResponse,
     XComResult,
     XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
+from airflow.sdk.execution_time.request_handlers import (
+    handle_delete_variable,
+    handle_get_prev_successful_dag_run,
+    handle_get_previous_dag_run,
+    handle_get_previous_ti,
+    handle_get_task_states,
+    handle_get_ti_count,
+    handle_get_variable_keys,
+    handle_get_xcom,
+    handle_get_xcom_count,
+    handle_get_xcom_sequence_item,
+    handle_get_xcom_sequence_slice,
+    handle_mask_secret,
+    handle_put_variable,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.sdk.log import mask_secret
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
+from airflow.utils.helpers import prune_dict
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from socket import socket
+
     from structlog.typing import FilteringBoundLogger
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
@@ -124,6 +149,7 @@ ToManager = Annotated[
     DagFileParsingResult
     | GetConnection
     | GetVariable
+    | GetVariableKeys
     | PutVariable
     | GetTaskStates
     | GetTICount
@@ -143,6 +169,7 @@ ToDagProcessor = Annotated[
     DagFileParseRequest
     | ConnectionResult
     | VariableResult
+    | VariableKeysResult
     | TaskStatesResult
     | PreviousDagRunResult
     | PreviousTIResult
@@ -301,7 +328,14 @@ def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
     for request in callback_requests:
-        log.debug("Processing Callback Request", request=request.to_json())
+        if isinstance(request, (TaskCallbackRequest, EmailRequest)):
+            log.debug(
+                "Processing Callback Request",
+                request=request.to_json(),
+                ti_id=str(request.ti.id),
+            )
+        else:
+            log.debug("Processing Callback Request", request=request.to_json())
         with BundleVersionLock(
             bundle_name=request.bundle_name,
             bundle_version=request.bundle_version,
@@ -356,7 +390,19 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             callback(context)
         except Exception:
             log.exception("Callback failed", dag_id=request.dag_id)
-            Stats.incr("dag.callback_exceptions", tags={"dag_id": request.dag_id})
+            stats.incr(
+                "dag.callback_exceptions",
+                tags=prune_dict(
+                    {
+                        "dag_id": request.dag_id,
+                        "team_name": (
+                            DagModel.get_team_name(request.dag_id)
+                            if conf.getboolean("core", "multi_team")
+                            else None
+                        ),
+                    }
+                ),
+            )
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
@@ -366,6 +412,7 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             dag_id=request.ti.dag_id,
             task_id=request.ti.task_id,
             run_id=request.ti.run_id,
+            ti_id=str(request.ti.id),
         )
         return
 
@@ -415,11 +462,21 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
 
     for idx, callback in enumerate(callbacks):
         callback_repr = get_callback_representation(callback)
-        log.info("Executing Task callback at index %d: %s", idx, callback_repr)
+        log.info(
+            "Executing Task callback at index %d: %s (ti_id=%s)",
+            idx,
+            callback_repr,
+            request.ti.id,
+        )
         try:
             callback(context)
         except Exception:
-            log.exception("Error in callback at index %d: %s", idx, callback_repr)
+            log.exception(
+                "Error in callback at index %d: %s (ti_id=%s)",
+                idx,
+                callback_repr,
+                request.ti.id,
+            )
 
 
 def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
@@ -494,7 +551,7 @@ def in_process_api_server() -> InProcessExecutionAPI:
 
 
 @attrs.define(kw_only=True)
-class DagFileProcessorProcess(WatchedSubprocess):
+class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     """
     Parses dags with Task SDK API.
 
@@ -513,6 +570,9 @@ class DagFileProcessorProcess(WatchedSubprocess):
     client: Client
     """The HTTP client to use for communication with the API server."""
 
+    bundle_name: str
+    dag_file_rel_path: str
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -520,6 +580,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
@@ -527,9 +588,26 @@ class DagFileProcessorProcess(WatchedSubprocess):
     ) -> Self:
         logger = kwargs["logger"]
 
-        _pre_import_airflow_modules(os.fspath(path), logger)
+        # Parsing DAG files runs user code that can trigger macOS-unsafe ObjC
+        # initialization (secret backends, connection/variable lookups, HTTP
+        # clients). Fork+exec a clean interpreter there. Tests override `target`
+        # with a stub to exercise the base infrastructure; keep bare fork for those.
+        use_exec = target is _parse_file_entrypoint and supervisor._should_use_exec()
 
-        proc: Self = super().start(target=target, client=client, **kwargs)
+        # Pre-importing only helps the bare-fork child (it inherits the imports via
+        # copy-on-write). An exec'd child re-imports from scratch, so skip it there
+        # to avoid leaking user modules into the long-lived processor manager.
+        if not use_exec:
+            _pre_import_airflow_modules(os.fspath(path), logger)
+
+        proc: Self = super().start(
+            target=target,
+            client=client,
+            bundle_name=bundle_name,
+            dag_file_rel_path=dag_file_rel_path,
+            use_exec=use_exec,
+            **kwargs,
+        )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
         proc._on_child_started(callbacks, path, bundle_path, bundle_name)
         return proc
@@ -549,21 +627,46 @@ class DagFileProcessorProcess(WatchedSubprocess):
         )
         self.send_msg(msg, request_id=0)
 
+    def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
+        base = super()._get_target_loggers()
+        if not self.subprocess_logs_to_stdout:
+            return base
+        return tuple(
+            logger.bind(dag_file=self.dag_file_rel_path, bundle_name=self.bundle_name) for logger in base
+        )
+
+    def _create_log_forwarder(
+        self,
+        loggers: tuple[FilteringBoundLogger, ...],
+        name: str,
+        *,
+        data: bytes,
+        log_level: int = logging.INFO,
+    ) -> Callable[[socket], bool]:
+        return super()._create_log_forwarder(
+            loggers,
+            name.replace("task.", "dag_processor.", 1),
+            data=data,
+            log_level=log_level,
+        )
+
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
-            TaskStatesResponse,
             VariableResponse,
-            XComSequenceIndexResponse,
         )
 
         resp: BaseModel | None = None
-        dump_opts = {}
+        dump_opts: dict[str, bool] = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
+                if conn.password:
+                    mask_secret(conn.password)
+                if conn.extra:
+                    mask_secret(conn.extra)
                 conn_result = ConnectionResult.from_conn_response(conn)
                 resp = conn_result
                 dump_opts = {"exclude_unset": True, "by_alias": True}
@@ -572,90 +675,39 @@ class DagFileProcessorProcess(WatchedSubprocess):
         elif isinstance(msg, GetVariable):
             var = self.client.variables.get(msg.key)
             if isinstance(var, VariableResponse):
+                if var.value:
+                    mask_secret(var.value, var.key)
                 var_result = VariableResult.from_variable_response(var)
                 resp = var_result
                 dump_opts = {"exclude_unset": True}
             else:
                 resp = var
+        elif isinstance(msg, GetVariableKeys):
+            resp, dump_opts = handle_get_variable_keys(self.client, msg)
         elif isinstance(msg, PutVariable):
-            self.client.variables.set(msg.key, msg.value, msg.description)
+            resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, DeleteVariable):
-            resp = self.client.variables.delete(msg.key)
+            resp, dump_opts = handle_delete_variable(self.client, msg)
         elif isinstance(msg, GetPreviousDagRun):
-            resp = self.client.dag_runs.get_previous(
-                dag_id=msg.dag_id,
-                logical_date=msg.logical_date,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
         elif isinstance(msg, GetPrevSuccessfulDagRun):
-            dagrun_resp = self.client.task_instances.get_previous_successful_dagrun(self.id)
-            dagrun_result = PrevSuccessfulDagRunResult.from_dagrun_response(dagrun_resp)
-            resp = dagrun_result
-            dump_opts = {"exclude_unset": True}
+            resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
         elif isinstance(msg, GetXCom):
-            xcom = self.client.xcoms.get(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
-            )
-            xcom_result = XComResult.from_xcom_response(xcom)
-            resp = xcom_result
+            resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, GetXComCount):
-            resp = self.client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+            resp, dump_opts = handle_get_xcom_count(self.client, msg)
         elif isinstance(msg, GetXComSequenceItem):
-            xcom = self.client.xcoms.get_sequence_item(
-                msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset
-            )
-            if isinstance(xcom, XComSequenceIndexResponse):
-                resp = XComSequenceIndexResult.from_response(xcom)
-            else:
-                resp = xcom
+            resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
         elif isinstance(msg, GetXComSequenceSlice):
-            xcoms = self.client.xcoms.get_sequence_slice(
-                msg.dag_id,
-                msg.run_id,
-                msg.task_id,
-                msg.key,
-                msg.start,
-                msg.stop,
-                msg.step,
-                msg.include_prior_dates,
-            )
-            resp = XComSequenceSliceResult.from_response(xcoms)
+            resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
         elif isinstance(msg, MaskSecret):
-            # Use sdk masker in dag processor and triggerer because those use the task sdk machinery
-            from airflow.sdk.log import mask_secret
-
-            mask_secret(msg.value, msg.name)
+            handle_mask_secret(msg)
         elif isinstance(msg, GetTICount):
-            resp = self.client.task_instances.get_count(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-                states=msg.states,
-            )
+            resp, dump_opts = handle_get_ti_count(self.client, msg)
         elif isinstance(msg, GetTaskStates):
-            task_states_map = self.client.task_instances.get_task_states(
-                dag_id=msg.dag_id,
-                map_index=msg.map_index,
-                task_ids=msg.task_ids,
-                task_group_id=msg.task_group_id,
-                logical_dates=msg.logical_dates,
-                run_ids=msg.run_ids,
-            )
-            if isinstance(task_states_map, TaskStatesResponse):
-                resp = TaskStatesResult.from_api_response(task_states_map)
-            else:
-                resp = task_states_map
+            resp, dump_opts = handle_get_task_states(self.client, msg)
         elif isinstance(msg, GetPreviousTI):
-            resp = self.client.task_instances.get_previous(
-                dag_id=msg.dag_id,
-                task_id=msg.task_id,
-                logical_date=msg.logical_date,
-                map_index=msg.map_index,
-                state=msg.state,
-            )
+            resp, dump_opts = handle_get_previous_ti(self.client, msg)
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(
@@ -679,3 +731,13 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
+
+    def close(self):
+        try:
+            self.logger_filehandle.close()
+        except OSError:
+            self.log.warning(
+                "Failed to close log file handle for %s",
+                self.dag_file_rel_path,
+                exc_info=True,
+            )

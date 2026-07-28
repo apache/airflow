@@ -54,10 +54,15 @@ PREV_STATE_DIR = Path("./prev-slack-state")
 
 def download_previous_state(artifact_name: str, repo: str) -> dict | None:
     """Download previous notification state artifact from GitHub Actions."""
+    # `gh api` defaults to POST when -f/-F parameters are passed, which makes
+    # the artifacts list endpoint return 404. Force GET so the parameters are
+    # encoded as query string.
     result = subprocess.run(
         [
             "gh",
             "api",
+            "--method",
+            "GET",
             f"repos/{repo}/actions/artifacts",
             "-f",
             f"name={artifact_name}",

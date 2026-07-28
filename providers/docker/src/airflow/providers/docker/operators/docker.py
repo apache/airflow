@@ -151,8 +151,12 @@ class DockerOperator(BaseOperator):
         The path is also made available via the environment variable
         ``AIRFLOW_TMP_DIR`` inside the container.
     :param user: Default user inside the docker container.
-    :param mounts: List of volumes to mount into the container. Each item should
-        be a :py:class:`docker.types.Mount` instance. (templated)
+    :param mounts: List of volumes to mount into the container. Each item may
+        be a :py:class:`docker.types.Mount` instance, or a ``dict`` of
+        :py:class:`~docker.types.Mount` keyword arguments (e.g.
+        ``{"target": "/data", "source": "vol", "type": "volume"}``); ``dict``
+        entries are converted to ``Mount`` instances at construction time.
+        (templated)
     :param entrypoint: Overwrite the default ENTRYPOINT of the image
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
@@ -245,7 +249,7 @@ class DockerOperator(BaseOperator):
         mount_tmp_dir: bool = True,
         tmp_dir: str = "/tmp/airflow",
         user: str | int | None = None,
-        mounts: list[Mount] | None = None,
+        mounts: list[Mount | dict] | None = None,
         entrypoint: str | list[str] | None = None,
         working_dir: str | None = None,
         xcom_all: bool = False,
@@ -305,8 +309,6 @@ class DockerOperator(BaseOperator):
         self.tmp_dir = tmp_dir
         self.user = user
         self.mounts = mounts or []
-        for mount in self.mounts:
-            mount.template_fields = ("Source", "Target", "Type")
         self.entrypoint = entrypoint
         self.working_dir = working_dir
         self.xcom_all = xcom_all
@@ -484,7 +486,14 @@ class DockerOperator(BaseOperator):
             lib = getattr(self, "pickling_library", pickle)
             return lib.load(file)
 
+    def _normalize_mounts(self) -> None:
+        # A user dict is rebuilt into a Mount, but rendering flattens a Mount into a
+        # plain dict with API-cased keys (Target/Source/Type) that docker-py already
+        # accepts, so leave those (and any real Mount) alone.
+        self.mounts = [m if isinstance(m, Mount) or "Target" in m else Mount(**m) for m in self.mounts]
+
     def execute(self, context: Context) -> list[str] | str | None:
+        self._normalize_mounts()
         # Pull the docker image if `force_pull` is set or image does not exist locally
         if self.force_pull or not self.cli.images(name=self.image):
             self.log.info("::group::Pulling docker image %s", self.image)
@@ -529,6 +538,15 @@ class DockerOperator(BaseOperator):
                 self.log.info("Not attempting to kill container as it was not created")
                 return
             self.cli.stop(self.container["Id"])
+            if self.auto_remove == "force":
+                try:
+                    self.cli.remove_container(self.container["Id"], force=True)
+                except APIError as e:
+                    self.log.info(
+                        "Failed to remove docker container %s during on_kill; it may already be gone: %s",
+                        self.container["Id"],
+                        e,
+                    )
 
     @staticmethod
     def unpack_environment_variables(env_str: str) -> dict:

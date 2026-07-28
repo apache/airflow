@@ -66,6 +66,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.DAG_ID
   | SearchParamsKeys.DAG_ID_PATTERN
   | SearchParamsKeys.DAG_VERSION
+  | SearchParamsKeys.DEADLINE_TIME_RANGE
   | SearchParamsKeys.DURATION_GTE
   | SearchParamsKeys.DURATION_LTE
   | SearchParamsKeys.END_DATE_RANGE
@@ -78,11 +79,13 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.KEY_PATTERN
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.MISSED
   | SearchParamsKeys.NAME_PATTERN
   | SearchParamsKeys.OPERATOR_NAME_PATTERN
   | SearchParamsKeys.PARTITION_KEY_PATTERN
   | SearchParamsKeys.POOL_NAME_PATTERN
   | SearchParamsKeys.QUEUE_NAME_PATTERN
+  | SearchParamsKeys.RENDERED_MAP_INDEX
   | SearchParamsKeys.RESPONDED_BY_USER_NAME
   | SearchParamsKeys.RESPONSE_RECEIVED
   | SearchParamsKeys.RUN_AFTER_RANGE
@@ -94,6 +97,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.SUBJECT_SEARCH
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
+  | SearchParamsKeys.TEAMS
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
@@ -145,6 +149,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
 
   const handleFiltersChange = (filters: Record<string, FilterValue>) => {
     setTableURLState({
+      cursor: undefined,
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
@@ -167,6 +172,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
       });
 
       newParams.delete(SearchParamsKeys.OFFSET);
+      newParams.delete(SearchParamsKeys.CURSOR);
 
       return newParams;
     });

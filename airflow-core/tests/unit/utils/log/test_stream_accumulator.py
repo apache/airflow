@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
+import gc
 import os
+import weakref
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -74,15 +76,18 @@ class TestLogStreamAccumulator:
             with accumulator:
                 mock_setup.assert_called_once()
 
-    def test__flush_buffer_to_disk(self, structured_logs):
+    def test__flush_buffer_to_disk(self, structured_logs, tmp_path):
         """Test flush-to-disk behavior with a small threshold."""
         threshold = 6
 
-        # Mock the temporary file to verify it's being written to
-        with (
-            mock.patch("tempfile.NamedTemporaryFile") as mock_tmpfile,
-        ):
+        # Use a real path on tmp_path so __exit__ cleanup (which now runs when
+        # the stream is never accessed) can remove the file without raising.
+        fake_spill = tmp_path / "fake_spill.json"
+        fake_spill.touch()
+
+        with mock.patch("tempfile.NamedTemporaryFile") as mock_tmpfile:
             mock_file = mock.MagicMock()
+            mock_file.name = str(fake_spill)
             mock_tmpfile.return_value = mock_file
 
             with LogStreamAccumulator(structured_logs, threshold) as accumulator:
@@ -163,3 +168,84 @@ class TestLogStreamAccumulator:
 
                 # After fully consuming the stream, cleanup should be called
                 mock_cleanup.assert_called_once()
+
+    def test_cleanup_when_stream_never_accessed(self, structured_logs):
+        """Temp file is removed on __exit__ when caller never reads .stream (e.g. uses only total_lines)."""
+
+        with LogStreamAccumulator(structured_logs, 5) as accumulator:
+            assert accumulator._tmpfile is not None
+            tmpfile_name = accumulator._tmpfile.name
+            assert os.path.exists(tmpfile_name)
+            assert accumulator.total_lines == LOG_COUNT
+
+        assert accumulator._tmpfile is None
+        assert not os.path.exists(tmpfile_name)
+
+    def test_cleanup_on_exception_in_with_block(self, structured_logs):
+        """An exception propagating through __exit__ overrides the deferred-cleanup path."""
+
+        accumulator = LogStreamAccumulator(structured_logs, 5)
+        accumulator.__enter__()
+        _ = accumulator.stream
+        assert accumulator._tmpfile is not None
+        tmpfile_name = accumulator._tmpfile.name
+        assert os.path.exists(tmpfile_name)
+
+        accumulator.__exit__(RuntimeError, RuntimeError("boom"), None)
+
+        assert not os.path.exists(tmpfile_name)
+        assert accumulator._tmpfile is None
+
+    def test_cleanup_deferred_when_stream_returned_then_iterated(self, structured_logs):
+        """Stream returned from inside the with block must remain readable after __exit__."""
+
+        with LogStreamAccumulator(structured_logs, 5) as accumulator:
+            returned_stream = accumulator.stream
+            assert accumulator._tmpfile is not None
+            tmpfile_name = accumulator._tmpfile.name
+            assert os.path.exists(tmpfile_name)
+
+        assert os.path.exists(tmpfile_name)
+
+        self.validate_log_stream(returned_stream)
+
+        assert not os.path.exists(tmpfile_name)
+
+    def test_cleanup_via_finalizer_on_abandoned_generator(self, structured_logs):
+        """When _cleanup is suppressed, the weakref backstop still removes the spill on GC."""
+
+        def make_and_abandon() -> tuple[str, weakref.ref]:
+            acc = LogStreamAccumulator(structured_logs, 5)
+            # Disable explicit cleanup so only the weakref backstop can remove the file.
+            acc._cleanup = lambda: None  # type: ignore[method-assign]
+            acc.__enter__()
+            _gen = acc.stream
+            assert acc._tmpfile is not None
+            path = acc._tmpfile.name
+            acc.__exit__(None, None, None)
+            # _gen, acc go out of scope on return — finalizer should fire.
+            return path, weakref.ref(acc)
+
+        tmpfile_name, acc_ref = make_and_abandon()
+
+        gc.collect()
+
+        assert acc_ref() is None, "accumulator should have been garbage collected"
+        assert not os.path.exists(tmpfile_name), "weakref.finalize backstop should have removed the file"
+
+    def test_cleanup_idempotent(self, structured_logs):
+        """Repeated _cleanup calls do not raise."""
+
+        accumulator = LogStreamAccumulator(structured_logs, 5)
+        accumulator._capture()
+        assert accumulator._tmpfile is not None
+        tmpfile_name = accumulator._tmpfile.name
+        assert os.path.exists(tmpfile_name)
+
+        accumulator._cleanup()
+        assert not os.path.exists(tmpfile_name)
+        assert accumulator._tmpfile is None
+        assert accumulator._finalizer is None
+
+        accumulator._cleanup()
+        accumulator._cleanup()

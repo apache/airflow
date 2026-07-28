@@ -11,6 +11,24 @@
     },
     "title": "Naplózás"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "Riasztás neve",
+      "deadlineTime": "Határidő időpontja",
+      "status": "Állapot"
+    },
+    "deadline_one": "Határidő",
+    "deadline_other": "Határidők",
+    "filters": {
+      "status": "Állapot",
+      "statusOptions": {
+        "all": "Összes",
+        "missed": "Elmulasztott",
+        "pending": "Függőben"
+      }
+    },
+    "title": "Határidők"
+  },
   "xcom": {
     "add": {
       "error": "XCom hozzáadása sikertelen",

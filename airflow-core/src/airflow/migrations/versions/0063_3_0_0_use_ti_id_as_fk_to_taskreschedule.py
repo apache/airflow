@@ -51,16 +51,19 @@ def upgrade():
             )
         )
     if dialect_name == "postgresql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_reschedule SET ti_id = task_instance.id
             FROM task_instance
             WHERE task_reschedule.task_id = task_instance.task_id
             AND task_reschedule.dag_id = task_instance.dag_id
             AND task_reschedule.run_id = task_instance.run_id
             AND task_reschedule.map_index = task_instance.map_index
-            """)
+            """
+        )
     elif dialect_name == "mysql":
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_reschedule tir
             JOIN task_instance ti ON
                 tir.task_id = ti.task_id
@@ -68,15 +71,18 @@ def upgrade():
                 AND tir.run_id = ti.run_id
                 AND tir.map_index = ti.map_index
             SET tir.ti_id = ti.id
-            """)
+            """
+        )
     else:
-        op.execute("""
+        op.execute(
+            """
             UPDATE task_reschedule
             SET ti_id = (SELECT id FROM task_instance WHERE task_reschedule.task_id = task_instance.task_id
             AND task_reschedule.dag_id = task_instance.dag_id
             AND task_reschedule.run_id = task_instance.run_id
             AND task_reschedule.map_index = task_instance.map_index)
-            """)
+            """
+        )
     with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
         batch_op.alter_column(
             "ti_id",
@@ -115,7 +121,8 @@ def downgrade():
         )
     # fill the task_id, dag_id, run_id, map_index columns from taskinstance
     if dialect_name == "postgresql":
-        op.execute("""
+        op.execute(
+            """
                 UPDATE task_reschedule
                 SET dag_id = task_instance.dag_id,
                     task_id = task_instance.task_id,
@@ -123,9 +130,11 @@ def downgrade():
                     map_index = task_instance.map_index
                 FROM task_instance
                 WHERE task_reschedule.ti_id = task_instance.id
-                """)
+                """
+        )
     elif dialect_name == "mysql":
-        op.execute("""
+        op.execute(
+            """
                 UPDATE task_reschedule tir
                 JOIN task_instance ti ON
                     tir.ti_id = ti.id
@@ -133,15 +142,18 @@ def downgrade():
                     tir.task_id = ti.task_id,
                     tir.run_id = ti.run_id,
                     tir.map_index = ti.map_index
-                """)
+                """
+        )
     else:
-        op.execute("""
+        op.execute(
+            """
                 UPDATE task_reschedule
                 SET dag_id = (SELECT dag_id FROM task_instance WHERE task_reschedule.ti_id = task_instance.id),
                     task_id = (SELECT task_id FROM task_instance WHERE task_reschedule.ti_id = task_instance.id),
                     run_id = (SELECT run_id FROM task_instance WHERE task_reschedule.ti_id = task_instance.id),
                     map_index = (SELECT map_index FROM task_instance WHERE task_reschedule.ti_id = task_instance.id)
-                """)
+                """
+        )
     with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
         batch_op.drop_column("ti_id")
         batch_op.alter_column("run_id", nullable=False, existing_type=StringID())

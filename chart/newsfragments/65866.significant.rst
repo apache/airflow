@@ -1,0 +1,28 @@
+Dropped support for Airflow < 3.1.0
+
+The chart now requires Apache Airflow 3.1.0 or above. If you need to deploy
+older versions, use a chart from the 1.x line.
+
+The following values are no longer accepted and must be replaced:
+
+- ``webserver.*`` (entire section) → use ``apiServer.*``
+- ``webserver.defaultUser.*`` → use ``createUserJob.defaultUser.*``
+- ``webserver.allowPodLogReading`` → use ``apiServer.allowPodLogReading``
+- ``webserverSecretKey`` → use ``apiSecretKey``
+- ``webserverSecretKeySecretName`` → use ``apiSecretKeySecretName``
+- ``webserverSecretAnnotations`` → use ``apiSecretAnnotations``
+- ``enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY`` → use
+  ``enableBuiltInSecretEnvVars.AIRFLOW__API__SECRET_KEY``
+
+The following executors are no longer supported:
+
+- ``LocalKubernetesExecutor``
+- ``CeleryKubernetesExecutor``
+
+Other behavior changes:
+
+- ``dagProcessor.enabled`` default is now ``true`` (was ``null``, which
+  previously resolved to ``true`` on Airflow 3 anyway).
+- ``config.webserver.enable_proxy_fix`` and
+  ``config.scheduler.standalone_dag_processor`` defaults removed from
+  ``values.yaml``.

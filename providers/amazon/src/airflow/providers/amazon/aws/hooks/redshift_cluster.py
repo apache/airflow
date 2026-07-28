@@ -75,7 +75,6 @@ class RedshiftHook(AwsBaseHook):
         )
         return response
 
-    # TODO: Wrap create_cluster_snapshot
     def cluster_status(self, cluster_identifier: str) -> str | None:
         """
         Get status of a cluster.

@@ -23,6 +23,7 @@ from inspect import signature
 from typing import TYPE_CHECKING, TypeVar, overload
 
 from sqlalchemy.exc import DBAPIError
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow.configuration import conf
 
@@ -40,7 +41,7 @@ def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: Logger | None
 
     # Default kwargs
     retry_kwargs = dict(
-        retry=tenacity.retry_if_exception_type(exception_types=(DBAPIError)),
+        retry=tenacity.retry_if_exception_type(exception_types=(DBAPIError, StaleDataError)),
         wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
         stop=tenacity.stop_after_attempt(max_retries),
         reraise=True,
@@ -104,7 +105,7 @@ def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB
                     )
                     try:
                         return func(*args, **kwargs)
-                    except DBAPIError:
+                    except (DBAPIError, StaleDataError):
                         session.rollback()
                         raise
 

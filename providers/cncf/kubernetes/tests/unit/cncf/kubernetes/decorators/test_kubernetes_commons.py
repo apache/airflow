@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Callable
 from unittest import mock
 
@@ -89,6 +90,13 @@ class TestKubernetesDecoratorsBase:
         self.dag = self.dag_maker.dag
 
         self.mock_create_pod = mock.patch(f"{POD_MANAGER_CLASS}.create_pod").start()
+        self.mock_create_pod.return_value = mock.MagicMock(
+            **{
+                "metadata.name": "test-pod",
+                "metadata.namespace": "default",
+                "metadata.uid": "test-uid",
+            }
+        )
         self.mock_await_pod_start = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start").start()
         self.mock_watch_pod_events = mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events").start()
         self.mock_await_xcom_sidecar_container_start = mock.patch(
@@ -99,8 +107,29 @@ class TestKubernetesDecoratorsBase:
         self.mock_extract_xcom.return_value = '{"key1": "value1", "key2": "value2"}'
 
         self.mock_await_pod_completion = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion").start()
-        self.mock_await_pod_completion.return_value = mock.MagicMock(**{"status.phase": "Succeeded"})
+        base_container_status = mock.MagicMock()
+        base_container_status.name = "base"
+        base_container_status.state.terminated.exit_code = 0
+        self.mock_await_pod_completion.return_value = mock.MagicMock(
+            **{
+                "status.phase": "Succeeded",
+                "status.container_statuses": [base_container_status],
+                "status.init_container_statuses": None,
+            }
+        )
         self.mock_hook = mock.patch(HOOK_CLASS).start()
+        self.mock_hook.return_value.get_xcom_sidecar_container_security_context.return_value = None
+
+        try:
+            from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+        except ImportError:
+            # Airflow versions without task_state_store (e.g. pre-3.3, or pre-3.0 where
+            # airflow.sdk doesn't exist at all) don't define this class -- nothing to patch,
+            # context.get("task_state_store") already returns None on those versions.
+            pass
+        else:
+            mock.patch.object(TaskStateStoreAccessor, "get", return_value=None).start()
+            mock.patch.object(TaskStateStoreAccessor, "set").start()
 
         # Without this patch each time pod manager would try to extract logs from the pod
         # and log an error about it's inability to get containers for the log
@@ -108,10 +137,8 @@ class TestKubernetesDecoratorsBase:
         self.mock_fetch_logs = mock.patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs").start()
         self.mock_fetch_logs.return_value = "logs"
 
-        try:
+        with contextlib.suppress(Exception):
             yield
-        except Exception:
-            pass
         mock.patch.stopall()
 
     def teardown_method(self):

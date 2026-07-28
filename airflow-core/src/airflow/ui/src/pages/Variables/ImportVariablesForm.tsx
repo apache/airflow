@@ -156,7 +156,8 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         </FileUpload.ItemGroup>
         {isParsing ? (
           <Center mt={2}>
-            <Spinner color="brand.solid" marginRight={2} size="sm" /> Parsing file...
+            <Spinner color="brand.solid" marginRight={2} size="sm" />{" "}
+            {translate("variables.import.parsingFile")}
           </Center>
         ) : undefined}
       </FileUpload.Root>
@@ -192,7 +193,7 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
             </Center>
           </Box>
         ) : undefined}
-        <Button colorPalette="brand" disabled={!Boolean(fileContent) || isPending} onClick={onSubmit}>
+        <Button disabled={!Boolean(fileContent) || isPending} onClick={onSubmit}>
           <FiUploadCloud /> {translate("variables.import.button")}
         </Button>
       </Box>

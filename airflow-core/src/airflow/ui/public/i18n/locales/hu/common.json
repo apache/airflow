@@ -18,16 +18,21 @@
   "asset_other": "Adatkészletek",
   "assetEvent_one": "Adatkészlet esemény",
   "assetEvent_other": "Adatkészlet események",
+  "assetInactive": {
+    "tooltip": "Az upstream adatkészlet deaktiválva lett; az ütemező felfüggeszti a partíciók kiértékelését, amíg újra nem aktiválják."
+  },
   "backfill_one": "Visszatöltés",
   "backfill_other": "Visszatöltések",
   "browse": {
     "auditLog": "Audit napló",
+    "deadlines": "Határidők",
     "jobs": "Feladatok",
     "requiredActions": "Szükséges műveletek",
     "xcoms": "XComok"
   },
   "collapseAllExtra": "Összes extra JSON összecsukása",
   "collapseDetailsPanel": "Részletek panel összecsukása",
+  "consumingAsset": "Felhasználó adatkészlet",
   "createdAssetEvent_one": "Létrehozott adatkészlet esemény",
   "createdAssetEvent_other": "Létrehozott adatkészlet események",
   "dag_one": "Dag",
@@ -60,6 +65,11 @@
     "dagVersions": "Dag verzió(k)",
     "dataIntervalEnd": "Adatintervallum vége",
     "dataIntervalStart": "Adatintervallum kezdete",
+    "durationStats": {
+      "mean": "Átlag",
+      "mode": "Módusz"
+    },
+    "expectedDuration": "Várható Időtartam",
     "lastSchedulingDecision": "Utolsó ütemezési döntés",
     "mappedPartitionKey": "Leképezett partíciós kulcs",
     "partitionKey": "Partíciós kulcs",
@@ -103,6 +113,12 @@
     "notFound": "Az oldal nem található",
     "title": "Hiba"
   },
+  "errors": {
+    "forbidden": {
+      "description": "Nincs jogosultsága a művelet végrehajtásához.",
+      "title": "Hozzáférés megtagadva"
+    }
+  },
   "expand": {
     "collapse": "Összecsukás",
     "expand": "Kibontás",
@@ -125,9 +141,12 @@
     "logicalDateTo": "Záró logikai dátum",
     "runAfterFrom": "Futás ekkortól",
     "runAfterTo": "Futás eddig",
+    "searchAsset": "Adatkészlet keresése",
     "selectDateRange": "Dátumtartomány kiválasztása",
     "startTime": "Kezdési idő"
   },
+  "generateToken": "Token generálása",
+  "key": "Kulcs",
   "logicalDate": "Logikai dátum",
   "logout": "Kijelentkezés",
   "logoutConfirmation": "Biztosan ki szeretne jelentkezni az alkalmazásból?",
@@ -171,6 +190,7 @@
   "reset": "Alaphelyzetbe állítás",
   "runId": "Futás azonosító",
   "runTypes": {
+    "asset_materialization": "Adatkészlet materializálása",
     "asset_triggered": "Adatkészlet által indított",
     "backfill": "Visszatöltés",
     "manual": "Kézi",
@@ -183,6 +203,12 @@
     },
     "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a görgetéshez ide: {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Egyezés a szöveg bármely részével (szövegtöredék keresése). Nagyobb megvalósítások esetén lassabb, mert nem használható az alapértelmezett B-fa indexelés. További részletek a dokumentáció egyedi metaadatindexekről szóló részében.",
+      "title": "Egyezés bárhol"
+    }
+  },
   "security": {
     "actions": "Műveletek",
     "permissions": "Jogosultságok",
@@ -191,6 +217,7 @@
     "users": "Felhasználók"
   },
   "selectLanguage": "Nyelv kiválasztása",
+  "selected": "Kiválasztva",
   "showDetailsPanel": "Részletek panel megjelenítése",
   "signedInAs": "Bejelentkezve mint",
   "source": {
@@ -203,6 +230,7 @@
   "startDate": "Kezdési dátum",
   "state": "Állapot",
   "states": {
+    "awaiting_input": "Bemenetre vár",
     "deferred": "Várakozó",
     "failed": "Sikertelen",
     "no_status": "Nincs állapot",
@@ -235,7 +263,8 @@
       "any": "Bármely"
     },
     "tagPlaceholder": "Szűrés címke alapján",
-    "to": "Eddig"
+    "to": "Eddig",
+    "updatedAt": "Frissítve ekkor"
   },
   "task": {
     "documentation": "Feladat dokumentáció",
@@ -245,7 +274,11 @@
   },
   "task_one": "Feladat",
   "task_other": "Feladatok",
-  "taskGroup": "Feladatcsoport",
+  "taskGroup": {
+    "documentation": "Feladatcsoport dokumentáció"
+  },
+  "taskGroup_one": "Feladatcsoport",
+  "taskGroup_other": "Feladatcsoportok",
   "taskId": "Feladat azonosító",
   "taskInstance": {
     "dagVersion": "Dag verzió",
@@ -259,6 +292,7 @@
     "priorityWeight": "Prioritás súlya",
     "queue": "Sor",
     "queuedWhen": "Sorba állítva ekkor",
+    "renderedMapIndex": "Generált Térkép Index",
     "scheduledWhen": "Ütemezve ekkor",
     "triggerer": {
       "assigned": "Hozzárendelt indító",
@@ -291,11 +325,25 @@
     "utc": "UTC (egyezményes koordinált világidő)"
   },
   "toaster": {
+    "bulkClear": {
+      "error": "Tömeges törlési kérelem sikertelen: {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} sikeresen törölve. Kulcsok: {{keys}}",
+        "title": "Tömeges törlési kérelem elküldve: {{resourceName}}"
+      }
+    },
     "bulkDelete": {
       "error": "Tömeges törlés kérése sikertelen: {{resourceName}}",
       "success": {
         "description": "{{count}} {{resourceName}} sikeresen törölve. Kulcsok: {{keys}}",
         "title": "Tömeges törlés kérelem elküldve: {{resourceName}}"
+      }
+    },
+    "bulkUpdate": {
+      "error": "Tömeges frissítési kérelem sikertelen: {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} sikeresen frissítve. Kulcsok: {{keys}}",
+        "title": "Tömeges frissítési kérelem elküldve: {{resourceName}}"
       }
     },
     "create": {
@@ -327,10 +375,27 @@
       }
     }
   },
+  "tokenGeneration": {
+    "apiToken": "API token",
+    "cliToken": "CLI token",
+    "errorDescription": "Hiba történt a token generálása során. Kérjük, próbálja újra.",
+    "errorTitle": "A token generálása sikertelen",
+    "generate": "Generálás",
+    "selectType": "Válassza ki a generálni kívánt token típusát.",
+    "title": "Token generálása",
+    "tokenExpiresIn": "Ez a token {{duration}} múlva lejár.",
+    "tokenGenerated": "A token sikeresen létrejött.",
+    "tokenShownOnce": "Ez a token többször nem jelenik meg. Mentse el most!"
+  },
   "total": "Összes: {{state}}",
   "triggered": "Indítva",
   "tryNumber": "Próbálkozás száma",
   "user": "Felhasználó",
+  "validation": {
+    "mustBeAtLeast": "Legalább {{min}} értékűnek kell lennie.",
+    "mustBeValidNumber": "Valódi számot kell megadni."
+  },
+  "value": "Érték",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a sortördelés ki/be kapcsolásához",

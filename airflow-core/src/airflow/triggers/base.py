@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import abc
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Hashable
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated, Any
@@ -46,7 +46,9 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.execution_time.context import AssetStateStoreAccessors
     from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.triggers.shared_stream import SharedStreamProducer
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
@@ -100,8 +102,8 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         return None
 
     @property
-    def task_instance(self) -> TaskInstance:
-        return self._task_instance
+    def task_instance(self) -> TaskInstance | None:
+        return getattr(self, "_task_instance", None)
 
     @task_instance.setter
     def task_instance(self, value: TaskInstance | None) -> None:
@@ -120,9 +122,16 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
             # does not build a template context, so render_template_fields is
             # never called and empty template_fields is safe.
             start_trigger_args = getattr(self.task, "start_trigger_args", None)
-            trigger_kwarg_keys = (
-                set((start_trigger_args.trigger_kwargs or {}).keys()) if start_trigger_args else set()
-            )
+            if start_trigger_args:
+                from airflow.serialization.enums import Encoding
+
+                raw = start_trigger_args.trigger_kwargs or {}
+                # trigger_kwargs may be BaseSerialization-encoded; extract inner dict keys
+                if isinstance(raw, dict) and Encoding.TYPE in raw:
+                    raw = raw.get(Encoding.VAR) or {}
+                trigger_kwarg_keys = set(raw.keys())
+            else:
+                trigger_kwarg_keys = set()
             if trigger_kwarg_keys:
                 self.template_fields = tuple(
                     f for f in self.task.template_fields if f in trigger_kwarg_keys and hasattr(self, f)
@@ -192,6 +201,42 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         and handle it appropriately (in async-compatible way).
         """
 
+    async def on_kill(self) -> None:
+        """
+        Kill the external job managed by this trigger when the task is killed by a user.
+
+        Symmetric with ``BaseOperator.on_kill()`` on the worker side: override this method
+        to stop external work (e.g. cancel a BigQuery job, terminate a Databricks run) when
+        a user explicitly acts on the deferred task via mark-failed, clear, or mark-succeeded.
+
+        **Distinction from** ``cleanup()``:
+
+        - ``cleanup()`` runs on every trigger exit — success, timeout, shutdown, and user
+          kill. It is meant for releasing local resources held by this trigger instance.
+          Putting external job cancellation in ``cleanup()`` would cancel in-flight work
+          on every triggerer restart or rolling deploy.
+        - ``on_kill()`` runs only when a user explicitly kills the task. It is the right
+          place to cancel external work you do not want to keep running after the user performs an action.
+
+        This only fires when a user acts on the task. It does not fire on:
+
+        - Triggerer shutdown or restart — the trigger is redistributed, not cancelled.
+        - Triggerer redistribution to another triggerer process.
+        - Trigger timeout — the trigger is killed, not cancelled by user.
+        - Normal trigger completion (the trigger fired an event).
+
+        This method runs in the triggerer's asyncio event loop, so
+        it must be async-safe. Use ``await`` for any I/O; do not block the event loop.
+
+        Exceptions raised here are logged as warnings and do not
+        propagate — they will not affect the task state or the triggerer. Implement your
+        own retry or error handling inside this method if needed.
+
+        ``on_kill()`` is given a bounded time to complete. Implementations
+        that call slow external APIs should apply their own timeouts rather than relying on
+        the framework bound.
+        """
+
     @staticmethod
     def repr(classpath: str, kwargs: dict[str, Any]):
         kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
@@ -208,9 +253,55 @@ class BaseEventTrigger(BaseTrigger):
 
     ``BaseEventTrigger`` is a subclass of ``BaseTrigger`` designed to identify triggers compatible with
     event-driven scheduling.
+
+    **Sharing an underlying I/O stream between triggers**
+
+    A subclass that polls an upstream resource which can be safely consumed
+    by multiple sibling triggers (e.g. a directory scan, a polling REST API)
+    may opt in to having the triggerer run a single underlying poll loop
+    and fan its raw events out to every trigger in the group. To do so,
+    override:
+
+    * :meth:`shared_stream_key` — return a key identifying the
+      shared stream (a ``tuple`` of strings is a common choice). Triggers
+      whose key compares equal share one poll.
+    * :meth:`open_shared_stream` — open the shared stream and yield raw
+      events. Called once per group in the triggerer.
+    * :meth:`filter_shared_stream` — convert the shared raw stream into this
+      trigger's own ``TriggerEvent`` instances, applying any per-trigger
+      filtering or transformation. The stream has the same shape in ack
+      mode as on the fast path, so the filter needs no mode-specific
+      branches.
+
+    Triggers whose ``shared_stream_key`` returns ``None`` (the default)
+    keep the existing behavior: each trigger gets its own poll loop via
+    :meth:`run`.
+
+    **Producer factory (ack mode)**
+
+    Override :meth:`create_shared_stream_producer` to enable ack mode. The
+    manager calls this classmethod once per group; the returned
+    :class:`~airflow.triggers.shared_stream.SharedStreamProducer` owns the
+    broker connection, supplies events through its ``open_stream`` method
+    (instead of :meth:`open_shared_stream`), and is told to advance the
+    broker — commit, delete, or ack the messages — through per-lane batches
+    of events whose subscribers have all moved past them and whose derived
+    trigger events were persisted to the metadata database. Subscribers
+    receive raw events in both modes; ack mode changes only the bookkeeping
+    behind the stream, never the filter code.
+
+    See :mod:`airflow.triggers.shared_stream` for the full ack-mode design,
+    including snapshot-at-fan-out semantics, per-event timeout behavior, and
+    triggerer-restart redeliver notes.
     """
 
     supports_triggerer_queue: bool = False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        # Injected by the triggerer before run() is called
+        self.asset_state_store: AssetStateStoreAccessors | None = None
 
     @staticmethod
     def hash(classpath: str, kwargs: dict[str, Any]) -> int:
@@ -220,9 +311,118 @@ class BaseEventTrigger(BaseTrigger):
         We do not want to have this logic in ``BaseTrigger`` because, when used to defer tasks, 2 triggers
         can have the same classpath and kwargs. This is not true for event driven scheduling.
         """
+        from airflow.serialization.encoders import encode_trigger
         from airflow.serialization.serialized_objects import BaseSerialization
 
-        return hash((classpath, json.dumps(BaseSerialization.serialize(kwargs)).encode("utf-8")))
+        normalized = encode_trigger({"classpath": classpath, "kwargs": kwargs})["kwargs"]
+        return hash((classpath, json.dumps(BaseSerialization.serialize(normalized)).encode("utf-8")))
+
+    def shared_stream_key(self) -> Hashable | None:
+        """
+        Identify an underlying I/O stream that can be shared with sibling triggers.
+
+        Two trigger instances whose ``shared_stream_key()`` return values
+        compare equal (and are not ``None``) will share a single underlying
+        poll loop in the triggerer. Each instance still receives the events
+        it cares about through its own :meth:`filter_shared_stream` call.
+
+        Returning ``None`` (the default) opts out of sharing — the trigger
+        runs its own independent poll loop via :meth:`run`, exactly as today.
+
+        The return value is read **once** when ``run_trigger`` first starts
+        this trigger; any change to the key afterwards has no effect on
+        group membership for this instance. To share one poll across a set
+        of sibling triggers, ensure every trigger in the set returns the
+        same key from the outset.
+
+        The key must be deterministic — derive it from configuration fields,
+        never from per-call values such as ``time.time()`` or ``uuid.uuid4()``,
+        because the comparison must be stable across the lifetime of the group.
+
+        .. note::
+
+           This method is called **after** :meth:`render_template_fields`,
+           so any templated attribute (for example a ``directory`` derived
+           from a Jinja expression) is already resolved when the key is
+           constructed. Two sibling triggers that render to the same path
+           will correctly share their poll.
+        """
+        return None
+
+    @classmethod
+    async def open_shared_stream(cls, kwargs: dict[str, Any]) -> AsyncIterator[Any]:
+        """
+        Open the shared underlying stream and yield raw events.
+
+        Called **once per shared-stream group** in the triggerer. ``kwargs``
+        is taken from one trigger in the group; implementations should rely
+        only on fields whose values participate in :meth:`shared_stream_key`,
+        because other fields may differ between siblings in the group.
+
+        Implementations are expected to run for the lifetime of the group —
+        the triggerer drives the iterator from a single task and cancels it
+        when the last subscriber leaves. Returning without raising (e.g.
+        because the upstream resource closed) is treated as an error and
+        propagated to every subscriber, so the contract is "yield forever, or
+        raise". If an upstream EOF is a meaningful end-of-life condition,
+        raise an exception that conveys it.
+
+        Declared as a classmethod (not staticmethod) so subclasses can
+        compose via ``super().open_shared_stream(kwargs)`` and reach
+        ``cls`` for class-scoped state or diagnostics.
+
+        Required only when :meth:`shared_stream_key` returns non-``None``
+        and :meth:`create_shared_stream_producer` is not overridden. In ack
+        mode the events come from the producer's ``open_stream`` instead and
+        this method is not called.
+        """
+        raise NotImplementedError(
+            f"{cls.__name__} declares a shared_stream_key but does not implement open_shared_stream"
+        )
+        yield  # pragma: no cover - convince mypy this is an async iterator
+
+    @classmethod
+    def create_shared_stream_producer(cls, kwargs: dict[str, Any]) -> SharedStreamProducer:
+        """
+        Build the broker-side producer for this trigger's shared stream (ack mode).
+
+        Overriding this classmethod opts the shared stream into ack mode.
+        The manager calls it once per shared-stream group; the returned
+        :class:`~airflow.triggers.shared_stream.SharedStreamProducer` owns
+        the broker connection for the lifetime of one poll — it supplies
+        events through ``open_stream``, is told to advance the broker in
+        per-lane batches of events whose subscribers have all moved past
+        them and had their derived trigger events confirmed persisted, and
+        is closed when the poll ends. Do not open the broker connection
+        here; open it lazily inside the producer's ``open_stream``.
+
+        Triggers that do not override this method run the fast path:
+        subscribers receive raw events from :meth:`open_shared_stream`
+        exactly as before. The stream shape is the same in both modes.
+        """
+        raise NotImplementedError(f"{cls.__name__} does not implement create_shared_stream_producer")
+
+    async def filter_shared_stream(self, shared_stream: AsyncIterator[Any]) -> AsyncIterator[TriggerEvent]:
+        """
+        Transform the shared raw event stream into this trigger's events.
+
+        The triggerer calls this method (instead of :meth:`run`) when this
+        trigger participates in a shared-stream group. Iterate
+        ``shared_stream`` to receive raw events from the shared poll, and
+        ``yield`` a :class:`TriggerEvent` for each one that should fire this
+        trigger.
+
+        In ack mode, to have the broker terminally drop a raw event rather
+        than producing a trigger event from it, call
+        :func:`~airflow.triggers.shared_stream.reject_shared_stream_event`
+        while handling that raw event instead of yielding.
+
+        Required only when :meth:`shared_stream_key` returns non-``None``.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} declares a shared_stream_key but does not implement filter_shared_stream"
+        )
+        yield  # pragma: no cover - convince mypy this is an async iterator
 
 
 class TriggerEvent(BaseModel):

@@ -26,8 +26,8 @@ The sole purpose of this YAML file is it to check the values file is consistent 
    Version checks
 #############################
 */ -}}
-  {{- if semverCompare "<2.11.0" .Values.airflowVersion }}
-    {{ required "This chart only supports Apache Airflow version 2.11.0 and above." nil }}
+  {{- if semverCompare "<3.1.0" .Values.airflowVersion }}
+    {{ required "This chart only supports Apache Airflow version 3.1.0 and above." nil }}
   {{- end }}
 {{- /*
 ##############################
@@ -35,7 +35,7 @@ The sole purpose of this YAML file is it to check the values file is consistent 
 #############################
 */ -}}
 
-  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+  {{- if contains "CeleryExecutor" .Values.executor }}
     {{- if .Values.redis.enabled }}
 
       {{- if .Values.redis.passwordSecretName }}

@@ -27,6 +27,60 @@
 Changelog
 ---------
 
+1.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Kafka Event Producer publishing DagRun and TaskInstance state-change events (#68082, #70014)``
+* ``Add Amazon MSK IAM (OAUTHBEARER) support to Apache Kafka provider (#69427)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document 'apply_function' dot notation requirement for Kafka message queues (#68414)``
+* ``Document each provider's optional extras in its docs index (#69478)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky KubernetesPodOperator log-timestamp test (#69563)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add uri sanitizers and asset factories for new schemes (#66426)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KafkaError.name() called as property instead of method in create_topic (#65734)``
+* ``Fix AwaitMessageTrigger missing _task_instance attribute (#66302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT007 rule to apache.kafka Provider test (#66147)``
+   * ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+1.13.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add cleanup to Kafka AwaitMessageTrigger for consumer management (#64612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix stale system test documentation links (#65071)``
+
 1.13.2
 ......
 

@@ -11,6 +11,28 @@
     },
     "title": "سجل المراجعة"
   },
+  "deadlines": {
+    "columns": {
+      "alertName": "اسم التنبيه",
+      "deadlineTime": "وقت الموعد النهائي",
+      "status": "الحالة"
+    },
+    "deadline_few": "المواعيد النهائية",
+    "deadline_many": "المواعيد النهائية",
+    "deadline_one": "الموعد النهائي",
+    "deadline_other": "المواعيد النهائية",
+    "deadline_two": "الموعدان النهائيان",
+    "deadline_zero": "لا توجد مواعيد نهائية",
+    "filters": {
+      "status": "الحالة",
+      "statusOptions": {
+        "all": "الكل",
+        "missed": "فائت",
+        "pending": "قيد الانتظار"
+      }
+    },
+    "title": "المواعيد النهائية"
+  },
   "xcom": {
     "add": {
       "error": "فشل في إضافة XCom",

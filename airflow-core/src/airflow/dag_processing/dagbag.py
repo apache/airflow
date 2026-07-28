@@ -25,7 +25,7 @@ import warnings
 from collections.abc import Generator
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from tabulate import tabulate
 
@@ -172,8 +172,6 @@ class DagBag(LoggingMixin):
     that one system can run multiple, independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
-    :param include_examples: whether to include the examples that ship
-        with airflow or not
     :param safe_mode: when ``False``, scans all python modules for dags.
         When ``True`` uses heuristics (files containing ``DAG`` and ``airflow`` strings)
         to filter python modules to scan for dags.
@@ -187,7 +185,6 @@ class DagBag(LoggingMixin):
     def __init__(
         self,
         dag_folder: str | Path | None = None,  # todo AIP-66: rename this to path
-        include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
         load_op_links: bool = True,
         collect_dags: bool = True,
@@ -218,11 +215,6 @@ class DagBag(LoggingMixin):
         if collect_dags:
             self.collect_dags(
                 dag_folder=dag_folder,
-                include_examples=(
-                    include_examples
-                    if is_arg_set(include_examples)
-                    else conf.getboolean("core", "LOAD_EXAMPLES")
-                ),
                 safe_mode=(
                     safe_mode if is_arg_set(safe_mode) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
                 ),
@@ -245,7 +237,7 @@ class DagBag(LoggingMixin):
         return list(self.dags)
 
     @provide_session
-    def get_dag(self, dag_id, session: Session = NEW_SESSION):
+    def get_dag(self, dag_id, *, session: Session = NEW_SESSION):
         """
         Get the DAG out of the dictionary, and refreshes it if expired.
 
@@ -345,6 +337,10 @@ class DagBag(LoggingMixin):
             try:
                 if dag.fileloc is None:
                     dag.fileloc = filepath
+
+                # Add the bundle_name to the Dag
+                dag.bundle_name = self.bundle_name
+
                 # Validate before adding to bag (matches original _process_modules behavior)
                 dag.validate()
                 _validate_executor_fields(dag, self.bundle_name)
@@ -451,7 +447,6 @@ class DagBag(LoggingMixin):
         self,
         dag_folder: str | Path | None = None,
         only_if_updated: bool = True,
-        include_examples: bool = conf.getboolean("core", "LOAD_EXAMPLES"),
         safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
     ):
         """
@@ -476,13 +471,6 @@ class DagBag(LoggingMixin):
 
         registry = get_importer_registry()
         files_to_parse = registry.list_dag_files(dag_folder, safe_mode=safe_mode)
-
-        if include_examples:
-            from airflow import example_dags
-
-            example_dag_folder = next(iter(example_dags.__path__))
-
-            files_to_parse.extend(registry.list_dag_files(example_dag_folder, safe_mode=safe_mode))
 
         for filepath in files_to_parse:
             try:
@@ -554,17 +542,7 @@ class BundleDagBag(DagBag):
         if str(bundle_path) not in sys.path:
             sys.path.append(str(bundle_path))
 
-        # Warn if user explicitly set include_examples=True, since bundles never contain examples
-        if kwargs.get("include_examples") is True:
-            warnings.warn(
-                "include_examples=True is ignored for BundleDagBag. "
-                "Bundles do not contain example DAGs, so include_examples is always False.",
-                UserWarning,
-                stacklevel=2,
-            )
-
         kwargs["bundle_path"] = bundle_path
-        kwargs["include_examples"] = False
         super().__init__(*args, **kwargs)
 
 
@@ -574,6 +552,7 @@ def sync_bag_to_db(
     bundle_name: str,
     bundle_version: str | None,
     *,
+    version_data: dict[str, Any] | None = None,
     session: Session = NEW_SESSION,
 ) -> None:
     """Save attributes about list of DAG to the DB."""
@@ -598,5 +577,6 @@ def sync_bag_to_db(
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
+        version_data=version_data,
         files_parsed=files_parsed,
     )

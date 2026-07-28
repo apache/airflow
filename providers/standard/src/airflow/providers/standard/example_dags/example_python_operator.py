@@ -15,9 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Example DAG demonstrating the usage of the classic Python operators to execute Python functions natively and
-within a virtual environment.
+"""### Python operators
+
+Example DAG demonstrating classic Python operators.
+
+This DAG shows several ways to execute Python callables in Airflow:
+PythonOperator for regular Python functions, PythonVirtualenvOperator for
+functions that need an isolated virtual environment, and ExternalPythonOperator
+for running a callable with a specific Python binary.
+
+It also demonstrates passing keyword arguments, rendering templated files, and
+using asynchronous Python callables.
+
+See also:
+https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/operators/python.html
 """
 
 from __future__ import annotations
@@ -48,6 +59,7 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
+    doc_md=__doc__,
 ) as dag:
     # [START howto_operator_python]
     def print_context(ds=None, **kwargs):

@@ -1,10 +1,22 @@
 openapi: 3.1.0
 info:
   title: Airflow API
-  description: Airflow API. All endpoints located under ``/api/v2`` can be used safely,
-    are stable and backward compatible. Endpoints located under ``/ui`` are dedicated
-    to the UI and are subject to breaking change depending on the need of the frontend.
-    Users should not rely on those but use the public ones instead.
+  description: "Airflow API. All endpoints located under ``/api/v2`` can be used safely,\
+    \ are stable and backward compatible. Endpoints located under ``/ui`` are dedicated\
+    \ to the UI and are subject to breaking change depending on the need of the frontend.\
+    \ Users should not rely on those but use the public ones instead.\n\n**Filtering\
+    \ with pattern parameters.** Many list endpoints accept ``*_pattern`` and ``*_prefix_pattern``\
+    \ query parameters. Unless a parameter's own description says otherwise, ``*_pattern``\
+    \ is a case-insensitive substring match (SQL ``ILIKE '%term%'``) where ``%`` matches\
+    \ any sequence and ``_`` matches any single character (e.g. ``%customer_%``) \u2014\
+    \ convenient, but it cannot use B-tree indexes, so it is slow on large tables.\
+    \ ``*_prefix_pattern`` matches the start of the value, is case-sensitive and index-friendly\
+    \ (prefer it at scale); there ``%`` and ``_`` are literal and trailing non-alphanumeric\
+    \ characters are stripped so the range scan stays index-compatible under locale-aware\
+    \ collations (e.g. ``test_`` matches values starting with ``test``, and ``s3://``\
+    \ matches ``s3``). In both, ``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches\
+    \ everything. Regular expressions are not supported by these parameters; regex-capable\
+    \ endpoints expose a separate parameter."
   version: '2'
 paths:
   /api/v2/assets:
@@ -41,13 +53,39 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: uri
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: Exact-match filter on the full asset URI. Compiles to an indexed
+            equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+            to match multiple assets.
+          title: Uri
+        description: Exact-match filter on the full asset URI. Compiles to an indexed
+          equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+          to match multiple assets.
       - name: uri_pattern
         in: query
         required: false
@@ -55,13 +93,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `uri_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Uri Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `uri_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: uri_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Uri Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: dag_ids
         in: query
         required: false
@@ -158,13 +208,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: order_by
         in: query
         required: false
@@ -340,6 +402,26 @@ paths:
           - type: integer
           - type: 'null'
           title: Source Map Index
+      - name: partition_key
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+      - name: partition_key_regexp_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter results by matching this regular expression against
+            the field value.
+          title: Partition Key Regexp Pattern
+        description: Filter results by matching this regular expression against the
+          field value.
       - name: name_pattern
         in: query
         required: false
@@ -347,13 +429,37 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: extra
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+            (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
+          title: Extra
+        description: 'Filter by JSON key-value pairs. Repeat for multiple conditions
+          (AND logic). Format: key=value (e.g. extra=region=us&extra=env=prod).'
       - name: timestamp_gte
         in: query
         required: false
@@ -472,7 +578,7 @@ paths:
       tags:
       - Asset
       summary: Materialize Asset
-      description: Materialize an asset by triggering a DAG run that produces it.
+      description: Materialize an asset by triggering a Dag run that produces it.
       operationId: materialize_asset
       security:
       - OAuth2PasswordBearer: []
@@ -689,7 +795,7 @@ paths:
       tags:
       - Asset
       summary: Get Dag Asset Queued Events
-      description: Get queued asset events for a DAG.
+      description: Get queued asset events for a Dag.
       operationId: get_dag_asset_queued_events
       security:
       - OAuth2PasswordBearer: []
@@ -795,7 +901,7 @@ paths:
       tags:
       - Asset
       summary: Get Dag Asset Queued Event
-      description: Get a queued asset event for a DAG.
+      description: Get a queued asset event for a Dag.
       operationId: get_dag_asset_queued_event
       security:
       - OAuth2PasswordBearer: []
@@ -856,7 +962,7 @@ paths:
       tags:
       - Asset
       summary: Delete Dag Asset Queued Event
-      description: Delete a queued asset event for a DAG.
+      description: Delete a queued asset event for a Dag.
       operationId: delete_dag_asset_queued_event
       security:
       - OAuth2PasswordBearer: []
@@ -1037,6 +1143,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Service Unavailable
         '422':
           description: Validation Error
           content:
@@ -1067,6 +1179,85 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BackfillResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/backfills/{backfill_id}/dag_runs:
+    get:
+      tags:
+      - Backfill
+      summary: List Backfill Dag Runs
+      description: List Dag runs associated with a backfill, including skipped slots.
+      operationId: list_backfill_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: backfill_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+          title: Backfill Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`'
+          default:
+          - sort_ordinal
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, sort_ordinal`'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackfillDagRunCollectionResponse'
         '401':
           content:
             application/json:
@@ -1296,6 +1487,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -1465,6 +1662,102 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/connections/enqueue-test:
+    get:
+      tags:
+      - Connection
+      summary: Get Connection Test
+      description: Poll for the status of an enqueued connection test by its token
+        (passed as a header).
+      operationId: get_connection_test
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: Airflow-Connection-Test-Token
+        in: header
+        required: true
+        schema:
+          type: string
+          title: Airflow-Connection-Test-Token
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncConnectionTestResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Connection
+      summary: Enqueue Connection Test
+      description: Enqueue a connection test for deferred execution on a worker; returns
+        a polling token.
+      operationId: enqueue_connection_test
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionTestRequestBody'
+      responses:
+        '202':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestQueuedResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
   /api/v2/connections:
     get:
       tags:
@@ -1515,13 +1808,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `connection_id_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
           title: Connection Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `connection_id_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: connection_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Connection Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -1771,7 +2076,7 @@ paths:
       tags:
       - DagRun
       summary: Delete Dag Run
-      description: Delete a DAG Run entry.
+      description: Delete a Dag Run entry.
       operationId: delete_dag_run
       security:
       - OAuth2PasswordBearer: []
@@ -1826,7 +2131,7 @@ paths:
       tags:
       - DagRun
       summary: Patch Dag Run
-      description: Modify a DAG Run.
+      description: Modify a Dag Run.
       operationId: patch_dag_run
       security:
       - OAuth2PasswordBearer: []
@@ -1897,14 +2202,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents:
-    get:
+  /api/v2/dags/{dag_id}/dagRuns:
+    patch:
       tags:
       - DagRun
-      summary: Get Upstream Asset Events
-      description: If dag run is asset-triggered, return the asset events that triggered
-        it.
-      operationId: get_upstream_asset_events
+      summary: Bulk Dag Runs
+      description: Bulk update or delete Dag Runs.
+      operationId: bulk_dag_runs
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -1915,81 +2219,19 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssetEventCollectionResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
-    post:
-      tags:
-      - DagRun
-      summary: Clear Dag Run
-      operationId: clear_dag_run
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Run Id
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DAGRunClearBody'
+              $ref: '#/components/schemas/BulkBody_BulkDAGRunBody_'
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                anyOf:
-                - $ref: '#/components/schemas/TaskInstanceCollectionResponse'
-                - $ref: '#/components/schemas/DAGRunResponse'
-                title: Response Clear Dag Run
+                $ref: '#/components/schemas/BulkResponse'
         '401':
           content:
             application/json:
@@ -2002,28 +2244,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dags/{dag_id}/dagRuns:
     get:
       tags:
       - DagRun
       summary: Get Dag Runs
-      description: 'Get all DAG Runs.
+      description: 'Get all Dag Runs.
 
 
         This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
-        all DAGs.'
+        all Dags.
+
+
+        Supports two pagination modes:
+
+
+        **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+
+        **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
+        from the response).
+
+        When `cursor` is provided, `offset` is ignored and `total_entries` is not
+        returned.
+
+        ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
+        is ``null``
+
+        on the first page.'
       operationId: get_dag_runs
       security:
       - OAuth2PasswordBearer: []
@@ -2035,6 +2288,50 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: partition_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          description: Inclusive lower bound of the partition_date window, interpreted
+            as a local calendar day in the Dag's timetable timezone. Runs from the
+            start of this day onwards match.
+          title: Partition Date Gte
+        description: Inclusive lower bound of the partition_date window, interpreted
+          as a local calendar day in the Dag's timetable timezone. Runs from the start
+          of this day onwards match.
+      - name: partition_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          description: 'Inclusive upper bound of the partition_date window, interpreted
+            as a local calendar day in the Dag''s timetable timezone. The whole day
+            is included: runs up to the end of this day match.'
+          title: Partition Date Lte
+        description: 'Inclusive upper bound of the partition_date window, interpreted
+          as a local calendar day in the Dag''s timetable timezone. The whole day
+          is included: runs up to the end of this day match.'
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Cursor for keyset-based pagination. Pass an empty string for
+            the first page, then use ``next_cursor`` from the response. When ``cursor``
+            is provided, ``offset`` is ignored.
+          title: Cursor
+        description: Cursor for keyset-based pagination. Pass an empty string for
+          the first page, then use ``next_cursor`` from the response. When ``cursor``
+          is provided, ``offset`` is ignored.
       - name: limit
         in: query
         required: false
@@ -2301,6 +2598,14 @@ paths:
           - type: string
           - type: 'null'
           title: Bundle Version
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: order_by
         in: query
         required: false
@@ -2310,15 +2615,15 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
-            dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at,
-            conf, duration, dag_run_id`'
+            dag_id, run_id, logical_date, partition_date, run_after, start_date, end_date,
+            updated_at, conf, duration, dag_run_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, dag_id,
-          run_id, logical_date, run_after, start_date, end_date, updated_at, conf,
-          duration, dag_run_id`'
+          run_id, logical_date, partition_date, run_after, start_date, end_date, updated_at,
+          conf, duration, dag_run_id`'
       - name: run_id_pattern
         in: query
         required: false
@@ -2326,13 +2631,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Run Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Run Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: triggering_user_name_pattern
         in: query
         required: false
@@ -2340,13 +2657,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `triggering_user_name_prefix_pattern` on large tables \u2014 see \"\
+            Filtering with pattern parameters\"."
           title: Triggering User Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `triggering_user_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: triggering_user_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Triggering User Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: dag_id_pattern
         in: query
         required: false
@@ -2354,13 +2683,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Dag Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: partition_key_pattern
         in: query
         required: false
@@ -2368,13 +2709,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Here `|` is\
+            \ matched literally, not as OR. Slower than `partition_key_prefix_pattern`\
+            \ on large tables \u2014 see \"Filtering with pattern parameters\"."
           title: Partition Key Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Here `|` is\
+          \ matched literally, not as OR. Slower than `partition_key_prefix_pattern`\
+          \ on large tables \u2014 see \"Filtering with pattern parameters\"."
+      - name: partition_key_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. Here `|` is matched
+            literally, not as OR. See "Filtering with pattern parameters".
+          title: Partition Key Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. Here `|` is matched
+          literally, not as OR. See "Filtering with pattern parameters".
       - name: consuming_asset_pattern
         in: query
         required: false
@@ -2382,9 +2735,14 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter by consuming asset name or URI using pattern matching
+          description: Case-insensitive substring match against the consuming asset
+            name or URI. Unlike the wildcard `*_pattern` parameters, `%` and `_` are
+            matched literally, `|` is not an OR separator, and `~` does not match
+            everything.
           title: Consuming Asset Pattern
-        description: Filter by consuming asset name or URI using pattern matching
+        description: Case-insensitive substring match against the consuming asset
+          name or URI. Unlike the wildcard `*_pattern` parameters, `%` and `_` are
+          matched literally, `|` is not an OR separator, and `~` does not match everything.
       responses:
         '200':
           description: Successful Response
@@ -2420,7 +2778,7 @@ paths:
       tags:
       - DagRun
       summary: Trigger Dag Run
-      description: Trigger a DAG.
+      description: Trigger a Dag.
       operationId: trigger_dag_run
       security:
       - OAuth2PasswordBearer: []
@@ -2480,6 +2838,123 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents:
+    get:
+      tags:
+      - DagRun
+      summary: Get Upstream Asset Events
+      description: If dag run is asset-triggered, return the asset events that triggered
+        it.
+      operationId: get_upstream_asset_events
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetEventCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Run
+      operationId: clear_dag_run
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRunClearBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/DAGRunResponse'
+                title: Response Clear Dag Run
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/wait:
     get:
       tags:
@@ -2489,7 +2964,7 @@ paths:
         if requested.'
       description: "\U0001F6A7 This is an experimental endpoint and may change or\
         \ be removed without notice.Successful response are streamed as newline-delimited\
-        \ JSON (NDJSON). Each line is a JSON object representing the DAG run state."
+        \ JSON (NDJSON). Each line is a JSON object representing the Dag run state."
       operationId: wait_dag_run_until_finished
       security:
       - OAuth2PasswordBearer: []
@@ -2525,9 +3000,13 @@ paths:
             items:
               type: string
           - type: 'null'
-          description: Collect result XCom from task. Can be set multiple times.
+          description: Collect result XCom from task. Can be set multiple times. If
+            unset, return value of the return task as specified in the dag (in present)
+            is returned by default.
           title: Result
-        description: Collect result XCom from task. Can be set multiple times.
+        description: Collect result XCom from task. Can be set multiple times. If
+          unset, return value of the return task as specified in the dag (in present)
+          is returned by default.
       responses:
         '200':
           description: Successful Response
@@ -2571,7 +3050,7 @@ paths:
       tags:
       - DagRun
       summary: Get List Dag Runs Batch
-      description: Get a list of DAG Runs.
+      description: Get a list of Dag Runs.
       operationId: get_list_dag_runs_batch
       security:
       - OAuth2PasswordBearer: []
@@ -2609,6 +3088,129 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/clearDagRuns:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Runs
+      description: Clear multiple Dag Runs in a single request.
+      operationId: clear_dag_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDAGRunClearBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/ClearTaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/DAGRunCollectionResponse'
+                title: Response Clear Dag Runs
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/clearPartitions:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Run Partitions
+      description: Reset partition_key and partition_date fields on matching Dag Runs.
+      operationId: clear_dag_run_partitions
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearPartitionsBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClearPartitionsResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -2928,7 +3530,7 @@ paths:
       tags:
       - DagWarning
       summary: List Dag Warnings
-      description: Get a list of DAG warnings.
+      description: Get a list of Dag warnings.
       operationId: list_dag_warnings
       security:
       - OAuth2PasswordBearer: []
@@ -3012,7 +3614,7 @@ paths:
       tags:
       - DAG
       summary: Get Dags
-      description: Get all DAGs.
+      description: Get all Dags.
       operationId: get_dags
       security:
       - OAuth2PasswordBearer: []
@@ -3068,13 +3670,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Dag Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -3082,13 +3696,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
           title: Dag Display Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: dag_display_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Dag Display Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: exclude_stale
         in: query
         required: false
@@ -3301,14 +3927,16 @@ paths:
       tags:
       - DAG
       summary: Patch Dags
-      description: 'Patch multiple DAGs.
+      description: 'Patch multiple Dags.
 
 
-        If `dag_id_pattern` is not provided, no DAGs will be matched regardless
+        If neither `dag_id_pattern` nor `dag_id_prefix_pattern` is provided, no Dags
+        will be
 
-        of other filters. To match all DAGs, pass a wildcard value such as `~`
+        matched regardless of other filters. To match all Dags, pass a wildcard value
+        such as
 
-        or `%` for `dag_id_pattern`.'
+        `~` or `%` for `dag_id_pattern`.'
       operationId: patch_dags
       security:
       - OAuth2PasswordBearer: []
@@ -3374,13 +4002,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Dag Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: exclude_stale
         in: query
         required: false
@@ -3444,7 +4084,7 @@ paths:
       tags:
       - DAG
       summary: Get Dag
-      description: Get basic information about a DAG.
+      description: Get basic information about a Dag.
       operationId: get_dag
       security:
       - OAuth2PasswordBearer: []
@@ -3497,7 +4137,7 @@ paths:
       tags:
       - DAG
       summary: Patch Dag
-      description: Patch the specific DAG.
+      description: Patch the specific Dag.
       operationId: patch_dag
       security:
       - OAuth2PasswordBearer: []
@@ -3566,7 +4206,7 @@ paths:
       tags:
       - DAG
       summary: Delete Dag
-      description: Delete the specific DAG.
+      description: Delete the specific Dag.
       operationId: delete_dag
       security:
       - OAuth2PasswordBearer: []
@@ -3619,7 +4259,7 @@ paths:
       tags:
       - DAG
       summary: Get Dag Details
-      description: Get details of DAG.
+      description: Get details of Dag.
       operationId: get_dag_details
       security:
       - OAuth2PasswordBearer: []
@@ -3673,7 +4313,7 @@ paths:
       tags:
       - DAG
       summary: Favorite Dag
-      description: Mark the DAG as favorite.
+      description: Mark the Dag as favorite.
       operationId: favorite_dag
       security:
       - OAuth2PasswordBearer: []
@@ -3717,7 +4357,7 @@ paths:
       tags:
       - DAG
       summary: Unfavorite Dag
-      description: Unmark the DAG as favorite.
+      description: Unmark the Dag as favorite.
       operationId: unfavorite_dag
       security:
       - OAuth2PasswordBearer: []
@@ -3845,13 +4485,15 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, dttm,
-            dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
+            dag_id, task_id, run_id, event, logical_date, owner, owner_display_name,
+            extra, when, event_log_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, dttm, dag_id,
-          task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
+          task_id, run_id, event, logical_date, owner, owner_display_name, extra,
+          when, event_log_id`'
       - name: dag_id
         in: query
         required: false
@@ -3953,13 +4595,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: task_id_pattern
         in: query
         required: false
@@ -3967,13 +4609,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `task_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Task Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `task_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: run_id_pattern
         in: query
         required: false
@@ -3981,13 +4623,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Run Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: owner_pattern
         in: query
         required: false
@@ -3995,13 +4637,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `owner_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Owner Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `owner_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: event_pattern
         in: query
         required: false
@@ -4009,13 +4651,73 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `event_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Event Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `event_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Dag Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: task_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Task Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Run Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: owner_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Owner Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: event_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Event Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -4078,6 +4780,14 @@ paths:
           type: integer
           default: -1
           title: Map Index
+      - name: try_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
       responses:
         '200':
           description: Successful Response
@@ -4207,13 +4917,49 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `filename_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Filename Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `filename_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: filename_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Filename Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: filename
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Exact filename match. Returns only the import error for this
+            specific file path.
+          title: Filename
+        description: Exact filename match. Returns only the import error for this
+          specific file path.
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Exact bundle name match. Returns only import errors from this
+            specific bundle.
+          title: Bundle Name
+        description: Exact bundle name match. Returns only import errors from this
+          specific bundle.
       responses:
         '200':
           description: Successful Response
@@ -4372,6 +5118,14 @@ paths:
           - type: string
           - type: 'null'
           title: Job State
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
       - name: job_type
         in: query
         required: false
@@ -4721,13 +5475,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `pool_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Pool Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `pool_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: pool_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Pool Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -4747,12 +5513,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -4891,6 +5651,729 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/assets/{asset_id}/state-store:
+    get:
+      tags:
+      - Asset State Store
+      summary: List Asset State Store
+      description: List all state store entries for an asset.
+      operationId: list_asset_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetStateStoreCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Asset State Store
+      summary: Clear Asset State Store
+      description: Delete all state store keys for an asset.
+      operationId: clear_asset_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/assets/{asset_id}/state-store/{key}:
+    get:
+      tags:
+      - Asset State Store
+      summary: Get Asset State Store
+      description: Get a single asset state store entry.
+      operationId: get_asset_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetStateStoreResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - Asset State Store
+      summary: Set Asset State Store
+      description: Set an asset state store value. Creates or overwrites the key.
+      operationId: set_asset_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetStateStoreBody'
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Asset State Store
+      summary: Delete Asset State Store
+      description: Delete a single asset state store key. No-op if the key does not
+        exist.
+      operationId: delete_asset_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store:
+    get:
+      tags:
+      - Task State Store
+      summary: List Task State Store
+      description: List all task state store entries for a task instance.
+      operationId: list_task_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStateStoreCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Task State Store
+      summary: Clear Task State Store
+      description: 'Delete all task state store keys for a task instance.
+
+
+        When ``all_map_indices=true``, state store is cleared for every map index
+        of the task and
+
+        the ``map_index`` parameter is ignored.'
+      operationId: clear_task_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      - name: all_map_indices
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: All Map Indices
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store/{key}:
+    get:
+      tags:
+      - Task State Store
+      summary: Get Task State Store
+      description: Get a single task state store entry.
+      operationId: get_task_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStateStoreResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+      - Task State Store
+      summary: Set Task State Store
+      description: Set a task state store value. Creates or overwrites the key.
+      operationId: set_task_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskStateStoreBody'
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Task State Store
+      summary: Patch Task State Store
+      description: Update the value of an existing task state store key.
+      operationId: patch_task_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskStateStorePatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Task State Store
+      summary: Delete Task State Store
+      description: Delete a single task state store key. No-op if the key does not
+        exist.
+      operationId: delete_task_state_store
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -5155,7 +6638,7 @@ paths:
 
 
         This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to
-        retrieve XCom entries for all DAGs.'
+        retrieve XCom entries for all Dags.'
       operationId: get_xcom_entries
       security:
       - OAuth2PasswordBearer: []
@@ -5219,13 +6702,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `xcom_key_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Xcom Key Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `xcom_key_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: xcom_key_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Xcom Key Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -5233,13 +6728,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
           title: Dag Display Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: dag_display_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Dag Display Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: run_id_pattern
         in: query
         required: false
@@ -5247,13 +6754,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Run Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Run Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: task_id_pattern
         in: query
         required: false
@@ -5261,13 +6780,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `task_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Task Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `task_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: task_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Task Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: map_index_filter
         in: query
         required: false
@@ -5348,6 +6879,26 @@ paths:
             format: date-time
           - type: 'null'
           title: Run After Lt
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `key, dag_id,
+            run_id, task_id, map_index, timestamp, run_after`'
+          default:
+          - dag_id
+          - task_id
+          - run_id
+          - map_index
+          - key
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `key, dag_id, run_id,
+          task_id, map_index, timestamp, run_after`'
       responses:
         '200':
           description: Successful Response
@@ -5940,13 +7491,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `pool_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Pool Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `pool_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: pool_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Pool Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: queue
         in: query
         required: false
@@ -5962,13 +7525,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `queue_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Queue Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `queue_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: queue_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Queue Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: executor
         in: query
         required: false
@@ -6008,13 +7583,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `operator_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
           title: Operator Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `operator_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: operator_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Operator Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: map_index
         in: query
         required: false
@@ -6023,6 +7610,32 @@ paths:
           items:
             type: integer
           title: Map Index
+      - name: rendered_map_index_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `rendered_map_index_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
+          title: Rendered Map Index Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `rendered_map_index_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: rendered_map_index_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Rendered Map Index Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: limit
         in: query
         required: false
@@ -6049,16 +7662,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator,
-            run_after, logical_date, data_interval_start, data_interval_end`'
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator, run_after, logical_date,
-          data_interval_start, data_interval_end`'
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -6524,10 +8135,27 @@ paths:
       description: 'Get list of task instances.
 
 
-        This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve
-        Task Instances for all DAGs
+        This endpoint allows specifying `~` as the dag_id, dag_run_id
 
-        and DAG runs.'
+        to retrieve task instances for all Dags and Dag runs.
+
+
+        Supports two pagination modes:
+
+
+        **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+
+        **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
+        from the response).
+
+        When `cursor` is provided, `offset` is ignored and `total_entries` is not
+        returned.
+
+        ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
+        is ``null``
+
+        on the first page.'
       operationId: get_task_instances
       security:
       - OAuth2PasswordBearer: []
@@ -6545,6 +8173,20 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Cursor for keyset-based pagination. Pass an empty string for
+            the first page, then use ``next_cursor`` from the response. When ``cursor``
+            is provided, ``offset`` is ignored.
+          title: Cursor
+        description: Cursor for keyset-based pagination. Pass an empty string for
+          the first page, then use ``next_cursor`` from the response. When ``cursor``
+          is provided, ``offset`` is ignored.
       - name: task_id
         in: query
         required: false
@@ -6772,13 +8414,30 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `task_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
           title: Task Display Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `task_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: task_display_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive prefix match on task display name (`_task_display_property_value`
+            else `task_id`). Index-friendly alternative to `task_display_name_pattern`;
+            on large databases combine with `dag_id_prefix_pattern` (or a specific
+            Dag in the path) so composite indexes apply. See "Filtering with pattern
+            parameters".
+          title: Task Display Name Prefix Pattern
+        description: Case-sensitive prefix match on task display name (`_task_display_property_value`
+          else `task_id`). Index-friendly alternative to `task_display_name_pattern`;
+          on large databases combine with `dag_id_prefix_pattern` (or a specific Dag
+          in the path) so composite indexes apply. See "Filtering with pattern parameters".
       - name: task_group_id
         in: query
         required: false
@@ -6798,13 +8457,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Dag Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: run_id_pattern
         in: query
         required: false
@@ -6812,13 +8483,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Run Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Run Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: state
         in: query
         required: false
@@ -6842,13 +8525,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `pool_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Pool Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `pool_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: pool_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Pool Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: queue
         in: query
         required: false
@@ -6864,13 +8559,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `queue_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Queue Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `queue_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: queue_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Queue Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: executor
         in: query
         required: false
@@ -6887,6 +8594,14 @@ paths:
           items:
             type: integer
           title: Version Number
+      - name: teams
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Teams
       - name: try_number
         in: query
         required: false
@@ -6910,13 +8625,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `operator_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
           title: Operator Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `operator_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: operator_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Operator Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: map_index
         in: query
         required: false
@@ -6925,6 +8652,32 @@ paths:
           items:
             type: integer
           title: Map Index
+      - name: rendered_map_index_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `rendered_map_index_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
+          title: Rendered Map Index Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `rendered_map_index_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
+      - name: rendered_map_index_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Rendered Map Index Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: limit
         in: query
         required: false
@@ -6951,16 +8704,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator,
-            logical_date, run_after, data_interval_start, data_interval_end`'
+            data_interval_start, data_interval_end, rendered_map_index, operator`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator, logical_date, run_after,
-          data_interval_start, data_interval_end`'
+          data_interval_end, rendered_map_index, operator`'
       responses:
         '200':
           description: Successful Response
@@ -7317,6 +9068,166 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Group Instances
+      description: Update the state of all task instances in a task group.
+      operationId: patch_task_group_instances
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskGroupInstances/{group_id}/dry_run:
+    patch:
+      tags:
+      - Task Instance
+      summary: Patch Task Group Instances Dry Run
+      description: Dry-run of updating the state of all task instances in a task group.
+      operationId: patch_task_group_instances_dry_run
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchTaskInstanceBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dry_run:
     patch:
       tags:
@@ -7502,7 +9413,7 @@ paths:
       tags:
       - Task
       summary: Get Tasks
-      description: Get tasks for DAG.
+      description: Get tasks for Dag.
       operationId: get_tasks
       security:
       - OAuth2PasswordBearer: []
@@ -7827,13 +9738,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `variable_key_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
           title: Variable Key Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `variable_key_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: variable_key_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Variable Key Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -8138,7 +10061,7 @@ paths:
       tags:
       - DAG Parsing
       summary: Reparse Dag File
-      description: Request re-parsing a DAG file.
+      description: Request re-parsing a Dag file.
       operationId: reparse_dag_file
       security:
       - OAuth2PasswordBearer: []
@@ -8185,7 +10108,7 @@ paths:
       tags:
       - DAG
       summary: Get Dag Tags
-      description: Get all DAG tags.
+      description: Get all Dag tags.
       operationId: get_dag_tags
       security:
       - OAuth2PasswordBearer: []
@@ -8228,13 +10151,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `tag_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Tag Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `tag_name_prefix_pattern` on large tables \u2014 see \"Filtering with\
+          \ pattern parameters\"."
+      - name: tag_name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Tag Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -8319,11 +10254,11 @@ paths:
       tags:
       - DagVersion
       summary: Get Dag Versions
-      description: 'Get all DAG Versions.
+      description: 'Get all Dag Versions.
 
 
-        This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions
-        for all DAGs.'
+        This endpoint allows specifying `~` as the dag_id to retrieve Dag Versions
+        for all Dags.'
       operationId: get_dag_versions
       security:
       - OAuth2PasswordBearer: []
@@ -8701,13 +10636,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: dag_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Dag Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: task_id
         in: query
         required: false
@@ -8723,13 +10670,25 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `task_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Task Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `task_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: task_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Task Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: map_index
         in: query
         required: false
@@ -8777,13 +10736,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `subject_search` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Subject Search
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `subject_search` on large tables \u2014 see \"Filtering with pattern parameters\"\
+          ."
       - name: body_search
         in: query
         required: false
@@ -8791,13 +10750,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `body_search` on large tables \u2014 see \"Filtering with pattern parameters\"\
+            ."
           title: Body Search
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ or the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `body_search` on large tables \u2014 see \"Filtering with pattern parameters\"\
+          ."
       - name: created_at_gte
         in: query
         required: false
@@ -8914,6 +10873,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Temporary Redirect
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '422':
           description: Validation Error
           content:
@@ -9037,6 +11002,23 @@ components:
       - total_entries
       title: AssetCollectionResponse
       description: Asset collection response.
+    AssetEventAccessControl:
+      properties:
+        consumer_teams:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Consumer Teams
+        allow_global:
+          type: boolean
+          title: Allow Global
+          default: true
+      additionalProperties: false
+      type: object
+      title: AssetEventAccessControl
+      description: Access control settings for asset event consumer team filtering.
     AssetEventCollectionResponse:
       properties:
         asset_events:
@@ -9124,6 +11106,123 @@ components:
       - timestamp
       title: AssetEventResponse
       description: Asset event serializer for responses.
+    AssetExpressionAlias:
+      properties:
+        alias:
+          $ref: '#/components/schemas/AssetExpressionAliasInfo'
+      type: object
+      required:
+      - alias
+      title: AssetExpressionAlias
+      description: 'An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``.'
+    AssetExpressionAliasInfo:
+      properties:
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+      type: object
+      required:
+      - name
+      - group
+      title: AssetExpressionAliasInfo
+      description: Body of an ``alias`` leaf node.
+    AssetExpressionAll:
+      properties:
+        all:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          type: array
+          title: All
+      type: object
+      required:
+      - all
+      title: AssetExpressionAll
+      description: 'An "and" node: ``{"all": [...]}`` -- satisfied when all children
+        are satisfied.'
+    AssetExpressionAny:
+      properties:
+        any:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
+          type: array
+          title: Any
+      type: object
+      required:
+      - any
+      title: AssetExpressionAny
+      description: 'An "or" node: ``{"any": [...]}`` -- satisfied when any child is
+        satisfied.'
+    AssetExpressionAsset:
+      properties:
+        asset:
+          $ref: '#/components/schemas/AssetExpressionAssetInfo'
+      type: object
+      required:
+      - asset
+      title: AssetExpressionAsset
+      description: 'An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group":
+        ...}}``.'
+    AssetExpressionAssetInfo:
+      properties:
+        uri:
+          type: string
+          title: Uri
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+        id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Id
+      type: object
+      required:
+      - uri
+      - name
+      - group
+      title: AssetExpressionAssetInfo
+      description: 'Body of an ``asset`` leaf node.
+
+
+        ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when
+        the expression is
+
+        persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``.
+        It is left
+
+        optional so a row persisted before id-enrichment (or migrated from the pre-3.0
+        dataset format)
+
+        degrades gracefully instead of failing response validation.'
+    AssetExpressionRef:
+      properties:
+        asset_ref:
+          additionalProperties:
+            type: string
+          type: object
+          title: Asset Ref
+      type: object
+      required:
+      - asset_ref
+      title: AssetExpressionRef
+      description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}``
+        or ``{"asset_ref": {"uri": ...}}``.'
     AssetResponse:
       properties:
         id:
@@ -9197,6 +11296,94 @@ components:
       - watchers
       title: AssetResponse
       description: Asset serializer for responses.
+    AssetStateStoreBody:
+      properties:
+        value:
+          $ref: '#/components/schemas/JsonValue'
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: AssetStateStoreBody
+      description: Request body for setting an asset state store value.
+    AssetStateStoreCollectionResponse:
+      properties:
+        asset_state_store:
+          items:
+            $ref: '#/components/schemas/AssetStateStoreResponse'
+          type: array
+          title: Asset State Store
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - asset_state_store
+      - total_entries
+      title: AssetStateStoreCollectionResponse
+      description: All asset state store entries for an asset.
+    AssetStateStoreLastUpdatedBy:
+      properties:
+        kind:
+          $ref: '#/components/schemas/AssetStateStoreWriterKind'
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+        task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+        map_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Map Index
+      type: object
+      required:
+      - kind
+      title: AssetStateStoreLastUpdatedBy
+      description: Writer info for the last write to an asset state store entry.
+    AssetStateStoreResponse:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          $ref: '#/components/schemas/JsonValue'
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        last_updated_by:
+          anyOf:
+          - $ref: '#/components/schemas/AssetStateStoreLastUpdatedBy'
+          - type: 'null'
+      type: object
+      required:
+      - key
+      - value
+      - updated_at
+      title: AssetStateStoreResponse
+      description: A single asset state store key/value pair with metadata.
+    AssetStateStoreWriterKind:
+      type: string
+      enum:
+      - task
+      - watcher
+      - api
+      title: AssetStateStoreWriterKind
+      description: "Identifies what kind of writer last updated an asset state store\
+        \ entry.\n\n``TASK`` \u2014 written by a task via the execution API.\n``WATCHER``\
+        \ \u2014 written by a ``BaseEventTrigger`` (no task instance).\n``API`` \u2014\
+        \ written directly through the Core API (e.g. manual admin write)."
     AssetWatcherResponse:
       properties:
         name:
@@ -9216,6 +11403,35 @@ components:
       - created_date
       title: AssetWatcherResponse
       description: Asset watcher serializer for responses.
+    AsyncConnectionTestResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_id:
+          type: string
+          title: Connection Id
+        state:
+          type: string
+          title: State
+        result_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Message
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - token
+      - connection_id
+      - state
+      - created_at
+      title: AsyncConnectionTestResponse
+      description: Response returned when polling for the status of an enqueued connection
+        test.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -9232,6 +11448,75 @@ components:
       - total_entries
       title: BackfillCollectionResponse
       description: Backfill Collection serializer for responses.
+    BackfillDagRunCollectionResponse:
+      properties:
+        backfill_dag_runs:
+          items:
+            $ref: '#/components/schemas/BackfillDagRunResponse'
+          type: array
+          title: Backfill Dag Runs
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - backfill_dag_runs
+      - total_entries
+      title: BackfillDagRunCollectionResponse
+      description: BackfillDagRun Collection serializer for responses.
+    BackfillDagRunResponse:
+      properties:
+        id:
+          type: integer
+          minimum: 0.0
+          title: Id
+        backfill_id:
+          type: integer
+          minimum: 0.0
+          title: Backfill Id
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Id
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+        sort_ordinal:
+          type: integer
+          title: Sort Ordinal
+        exception_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Exception Reason
+        dag_run_state:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - backfill_id
+      - dag_id
+      - logical_date
+      - partition_key
+      - sort_ordinal
+      - exception_reason
+      title: BackfillDagRunResponse
+      description: Serializer for a single BackfillDagRun entry with joined DagRun
+        state.
     BackfillPostBody:
       properties:
         dag_id:
@@ -9250,10 +11535,11 @@ components:
           title: Run Backwards
           default: false
         dag_run_conf:
-          additionalProperties: true
-          type: object
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
           title: Dag Run Conf
-          default: {}
         reprocess_behavior:
           $ref: '#/components/schemas/ReprocessBehavior'
           default: none
@@ -9262,9 +11548,14 @@ components:
           title: Max Active Runs
           default: 10
         run_on_latest_version:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           title: Run On Latest Version
-          default: true
+          description: Run on the latest bundle version of the Dag for each backfilled
+            run. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
+            parameter, then the ``[core] rerun_with_latest_version`` config option,
+            and finally ``True`` (the historical default for backfills).
       additionalProperties: false
       type: object
       required:
@@ -9394,6 +11685,21 @@ components:
 
         This structure helps users understand which key actions succeeded and which
         failed.'
+    BulkBody_BulkDAGRunBody_:
+      properties:
+        actions:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/BulkCreateAction_BulkDAGRunBody_'
+            - $ref: '#/components/schemas/BulkUpdateAction_BulkDAGRunBody_'
+            - $ref: '#/components/schemas/BulkDeleteAction_BulkDAGRunBody_'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - actions
+      title: BulkBody[BulkDAGRunBody]
     BulkBody_BulkTaskInstanceBody_:
       properties:
         actions:
@@ -9454,6 +11760,28 @@ components:
       required:
       - actions
       title: BulkBody[VariableBody]
+    BulkCreateAction_BulkDAGRunBody_:
+      properties:
+        action:
+          type: string
+          const: create
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkDAGRunBody'
+          type: array
+          title: Entities
+          description: A list of entities to be created.
+        action_on_existence:
+          $ref: '#/components/schemas/BulkActionOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkCreateAction[BulkDAGRunBody]
     BulkCreateAction_BulkTaskInstanceBody_:
       properties:
         action:
@@ -9542,6 +11870,121 @@ components:
       - action
       - entities
       title: BulkCreateAction[VariableBody]
+    BulkDAGRunBody:
+      properties:
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunMutableStates'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+      additionalProperties: false
+      type: object
+      required:
+      - dag_run_id
+      title: BulkDAGRunBody
+      description: Request body for bulk operations on Dag Runs.
+    BulkDAGRunClearBody:
+      properties:
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+          description: Select runs by exact partition key match. Mutually exclusive
+            with the other partition selectors.
+        partition_date_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Start
+          description: Inclusive start of the partition date window. The value is
+            interpreted in the Dag's timetable timezone. Mutually exclusive with the
+            other partition selectors.
+        partition_date_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date End
+          description: Inclusive end of the partition date window. The value is interpreted
+            in the Dag's timetable timezone. Mutually exclusive with the other partition
+            selectors.
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: true
+        only_failed:
+          type: boolean
+          title: Only Failed
+          default: false
+        only_new:
+          type: boolean
+          title: Only New
+          description: Only queue newly added tasks in the latest Dag version without
+            clearing existing tasks.
+          default: false
+        run_on_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Run On Latest Version
+          description: (Experimental) Run on the latest bundle version of the Dag
+            after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
+            parameter, then the ``[core] rerun_with_latest_version`` config option,
+            and finally ``False``.
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/BulkDAGRunBody'
+          type: array
+          title: Dag Runs
+      additionalProperties: false
+      type: object
+      title: BulkDAGRunClearBody
+      description: Request body for the bulk clear Dag Runs endpoint.
+    BulkDeleteAction_BulkDAGRunBody_:
+      properties:
+        action:
+          type: string
+          const: delete
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            anyOf:
+            - type: string
+            - $ref: '#/components/schemas/BulkDAGRunBody'
+          type: array
+          title: Entities
+          description: A list of entity id/key or entity objects to be deleted.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkDeleteAction[BulkDAGRunBody]
     BulkDeleteAction_BulkTaskInstanceBody_:
       properties:
         action:
@@ -9723,6 +12166,38 @@ components:
       - task_id
       title: BulkTaskInstanceBody
       description: Request body for bulk update, and delete task instances.
+    BulkUpdateAction_BulkDAGRunBody_:
+      properties:
+        action:
+          type: string
+          const: update
+          title: Action
+          description: The action to be performed on the entities.
+        entities:
+          items:
+            $ref: '#/components/schemas/BulkDAGRunBody'
+          type: array
+          title: Entities
+          description: A list of entities to be updated.
+        update_mask:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Update Mask
+          description: A list of field names to update for each entity.Only these
+            fields will be applied from the request body to the database model.Any
+            extra fields provided will be ignored.
+        action_on_non_existence:
+          $ref: '#/components/schemas/BulkActionNotOnExistence'
+          default: fail
+      additionalProperties: false
+      type: object
+      required:
+      - action
+      - entities
+      title: BulkUpdateAction[BulkDAGRunBody]
     BulkUpdateAction_BulkTaskInstanceBody_:
       properties:
         action:
@@ -9851,6 +12326,92 @@ components:
       - action
       - entities
       title: BulkUpdateAction[VariableBody]
+    ClearPartitionsBody:
+      properties:
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+          description: Select runs by exact partition key match. Mutually exclusive
+            with the other partition selectors.
+        partition_date_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date Start
+          description: Inclusive start of the partition date window. The value is
+            interpreted in the Dag's timetable timezone. Mutually exclusive with the
+            other partition selectors.
+        partition_date_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date End
+          description: Inclusive end of the partition date window. The value is interpreted
+            in the Dag's timetable timezone. Mutually exclusive with the other partition
+            selectors.
+        run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Run Id
+          description: Select runs by exact run_id. Mutually exclusive with ``partition_key``
+            and partition date window.
+        clear_task_instances:
+          type: boolean
+          title: Clear Task Instances
+          description: Also clear task instances on the matched runs.
+          default: false
+        dry_run:
+          type: boolean
+          title: Dry Run
+          description: If True, compute counts without writing any changes.
+          default: true
+      additionalProperties: false
+      type: object
+      title: ClearPartitionsBody
+      description: 'Request body for the clearPartitions endpoint (column-reset: set
+        partition fields to None).'
+    ClearPartitionsResponse:
+      properties:
+        dag_runs_cleared:
+          type: integer
+          title: Dag Runs Cleared
+        task_instances_cleared:
+          type: integer
+          title: Task Instances Cleared
+        dry_run:
+          type: boolean
+          title: Dry Run
+      type: object
+      required:
+      - dag_runs_cleared
+      - task_instances_cleared
+      - dry_run
+      title: ClearPartitionsResponse
+      description: Response for the clearPartitions endpoint.
+    ClearTaskInstanceCollectionResponse:
+      properties:
+        task_instances:
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/TaskInstanceResponse'
+            - $ref: '#/components/schemas/NewTaskResponse'
+          type: array
+          title: Task Instances
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - task_instances
+      - total_entries
+      title: ClearTaskInstanceCollectionResponse
+      description: Response for clear dag run dry run, which may contain new tasks
+        without full TaskInstance data.
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -9920,11 +12481,14 @@ components:
           title: Include Past
           default: false
         run_on_latest_version:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           title: Run On Latest Version
           description: (Experimental) Run on the latest bundle version of the dag
-            after clearing the task instances.
-          default: false
+            after clearing the task instances. If not specified, falls back to the
+            DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version``
+            config option, and finally ``False`` (the historical default for clear/rerun).
         prevent_running_task:
           type: boolean
           title: Prevent Running Task
@@ -10127,6 +12691,108 @@ components:
       - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
+    ConnectionTestQueuedResponse:
+      properties:
+        token:
+          type: string
+          title: Token
+        connection_id:
+          type: string
+          title: Connection Id
+        state:
+          type: string
+          title: State
+      type: object
+      required:
+      - token
+      - connection_id
+      - state
+      title: ConnectionTestQueuedResponse
+      description: Response returned when a connection test has been enqueued for
+        worker execution.
+    ConnectionTestRequestBody:
+      properties:
+        connection_id:
+          type: string
+          maxLength: 200
+          pattern: ^[\w.-]+$
+          title: Connection Id
+        conn_type:
+          type: string
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
+        commit_on_success:
+          type: boolean
+          title: Commit On Success
+          description: If True, save or update the connection in the connection table
+            when the test succeeds.
+          default: false
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+          description: Executor name to dispatch the connection test to.
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+          description: Worker queue to route the connection test to (executor-dependent).
+      additionalProperties: false
+      type: object
+      required:
+      - connection_id
+      - conn_type
+      title: ConnectionTestRequestBody
+      description: 'Request body for enqueueing a connection test on a worker.
+
+
+        Inherits ``connection_id`` pattern, ``extra`` JSON validation, and
+
+        ``team_name`` handling from ``ConnectionBody`` so tested connections share
+
+        the same input contract as persisted ones.'
     ConnectionTestResponse:
       properties:
         status:
@@ -10140,7 +12806,7 @@ components:
       - status
       - message
       title: ConnectionTestResponse
-      description: Connection Test serializer for responses.
+      description: Connection Test serializer for synchronous test responses.
     CreateAssetEventsBody:
       properties:
         asset_id:
@@ -10149,12 +12815,18 @@ components:
         partition_key:
           anyOf:
           - type: string
+            maxLength: 250
+            pattern: \S
           - type: 'null'
           title: Partition Key
         extra:
           additionalProperties: true
           type: object
           title: Extra
+        access_control:
+          anyOf:
+          - $ref: '#/components/schemas/AssetEventAccessControl'
+          - type: 'null'
       additionalProperties: false
       type: object
       required:
@@ -10176,7 +12848,7 @@ components:
       - dags
       - total_entries
       title: DAGCollectionResponse
-      description: DAG Collection serializer for responses.
+      description: Dag Collection serializer for responses.
     DAGDetailsResponse:
       properties:
         dag_id:
@@ -10224,7 +12896,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
@@ -10244,6 +12918,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -10313,8 +12990,12 @@ components:
           title: Dag Run Timeout
         asset_expression:
           anyOf:
-          - additionalProperties: true
-            type: object
+          - oneOf:
+            - $ref: '#/components/schemas/AssetExpressionAsset'
+            - $ref: '#/components/schemas/AssetExpressionAlias'
+            - $ref: '#/components/schemas/AssetExpressionRef'
+            - $ref: '#/components/schemas/AssetExpressionAny'
+            - $ref: '#/components/schemas/AssetExpressionAll'
           - type: 'null'
           title: Asset Expression
         doc_md:
@@ -10372,6 +13053,11 @@ components:
             type: object
           - type: 'null'
           title: Default Args
+        rerun_with_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Rerun With Latest Version
         owner_links:
           anyOf:
           - additionalProperties:
@@ -10387,6 +13073,11 @@ components:
           type: integer
           title: Active Runs Count
           default: 0
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this Dag's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -10424,6 +13115,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -10449,11 +13141,12 @@ components:
       - timezone
       - last_parsed
       - default_args
+      - is_backfillable
       - file_token
       - concurrency
       - latest_dag_version
       title: DAGDetailsResponse
-      description: Specific serializer for DAG Details responses.
+      description: Specific serializer for Dag Details responses.
     DAGPatchBody:
       properties:
         is_paused:
@@ -10512,7 +13205,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
@@ -10532,6 +13227,9 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_periodic:
+          type: boolean
+          title: Timetable Periodic
         tags:
           items:
             $ref: '#/components/schemas/DagTagResponse'
@@ -10590,6 +13288,11 @@ components:
             type: string
           type: array
           title: Owners
+        is_backfillable:
+          type: boolean
+          title: Is Backfillable
+          description: Whether this Dag's schedule supports backfilling.
+          readOnly: true
         file_token:
           type: string
           title: File Token
@@ -10612,6 +13315,7 @@ components:
       - timetable_summary
       - timetable_description
       - timetable_partitioned
+      - timetable_periodic
       - tags
       - max_active_tasks
       - max_active_runs
@@ -10624,9 +13328,10 @@ components:
       - next_dagrun_run_after
       - allowed_run_types
       - owners
+      - is_backfillable
       - file_token
       title: DAGResponse
-      description: DAG serializer for responses.
+      description: Dag serializer for responses.
     DAGRunClearBody:
       properties:
         dry_run:
@@ -10637,16 +13342,31 @@ components:
           type: boolean
           title: Only Failed
           default: false
-        run_on_latest_version:
+        only_new:
           type: boolean
+          title: Only New
+          description: Only queue newly added tasks in the latest Dag version without
+            clearing existing tasks.
+          default: false
+        run_on_latest_version:
+          anyOf:
+          - type: boolean
+          - type: 'null'
           title: Run On Latest Version
           description: (Experimental) Run on the latest bundle version of the Dag
-            after clearing the Dag Run.
-          default: false
+            after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version``
+            parameter, then the ``[core] rerun_with_latest_version`` config option,
+            and finally ``False``.
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
       additionalProperties: false
       type: object
       title: DAGRunClearBody
-      description: DAG Run serializer for clear endpoint body.
+      description: Dag Run serializer for clear endpoint body.
     DAGRunCollectionResponse:
       properties:
         dag_runs:
@@ -10655,19 +13375,50 @@ components:
           type: array
           title: Dag Runs
         total_entries:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Total Entries
+          description: Total number of matching items. Populated for offset pagination,
+            ``null`` when using cursor pagination.
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: Token pointing to the next page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when there is no next page.
+        previous_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Previous Cursor
+          description: Token pointing to the previous page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when on the first page.
       type: object
       required:
       - dag_runs
-      - total_entries
       title: DAGRunCollectionResponse
-      description: DAG Run Collection serializer for responses.
+      description: 'Dag Run collection response supporting both offset and cursor
+        pagination.
+
+
+        A single flat model is used instead of a discriminated union
+
+        (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+
+        the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+
+        correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+
+        return types degrade to ``unknown`` in JSDoc and can produce
+
+        incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).'
     DAGRunPatchBody:
       properties:
         state:
           anyOf:
-          - $ref: '#/components/schemas/DAGRunPatchStates'
+          - $ref: '#/components/schemas/DagRunMutableStates'
           - type: 'null'
         note:
           anyOf:
@@ -10678,15 +13429,7 @@ components:
       additionalProperties: false
       type: object
       title: DAGRunPatchBody
-      description: DAG Run Serializer for PATCH requests.
-    DAGRunPatchStates:
-      type: string
-      enum:
-      - queued
-      - success
-      - failed
-      title: DAGRunPatchStates
-      description: Enum for DAG Run states when updating a DAG Run.
+      description: Dag Run Serializer for PATCH requests.
     DAGRunResponse:
       properties:
         dag_run_id:
@@ -10788,6 +13531,17 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        partition_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Partition Date
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - dag_run_id
@@ -10811,8 +13565,9 @@ components:
       - bundle_version
       - dag_display_name
       - partition_key
+      - partition_date
       title: DAGRunResponse
-      description: DAG Run serializer for responses.
+      description: Dag Run serializer for responses.
     DAGRunsBatchBody:
       properties:
         order_by:
@@ -10970,7 +13725,7 @@ components:
       additionalProperties: false
       type: object
       title: DAGRunsBatchBody
-      description: List DAG Runs body for batch endpoint.
+      description: List Dag Runs body for batch endpoint.
     DAGSourceResponse:
       properties:
         content:
@@ -10996,7 +13751,7 @@ components:
       - version_number
       - dag_display_name
       title: DAGSourceResponse
-      description: DAG Source serializer for responses.
+      description: Dag Source serializer for responses.
     DAGTagCollectionResponse:
       properties:
         tags:
@@ -11012,7 +13767,7 @@ components:
       - tags
       - total_entries
       title: DAGTagCollectionResponse
-      description: DAG Tags Collection serializer for responses.
+      description: Dag Tags Collection serializer for responses.
     DAGVersionCollectionResponse:
       properties:
         dag_versions:
@@ -11028,7 +13783,7 @@ components:
       - dag_versions
       - total_entries
       title: DAGVersionCollectionResponse
-      description: DAG Version Collection serializer for responses.
+      description: Dag Version Collection serializer for responses.
     DAGWarningCollectionResponse:
       properties:
         dag_warnings:
@@ -11044,7 +13799,7 @@ components:
       - dag_warnings
       - total_entries
       title: DAGWarningCollectionResponse
-      description: DAG warning collection serializer for responses.
+      description: Dag warning collection serializer for responses.
     DAGWarningResponse:
       properties:
         dag_id:
@@ -11070,7 +13825,7 @@ components:
       - timestamp
       - dag_display_name
       title: DAGWarningResponse
-      description: DAG Warning serializer for responses.
+      description: Dag Warning serializer for responses.
     DagProcessorInfoResponse:
       properties:
         status:
@@ -11147,6 +13902,14 @@ components:
       - partition_key
       title: DagRunAssetReference
       description: DagRun serializer for asset responses.
+    DagRunMutableStates:
+      type: string
+      enum:
+      - queued
+      - success
+      - failed
+      title: DagRunMutableStates
+      description: Dag Run states from which the run may be mutated (patched, deleted).
     DagRunState:
       type: string
       enum:
@@ -11207,7 +13970,7 @@ components:
       - created_at
       - updated_at
       title: DagScheduleAssetReference
-      description: DAG schedule reference serializer for assets.
+      description: Dag schedule reference serializer for assets.
     DagStatsCollectionResponse:
       properties:
         dags:
@@ -11223,7 +13986,7 @@ components:
       - dags
       - total_entries
       title: DagStatsCollectionResponse
-      description: DAG Stats Collection serializer for responses.
+      description: Dag Stats Collection serializer for responses.
     DagStatsResponse:
       properties:
         dag_id:
@@ -11243,7 +14006,7 @@ components:
       - dag_display_name
       - stats
       title: DagStatsResponse
-      description: DAG Stats serializer for responses.
+      description: Dag Stats serializer for responses.
     DagStatsStateResponse:
       properties:
         state:
@@ -11274,7 +14037,7 @@ components:
       - dag_id
       - dag_display_name
       title: DagTagResponse
-      description: DAG Tag serializer for responses.
+      description: Dag Tag serializer for responses.
     DagVersionResponse:
       properties:
         id:
@@ -11325,6 +14088,7 @@ components:
       type: string
       enum:
       - asset conflict
+      - duplicate dag id
       - non-existent pool
       - runtime varying value
       title: DagWarningType
@@ -11440,6 +14204,11 @@ components:
           - type: string
           - type: 'null'
           title: Owner
+        owner_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Display Name
         extra:
           anyOf:
           - type: string
@@ -11467,6 +14236,7 @@ components:
       - event
       - logical_date
       - owner
+      - owner_display_name
       - extra
       title: EventLogResponse
       description: Event Log Response.
@@ -11505,6 +14275,12 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        nav_top_level:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Nav Top Level
+          default: false
         href:
           type: string
           title: Href
@@ -11516,6 +14292,7 @@ components:
           - dag_run
           - task
           - task_instance
+          - asset
           - base
           title: Destination
           default: nav
@@ -12022,10 +14799,30 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       title: MaterializeAssetBody
       description: Materialize asset request.
+    NewTaskResponse:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        task_display_name:
+          type: string
+          title: Task Display Name
+      type: object
+      required:
+      - task_id
+      - task_display_name
+      title: NewTaskResponse
+      description: Lightweight response for new tasks that don't have TaskInstances
+        yet.
     PatchTaskInstanceBody:
       properties:
         new_state:
@@ -12057,7 +14854,7 @@ components:
       additionalProperties: false
       type: object
       title: PatchTaskInstanceBody
-      description: Request body for Clear Task Instances endpoint.
+      description: Request body for patching task instance state.
     PluginCollectionResponse:
       properties:
         plugins:
@@ -12109,6 +14906,11 @@ components:
         name:
           type: string
           title: Name
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
         macros:
           items:
             type: string
@@ -12435,6 +15237,12 @@ components:
           - type: string
           - type: 'null'
           title: Category
+        nav_top_level:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Nav Top Level
+          default: false
         bundle_url:
           type: string
           title: Bundle Url
@@ -12446,8 +15254,11 @@ components:
           - dag_run
           - task
           - task_instance
+          - asset
           - base
           - dashboard
+          - dag_overview
+          - task_overview
           title: Destination
           default: nav
       additionalProperties: true
@@ -12576,14 +15387,45 @@ components:
           type: array
           title: Task Instances
         total_entries:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Total Entries
+          description: Total number of matching items. Populated for offset pagination,
+            ``null`` when using cursor pagination.
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: Token pointing to the next page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when there is no next page.
+        previous_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Previous Cursor
+          description: Token pointing to the previous page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when on the first page.
       type: object
       required:
       - task_instances
-      - total_entries
       title: TaskInstanceCollectionResponse
-      description: Task Instance Collection serializer for responses.
+      description: 'Task instance collection response supporting both offset and cursor
+        pagination.
+
+
+        A single flat model is used instead of a discriminated union
+
+        (``Annotated[Offset | Cursor, Field(discriminator=...)]``) because
+
+        the OpenAPI ``oneOf`` + ``discriminator`` construct is not handled
+
+        correctly by ``@hey-api/openapi-ts`` / ``@7nohe/openapi-react-query-codegen``:
+
+        return types degrade to ``unknown`` in JSDoc and can produce
+
+        incorrect TypeScript types (see hey-api/openapi-ts#1613, #3270).'
     TaskInstanceHistoryCollectionResponse:
       properties:
         task_instances:
@@ -12890,6 +15732,11 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - id
@@ -12942,6 +15789,7 @@ components:
       - upstream_failed
       - skipped
       - deferred
+      - awaiting_input
       title: TaskInstanceState
       description: 'All possible states that a Task Instance can be in.
 
@@ -13352,6 +16200,87 @@ components:
       - extra_links
       title: TaskResponse
       description: Task serializer for responses.
+    TaskStateStoreBody:
+      properties:
+        value:
+          $ref: '#/components/schemas/JsonValue'
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: string
+            const: default
+          - type: 'null'
+          title: Expires At
+          default: default
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: TaskStateStoreBody
+      description: 'Request body for setting a task state store value.
+
+
+        ``expires_at`` controls expiry:
+
+
+        - ``"default"``: apply the configured ``[state_store] default_retention_days``.
+
+        - ``null``: never expire.
+
+        - aware datetime: expire at that time.'
+    TaskStateStoreCollectionResponse:
+      properties:
+        task_state_store:
+          items:
+            $ref: '#/components/schemas/TaskStateStoreResponse'
+          type: array
+          title: Task State Store
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - task_state_store
+      - total_entries
+      title: TaskStateStoreCollectionResponse
+      description: All task state store entries for a task instance.
+    TaskStateStorePatchBody:
+      properties:
+        value:
+          $ref: '#/components/schemas/JsonValue'
+      additionalProperties: false
+      type: object
+      required:
+      - value
+      title: TaskStateStorePatchBody
+      description: Request body for patching only the value of an existing task state
+        store key.
+    TaskStateStoreResponse:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          $ref: '#/components/schemas/JsonValue'
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        expires_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Expires At
+      type: object
+      required:
+      - key
+      - value
+      - updated_at
+      - expires_at
+      title: TaskStateStoreResponse
+      description: A single task state store key/value pair with metadata.
     TimeDelta:
       properties:
         __type:
@@ -13421,12 +16350,17 @@ components:
           - type: string
           - type: 'null'
           title: Partition Key
+        bundle_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       additionalProperties: false
       type: object
       required:
       - logical_date
       title: TriggerDAGRunPostBody
-      description: Trigger DAG Run Serializer for POST body.
+      description: Trigger Dag Run Serializer for POST body.
     TriggerResponse:
       properties:
         id:
@@ -13438,6 +16372,7 @@ components:
         kwargs:
           type: string
           title: Kwargs
+          deprecated: true
         created_date:
           type: string
           format: date-time
@@ -13571,7 +16506,9 @@ components:
           type: string
           title: Key
         value:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Value
         description:
           anyOf:
@@ -13589,7 +16526,6 @@ components:
       type: object
       required:
       - key
-      - value
       - description
       - is_encrypted
       - team_name

@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+4.2.4
+.....
+
+Misc
+~~~~
+
+* ``Add explicit [tool.flit.sdist] sections to flit-based pyproject.tomls (#65861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Providers wave 2026-04-21 (#65614)``
+   * ``Providers wave 2026-04-21``
+
+
+4.2.3
+.....
+
+Misc
+~~~~
+
+* ``Bump sendgrid>=6.12.5 (#65635)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.2.2
 .....
 

@@ -20,7 +20,7 @@
 ##########################
 ## Airflow Create User Job
 ##########################
-{{- if eq (include "createUserJob.isEnabled" .) "true" }}
+{{- if .Values.createUserJob.enabled }}
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
@@ -86,6 +86,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "createUserJob.serviceAccountName" . }}
+      enableServiceLinks: {{ .Values.enableServiceLinks }}
       imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       {{- if .Values.createUserJob.extraInitContainers }}
       initContainers:
@@ -117,7 +118,7 @@ spec:
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.volumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if .Values.createUserJob.extraVolumeMounts }}
               {{- tpl (toYaml .Values.createUserJob.extraVolumeMounts) . | nindent 12 }}
@@ -130,7 +131,7 @@ spec:
           configMap:
             name: {{ template "airflow_config" . }}
         {{- if .Values.volumes }}
-          {{- toYaml .Values.volumes | nindent 8 }}
+          {{- tpl (toYaml .Values.volumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.createUserJob.extraVolumes }}
           {{- tpl (toYaml .Values.createUserJob.extraVolumes) . | nindent 8 }}

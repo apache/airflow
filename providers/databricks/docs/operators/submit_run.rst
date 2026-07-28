@@ -104,6 +104,38 @@ Another way to do is use the param tasks to pass array of objects to instantiate
   notebook_run = DatabricksSubmitRunOperator(task_id="notebook_run", tasks=tasks)
 
 
+Forwarding Airflow Dag params as task parameters
+------------------------------------------------
+
+Unlike ``api/2.2/jobs/create`` and ``api/2.2/jobs/run-now``, the
+``api/2.2/jobs/runs/submit`` endpoint has no top-level parameter slot — each task in
+``tasks`` carries its own parameters whose shape depends on the task type.
+
+If the operator's ``params`` dict is non-empty, it is forwarded as-is into the
+dict-shaped parameter slot of every task in ``json`` whose corresponding field is empty:
+
+* ``notebook_task.base_parameters`` (e.g. for ``notebook_task``)
+* ``python_wheel_task.named_parameters``
+* ``sql_task.parameters``
+* ``run_job_task.job_parameters``
+
+Tasks whose only parameter slot is ``List[str]`` (``spark_jar_task``, ``spark_python_task``,
+``spark_submit_task``) are skipped because there is no canonical mapping from a key/value
+dict to a positional argument list — pass those parameters explicitly via the ``json``
+or ``tasks`` argument.
+
+.. code-block:: python
+
+  notebook_run = DatabricksSubmitRunOperator(
+      task_id="notebook_run",
+      notebook_task={"notebook_path": "/Users/airflow@example.com/PrepareData"},
+      new_cluster={"spark_version": "15.4.x-scala2.12", "num_workers": 2},
+      params={"env": "dev", "shard": "1"},
+  )
+  # The submitted run's notebook_task.base_parameters becomes:
+  #   {"env": "dev", "shard": "1"}
+  # i.e. the same dict, copied into the task's dict-shaped parameter slot.
+
 
 Examples
 --------
@@ -127,6 +159,46 @@ You can also use named parameters to initialize the operator and run the job.
     :language: python
     :start-after: [START howto_operator_databricks_named]
     :end-before: [END howto_operator_databricks_named]
+
+Durable execution
+-----------------
+
+``DatabricksSubmitRunOperator`` submits a run and then polls it to completion on the worker.
+By default the operator runs in a *durable* mode that makes the runs crash-safe: the Databricks
+run id is persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
+before polling begins, so if the worker crashes or is preempted and the task is retried, the
+operator reconnects to the run that is already executing on Databricks instead of submitting a
+duplicate.
+
+On retry the operator checks the prior run's state:
+
+* if it is still running, the operator reconnects and continues polling
+* if it already succeeded, the operator returns immediately without resubmitting
+* if it failed terminally, the operator submits a fresh run
+
+This avoids redundant Databricks job submissions when a worker is lost mid-run, which is common for
+long-running jobs.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
+earlier Airflow versions the flag is a no-op and the operator always submits a fresh
+run on retry, exactly as before. If the task state store is unavailable at runtime, the
+operator logs that crash recovery is disabled and behaves the same way.
+
+To opt out and always submit a fresh run on retry, set ``durable=False``:
+
+.. code-block:: python
+
+  notebook_run = DatabricksSubmitRunOperator(
+      task_id="notebook_run",
+      notebook_task={"notebook_path": "/Users/airflow@example.com/PrepareData"},
+      new_cluster={"spark_version": "15.4.x-scala2.12", "num_workers": 2},
+      durable=False,
+  )
+
+Durable execution applies to the synchronous path. When ``deferrable=True`` is set, the
+Triggerer already tracks the run across the wait, so deferrable mode takes precedence and
+``durable`` has no effect.
+
 
 DatabricksSubmitRunDeferrableOperator
 =====================================

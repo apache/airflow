@@ -82,6 +82,8 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
                 "pipeline_name": self.pipeline_name,
                 "pipeline_id": self.pipeline_id,
                 "pipeline_type": self.pipeline_type,
+                "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
                 "success_states": self.success_states,
             },
         )

@@ -22,6 +22,14 @@ import copy
 
 from kubernetes.client import models as k8s
 
+# Pinned alpine version for the xcom sidecar default. Pinning (rather than
+# using the implicit `:latest`) makes kubelet's default imagePullPolicy
+# `IfNotPresent` instead of `Always`, so a node that has the image cached
+# does not re-pull on every task — protecting CI and disconnected
+# deployments from Docker Hub anonymous-pull rate limits. Tracked by
+# scripts/ci/prek/upgrade_important_versions.py.
+XCOM_SIDECAR_IMAGE = "alpine:3.24.1"
+
 
 class PodDefaults:
     """Static defaults for Pods."""
@@ -34,7 +42,7 @@ class PodDefaults:
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
         command=["sh", "-c", XCOM_CMD],
-        image="alpine",
+        image=XCOM_SIDECAR_IMAGE,
         volume_mounts=[VOLUME_MOUNT],
         resources=k8s.V1ResourceRequirements(
             requests={
@@ -50,6 +58,7 @@ def add_xcom_sidecar(
     *,
     sidecar_container_image: str | None = None,
     sidecar_container_resources: k8s.V1ResourceRequirements | dict | None = None,
+    sidecar_container_security_context: k8s.V1SecurityContext | dict | None = None,
 ) -> k8s.V1Pod:
     """Add sidecar."""
     pod_cp = copy.deepcopy(pod)
@@ -61,6 +70,8 @@ def add_xcom_sidecar(
     sidecar.image = sidecar_container_image or PodDefaults.SIDECAR_CONTAINER.image
     if sidecar_container_resources:
         sidecar.resources = sidecar_container_resources
+    if sidecar_container_security_context is not None:
+        sidecar.security_context = sidecar_container_security_context
     pod_cp.spec.containers.append(sidecar)
 
     return pod_cp

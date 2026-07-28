@@ -17,11 +17,14 @@
  under the License.
 */}}
 
-################################
+#########################
 ## Airflow Flower Ingress
-#################################
+#########################
 {{- if .Values.flower.enabled }}
-{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
+{{- if and .Values.ingress.flower.enabled (contains "CeleryExecutor" .Values.executor) }}
+{{- if .Values.flower.httpRoute.enabled }}
+{{- fail "`ingress.flower.enabled` and `flower.httpRoute.enabled` are both set to `true`. The Flower Ingress is an alternative to HTTPRoute (Gateway API); enable only one of them." }}
+{{- end }}
 {{- $fullname := include "airflow.fullname" . }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -57,16 +60,9 @@ spec:
   {{- end }}
   {{- end }}
   {{- end }}
-  {{- else if .Values.ingress.flower.tls.enabled }}
-  tls:
-    - hosts:
-        {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
-        - {{ tpl . $ | quote }}
-        {{- end }}
-      secretName: {{ .Values.ingress.flower.tls.secretName }}
   {{- end }}
   rules:
-    {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
+    {{- range .Values.ingress.flower.hosts | default (list "") }}
     - http:
         paths:
           - backend:

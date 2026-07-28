@@ -20,10 +20,12 @@ from __future__ import annotations
 import pytest
 
 from airflow._shared.timezones import timezone
+from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.state import DagRunState, State
 
-from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.db import clear_db_assets, clear_db_runs
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 pytestmark = pytest.mark.db_test
 
@@ -125,7 +127,7 @@ class TestDagRunStartDateNullableBackwardCompat:
 
         assert response.status_code == 200
         assert dag_run["start_date"] is not None, "start_date should not be None when DagRun has started"
-        assert dag_run["start_date"] == TIMESTAMP.isoformat().replace("+00:00", "Z")
+        assert dag_run["start_date"] == from_datetime_to_zulu_without_ms(TIMESTAMP)
 
 
 class TestNextKwargsBackwardCompat:
@@ -252,3 +254,54 @@ class TestNextKwargsBackwardCompat:
         assert response.status_code == 200
         # Head version gets the plain dict directly -- no BaseSerialization wrapping
         assert response.json()["next_kwargs"] == {"cheesecake": True, "event": "payload"}
+
+
+class TestConsumedEventPartitionKeyBackwardCompat:
+    """The partition_key on consumed asset events is stripped for pre-2026-04-06 clients."""
+
+    @pytest.fixture(autouse=True)
+    def _freeze_time(self, time_machine):
+        time_machine.move_to(TIMESTAMP_STR, tick=False)
+
+    def setup_method(self):
+        clear_db_runs()
+        clear_db_assets()
+
+    def teardown_method(self):
+        clear_db_runs()
+        clear_db_assets()
+
+    def _create_ti_with_consumed_event(self, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_consumed_event_partition_key_compat",
+            state=State.QUEUED,
+            session=session,
+            start_date=TIMESTAMP,
+        )
+        asset = AssetModel(name="upstream", uri="s3://bucket/upstream", group="asset", extra={})
+        session.add_all([asset, AssetActive.for_asset(asset)])
+        session.flush()
+        ti.dag_run.consumed_asset_events.append(
+            AssetEvent(asset_id=asset.id, source_dag_id="src", source_run_id="r1", partition_key="2024-01-15")
+        )
+        session.commit()
+        return ti
+
+    def test_old_version_strips_partition_key(self, old_ver_client, session, create_task_instance):
+        ti = self._create_ti_with_consumed_event(session, create_task_instance)
+
+        response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        events = response.json()["dag_run"]["consumed_asset_events"]
+        assert events
+        assert all("partition_key" not in event for event in events)
+
+    def test_head_version_keeps_partition_key(self, client, session, create_task_instance):
+        ti = self._create_ti_with_consumed_event(session, create_task_instance)
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=RUN_PATCH_BODY)
+
+        assert response.status_code == 200
+        events = response.json()["dag_run"]["consumed_asset_events"]
+        assert [event["partition_key"] for event in events] == ["2024-01-15"]

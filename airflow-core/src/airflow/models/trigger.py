@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import ForeignKey, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -35,6 +35,7 @@ from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -99,6 +100,15 @@ class Trigger(Base):
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
+    # Denormalized from dag_bundle_team to keep the triggerer's ~1s polling queries join-free,
+    # especially since it's eventually consistent and trigger rows are ephemeral.
+    # Without this, filtering by team requires 2-3 joins depending on trigger type.
+    # Performance testing confirmed the denormalized column avoids measurable overhead in the
+    # triggerer loop under load.
+    team_name: Mapped[str | None] = mapped_column(
+        String(50), ForeignKey("team.name", ondelete="SET NULL"), nullable=True, index=True
+    )
+
     triggerer_job = relationship(
         "Job",
         primaryjoin="Job.id == Trigger.triggerer_id",
@@ -121,12 +131,14 @@ class Trigger(Base):
         kwargs: dict[str, Any],
         created_date: datetime.datetime | None = None,
         queue: str | None = None,
+        team_name: str | None = None,
     ) -> None:
         super().__init__()
         self.classpath = classpath
         self.encrypted_kwargs = self.encrypt_kwargs(kwargs)
         self.created_date = created_date or timezone.utcnow()
         self.queue = queue
+        self.team_name = team_name
 
     @property
     def kwargs(self) -> dict[str, Any]:
@@ -146,7 +158,7 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import serialize
 
-        serialized_kwargs = serialize(kwargs)
+        serialized_kwargs = serialize(stringify_encoding_keys(kwargs))
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -192,7 +204,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
+    def bulk_fetch(cls, ids: Iterable[int], *, session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """Fetch all the Triggers by ID and return a dict mapping ID -> Trigger instance."""
         stmt = (
             select(cls)
@@ -207,9 +219,9 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[str]:
+    def fetch_trigger_ids_with_non_task_associations(cls, *, session: Session = NEW_SESSION) -> set[int]:
         """Fetch all trigger IDs actively associated with non-task entities like assets and callbacks."""
-        from airflow.models.callback import Callback
+        from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
         query = select(AssetWatcherModel.trigger_id).union_all(
             select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))
@@ -219,7 +231,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def clean_unused(cls, session: Session = NEW_SESSION) -> None:
+    def clean_unused(cls, *, session: Session = NEW_SESSION) -> None:
         """
         Delete all triggers that have no tasks dependent on them and are not associated to an asset.
 
@@ -258,7 +270,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_event(cls, trigger_id, event: TriggerEvent, session: Session = NEW_SESSION) -> None:
+    def submit_event(cls, trigger_id, event: TriggerEvent, *, session: Session = NEW_SESSION) -> None:
         """
         Fire an event.
 
@@ -274,7 +286,11 @@ class Trigger(Base):
             handle_event_submit(event, task_instance=task_instance, session=session)
 
         # Send an event to assets
-        trigger = session.scalars(select(cls).where(cls.id == trigger_id)).one_or_none()
+        trigger = session.scalars(
+            select(cls)
+            .where(cls.id == trigger_id)
+            .options(selectinload(cls.asset_watchers).selectinload(AssetWatcherModel.asset))
+        ).one_or_none()
         if trigger is None:
             # Already deleted for some reason
             return
@@ -289,7 +305,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
+    def submit_failure(cls, trigger_id, exc=None, *, session: Session = NEW_SESSION) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
 
@@ -325,7 +341,12 @@ class Trigger(Base):
     @classmethod
     @provide_session
     def ids_for_triggerer(
-        cls, triggerer_id, queues: set[str] | None = None, session: Session = NEW_SESSION
+        cls,
+        triggerer_id,
+        queues: set[str] | None = None,
+        team_name: str | None = None,
+        *,
+        session: Session = NEW_SESSION,
     ) -> list[int]:
         """Retrieve a list of trigger ids."""
         query = select(cls.id).where(cls.triggerer_id == triggerer_id)
@@ -337,6 +358,14 @@ class Trigger(Base):
         else:
             query = query.filter(cls.queue.is_(None))
 
+        # Check config instead of team_name: if multi-team is disabled after triggers were
+        # created with a team, those triggers must still be picked up instead of being orphaned.
+        if conf.getboolean("core", "multi_team"):
+            if team_name:
+                query = query.filter(cls.team_name == team_name)
+            else:
+                query = query.filter(cls.team_name.is_(None))
+
         return list(session.scalars(query).all())
 
     @classmethod
@@ -347,6 +376,8 @@ class Trigger(Base):
         capacity,
         health_check_threshold,
         queues: set[str] | None = None,
+        team_name: str | None = None,
+        *,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -381,6 +412,7 @@ class Trigger(Base):
             capacity=capacity,
             alive_triggerer_ids=alive_triggerer_ids,
             queues=queues,
+            team_name=team_name,
             session=session,
         )
         if trigger_ids_query:
@@ -400,6 +432,7 @@ class Trigger(Base):
         alive_triggerer_ids: list[int] | Select,
         queues: set[str] | None,
         session: Session,
+        team_name: str | None = None,
     ):
         """
         Get sorted triggers based on capacity and alive triggerer ids.
@@ -408,8 +441,9 @@ class Trigger(Base):
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
         :param queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
+        :param team_name: The team to filter triggers for (None = global triggerer).
         """
-        from airflow.models.callback import Callback
+        from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
 
         result: list[Row[Any]] = []
 
@@ -427,7 +461,12 @@ class Trigger(Base):
             .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
-            select(cls.id).where(cls.assets.any()).order_by(cls.created_date),
+            select(cls.id)
+            .where(
+                cls.assets.any(),
+                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+            )
+            .order_by(cls.created_date),
         ]
 
         # Process each query while avoiding unnecessary queries when capacity is reached
@@ -447,6 +486,14 @@ class Trigger(Base):
                 filtered_query = query.filter(cls.queue.in_(queues))
             else:
                 filtered_query = query.filter(cls.queue.is_(None))
+
+            # Check config instead of team_name: if multi-team is disabled after triggers were
+            # created with a team, those triggers must still be picked up instead of being orphaned.
+            if conf.getboolean("core", "multi_team"):
+                if team_name:
+                    filtered_query = filtered_query.filter(cls.team_name == team_name)
+                else:
+                    filtered_query = filtered_query.filter(cls.team_name.is_(None))
 
             locked_query = with_row_locks(filtered_query.limit(remaining_capacity), session, skip_locked=True)
             result.extend(session.execute(locked_query).all())
@@ -523,12 +570,31 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
             if task_instance.dag_model.relative_fileloc is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
+            from airflow.models.dag_version import _resolve_version_data
+
+            # Derive bundle identity from the TI's dag_version (falling back to dag_run/dag_model
+            # for legacy/unpinned runs), mirroring the other callback sites so bundle_version and
+            # version_data always describe the same version.
+            bundle_name = (
+                task_instance.dag_version.bundle_name
+                if task_instance.dag_version
+                else task_instance.dag_model.bundle_name
+            )
+            bundle_version = (
+                task_instance.dag_version.bundle_version
+                if task_instance.dag_version and task_instance.dag_run.bundle_version is not None
+                else task_instance.dag_run.bundle_version
+            )
+            version_data = _resolve_version_data(
+                task_instance.dag_version, task_instance.dag_run.bundle_version
+            )
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,
                 task_callback_type=event.task_instance_state,
-                bundle_name=task_instance.dag_model.bundle_name,
-                bundle_version=task_instance.dag_run.bundle_version,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
             )
             log.info("Sending callback: %s", request)
             try:

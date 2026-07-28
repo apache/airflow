@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from sqlalchemy.pool import NullPool
@@ -69,6 +69,81 @@ class TestSqlAlchemySettings:
             settings.SQL_ALCHEMY_CONN,
             **expected_kwargs,
         )
+
+    @patch("airflow.settings.setup_event_handlers")
+    @patch("airflow.settings.scoped_session")
+    @patch("airflow.settings.sessionmaker")
+    @patch("airflow.settings.create_engine")
+    def test_configure_orm_sqlite_file_based_gets_pool_settings(
+        self,
+        mock_create_engine,
+        mock_sessionmaker,
+        mock_scoped_session,
+        mock_setup_event_handlers,
+        monkeypatch,
+    ):
+        """SQLAlchemy 2.0+ uses QueuePool for file-based SQLite, so pool settings should be applied."""
+        monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", "sqlite:////tmp/airflow.db")
+        settings.configure_orm()
+        expected_kwargs = dict(
+            connect_args={"check_same_thread": False},
+            max_overflow=10,
+            pool_pre_ping=True,
+            pool_recycle=1800,
+            pool_size=5,
+            future=True,
+        )
+        assert mock_create_engine.mock_calls == [
+            call(
+                "sqlite:////tmp/airflow.db",
+                **expected_kwargs,
+            ),
+            call().url.password.__bool__(),
+            call().url.password.__iter__(),
+        ]
+
+    @pytest.mark.parametrize(
+        "conn_str",
+        [
+            "sqlite://",
+            "sqlite:///:memory:",
+            "sqlite+pysqlite:///:memory:",
+            "sqlite:///:memory:?cache=shared",
+            "sqlite:///file::memory:?cache=shared",
+        ],
+    )
+    def test_prepare_engine_args_sqlite_in_memory_skips_pool_settings(self, conn_str, monkeypatch):
+        """In-memory SQLite uses SingletonThreadPool which doesn't support pool_size/max_overflow."""
+        monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", conn_str)
+        engine_args = settings.prepare_engine_args()
+        assert "pool_size" not in engine_args
+        assert "max_overflow" not in engine_args
+        assert "pool_recycle" not in engine_args
+        assert "pool_pre_ping" not in engine_args
+
+    @pytest.mark.parametrize(
+        ("conn_str", "use_psycopg3", "expect_psycopg2_tuning"),
+        [
+            ("postgresql+psycopg2://user:pass@host/db", True, True),
+            ("postgresql+psycopg2://user:pass@host/db", False, True),
+            ("postgresql+psycopg://user:pass@host/db", True, False),
+            ("postgresql+psycopg://user:pass@host/db", False, False),
+        ],
+    )
+    def test_prepare_engine_args_psycopg2_tuning_follows_configured_scheme(
+        self, conn_str, use_psycopg3, expect_psycopg2_tuning, monkeypatch
+    ):
+        """executemany tuning must follow the configured scheme, not whether psycopg happens to be importable."""
+        monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", conn_str)
+        monkeypatch.setattr(settings, "_USE_PSYCOPG3", use_psycopg3)
+        engine_args = settings.prepare_engine_args()
+        assert engine_args["insertmanyvalues_page_size"] == 10000
+        if expect_psycopg2_tuning:
+            assert engine_args["executemany_mode"] == "values_plus_batch"
+            assert engine_args["executemany_batch_page_size"] == 2000
+        else:
+            assert "executemany_mode" not in engine_args
+            assert "executemany_batch_page_size" not in engine_args
 
     @patch("airflow.settings.setup_event_handlers")
     @patch("airflow.settings.scoped_session")

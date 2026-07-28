@@ -359,6 +359,31 @@ resume Job in the specified Google Kubernetes Engine cluster.
     :start-after: [START howto_operator_gke_resume_job]
     :end-before: [END howto_operator_gke_resume_job]
 
+Sovereign Cloud from Google guidance
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In the Sovereign Cloud from Google environments, the practical question for Kubernetes Engine
+is which operator parameters to set. For most of the operators, the answer is easy: ``use_dns_endpoint=True``.
+
+For example:
+
+.. code-block:: python
+
+    GKEStartPodOperator(
+        ...,
+        use_dns_endpoint=True,
+    )
+
+
+.. warning::
+  Please be cautious with the configuration parameters for the operators which requires to start a ``sidecar`` container
+  on the Sovereign Cloud from Google environments.
+
+  Currently, the operators which tries to push something to XCom (with ``do_xcom_push=True`` parameter)
+  do **not** work properly on the Sovereign Cloud from Google environments due to they require sidecar containers.
+
+For further information, take a look at the official documentation for
+the `Sovereign Cloud from Google <https://cloud.google.com/sovereign-cloud>`__
+
 Reference
 ^^^^^^^^^
 

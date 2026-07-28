@@ -162,13 +162,13 @@ class TestSageMakerNotebookHook:
 
         status = "STOPPED"
         error_message = ""
-        with pytest.raises(AirflowException, match=f"Exiting Execution {execution_id} State: {status}"):
+        with pytest.raises(AirflowException, match=f"Execution {execution_id} ended with status {status}"):
             self.hook._handle_state(execution_id, status, error_message)
 
     def test_handle_unexpected_state(self):
         execution_id = "123456"
         status = "PENDING"
-        error_message = f"Exiting Execution {execution_id} State: {status}"
+        error_message = f"Execution {execution_id} ended with status {status}"
         with pytest.raises(AirflowException, match=error_message):
             self.hook._handle_state(execution_id, status, error_message)
 
@@ -183,8 +183,8 @@ class TestSageMakerNotebookHook:
         mock_set_xcom_files.assert_called_once_with(*expected_call.args, **expected_call.kwargs)
 
     def test_set_xcom_files_negative_missing_context(self):
-        with pytest.raises(AirflowException, match="context is required"):
-            self.hook._set_xcom_files(self.files, {})
+        # When context is empty, _set_xcom_files returns early without raising
+        self.hook._set_xcom_files(self.files, {})
 
     @pytest.mark.db_test
     @patch(
@@ -197,8 +197,8 @@ class TestSageMakerNotebookHook:
         mock_set_xcom_s3_path.assert_called_once_with(*expected_call.args, **expected_call.kwargs)
 
     def test_set_xcom_s3_path_negative_missing_context(self):
-        with pytest.raises(AirflowException, match="context is required"):
-            self.hook._set_xcom_s3_path(self.s3Path, {})
+        # When context is empty, _set_xcom_s3_path returns early without raising
+        self.hook._set_xcom_s3_path(self.s3Path, {})
 
     def test_start_notebook_execution_custom_compute(self):
         """Test that custom compute config is used when provided."""

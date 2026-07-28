@@ -19,4 +19,24 @@
 
 from __future__ import annotations
 
-from airflow._shared.observability.metrics.stats import Stats as Stats
+from airflow._shared.observability.metrics.stats import (
+    Stats,
+    decr,
+    gauge,
+    incr,
+    initialize,
+    normalize_name_for_stats,
+    timer,
+    timing,
+)
+
+__all__ = [
+    "Stats",
+    "decr",
+    "gauge",
+    "incr",
+    "initialize",
+    "normalize_name_for_stats",
+    "timer",
+    "timing",
+]

@@ -23,7 +23,6 @@ from unittest import mock
 
 import httpx
 import pytest
-from rich.console import Console
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import info_command
@@ -32,13 +31,6 @@ from airflow.logging_config import configure_logging
 from airflow.version import version as airflow_version
 
 from tests_common.test_utils.config import conf_vars
-
-
-def capture_show_output(instance):
-    console = Console()
-    with console.capture() as capture:
-        instance.info(console)
-    return capture.get()
 
 
 class TestPiiAnonymizer:

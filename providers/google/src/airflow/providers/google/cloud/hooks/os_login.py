@@ -63,7 +63,11 @@ class OSLoginHook(GoogleBaseHook):
         if self._conn:
             return self._conn
 
-        self._conn = OsLoginServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        self._conn = OsLoginServiceClient(
+            credentials=self.get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=self.get_client_options(),
+        )
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id

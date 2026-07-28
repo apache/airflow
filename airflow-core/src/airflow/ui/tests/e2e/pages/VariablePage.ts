@@ -39,46 +39,38 @@ export class VariablePage extends BasePage {
     this.selectAllCheckbox = page.locator("thead input[type='checkbox']");
   }
 
-  public async getVariableKeys(): Promise<Array<string>> {
-    await this.waitForLoad();
-    const count = await this.tableRows.count();
-
-    if (count === 0) {
-      return [];
-    }
-    const keys = await this.tableRows.locator("td:nth-child(2)").allTextContents();
-
-    return keys.map((key) => key.trim()).filter(Boolean);
-  }
-
   public async navigate(): Promise<void> {
-    await this.navigateTo("/variables");
+    await expect(async () => {
+      await this.navigateTo("/variables");
+      await this.page.waitForURL(/.*variables/, { timeout: 10_000 });
+      await this.waitForLoad();
+    }).toPass({ intervals: [2000], timeout: 60_000 });
   }
 
   public rowByKey(key: string): Locator {
-    return this.tableRows.filter({ hasText: key });
+    return this.page.locator("tr").filter({ hasText: key });
   }
 
-  public async search(key: string) {
+  public async search(key: string): Promise<void> {
     await this.searchInput.fill(key);
   }
 
-  public async selectRow(key: string) {
+  public async selectRow(key: string): Promise<void> {
     const row = this.rowByKey(key);
-    const checkbox = row.locator('[id^="checkbox"][id$=":control"]');
+    const checkbox = row.getByRole("checkbox");
 
-    await checkbox.click();
+    await expect(checkbox).toBeVisible({ timeout: 30_000 });
+    // Use force:true because in Firefox the <label> overlay intercepts pointer events
+    await checkbox.click({ force: true });
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.table.waitFor({ state: "visible", timeout: 15_000 });
-    await this.waitForTableData();
-  }
+    await expect(this.table).toBeVisible({ timeout: 15_000 });
 
-  private async waitForTableData(): Promise<void> {
-    const noData = this.page.getByText("No variables found");
-    const firstKeyCell = this.tableRows.first().locator("td:nth-child(2)");
+    // Wait for table data using Playwright locators instead of document.querySelector.
+    const firstRow = this.tableRows.first();
+    const emptyMessage = this.page.getByText(/no variables found/i);
 
-    await expect(noData.or(firstKeyCell)).toBeVisible({ timeout: 60_000 });
+    await expect(firstRow.or(emptyMessage)).toBeVisible({ timeout: 60_000 });
   }
 }

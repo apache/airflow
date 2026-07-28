@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-mssql"
-version = "4.5.2"
+version = "4.7.0"
 description = "Provider package apache-airflow-providers-microsoft-mssql for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -61,6 +61,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-sql>=1.32.0",
+    "apache-airflow-providers-common-compat>=1.12.0",
     "pymssql>=2.3.5; python_version < '3.14'",
     "pymssql>=2.3.13; python_version >= '3.14'",
     "methodtools>=0.4.7",
@@ -78,6 +79,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
@@ -109,8 +111,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.5.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.5.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.7.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.7.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
@@ -122,3 +124,15 @@ provider_info = "airflow.providers.microsoft.mssql.get_provider_info:get_provide
 
 [tool.flit.module]
 name = "airflow.providers.microsoft.mssql"
+
+# Explicit sdist contents so the build does not rely on VCS information
+# (flit 4.0 makes --no-use-vcs the default — see https://github.com/pypa/flit/pull/782).
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "provider.yaml",
+    "src/airflow/__init__.py",
+    "src/airflow/providers/__init__.py",
+    "src/airflow/providers/microsoft/__init__.py",
+    "tests/",
+]

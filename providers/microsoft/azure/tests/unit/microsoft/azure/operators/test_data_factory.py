@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import functools
+import itertools
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -142,11 +143,20 @@ class TestAzureDataFactoryRunPipelineOperator:
                     operator.execute(context=self.mock_context)
             else:
                 # Demonstrating the operator timing out after surpassing the configured timeout value.
-                with pytest.raises(
-                    AzureDataFactoryPipelineRunException,
-                    match=(
-                        f"Pipeline run {PIPELINE_RUN_RESPONSE['run_id']} has not reached a terminal status "
-                        f"after {self.config['timeout']} seconds."
+                # Mock time.monotonic and time.sleep so the poll count is deterministic regardless of
+                # CI load; real sleep durations can vary enough to change how many iterations complete.
+                with (
+                    patch(
+                        "airflow.providers.microsoft.azure.hooks.data_factory.time.monotonic",
+                        side_effect=itertools.count(0.0, 1.0),
+                    ),
+                    patch("airflow.providers.microsoft.azure.hooks.data_factory.time.sleep"),
+                    pytest.raises(
+                        AzureDataFactoryPipelineRunException,
+                        match=(
+                            f"Pipeline run {PIPELINE_RUN_RESPONSE['run_id']} has not reached a terminal status "
+                            f"after {self.config['timeout']} seconds."
+                        ),
                     ),
                 ):
                     operator.execute(context=self.mock_context)
@@ -224,6 +234,32 @@ class TestAzureDataFactoryRunPipelineOperator:
 
             # Checking the pipeline run status should _not_ be called when ``wait_for_termination`` is False.
             mock_get_pipeline_run.assert_not_called()
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    def test_run_id_extracted_from_hybrid_model_response(self, mock_run_pipeline):
+        """Regression test: azure-mgmt-datafactory v10 hybrid models don't expose attributes via vars().
+
+        Hybrid models use property descriptors, so vars(response)["run_id"] raises KeyError.
+        The operator must use attribute access (response.run_id) which works with both old and new models.
+        """
+
+        class HybridModelResponse(dict):
+            """Simulates an azure-mgmt-datafactory v10 hybrid model response."""
+
+            def __init__(self):
+                super().__init__({"runId": "hybrid-run-id-123"})
+
+            @property
+            def run_id(self):
+                return self["runId"]
+
+        mock_run_pipeline.return_value = HybridModelResponse()
+
+        operator = AzureDataFactoryRunPipelineOperator(wait_for_termination=False, **self.config)
+        operator.execute(context=self.mock_context)
+
+        assert operator.run_id == "hybrid-run-id-123"
+        self.mock_ti.xcom_push.assert_called_once_with(key="run_id", value="hybrid-run-id-123")
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(

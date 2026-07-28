@@ -30,11 +30,11 @@ database schema that you have made. To generate a new migration file, run the fo
 
     # starting at the root of the project
     # Use breeze:
-    $ breeze generate-migration-file -m "add new field to db"
+    $ breeze generate-migration-file -m "Add new field to db."
     # Or, go to the airflow directory and use alembic directly:
     $ breeze --backend postgres
     $ cd airflow-core/src/airflow
-    $ alembic revision -m "add new field to db" --autogenerate
+    $ alembic revision -m "Add new field to db." --autogenerate
 
        Generating
     ~/airflow-core/src/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
@@ -66,8 +66,8 @@ When rebasing your branch onto the latest ``main``, you may encounter conflicts 
 
 The affected files may include:
 
-- ``docs/apache-airflow/migrations-ref.rst``
-- ``airflow/migrations/versions/1234_A_B_C_<your_migration_name>.py``
+- ``airflow-core/docs/migrations-ref.rst``
+- ``airflow-core/src/airflow/migrations/versions/1234_A_B_C_<your_migration_name>.py``
 
     There should be another file, ``1234_A_B_C_<other_migration_name>.py``, with the same ``1234_A_B_C`` prefix.
 
@@ -96,6 +96,15 @@ and back down to the former. To run any of those CI tests on your machine, you c
 
 1. Copy the relevant command (specified by the ``run`` key for the relevant CI job), and replace the environment variable references with their literal values defined in the sibling ``env`` section.
 2. Run the command you created from step 1, troubleshooting errors as needed.
+
+SQLite FK round-trip safety
+---------------------------
+
+Migrations that rebuild a parent table via ``op.batch_alter_table`` must wrap their entire body in
+``disable_sqlite_fkeys(op)`` *before* any DML or DDL opens an implicit transaction — otherwise the
+wrapper's PRAGMA is a no-op and the rebuild's implicit ``DROP TABLE`` cascade-deletes child rows
+(or aborts on a RESTRICT chain). The placement convention and the round-trip prek hook that
+enforces it are documented in `Migration round-trip regression check <26_migration_round_trip_check.rst>`__.
 
 How to hook your application into Airflow's migration process
 -------------------------------------------------------------
@@ -132,7 +141,7 @@ Replace the content of your application's ``alembic.ini`` file with Airflow's ``
 If the above is not clear, you might want to look at the FAB implementation of this migration.
 
 After setting up those, and you want Airflow to run the migration for you when running ``airflow db migrate`` then you need to
-add your DBManager to the ``[core] external_db_managers`` configuration.
+add your DBManager to the ``[database] external_db_managers`` configuration.
 
 --------
 

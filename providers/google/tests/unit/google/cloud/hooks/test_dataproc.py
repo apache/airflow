@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import ANY, AsyncMock
+from unittest.mock import AsyncMock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
@@ -95,82 +95,92 @@ class TestDataprocHook:
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = DataprocHook(gcp_conn_id="test")
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_client_options"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("ClusterControllerClient"))
-    def test_get_cluster_client(self, mock_client, mock_get_credentials):
+    def test_get_cluster_client(self, mock_client, mock_get_credentials, mock_get_client_options):
         self.hook.get_cluster_client(region=GCP_LOCATION)
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_get_client_options.return_value,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_client_options"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("ClusterControllerClient"))
-    def test_get_cluster_client_region(self, mock_client, mock_get_credentials):
+    def test_get_cluster_client_region(self, mock_client, mock_get_credentials, mock_get_client_options):
         self.hook.get_cluster_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=ANY,
+            client_options=mock_get_client_options.return_value,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_client_options"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
-    def test_get_template_client_global(self, mock_client, mock_get_credentials):
+    def test_get_template_client_global(self, mock_client, mock_get_credentials, mock_get_client_options):
         _ = self.hook.get_template_client()
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_get_client_options.return_value,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_client_options"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
-    def test_get_template_client_region(self, mock_client, mock_get_credentials):
+    def test_get_template_client_region(self, mock_client, mock_get_credentials, mock_get_client_options):
         _ = self.hook.get_template_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=ANY,
+            client_options=mock_get_client_options.return_value,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_client_options"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("JobControllerClient"))
-    def test_get_job_client(self, mock_client, mock_get_credentials):
+    def test_get_job_client(self, mock_client, mock_get_credentials, mock_get_client_options):
         self.hook.get_job_client(region=GCP_LOCATION)
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_get_client_options.return_value,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_client_options"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("JobControllerClient"))
-    def test_get_job_client_region(self, mock_client, mock_get_credentials):
+    def test_get_job_client_region(self, mock_client, mock_get_credentials, mock_get_client_options):
         self.hook.get_job_client(region="region1")
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=ANY,
+            client_options=mock_get_client_options.return_value,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_client_options"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerClient"))
-    def test_get_batch_client(self, mock_client, mock_get_credentials):
+    def test_get_batch_client(self, mock_client, mock_get_credentials, mock_get_client_options):
         self.hook.get_batch_client(region=GCP_LOCATION)
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_get_client_options.return_value,
         )
 
+    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_client_options"))
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_credentials"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerClient"))
-    def test_get_batch_client_region(self, mock_client, mock_get_credentials):
+    def test_get_batch_client_region(self, mock_client, mock_get_credentials, mock_get_client_options):
         self.hook.get_batch_client(region="region1")
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO, client_options=ANY
+            credentials=mock_get_credentials.return_value,
+            client_info=CLIENT_INFO,
+            client_options=mock_get_client_options.return_value,
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
@@ -613,7 +623,7 @@ class TestDataprocAsyncHook:
         mock_client.assert_called_once_with(
             credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_sync_hook.get_client_options.return_value,
         )
 
     @pytest.mark.asyncio
@@ -628,7 +638,7 @@ class TestDataprocAsyncHook:
         mock_client.assert_called_once_with(
             credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=ANY,
+            client_options=mock_sync_hook.get_client_options.return_value,
         )
 
     @pytest.mark.asyncio
@@ -643,7 +653,7 @@ class TestDataprocAsyncHook:
         mock_client.assert_called_once_with(
             credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_sync_hook.get_client_options.return_value,
         )
 
     @pytest.mark.asyncio
@@ -658,7 +668,7 @@ class TestDataprocAsyncHook:
         mock_client.assert_called_once_with(
             credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=ANY,
+            client_options=mock_sync_hook.get_client_options.return_value,
         )
 
     @pytest.mark.asyncio
@@ -673,7 +683,7 @@ class TestDataprocAsyncHook:
         mock_client.assert_called_once_with(
             credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_sync_hook.get_client_options.return_value,
         )
 
     @pytest.mark.asyncio
@@ -688,7 +698,7 @@ class TestDataprocAsyncHook:
         mock_client.assert_called_once_with(
             credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=ANY,
+            client_options=mock_sync_hook.get_client_options.return_value,
         )
 
     @pytest.mark.asyncio
@@ -703,7 +713,7 @@ class TestDataprocAsyncHook:
         mock_client.assert_called_once_with(
             credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=None,
+            client_options=mock_sync_hook.get_client_options.return_value,
         )
 
     @pytest.mark.asyncio
@@ -718,7 +728,7 @@ class TestDataprocAsyncHook:
         mock_client.assert_called_once_with(
             credentials=mock_sync_hook.get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options=ANY,
+            client_options=mock_sync_hook.get_client_options.return_value,
         )
 
     @pytest.mark.asyncio

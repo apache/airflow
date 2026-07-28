@@ -75,22 +75,21 @@ You are an expert researcher. You always stick to the facts in the sources provi
 Now look at these research papers, and answer the following questions.
 """
 
-CACHED_CONTENT_CONFIG = CreateCachedContentConfig(
-    contents=[
-        Content(
-            role="user",
-            parts=[
-                Part.from_uri(
-                    file_uri="gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
-                    mime_type="application/pdf",
-                ),
-                Part.from_uri(
-                    file_uri="gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
-                    mime_type="application/pdf",
-                ),
-            ],
-        )
+_CACHED_CONTENT = Content(
+    role="user",
+    parts=[
+        Part.from_uri(
+            file_uri="gs://cloud-samples-data/generative-ai/pdf/2312.11805v3.pdf",
+            mime_type="application/pdf",
+        ),
+        Part.from_uri(
+            file_uri="gs://cloud-samples-data/generative-ai/pdf/2403.05530.pdf",
+            mime_type="application/pdf",
+        ),
     ],
+)
+CACHED_CONTENT_CONFIG = CreateCachedContentConfig(
+    contents=_CACHED_CONTENT,
     system_instruction=TEST_CACHED_SYSTEM_INSTRUCTION,
     display_name="test-cache",
     ttl="3600s",
@@ -133,6 +132,21 @@ class TestGenAIGenerativeModelHookWithDefaultProjectId:
         ):
             self.hook = GenAIGenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
             self.hook.get_credentials = self.dummy_get_credentials
+
+    @mock.patch("google.genai.Client")
+    def test_get_genai_client_passes_connection_credentials(self, mock_client) -> None:
+        """get_genai_client must pass Airflow connection credentials to genai.Client, not fall back to ADC."""
+        mock_credentials = mock.Mock()
+        self.hook.get_credentials = mock.Mock(return_value=mock_credentials)
+
+        self.hook.get_genai_client(project_id=GCP_PROJECT, location=GCP_LOCATION)
+
+        mock_client.assert_called_once_with(
+            vertexai=True,
+            project=GCP_PROJECT,
+            location=GCP_LOCATION,
+            credentials=mock_credentials,
+        )
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGenerativeModelHook.get_genai_client"))
     def test_text_embedding_model_get_embeddings(self, mock_get_client) -> None:

@@ -26,8 +26,8 @@ def resolve_xcom_backend():
 
     :returns: returns the custom XCom class if configured.
     """
-    clazz = conf.getimport("core", "xcom_backend", fallback="airflow.sdk.bases.xcom.BaseXCom")
-    if not clazz:
+    clazz = conf.getimport("core", "xcom_backend")
+    if clazz is None:
         return BaseXCom
     if not issubclass(clazz, BaseXCom):
         raise TypeError(
