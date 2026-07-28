@@ -75,8 +75,8 @@ ARG_MIN_COMPLETED_MINUTES = Arg(
     help=(
         "Minimum age in minutes of a completed (Succeeded/Failed/Evicted) pod before it is deleted. "
         "Defaults to 0 (delete immediately, preserving current behaviour). "
-        "Set this to a value greater than the KubernetesPodOperator poll interval (2 s, see ``await_pod_completion``) to prevent "
-        "a race where the cleanup job removes a pod before KPO observes its terminal phase, "
+        "Set this to a positive value to prevent a race condition where the cleanup job removes a "
+        "just-completed pod before KubernetesPodOperator has polled its terminal phase, "
         "causing a spurious task failure despite the pod having succeeded."
     ),
 )
