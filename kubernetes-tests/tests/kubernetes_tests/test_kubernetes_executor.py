@@ -356,12 +356,21 @@ class TestKubernetesExecutorCallbackSupport(BaseK8STest):
         raise AssertionError(f"Pod {pod_name!r} was not deleted within {timeout}s")
 
     def _trigger_dag_run(self, dag_id: str) -> str:
-        result_json = self.start_dag(dag_id=dag_id, host=self.host)
-        dag_runs = result_json.get("dag_runs", [])
-        matching = [r for r in dag_runs if r["dag_id"] == dag_id]
-        assert matching, f"No dag runs returned for dag_id={dag_id!r}"
-        newest = max(matching, key=lambda r: r["queued_at"])
-        return newest["dag_run_id"]
+            result_json = self.start_dag(dag_id=dag_id, host=self.host)
+            dag_runs = result_json.get("dag_runs", [])
+            matching = [r for r in dag_runs if r["dag_id"] == dag_id]
+            assert matching, f"No dag runs returned for dag_id={dag_id!r}"
+            newest = max(matching, key=lambda r: r["queued_at"])
+            run_id = newest["dag_run_id"]
+
+            deadline = time.monotonic() + 120
+            while time.monotonic() < deadline:
+                run_info = self.get_dag_run(dag_id=dag_id, run_id=run_id, host=self.host) 
+                if run_info.get("state") in ("running", "success", "failed"):
+                    break
+                time.sleep(2)
+
+            return run_id
 
     @pytest.mark.execution_timeout(300)
     def test_deadline_callback_executes_on_kubernetes(self):
