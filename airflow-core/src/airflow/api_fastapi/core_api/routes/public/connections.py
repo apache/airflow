@@ -350,6 +350,21 @@ def test_connection(
                 existing_conn = None
 
         if existing_conn is not None:
+            # Stored credentials are only reused to test the connection's own
+            # host/port; testing a different destination must supply its own.
+            fields_set = test_body.model_fields_set
+            if ("host" in fields_set and test_body.host != existing_conn.host) or (
+                "port" in fields_set and test_body.port != existing_conn.port
+            ):
+                if "password" not in fields_set:
+                    raise HTTPException(
+                        status.HTTP_400_BAD_REQUEST,
+                        "The host or port to test differs from the stored connection. "
+                        "Include the credentials to test in the request body.",
+                    )
+                existing_conn = None
+
+        if existing_conn is not None:
             existing_conn.conn_id = transient_conn_id
             update_orm_from_pydantic(existing_conn, test_body)
             conn = existing_conn

@@ -65,9 +65,19 @@ if SQLToolset is not None:
                 "the schema and answer the question with data."
             ),
             toolsets=[
+                # ``allowed_tables`` scopes the agent's intent, but it is an
+                # application-level guardrail, not a security boundary. Point
+                # ``postgres_default`` at a least-privilege role whose SELECT grants
+                # are limited to these tables -- that is the boundary that holds even
+                # if the agent (which may be under prompt injection) reaches for data
+                # through a function the parser cannot see. See the "Security" section
+                # of the toolsets docs.
                 SQLToolset(
                     db_conn_id="postgres_default",
                     allowed_tables=["customers", "orders"],
+                    # Functions sqlglot cannot type are rejected while allowed_tables is
+                    # set; list any the agent legitimately needs (e.g. to shape output).
+                    allowed_functions=["json_build_object"],
                     max_rows=20,
                 )
             ],
@@ -108,6 +118,42 @@ def example_agent_operator_hook():
 # [END howto_operator_agent_hook]
 
 example_agent_operator_hook()
+
+
+# ---------------------------------------------------------------------------
+# 2b. Hook-based tools against a GET-only endpoint (self-hosted models tutorial)
+# ---------------------------------------------------------------------------
+
+
+# [START howto_agent_self_hosted]
+@dag(tags=["example"])
+def example_agent_self_hosted():
+    from airflow.providers.http.hooks.http import HttpHook
+
+    # The OpenAI-compatible model list (GET /v1/models) is GET-only; HttpHook defaults to POST.
+    http_hook = HttpHook(http_conn_id="my_api", method="GET")
+
+    AgentOperator(
+        task_id="list_models",
+        prompt="Which models are available?",
+        llm_conn_id="pydanticai_default",
+        system_prompt=(
+            "You are an API assistant. Use the tools to answer questions; "
+            "the server's model list is served at GET /v1/models."
+        ),
+        toolsets=[
+            HookToolset(
+                http_hook,
+                allowed_methods=["run"],
+                tool_name_prefix="http_",
+            )
+        ],
+    )
+
+
+# [END howto_agent_self_hosted]
+
+example_agent_self_hosted()
 
 
 # ---------------------------------------------------------------------------

@@ -58,6 +58,7 @@ def add_xcom_sidecar(
     *,
     sidecar_container_image: str | None = None,
     sidecar_container_resources: k8s.V1ResourceRequirements | dict | None = None,
+    sidecar_container_security_context: k8s.V1SecurityContext | dict | None = None,
 ) -> k8s.V1Pod:
     """Add sidecar."""
     pod_cp = copy.deepcopy(pod)
@@ -69,6 +70,8 @@ def add_xcom_sidecar(
     sidecar.image = sidecar_container_image or PodDefaults.SIDECAR_CONTAINER.image
     if sidecar_container_resources:
         sidecar.resources = sidecar_container_resources
+    if sidecar_container_security_context is not None:
+        sidecar.security_context = sidecar_container_security_context
     pod_cp.spec.containers.append(sidecar)
 
     return pod_cp

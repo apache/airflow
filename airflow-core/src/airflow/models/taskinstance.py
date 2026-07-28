@@ -100,7 +100,6 @@ from airflow.task.priority_strategy import validate_and_load_priority_weight_str
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -757,9 +756,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return prune_dict(
-            {"dag_id": self.dag_id, "task_id": self.task_id, "team_name": getattr(self, "_team_name", None)}
-        )
+        # Reuse the dag run's tags and add the task-level ones.
+        return {**self.dag_run.stats_tags, "task_id": self.task_id}
 
     @staticmethod
     def insert_mapping(

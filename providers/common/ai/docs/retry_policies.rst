@@ -161,7 +161,8 @@ Local LLM support
 -----------------
 
 For environments where exception data must not leave the infrastructure, point
-to a local model via Ollama or vLLM:
+to a local model via Ollama or vLLM -- see :ref:`howto/self_hosted_models` for
+general self-hosted connection setup:
 
 .. code-block:: python
 

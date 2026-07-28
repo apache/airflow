@@ -566,7 +566,7 @@ labelPRBasedOnFilePath:
   area:ts-sdk:
     - ts-sdk/**/*
 
-  "AIP-108: Coordinator":
+  area:coordinator:
     - task-sdk/src/airflow/sdk/coordinators/**/*
     - task-sdk/src/airflow/sdk/execution_time/coordinator.py
     - task-sdk/tests/task_sdk/coordinators/**/*
@@ -595,6 +595,9 @@ labelPRBasedOnFilePath:
 
   area:docker-tests:
     - docker-tests/**/*
+
+  area:e2e-tests:
+    - airflow-e2e-tests/**/*
 
   area:kubernetes-tests:
     - kubernetes-tests/**/*
