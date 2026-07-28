@@ -50,7 +50,7 @@ class TestGetPlugins:
                     "edge_executor",
                     "hitl_review",
                     "hive",
-                    "kafka_listener",
+                    "kafka_event_producer",
                     "plugin-a",
                     "plugin-b",
                     "plugin-c",

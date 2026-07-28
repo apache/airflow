@@ -1216,6 +1216,95 @@ class TestAssetEventOperations:
         assert result.asset_events[0].asset.name == "this_asset"
         assert result.asset_events[0].asset.uri == "s3://bucket/key"
 
+    def test_partition_key_exact_match_param_passed(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert params.get("partition_key") == "2024-01-01"
+            assert "partition_key_regexp_pattern" not in params
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "asset_events": [
+                        {
+                            "id": 1,
+                            "asset": {
+                                "name": "this_asset",
+                                "uri": "s3://bucket/key",
+                                "group": "asset",
+                            },
+                            "created_dagruns": [],
+                            "timestamp": "2023-01-01T00:00:00Z",
+                            "partition_key": "2024-01-01",
+                        }
+                    ]
+                },
+            )
+
+        client = make_client(httpx.MockTransport(handle_request))
+        result = client.asset_events.get(name="this_asset", partition_key="2024-01-01")
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 1
+
+    def test_partition_key_regexp_pattern_param_passed(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert params.get("partition_key_regexp_pattern") == "^2024-01-"
+            assert "partition_key" not in params
+            return httpx.Response(
+                status_code=200,
+                json={"asset_events": []},
+            )
+
+        client = make_client(httpx.MockTransport(handle_request))
+        result = client.asset_events.get(name="this_asset", partition_key_regexp_pattern="^2024-01-")
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 0
+
+    def test_partition_key_regexp_pattern_with_other_params(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            params = request.url.params
+            assert params.get("partition_key_regexp_pattern") == r"^us\|2024-.*"
+            assert "partition_key" not in params
+            assert params.get("after") == "2023-06-01T00:00:00+00:00"
+            assert params.get("limit") == "5"
+            assert params.get("ascending") == "false"
+            return httpx.Response(
+                status_code=200,
+                json={"asset_events": []},
+            )
+
+        client = make_client(httpx.MockTransport(handle_request))
+        result = client.asset_events.get(
+            name="this_asset",
+            partition_key_regexp_pattern=r"^us\|2024-.*",
+            after=datetime(2023, 6, 1, tzinfo=dt_timezone.utc),
+            limit=5,
+            ascending=False,
+        )
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 0
+
+    def test_partition_key_with_alias(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/asset-events/by-asset-alias"
+            params = request.url.params
+            assert params.get("name") == "my_alias"
+            assert params.get("partition_key") == "us-east|2024-01-01"
+            assert "partition_key_regexp_pattern" not in params
+            return httpx.Response(
+                status_code=200,
+                json={"asset_events": []},
+            )
+
+        client = make_client(httpx.MockTransport(handle_request))
+        result = client.asset_events.get(alias_name="my_alias", partition_key="us-east|2024-01-01")
+
+        assert isinstance(result, AssetEventsResponse)
+        assert len(result.asset_events) == 0
+
     def test_extra_dict_param_passed(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             params = request.url.params

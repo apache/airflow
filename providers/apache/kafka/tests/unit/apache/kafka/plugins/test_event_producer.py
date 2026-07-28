@@ -24,8 +24,8 @@ import pytest
 from confluent_kafka import KafkaError
 
 from airflow.models import Connection
-from airflow.providers.apache.kafka.plugins import listener
-from airflow.providers.apache.kafka.plugins.listener import DagRunListener, TaskListener
+from airflow.providers.apache.kafka.plugins import event_producer
+from airflow.providers.apache.kafka.plugins.event_producer import DagRunListener, TaskListener
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -48,7 +48,7 @@ _PRODUCER_HOOK_CLS = "airflow.providers.apache.kafka.hooks.produce.KafkaProducer
 
 @pytest.fixture(autouse=True)
 def _default_kafka_conn(create_connection_without_db):
-    # The listener builds its producer through ``KafkaProducerHook``, which requires
+    # The plugin builds its producer through ``KafkaProducerHook``, which requires
     # a resolvable ``kafka_default`` connection.
     create_connection_without_db(
         Connection(
@@ -63,24 +63,24 @@ def _default_kafka_conn(create_connection_without_db):
 def _clear_cached_values():
     """Invalidates caches before each test run."""
     # Reset config cache.
-    listener._dag_run_events_enabled.cache_clear()
-    listener._task_instance_events_enabled.cache_clear()
-    listener._get_topic.cache_clear()
-    listener._get_kafka_config_id.cache_clear()
-    listener._get_source.cache_clear()
-    listener._get_dag_run_dag_id_allowlist.cache_clear()
-    listener._get_dag_run_dag_id_denylist.cache_clear()
-    listener._get_task_instance_dag_id_allowlist.cache_clear()
-    listener._get_task_instance_dag_id_denylist.cache_clear()
-    listener._get_task_instance_task_id_allowlist.cache_clear()
-    listener._get_task_instance_task_id_denylist.cache_clear()
-    listener._get_topic_check_timeout.cache_clear()
-    listener._get_topic_check_retry_interval.cache_clear()
+    event_producer._dag_run_events_enabled.cache_clear()
+    event_producer._task_instance_events_enabled.cache_clear()
+    event_producer._get_topic.cache_clear()
+    event_producer._get_kafka_config_id.cache_clear()
+    event_producer._get_source.cache_clear()
+    event_producer._get_dag_run_dag_id_allowlist.cache_clear()
+    event_producer._get_dag_run_dag_id_denylist.cache_clear()
+    event_producer._get_task_instance_dag_id_allowlist.cache_clear()
+    event_producer._get_task_instance_dag_id_denylist.cache_clear()
+    event_producer._get_task_instance_task_id_allowlist.cache_clear()
+    event_producer._get_task_instance_task_id_denylist.cache_clear()
+    event_producer._get_topic_check_timeout.cache_clear()
+    event_producer._get_topic_check_retry_interval.cache_clear()
 
     # Reset the module-level producer and topic state.
-    listener._producer = None
-    listener._topic_exists = False
-    listener._topic_check_retry_after = 0.0
+    event_producer._producer = None
+    event_producer._topic_exists = False
+    event_producer._topic_check_retry_after = 0.0
 
 
 @pytest.fixture
@@ -126,7 +126,7 @@ def _assert_common_message_fields(kafka_producer_mock, expected_event: str) -> d
     assert kwargs["key"] == f"{_DAG_ID}/{_DAG_RUN_ID}".encode()
 
     body = json.loads(kwargs["value"].decode("utf-8"))
-    assert body["schema_version"] == listener.SCHEMA_VERSION
+    assert body["schema_version"] == event_producer.SCHEMA_VERSION
     assert body["source"] == _SOURCE
     assert body["event"] == expected_event
     assert body["dag_id"] == _DAG_ID
@@ -140,22 +140,22 @@ def _assert_common_message_fields(kafka_producer_mock, expected_event: str) -> d
     [
         pytest.param(
             {
-                ("kafka_listener", "dag_run_events_enabled"): "True",
-                ("kafka_listener", "task_instance_events_enabled"): "True",
+                ("kafka_event_producer", "dag_run_events_enabled"): "True",
+                ("kafka_event_producer", "task_instance_events_enabled"): "True",
             },
             [DagRunListener, TaskListener],
             id="both_listeners_enabled",
         ),
         pytest.param(
             {
-                ("kafka_listener", "dag_run_events_enabled"): "True",
+                ("kafka_event_producer", "dag_run_events_enabled"): "True",
             },
             [DagRunListener],
             id="only_dr_events",
         ),
         pytest.param(
             {
-                ("kafka_listener", "task_instance_events_enabled"): "True",
+                ("kafka_event_producer", "task_instance_events_enabled"): "True",
             },
             [TaskListener],
             id="only_ti_events",
@@ -169,7 +169,7 @@ def _assert_common_message_fields(kafka_producer_mock, expected_event: str) -> d
 )
 def test_get_enabled_listeners(configs, expected_listener_classes):
     with conf_vars(configs):
-        registered_listeners = listener._get_enabled_listeners()
+        registered_listeners = event_producer._get_enabled_listeners()
         # Both lists should have the same size.
         assert len(registered_listeners) == len(expected_listener_classes)
 
@@ -187,9 +187,9 @@ def test_get_enabled_listeners(configs, expected_listener_classes):
 )
 @conf_vars(
     {
-        ("kafka_listener", "dag_run_events_enabled"): "True",
-        ("kafka_listener", "topic"): _KAFKA_TOPIC,
-        ("kafka_listener", "source"): _SOURCE,
+        ("kafka_event_producer", "dag_run_events_enabled"): "True",
+        ("kafka_event_producer", "topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "source"): _SOURCE,
     }
 )
 def test_produce_dr_message(
@@ -224,9 +224,9 @@ def test_produce_dr_message(
 )
 @conf_vars(
     {
-        ("kafka_listener", "task_instance_events_enabled"): "True",
-        ("kafka_listener", "topic"): _KAFKA_TOPIC,
-        ("kafka_listener", "source"): _SOURCE,
+        ("kafka_event_producer", "task_instance_events_enabled"): "True",
+        ("kafka_event_producer", "topic"): _KAFKA_TOPIC,
+        ("kafka_event_producer", "source"): _SOURCE,
     }
 )
 def test_produce_ti_message(
@@ -261,15 +261,15 @@ class TestGetProducer:
 
     @pytest.fixture(autouse=True)
     def _producer_conf(self):
-        with conf_vars({("kafka_listener", "topic"): _KAFKA_TOPIC}):
+        with conf_vars({("kafka_event_producer", "topic"): _KAFKA_TOPIC}):
             yield
 
     def test_producer_cached_on_success(self):
         kafka_producer_mock = MagicMock()
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock) as producer_cls_mock:
-            producer1 = listener._get_producer()
-            producer2 = listener._get_producer()
+            producer1 = event_producer._get_producer()
+            producer2 = event_producer._get_producer()
 
         assert producer1 is kafka_producer_mock
         assert producer2 is producer1
@@ -277,10 +277,10 @@ class TestGetProducer:
 
     def test_init_failure_warns_and_returns_none(self, monkeypatch):
         log_warning_mock = MagicMock()
-        monkeypatch.setattr(listener.log, "warning", log_warning_mock)
+        monkeypatch.setattr(event_producer.log, "warning", log_warning_mock)
 
         with patch(_PRODUCER_CLS, side_effect=ValueError("boom")):
-            assert listener._get_producer() is None
+            assert event_producer._get_producer() is None
 
         log_warning_mock.assert_called_once()
         warning_format, exc_arg = log_warning_mock.call_args.args
@@ -293,30 +293,30 @@ class TestGetProducer:
         kafka_producer_mock = MagicMock()
 
         register_mock = MagicMock()
-        monkeypatch.setattr(listener.atexit, "register", register_mock)
+        monkeypatch.setattr(event_producer.atexit, "register", register_mock)
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            listener._get_producer()
+            event_producer._get_producer()
 
-        register_mock.assert_called_once_with(listener._flush_producer_at_exit, kafka_producer_mock)
+        register_mock.assert_called_once_with(event_producer._flush_producer_at_exit, kafka_producer_mock)
 
-    def test_hook_built_from_listener_config(self):
-        """The listener section's ``kafka_config_id`` is forwarded to the hook."""
+    def test_hook_built_from_event_producer_config(self):
+        """The plugin section's ``kafka_config_id`` is forwarded to the hook."""
         hook_mock = MagicMock()
 
-        with conf_vars({("kafka_listener", "kafka_config_id"): "kafka_events"}):
+        with conf_vars({("kafka_event_producer", "kafka_config_id"): "kafka_events"}):
             with patch(_PRODUCER_HOOK_CLS, return_value=hook_mock) as hook_cls_mock:
-                producer = listener._get_producer()
+                producer = event_producer._get_producer()
 
         hook_cls_mock.assert_called_once_with(kafka_config_id="kafka_events")
         assert producer is hook_mock.get_producer.return_value
 
     def test_hook_defaults_when_options_unset(self):
-        """Without listener options the hook falls back to its own defaults."""
+        """Without plugin options the hook falls back to its own defaults."""
         hook_mock = MagicMock()
 
         with patch(_PRODUCER_HOOK_CLS, return_value=hook_mock) as hook_cls_mock:
-            listener._get_producer()
+            event_producer._get_producer()
 
         # Unset options must not be passed to the hook at all (e.g. as ""), so the
         # hook's own defaults (the "kafka_default" connection) apply.
@@ -328,7 +328,7 @@ class TestCheckTopicExists:
 
     @pytest.fixture(autouse=True)
     def _topic_conf(self):
-        with conf_vars({("kafka_listener", "topic"): _KAFKA_TOPIC}):
+        with conf_vars({("kafka_event_producer", "topic"): _KAFKA_TOPIC}):
             yield
 
     def test_topic_exists_kept_for_process_lifetime(self):
@@ -336,9 +336,9 @@ class TestCheckTopicExists:
         kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = True
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            assert listener._check_topic_exists() is True
+            assert event_producer._check_topic_exists() is True
             # Once confirmed, the broker is not queried again.
-            assert listener._check_topic_exists() is True
+            assert event_producer._check_topic_exists() is True
 
         kafka_producer_mock.list_topics.assert_called_once()
 
@@ -347,29 +347,29 @@ class TestCheckTopicExists:
         kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = False
 
         log_warning_mock = MagicMock()
-        monkeypatch.setattr(listener.log, "warning", log_warning_mock)
+        monkeypatch.setattr(event_producer.log, "warning", log_warning_mock)
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            assert listener._check_topic_exists() is False
+            assert event_producer._check_topic_exists() is False
 
         log_warning_mock.assert_called_once()
         # Format string + the two formatting args are passed positionally to log.warning.
         warning_format, topic_arg, retry_interval_arg = log_warning_mock.call_args.args
         assert "topic %r not found on the broker" in warning_format
         assert topic_arg == _KAFKA_TOPIC
-        assert retry_interval_arg == listener._get_topic_check_retry_interval()
+        assert retry_interval_arg == event_producer._get_topic_check_retry_interval()
 
     def test_list_topics_failure_warns_and_sets_cooldown(self, monkeypatch):
         kafka_producer_mock = MagicMock()
         kafka_producer_mock.list_topics.side_effect = ValueError("broker down")
 
         log_warning_mock = MagicMock()
-        monkeypatch.setattr(listener.log, "warning", log_warning_mock)
+        monkeypatch.setattr(event_producer.log, "warning", log_warning_mock)
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            assert listener._check_topic_exists() is False
+            assert event_producer._check_topic_exists() is False
             # Within the cooldown window the check is not retried.
-            assert listener._check_topic_exists() is False
+            assert event_producer._check_topic_exists() is False
 
         kafka_producer_mock.list_topics.assert_called_once()
         log_warning_mock.assert_called_once()
@@ -377,7 +377,7 @@ class TestCheckTopicExists:
 
     def test_retried_after_failure_cooldown(self, monkeypatch):
         time_now = [1000.0]
-        monkeypatch.setattr(listener.time, "monotonic", lambda: time_now[0])
+        monkeypatch.setattr(event_producer.time, "monotonic", lambda: time_now[0])
 
         kafka_producer_mock = MagicMock()
         # The topic doesn't exist yet.
@@ -385,36 +385,36 @@ class TestCheckTopicExists:
 
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
             # First check fails: the topic is missing.
-            assert listener._check_topic_exists() is False
+            assert event_producer._check_topic_exists() is False
             assert kafka_producer_mock.list_topics.call_count == 1
 
             # The interval hasn't passed and the check isn't retried.
             time_now[0] += 1
-            assert listener._check_topic_exists() is False
+            assert event_producer._check_topic_exists() is False
             assert kafka_producer_mock.list_topics.call_count == 1
 
             # Past the interval. The check is retried and succeeds this time.
             kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = True
-            time_now[0] += listener._get_topic_check_retry_interval() + 1
-            assert listener._check_topic_exists() is True
+            time_now[0] += event_producer._get_topic_check_retry_interval() + 1
+            assert event_producer._check_topic_exists() is True
             assert kafka_producer_mock.list_topics.call_count == 2
 
     def test_producer_init_failure_sets_cooldown(self, monkeypatch):
         time_now = [1000.0]
-        monkeypatch.setattr(listener.time, "monotonic", lambda: time_now[0])
+        monkeypatch.setattr(event_producer.time, "monotonic", lambda: time_now[0])
 
         with patch(_PRODUCER_CLS, side_effect=ValueError("boom")) as producer_cls_mock:
-            assert listener._check_topic_exists() is False
+            assert event_producer._check_topic_exists() is False
             assert producer_cls_mock.call_count == 1
 
             # The interval hasn't passed and the producer initialization isn't retried.
             time_now[0] += 1
-            assert listener._check_topic_exists() is False
+            assert event_producer._check_topic_exists() is False
             assert producer_cls_mock.call_count == 1
 
             # Past the interval. The producer initialization is retried.
-            time_now[0] += listener._get_topic_check_retry_interval() + 1
-            assert listener._check_topic_exists() is False
+            time_now[0] += event_producer._get_topic_check_retry_interval() + 1
+            assert event_producer._check_topic_exists() is False
             assert producer_cls_mock.call_count == 2
 
     @pytest.mark.parametrize(
@@ -434,27 +434,27 @@ class TestCheckTopicExists:
         """
 
         time_now = [1000.0]
-        monkeypatch.setattr(listener.time, "monotonic", lambda: time_now[0])
+        monkeypatch.setattr(event_producer.time, "monotonic", lambda: time_now[0])
 
         kafka_producer_mock = MagicMock()
         kafka_producer_mock.list_topics.return_value.topics.__contains__.return_value = True
         with patch(_PRODUCER_CLS, return_value=kafka_producer_mock):
-            assert listener._check_topic_exists() is True
-            assert listener._topic_exists is True
+            assert event_producer._check_topic_exists() is True
+            assert event_producer._topic_exists is True
 
             err = MagicMock()
             err.code.return_value = kafka_error
-            listener._on_delivery(err, MagicMock())
+            event_producer._on_delivery(err, MagicMock())
 
-            assert listener._topic_exists is topic_exists_expected
+            assert event_producer._topic_exists is topic_exists_expected
 
             if not topic_exists_expected:
                 # Cooldown holds off the immediate re-check.
-                assert listener._check_topic_exists() is False
+                assert event_producer._check_topic_exists() is False
                 # After the cooldown, the check re-verifies; the topic is still on the broker,
                 # so confirmation is restored.
-                time_now[0] += listener._get_topic_check_retry_interval() + 1
-                assert listener._check_topic_exists() is True
+                time_now[0] += event_producer._get_topic_check_retry_interval() + 1
+                assert event_producer._check_topic_exists() is True
 
 
 class TestFilters:
@@ -464,9 +464,9 @@ class TestFilters:
     def _filters_conf(self):
         with conf_vars(
             {
-                ("kafka_listener", "dag_run_events_enabled"): "True",
-                ("kafka_listener", "task_instance_events_enabled"): "True",
-                ("kafka_listener", "topic"): _KAFKA_TOPIC,
+                ("kafka_event_producer", "dag_run_events_enabled"): "True",
+                ("kafka_event_producer", "task_instance_events_enabled"): "True",
+                ("kafka_event_producer", "topic"): _KAFKA_TOPIC,
             }
         ):
             yield
@@ -482,55 +482,55 @@ class TestFilters:
         ],
     )
     def test_id_is_allowed(self, id_to_check, allowlist, denylist, expected_result):
-        assert listener._id_is_allowed(id_to_check, allowlist, denylist) is expected_result
+        assert event_producer._id_is_allowed(id_to_check, allowlist, denylist) is expected_result
 
     @conf_vars(
         {
-            ("kafka_listener", "task_instance_dag_id_denylist"): "dag1_*",
+            ("kafka_event_producer", "task_instance_dag_id_denylist"): "dag1_*",
         }
     )
     def test_dag_run_filter_ignores_ti_lists(self):
         # The dag_id lists for DR events, are separate from the dag_id lists for TI events.
         # The dag_id denylist for task instances would match "dag1_task1" but DR filter must ignore it.
-        assert listener._dag_run_event_allowed("dag1_task1") is True
+        assert event_producer._dag_run_event_allowed("dag1_task1") is True
 
     @conf_vars(
         {
-            ("kafka_listener", "dag_run_dag_id_denylist"): "dag1_*",
+            ("kafka_event_producer", "dag_run_dag_id_denylist"): "dag1_*",
         }
     )
     def test_task_instance_filter_ignores_dr_lists(self):
         # The dag_id lists for DR events, are separate from the dag_id lists for TI events.
         # DR denylist would match "dag1_task1" but TI filter must ignore it.
-        assert listener._task_instance_event_allowed("dag1_task1", "load") is True
+        assert event_producer._task_instance_event_allowed("dag1_task1", "load") is True
 
     @conf_vars(
         {
-            ("kafka_listener", "task_instance_dag_id_allowlist"): "dag1_*",
-            ("kafka_listener", "task_instance_task_id_denylist"): "*_cleanup",
+            ("kafka_event_producer", "task_instance_dag_id_allowlist"): "dag1_*",
+            ("kafka_event_producer", "task_instance_task_id_denylist"): "*_cleanup",
         }
     )
     def test_task_instance_requires_both_dag_id_and_task_id(self):
         # dag_id passes (matches allowlist), task_id passes (no deny match).
-        assert listener._task_instance_event_allowed("dag1_task1", "task2") is True
+        assert event_producer._task_instance_event_allowed("dag1_task1", "task2") is True
         # dag_id passes, task_id denied.
-        assert listener._task_instance_event_allowed("dag1_task1", "task2_cleanup") is False
+        assert event_producer._task_instance_event_allowed("dag1_task1", "task2_cleanup") is False
         # dag_id denied (no allowlist match), task_id passes.
-        assert listener._task_instance_event_allowed("other_dag", "load") is False
+        assert event_producer._task_instance_event_allowed("other_dag", "load") is False
 
-    @conf_vars({("kafka_listener", "dag_run_dag_id_denylist"): _DAG_ID})
+    @conf_vars({("kafka_event_producer", "dag_run_dag_id_denylist"): _DAG_ID})
     def test_dr_filter_blocks_emission(self, dr_mock, kafka_producer_mock):
         DagRunListener().on_dag_run_running(dag_run=dr_mock, msg=None)
         kafka_producer_mock.produce.assert_not_called()
 
-    @conf_vars({("kafka_listener", "task_instance_dag_id_denylist"): _DAG_ID})
+    @conf_vars({("kafka_event_producer", "task_instance_dag_id_denylist"): _DAG_ID})
     def test_ti_filter_blocks_emission_via_dag_id(self, ti_mock, kafka_producer_mock):
         TaskListener().on_task_instance_running(
             previous_state="queued", task_instance=ti_mock, **_TI_SESSION_KWARG
         )
         kafka_producer_mock.produce.assert_not_called()
 
-    @conf_vars({("kafka_listener", "task_instance_task_id_denylist"): _TASK_ID})
+    @conf_vars({("kafka_event_producer", "task_instance_task_id_denylist"): _TASK_ID})
     def test_ti_filter_blocks_emission_via_task_id(self, ti_mock, kafka_producer_mock):
         TaskListener().on_task_instance_running(
             previous_state="queued", task_instance=ti_mock, **_TI_SESSION_KWARG

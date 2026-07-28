@@ -237,6 +237,30 @@ match responses to requests. The SDK MUST correlate by ``id`` whenever multiple
 requests can be outstanding simultaneously (e.g. when tasks are executed
 concurrently, or when a single task issues multiple requests).
 
+Task subprocess lifecycle
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before implementing logging, it helps to see the full lifecycle of the
+subprocess relative to the ``--logs`` socket:
+
+.. code-block:: text
+
+    1. Supervisor launches the subprocess with
+       --comm=<host>:<port> --logs=<host>:<port>
+      │
+      └─► 2. Subprocess starts. Its logger is already active, but the
+              --logs socket is not connected yet.
+             │
+             └─► 3. Subprocess connects to --comm and --logs.
+                    │
+                    └─► 4. Each subsequent record is sent over the
+                            --logs socket.
+
+The gap is stage 2: the SDK's own startup code (argument parsing, the connect
+calls themselves) can already produce log records before the ``--logs`` socket
+in stage 3 exists to carry them. See `Logging`_ below for how to handle that
+gap.
+
 Logging
 ~~~~~~~
 
@@ -245,6 +269,11 @@ The SDK should wire the native logging mechanism (the equivalent of Python's
 during execution to Airflow's task log store, so they appear in the UI with the
 rest of the output. Records travel over the ``--logs`` socket introduced in
 `Startup`_.
+
+Records produced during stage 2 of the `Task subprocess lifecycle`_ — before
+the ``--logs`` socket connects — MUST NOT be dropped. Buffer them in memory and
+flush the buffer, in order, as soon as the socket connects, before sending any
+later record. Both the Go SDK and Java SDK already implement this buffer.
 
 Log messages should be **newline-delimited JSON**. Each log is a UTF-8 encoded
 JSON object in one line, terminated by a newline character (``\n``). Each object

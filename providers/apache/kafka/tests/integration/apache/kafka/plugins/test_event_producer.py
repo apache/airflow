@@ -42,7 +42,7 @@ log = logging.getLogger(__name__)
 
 client_config = {
     "bootstrap.servers": "broker:29092",
-    "group.id": "kafka-listener-integration-test",
+    "group.id": "kafka-event-producer-integration-test",
     "enable.auto.commit": False,
     "auto.offset.reset": "earliest",
 }
@@ -59,7 +59,7 @@ def _wait_for_assignment(consumer, timeout: float = 10.0) -> None:
 
 @pytest.mark.integration("kafka")
 @pytest.mark.backend("postgres")
-class TestEventListener:
+class TestEventProducer:
     test_dir = os.path.dirname(os.path.abspath(__file__))
     dag_folder = os.path.join(test_dir, "dags")
 
@@ -83,12 +83,12 @@ class TestEventListener:
         os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
         os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "False"
 
-        os.environ["AIRFLOW__KAFKA_LISTENER__DAG_RUN_EVENTS_ENABLED"] = "True"
-        os.environ["AIRFLOW__KAFKA_LISTENER__TASK_INSTANCE_EVENTS_ENABLED"] = "True"
-        os.environ["AIRFLOW__KAFKA_LISTENER__TOPIC"] = cls.TOPIC
-        os.environ["AIRFLOW__KAFKA_LISTENER__SOURCE"] = "dev-breeze"
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__DAG_RUN_EVENTS_ENABLED"] = "True"
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_EVENTS_ENABLED"] = "True"
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC"] = cls.TOPIC
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__SOURCE"] = "dev-breeze"
 
-        # Shared Kafka connection: used by the listener producer, the topic
+        # Shared Kafka connection: used by the event producer plugin, the topic
         # creation/deletion, and the consumer.
         kafka_default_conn = Connection(
             conn_id=cls.KAFKA_CONFIG_ID,

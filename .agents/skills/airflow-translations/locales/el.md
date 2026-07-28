@@ -17,7 +17,6 @@ The following terms **must remain in English unchanged** (case-sensitive):
 - `XCom` / `XComs` — Airflow cross-communication mechanism
 - `Backfill` / `Backfills` — Historical data fill-in; kept as a recognizable technical term
 - `Pool` / `Pools` — Resource constraint mechanism
-- `Slot` / `Slots` — Pool slot count
 - `Map Index` — Task mapping index
 - `PID` — Unix process identifier
 - `ID` — Universal abbreviation
@@ -34,37 +33,39 @@ The following terms **must remain in English unchanged** (case-sensitive):
 The following Airflow-specific terms have established Greek translations
 that **must be used consistently**:
 
-| English Term           | Greek Translation                     | Notes                                               |
-| ---------------------- | ------------------------------------- | --------------------------------------------------- |
-| Task                   | Εργασία                               | Plural: "Εργασίες"                                  |
-| Task Instance          | Εκτέλεση Εργασίας                     | Plural: "Εκτελέσεις Εργασίας"                       |
-| Task Group             | Ομάδα Εργασιών                        |                                                     |
-| Dag Run                | Εκτέλεση Dag                          | Plural: "Εκτελέσεις Dag"                            |
-| Run                    | Εκτέλεση                              | Plural: "Εκτελέσεις"; used standalone               |
-| Trigger (noun)         | Ενεργοποίηση                          |                                                     |
-| Trigger Rule           | Κανόνας Ενεργοποίησης                 |                                                     |
-| Triggerer              | Ενεργοποιητής                         | Component name                                      |
-| Scheduler              | Προγραμματιστής                       |                                                     |
-| Schedule (noun)        | Πρόγραμμα                             |                                                     |
-| Executor               | Εκτελεστής                            |                                                     |
-| Connection             | Σύνδεση                               | Plural: "Συνδέσεις"                                 |
-| Variable               | Μεταβλητή                             | Plural: "Μεταβλητές"                                |
-| Audit Log              | Καταγραφή Ελέγχου                     |                                                     |
-| Log                    | Καταγραφή                             |                                                     |
-| State                  | Κατάσταση                             |                                                     |
-| Queue (noun)           | Ουρά                                  | e.g., "Σε Ουρά" for "queued"                        |
-| Config / Configuration | Ρυθμίσεις                             |                                                     |
-| Operator               | Τελεστής                              | Plural: "Τελεστές"                                  |
-| Asset                  | Οντότητα                              | Plural: "Οντότητες" — translated (Greek-specific)   |
-| Asset Event            | Συμβάν Οντότητας                      | Plural: "Συμβάντα Οντοτήτων"                        |
-| Plugin                 | Πρόσθετο                              | Plural: "Πρόσθετα"                                  |
-| Provider               | Πάροχος                               | Plural: "Πάροχοι"                                   |
-| Dag Processor          | Επεξεργαστής Dag                      | Component name                                      |
-| Heartbeat              | Παλμός                                |                                                     |
-| Map Index              | Δείκτης Χάρτη                         |                                                     |
-| Upstream (dependency)  | Ανάντη                                | Used in states: "Αποτυχία Ανάντη"                   |
-| Upstream (action)      | Άνοδος                                | Used in clear-task action options                   |
-| Downstream (action)    | Κάθοδος                               | Used in clear-task action options                   |
+| English Term           | Greek Translation     | Notes                                             |
+|------------------------|-----------------------|---------------------------------------------------|
+| Task                   | Εργασία               | Plural: "Εργασίες"                                |
+| Task Instance          | Εκτέλεση Εργασίας     | Plural: "Εκτελέσεις Εργασίας"                     |
+| Task Group             | Ομάδα Εργασιών        |                                                   |
+| Dag Run                | Εκτέλεση Dag          | Plural: "Εκτελέσεις Dag"                          |
+| Run                    | Εκτέλεση              | Plural: "Εκτελέσεις"; used standalone             |
+| Trigger (noun)         | Ενεργοποίηση          |                                                   |
+| Trigger Rule           | Κανόνας Ενεργοποίησης |                                                   |
+| Triggerer              | Ενεργοποιητής         | Component name                                    |
+| Scheduler              | Προγραμματιστής       |                                                   |
+| Schedule (noun)        | Πρόγραμμα             |                                                   |
+| Executor               | Εκτελεστής            |                                                   |
+| Connection             | Σύνδεση               | Plural: "Συνδέσεις"                               |
+| Variable               | Μεταβλητή             | Plural: "Μεταβλητές"                              |
+| Audit Log              | Καταγραφή Ελέγχου     |                                                   |
+| Log                    | Καταγραφή             |                                                   |
+| State                  | Κατάσταση             |                                                   |
+| Queue (noun)           | Ουρά                  | e.g., "Σε Ουρά" for "queued"                      |
+| Config / Configuration | Ρυθμίσεις             |                                                   |
+| Operator               | Τελεστής              | Plural: "Τελεστές"                                |
+| Asset                  | Οντότητα              | Plural: "Οντότητες" — translated (Greek-specific) |
+| Asset Event            | Συμβάν Οντότητας      | Plural: "Συμβάντα Οντοτήτων"                      |
+| Plugin                 | Πρόσθετο              | Plural: "Πρόσθετα"                                |
+| Provider               | Πάροχος               | Plural: "Πάροχοι"                                 |
+| Dag Processor          | Επεξεργαστής Dag      | Component name                                    |
+| Heartbeat              | Παλμός                |                                                   |
+| Map Index              | Δείκτης Χάρτη         |                                                   |
+| Upstream (dependency)  | Ανάντη                | Used in states: "Αποτυχία Ανάντη"                 |
+| Upstream (action)      | Άνοδος                | Used in clear-task action options                 |
+| Downstream (action)    | Κάθοδος               | Used in clear-task action options                 |
+| Job (process)          | Διεργασία             |                                                   |
+| Slot                   | Θέση                  | Plural: "Θέσεις"; e.g. "Θέσεις Pool"              |
 
 > **Note on `Asset`:** Unlike French, Catalan, and other locales where "Asset" is kept in
 > English, Greek translates it as **Οντότητα** ("entity"). Use "Οντότητα" consistently
@@ -230,7 +231,7 @@ Copy    → "Αντιγραφή"
 **DON'T:**
 
 - Write "DAG" — always use "Dag"
-- Translate `XCom`, `Backfill`, `Pool`, `Slot`, `ID`, `JSON`, `REST API`, `UTC`, `PID`
+- Translate `XCom`, `Backfill`, `Pool`, `ID`, `JSON`, `REST API`, `UTC`, `PID`
 - Translate `{{variable}}` placeholder names
 - Drop Greek diacritics (e.g., never write "Εκτελεση" for "Εκτέλεση")
 - Use the informal "εσύ" form

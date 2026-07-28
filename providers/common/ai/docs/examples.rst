@@ -69,7 +69,9 @@ Agents & tools
        `example_agent_capabilities.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_agent_capabilities.py>`__).
    * - :ref:`Toolsets <howto/toolsets>`
      - Loading ``SKILL.md`` Agent Skills
-       (`example_agent_skills.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py>`__)
+       (`example_agent_skills.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py>`__),
+       allow-listed AWS API access via ``AWSToolset``
+       (`example_aws_toolset.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_aws_toolset.py>`__),
        and exposing an Airflow toolset to a LangChain agent, the reverse bridge
        (`example_langchain_toolset_bridge.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_langchain_toolset_bridge.py>`__).
    * - :doc:`connections/mcp`

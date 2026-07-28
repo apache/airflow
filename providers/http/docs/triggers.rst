@@ -21,10 +21,11 @@ HTTP Event Trigger
 
 .. _howto/trigger:HttpEventTrigger:
 
-The ``HttpEventTrigger`` is an event-based trigger that monitors whether responses
-from an API meet the conditions set by the user in the ``response_check`` callable.
+The ``HttpEventTrigger`` is an event-based trigger that monitors whether responses from an API meet the conditions set
+by the user in the ``response_check_path`` callable. If the condition is met, then the trigger "fires". Otherwise, it waits
+a certain amount of time before repeating the request and check.
 
-It is designed for **Airflow 3.0+** to be used in combination with the ``AssetWatcher`` system,
+The ``HttpEventTrigger`` is designed for **Airflow 3.0+** to be used in combination with the ``AssetWatcher`` system,
 enabling event-driven DAGs based on API responses.
 
 How It Works
@@ -40,7 +41,7 @@ How It Works
 Usage Example with AssetWatcher
 -------------------------------
 
-Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor the GitHub API for new Airflow releases.
+Here's an example of using the ``HttpEventTrigger`` in an ``AssetWatcher`` to monitor the GitHub API for new Airflow releases.
 
 .. code-block:: python
 
@@ -64,18 +65,27 @@ Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor th
 
 
     async def check_github_api_response(response):
+        """Determine if a new version of Airflow has been released."""
+        # Convert Variable.get to be asynchronous to be used on the Triggerer
+        get_variable_async = sync_to_async(Variable.get)
+
+        # Retrieve the previous and current release IDs (one from Variables, one from response)
+        previous_release_id = await get_variable_async(key="release_id_var", default=None)
         data = response.json()
         release_id = str(data["id"])
-        get_variable_sync = sync_to_async(Variable.get)
-        previous_release_id = await get_variable_sync(key="release_id_var", default=None)
+
         if release_id == previous_release_id:
             return False
+
+        # Parse and persist Airflow release data to be used in the downstream Task
         release_name = data["name"]
         release_html_url = data["html_url"]
-        set_variable_sync = sync_to_async(Variable.set)
-        await set_variable_sync(key="release_id_var", value=str(release_id))
-        await set_variable_sync(key="release_name_var", value=release_name)
-        await set_variable_sync(key="release_html_url_var", value=release_html_url)
+        set_variable_async = sync_to_async(Variable.set)
+
+        await set_variable_async(key="release_id_var", value=str(release_id))
+        await set_variable_async(key="release_name_var", value=release_name)
+        await set_variable_async(key="release_html_url_var", value=release_html_url)
+
         return True
 
 
@@ -89,7 +99,7 @@ Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor th
     )
 
     asset = Asset(
-        "airflow_releases_asset", watchers=[AssetWatcher(name="airflow_releases_watcher", trigger=trigger)]
+        name="airflow_releases_asset", watchers=[AssetWatcher(name="airflow_releases_watcher", trigger=trigger)]
     )
 
 
@@ -97,6 +107,7 @@ Here's an example of using the HttpEventTrigger in an AssetWatcher to monitor th
     def check_airflow_releases():
         @task()
         def print_airflow_release_info():
+            # Retrieve and output values persisted from the ``response_check_path`` function
             release_name = Variable.get("release_name_var")
             release_html_url = Variable.get("release_html_url_var")
             print(f"{release_name} has been released. Check it out at {release_html_url}")
@@ -110,32 +121,31 @@ Parameters
 ----------
 
 ``http_conn_id``
-    http connection id that has the base API url i.e https://www.google.com/ and optional authentication credentials.
-    Default headers can also be specified in the Extra field in json format.
+    HTTP Connection ID that has the base API URL, e.g. ``https://www.google.com/``, and optional authentication credentials. Default headers can also be specified in the ``extra`` field in JSON format.
 
 ``auth_type``
     The auth type for the service
 
 ``method``
-    the API method to be called
+    The API method to be called (``GET``, ``POST``, etc.)
 
 ``endpoint``
     Endpoint to be called, i.e. ``resource/v1/query?``
 
 ``headers``
-    Additional headers to be passed through as a dict
+    Additional headers to be passed through as a ``dict``
 
 ``data``
     Payload to be uploaded or request parameters
 
 ``extra_options``
-    Additional kwargs to pass when creating a request.
+    Additional keyword arguments to pass when creating a request
 
 ``response_check_path``
     Path to callable that evaluates whether the API response passes the conditions set by the user to trigger DAGs
 
 ``poll_interval``
-    How often, in seconds, the trigger should send a request to the API.
+    How often, in seconds, the trigger should send a request to the API
 
 
 Important Notes

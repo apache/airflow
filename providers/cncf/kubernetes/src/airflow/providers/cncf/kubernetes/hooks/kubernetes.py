@@ -152,6 +152,9 @@ class PodOperatorHookProtocol(Protocol):
     def get_xcom_sidecar_container_resources(self) -> str | None:
         """Return the xcom sidecar resources that defined in the connection."""
 
+    def get_xcom_sidecar_container_security_context(self) -> str | None:
+        """Return the xcom sidecar security context that defined in the connection."""
+
 
 class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     """
@@ -212,6 +215,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             ),
             "xcom_sidecar_container_resources": StringField(
                 lazy_gettext("XCom sidecar resources (JSON format)"), widget=BS3TextFieldWidget()
+            ),
+            "xcom_sidecar_container_security_context": StringField(
+                lazy_gettext("XCom sidecar security context (JSON format)"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -522,6 +528,13 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     def get_xcom_sidecar_container_resources(self):
         """Return the xcom sidecar resources that defined in the connection."""
         field = self._get_field("xcom_sidecar_container_resources")
+        if not field:
+            return None
+        return json.loads(field)
+
+    def get_xcom_sidecar_container_security_context(self):
+        """Return the xcom sidecar security context that defined in the connection."""
+        field = self._get_field("xcom_sidecar_container_security_context")
         if not field:
             return None
         return json.loads(field)

@@ -92,7 +92,7 @@ def _upgrade_postgresql(conn, batch_size):
                             '__var', json_build_object(
                                 'path', b.cb_path,
                                 'kwargs', b.cb_kwargs,
-                                'prefix', :prefix,
+                                'prefix', CAST(:prefix AS text),
                                 'dag_id', b.dag_id
                             ),
                             '__type', 'dict'
@@ -325,7 +325,7 @@ def _downgrade_postgresql(conn, batch_size):
                                 'path', c.data::jsonb->'__var'->>'path',
                                 'kwargs', c.data::jsonb->'__var'->'kwargs'
                             ),
-                            '__classname__', :classname,
+                            '__classname__', CAST(:classname AS text),
                             '__version__', 0
                         )::json,
                         callback_state = CASE
@@ -360,7 +360,7 @@ def _downgrade_postgresql(conn, batch_size):
                             'path', c.data::jsonb->'__var'->>'path',
                             'kwargs', c.data::jsonb->'__var'->'kwargs'
                         ),
-                        '__classname__', :classname,
+                        '__classname__', CAST(:classname AS text),
                         '__version__', 0
                     )::json,
                     callback_state = CASE
