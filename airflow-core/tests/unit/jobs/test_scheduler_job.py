@@ -51,8 +51,8 @@ from airflow.assets.manager import AssetManager, _create_asset_event
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
-    EmailRequest,
     DagSkippedIntervalsCallbackRequest,
+    EmailRequest,
     TaskCallbackRequest,
 )
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
