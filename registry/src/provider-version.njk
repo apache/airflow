@@ -265,9 +265,7 @@ eleventyComputed:
           {% if conn.external_integrations and conn.external_integrations.length > 0 %}
           <tr class="conn-integrations-row">
             <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
-            <td>
-              {% for integration in conn.external_integrations %}<span class="badge conn-integration-badge">{{ integration }}</span>{% endfor %}
-            </td>
+            <td class="conn-integrations-list">{{ conn.external_integrations | join(", ") }}</td>
           </tr>
           {% endif %}
           {% endfor %}

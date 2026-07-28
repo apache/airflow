@@ -3790,12 +3790,9 @@ main {
   white-space: nowrap;
 }
 
-.provider-detail-page .connections-card .conn-integration-badge {
-  display: inline-block;
-  margin: 2px 4px 2px 0;
+.provider-detail-page .connections-card .conn-integrations-list {
   color: var(--text-secondary);
-  background: rgb(from var(--color-gray-500) r g b / 0.08);
-  border-color: var(--border-primary);
+  font-size: var(--text-sm);
 }
 
 /* Shared builder panel */
