@@ -78,16 +78,19 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         self.region = region
         self.job_name = job_name
         self.job = job
-        # Normalize Job protobuf to dict so Airflow's template renderer can descend
-        # into nested fields (e.g. runnable.container.commands). See #37217.
-        if isinstance(job, Job):
-            self.job = Job.to_dict(job)
         self.polling_period_seconds = polling_period_seconds
         self.timeout_seconds = timeout_seconds
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.polling_period_seconds = polling_period_seconds
+
+    def render_template_fields(self, context: Context, jinja_env=None) -> None:
+        # Normalize Job protobuf to dict so Airflow's template renderer can descend
+        # into nested fields (e.g. runnable.container.commands). See #37217.
+        if isinstance(self.job, Job):
+            self.job = Job.to_dict(self.job)
+        super().render_template_fields(context, jinja_env=jinja_env)
 
     def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
