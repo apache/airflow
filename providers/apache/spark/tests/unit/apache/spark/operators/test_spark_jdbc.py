@@ -21,7 +21,7 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperator
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
