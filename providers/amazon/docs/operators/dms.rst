@@ -98,7 +98,7 @@ To reload selected target tables from their source data, use
 :class:`~airflow.providers.amazon.aws.operators.dms.DmsReloadTablesOperator`.
 The required parameters are ``replication_task_arn`` and ``tables_to_reload``. Each item in
 ``tables_to_reload`` must contain ``SchemaName`` and ``TableName``. The optional ``reload_option``
-defaults to ``data-reload``, which reloads the data and revalidates it when validation is enabled.
+defaults to ``data-reload``, which reloads the data and runs validation again when it is enabled.
 Use ``validate-only`` to revalidate without reloading data; this option only applies when validation
 is enabled for the task.
 The replication task must be in the ``RUNNING`` state. By default, the operator waits until every
