@@ -33,6 +33,7 @@ from airflow.sdk import (
     task_group as task_group_decorator,
     teardown,
 )
+from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 from airflow.utils.dag_edges import dag_edges
 
 from tests_common.test_utils.dag import create_scheduler_dag
@@ -250,6 +251,34 @@ def test_task_group_to_dict_alternative_syntax():
     serialized_dag = create_scheduler_dag(dag)
 
     assert task_group_to_dict(serialized_dag.task_group) == EXPECTED_JSON
+
+
+def test_task_group_to_dict_builds_group_dict_once(monkeypatch):
+    """Rendering the whole tree threads one group_dict; it is not rebuilt per nested group."""
+    with DAG("test_group_dict_once", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("outer"):
+            with TaskGroup("inner"):
+                EmptyOperator(task_id="a")
+                EmptyOperator(task_id="b")
+        with TaskGroup("sibling"):
+            EmptyOperator(task_id="c")
+
+    serialized = create_scheduler_dag(dag)
+
+    calls = 0
+    original = SerializedTaskGroup.get_task_group_dict
+
+    def counting(self):
+        nonlocal calls
+        calls += 1
+        return original(self)
+
+    monkeypatch.setattr(SerializedTaskGroup, "get_task_group_dict", counting)
+
+    # A full render must build the group map exactly once, not once per group.
+    task_group_to_dict(serialized.task_group)
+
+    assert calls == 1
 
 
 def test_task_group_to_dict_grid_includes_task_group_doc_md(dag_maker):
