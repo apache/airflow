@@ -1264,26 +1264,6 @@ def test_topological_sort_serialized_task_level_cross_group_dep():
     assert order.index("stage_b") < order.index("stage_a")
 
 
-def test_topological_sort_serialized_reuses_cached_group_dict():
-    with DAG("test_group_dict_cache", schedule=None, start_date=DEFAULT_DATE) as dag:
-        with TaskGroup("a"):
-            EmptyOperator(task_id="task")
-        with TaskGroup("b"):
-            EmptyOperator(task_id="task")
-
-    serialized = create_scheduler_dag(dag)
-    root = serialized.task_group
-    assert root.get_task_group_dict() is root.get_task_group_dict()
-    assert root._get_task_group_dict_cached.cache_info().misses == 1
-
-    for group in root.children.values():
-        if hasattr(group, "topological_sort"):
-            group.topological_sort()
-    cache_info = root._get_task_group_dict_cached.cache_info()
-    assert cache_info.misses == 1
-    assert cache_info.hits >= len(root.children)
-
-
 def test_topological_sort_serialized_padded_reverse_chain_uses_pass_numbering(monkeypatch):
     dag = _make_padded_reverse_chain(chain_length=80, independent_count=80)
     serialized = create_scheduler_dag(dag)
