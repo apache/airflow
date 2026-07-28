@@ -510,11 +510,12 @@ class DmsReloadTablesOperator(AwsBaseOperator[DmsHook]):
             len(self.tables_to_reload),
             self.replication_task_arn,
         )
-        replication_task_arn = self.hook.reload_tables(
-            replication_task_arn=self.replication_task_arn,
-            tables_to_reload=self.tables_to_reload,
-            reload_option=self.reload_option,
+        response = self.hook.conn.reload_tables(
+            ReplicationTaskArn=self.replication_task_arn,
+            TablesToReload=self.tables_to_reload,
+            ReloadOption=self.reload_option,
         )
+        replication_task_arn = response["ReplicationTaskArn"]
         self.log.info("DMS table reload started for replication task(%s).", replication_task_arn)
 
         if self.wait_for_completion:
