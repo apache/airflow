@@ -53,6 +53,7 @@ class DeadlineAlertResponse(BaseModel):
     name: str | None = None
     reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
     interval: float = Field(description="Interval in seconds between deadline evaluations.")
+    fire_on_failure: bool
     created_at: datetime
 
 

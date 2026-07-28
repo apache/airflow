@@ -9605,6 +9605,10 @@ export const $DeadlineAlertResponse = {
             title: 'Interval',
             description: 'Interval in seconds between deadline evaluations.'
         },
+        fire_on_failure: {
+            type: 'boolean',
+            title: 'Fire On Failure'
+        },
         created_at: {
             type: 'string',
             format: 'date-time',
@@ -9612,7 +9616,7 @@ export const $DeadlineAlertResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'reference_type', 'interval', 'created_at'],
+    required: ['id', 'reference_type', 'interval', 'fire_on_failure', 'created_at'],
     title: 'DeadlineAlertResponse',
     description: 'DeadlineAlert serializer for responses.'
 } as const;

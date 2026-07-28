@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 import uuid6
-from sqlalchemy import JSON, ForeignKey, String, Text, Uuid, select
+from sqlalchemy import JSON, Boolean, ForeignKey, String, Text, Uuid, select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -52,6 +52,7 @@ class DeadlineAlert(Base):
     reference: Mapped[dict] = mapped_column(JSON, nullable=False)
     interval: Mapped[dict] = mapped_column(JSON, nullable=False)
     callback_def: Mapped[dict] = mapped_column(JSON, nullable=False)
+    fire_on_failure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
     def __repr__(self):
 
@@ -79,6 +80,7 @@ class DeadlineAlert(Base):
             f"name={self.name or 'Unnamed'}, "
             f"reference={self.reference}, "
             f"interval={interval_display}, "
+            f"fire_on_failure={self.fire_on_failure}, "
             f"callback={self.callback_def}"
         )
 
@@ -90,6 +92,7 @@ class DeadlineAlert(Base):
             self.reference == other.reference
             and self.interval == other.interval
             and self.callback_def == other.callback_def
+            and self.fire_on_failure == other.fire_on_failure
         )
 
     @property

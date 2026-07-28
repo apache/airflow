@@ -500,6 +500,7 @@ def test_serialize_deserialize_deadline_alert(reference):
         reference=reference,
         interval=timedelta(hours=1),
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
+        fire_on_failure=True,
     )
 
     # Use BaseSerialization like assets do
@@ -511,6 +512,22 @@ def test_serialize_deserialize_deadline_alert(reference):
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
     assert deserialized.callback == original.callback
+    assert deserialized.fire_on_failure is True
+
+
+def test_deserialize_deadline_alert_defaults_fire_on_failure_false():
+    original = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+
+    serialized = BaseSerialization.serialize(original)
+    del serialized[Encoding.VAR][DeadlineAlertFields.FIRE_ON_FAILURE]
+
+    deserialized = BaseSerialization.deserialize(serialized)
+
+    assert deserialized.fire_on_failure is False
 
 
 def test_deserialize_deadline_alert_none_interval_raises():

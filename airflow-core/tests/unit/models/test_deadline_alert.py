@@ -84,6 +84,7 @@ class TestDeadlineAlert:
         assert deadline_alert_orm.id is not None
         assert deadline_alert_orm.created_at == DEFAULT_DATE
         assert deadline_alert_orm.name == DEADLINE_NAME
+        assert deadline_alert_orm.fire_on_failure is False
 
     def test_minimal_deadline_alert_creation(self, dag_maker, session, deadline_reference):
         with dag_maker(DAG_ID, session=session):
@@ -106,6 +107,7 @@ class TestDeadlineAlert:
             assert deadline_alert.id is not None
             assert deadline_alert.created_at == DEFAULT_DATE
             assert deadline_alert.name is None
+            assert deadline_alert.fire_on_failure is False
 
     def test_deadline_alert_repr(self, deadline_alert_orm, deadline_reference):
         repr_str = repr(deadline_alert_orm)
@@ -115,6 +117,7 @@ class TestDeadlineAlert:
         assert f"name={DEADLINE_NAME}" in repr_str
         assert f"reference={deadline_reference}" in repr_str
         assert "interval=1m" in repr_str
+        assert "fire_on_failure=False" in repr_str
         assert repr(deadline_alert_orm.callback_def) in repr_str
 
     def test_deadline_alert_matches_definition(self, session, deadline_reference):
@@ -155,6 +158,15 @@ class TestDeadlineAlert:
             callback_def={"path": "different.callback"},
         )
         assert not alert1.matches_definition(different_callback)
+
+        different_fire_on_failure = DeadlineAlert(
+            serialized_dag_id=SERIALIZED_DAG_ID,
+            reference=deadline_reference,
+            interval=DEADLINE_INTERVAL,
+            callback_def=DEADLINE_CALLBACK,
+            fire_on_failure=True,
+        )
+        assert not alert1.matches_definition(different_fire_on_failure)
 
         assert alert1.matches_definition("not a deadline alert") is NotImplemented
 

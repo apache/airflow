@@ -55,6 +55,7 @@ class DeadlineAlertFields:
     REFERENCE = "reference"
     INTERVAL = "interval"
     CALLBACK = "callback"
+    FIRE_ON_FAILURE = "fire_on_failure"
 
 
 class SerializedReferenceModels:
@@ -380,3 +381,4 @@ class SerializedDeadlineAlert:
     interval: timedelta | VariableInterval
     callback: Any
     name: str | None = None
+    fire_on_failure: bool = False
