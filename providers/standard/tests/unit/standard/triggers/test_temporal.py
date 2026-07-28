@@ -145,3 +145,66 @@ async def test_datetime_trigger_mocked(mock_sleep, mock_utcnow):
     result = trigger_task.result()
     assert isinstance(result, TriggerEvent)
     assert result.payload == trigger_moment
+
+
+def test_requires_moment_or_target_time():
+    """DateTimeTrigger must be given exactly one of moment or target_time."""
+    with pytest.raises(TypeError, match="requires either 'moment' or 'target_time'"):
+        DateTimeTrigger()
+
+
+def test_rejects_both_moment_and_target_time():
+    moment = pendulum.instance(datetime.datetime(2020, 4, 1, 13, 0), pendulum.UTC)
+    with pytest.raises(TypeError, match="only one of 'moment' or 'target_time'"):
+        DateTimeTrigger(moment, target_time="2020-04-01T13:00:00+00:00")
+
+
+def test_target_time_accepted_unrendered_at_init():
+    """
+    Regression test for #70284: constructing the trigger with a still-templated target_time
+    (as happens on the triggerer, before BaseTrigger.render_template_fields runs) must not raise.
+    """
+    trigger = DateTimeTrigger(target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}")
+    assert trigger.moment is None
+    assert trigger.target_time == "{{ data_interval_end.tomorrow().replace(hour=1) }}"
+
+
+def test_target_time_resolved_after_rendering():
+    """Once target_time has been rendered (e.g. by the triggerer) to a real value, it parses fine."""
+    trigger = DateTimeTrigger(target_time="not-rendered-yet")
+    # Simulate what BaseTrigger.render_template_fields does: it renders the template in place.
+    trigger.target_time = "2020-04-01T13:00:00+00:00"
+    classpath, kwargs = trigger.serialize()
+    assert classpath == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
+    assert kwargs == {"moment": pendulum.parse("2020-04-01T13:00:00+00:00"), "end_from_trigger": False}
+
+
+def test_target_time_still_templated_raises_clear_error():
+    """If target_time is still an unrendered template by the time it's needed, fail clearly."""
+    trigger = DateTimeTrigger(target_time="{{ this_was_never_rendered }}")
+    with pytest.raises(ValueError, match="Could not parse target_time"):
+        trigger.serialize()
+
+
+@pytest.mark.asyncio
+async def test_run_resolves_target_time_rendered_by_triggerer():
+    """
+    End-to-end-ish regression test for #70284: a DateTimeTrigger built from a templated
+    target_time, then rendered the way the triggerer renders it (BaseTrigger.render_template_fields
+    -- see airflow.jobs.triggerer_job_runner.TriggererJobRunner.run_trigger), must resolve to the
+    correct moment and fire, instead of crashing.
+    """
+    past_moment = pendulum.instance(timezone.utcnow() - datetime.timedelta(seconds=60))
+    trigger = DateTimeTrigger(target_time="{{ rendered_moment }}")
+    # BaseTrigger.task_instance's setter is what normally populates template_fields; set it
+    # directly here to isolate the rendering behavior under test.
+    trigger.template_fields = ("target_time",)
+    trigger.render_template_fields({"rendered_moment": past_moment.isoformat()})
+
+    trigger_task = asyncio.create_task(trigger.run().__anext__())
+    await asyncio.sleep(0.5)
+
+    assert trigger_task.done() is True
+    result = trigger_task.result()
+    assert isinstance(result, TriggerEvent)
+    assert result.payload == past_moment
