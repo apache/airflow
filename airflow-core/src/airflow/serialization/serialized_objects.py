@@ -631,6 +631,11 @@ class BaseSerialization:
             return parse_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
+        elif type_ in (DAT.AIRFLOW_EXC_SER, DAT.BASE_EXC_SER):
+            # Legacy rows only. ``exc_cls_name`` is payload-supplied, so it is never resolved or
+            # called; the recorded args are rendered with BaseException semantics, giving the same
+            # string form an exception now serializes to.
+            return str(BaseException(*cls.deserialize(var).get("args", ())))
         elif type_ == DAT.SET:
             return {cls.deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:

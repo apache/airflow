@@ -556,13 +556,40 @@ def test_exceptions_not_serialized_by_general_framework():
     assert BaseSerialization.serialize(resched_exc) == str(resched_exc)
 
 
-@pytest.mark.parametrize("exc_type", ["airflow_exc_ser", "base_exc_ser"])
-def test_deserialize_rejects_legacy_exception_blob(exc_type):
-    """A crafted exception blob is no longer imported and called; the type is simply unknown now."""
-    inner = BaseSerialization.serialize({"exc_cls_name": "os.system", "args": ["echo gadget"], "kwargs": {}})
-    blob = {Encoding.TYPE: exc_type, Encoding.VAR: inner}
-    with pytest.raises(TypeError, match="Invalid type"):
-        BaseSerialization.deserialize(blob)
+def build_legacy_exception_blob(type_, exc_cls_name, args):
+    """Build the payload a pre-removal Airflow wrote for a serialized exception."""
+    inner = BaseSerialization.serialize({"exc_cls_name": exc_cls_name, "args": args, "kwargs": {}})
+    return {Encoding.TYPE: type_, Encoding.VAR: inner}
+
+
+@pytest.mark.parametrize(
+    ("type_", "exc_cls_name", "args", "expected"),
+    [
+        ("airflow_exc_ser", "airflow.exceptions.AirflowException", ["boom"], "boom"),
+        ("airflow_exc_ser", "airflow.exceptions.AirflowRescheduleException", [], ""),
+        ("base_exc_ser", "KeyError", [("some_key",)], "('some_key',)"),
+    ],
+)
+def test_deserialize_legacy_exception_blob_yields_message(type_, exc_cls_name, args, expected):
+    """Rows written before the removal still deserialize, to the exception's message."""
+    assert BaseSerialization.deserialize(build_legacy_exception_blob(type_, exc_cls_name, args)) == expected
+
+
+@pytest.mark.parametrize(
+    ("type_", "exc_cls_name", "build_arg"),
+    [
+        ("base_exc_ser", "exec", lambda marker: f"open({str(marker)!r}, 'w').close()"),
+        ("airflow_exc_ser", "os.system", lambda marker: f"touch {marker}"),
+    ],
+)
+def test_deserialize_legacy_exception_blob_does_not_invoke_payload_name(
+    type_, exc_cls_name, build_arg, tmp_path
+):
+    """The payload's class name is never resolved and called, whatever it names."""
+    marker = tmp_path / "gadget"
+    arg = build_arg(marker)
+    assert BaseSerialization.deserialize(build_legacy_exception_blob(type_, exc_cls_name, [arg])) == arg
+    assert not marker.exists()
 
 
 @pytest.mark.parametrize(
