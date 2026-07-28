@@ -21,7 +21,7 @@ name: Common AI
 description: |
   AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
 
-state: ready
+state: not-ready
 lifecycle: incubation
 source-date-epoch: 1784746595
 build-system: hatchling

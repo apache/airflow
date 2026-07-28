@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@chakra-ui/anatomy": "^2.3.4",
-    "@chakra-ui/react": "~3.36.0",
+    "@chakra-ui/react": "~3.36.1",
     "@emotion/react": "^11.14.0",
     "@guanmingchiu/sqlparser-ts": "^0.62.0",
     "@lezer/highlight": "^1.2.3",
@@ -107,7 +107,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
-    "eslint-plugin-unicorn": "^71.1.0",
+    "eslint-plugin-unicorn": "^72.0.0",
     "globals": "^15.15.0",
     "happy-dom": "^20.10.6",
     "jsonc-eslint-parser": "^2.4.0",
