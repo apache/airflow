@@ -35,7 +35,8 @@
     "validation": {
       "datesRequired": "Both Data Interval Start Date and End Date must be provided.",
       "startBeforeEnd": "Data Interval Start Date must be less than or equal to Data Interval End Date."
-    }
+    },
+    "viewSlots": "View slots for Backfill #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill in progress",

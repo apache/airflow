@@ -18,6 +18,7 @@
  */
 import { Box, Button, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -33,12 +34,13 @@ import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 
 const getColumns = (
   onSelectBackfill: (backfillId: number) => void,
-  translate: (key: string) => string,
+  translate: TFunction,
 ): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
       <Button
+        aria-label={translate("components:backfill.viewSlots", { id: row.original.id })}
         colorPalette="brand"
         fontWeight="bold"
         onClick={() => onSelectBackfill(row.original.id)}

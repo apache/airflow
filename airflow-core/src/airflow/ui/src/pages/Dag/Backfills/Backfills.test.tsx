@@ -17,7 +17,14 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { fireEvent, render, screen, waitForElementToBeRemoved, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  waitForElementToBeRemoved,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,19 +49,21 @@ vi.mock("openapi/queries", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     // eslint-disable-next-line id-length
-    t: (key: string) =>
-      ({
-        "common:backfill_one": "Backfill",
-        "common:slot": "Slots",
-        "components:backfill.exceptionReason.alreadyExists": "Already exists",
-        "components:backfill.exceptionReason.inFlight": "In flight",
-        "components:backfill.exceptionReason.unknown": "Unknown",
-        "components:backfill.notCreatedReason": "Not Created Reason",
-        "dagRun.partitionKey": "Partition Key",
-        dagRunState: "Dag Run State",
-        logicalDate: "Logical Date",
-        "states.success": "Success",
-      })[key] ?? key,
+    t: (key: string, options?: { id?: number }) =>
+      key === "components:backfill.viewSlots"
+        ? `View slots for Backfill #${options?.id}`
+        : ({
+            "common:backfill_one": "Backfill",
+            "common:slot": "Slots",
+            "components:backfill.exceptionReason.alreadyExists": "Already exists",
+            "components:backfill.exceptionReason.inFlight": "In flight",
+            "components:backfill.exceptionReason.unknown": "Unknown",
+            "components:backfill.notCreatedReason": "Not Created Reason",
+            "dagRun.partitionKey": "Partition Key",
+            dagRunState: "Dag Run State",
+            logicalDate: "Logical Date",
+            "states.success": "Success",
+          }[key] ?? key),
   }),
 }));
 
@@ -203,7 +212,7 @@ describe("Backfills", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("2026-07-01T00:00:00Z"));
+    fireEvent.click(screen.getByRole("button", { name: "View slots for Backfill #7" }));
 
     const dialog = await screen.findByRole("dialog");
 
@@ -240,6 +249,11 @@ describe("Backfills", () => {
     await screen.findByRole("dialog");
 
     const getCompletedDagRunsRefetchInterval = expectDagRunsQuery(8);
+    const [, completedDagRun] = dagRuns;
+
+    if (completedDagRun === undefined) {
+      throw new Error("Expected a completed Dag run fixture");
+    }
 
     expect(getCompletedDagRunsRefetchInterval({ state: { data: { backfill_dag_runs: dagRuns } } })).toBe(
       false,
@@ -250,7 +264,7 @@ describe("Backfills", () => {
           data: {
             backfill_dag_runs: [
               {
-                ...dagRuns[1]!,
+                ...completedDagRun,
                 dag_run_state: "queued",
               },
             ],
@@ -322,5 +336,60 @@ describe("Backfills", () => {
     expect(within(dialog).getByText("Unknown")).toBeInTheDocument();
     expect(within(dialog).getByText(reason)).toBeInTheDocument();
     expectGetBackfillQuery(9);
+  });
+
+  it("requests the visible slot page and resets pagination after close", async () => {
+    const backfill = makeBackfill();
+
+    mocks.getBackfill.mockReturnValue({
+      data: backfill,
+      error: undefined,
+      isLoading: false,
+    });
+    mocks.listBackfillDagRuns.mockReturnValue({
+      data: { backfill_dag_runs: dagRuns, total_entries: 26 },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+    mocks.listBackfills.mockReturnValue({
+      data: { backfills: [backfill], total_entries: 1 },
+      error: undefined,
+      isFetching: false,
+      isLoading: false,
+    });
+
+    renderBackfills("/dags/example_dag/backfills/7");
+
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "next page" }));
+    await waitFor(() =>
+      expect(mocks.listBackfillDagRuns).toHaveBeenLastCalledWith(
+        {
+          backfillId: 7,
+          limit: 25,
+          offset: 25,
+        },
+        undefined,
+        expect.objectContaining({ enabled: true }),
+      ),
+    );
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitForElementToBeRemoved(dialog);
+    fireEvent.click(screen.getByRole("button", { name: "View slots for Backfill #7" }));
+    await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(mocks.listBackfillDagRuns).toHaveBeenLastCalledWith(
+        {
+          backfillId: 7,
+          limit: 25,
+          offset: 0,
+        },
+        undefined,
+        expect.objectContaining({ enabled: true }),
+      ),
+    );
   });
 });
