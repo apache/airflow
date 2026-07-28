@@ -21,8 +21,8 @@ import yaml
 from ci.prek import lang_sdk_compat_matrix as matrix
 
 
-def _entry(supported: bool, since: str | None = None, note: str = "") -> dict:
-    return {"supported": supported, "since": since, "note": note}
+def _entry(supported: bool, since: str | None = None, sdk_version: str | None = None, note: str = "") -> dict:
+    return {"supported": supported, "since": since, "sdk_version": sdk_version, "note": note}
 
 
 def _doc(sdk_id: str = "go", **overrides) -> dict:
@@ -32,7 +32,12 @@ def _doc(sdk_id: str = "go", **overrides) -> dict:
         "supervisor_schema_version": "2026-06-16",
         "min_airflow_version": "3.3",
         "states": {state: _entry(True, since="3.3") for state, _ in matrix.STATE_DIMENSIONS},
-        "capabilities": {cap.name: _entry(True, since="3.3") for cap in matrix.CAPABILITY_DIMENSIONS},
+        "capabilities": {
+            cap.name: {mode: _entry(True, since="3.3") for mode in matrix.AUTHORING_MODES}
+            if cap.name in matrix.SHARED_CAPABILITY_NAMES
+            else _entry(True, since="3.3")
+            for cap in matrix.CAPABILITY_DIMENSIONS
+        },
     }
     doc.update(overrides)
     return doc
@@ -61,8 +66,10 @@ class TestValidateCapabilities:
 
     def test_unknown_entry_key_raises(self):
         doc = _doc()
-        doc["capabilities"]["branching"] = {"supported": True, "supported_since": "3.3"}
-        with pytest.raises(matrix.CapabilitiesError, match="branching has unknown keys: supported_since"):
+        doc["capabilities"]["if-else-branching"] = {"supported": True, "supported_since": "3.3"}
+        with pytest.raises(
+            matrix.CapabilitiesError, match="if-else-branching has unknown keys: supported_since"
+        ):
             matrix.validate_capabilities(doc, source="test")
 
     def test_unknown_sdk_raises(self):
@@ -112,8 +119,20 @@ class TestValidateCapabilities:
 
     def test_unsupported_entry_carrying_since_raises(self):
         doc = _doc()
-        doc["capabilities"]["branching"] = _entry(False, since="3.3")
+        doc["capabilities"]["if-else-branching"] = _entry(False, since="3.3")
         with pytest.raises(matrix.CapabilitiesError, match="not supported but carries since"):
+            matrix.validate_capabilities(doc, source="test")
+
+    def test_unsupported_entry_carrying_sdk_version_raises(self):
+        doc = _doc()
+        doc["capabilities"]["if-else-branching"] = _entry(False, sdk_version="1.0.0")
+        with pytest.raises(matrix.CapabilitiesError, match="not supported but carries sdk_version"):
+            matrix.validate_capabilities(doc, source="test")
+
+    def test_non_string_sdk_version_raises(self):
+        doc = _doc()
+        doc["capabilities"]["xcom-read-write"] = {"supported": True, "since": "3.3", "sdk_version": 3}
+        with pytest.raises(matrix.CapabilitiesError, match="sdk_version must be a string or null"):
             matrix.validate_capabilities(doc, source="test")
 
     def test_supported_gated_capability_without_native_dag_authoring_raises(self):
@@ -121,9 +140,51 @@ class TestValidateCapabilities:
         doc["capabilities"][matrix.NATIVE_DAG_GATE] = _entry(False)
         with pytest.raises(
             matrix.CapabilitiesError,
-            match="gated capabilities cannot be supported.*branching",
+            match="gated capabilities cannot be supported.*if-else-branching",
         ):
             matrix.validate_capabilities(doc, source="test")
+
+    def test_shared_capability_missing_a_mode_raises(self):
+        doc = _doc()
+        del doc["capabilities"]["dynamic-task-mapping"]["stub"]
+        with pytest.raises(matrix.CapabilitiesError, match="capabilities.dynamic-task-mapping keys mismatch"):
+            matrix.validate_capabilities(doc, source="test")
+
+    def test_shared_capability_declared_as_a_single_entry_raises(self):
+        doc = _doc()
+        doc["capabilities"]["dynamic-task-mapping"] = _entry(True, since="3.3")
+        with pytest.raises(matrix.CapabilitiesError, match="capabilities.dynamic-task-mapping keys mismatch"):
+            matrix.validate_capabilities(doc, source="test")
+
+    def test_invalid_shared_mode_entry_raises(self):
+        doc = _doc()
+        doc["capabilities"]["asset-inlets-outlets"]["stub"] = _entry(False, since="3.3")
+        with pytest.raises(
+            matrix.CapabilitiesError, match="capabilities.asset-inlets-outlets.stub is not supported"
+        ):
+            matrix.validate_capabilities(doc, source="test")
+
+    def test_shared_capability_native_mode_is_gated(self):
+        doc = _doc()
+        for row in matrix.build_matrix_parts()[1].groups[0].rows:
+            if row.gated and row.name not in matrix.SHARED_CAPABILITY_NAMES:
+                doc["capabilities"][row.name] = _entry(False)
+        doc["capabilities"][matrix.NATIVE_DAG_GATE] = _entry(False)
+        doc["capabilities"]["asset-inlets-outlets"]["native"] = _entry(False)
+        with pytest.raises(matrix.CapabilitiesError, match="cannot be supported.*: dynamic-task-mapping$"):
+            matrix.validate_capabilities(doc, source="test")
+
+    def test_shared_capability_stub_mode_is_not_gated(self):
+        doc = _doc()
+        for row in matrix.build_matrix_parts()[1].groups[0].rows:
+            if row.gated:
+                doc["capabilities"][row.name] = (
+                    {**doc["capabilities"][row.name], "native": _entry(False)}
+                    if row.name in matrix.SHARED_CAPABILITY_NAMES
+                    else _entry(False)
+                )
+        doc["capabilities"][matrix.NATIVE_DAG_GATE] = _entry(False)
+        matrix.validate_capabilities(doc, source="test")
 
     def test_supported_entry_without_since_passes(self):
         doc = _doc()
@@ -160,8 +221,32 @@ class TestRenderMarkdownTable:
         for state, tier in matrix.STATE_DIMENSIONS:
             assert f"| state: `{state}` | {tier} |" in rendered
         for cap in matrix.CAPABILITY_DIMENSIONS:
-            assert f"| capability: `{cap.name}` | {matrix._tier_label(cap)} |" in rendered
+            assert f"| capability: `{cap.name}` |" in rendered
         assert "supervisor schema: 2026-06-16" in rendered
+
+    def test_parts_split_dimensions_by_authoring_mode(self):
+        common, native, stub = matrix.build_matrix_parts()
+        native_names = [row.name for row in native.groups[0].rows]
+        stub_names = [row.name for row in stub.groups[0].rows]
+
+        assert [group.label for group in common.groups] == ["TaskInstance states", "Task runtime"]
+        assert "object-store" in [row.name for row in common.groups[1].rows]
+        assert native_names[0] == matrix.NATIVE_DAG_GATE
+        assert stub_names == [
+            "mixed-lang-stub-target",
+            "taskflow-binding",
+            "dynamic-task-mapping",
+            "asset-inlets-outlets",
+        ]
+        assert set(native_names) >= matrix.SHARED_CAPABILITY_NAMES
+        assert all(not row.gated for row in stub.groups[0].rows)
+
+    def test_shared_capability_renders_each_mode(self):
+        doc = _doc()
+        doc["capabilities"]["dynamic-task-mapping"]["native"] = _entry(False, note="no expand API")
+        rendered = "".join(matrix.render_markdown_table(doc))
+        assert f"| capability: `dynamic-task-mapping` | MAY † | {matrix.UNSUPPORTED_MARK} |" in rendered
+        assert f"| capability: `dynamic-task-mapping` | MAY | {matrix.SUPPORTED_MARK} | 3.3 |" in rendered
 
     def test_supported_and_unsupported_marks(self):
         doc = _doc()
@@ -177,24 +262,32 @@ class TestRenderMarkdownTable:
         doc["capabilities"][matrix.NATIVE_DAG_GATE] = _entry(False)
         rendered = "".join(matrix.render_markdown_table(doc))
         assert f"| capability: `{matrix.NATIVE_DAG_GATE}` | SHOULD | {matrix.UNSUPPORTED_MARK} |" in rendered
-        for cap in matrix.CAPABILITY_DIMENSIONS:
-            if cap.gated:
-                assert f"| capability: `{cap.name}` | {cap.tier} † | {matrix.NA_MARK} |" in rendered
+        for row in matrix.build_matrix_parts()[1].groups[0].rows:
+            if row.gated:
+                assert f"| capability: `{row.name}` | {row.tier} † | {matrix.NA_MARK} |" in rendered
 
     def test_gated_capabilities_resolve_to_their_own_mark_once_the_gate_is_supported(self):
         doc = _doc()
-        doc["capabilities"]["branching"] = _entry(False, note="no branch construct")
+        doc["capabilities"]["if-else-branching"] = _entry(False, note="no branch construct")
         rendered = "".join(matrix.render_markdown_table(doc))
-        gated = [cap for cap in matrix.CAPABILITY_DIMENSIONS if cap.gated]
+        gated = [row for row in matrix.build_matrix_parts()[1].groups[0].rows if row.gated]
         assert gated, "expected at least one gated capability"
         # With the gate supported, a gated capability reports its real support, never n/a.
-        for cap in gated:
-            if cap.name != "branching":
+        for row in gated:
+            if row.name != "if-else-branching":
                 assert (
-                    f"| capability: `{cap.name}` | {cap.tier} † | {matrix.SUPPORTED_MARK} | 3.3 |" in rendered
+                    f"| capability: `{row.name}` | {row.tier} † | {matrix.SUPPORTED_MARK} | 3.3 |" in rendered
                 )
-        assert f"| capability: `branching` | SHOULD † | {matrix.UNSUPPORTED_MARK} |" in rendered
+        assert f"| capability: `if-else-branching` | SHOULD † | {matrix.UNSUPPORTED_MARK} |" in rendered
         assert matrix.NA_MARK not in rendered.replace(matrix.LEGEND, "")
+
+    def test_sdk_version_renders_in_its_own_column(self):
+        doc = _doc()
+        doc["capabilities"]["xcom-read-write"] = _entry(True, since="3.4.0", sdk_version="1.0.0")
+        rendered = "".join(matrix.render_markdown_table(doc))
+        assert (
+            f"| capability: `xcom-read-write` | MUST | {matrix.SUPPORTED_MARK} | 3.4.0 | 1.0.0 |" in rendered
+        )
 
     def test_pipe_in_note_is_escaped(self):
         doc = _doc()
