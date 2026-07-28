@@ -30,6 +30,15 @@ describe("getRunOnLatestVersionState", () => {
       selectedDagVersionNumber: 2,
     },
     {
+      expectedDagVersionsDiffer: true,
+      expectedShouldShowRunOnLatestOption: true,
+      latestBundleVersion: "bundle-b",
+      latestDagVersionNumber: 3,
+      name: "shows when DAG versions differ on a versioned bundle even if the run has no recorded bundle version",
+      selectedBundleVersion: null,
+      selectedDagVersionNumber: 2,
+    },
+    {
       expectedDagVersionsDiffer: false,
       expectedShouldShowRunOnLatestOption: false,
       latestDagVersionNumber: 3,

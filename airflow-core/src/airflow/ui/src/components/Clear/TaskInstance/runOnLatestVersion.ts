@@ -55,6 +55,6 @@ export const getRunOnLatestVersionState = ({
 
   return {
     dagVersionsDiffer,
-    shouldShowRunOnLatestOption: shouldShowForBundleVersion,
+    shouldShowRunOnLatestOption: (dagVersionsDiffer && hasBundleVersion(latestBundleVersion)) || shouldShowForBundleVersion,
   };
 };
