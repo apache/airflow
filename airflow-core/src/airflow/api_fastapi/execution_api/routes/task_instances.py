@@ -76,7 +76,7 @@ from airflow.api_fastapi.execution_api.security import (
     get_team_name_for_ti,
     require_auth,
 )
-from airflow.api_fastapi.execution_api.services.task_instances import STUB_TASK_TYPE, get_arg_bindings
+from airflow.api_fastapi.execution_api.services.task_instances import STUB_TASK_TYPE, get_stub_run_context
 from airflow.api_fastapi.execution_api.versions import bundle
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
@@ -331,29 +331,31 @@ def ti_run(
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
 
-        # Only set for stub (foreign-runtime) tasks with a captured TaskFlow arg
-        # spec; the route excludes unset fields, keeping regular responses lean.
-        if (
-            ti.operator == STUB_TASK_TYPE
-            and _client_supports_arg_bindings()
-            and (arg_bindings := get_arg_bindings(dag_bag, ti, session=session))
-        ):
-            try:
-                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
-            except ValidationError:
-                log.exception(
-                    "Serialized arg_bindings spec failed validation",
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    dag_version_id=ti.dag_version_id,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail={
-                        "reason": "invalid_arg_bindings",
-                        "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
-                    },
-                )
+        # Only for stub (foreign-runtime) tasks: derive the TaskFlow arg spec and whether a
+        # downstream mapped task expands over this task's output. The route excludes unset
+        # fields, keeping regular responses lean. Clients on API versions that predate the
+        # fields never see them, so skip the derivation entirely for them.
+        if ti.operator == STUB_TASK_TYPE and _client_supports_arg_bindings():
+            arg_bindings, has_mapped_dependants = get_stub_run_context(dag_bag, ti, session=session)
+            if has_mapped_dependants:
+                context.has_mapped_dependants = True
+            if arg_bindings:
+                try:
+                    context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+                except ValidationError:
+                    log.exception(
+                        "Serialized arg_bindings spec failed validation",
+                        dag_id=ti.dag_id,
+                        task_id=ti.task_id,
+                        dag_version_id=ti.dag_version_id,
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail={
+                            "reason": "invalid_arg_bindings",
+                            "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
+                        },
+                    )
 
         # Only set if they are non-null
         if ti.next_method:

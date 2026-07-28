@@ -165,6 +165,8 @@ dags:
       - "via_struct_unmatched_arg"
       - "via_flat_map"
       - "via_struct_map"
+      - "make_items"
+      - "via_expand"
 `
 	assert.Equal(t, expectedManifest, string(metadata))
 

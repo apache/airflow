@@ -418,15 +418,17 @@ class TestTIRunState:
             },
         ]
 
-        # An argless stub has no captured spec, so the field stays unset.
+        # An argless stub has no captured spec, so the field stays unset. Nothing expands over
+        # it either, so it is not flagged as having mapped dependants.
         response = client.patch(f"/execution/task-instances/{tis['extract'].id}/run", json=payload)
         assert response.status_code == 200
         assert "arg_bindings" not in response.json()
+        assert "has_mapped_dependants" not in response.json()
 
     @mock.patch(
-        "airflow.api_fastapi.execution_api.routes.task_instances.get_arg_bindings",
+        "airflow.api_fastapi.execution_api.routes.task_instances.get_stub_run_context",
         autospec=True,
-        return_value=[{"name": "country", "kind": "hologram", "value": "uk"}],
+        return_value=([{"name": "country", "kind": "hologram", "value": "uk"}], False),
     )
     def test_ti_run_reports_invalid_arg_bindings_spec(self, _, client, dag_maker):
         """A serialized spec this core version cannot validate fails with a structured error, not a bare 500."""
@@ -518,6 +520,29 @@ class TestTIRunState:
                 "element_index": 1,
             }
         ]
+
+    def test_ti_run_flags_stub_upstream_of_mapped_task(self, client, dag_maker):
+        """A stub whose output a downstream ``.expand()`` maps over is flagged as having mapped
+        dependants, so its supervisor records the ``mapped_length`` the scheduler needs to fan out.
+        A foreign runtime cannot learn this from the Dag itself."""
+        with dag_maker("test_stub_upstream_of_mapped", serialized=True):
+
+            @task.stub
+            def make_items(): ...
+
+            @task.stub
+            def via_expand(item: str): ...
+
+            via_expand.expand(item=make_items())
+
+        dr = dag_maker.create_dagrun()
+        make_items_ti = dr.get_task_instance("make_items")
+        make_items_ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+
+        response = client.patch(f"/execution/task-instances/{make_items_ti.id}/run", json=self.RUN_PAYLOAD)
+        assert response.status_code == 200
+        assert response.json()["has_mapped_dependants"] is True
 
     def test_ti_run_resolves_mapped_stub_over_mapped_upstream(self, client, dag_maker):
         """Expanding over a mapped upstream binds the upstream XCom row at the same map index."""

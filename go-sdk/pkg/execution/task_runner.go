@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"runtime/debug"
 	"time"
 
@@ -180,12 +181,23 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 					name,
 				)
 			}
-			args[i] = binding.XComArg{
+			xa := binding.XComArg{
 				Kind:        kind,
 				Name:        name,
 				TaskID:      taskID,
 				ValueSchema: valueSchema,
 			}
+			// A mapped stub's expanded arg carries the upstream row to pull
+			// (map_index, over a mapped upstream) or the element of the pulled
+			// list to take (element_index, over an unmapped upstream). -1 is the
+			// unmapped-row sentinel, so leave MapIndex nil for it.
+			if mi, ok := wireInt(m["map_index"]); ok && mi >= 0 {
+				xa.MapIndex = &mi
+			}
+			if ei, ok := wireInt(m["element_index"]); ok {
+				xa.ElementIndex = ei
+			}
+			args[i] = xa
 		case "literal":
 			fromDefault, _ := m["from_default"].(bool)
 			args[i] = binding.LiteralArg{
@@ -215,6 +227,24 @@ func argValueSchema(raw any) *genmodels.ArgValueSchema {
 		schema[k] = v
 	}
 	return &schema
+}
+
+// wireInt coerces a msgpack/json numeric wire value to an int. The generic
+// interface decoder surfaces integers as any of the sized int/uint kinds (or a
+// float64 over JSON), so accept them all; a missing or non-numeric value yields
+// ok=false.
+func wireInt(v any) (int, bool) {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return int(rv.Int()), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return int(rv.Uint()), true
+	case reflect.Float32, reflect.Float64:
+		return int(rv.Float()), true
+	default:
+		return 0, false
+	}
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form

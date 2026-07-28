@@ -3204,6 +3204,33 @@ class TestHandleRequest:
             decoder = CommsDecoder(socket=None).body_decoder  # type: ignore[var-annotated, arg-type]
             assert decoder.validate_python(frame.body) == client_mock.response
 
+    @pytest.mark.parametrize(
+        ("has_mapped_dependants", "key", "value", "expected_mapped_length"),
+        [
+            pytest.param(True, "return_value", ["a", "b", "c"], 3, id="mappable-list-flagged"),
+            pytest.param(True, "return_value", {"x": 1, "y": 2}, 2, id="mappable-dict-flagged"),
+            pytest.param(True, "return_value", "scalar", None, id="non-mappable-value-flagged"),
+            pytest.param(True, "some_key", ["a", "b"], None, id="non-return-value-key-flagged"),
+            pytest.param(False, "return_value", ["a", "b", "c"], None, id="mappable-list-not-flagged"),
+        ],
+    )
+    def test_set_xcom_records_mapped_length_for_stub_upstream(
+        self, watched_subprocess, mocker, has_mapped_dependants, key, value, expected_mapped_length
+    ):
+        """A foreign-runtime task cannot inspect the Dag to learn its return value feeds a
+        downstream ``.expand()``. When the server flagged that it does, the supervisor records the
+        length its mappable return value expands into (the analogue of the task runner's
+        ``_push_xcom_if_needed`` mapped_length logic); otherwise it forwards it untouched."""
+        watched_subprocess, _ = watched_subprocess
+        watched_subprocess._has_mapped_dependants = has_mapped_dependants
+        watched_subprocess.client.xcoms.set.return_value = OKResponse(ok=True)
+
+        msg = SetXCom(dag_id="test_dag", run_id="test_run", task_id="make_items", key=key, value=value)
+        watched_subprocess._handle_request(msg, mocker.Mock(), req_id=1)
+
+        _, kwargs = watched_subprocess.client.xcoms.set.call_args
+        assert kwargs["mapped_length"] == expected_mapped_length
+
     def test_all_to_supervisor_messages_are_covered(self):
         """Ensure all ToSupervisor message types have test coverage."""
 

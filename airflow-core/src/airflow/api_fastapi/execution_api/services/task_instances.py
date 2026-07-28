@@ -25,6 +25,7 @@ from fastapi import HTTPException, status
 
 from airflow.models.expandinput import NotFullyPopulated, SchedulerDictOfListsExpandInput
 from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg, SchedulerXComArg
 from airflow.serialization.serialized_objects import _XComRef
@@ -43,17 +44,31 @@ if TYPE_CHECKING:
 STUB_TASK_TYPE = "_StubOperator"
 
 
-def get_arg_bindings(dag_bag: DBDagBag, ti: Any, *, session: Session) -> list | None:
-    """Extract or derive the stub task's TaskFlow arg spec from its Dag version."""
+def get_stub_run_context(dag_bag: DBDagBag, ti: Any, *, session: Session) -> tuple[list | None, bool]:
+    """
+    Derive the stub task's run-context extras from its Dag version.
+
+    Returns ``(arg_bindings, has_mapped_dependants)``: the TaskFlow arg spec (or ``None``)
+    and whether a downstream mapped task expands over this task's output. Both come from a
+    single serialized-Dag lookup so an unmapped stub with mapped dependants (which carries
+    no arg spec) still reports the flag.
+    """
     if ti.dag_version_id is None:
-        return None
+        return None, False
     if (dag := dag_bag.get_dag(ti.dag_version_id, session=session)) is None:
-        return None
+        return None, False
     if (task := dag.task_dict.get(ti.task_id)) is None:
-        return None
+        return None, False
     if is_mapped(task):
-        return _resolve_mapped_stub_arg_bindings(task, ti, dag=dag, session=session)
-    return getattr(task, "_arg_bindings", None)
+        # A mapped task never reports a mapped_length: a downstream expanding over it counts its
+        # map indices, not a TaskMap on its value. This mirrors the task runner's ``not is_mapped``
+        # guard in ``_push_xcom_if_needed`` and is also why only ``SerializedBaseOperator`` (the
+        # unmapped operator) exposes ``iter_mapped_dependants``.
+        return _resolve_mapped_stub_arg_bindings(task, ti, dag=dag, session=session), False
+    has_mapped_dependants = (
+        isinstance(task, SerializedBaseOperator) and next(task.iter_mapped_dependants(), None) is not None
+    )
+    return getattr(task, "_arg_bindings", None), has_mapped_dependants
 
 
 def _unsupported_arg_bindings(detail: str) -> NoReturn:

@@ -122,3 +122,34 @@ class TestArgBindingsFieldBackwardCompat:
                 "from_default": True,
             },
         ]
+
+    @pytest.fixture
+    def mapped_upstream_ti(self, dag_maker):
+        """The upstream stub of a ``.expand()`` -- flagged as having mapped dependants."""
+        with dag_maker("test_has_mapped_dependants_compat_dag", serialized=True):
+
+            @task.stub
+            def make_items(): ...
+
+            @task.stub
+            def via_expand(item: str): ...
+
+            via_expand.expand(item=make_items())
+
+        dr = dag_maker.create_dagrun()
+        make_items_ti = dr.get_task_instance("make_items")
+        make_items_ti.set_state(State.QUEUED)
+        dag_maker.session.flush()
+        return make_items_ti
+
+    def test_old_version_strips_has_mapped_dependants(self, old_ver_client, mapped_upstream_ti):
+        response = old_ver_client.patch(
+            f"/execution/task-instances/{mapped_upstream_ti.id}/run", json=RUN_PATCH_BODY
+        )
+        assert response.status_code == 200
+        assert "has_mapped_dependants" not in response.json()
+
+    def test_head_version_includes_has_mapped_dependants(self, client, mapped_upstream_ti):
+        response = client.patch(f"/execution/task-instances/{mapped_upstream_ti.id}/run", json=RUN_PATCH_BODY)
+        assert response.status_code == 200
+        assert response.json()["has_mapped_dependants"] is True

@@ -1329,6 +1329,13 @@ class ActivitySubprocess(WatchedSubprocess):
     _should_retry: bool = attrs.field(default=False, init=False)
     """Whether the task should retry or not as decided by the API server."""
 
+    _has_mapped_dependants: bool = attrs.field(default=False, init=False)
+    """Whether a downstream mapped task expands over this (stub) task's output.
+
+    Set from the server's run context. A foreign-runtime task cannot inspect the Dag to
+    compute the ``mapped_length`` its return value expands into, so when this is set the
+    supervisor records it on the task's behalf (see the ``SetXCom`` handling)."""
+
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
     # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
     # does not hang around forever.
@@ -1387,6 +1394,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, datetime.now(tz=timezone.utc))
             self._should_retry = ti_context.should_retry
+            self._has_mapped_dependants = ti_context.has_mapped_dependants
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -1731,6 +1739,17 @@ class ActivitySubprocess(WatchedSubprocess):
         elif isinstance(msg, SkipDownstreamTasks):
             self.client.task_instances.skip_downstream_tasks(self.id, msg)
         elif isinstance(msg, SetXCom):
+            if self._has_mapped_dependants and msg.mapped_length is None:
+                # A foreign runtime can't inspect the Dag to learn its return value feeds a
+                # downstream ``.expand()``, so it never reports a ``mapped_length``. Record the
+                # length it maps into on the runtime's behalf so the scheduler can expand its
+                # mapped dependants -- the supervisor's analogue of the Python task runner's
+                # ``_push_xcom_if_needed`` mapped_length logic.
+                from airflow.sdk.bases.xcom import BaseXCom
+                from airflow.sdk.definitions.mappedoperator import is_mappable_value
+
+                if msg.key == BaseXCom.XCOM_RETURN_KEY and is_mappable_value(msg.value):
+                    msg.mapped_length = len(msg.value)
             resp, dump_opts = handle_set_xcom(self.client, msg)
         elif isinstance(msg, DeleteXCom):
             resp, dump_opts = handle_delete_xcom(self.client, msg)
