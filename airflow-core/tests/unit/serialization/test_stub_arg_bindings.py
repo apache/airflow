@@ -24,7 +24,9 @@ from typing import Any
 import pendulum
 import pytest
 
-from airflow.serialization.stub_arg_bindings import _infer_value_schema
+from airflow.providers.standard.decorators.stub import stub
+from airflow.sdk import DAG, task_group
+from airflow.serialization.stub_arg_bindings import _infer_value_schema, build_mapped_arg_binding_params
 
 
 @pytest.mark.parametrize(
@@ -171,3 +173,124 @@ def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):
     class _Unschemable: ...
 
     assert _infer_value_schema(_Unschemable) is None
+
+
+def fn_extract(): ...
+
+
+def fn_transform(country: str, extracted: dict, retries_num: int = 3): ...
+
+
+def fn_untyped(a, b): ...
+
+
+class TestMappedStubArgBindingParams:
+    """A mapped stub captures ordered per-parameter metadata for ti_run's per-map-index derivation."""
+
+    def get_hook_fields(self, operator):
+        params = build_mapped_arg_binding_params(operator)
+        return {} if params is None else {"_mapped_arg_binding_params": params}
+
+    def test_params_follow_declaration_order_with_defaults_and_schemas(self):
+        with DAG(dag_id="d"):
+            # The partial() kwarg is declared *after* the expanded one: the captured
+            # order must come from the signature, not from the call sites.
+            result = stub(fn_transform).partial(extracted={"a": 1}).expand(country=["uk", "fr"])
+
+        assert self.get_hook_fields(result.operator) == {
+            "_mapped_arg_binding_params": [
+                {"name": "country", "value_schema": {"type": "string"}},
+                {"name": "extracted", "value_schema": {"type": "object", "additionalProperties": True}},
+                {
+                    "name": "retries_num",
+                    "value_schema": {"type": "integer", "format": "int64"},
+                    "default": 3,
+                },
+            ]
+        }
+
+    def test_none_default_is_captured_by_key_presence(self):
+        def fn(x: str, y=None): ...
+
+        with DAG(dag_id="d"):
+            result = stub(fn).expand(x=["a"])
+
+        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        assert params[1] == {"name": "y", "default": None}
+
+    def test_untyped_params_omit_value_schema(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_untyped).expand(a=[1], b=[2])
+
+        assert self.get_hook_fields(result.operator) == {
+            "_mapped_arg_binding_params": [{"name": "a"}, {"name": "b"}]
+        }
+
+    def test_parameterless_stub_captures_nothing(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_extract).expand_kwargs([{}])
+
+        assert self.get_hook_fields(result.operator) == {}
+
+    def test_expand_kwargs_rejected_for_parameterful_stub(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_transform).expand_kwargs([{"country": "uk", "extracted": {}}])
+
+        with pytest.raises(ValueError, match="does not support expand_kwargs"):
+            self.get_hook_fields(result.operator)
+
+    def test_missing_required_parameter_rejected(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_transform).expand(country=["uk"])
+
+        with pytest.raises(ValueError, match="does not bind to its signature"):
+            self.get_hook_fields(result.operator)
+
+    def test_partial_kwarg_over_mapped_upstream_rejected(self):
+        def fn_produce(n: int): ...
+
+        with DAG(dag_id="d"):
+            vals = stub(fn_produce).expand(n=[1, 2])
+            result = stub(fn_transform).partial(extracted=vals).expand(country=["uk"])
+
+        with pytest.raises(ValueError, match="aggregated output of the mapped task"):
+            self.get_hook_fields(result.operator)
+
+    def test_expand_over_mapped_upstream_allowed(self):
+        def fn_produce(n: int): ...
+
+        with DAG(dag_id="d"):
+            vals = stub(fn_produce).expand(n=[1, 2])
+            result = stub(fn_transform).partial(country="uk").expand(extracted=vals)
+
+        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
+
+    def test_non_json_expand_literal_rejected(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_transform).partial(country="uk").expand(extracted=[object()])
+
+        with pytest.raises(ValueError, match="not JSON-serializable"):
+            self.get_hook_fields(result.operator)
+
+    def test_non_json_needed_default_rejected(self):
+        not_jsonable = object()
+
+        def fn(x: str, y=not_jsonable): ...
+
+        with DAG(dag_id="d"):
+            result = stub(fn).expand(x=["a"])
+
+        with pytest.raises(ValueError, match="not JSON-serializable"):
+            self.get_hook_fields(result.operator)
+
+    def test_mapped_stub_inside_mapped_task_group_unconstructible(self):
+        """The SDK bans expansion inside an expanded group outright, so no guard is needed here."""
+
+        @task_group
+        def group(n):
+            stub(fn_transform).partial(country="uk").expand(extracted=[{}])
+
+        with DAG(dag_id="d"):
+            with pytest.raises(NotImplementedError, match="expansion in an expanded task group"):
+                group.expand(n=[1, 2])
