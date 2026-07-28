@@ -19,9 +19,10 @@
 rules:
   secrets-outside-env:
     disable: true
-  # apache/infrastructure-actions is branch-tracked (no version tags); we pin it
-  # by commit SHA with a "# main" comment on purpose, so zizmor's expectation of a
-  # version-matching comment does not apply to that pin.
+  # apache/infrastructure-actions tags each action under its own prefix
+  # (allowlist-check/vX.Y.Z, save/vX.Y.Z, restore/vX.Y.Z), so its pins now carry a real
+  # version comment. zizmor matches comments against plain `vX.Y.Z` tags, so the prefixed
+  # form still reads as a mismatch to it.
   ref-version-mismatch:
     ignore:
       - asf-allowlist-check.yml
