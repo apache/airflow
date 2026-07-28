@@ -409,7 +409,7 @@ idna==3.18
 ijson==3.4.0.post0
 immutabledict==4.3.1
 importlib_metadata==9.0.0
-impyla==0.24.0
+impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.50.0
 influxdb3-python==0.20.0
