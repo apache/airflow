@@ -63,7 +63,7 @@ from airflow.models.asset import AssetDagRunQueue
 from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
-from airflow.models.team import Team
+from airflow.models.team import Team, TeamOwnedMixin
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.encoders import DAT, encode_deadline_alert
 from airflow.serialization.enums import Encoding
@@ -307,7 +307,7 @@ class DagOwnerAttributes(Base):
         return dag_links
 
 
-class DagModel(Base):
+class DagModel(Base, TeamOwnedMixin):
     """Table containing DAG properties."""
 
     __tablename__ = "dag"
@@ -439,6 +439,15 @@ class DagModel(Base):
     )
     dag_versions = relationship(
         "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
+    )
+    # The Dag's bundle, which carries the owning team. ``lazy="raise"`` forbids implicit
+    # loading so a caller that forgets ``eager_load_teams`` cannot emit a silent N+1;
+    # ``TeamOwnedMixin.team_name`` only reads this once loader options have populated it.
+    bundle = relationship(
+        "DagBundleModel",
+        primaryjoin="DagModel.bundle_name == DagBundleModel.name",
+        viewonly=True,
+        lazy="raise",
     )
 
     def __init__(self, **kwargs):

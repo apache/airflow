@@ -63,6 +63,8 @@ def compare_attributes(path1, path2):
         # Storing last heartbeat for historic TIs is not interesting/useful
         "last_heartbeat_at",
         "id",
+        # Config marker for TeamOwnedMixin's relationship walk, not a data attribute
+        "_team_path",
     }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return

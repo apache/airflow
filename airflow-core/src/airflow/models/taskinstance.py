@@ -93,6 +93,7 @@ from airflow.models.log import Log
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.team import TeamOwnedMixin
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
@@ -562,7 +563,7 @@ def uuid7() -> UUID:
     return uuid6.uuid7()
 
 
-class TaskInstance(Base, LoggingMixin, BaseWorkload):
+class TaskInstance(Base, LoggingMixin, BaseWorkload, TeamOwnedMixin):
     """
     Task instances store the state of a task instance.
 
@@ -695,6 +696,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     run_after = association_proxy("dag_run", "run_after")
     logical_date = association_proxy("dag_run", "logical_date")
+    _team_path = ("dag_run", "dag_model")
     task_instance_note = relationship(
         "TaskInstanceNote",
         back_populates="task_instance",

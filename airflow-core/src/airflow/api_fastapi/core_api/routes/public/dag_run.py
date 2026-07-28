@@ -42,7 +42,7 @@ from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
 )
-from airflow.api_fastapi.common.db.dags import attach_team_names
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -134,14 +134,15 @@ dag_run_at_dag_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}")
 )
 def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
     dag_run = session.scalar(
-        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_model))
+        select(DagRun)
+        .filter_by(dag_id=dag_id, run_id=dag_run_id)
+        .options(joinedload(DagRun.dag_model), *eager_load_teams(DagRun.dag_model))
     )
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-    attach_team_names([dag_run], session=session)
     return dag_run
 
 
@@ -694,7 +695,6 @@ def get_dag_runs(
             has_next = has_more
 
         attach_dag_versions_to_runs(dag_runs, session=session)
-        attach_team_names(dag_runs, session=session)
 
         return DAGRunCollectionResponse(
             dag_runs=dag_runs,
@@ -714,7 +714,6 @@ def get_dag_runs(
     )
     dag_runs = list(session.scalars(dag_run_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
-    attach_team_names(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
