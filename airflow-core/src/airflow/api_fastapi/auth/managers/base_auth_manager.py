@@ -364,13 +364,10 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         Return whether the user is authorized to access a read-only state of the installation.
 
-        Auth managers that support multi-team isolation use ``team_name`` to restrict access
-        to users belonging to that team. Managers without multi-team support accept the
-        argument and ignore it, which authorizes the view globally.
-
         :param access_view: the specific read-only view/state the authorization request is about.
         :param user: the user to performing the action
-        :param team_name: team the view is scoped to, if any
+        :param team_name: team the view is scoped to, if any. Managers without multi-team
+            support may accept and ignore it, which authorizes the view globally.
         """
 
     @cached_property
@@ -383,24 +380,17 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         Authorize a read-only view, tolerating auth managers that predate ``team_name``.
 
-        Core calls this rather than :meth:`is_authorized_view` directly on any team-scoped
-        path. An auth manager whose ``is_authorized_view`` override still has the old
-        ``(access_view, user)`` signature — an out-of-tree manager, or a provider released
-        before ``team_name`` was added — would otherwise raise ``TypeError`` at call time.
-        Here it falls back to calling without ``team_name`` (global authorization, which is
-        exactly what a manager with no multi-team support does anyway) and warns. The
-        fallback is removed in Airflow 4.
+        Core calls this instead of :meth:`is_authorized_view` on team-scoped paths: an
+        override still on the old ``(access_view, user)`` signature would otherwise raise
+        ``TypeError``. Removed in Airflow 4.
         """
         if self._is_authorized_view_team_aware:
             return self.is_authorized_view(access_view=access_view, user=user, team_name=team_name)
         warnings.warn(
-            f"The '{type(self).__name__}' auth manager is not team-aware, so some views that "
-            "should be restricted to a single team — such as import errors for files with no "
-            "registered Dag — are instead authorized across all teams and may be visible to "
-            "users of other teams. Upgrade to a version of this auth manager that supports team "
-            "scoping (for a provider auth manager, upgrade the provider; for a custom one, add "
-            "the 'team_name' argument to is_authorized_view). Airflow 4 will require team-aware "
-            "auth managers.",
+            f"The '{type(self).__name__}' auth manager is not team-aware, so team-scoped views are "
+            "authorized across all teams and may be visible to users of other teams. Add the "
+            "'team_name' argument to its is_authorized_view (or upgrade the provider). Airflow 4 "
+            "will require team-aware auth managers.",
             RemovedInAirflow4Warning,
             stacklevel=2,
         )

@@ -238,9 +238,8 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         user: AwsAuthManagerUser,
         team_name: str | None = None,
     ) -> bool:
-        # ``team_name`` is accepted for interface parity and ignored: views are authorized
-        # against the VIEW entity, which is not team-scoped in the Verified Permissions
-        # schema, so a team-scoped view authorizes exactly as the global one does.
+        # ``team_name`` is ignored: the VIEW entity is not team-scoped in the
+        # Verified Permissions schema.
         return self.avp_facade.is_authorized(
             method="GET",
             entity_type=AvpEntities.VIEW,

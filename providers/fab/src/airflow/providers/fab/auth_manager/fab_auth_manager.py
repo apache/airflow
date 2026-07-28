@@ -148,9 +148,8 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.WEBSITE: RESOURCE_WEBSITE,
 }
 
-# ``AccessView.IMPORT_ERRORS_ALL`` only exists on Airflow core >= 3.4.0. Map it only
-# when the running core defines it, so this provider keeps importing against older
-# core (resolved via the common.compat shim, which yields ``None`` when absent).
+# ``AccessView.IMPORT_ERRORS_ALL`` only exists on core >= 3.4.0; the compat shim
+# yields ``None`` on older core so this provider still imports there.
 if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
 
@@ -523,8 +522,7 @@ class FabAuthManager(BaseAuthManager[User]):
     def is_authorized_view(
         self, *, access_view: AccessView, user: User, team_name: str | None = None
     ) -> bool:
-        # ``team_name`` is accepted for interface parity and ignored: FAB has no multi-team
-        # support, so a team-scoped view authorizes exactly as the global one does.
+        # ``team_name`` is ignored: FAB has no multi-team support.
         # "Docs" are only links in the menu, there is no page associated
         method: ExtendedResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(

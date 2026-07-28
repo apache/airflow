@@ -354,8 +354,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     def is_authorized_view(
         self, *, access_view: AccessView, user: SimpleAuthManagerUser, team_name: str | None = None
     ) -> bool:
-        # Import errors for files with no registered Dag are admin-only (there is no
-        # per-Dag key to authorize on); every other view stays readable by viewers.
+        # Import errors for files with no registered Dag are admin-only; every other
+        # view stays readable by viewers.
         allow_role = (
             SimpleAuthManagerRole.ADMIN
             if access_view == AccessView.IMPORT_ERRORS_ALL

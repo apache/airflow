@@ -150,7 +150,7 @@ For example, the ``configuration`` resource is by definition read-only, so only 
 .. _team-scoped-view-authorization:
 
 Team-scoped view authorization
-""""""""""""""""""""""""""""""
+''''''''''''''''''''''''''''''
 
 .. versionadded:: 3.4.0
    ``is_authorized_view`` accepts an optional ``team_name`` argument.

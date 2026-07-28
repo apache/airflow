@@ -100,14 +100,10 @@ def get_import_error(
         ).all()
     )
 
-    # No Dags matched for this file -- either the file genuinely contains
-    # no Dags (parse failed before any Dag was defined), or the name keys
-    # did not resolve. There is no per-Dag key to authorize on, so gate
-    # visibility on the dedicated ``IMPORT_ERRORS_ALL`` view (admin by
-    # default), scoped to the file's team via its bundle. Deny access
-    # entirely for callers without it rather than failing open -- returning
-    # the row would leak the file's existence (and, for team-scoped bundles,
-    # cross-team repository structure).
+    # No Dags matched for this file, so there is no per-Dag key to authorize on:
+    # gate on ``IMPORT_ERRORS_ALL``, scoped to the file's team via its bundle.
+    # Denying rather than failing open -- returning the row would leak the file's
+    # existence, and for team-scoped bundles the cross-team repository structure.
     if not file_dag_ids:
         team_name = (
             DagBundleModel.get_team_name(error.bundle_name, session=session) if error.bundle_name else None
@@ -173,13 +169,10 @@ def get_import_errors(
     # Subquery for files that have any Dags
     files_with_any_dags = select(DagModel.relative_fileloc, DagModel.bundle_name).distinct().subquery()
 
-    # Import errors for files that have **no** registered Dag have no per-Dag
-    # key to authorize on. Authorize them on the dedicated ``IMPORT_ERRORS_ALL``
-    # view (admin by default), scoped to the file's team via its bundle, and
-    # keep only the ones the caller may see. Filtering here (rather than
-    # redacting in the loop) also excludes unauthorized rows from the count and
-    # pagination, so their existence -- and, for team-scoped bundles, the
-    # cross-team file/bundle names -- does not leak.
+    # Errors for files with no registered Dag are authorized on ``IMPORT_ERRORS_ALL``,
+    # scoped to the file's team via its bundle. Filtering here rather than redacting in
+    # the loop keeps unauthorized rows out of the count and pagination too, so their
+    # existence -- and for team-scoped bundles the cross-team file names -- does not leak.
     unregistered_errors = session.execute(
         select(ParseImportError.id, ParseImportError.bundle_name)
         .outerjoin(
@@ -307,10 +300,8 @@ def get_import_errors(
     for import_error, file_dag_ids_iter in import_errors_result:
         dag_ids = [dag_id for _, dag_id in file_dag_ids_iter if dag_id is not None]
 
-        # No Dags matched for this file. Only unregistered-file errors the
-        # caller is authorized to see reach this point (unauthorized ones are
-        # excluded by the ``authorized_unregistered_ids`` filter above), so
-        # return the raw stacktrace.
+        # Unauthorized unregistered-file errors were already filtered out above,
+        # so anything reaching here may show its raw stacktrace.
         if not dag_ids:
             import_errors.append(import_error)
             continue

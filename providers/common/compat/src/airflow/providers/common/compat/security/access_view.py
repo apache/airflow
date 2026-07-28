@@ -16,12 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-# ``AccessView.IMPORT_ERRORS_ALL`` was added to Airflow core in 3.4.0. Auth-manager
-# providers are released independently and may run against an older core that does
-# not yet define the member (or, on Airflow 2.x, does not ship ``api_fastapi`` at
-# all). Resolve it defensively so importing a provider that references the dedicated
-# "all import errors" view does not raise on older core: ``None`` signals the view
-# is unavailable and callers should skip mapping it.
+# ``AccessView.IMPORT_ERRORS_ALL`` was added in Airflow 3.4.0, and providers are
+# released independently of core. ``None`` signals the view is unavailable on the
+# running core and callers should skip mapping it.
 try:
     from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 
