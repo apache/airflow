@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 import attrs
 import methodtools
 
+from airflow._shared.dagnode.node import TaskGroupMixin
 from airflow.serialization.definitions.node import DAGNode
 
 if TYPE_CHECKING:
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
 
 
 @attrs.define(eq=False, hash=False, kw_only=True)
-class SerializedTaskGroup(DAGNode):
+class SerializedTaskGroup(TaskGroupMixin, DAGNode):
     """Serialized representation of a TaskGroup used in protected processes."""
 
     _group_id: str | None = attrs.field(alias="group_id")
@@ -261,18 +262,7 @@ class SerializedTaskGroup(DAGNode):
         id_to_idx: dict[str, int],
         group_dict: dict[str | None, SerializedTaskGroup],
     ) -> tuple[int, ...]:
-        if isinstance(child, SerializedTaskGroup):
-            # A group's own upstream_task_ids only reflects direct group-to-task edges.
-            # Group-to-group edges (`group_a >> group_b`, list or individual) only populate
-            # upstream_group_ids, and task-level edges crossing into the group (a sibling
-            # task feeding one of this group's entry tasks) never touch the group at all —
-            # both need to be pulled in explicitly here.
-            upstream_ids: set[str] = set(child.upstream_task_ids)
-            upstream_ids.update(gid for gid in child.upstream_group_ids if gid is not None)
-            for root_task in child.get_roots():
-                upstream_ids.update(root_task.upstream_task_ids)
-        else:
-            upstream_ids = child.upstream_task_ids
+        upstream_ids = child._topological_upstream_ids
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()

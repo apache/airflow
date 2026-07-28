@@ -30,6 +30,7 @@ import attrs
 import methodtools
 
 from airflow.sdk import TriggerRule
+from airflow.sdk._shared.dagnode.node import TaskGroupMixin
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
     AirflowDagCycleException,
@@ -93,7 +94,7 @@ def _convert_doc_md(doc_md: str | None) -> str | None:
 
 
 @attrs.define(repr=False)
-class TaskGroup(DAGNode):
+class TaskGroup(TaskGroupMixin, DAGNode):
     """
     A collection of tasks.
 
@@ -601,18 +602,7 @@ class TaskGroup(DAGNode):
         id_to_idx: dict[str, int],
         group_dict: dict[str, TaskGroup],
     ) -> tuple[int, ...]:
-        if isinstance(child, TaskGroup):
-            # A group's own upstream_task_ids only reflects direct group-to-task edges.
-            # Group-to-group edges (`group_a >> group_b`, list or individual) only populate
-            # upstream_group_ids, and task-level edges crossing into the group (a sibling
-            # task feeding one of this group's entry tasks) never touch the group at all —
-            # both need to be pulled in explicitly here.
-            upstream_ids: set[str] = set(child.upstream_task_ids)
-            upstream_ids.update(gid for gid in child.upstream_group_ids if gid is not None)
-            for root_task in child.get_roots():
-                upstream_ids.update(root_task.upstream_task_ids)
-        else:
-            upstream_ids = child.upstream_task_ids
+        upstream_ids = child._topological_upstream_ids
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
