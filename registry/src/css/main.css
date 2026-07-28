@@ -3798,38 +3798,6 @@ main {
   border-color: var(--border-primary);
 }
 
-.provider-detail-page .connections-card .conn-integrations-details {
-  cursor: pointer;
-}
-
-.provider-detail-page .connections-card .conn-integrations-details summary {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  list-style: none;
-  cursor: pointer;
-  transition: color var(--transition-base);
-}
-
-.provider-detail-page .connections-card .conn-integrations-details summary:hover {
-  color: var(--accent-primary);
-}
-
-.provider-detail-page .connections-card .conn-integrations-details summary .hide-label {
-  display: none;
-}
-
-.provider-detail-page .connections-card .conn-integrations-details[open] summary .show-label {
-  display: none;
-}
-
-.provider-detail-page .connections-card .conn-integrations-details[open] summary .hide-label {
-  display: inline;
-}
-
-.provider-detail-page .connections-card .conn-integrations-details .badge {
-  margin-top: var(--space-1);
-}
-
 /* Shared builder panel */
 .provider-detail-page .connections-card .conn-builder-panel {
   margin-top: var(--space-3);
