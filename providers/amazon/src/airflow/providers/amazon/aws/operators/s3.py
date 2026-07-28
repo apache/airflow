@@ -576,7 +576,7 @@ class S3CreateObjectOperator(AwsBaseOperator[S3Hook]):
 
     """
 
-    template_fields: Sequence[str] = aws_template_fields("s3_bucket", "s3_key", "data")
+    template_fields: Sequence[str] = aws_template_fields("s3_bucket", "s3_key", "data","aws_conn_id")
     aws_hook_class = S3Hook
 
     def __init__(
