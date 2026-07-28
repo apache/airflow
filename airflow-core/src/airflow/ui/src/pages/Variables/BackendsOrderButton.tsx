@@ -30,7 +30,7 @@ export const BackendsOrderButton = ({
   label,
   link,
   onClick,
-  state,
+  state = null,
 }: {
   readonly colorScheme: string;
   readonly icon?: React.ReactNode;
