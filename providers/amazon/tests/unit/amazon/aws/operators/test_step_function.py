@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionGetExecutionOutputOperator,
     StepFunctionStartExecutionOperator,
@@ -77,6 +78,33 @@ class TestStepFunctionGetExecutionOutputOperator:
         assert op.hook._region_name is None
         assert op.hook._verify is None
         assert op.hook._config is None
+
+    def test_deprecated_input_getter(self):
+        op = StepFunctionStartExecutionOperator(
+            task_id="test_task",
+            state_machine_arn="arn",
+            state_machine_input={"key": "value"},
+        )
+
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `input` attribute is deprecated",
+        ):
+            assert op.input == {"key": "value"}
+
+    def test_deprecated_input_setter(self):
+        op = StepFunctionStartExecutionOperator(
+            task_id="test_task",
+            state_machine_arn="arn",
+        )
+
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="The `input` attribute is deprecated",
+        ):
+            op.input = {"key": "updated"}
+
+        assert op.state_machine_input == {"key": "updated"}
 
     @mock.patch.object(StepFunctionGetExecutionOutputOperator, "hook")
     @pytest.mark.parametrize(

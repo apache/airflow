@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import json
+import warnings
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.links.step_function import (
     StateMachineDetailsLink,
@@ -101,6 +103,26 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+
+    @property
+    def input(self) -> dict | str | None:
+        warnings.warn(
+            "The `input` attribute is deprecated and will be removed in a future release. "
+            "Please use `state_machine_input` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.state_machine_input
+
+    @input.setter
+    def input(self, value: dict | str | None) -> None:
+        warnings.warn(
+            "The `input` attribute is deprecated and will be removed in a future release. "
+            "Please use `state_machine_input` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        self.state_machine_input = value
 
     def execute(self, context: Context):
         StateMachineDetailsLink.persist(
