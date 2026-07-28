@@ -136,6 +136,10 @@ class DocumentLoaderOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
+        if source_path is not None and source_bytes is not None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
+        if source_path is None and source_bytes is None:
+            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
         self.source_path = source_path
         self.source_conn_id = source_conn_id
         self.source_bytes = source_bytes
@@ -148,11 +152,10 @@ class DocumentLoaderOperator(BaseOperator):
         self.json_text_field = json_text_field
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
-        # source_path/file_type are template fields; validate after rendering, not in __init__.
-        if self.source_path is not None and self.source_bytes is not None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes', not both.")
-        if self.source_path is None and self.source_bytes is None:
-            raise ValueError("Provide exactly one of 'source_path' or 'source_bytes'.")
+        # source_path/source_bytes provision is checked in __init__ (that's just "was an
+        # argument passed"). file_type is different: it backs the assert below, and since
+        # file_type is itself a template field, whether it was *actually* supplied is only
+        # knowable after rendering -- so this one check has to stay here, not in __init__.
         if self.source_bytes is not None and self.file_type is None:
             raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
 
