@@ -676,6 +676,7 @@ class EventLogResponse(BaseModel):
     event: Annotated[str, Field(title="Event")]
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
     owner: Annotated[str | None, Field(title="Owner")] = None
+    owner_display_name: Annotated[str | None, Field(title="Owner Display Name")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
     dag_display_name: Annotated[str | None, Field(title="Dag Display Name")] = None
     task_display_name: Annotated[str | None, Field(title="Task Display Name")] = None
@@ -1858,6 +1859,7 @@ class DAGRunResponse(BaseModel):
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     partition_date: Annotated[datetime | None, Field(title="Partition Date")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class DAGRunsBatchBody(BaseModel):
@@ -2151,6 +2153,7 @@ class TaskInstanceResponse(BaseModel):
     trigger: TriggerResponse | None = None
     triggerer_job: JobResponse | None = None
     dag_version: DagVersionResponse | None = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class TaskResponse(BaseModel):

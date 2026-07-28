@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 import time_machine
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
@@ -53,6 +53,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
@@ -128,6 +129,10 @@ RUN_AFTER2 = datetime(2024, 2, 20, 0, 0, tzinfo=timezone.utc)
 START_DATE2 = datetime(2024, 4, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
+PARTITION_DATE1 = datetime(2024, 6, 1, 0, 0, tzinfo=timezone.utc)
+PARTITION_DATE2 = datetime(2024, 6, 2, 0, 0, tzinfo=timezone.utc)
+PARTITION_DATE3 = datetime(2024, 6, 3, 0, 0, tzinfo=timezone.utc)
+PARTITION_DATE4 = datetime(2024, 6, 4, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
 DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
 
@@ -173,6 +178,7 @@ def setup(request, dag_maker, *, session=None):
     dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
     # Set conf for testing conf_contains filter (values ordered for predictable sorting)
     dag_run1.conf = {"env": "development", "version": "1.0"}
+    dag_run1.partition_date = PARTITION_DATE1
 
     for i, t in enumerate([task1, task2], start=1):
         ti = dag_run1.get_task_instance(task_id=t.task_id)
@@ -203,6 +209,7 @@ def setup(request, dag_maker, *, session=None):
     dag_run2.end_date = dag_run2.start_date + timedelta(seconds=201)
     # Set conf for testing conf_contains filter
     dag_run2.conf = {"env": "production", "debug": True}
+    dag_run2.partition_date = PARTITION_DATE2
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -230,6 +237,7 @@ def setup(request, dag_maker, *, session=None):
     dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
     # Set conf for testing conf_contains filter
     dag_run3.conf = {"env": "staging", "test_mode": True}
+    dag_run3.partition_date = PARTITION_DATE3
 
     dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
@@ -244,6 +252,7 @@ def setup(request, dag_maker, *, session=None):
     dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
+    dag_run4.partition_date = PARTITION_DATE4
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -318,10 +327,40 @@ def get_dag_run_dict(run: DagRun):
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
         "partition_key": run.partition_key,
-        "partition_date": from_datetime_to_zulu_without_ms(run.partition_date)
-        if run.partition_date
-        else None,
+        "partition_date": (
+            from_datetime_to_zulu_without_ms(run.partition_date) if run.partition_date else None
+        ),
+        "team_name": None,
     }
+
+
+def _attach_dag_to_team(session, dag_id: str, *, bundle_name: str, team_name: str) -> str:
+    """
+    Associate a Dag with a team via a team-scoped bundle for multi-team tests.
+
+    Returns the Dag's original bundle name so the caller can restore it during cleanup
+    (``DagModel.bundle_name`` is a foreign key with no ``ON DELETE`` action).
+    """
+    original_bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == dag_id))
+    bundle = DagBundleModel(name=bundle_name)
+    bundle.teams.append(Team(name=team_name))
+    session.add(bundle)
+    session.flush()
+    session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle_name))
+    session.commit()
+    return original_bundle_name
+
+
+def _detach_dag_from_team(
+    session, dag_id: str, *, bundle_name: str, team_name: str, original_bundle_name: str
+) -> None:
+    """Undo :func:`_attach_dag_to_team`, restoring the Dag's original bundle."""
+    session.execute(
+        update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=original_bundle_name)
+    )
+    session.execute(delete(DagBundleModel).where(DagBundleModel.name == bundle_name))
+    session.execute(delete(Team).where(Team.name == team_name))
+    session.commit()
 
 
 class TestGetDagRun:
@@ -413,6 +452,68 @@ class TestGetDagRuns:
         body = response.json()
         assert body["detail"] == "The Dag with ID: `invalid` was not found"
 
+    def test_partition_date_day_filters_reject_all_dags_selector(self, test_client):
+        response = test_client.get("/dags/~/dagRuns", params={"partition_date_gte": "2025-01-01"})
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "partition_date_gte and partition_date_lte require a specific dag_id."
+        )
+
+    def test_partition_date_day_filters_reject_non_partitioned_dag(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"partition_date_gte": "2025-01-01"})
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            f"Dag with dag_id: '{DAG1_ID}' is not partitioned; "
+            "partition_date_gte and partition_date_lte are not supported."
+        )
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_runs_includes_team_name(self, test_client, session):
+        original_bundle_name = _attach_dag_to_team(
+            session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"
+        )
+        try:
+            response = test_client.get(f"/dags/{DAG1_ID}/dagRuns")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["dag_runs"]
+            assert all(run["team_name"] == "team-runs" for run in body["dag_runs"])
+        finally:
+            _detach_dag_from_team(
+                session,
+                DAG1_ID,
+                bundle_name="team-bundle-runs",
+                team_name="team-runs",
+                original_bundle_name=original_bundle_name,
+            )
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_runs_filtered_by_team(self, test_client, session):
+        original_bundle_name = _attach_dag_to_team(
+            session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"
+        )
+        try:
+            response = test_client.get("/dags/~/dagRuns", params={"teams": ["team-filter"]})
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG1_ID}
+
+            # A team with no Dags returns nothing.
+            response = test_client.get("/dags/~/dagRuns", params={"teams": ["nonexistent-team"]})
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+        finally:
+            _detach_dag_from_team(
+                session,
+                DAG1_ID,
+                bundle_name="team-bundle-filter",
+                team_name="team-filter",
+                original_bundle_name=original_bundle_name,
+            )
+
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
         assert response.status_code == 400
@@ -437,6 +538,7 @@ class TestGetDagRuns:
             pytest.param("state", [DAG1_RUN2_ID, DAG1_RUN1_ID], id="order_by_state"),
             pytest.param("dag_id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_dag_id"),
             pytest.param("logical_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_logical_date"),
+            pytest.param("partition_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_partition_date"),
             pytest.param("dag_run_id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_dag_run_id"),
             pytest.param("start_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_start_date"),
             pytest.param("end_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_end_date"),
@@ -1003,6 +1105,48 @@ class TestGetDagRuns:
         assert response.status_code == 200
         body = response.json()
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_partition_date_day_filters_use_timetable_timezone(self, test_client, dag_maker, session):
+        dag_id = "test_partition_date_local_day"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        for run_id, partition_date in [
+            ("before_local_day", datetime(2025, 1, 1, 15, 59, 59, tzinfo=timezone.utc)),
+            ("start_local_day", datetime(2025, 1, 1, 16, 0, 0, tzinfo=timezone.utc)),
+            ("end_local_day", datetime(2025, 1, 2, 15, 59, 59, tzinfo=timezone.utc)),
+            ("after_local_day", datetime(2025, 1, 2, 16, 0, 0, tzinfo=timezone.utc)),
+        ]:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=run_id,
+            )
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns",
+            params={
+                "partition_date_gte": "2025-01-02",
+                "partition_date_lte": "2025-01-02",
+                "order_by": "partition_date",
+            },
+        )
+        assert response.status_code == 200
+        assert [each["dag_run_id"] for each in response.json()["dag_runs"]] == [
+            "start_local_day",
+            "end_local_day",
+        ]
 
     def test_bad_filters(self, test_client):
         query_params = {
@@ -3242,6 +3386,7 @@ class TestTriggerDagRun:
             "triggering_user_name": "test",
             "partition_key": None,
             "partition_date": None,
+            "team_name": None,
         }
 
         assert response.json() == expected_response_json
@@ -3483,6 +3628,7 @@ class TestTriggerDagRun:
             "note": note,
             "partition_key": None,
             "partition_date": None,
+            "team_name": None,
         }
 
         assert response_2.status_code == 409
@@ -3573,6 +3719,7 @@ class TestTriggerDagRun:
             "note": None,
             "partition_key": None,
             "partition_date": None,
+            "team_name": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")

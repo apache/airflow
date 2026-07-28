@@ -21,6 +21,7 @@ import { useSearchParams, useParams } from "react-router-dom";
 
 import { FilterBar, type FilterValue } from "src/components/FilterBar";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 const {
@@ -38,11 +39,13 @@ const {
   RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   TASK_STATE: STATE_PARAM,
+  TEAMS: TEAMS_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 export const TaskInstancesFilter = () => {
   const { dagId, runId } = useParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const paramKeys: Array<FilterableSearchParamsKeys> = [
     NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
     LOGICAL_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
@@ -58,6 +61,10 @@ export const TaskInstancesFilter = () => {
     QUEUE_NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
     STATE_PARAM as FilterableSearchParamsKeys,
   ];
+
+  if (multiTeamEnabled) {
+    paramKeys.push(TEAMS_PARAM as FilterableSearchParamsKeys);
+  }
 
   if (runId === undefined) {
     paramKeys.unshift(RUN_ID_PATTERN_PARAM as FilterableSearchParamsKeys);

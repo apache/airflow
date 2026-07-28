@@ -56,8 +56,8 @@ from airflow.providers.common.compat.sdk import (
     AirflowNotFoundException,
     AirflowSkipException,
     TaskDeferred,
+    timezone,
 )
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
@@ -2775,6 +2775,9 @@ class TestKubernetesPodOperatorDurableExecution:
                 k = KubernetesPodOperator(task_id="task")
         assert k.durable is False
         assert k.reattach_on_restart is False
+
+    def test_supports_durable_execution_marker(self):
+        assert KubernetesPodOperator._KubernetesPodOperator__supports_durable_execution is True
 
 
 class TestSuppress:

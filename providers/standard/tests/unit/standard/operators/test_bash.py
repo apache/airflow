@@ -27,9 +27,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+    timezone,
+)
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
