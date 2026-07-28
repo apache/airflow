@@ -28,7 +28,14 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunConte
 
 
 class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
-    """Add the ``arg_bindings`` argument-binding spec for stub (foreign-runtime) tasks."""
+    """
+    Add the ``arg_bindings`` argument-binding spec for stub (foreign-runtime) tasks.
+
+    Covers unmapped stubs, whose spec is materialized at Dag-serialization time, and mapped
+    (``.expand()``) ones, whose bindings ti_run derives per map index and which may carry
+    ``map_index``/``element_index``. Both ride the same field, which is dropped wholesale for
+    older clients below, so the mapped shape needs no migration of its own.
+    """
 
     description = __doc__
 
