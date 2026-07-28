@@ -223,7 +223,9 @@ class TestS3ToHiveTransfer:
             # against expected file output
 
             tests_common.test_utils.file_loading.load_file_from_resources.side_effect = (
-                lambda *args, **kwargs: self._load_file_side_effect(args, op_fn, ext)
+                lambda *args, _op_fn=op_fn, _ext=ext, **kwargs: self._load_file_side_effect(
+                    args, _op_fn, _ext
+                )
             )
             # Execute S3ToHiveTransfer
             s32hive = S3ToHiveOperator(**self.kwargs)
