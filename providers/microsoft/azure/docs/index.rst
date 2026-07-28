@@ -132,6 +132,7 @@ PIP package                                 Version required
 ``azure-mgmt-containerregistry``            ``>=8.0.0``
 ``azure-mgmt-compute``                      ``>=33.0.0``
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
+``requests``                                ``>=2.27.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``
 ``microsoft-kiota-http``                    ``>=1.9.4,<2.0.0``
