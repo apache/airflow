@@ -254,8 +254,6 @@ export type TaskArgBinding = XComArgBinding | LiteralArgBinding;
 export type Kind = "xcom";
 export type Name8 = string;
 export type TaskId1 = string;
-export type MapIndex1 = number;
-export type ElementIndex = number | null;
 export type Kind1 = "literal";
 export type Name9 = string;
 export type FromDefault = boolean;
@@ -339,7 +337,7 @@ export type Key5 = string;
 export type DagId6 = string;
 export type RunId5 = string;
 export type TaskId2 = string;
-export type MapIndex2 = number | null;
+export type MapIndex1 = number | null;
 export type Type25 = "DeleteXCom";
 /**
  * Error types used in the API client.
@@ -437,10 +435,10 @@ export type Type41 = "GetPreviousDagRun";
 export type DagId12 = string;
 export type TaskId3 = string;
 export type LogicalDate4 = string | null;
-export type MapIndex3 = number;
+export type MapIndex2 = number;
 export type Type42 = "GetPreviousTI";
 export type DagId13 = string;
-export type MapIndex4 = number | null;
+export type MapIndex3 = number | null;
 export type TaskIds = string[] | null;
 export type TaskGroupId = string | null;
 export type LogicalDates1 = string[] | null;
@@ -457,7 +455,7 @@ export type TiId6 = string;
 export type Key8 = string;
 export type Type46 = "GetTaskStateStore";
 export type DagId15 = string;
-export type MapIndex5 = number | null;
+export type MapIndex4 = number | null;
 export type TaskIds1 = string[] | null;
 export type TaskGroupId1 = string | null;
 export type LogicalDates2 = string[] | null;
@@ -473,7 +471,7 @@ export type Key10 = string;
 export type DagId16 = string;
 export type RunId9 = string;
 export type TaskId4 = string;
-export type MapIndex6 = number | null;
+export type MapIndex5 = number | null;
 export type IncludePriorDates = boolean;
 export type Type50 = "GetXCom";
 export type Key11 = string;
@@ -530,7 +528,7 @@ export type StartDate5 = string | null;
 export type EndDate4 = string | null;
 export type State4 = string | null;
 export type TryNumber2 = number;
-export type MapIndex7 = number | null;
+export type MapIndex6 = number | null;
 export type Duration = number | null;
 export type Type60 = "PreviousTIResult";
 export type Key14 = string;
@@ -567,7 +565,7 @@ export type Key18 = string;
 export type DagId21 = string;
 export type RunId14 = string;
 export type TaskId9 = string;
-export type MapIndex8 = number | null;
+export type MapIndex7 = number | null;
 export type DagResult1 = boolean;
 export type MappedLength = number | null;
 export type Type71 = "SetXCom";
@@ -1063,8 +1061,6 @@ export interface XComArgBinding {
   name: Name8;
   value_schema?: ArgValueSchema | null;
   task_id: TaskId1;
-  map_index?: MapIndex1;
-  element_index?: ElementIndex;
 }
 /**
  * One positional stub-task argument carrying an inline literal from the Dag file.
@@ -1237,7 +1233,7 @@ export interface DeleteXCom {
   dag_id: DagId6;
   run_id: RunId5;
   task_id: TaskId2;
-  map_index?: MapIndex2;
+  map_index?: MapIndex1;
   type?: Type25;
 }
 /**
@@ -1405,7 +1401,7 @@ export interface GetPreviousTI {
   dag_id: DagId12;
   task_id: TaskId3;
   logical_date?: LogicalDate4;
-  map_index?: MapIndex3;
+  map_index?: MapIndex2;
   state?: TaskInstanceState | null;
   type?: Type42;
 }
@@ -1415,7 +1411,7 @@ export interface GetPreviousTI {
  */
 export interface GetTICount {
   dag_id: DagId13;
-  map_index?: MapIndex4;
+  map_index?: MapIndex3;
   task_ids?: TaskIds;
   task_group_id?: TaskGroupId;
   logical_dates?: LogicalDates1;
@@ -1456,7 +1452,7 @@ export interface GetTaskStateStore {
  */
 export interface GetTaskStates {
   dag_id: DagId15;
-  map_index?: MapIndex5;
+  map_index?: MapIndex4;
   task_ids?: TaskIds1;
   task_group_id?: TaskGroupId1;
   logical_dates?: LogicalDates2;
@@ -1490,7 +1486,7 @@ export interface GetXCom {
   dag_id: DagId16;
   run_id: RunId9;
   task_id: TaskId4;
-  map_index?: MapIndex6;
+  map_index?: MapIndex5;
   include_prior_dates?: IncludePriorDates;
   type?: Type50;
 }
@@ -1616,7 +1612,7 @@ export interface PreviousTIResponse {
   end_date?: EndDate4;
   state?: State4;
   try_number: TryNumber2;
-  map_index?: MapIndex7;
+  map_index?: MapIndex6;
   duration?: Duration;
 }
 /**
@@ -1744,7 +1740,7 @@ export interface SetXCom {
   dag_id: DagId21;
   run_id: RunId14;
   task_id: TaskId9;
-  map_index?: MapIndex8;
+  map_index?: MapIndex7;
   dag_result?: DagResult1;
   mapped_length?: MappedLength;
   type?: Type71;
