@@ -397,11 +397,6 @@ class TestPosixKillBehaviour:
         pgid = self._await_recorded_pid(paths)
         self._assert_kill_tears_down(paths, pgid, marker)
 
-    # Same environment-dependent process-group race that #69384 added reruns for on the
-    # sibling test; that marker was dropped in #69490 when this pty variant was written.
-    # The launch still depends on how the runner schedules the setsid fork, so keep main
-    # green on a fresh draw - the first attempt's assertion text stays in the CI log.
-    @pytest.mark.flaky(reruns=5)
     def test_kill_terminates_whole_job_tree_under_job_control(self, tmp_path):
         """With job control on, setsid(1) forks and the launcher's ``$!`` would name the
         short-lived setsid parent, not the job -- the condition the old wrapper orphaned
@@ -414,8 +409,9 @@ class TestPosixKillBehaviour:
         self._run_bash_mc_under_pty(
             wrapper + "\necho SUBMIT_DONE\n",
             b"SUBMIT_DONE",
-            # The job records its pid only after setsid(2) has put it in its own session, so
-            # a non-empty pid file is proof the pty hangup below can no longer reach it.
+            # Hang up only once the job is up (pid file written), so the pgrep below sees a
+            # started job. The job survives the hangup regardless: the wrapper detaches its
+            # stdin from the terminal, so the setsid session never adopts the pty.
             detached=lambda: pid_path.exists() and bool(pid_path.read_text().strip()),
         )
         pgid = self._await_recorded_pid(paths)
