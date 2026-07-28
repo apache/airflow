@@ -3656,6 +3656,49 @@ class TestKubernetesExecutorCallbackSupport:
 
     @pytest.mark.db_test
     @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_callback_failed_with_pod_launch_attempt(self, mock_delete_pod):
+        """
+        A failed callback pod with a tracked launch attempt must not crash.
+
+        Regression test: the pre-execution-failure retry path looked up TI state via
+        ``TaskInstance.filter_for_tis``, which assumes a ``TaskInstanceKey`` and raises
+        ``AttributeError`` on a ``CallbackKey`` (no dag_id/task_id). Reproduces the
+        production crash loop where every callback-pod-failure event hit this branch
+        and got endlessly requeued.
+        """
+        from airflow.models.callback import CallbackKey
+
+        executor = self.executor
+        executor.kube_config.delete_worker_pods_on_failure = True
+        executor.start()
+        try:
+            key = CallbackKey(id=self._CALLBACK_ID)
+            job = KubernetesJob(key, ["airflow"], None, None)
+            executor.running = {key}
+            executor.pod_launch_attempts = {key: _PodLaunchAttempt(job=job)}
+            results = KubernetesResults(
+                key,
+                TaskInstanceState.FAILED,
+                "pod_name",
+                "default",
+                "rv",
+                {"container_reason": "Error", "exit_code": 1},
+            )
+
+            with mock.patch("airflow.models.taskinstance.TaskInstance.filter_for_tis") as mock_filter:
+                executor._change_state(results)
+                mock_filter.assert_not_called()
+
+            assert executor.event_buffer[key][0] == TaskInstanceState.FAILED
+            assert key not in executor.running
+            mock_delete_pod.assert_called_once()
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.patch_pod_executor_done"
     )
     def test_change_state_callback_pod_not_deleted_if_keep_pods(self, mock_patch_pod):

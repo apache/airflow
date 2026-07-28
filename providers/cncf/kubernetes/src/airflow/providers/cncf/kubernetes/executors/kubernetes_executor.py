@@ -96,7 +96,8 @@ def _format_workload_key_for_log(key: WorkloadKey) -> str:
         if isinstance(key, CallbackKey):
             return f"callback:{key.id}"
     return str(key)
-  
+
+
 @dataclass
 class _PodLaunchAttempt:
     """
@@ -665,9 +666,14 @@ class KubernetesExecutor(BaseExecutor):
 
         # Only pods this executor launched and is still tracking can be requeued; checking the
         # in-memory attempt first avoids a metadata-db lookup for adopted or already-finalized pods.
+        # Pre-execution-failure detection relies on a TaskInstance row, so it does not apply to
+        # callback pods -- CallbackKey has no dag_id/task_id for _get_task_instance_state to query.
+        from airflow.models.taskinstancekey import TaskInstanceKey
+
         attempt = self.pod_launch_attempts.get(key)
         if (
             attempt is not None
+            and isinstance(key, TaskInstanceKey)
             and state == TaskInstanceState.FAILED
             and self.pod_launch_failure_max_retries != 0
             and self._is_pre_execution_failure(
@@ -966,6 +972,7 @@ class KubernetesExecutor(BaseExecutor):
         if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in pod.metadata.annotations:
             new_worker_id_label = self._make_safe_label_value(self.scheduler_job_id)
             from kubernetes.client.rest import ApiException
+
             try:
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
@@ -1129,6 +1136,7 @@ class KubernetesExecutor(BaseExecutor):
             ti_id: TaskInstanceKey | CallbackKey
             if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in pod.metadata.annotations:
                 from airflow.models.callback import CallbackKey
+
                 ti_id = CallbackKey(id=pod.metadata.annotations[CALLBACK_POD_ANNOTATION_KEY])
             else:
                 ti_id = annotations_to_key(pod.metadata.annotations)
