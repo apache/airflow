@@ -56,6 +56,172 @@ in a non-Python implementation.
    go
    typescript
 
+Compatibility matrix
+--------------------
+
+Language SDKs mature independently, so they do not all support the same TaskInstance states and
+capabilities. The table below is generated from each SDK's ``capabilities.yaml`` file and shows what
+every SDK currently supports, grouped into TaskInstance states, runtime capabilities (what a task
+body can do), and native-Dag authoring. The meaning of each row — and which dimensions an SDK MUST,
+SHOULD, or MAY support — is defined in the Language SDK conformance specification
+(``contributing-docs/30_new_language_sdk.rst``). See the legend below the table for what each mark
+means.
+
+.. BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX
+
+.. list-table:: Language SDK compatibility matrix
+   :header-rows: 1
+   :widths: 30 15 15 15
+
+   * - Dimension
+     - Go
+     - Java
+     - TypeScript
+   * - Min. Airflow version
+     - 3.3
+     - 3.3
+     - 3.3
+   * - Supervisor schema
+     - 2026-10-30
+     - 2026-06-16
+     - 2026-10-30
+   * - **TaskInstance states**
+     -
+     -
+     -
+   * - ``success`` (MUST)
+     - ✓
+     - ✓
+     - ✓
+   * - ``failed`` (MUST)
+     - ✓
+     - ✓
+     - ✓
+   * - ``up_for_retry`` (MUST)
+     - ✓
+     - ✓
+     - ✓
+   * - ``skipped`` (SHOULD)
+     - ✗
+     - ✗
+     - ✗
+   * - ``deferred`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``up_for_reschedule`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``awaiting_input`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``removed`` (MAY)
+     - ✓
+     - ✓
+     - ✓
+   * - **Runtime capabilities**
+     -
+     -
+     -
+   * - ``mixed-lang-stub-target`` (MUST)
+     - ✓
+     - ✓
+     - ✓
+   * - ``task-logging`` (MUST)
+     - ✓
+     - ✓
+     - ✓
+   * - ``xcom-read-write`` (MUST)
+     - ✓
+     - ✓
+     - ✓
+   * - ``connection-read`` (MUST)
+     - ✓
+     - ✓
+     - ✓
+   * - ``variable-read-write`` (MUST)
+     - ✗
+     - ✗
+     - ✗
+   * - ``self-contained-bundle`` (MUST)
+     - ✓
+     - ✓
+     - ✓
+   * - ``retry-policy`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-state-store`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-state-store`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-event-emit`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - ``asset-event-read`` (MAY)
+     - ✗
+     - ✗
+     - ✗
+   * - **Native-Dag authoring**
+     -
+     -
+     -
+   * - ``native-dag-authoring`` (SHOULD)
+     - ✗
+     - ✗
+     - ✗
+   * - ``task-args`` (MUST †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``dag-params`` (MUST †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``taskflow-dependencies`` (MUST †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``branching`` (SHOULD †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``dag-test`` (SHOULD †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``task-group`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``dynamic-task-mapping`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``asset-inlets-outlets`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``asset-scheduling`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+   * - ``object-store`` (MAY †)
+     - n/a
+     - n/a
+     - n/a
+
+*Marks:* ``✓`` supported · ``✗`` not supported · ``n/a`` not applicable · ``–`` not published. A tier marked ``†`` applies only when ``native-dag-authoring`` is supported.
+
+.. END AUTO-GENERATED LANG-SDK COMPAT MATRIX
+
 How it works
 ------------
 
