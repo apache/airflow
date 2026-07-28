@@ -459,6 +459,11 @@ be ``""``, ``0`` or an empty list:
 still has to move to ``execute``, and the operand has to be the field itself — indirection such as
 ``all(v is None for v in [a, b])`` is still flagged.
 
+Converting an existing truthiness check is not neutral: a guard that raises when two arguments are
+*both* set only gets stricter, but ``if not field: raise`` gets looser — ``""`` and ``0`` start
+passing, and that half is a value check. ``not exactly_one(a, b)`` carries both, since it also
+requires at least one.
+
 The reason for doing it is that we are working on a cleaning up our code to have
 `prek hook <../scripts/ci/prek/validate_operators_init.py>`_
 that will make sure all the cases where logic (such as validation and complex conversion)
