@@ -20,9 +20,9 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.providers.redis.sensors.redis_key import RedisKeySensor
-from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

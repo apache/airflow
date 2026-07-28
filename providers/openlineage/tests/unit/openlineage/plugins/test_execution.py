@@ -28,9 +28,9 @@ import pytest
 
 from airflow.jobs.job import Job
 from airflow.models import TaskInstance
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
-from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 

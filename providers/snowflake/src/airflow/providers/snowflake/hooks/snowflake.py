@@ -40,13 +40,13 @@ from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
     Connection,
     conf,
+    timezone,
 )
 from airflow.providers.common.sql.hooks import handlers as sql_handlers
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
-from airflow.utils import timezone
 from airflow.utils.strings import to_boolean
 
 OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
