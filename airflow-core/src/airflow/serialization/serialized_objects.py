@@ -996,6 +996,16 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             )
             del serialized_op["partial_kwargs"]["python_callable"]
 
+        # Optional per-class capability: an operator class may contribute extra serialized
+        # fields for its mapped form. This is the only point where operator_class is the
+        # real class and python_callable the real function (neither survives
+        # serialization), so signature-derived data must be captured here. Used by the
+        # standard provider's _StubOperator for its TaskFlow arg-binding metadata.
+        get_extra_fields = getattr(op.operator_class, "get_mapped_serialized_fields", None)
+        if get_extra_fields is not None:
+            for key, value in get_extra_fields(op).items():
+                serialized_op[key] = cls.serialize(value)
+
         serialized_op["_is_mapped"] = True
         return serialized_op
 
