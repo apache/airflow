@@ -155,6 +155,8 @@ class KubernetesExecutor(BaseExecutor):
         self._last_completed_pod_adoption = 0.0
         self.last_handled: dict[WorkloadKey, float] = {}
         self.kubernetes_queue: str | None = None
+        if AIRFLOW_V_3_3_PLUS:
+            self.queued_callbacks: dict[Any, workloads.ExecuteCallback] = {}
         self.task_publish_retries: Counter[WorkloadKey] = Counter()
         self.task_publish_max_retries = self.conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
@@ -352,7 +354,8 @@ class KubernetesExecutor(BaseExecutor):
             kube_executor_config = PodGenerator.from_obj(executor_config)
         except Exception:
             self.log.error("Invalid executor_config for %s. Executor_config: %s", key, executor_config)
-            self.fail(key=key, info="Invalid executor_config passed")
+            if isinstance(key, TaskInstanceKey):
+                self.fail(key=key, info="Invalid executor_config passed")
             return
 
         if executor_config:
@@ -667,6 +670,7 @@ class KubernetesExecutor(BaseExecutor):
         attempt = self.pod_launch_attempts.get(key)
         if (
             attempt is not None
+            and isinstance(key, TaskInstanceKey)
             and state == TaskInstanceState.FAILED
             and self.pod_launch_failure_max_retries != 0
             and self._is_pre_execution_failure(
