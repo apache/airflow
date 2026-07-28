@@ -72,6 +72,7 @@ from airflow.models.xcom import XComModel, XComModelV1, XComModelV2
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.utils import db_cleanup
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
     CreateTableAs,
@@ -249,7 +250,7 @@ class TestDBCleanup:
         run_cleanup(**base_kwargs, table_names=table_names)
         if expected_count is None:
             existing = set(inspect(settings.engine).get_table_names())
-            expected_count = len(config_dict.keys() & existing)
+            expected_count = len(db_cleanup._all_table_configs().keys() & existing)
         assert clean_table_mock.call_count == expected_count
 
     @pytest.mark.parametrize(
@@ -1402,8 +1403,6 @@ class TestDBCleanup:
             "task_inlet_asset_reference",  # cascade from dag
         }
 
-        from airflow.utils.db_cleanup import config_dict
-
         print(f"all_models={set(all_models)}")
         print(f"excl+conf={exclusion_list.union(config_dict)}")
         # Without this the two assertions below hold trivially for an empty set,
@@ -2271,7 +2270,6 @@ class TestConnectionTestRequestCleanup:
         import uuid6
 
         from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
-        from airflow.utils.db_cleanup import config_dict
         from airflow.utils.session import create_session
 
         cfg = config_dict["connection_test_request"]
@@ -2869,13 +2867,15 @@ class TestSchemaQualifiedTableCleanupIntegration:
             )
             session.commit()
 
+        from airflow.utils import db_cleanup
+
         qualified_name = f"{self.SCHEMA}.{self.TABLE}"
         # Register a schema-qualified table config for the duration of the test rather than
         # relying on any provider-specific configuration -- this exercises the generic
         # schema-qualified support directly.
         test_config = _TableConfig(table_name=qualified_name, recency_column_name="date_done")
-        with patch.dict(config_dict, {qualified_name: test_config}):
-            assert qualified_name in config_dict
+        with patch.object(db_cleanup, "_all_table_configs", return_value={qualified_name: test_config}):
+            assert qualified_name in db_cleanup._all_table_configs()
 
             with create_session() as session:
                 run_cleanup(
@@ -2910,3 +2910,43 @@ class TestSchemaQualifiedTableCleanupIntegration:
                 session.commit()
 
                 assert _get_archived_table_names([qualified_name], session) == []
+
+
+def _fake_provider_cleanup_configs():
+    return [{"table_name": "fake_schema.fake_cleanup_table", "recency_column_name": "created_at"}]
+
+
+class TestProviderContributedTableConfigs:
+    """Provider-contributed ``db-cleanup-tables`` configs are merged into the effective config."""
+
+    def teardown_method(self):
+        from airflow.utils import db_cleanup
+
+        db_cleanup._all_table_configs.cache_clear()
+        db_cleanup.get_all_table_names.cache_clear()
+
+    def test_provider_configs_merged_into_all_tables(self):
+        from airflow.utils import db_cleanup
+
+        db_cleanup._all_table_configs.cache_clear()
+        db_cleanup.get_all_table_names.cache_clear()
+        mock_pm = MagicMock()
+        mock_pm.db_cleanup_table_providers = [f"{__name__}._fake_provider_cleanup_configs"]
+        with patch("airflow.providers_manager.ProvidersManager", return_value=mock_pm):
+            assert "fake_schema.fake_cleanup_table" in db_cleanup.get_all_table_names()
+            _, effective = db_cleanup._effective_table_names(table_names=["fake_schema.fake_cleanup_table"])
+            assert "fake_schema.fake_cleanup_table" in effective
+            assert effective["fake_schema.fake_cleanup_table"].schema_name == "fake_schema"
+
+    def test_bad_provider_callable_is_skipped(self):
+        from airflow.utils import db_cleanup
+
+        db_cleanup._all_table_configs.cache_clear()
+        db_cleanup.get_all_table_names.cache_clear()
+        mock_pm = MagicMock()
+        mock_pm.db_cleanup_table_providers = ["airflow.does.not.exist.callable"]
+        with patch("airflow.providers_manager.ProvidersManager", return_value=mock_pm):
+            names = db_cleanup.get_all_table_names()
+            # core tables still present; the broken provider is skipped, not fatal
+            assert "job" in names
+            assert "airflow.does.not.exist.callable" not in names
