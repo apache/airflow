@@ -113,6 +113,10 @@
     "location": "line {{line}} in {{name}}"
   },
   "reparseDag": "Reparse Dag",
+  "slowestTaskInstances": {
+    "empty": "No completed task instances in this range",
+    "title": "Slowest task instances"
+  },
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",

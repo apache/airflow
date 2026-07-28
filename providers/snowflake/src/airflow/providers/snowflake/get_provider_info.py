@@ -34,6 +34,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-snowflake/operators/snowflake.rst",
                     "/docs/apache-airflow-providers-snowflake/operators/snowpark.rst",
                     "/docs/apache-airflow-providers-snowflake/operators/snowpark_containers.rst",
+                    "/docs/apache-airflow-providers-snowflake/operators/snowflake_cortex_agent.rst",
                 ],
                 "logo": "/docs/integration-logos/Snowflake.png",
                 "tags": ["service"],
@@ -46,6 +47,7 @@ def get_provider_info():
                     "airflow.providers.snowflake.operators.snowflake",
                     "airflow.providers.snowflake.operators.snowpark",
                     "airflow.providers.snowflake.operators.snowpark_containers",
+                    "airflow.providers.snowflake.operators.snowflake_cortex_agent",
                 ],
             }
         ],
