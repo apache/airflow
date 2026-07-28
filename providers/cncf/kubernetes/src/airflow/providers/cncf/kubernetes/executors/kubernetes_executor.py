@@ -47,6 +47,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
+    CALLBACK_POD_ANNOTATION_KEY,
     POD_EXECUTOR_DONE_KEY,
     FailureDetails,
     KubernetesJob,
@@ -1112,8 +1113,13 @@ class KubernetesExecutor(BaseExecutor):
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
                 continue
-
-            ti_id = annotations_to_key(pod.metadata.annotations)
+            
+            ti_id: TaskInstanceKey | CallbackKey
+            if AIRFLOW_V_3_3_PLUS and CALLBACK_POD_ANNOTATION_KEY in pod.metadata.annotations:
+                from airflow.models.callback import CallbackKey
+                ti_id = CallbackKey(id=pod.metadata.annotations[CALLBACK_POD_ANNOTATION_KEY])
+            else:
+                ti_id = annotations_to_key(pod.metadata.annotations)
             pod_name = pod.metadata.name
             namespace = pod.metadata.namespace
             self.completed[(namespace, pod_name)] = KubernetesResults(
