@@ -243,20 +243,37 @@ eleventyComputed:
     {% if conns.length > 0 %}
       <div class="conn-chips" id="conn-chips">
         {% for conn in conns %}
-        <div class="conn-item">
-          <button class="conn-chip" data-conn-type="{{ conn.conn_type or conn.connection_type }}" {% if conn.docs_url %}data-docs-url="{{ conn.docs_url }}"{% endif %} type="button">
-            {{ conn.conn_type or conn.connection_type }}
-          </button>
-          {% if conn.external_integrations and conn.external_integrations.length > 0 %}
-          <div class="conn-integrations">
-            {% for integration in conn.external_integrations %}
-            <span class="badge conn-integration-badge">{{ integration }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
-        </div>
+        <button class="conn-chip" data-conn-type="{{ conn.conn_type or conn.connection_type }}" {% if conn.docs_url %}data-docs-url="{{ conn.docs_url }}"{% endif %} type="button">
+          {{ conn.conn_type or conn.connection_type }}
+        </button>
         {% endfor %}
       </div>
+      {% set hasExternalIntegrations = false %}
+      {% for conn in conns %}
+        {% if conn.external_integrations and conn.external_integrations.length > 0 %}{% set hasExternalIntegrations = true %}{% endif %}
+      {% endfor %}
+      {% if hasExternalIntegrations %}
+      <table class="conn-integrations-table">
+        <thead>
+          <tr class="conn-integrations-header">
+            <th>Connection type</th>
+            <th>Upstream providers</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for conn in conns %}
+          {% if conn.external_integrations and conn.external_integrations.length > 0 %}
+          <tr class="conn-integrations-row">
+            <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
+            <td>
+              {% for integration in conn.external_integrations %}<span class="badge conn-integration-badge">{{ integration }}</span>{% endfor %}
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
       <div class="conn-builder-panel" id="conn-builder-panel" hidden>
         <div class="conn-builder-header">
           <span class="conn-builder-title" id="conn-builder-title"></span>

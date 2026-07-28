@@ -3762,21 +3762,37 @@ main {
 }
 
 /* Per-connection upstream integration matrix */
-.provider-detail-page .connections-card .conn-item {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
+.provider-detail-page .connections-card .conn-integrations-table {
+  width: 100%;
+  margin-top: var(--space-4);
+  border-collapse: collapse;
 }
 
-.provider-detail-page .connections-card .conn-integrations {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  padding-left: var(--space-2);
+.provider-detail-page .connections-card .conn-integrations-header th {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  text-align: left;
+  background: var(--bg-tertiary);
+}
+
+.provider-detail-page .connections-card .conn-integrations-row {
+  border-top: 1px solid var(--border-primary);
+}
+
+.provider-detail-page .connections-card .conn-integrations-row td {
+  padding: var(--space-2) var(--space-3);
+  vertical-align: top;
+}
+
+.provider-detail-page .connections-card .conn-integrations-row td:first-child {
+  white-space: nowrap;
 }
 
 .provider-detail-page .connections-card .conn-integration-badge {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
   color: var(--text-secondary);
   background: rgb(from var(--color-gray-500) r g b / 0.08);
   border-color: var(--border-primary);
