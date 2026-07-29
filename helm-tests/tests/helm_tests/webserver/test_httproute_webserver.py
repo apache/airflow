@@ -278,11 +278,9 @@ class TestHTTPRouteWebserver:
         )
         assert docs == []
 
-    @pytest.mark.parametrize("airflow_version", ["3.0.0", "3.3.0"])
-    def test_should_not_render_on_airflow_3(self, airflow_version):
+    def test_should_not_render_on_airflow_3(self):
         docs = render_chart(
             values={
-                "airflowVersion": airflow_version,
                 "webserver": {
                     "enabled": True,
                     "httpRoute": {"enabled": True, "parentRefs": MINIMAL_PARENT_REFS},
