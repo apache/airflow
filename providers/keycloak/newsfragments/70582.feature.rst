@@ -1,1 +1,0 @@
-Implemented batch and filter authorization methods (``batch_is_authorized_connection``, ``batch_is_authorized_dag``, ``batch_is_authorized_pool``, ``batch_is_authorized_variable``, ``filter_authorized_connections``, ``filter_authorized_pools``, ``filter_authorized_variables``) in ``KeycloakAuthManager`` to reduce the number of HTTP calls made to Keycloak.
