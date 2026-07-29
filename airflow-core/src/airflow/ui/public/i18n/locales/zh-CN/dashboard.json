@@ -1,4 +1,22 @@
 {
+  "alerts": {
+    "seeLessContext": "查看更少",
+    "seeMoreContext": "查看更多",
+    "showMoreAlerts_one": "另有 {{count}} 条警报",
+    "showMoreAlerts_other": "另有 {{count}} 条警报"
+  },
+  "deadlines": {
+    "pending": {
+      "empty": "没有即将到期的截止期限",
+      "title": "即将到期"
+    },
+    "recentlyMissed": {
+      "empty": "没有错过的截止期限",
+      "title": "已错过的截止期限"
+    },
+    "showMore": "显示更多",
+    "title": "截止期限"
+  },
   "deferredSlotsNotCounted": "未计入配额的延迟任务：{{count}}",
   "deferredSlotsNotCountedTooltip": "条形图中显示的延迟任务会计入资源池配额。条形图下方显示的延迟任务来自不将延迟任务计入配额的资源池。",
   "favorite": {
