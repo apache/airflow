@@ -22,11 +22,65 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import {
   buildTaskInstanceUrl,
+  getDagAdditionalPath,
   getNextHref,
   getSafeExternalUrl,
   getTaskInstanceAdditionalPath,
   getTaskInstanceLink,
 } from "./links";
+
+describe("getDagAdditionalPath", () => {
+  const tabValues = [
+    "",
+    "runs",
+    "tasks",
+    "calendar",
+    "backfills",
+    "events",
+    "code",
+    "details",
+    "plugin/test",
+    "plugin/test/nested",
+  ];
+
+  it.each([
+    "runs",
+    "tasks",
+    "calendar",
+    "backfills",
+    "events",
+    "code",
+    "details",
+    "plugin/test",
+    "plugin/test/nested",
+  ])("preserves the %s Dag tab", (tab) => {
+    expect(getDagAdditionalPath(`/dags/example/${tab}`, tabValues)).toBe(`/${tab}`);
+  });
+
+  it("preserves a nested plugin route using the longest matching visible plugin tab", () => {
+    expect(getDagAdditionalPath("/dags/example/plugin/test/nested/detail/42", tabValues)).toBe(
+      "/plugin/test/nested/detail/42",
+    );
+  });
+
+  it.each([
+    "/dags/example",
+    "/dags/example/",
+    "/dags/example/required_actions",
+    "/dags/example/unknown",
+    "/dags/example/runs/run_1",
+    "/dags/example/tasks/task_1",
+    "/dags/example/tasks/group/group_1",
+    "/dags/example/runs/run_1/tasks/task_1/details",
+    "/dags/example/plugin/testing/nested",
+  ])("does not preserve a non-tab route from %s", (pathname) => {
+    expect(getDagAdditionalPath(pathname, tabValues)).toBe("");
+  });
+
+  it("supports URL-encoded Dag IDs", () => {
+    expect(getDagAdditionalPath("/dags/my%20dag/details", tabValues)).toBe("/details");
+  });
+});
 
 describe("getTaskInstanceLink", () => {
   const testCases = [

@@ -22,7 +22,7 @@ import { AsyncSelect } from "chakra-react-select";
 import type { OptionsOrGroups, GroupBase, SingleValue } from "chakra-react-select";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDebouncedCallback } from "use-debounce";
 
 import { UseDagServiceGetDagsUiKeyFn } from "openapi/queries";
@@ -32,6 +32,7 @@ import type {
   DAGWithLatestDagRunsResponse,
 } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
+import { getDagAdditionalPath } from "src/utils/links";
 import type { DagSearchOption } from "src/utils/option";
 
 import { DropdownIndicator } from "./SearchDagsDropdownIndicator";
@@ -45,18 +46,24 @@ const formatOptionLabel = (option: DagSearchOption) => (
 
 export const SearchDags = ({
   setIsOpen,
+  tabValues,
 }: {
   readonly setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly tabValues: Array<string>;
 }) => {
   const { t: translate } = useTranslation("dags");
   const queryClient = useQueryClient();
+  const { pathname } = useLocation();
   const navigate = useNavigate();
   const SEARCH_LIMIT = 10;
 
   const onSelect = (selected: SingleValue<DagSearchOption>) => {
     if (selected) {
+      const additionalPath = getDagAdditionalPath(pathname, tabValues);
+      const targetPath = additionalPath === "/backfills" && !selected.isBackfillable ? "" : additionalPath;
+
       setIsOpen(false);
-      void Promise.resolve(navigate(`/dags/${selected.value}`));
+      void Promise.resolve(navigate(`/dags/${selected.value}${targetPath}`));
     }
   };
 
@@ -73,6 +80,7 @@ export const SearchDags = ({
             limit: SEARCH_LIMIT,
           }).then((data: DAGWithLatestDagRunsCollectionResponse) => {
             const options = data.dags.map((dag: DAGWithLatestDagRunsResponse) => ({
+              isBackfillable: dag.is_backfillable,
               label: dag.dag_display_name || dag.dag_id,
               state: dag.latest_dag_runs[0]?.state ?? null,
               value: dag.dag_id,

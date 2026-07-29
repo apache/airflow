@@ -54,6 +54,26 @@ export const getRedirectPath = (targetPath: string): string => {
 export const getNextHref = (location: Pick<Location, "hash" | "pathname" | "search">): string =>
   `${location.pathname}${location.search}${location.hash}`;
 
+export const getDagAdditionalPath = (pathname: string, tabValues: Array<string>): string => {
+  const match = /\/dags\/[^/]+(?:\/(?<relativePath>.+?))?\/?$/u.exec(pathname);
+  const relativePath = match?.groups?.relativePath;
+
+  if (relativePath === undefined) {
+    return "";
+  }
+
+  if (tabValues.includes(relativePath)) {
+    return `/${relativePath}`;
+  }
+
+  const matchingPluginTab = tabValues
+    .filter((tabValue) => tabValue.startsWith("plugin/"))
+    .sort((first, second) => second.length - first.length)
+    .find((tabValue) => relativePath.startsWith(`${tabValue}/`));
+
+  return matchingPluginTab === undefined ? "" : `/${relativePath}`;
+};
+
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   const subRoutes = taskInstanceRoutes.flatMap((route) => {
     if (route.path !== undefined) {
