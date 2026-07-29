@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "全部执行类型",
     "allStates": "全部状态",
+    "anyRunState": "任意执行",
     "favorite": {
       "all": "全部",
       "favorite": "已加入收藏",
       "unfavorite": "未加入收藏"
     },
+    "lastRunState": "最近一次执行",
     "paused": {
       "active": "已启用",
       "all": "全部",
