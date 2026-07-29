@@ -39,23 +39,16 @@ pytestmark = pytest.mark.db_test
 
 NOW = parse("2024-01-01T13:15:17Z")
 
-CONTAINER_STATUS_ATTRS = {
-    "name": "base",
-    "ready": False,
-    "restart_count": 0,
-    "image": "img",
-    "image_id": "id",
-}
 
-
-def make_container_status(finished_at):
+def make_container_status(state):
     return k8s.V1ContainerStatus(
-        **CONTAINER_STATUS_ATTRS,
-        state=k8s.V1ContainerState(
-            terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=finished_at)
-            if finished_at
-            else None
-        ),
+        name="base", ready=False, restart_count=0, image="img", image_id="id", state=state
+    )
+
+
+def make_terminated_status(finished_at):
+    return make_container_status(
+        k8s.V1ContainerState(terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=finished_at))
     )
 
 
@@ -79,8 +72,8 @@ def make_terminal_pod(
         status=k8s.V1PodStatus(
             phase=phase,
             reason=reason,
-            container_statuses=[make_container_status(finished_at)] if finished_at else [],
-            init_container_statuses=[make_container_status(init_finished_at)] if init_finished_at else [],
+            container_statuses=[make_terminated_status(finished_at)] if finished_at else [],
+            init_container_statuses=[make_terminated_status(init_finished_at)] if init_finished_at else [],
             conditions=conditions,
         ),
     )
@@ -433,25 +426,31 @@ class TestGetPodCompletionTime:
         )
 
     def test_single_main_container(self):
-        pod = self._pod(container_statuses=[make_container_status(self.T1)])
+        pod = self._pod(container_statuses=[make_terminated_status(self.T1)])
         assert kubernetes_command._get_pod_completion_time(pod) == self.T1
 
     def test_single_init_container_no_main(self):
-        pod = self._pod(container_statuses=[], init_container_statuses=[make_container_status(self.T1)])
+        pod = self._pod(container_statuses=[], init_container_statuses=[make_terminated_status(self.T1)])
         assert kubernetes_command._get_pod_completion_time(pod) == self.T1
 
     def test_main_and_init_returns_max(self):
         pod = self._pod(
-            container_statuses=[make_container_status(self.T1)],
-            init_container_statuses=[make_container_status(self.T2)],
+            container_statuses=[make_terminated_status(self.T1)],
+            init_container_statuses=[make_terminated_status(self.T2)],
         )
         assert kubernetes_command._get_pod_completion_time(pod) == self.T2
 
     @pytest.mark.parametrize(
         "container_status",
         [
-            pytest.param(k8s.V1ContainerStatus(**CONTAINER_STATUS_ATTRS, state=None), id="no-state"),
-            pytest.param(make_container_status(finished_at=None), id="not-terminated"),
+            pytest.param(make_container_status(state=None), id="no-state"),
+            pytest.param(
+                make_container_status(
+                    k8s.V1ContainerState(waiting=k8s.V1ContainerStateWaiting(reason="ContainerCreating"))
+                ),
+                id="never-terminated",
+            ),
+            pytest.param(make_terminated_status(finished_at=None), id="terminated-without-finished-at"),
         ],
     )
     def test_falls_back_to_conditions(self, container_status):
