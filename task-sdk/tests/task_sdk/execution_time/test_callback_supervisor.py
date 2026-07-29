@@ -30,6 +30,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk.api.datamodels._generated import XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
     Path,
@@ -42,9 +43,11 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetVariableKeys,
+    GetXCom,
     MaskSecret,
     VariableKeysResult,
     VariableResult,
+    XComResult,
     _RequestFrame,
 )
 
@@ -237,6 +240,38 @@ class TestCallbackHandleRequest:
                 method_path="variables.keys",
                 kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
                 response=VariableKeysResult(keys=["test_key"], total_entries=1),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="return_value",
+                dag_id="test_dag",
+                run_id="test_run_1",
+                task_id="upstream_task",
+            ),
+            test_id="get_xcom",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("test_dag", "test_run_1", "upstream_task", "return_value", None, False),
+                kwargs={"previous_iteration": False},
+                response=XComResponse(key="return_value", value="xcom_payload"),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="custom_key",
+                dag_id="dag_a",
+                run_id="run_42",
+                task_id="task_b",
+                map_index=3,
+                include_prior_dates=True,
+            ),
+            test_id="get_xcom_with_map_index",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("dag_a", "run_42", "task_b", "custom_key", 3, True),
+                kwargs={"previous_iteration": False},
+                response=XComResponse(key="custom_key", value={"nested": "data"}),
             ),
         ),
         RequestCase(
@@ -554,6 +589,36 @@ class TestCallbackSubprocessStart:
             self.mock_super_start.call_args.kwargs["target"]()
 
         assert exc_info.value.code == 1
+
+    def _run_target_with_context(self, base_start_kwargs, context):
+        CallbackSubprocess.start(**{**base_start_kwargs, "callback_kwargs": {"context": context}})
+        self.mock_super_start.call_args.kwargs["target"]()
+        return self.mock_execute_callback.call_args.kwargs["callback_kwargs"]["context"]
+
+    @pytest.mark.parametrize(
+        ("xcom_value", "expected"),
+        [
+            pytest.param("payload", "payload", id="value"),
+            pytest.param(None, "fallback", id="missing"),
+        ],
+    )
+    def test_context_xcom_pull_uses_dag_run_ids(self, base_start_kwargs, xcom_value, expected):
+        comms = self.mock_comms_decoder.__getitem__.return_value.return_value
+        comms.send.return_value = XComResult(key="out", value=xcom_value)
+
+        context = self._run_target_with_context(
+            base_start_kwargs, {"dag_run": {"dag_id": "dag_a", "dag_run_id": "run_1"}}
+        )
+
+        assert context["xcom_pull"]("upstream", key="out", map_indexes=2, default="fallback") == expected
+        comms.send.assert_called_once_with(
+            GetXCom(key="out", dag_id="dag_a", run_id="run_1", task_id="upstream", map_index=2)
+        )
+
+    def test_context_without_dag_run_has_no_xcom_pull(self, base_start_kwargs):
+        context = self._run_target_with_context(base_start_kwargs, {"deadline": {"id": "x"}})
+
+        assert "xcom_pull" not in context
 
     @pytest.mark.parametrize("option_value", ["True", "False"])
     def test_start_keeps_bare_fork_regardless_of_exec_option(self, base_start_kwargs, option_value):
