@@ -1327,7 +1327,7 @@ class TestS3CreateObjectOperator:
         assert lineage.outputs[0] == expected_output
 
     def test_template_fields(self):
-        operator = S3CreateObjectOperator(task_id="test", s3_bucket="bucket", s3_key="key", data="test")
+        operator = S3CreateObjectOperator(task_id="test", s3_bucket="bucket", s3_key="key", data="test",aws_conn_id="aws_{{ ds }}",)
         validate_template_fields(operator)
 
 
