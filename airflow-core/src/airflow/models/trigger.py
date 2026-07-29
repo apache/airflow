@@ -500,6 +500,51 @@ class Trigger(Base):
         return result
 
 
+def _decode_next_kwargs(next_kwargs_raw: Any) -> dict[str, Any]:
+    """
+    Decode the stored ``next_kwargs`` of a task instance into a plain dict.
+
+    Deserialize with serde first to provide a compat layer if there are mixed serialized
+    (BaseSerialisation and serde) data, which can happen if a deferred task resumes after upgrade.
+
+    The result is checked here rather than assumed, so callers never have to trust the shape of
+    what comes back out of the stored payload.
+
+    :raise ValueError: The payload did not decode to a dict.
+    """
+    from airflow.sdk.serde import deserialize
+
+    try:
+        next_kwargs = deserialize(next_kwargs_raw)
+    except (ImportError, KeyError, AttributeError, TypeError):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
+
+    if not isinstance(next_kwargs, dict):
+        raise ValueError(f"next_kwargs decoded to {type(next_kwargs).__name__}, expected a dict")
+    return next_kwargs
+
+
+def _fail_unresumable_task_instance(task_instance: TaskInstance, reason: str, *, session: Session) -> None:
+    """
+    Re-queue a task instance that cannot be resumed, so that a worker fails it.
+
+    Mirrors :meth:`Trigger.submit_failure`: the special ``__fail__`` next_method makes the worker
+    fail the task immediately, which runs its normal failure handling (retries and callbacks
+    included). Leaving the task instance parked instead would strand it there, as the event that
+    should have resumed it is already gone.
+    """
+    task_instance.next_method = TRIGGER_FAIL_REPR
+    task_instance.next_kwargs = {"error": reason}
+    # Remove ourselves as its trigger
+    task_instance.trigger_id = None
+    # Finally, mark it as scheduled so it gets re-queued
+    task_instance.state = TaskInstanceState.SCHEDULED
+    task_instance.scheduled_dttm = timezone.utcnow()
+    session.flush()
+
+
 @singledispatch
 def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, session: Session) -> None:
     """
@@ -509,33 +554,39 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     as well as its state to scheduled. It also adds the event's payload
     into the kwargs for the task.
 
+    A task instance whose stored kwargs cannot be decoded (or re-encoded with the payload added)
+    is failed rather than resumed. That work happens in the scheduler and API processes, which
+    handle every parked task instance in turn, so a single unusable payload must not be able to
+    abort the caller.
+
     :param task_instance: The task instance to handle the submit event for.
     :param session: The session to be used for the database callback sink.
     """
-    from airflow.sdk.serde import deserialize, serialize
+    from airflow.sdk.serde import serialize
     from airflow.utils.state import TaskInstanceState
 
     next_kwargs_raw = task_instance.next_kwargs or {}
 
-    # deserialize first to provide a compat layer if there are mixed serialized (BaseSerialisation and serde) data
-    # which can happen if a deferred task resumes after upgrade
     try:
-        next_kwargs = deserialize(next_kwargs_raw)
-    except (ImportError, KeyError, AttributeError, TypeError):
-        from airflow.serialization.serialized_objects import BaseSerialization
+        next_kwargs = _decode_next_kwargs(next_kwargs_raw)
+        # Add event to the plain dict, then serialize everything together so nested
+        # non-primitive values get proper serde encoding.
+        next_kwargs["event"] = event.payload
+        # Re-serialize using serde. The Execution API version converter
+        # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
+        # BaseSerialization format when serving old workers.
+        serialized_next_kwargs = serialize(next_kwargs)
+    except Exception as exc:
+        log.exception("Could not process next_kwargs of %s; failing it instead of resuming it", task_instance)
+        _fail_unresumable_task_instance(
+            task_instance,
+            "Could not resume the task: its stored next_kwargs could not be processed "
+            f"({type(exc).__name__}: {exc})",
+            session=session,
+        )
+        return
 
-        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
-
-    # Add event to the plain dict, then serialize everything together so nested
-    # non-primitive values get proper serde encoding.
-    if TYPE_CHECKING:
-        assert isinstance(next_kwargs, dict)
-    next_kwargs["event"] = event.payload
-
-    # Re-serialize using serde. The Execution API version converter
-    # (ModifyDeferredTaskKwargsToJsonValue) handles converting this to
-    # BaseSerialization format when serving old workers.
-    task_instance.next_kwargs = serialize(next_kwargs)
+    task_instance.next_kwargs = serialized_next_kwargs
 
     # Remove ourselves as its trigger
     task_instance.trigger_id = None
