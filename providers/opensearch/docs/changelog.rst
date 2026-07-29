@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent malformed OpenSearch log entries from crashing task log fetch (#69307)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 1.11.0
 ......
 

@@ -2379,7 +2379,7 @@ class BigQueryInsertJobOperator(
         self.configuration = configuration
         self.location = location
         self.job_id = job_id
-        self._configured_job_id = job_id
+        self._configured_job_id: str | None = None
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.force_rerun = force_rerun

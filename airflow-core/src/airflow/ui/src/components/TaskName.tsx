@@ -55,7 +55,6 @@ export const TaskName = ({
         fontWeight="bold"
         overflow="hidden"
         textOverflow="ellipsis"
-        title={label}
         whiteSpace="nowrap"
         {...rest}
       >
@@ -71,7 +70,6 @@ export const TaskName = ({
       fontWeight="bold"
       overflow="hidden"
       textOverflow="ellipsis"
-      title={label}
       whiteSpace="nowrap"
       {...rest}
     >

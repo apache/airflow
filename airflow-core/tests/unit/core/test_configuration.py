@@ -1124,16 +1124,16 @@ class TestConf:
         ("input_scheme", "expected_scheme"),
         [
             pytest.param(
-                "postgres://user:pass@host/db", "postgresql+psycopg2://user:pass@host/db", id="postgres"
+                "postgres://user:pass@host/db", "postgresql+psycopg://user:pass@host/db", id="postgres"
             ),
             pytest.param(
                 "postgres+psycopg2://user:pass@host/db",
-                "postgresql+psycopg2://user:pass@host/db",
+                "postgresql+psycopg://user:pass@host/db",
                 id="postgres+psycopg2",
             ),
             pytest.param(
                 "postgresql://user:pass@host/db",
-                "postgresql+psycopg2://user:pass@host/db",
+                "postgresql+psycopg://user:pass@host/db",
                 id="postgresql-bare",
             ),
             pytest.param(
@@ -1145,7 +1145,37 @@ class TestConf:
         ],
     )
     @mock.patch.dict("os.environ", {}, clear=False)
-    def test_upgrade_postgres_metastore_conn(self, input_scheme, expected_scheme):
+    @mock.patch("airflow.configuration.find_spec", return_value=object())
+    def test_upgrade_postgres_metastore_conn(self, mock_find_spec, input_scheme, expected_scheme):
+        """Assumes psycopg (v3) is installed; see the sibling ``_without_psycopg3`` test for the
+        fallback, since whether psycopg3 is actually present varies across CI environments
+        (e.g. a lowest-dependencies job that doesn't install it)."""
+        os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = input_scheme
+        test_conf = AirflowConfigParser()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            test_conf._upgrade_postgres_metastore_conn()
+        assert test_conf.get("database", "sql_alchemy_conn") == expected_scheme
+
+    @pytest.mark.parametrize(
+        ("input_scheme", "expected_scheme"),
+        [
+            pytest.param(
+                "postgres://user:pass@host/db", "postgresql+psycopg2://user:pass@host/db", id="postgres"
+            ),
+            pytest.param(
+                "postgresql+psycopg2://user:pass@host/db",
+                "postgresql+psycopg2://user:pass@host/db",
+                id="postgresql+psycopg2-noop",
+            ),
+        ],
+    )
+    @mock.patch.dict("os.environ", {}, clear=False)
+    @mock.patch("airflow.configuration.find_spec", return_value=None)
+    def test_upgrade_postgres_metastore_conn_without_psycopg3(
+        self, mock_find_spec, input_scheme, expected_scheme
+    ):
+        """Falls back to psycopg2 when the psycopg (v3) package isn't installed."""
         os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = input_scheme
         test_conf = AirflowConfigParser()
         with warnings.catch_warnings():

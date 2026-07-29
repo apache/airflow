@@ -69,7 +69,7 @@ def get_dependencies(
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with id {asset_id} was not found")
         return BaseGraphResponse(**data)
 
-    data = get_scheduling_dependencies(readable_dags_filter.value)
+    data = get_scheduling_dependencies(readable_dags_filter.value, session)
 
     if node_id is not None:
         try:

@@ -567,3 +567,98 @@ class TestAirflowCommon:
 
         for doc in docs:
             assert matcher(doc) == enable_service_links
+
+
+class TestDatabaseSecretKeys:
+    """Tests for configurable key names in database credential secrets."""
+
+    @staticmethod
+    def _secret_refs(doc):
+        env = jmespath.search("spec.template.spec.containers[0].env", doc)
+        return {
+            e["name"]: e["valueFrom"]["secretKeyRef"]
+            for e in env
+            if e.get("valueFrom", {}).get("secretKeyRef")
+        }
+
+    def test_metadata_secret_key_defaults_to_connection(self):
+        docs = render_chart(
+            values={"data": {"metadataSecretName": "my-metadata-secret"}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        refs = self._secret_refs(docs[0])
+        assert refs["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"]["key"] == "connection"
+        assert refs["AIRFLOW_CONN_AIRFLOW_DB"]["key"] == "connection"
+
+    def test_metadata_secret_key_custom(self):
+        docs = render_chart(
+            values={"data": {"metadataSecretName": "cnpg-cluster-app", "metadataSecretKey": "uri"}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        refs = self._secret_refs(docs[0])
+        for var in ("AIRFLOW__DATABASE__SQL_ALCHEMY_CONN", "AIRFLOW_CONN_AIRFLOW_DB"):
+            assert refs[var]["name"] == "cnpg-cluster-app"
+            assert refs[var]["key"] == "uri"
+
+    def test_metadata_secret_key_ignored_for_chart_created_secret(self):
+        docs = render_chart(
+            values={"data": {"metadataSecretKey": "uri"}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        refs = self._secret_refs(docs[0])
+        assert refs["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"]["key"] == "connection"
+        assert refs["AIRFLOW_CONN_AIRFLOW_DB"]["key"] == "connection"
+
+    def test_result_backend_secret_key_custom(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "data": {"resultBackendSecretName": "my-rb-secret", "resultBackendSecretKey": "uri"},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        refs = self._secret_refs(docs[0])
+        assert refs["AIRFLOW__CELERY__RESULT_BACKEND"]["name"] == "my-rb-secret"
+        assert refs["AIRFLOW__CELERY__RESULT_BACKEND"]["key"] == "uri"
+
+    def test_result_backend_secret_key_ignored_for_chart_created_secret(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "data": {
+                    "resultBackendConnection": {
+                        "user": "postgres",
+                        "pass": "postgres",
+                        "protocol": "postgresql",
+                        "host": "example",
+                        "port": 5432,
+                        "db": "postgres",
+                        "sslmode": "disable",
+                    },
+                    "resultBackendSecretKey": "uri",
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        refs = self._secret_refs(docs[0])
+        assert refs["AIRFLOW__CELERY__RESULT_BACKEND"]["key"] == "connection"
+
+    def test_broker_url_secret_key_custom(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "data": {"brokerUrlSecretName": "my-broker-secret", "brokerUrlSecretKey": "url"},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        refs = self._secret_refs(docs[0])
+        assert refs["AIRFLOW__CELERY__BROKER_URL"]["name"] == "my-broker-secret"
+        assert refs["AIRFLOW__CELERY__BROKER_URL"]["key"] == "url"
+
+    def test_broker_url_secret_key_ignored_for_chart_created_secret(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "data": {"brokerUrlSecretKey": "url"}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        refs = self._secret_refs(docs[0])
+        assert refs["AIRFLOW__CELERY__BROKER_URL"]["key"] == "connection"

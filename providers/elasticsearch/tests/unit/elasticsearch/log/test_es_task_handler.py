@@ -31,7 +31,7 @@ import elasticsearch
 import pendulum
 import pytest
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
@@ -43,14 +43,13 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     _clean_date,
     _format_error_detail,
     _render_log_id,
+    _safe_build_structured_log_message,
     _strip_userinfo,
     get_es_kwargs_from_config,
     getattr_nested,
 )
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -159,7 +158,7 @@ class TestElasticsearchTaskHandler:
     RUN_ID = "run_for_testing_es_log_handler"
     MAP_INDEX = -1
     TRY_NUM = 1
-    LOGICAL_DATE = datetime(2016, 1, 1)
+    LOGICAL_DATE = timezone.datetime(2016, 1, 1)
     LOG_ID = f"{DAG_ID}-{TASK_ID}-{RUN_ID}-{MAP_INDEX}-{TRY_NUM}"
     FILENAME_TEMPLATE = "{try_number}.log"
 
@@ -388,6 +387,32 @@ class TestElasticsearchTaskHandler:
         assert metadata["offset"] == "1"
         assert not metadata["end_of_log"]
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage fallback is Airflow 3+ only")
+    @pytest.mark.db_test
+    def test_read_with_malformed_event_falls_back_to_stringified_event(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
+        malformed_event = ["not", "a", "string"]
+        malformed_source = {
+            "message": self.test_message,
+            "event": malformed_event,
+            "log_id": self.LOG_ID,
+            "offset": 2,
+        }
+        response = _make_es_response(self.es_task_handler.io, self.base_log_source, malformed_source)
+
+        with patch.object(self.es_task_handler.io, "_es_read", return_value=response):
+            with patch("airflow.providers.elasticsearch.log.es_task_handler.logger") as mock_logger:
+                logs, metadatas = self.es_task_handler.read(ti, 1)
+
+        metadata = _assert_log_events(
+            logs,
+            metadatas,
+            expected_events=[self.test_message, str(malformed_event)],
+            expected_sources=["http://localhost:9200"],
+        )
+        assert not metadata["end_of_log"]
+        mock_logger.debug.assert_called_once()
+
     @pytest.mark.db_test
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Live-log delegation only applies to Airflow 3")
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
@@ -491,7 +516,7 @@ class TestElasticsearchTaskHandler:
         assert _render_log_id(self.es_task_handler.log_id_template, ti, 1) == self.LOG_ID
 
     def test_clean_date(self):
-        clean_logical_date = _clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        clean_logical_date = _clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
 
     @pytest.mark.db_test
@@ -973,3 +998,21 @@ class TestBuildStructuredLogFields:
         hit = {"event": "msg", "error_detail": []}
         result = _build_log_fields(hit)
         assert "error_detail" not in result
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="StructuredLogMessage fallback is Airflow 3+ only")
+class TestSafeBuildStructuredLogMessage:
+    def test_string_event_returns_unchanged_and_does_not_log(self):
+        hit = {"event": "hello", "level": "info"}
+        with patch("airflow.providers.elasticsearch.log.es_task_handler.logger") as mock_logger:
+            result = _safe_build_structured_log_message(hit)
+        assert result.event == "hello"
+        mock_logger.debug.assert_not_called()
+
+    def test_non_string_event_falls_back_to_stringified_event(self):
+        hit = {"event": ["a", "b"], "timestamp": "2024-01-01T00:00:00Z"}
+        with patch("airflow.providers.elasticsearch.log.es_task_handler.logger") as mock_logger:
+            result = _safe_build_structured_log_message(hit)
+        assert result.event == str(["a", "b"])
+        assert result.timestamp is not None
+        mock_logger.debug.assert_called_once()
