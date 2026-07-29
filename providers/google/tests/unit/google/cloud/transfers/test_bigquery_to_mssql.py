@@ -195,3 +195,25 @@ class TestBigQueryToMsSqlOperator:
         assert "columnLineage" in output_ds.facets
         col_lineage = output_ds.facets["columnLineage"]
         assert set(col_lineage.fields.keys()) == {"id", "name"}
+
+    def test_init_does_not_parse_templated_source_table(self):
+        op = BigQueryToMsSqlOperator(
+            task_id="t",
+            source_project_dataset_table="{{ params.project }}.{{ params.dataset }}.{{ params.table }}",
+            target_table_name="dest",
+        )
+        assert op.source_project_dataset_table == (
+            "{{ params.project }}.{{ params.dataset }}.{{ params.table }}"
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.MsSqlHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
+    def test_execute_parses_rendered_source_table(self, mock_hook, mock_link):
+        op = BigQueryToMsSqlOperator(
+            task_id="t",
+            source_project_dataset_table="proj.dataset.table",
+            target_table_name="dest",
+        )
+        op.execute(context=None)
+        assert op.dataset_id == "dataset"
+        assert op.table_id == "table"

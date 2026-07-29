@@ -80,20 +80,27 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
                 )
 
             target_table_name = mssql_table
-
-        try:
-            _, dataset_id, table_id = source_project_dataset_table.split(".")
-        except ValueError:
-            raise ValueError(
-                f"Could not parse {source_project_dataset_table} as <project>.<dataset>.<table>"
-            ) from None
         super().__init__(
             target_table_name=target_table_name,
-            dataset_table=f"{dataset_id}.{table_id}",
+            dataset_table=source_project_dataset_table,
             **kwargs,
         )
         self.mssql_conn_id = mssql_conn_id
         self.source_project_dataset_table = source_project_dataset_table
+        self.dataset_id = None
+        self.table_id = None
+
+    def execute(self, context: Context) -> None:
+        try:
+            _, dataset_id, table_id = self.source_project_dataset_table.split(".")
+        except ValueError:
+            raise ValueError(
+                f"Could not parse {self.source_project_dataset_table} as "
+                "<project>.<dataset>.<table>"
+            ) from None
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        return super().execute(context)
 
     @cached_property
     def mssql_hook(self) -> MsSqlHook:
