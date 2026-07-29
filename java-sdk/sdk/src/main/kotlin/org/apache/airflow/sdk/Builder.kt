@@ -65,6 +65,10 @@ class Builder internal constructor() {
   /**
    * Annotation to automate task definition in a Dag-builder pattern.
    *
+   * A regular function generates a synchronous [Task]. A Kotlin `suspend`
+   * function generates an [org.apache.airflow.sdk.kotlin.AsyncTask] and can
+   * receive an [org.apache.airflow.sdk.kotlin.AsyncClient].
+   *
    * @param id Override the task ID. If empty or not provided, the annotated
    *    function's name is used by default.
    */

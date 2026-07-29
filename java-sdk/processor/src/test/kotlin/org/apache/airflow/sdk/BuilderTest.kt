@@ -120,6 +120,103 @@ class BuilderTest {
   }
 
   @Test
+  @DisplayName("generate async tasks from Kotlin suspend descriptors")
+  fun generateAsyncTasksFromKotlinSuspendDescriptors() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+
+        import kotlin.Unit;
+        import kotlin.coroutines.Continuation;
+        import org.apache.airflow.sdk.Builder;
+        import org.apache.airflow.sdk.Context;
+        import org.apache.airflow.sdk.kotlin.AsyncClient;
+
+        @Builder.Dag
+        public class TestExample {
+          @Builder.Task
+          public Object transform(
+              Context context,
+              AsyncClient client,
+              @Builder.XCom(task = "upstream") int value,
+              Continuation<? super Integer> completion) {
+            return value;
+          }
+
+          @Builder.Task
+          public Object load(Continuation<? super Unit> completion) {
+            return Unit.INSTANCE;
+          }
+        }
+        """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.Number;
+         import java.lang.Object;
+         import java.lang.Override;
+         import java.util.Optional;
+         import kotlin.Unit;
+         import kotlin.coroutines.Continuation;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.Dag;
+         import org.apache.airflow.sdk.MissingXComException;
+         import org.apache.airflow.sdk.kotlin.AsyncClient;
+         import org.apache.airflow.sdk.kotlin.AsyncTask;
+         import org.apache.airflow.sdk.kotlin.AsyncTaskBridge;
+
+         public final class TestExampleBuilder {
+           public static Dag build() {
+             var dag = new Dag("TestExample");
+             dag.addAsyncTask("transform", Transform.class);
+             dag.addAsyncTask("load", Load.class);
+             return dag;
+           }
+           public static final class Transform implements AsyncTask {
+             @Override
+             public Object execute(
+                 Context context,
+                 AsyncClient client,
+                 Continuation<? super Unit> continuation) throws Exception {
+               return AsyncTaskBridge.execute(
+                   client,
+                   new String[] {"upstream"},
+                   true,
+                   (xcomValues, taskContinuation) ->
+                       new TestExample().transform(
+                           context, client, ((Number) Optional.ofNullable(xcomValues.get(0)).orElseThrow(() -> new MissingXComException("upstream", "value"))).intValue(), taskContinuation),
+                   continuation);
+             }
+           }
+           public static final class Load implements AsyncTask {
+             @Override
+             public Object execute(
+                 Context context,
+                 AsyncClient client,
+                 Continuation<? super Unit> continuation) throws Exception {
+               return AsyncTaskBridge.execute(
+                   client,
+                   new String[] {},
+                   false,
+                   (xcomValues, taskContinuation) -> new TestExample().load(taskContinuation),
+                   continuation);
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
   @DisplayName("widen primitive numerics directly and boxed numerics null-safely")
   fun generateBuilderWidensNumericXCom() {
     val compilation =

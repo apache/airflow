@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.kotlin.AsyncClient
+import org.apache.airflow.sdk.kotlin.AsyncTask
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -43,5 +45,34 @@ internal class BundleTest {
       }
 
     Assertions.assertEquals("Dags in bundle have duplicate ID: dag", error.message)
+  }
+
+  @Test
+  @DisplayName("Should reject duplicate task ids across sync and async tasks")
+  fun shouldRejectDuplicateTaskIdsAcrossTaskTypes() {
+    val dag = Dag("dag").addTask("task", SyncTask::class.java)
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        dag.addTask("task", CoroutineTask::class.java)
+      }
+
+    Assertions.assertEquals("Tasks in Dag have duplicate ID: task", error.message)
+  }
+
+  class SyncTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+    }
+  }
+
+  class CoroutineTask : AsyncTask {
+    override suspend fun execute(
+      context: Context,
+      client: AsyncClient,
+    ) {
+    }
   }
 }

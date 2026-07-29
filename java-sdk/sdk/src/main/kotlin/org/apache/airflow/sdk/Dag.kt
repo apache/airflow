@@ -19,7 +19,9 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.kotlin.AsyncTask
 import kotlin.Throws
+import kotlin.jvm.JvmName
 
 /**
  * A collection of tasks with directional dependencies.
@@ -38,7 +40,7 @@ import kotlin.Throws
 class Dag(
   val id: String, // TODO: charset check?
 ) {
-  internal var tasks = mutableMapOf<String, Class<out Task>>()
+  internal val tasks = mutableMapOf<String, TaskDefinition>()
 
   /**
    * Registers a task with this Dag.
@@ -57,11 +59,52 @@ class Dag(
     id: String,
     definition: Class<out Task>,
   ): Dag {
+    addTask(id, TaskDefinition.Sync(definition))
+    return this
+  }
+
+  /**
+   * Registers a coroutine-based task with this Dag.
+   *
+   * Kotlin callers use the same `addTask` name for synchronous and asynchronous
+   * tasks. The JVM name is `addAsyncTask` so generated Java builder classes can
+   * register an [AsyncTask] without colliding with the type-erased synchronous
+   * overload.
+   *
+   * @param id Task identifier, unique within this Dag.
+   * @param definition Class that implements [AsyncTask]. Must have a public
+   *    no-argument constructor.
+   * @return This Dag, for chaining.
+   * @throws IllegalArgumentException if a task already exists in the Dag with
+   *    the same ID.
+   */
+  @JvmName("addAsyncTask")
+  fun addTask(
+    id: String,
+    definition: Class<out AsyncTask>,
+  ): Dag {
+    addTask(id, TaskDefinition.Async(definition))
+    return this
+  }
+
+  private fun addTask(
+    id: String,
+    definition: TaskDefinition,
+  ) {
     require(tasks.putIfAbsent(id, definition) == null) {
       "Tasks in Dag have duplicate ID: $id"
     }
-    return this
   }
+}
+
+internal sealed interface TaskDefinition {
+  data class Sync(
+    val definition: Class<out Task>,
+  ) : TaskDefinition
+
+  data class Async(
+    val definition: Class<out AsyncTask>,
+  ) : TaskDefinition
 }
 
 /**

@@ -25,8 +25,10 @@ import com.squareup.javapoet.ClassName
 import com.squareup.javapoet.CodeBlock
 import com.squareup.javapoet.JavaFile
 import com.squareup.javapoet.MethodSpec
+import com.squareup.javapoet.ParameterizedTypeName
 import com.squareup.javapoet.TypeName
 import com.squareup.javapoet.TypeSpec
+import com.squareup.javapoet.WildcardTypeName
 import java.util.Optional
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.ProcessingEnvironment
@@ -39,6 +41,7 @@ import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
+import javax.lang.model.type.WildcardType
 import javax.tools.Diagnostic
 
 /**
@@ -53,13 +56,15 @@ import javax.tools.Diagnostic
  * For each class annotated with [Builder.Dag], generates a `*Builder` class
  * containing:
  *
- * - One inner class per [Builder.Task]-annotated method, implementing [Task].
+ * - One inner class per [Builder.Task]-annotated method, implementing [Task] or
+ *   `AsyncTask` for a Kotlin suspending function.
  * - A static `build()` method that constructs the [Dag] and registers those
  *   inner classes as tasks.
  *
  * [Builder.XCom]-annotated parameters are resolved via `client.getXCom` in the
  * generated `execute` body, with the result cast to the parameter's declared
- * type. Non-`void` return values are forwarded to `client.setXCom`.
+ * type. Non-`void` synchronous and non-`Unit` suspending return values are
+ * forwarded to `client.setXCom`.
  */
 @SupportedAnnotationTypes("org.apache.airflow.sdk.Builder.Dag")
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
@@ -116,7 +121,7 @@ class BuilderProcessor : AbstractProcessor() {
       builderClass.addType(task.spec)
 
       buildMethod.addStatement(
-        $$"dag.addTask($S, $L.class)",
+        if (task.isAsync) $$"dag.addAsyncTask($S, $L.class)" else $$"dag.addTask($S, $L.class)",
         ann.id.ifBlank { inner.simpleName },
         innerName,
       )
@@ -128,6 +133,17 @@ class BuilderProcessor : AbstractProcessor() {
   }
 
   private fun buildTask(
+    name: String,
+    inner: ExecutableElement,
+    parent: TypeElement,
+  ): BuildTaskResult =
+    if (processingEnv.isSuspendFunction(inner)) {
+      buildAsyncTask(name, inner, parent)
+    } else {
+      buildSyncTask(name, inner, parent)
+    }
+
+  private fun buildSyncTask(
     name: String,
     inner: ExecutableElement,
     parent: TypeElement,
@@ -185,7 +201,107 @@ class BuilderProcessor : AbstractProcessor() {
         .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
         .addMethod(executeSpec.build())
         .build()
-    return BuildTaskResult(spec)
+    return BuildTaskResult(spec, isAsync = false)
+  }
+
+  private fun buildAsyncTask(
+    name: String,
+    inner: ExecutableElement,
+    parent: TypeElement,
+  ): BuildTaskResult {
+    val asyncClientType = ClassName.get("org.apache.airflow.sdk.kotlin", "AsyncClient")
+    val asyncTaskType = ClassName.get("org.apache.airflow.sdk.kotlin", "AsyncTask")
+    val bridgeType = ClassName.get("org.apache.airflow.sdk.kotlin", "AsyncTaskBridge")
+    val contextType = ClassName.get(Context::class.java)
+    val continuationType = ClassName.get("kotlin.coroutines", "Continuation")
+    val unitType = ClassName.get("kotlin", "Unit")
+    val completionType =
+      ParameterizedTypeName.get(
+        continuationType,
+        WildcardTypeName.supertypeOf(unitType),
+      )
+
+    val required = mutableListOf<RequiredXCom>()
+    val innerArgs =
+      with(processingEnv) {
+        inner.parameters.dropLast(1).map { param ->
+          val anno = param.getAnnotation(Builder.XCom::class.java)
+          val type = param.asType()
+          when {
+            anno != null -> {
+              val xcom = RequiredXCom(type, param.simpleName.toString(), anno.task.ifBlank { param.simpleName.toString() })
+              required += xcom
+              xcomAccess(xcom, CodeBlock.of($$"xcomValues.get($L)", required.lastIndex))
+            }
+            isType(type, asyncClientType) -> CodeBlock.of("client")
+            isType(type, contextType) -> CodeBlock.of("context")
+            else -> throw IllegalArgumentException("Unsupported async task parameter '${param.simpleName}' with type: $type")
+          }
+        }
+      }
+
+    val taskCall =
+      CodeBlock.of(
+        $$"new $T().$L($L)",
+        ClassName.get(parent),
+        inner.simpleName,
+        CodeBlock.join(innerArgs + CodeBlock.of("taskContinuation"), ", "),
+      )
+    val xcomTaskIds =
+      CodeBlock
+        .builder()
+        .add("new String[] {")
+        .apply {
+          required.forEachIndexed { index, xcom ->
+            if (index > 0) add(", ")
+            add($$"$S", xcom.taskId)
+          }
+        }.add("}")
+        .build()
+    val publishResult = !processingEnv.isType(processingEnv.suspendResultType(inner), unitType)
+
+    val executeSpec =
+      MethodSpec
+        .methodBuilder("execute")
+        .addAnnotation(Override::class.java)
+        .addModifiers(Modifier.PUBLIC)
+        .returns(TypeName.OBJECT)
+        .addParameter(contextType, "context")
+        .addParameter(asyncClientType, "client")
+        .addParameter(completionType, "continuation")
+        .addException(Exception::class.java)
+        .addStatement(
+          $$"return $T.execute(client, $L, $L, (xcomValues, taskContinuation) -> $L, continuation)",
+          bridgeType,
+          xcomTaskIds,
+          publishResult,
+          taskCall,
+        ).build()
+
+    val spec =
+      TypeSpec
+        .classBuilder(name)
+        .addSuperinterface(asyncTaskType)
+        .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
+        .addMethod(executeSpec)
+        .build()
+    return BuildTaskResult(spec, isAsync = true)
+  }
+}
+
+private fun ProcessingEnvironment.isSuspendFunction(inner: ExecutableElement): Boolean {
+  val continuation = elementUtils.getTypeElement("kotlin.coroutines.Continuation") ?: return false
+  val lastParameter = inner.parameters.lastOrNull() ?: return false
+  return typeUtils.isSameType(typeUtils.erasure(lastParameter.asType()), typeUtils.erasure(continuation.asType()))
+}
+
+private fun ProcessingEnvironment.suspendResultType(inner: ExecutableElement): TypeMirror {
+  val continuation = inner.parameters.last().asType() as javax.lang.model.type.DeclaredType
+  val result = continuation.typeArguments.single()
+  return if (result is WildcardType) {
+    result.superBound ?: result.extendsBound
+  } else {
+    result
   }
 }
 
@@ -215,7 +331,10 @@ private val NUMBER_ACCESSORS: Map<TypeName, String> =
     }
   }
 
-private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
+private fun xcomAccess(
+  xcom: RequiredXCom,
+  call: CodeBlock = CodeBlock.of($$"client.getXCom($S)", xcom.taskId),
+): CodeBlock {
   val type = TypeName.get(xcom.paramType)
   val accessor = NUMBER_ACCESSORS[type]
   val number = ClassName.get(Number::class.java)
@@ -225,15 +344,15 @@ private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
   val value =
     if (type.isPrimitive) {
       CodeBlock.of(
-        $$"$T.ofNullable(client.getXCom($S)).orElseThrow(() -> new $T($S, $S))",
+        $$"$T.ofNullable($L).orElseThrow(() -> new $T($S, $S))",
         optional,
-        xcom.taskId,
+        call,
         ClassName.get(MissingXComException::class.java),
         xcom.taskId,
         xcom.paramName,
       )
     } else {
-      CodeBlock.of($$"client.getXCom($S)", xcom.taskId)
+      call
     }
   // Wire integers decode to Long and floats to Double, so a direct (Integer)/(Float)
   // cast throws ClassCastException; widen via Number instead.
@@ -254,4 +373,5 @@ private fun xcomAccess(xcom: RequiredXCom): CodeBlock {
 
 private data class BuildTaskResult(
   val spec: TypeSpec,
+  val isAsync: Boolean,
 )
