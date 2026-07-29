@@ -206,9 +206,6 @@ class TestCeleryExecutor:
 
         with _prepare_app(broker_url, execute=fake_execute) as app:
             executor = celery_executor.CeleryExecutor()
-            # Force single-process sending so mock patches survive (ProcessPoolExecutor
-            # would fork new processes where the patches are not active).
-            executor._sync_parallelism = 1
             assert executor.workloads == {}
             executor.start()
 
