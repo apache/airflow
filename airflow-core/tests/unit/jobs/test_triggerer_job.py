@@ -362,6 +362,27 @@ def test_run_invokes_seams_in_order(supervisor_builder, mocker):
     assert events == ["enter", "tick-1", "tick-2", "tick-3", "exit"]
 
 
+@pytest.mark.parametrize("json_logs", [True, False])
+def test_process_log_messages_configures_logging_matching_json_logs(supervisor_builder, mocker, json_logs):
+    """_process_log_messages_from_subprocess() must reconfigure logging using the
+    configured ``logging.json_logs`` value rather than the default
+    ``json_output=False``.
+    This generator reconfigures structlog globally when first primed. Failing to
+    propagate the configured JSON logging mode can leave the triggerer with an
+    inconsistent logging configuration and break subprocess log forwarding.
+    """
+    supervisor = supervisor_builder()
+
+    configure_logging = mocker.patch("airflow.sdk.log.configure_logging")
+    mocker.patch("airflow.sdk.log.logging_processors")
+
+    with conf_vars({("logging", "json_logs"): str(json_logs)}):
+        gen = supervisor._process_log_messages_from_subprocess()
+        next(gen)  # prime the generator -- this is what calls configure_logging()
+
+    configure_logging.assert_called_once_with(json_output=json_logs)
+
+
 def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, mocker):
     """``supervisor.client`` delegates to ``make_client`` (the subclass-override hook)
     and caches the result across accesses."""
@@ -1157,10 +1178,18 @@ class TestTriggerRunner:
         mock_stats_incr.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_block_watchdog_logs_when_threshold_is_exceeded(self) -> None:
+    @pytest.mark.parametrize(
+        ("team_name", "expected_tags"),
+        [
+            pytest.param("team_a", {"team_name": "team_a"}, id="with_team"),
+            pytest.param(None, {}, id="without_team"),
+        ],
+    )
+    async def test_block_watchdog_logs_when_threshold_is_exceeded(self, team_name, expected_tags) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
             trigger_runner = TriggerRunner()
 
+        trigger_runner.team_name = team_name
         trigger_runner.log = AsyncMock()
 
         async def fake_sleep(_):
@@ -1178,7 +1207,7 @@ class TestTriggerRunner:
         assert "configured warning threshold" in log_message
         assert elapsed == pytest.approx(0.6)
         assert threshold == 0.5
-        mock_stats_incr.assert_called_once_with("triggers.blocked_main_thread")
+        mock_stats_incr.assert_called_once_with("triggers.blocked_main_thread", tags=expected_tags)
 
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()

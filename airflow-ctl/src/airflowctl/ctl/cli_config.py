@@ -281,10 +281,16 @@ ARG_DAG_ID = Arg(
     type=str,
     help="The Dag ID",
 )
-ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
-    flags=("logical_date_or_run_id",),
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
     type=str,
-    help="The logical date with a timezone offset or run ID of the Dag run",
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 
 # Task Commands Args
@@ -1045,7 +1051,8 @@ DAG_COMMANDS = (
         func=lazy_load_command("airflowctl.ctl.commands.dag_command.state"),
         args=(
             ARG_DAG_ID,
-            ARG_LOGICAL_DATE_OR_RUN_ID,
+            ARG_RUN_ID,
+            ARG_LOGICAL_DATE,
         ),
     ),
     ActionCommand(

@@ -32,6 +32,7 @@ import pytest
 
 from airflow.cli.commands import (
     asset_command,
+    backfill_command,
     config_command,
     connection_command,
     dag_command,
@@ -43,6 +44,7 @@ from airflow.cli.commands import (
 
 # (command callable, expected airflowctl replacement recorded by the decorator)
 MIGRATED_CLI_COMMANDS = [
+    (backfill_command.create_backfill, "airflowctl backfill create"),
     (connection_command.connections_list, "airflowctl connections list"),
     (connection_command.connections_add, "airflowctl connections create"),
     (connection_command.connections_delete, "airflowctl connections delete"),
@@ -57,6 +59,7 @@ MIGRATED_CLI_COMMANDS = [
     (dag_command.dag_pause, "airflowctl dags pause"),
     (dag_command.dag_unpause, "airflowctl dags unpause"),
     (dag_command.dag_list_dag_runs, "airflowctl dagrun list"),
+    (dag_command.dag_list_jobs, "airflowctl jobs list"),
     (dag_command.dag_state, "airflowctl dags state"),
     (dag_command.dag_next_execution, "airflowctl dags next-execution"),
     (pool_command.pool_list, "airflowctl pools list"),

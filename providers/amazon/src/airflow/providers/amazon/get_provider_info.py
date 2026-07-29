@@ -927,6 +927,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.triggers.comprehend"],
             },
             {
+                "integration-name": "Amazon DynamoDB",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.dynamodb"],
+            },
+            {
                 "integration-name": "Amazon EC2",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.ec2"],
             },

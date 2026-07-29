@@ -449,6 +449,37 @@ class TestAssetsOperations:
         response = client.assets.get_dag_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
         assert response == self.asset_queued_event_response
 
+    def test_delete_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_queued_events(asset_id=self.asset_id)
+        assert response == self.asset_id
+
+    def test_delete_dag_queued_events(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/assets/queuedEvents"
+            assert request.url.params["before"] == self.before
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_dag_queued_events(dag_id=self.dag_id, before=self.before)
+        assert response == self.dag_id
+
+    def test_delete_queued_event(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/assets/{self.asset_id}/queuedEvents"
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.delete_queued_event(dag_id=self.dag_id, asset_id=self.asset_id)
+        assert response == self.asset_id
+
 
 class TestBackfillOperations:
     backfill_id: NonNegativeInt = 1
@@ -1231,6 +1262,20 @@ class TestDagRunOperations:
             end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
             state=DagRunState.RUNNING,
             limit=1,
+        )
+        assert response == self.dag_run_collection_response
+
+    @pytest.mark.parametrize("suppress_error_log", [False, True])
+    def test_list_passes_error_log_suppression_extension(self, suppress_error_log):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.extensions["airflowctl_suppress_error_log"] is suppress_error_log
+            return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.list(
+            dag_id=self.dag_id,
+            limit=1,
+            suppress_error_log=suppress_error_log,
         )
         assert response == self.dag_run_collection_response
 
