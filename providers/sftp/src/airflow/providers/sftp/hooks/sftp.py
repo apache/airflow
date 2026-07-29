@@ -606,7 +606,7 @@ class SFTPHook(SSHHook):
             return False
         return True
 
-        @staticmethod
+    @staticmethod
     def _validate_within_directory(base: str, target: str) -> str:
         """
         Validate that target path is within the base directory.
