@@ -887,6 +887,30 @@ def test_verify_bundle_access_skips_nonexistent_path(tmp_path: Path):
     _verify_bundle_access(mock_bundle, mock.Mock())
 
 
+def test_initialize_ti_bundle_resolves_initializes_and_verifies(tmp_path: Path):
+    """initialize_ti_bundle resolves the bundle from BundleInfo, initializes it, and access-checks it."""
+    from airflow.sdk.api.datamodels._generated import BundleInfo
+    from airflow.sdk.execution_time.task_runner import initialize_ti_bundle
+
+    bundle_path = tmp_path / "bundle"
+    bundle_path.mkdir()
+    mock_bundle = mock.Mock()
+    mock_bundle.path = bundle_path
+    mock_bundle.name = "my-bundle"
+
+    bundle_info = BundleInfo(name="my-bundle", version="v2", version_data={"k": "v"})
+
+    with patch("airflow.sdk.execution_time.task_runner.DagBundlesManager") as mock_manager:
+        mock_manager.return_value.get_bundle.return_value = mock_bundle
+        result = initialize_ti_bundle(bundle_info, mock.Mock())
+
+    assert result is mock_bundle
+    mock_manager.return_value.get_bundle.assert_called_once_with(
+        name="my-bundle", version="v2", version_data={"k": "v"}
+    )
+    mock_bundle.initialize.assert_called_once_with()
+
+
 @pytest.mark.parametrize("use_queues", [False, True])
 def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms, use_queues: bool):
     """Test that a task can transition to a deferred state."""

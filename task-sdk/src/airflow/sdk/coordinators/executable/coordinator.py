@@ -339,16 +339,22 @@ class ExecutableCoordinator(SubprocessCoordinator):
 
     :param executables_root: A list of directories scanned for executable
         bundles when a Python stub DAG delegates task execution to a native
-        runtime.
+        runtime. See :class:`SubprocessCoordinator` for its interaction with
+        ``dag_bundle_name``.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
 
     executables_root: list[pathlib.Path] = attrs.field(
         converter=convert_roots,
-        validator=attrs.validators.min_len(1),
+        factory=list,
     )
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        bundle = _Bundle.find(self.executables_root, what.dag_id)
+    def __attrs_post_init__(self) -> None:
+        self._classify_artifact_source(self.executables_root, root_kwarg="executables_root")
+
+    def _build_execute_task_command(
+        self, *, what: TaskInstance, roots: list[pathlib.Path]
+    ) -> tuple[list[str], str | None]:
+        bundle = _Bundle.find(roots, what.dag_id)
         return [str(bundle.path)], bundle.schema_version
