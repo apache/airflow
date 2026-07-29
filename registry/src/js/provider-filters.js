@@ -40,9 +40,11 @@
       const lifecycle = item.dataset.lifecycle;
       const name = item.dataset.name || '';
       const categories = item.dataset.categories || '';
+      const integrations = item.dataset.integrations || '';
 
       const matchesLifecycle = currentLifecycle === 'all' || lifecycle === currentLifecycle;
-      const matchesSearch = name.includes(currentSearch.toLowerCase());
+      const search = currentSearch.toLowerCase();
+      const matchesSearch = name.includes(search) || integrations.includes(search);
       const matchesCategory = currentCategory === 'all' ||
         categories.split(',').includes(currentCategory);
 
