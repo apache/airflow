@@ -409,6 +409,21 @@ class TestImapHook:
         mock_open_method.assert_not_called()
         mock_open_method.return_value.write.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("../test1.csv", True),
+            ("subdir/../../test1.csv", True),
+            ("..\\..\\test1.csv", True),
+            ("subdir\\..\\..\\test1.csv", True),
+            ("..", True),
+            ("test1.csv", False),
+            ("report..final.csv", False),
+        ],
+    )
+    def test_is_escaping_current_directory_handles_both_separators(self, name, expected):
+        assert ImapHook()._is_escaping_current_directory(name) is expected
+
     @patch("airflow.providers.imap.hooks.imap.os.path.islink", return_value=True)
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)

@@ -332,7 +332,11 @@ class ImapHook(BaseHook):
         return os.path.islink(self._correct_path(name, local_output_directory))
 
     def _is_escaping_current_directory(self, name: str) -> bool:
-        return f"..{os.sep}" in name
+        # Windows also accepts "/" as a path separator, so a "../" attachment name
+        # traverses there even though os.sep is a backslash and the old
+        # f"..{os.sep}" check missed it. Normalise both separators and reject any
+        # ".." path component.
+        return any(part == ".." for part in name.replace("\\", "/").split("/"))
 
     def _correct_path(self, name: str, local_output_directory: str) -> str:
         return (
