@@ -59,6 +59,15 @@ export const useGridStructure = ({
     value: runIdPattern,
   });
 
+  // Advanced-search toggle picks between the substring ``triggeringUser`` and the
+  // index-friendly ``triggeringUserPrefix`` variants of the Triggering User filter.
+  const triggeringUserArg = useAdvancedSearchArg({
+    patternApiKey: "triggeringUser",
+    prefixApiKey: "triggeringUserPrefix",
+    storageKey: SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
+    value: triggeringUser,
+  });
+
   // This is necessary for keepPreviousData
   const { data: dagStructure, ...rest } = useGridServiceGetDagStructure(
     {
@@ -72,7 +81,7 @@ export const useGridStructure = ({
       ...runIdPatternArg,
       runType: runType ? [runType] : undefined,
       state: dagRunState ? [dagRunState] : undefined,
-      triggeringUser: triggeringUser ?? undefined,
+      ...triggeringUserArg,
     },
     undefined,
     {
