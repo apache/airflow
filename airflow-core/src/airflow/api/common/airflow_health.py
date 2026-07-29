@@ -79,7 +79,7 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
 
 
 def _aggregate_detailed_status(jobs: list[Job]) -> str:
-    """detailed_status: healthy (all alive), degraded (some alive), unhealthy (none alive)."""
+    """detailed_status: healthy (all alive), degraded (some alive), down (none alive)."""
     alive_count = sum(1 for job in jobs if job.is_alive())
     if alive_count == 0:
         return DOWN
@@ -104,9 +104,9 @@ def get_airflow_health() -> dict[str, Any]:
     triggerer_status: str | None = UNHEALTHY
     dag_processor_status: str | None = UNHEALTHY
 
-    scheduler_detailed_status = UNHEALTHY
-    triggerer_detailed_status: str | None = UNHEALTHY
-    dag_processor_detailed_status: str | None = UNHEALTHY
+    scheduler_detailed_status = DOWN
+    triggerer_detailed_status: str | None = DOWN
+    dag_processor_detailed_status: str | None = DOWN
 
     try:
         scheduler_jobs = get_jobs_health(SchedulerJobRunner)
@@ -137,7 +137,7 @@ def get_airflow_health() -> dict[str, Any]:
     except Exception:
         metadatabase_status = UNHEALTHY
         triggerer_status = UNHEALTHY
-        triggerer_detailed_status = UNHEALTHY
+        triggerer_detailed_status = DOWN
 
     try:
         dag_processor_jobs = get_jobs_health(DagProcessorJobRunner)
@@ -154,7 +154,7 @@ def get_airflow_health() -> dict[str, Any]:
     except Exception:
         metadatabase_status = UNHEALTHY
         dag_processor_status = UNHEALTHY
-        dag_processor_detailed_status = UNHEALTHY
+        dag_processor_detailed_status = DOWN
 
     airflow_health_status = {
         "metadatabase": {"status": metadatabase_status},

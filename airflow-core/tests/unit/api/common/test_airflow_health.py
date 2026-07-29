@@ -26,6 +26,7 @@ from airflow.api.common.airflow_health import (
     DEGRADED,
     HEALTHY,
     UNHEALTHY,
+    DOWN,
     get_airflow_health,
     get_jobs_health,
 )
@@ -48,7 +49,7 @@ def test_get_airflow_health_only_metadatabase_healthy(mock_get_jobs_health):
         "scheduler": {
             "status": UNHEALTHY,
             "latest_scheduler_heartbeat": None,
-            "detailed_status": UNHEALTHY,
+            "detailed_status": DOWN,
             "instances": None,
         },
         "triggerer": {
@@ -77,19 +78,19 @@ def test_get_airflow_health_metadatabase_unhealthy(mock_get_jobs_health):
         "scheduler": {
             "status": UNHEALTHY,
             "latest_scheduler_heartbeat": None,
-            "detailed_status": UNHEALTHY,
+            "detailed_status": DOWN,
             "instances": None,
         },
         "triggerer": {
             "status": UNHEALTHY,
             "latest_triggerer_heartbeat": None,
-            "detailed_status": UNHEALTHY,
+            "detailed_status": DOWN,
             "instances": None,
         },
         "dag_processor": {
             "status": UNHEALTHY,
             "latest_dag_processor_heartbeat": None,
-            "detailed_status": UNHEALTHY,
+            "detailed_status": DOWN,
             "instances": None,
         },
     }
@@ -162,7 +163,7 @@ def test_get_airflow_health_triggerer_healthy_no_scheduler_job_record(mock_get_j
         "scheduler": {
             "status": UNHEALTHY,
             "latest_scheduler_heartbeat": None,
-            "detailed_status": UNHEALTHY,
+            "detailed_status": DOWN,
             "instances": None,
         },
         "triggerer": {
