@@ -154,10 +154,6 @@ class KubernetesJobOperator(KubernetesPodOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-        # Kept for backward compatibility with code that reads the attribute.
-        self.discover_pods_retry_number = (
-            discover_pods_retry_number if discover_pods_retry_number is not None else 3
-        )
         self.unwrap_single = unwrap_single
 
     @property

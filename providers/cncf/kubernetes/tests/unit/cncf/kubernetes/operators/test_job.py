@@ -1278,8 +1278,7 @@ class TestKubernetesJobOperator:
 
     def test_discover_pods_retry_number_deprecated(self):
         with pytest.warns(AirflowProviderDeprecationWarning, match="discover_pods_retry_number"):
-            op = KubernetesJobOperator(task_id="faketask", discover_pods_retry_number=5)
-        assert op.discover_pods_retry_number == 5
+            KubernetesJobOperator(task_id="faketask", discover_pods_retry_number=5)
 
     @pytest.mark.non_db_test_override
     @pytest.mark.parametrize(
