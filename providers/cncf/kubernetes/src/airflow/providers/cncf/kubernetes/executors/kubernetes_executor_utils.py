@@ -606,16 +606,25 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def run_next(self, next_job: KubernetesJob) -> None:
         """Receives the next job to run, builds the pod, and creates it."""
         pod = self._build_pod_request(next_job)
+        if pod is None:
+            # Callback workloads build and submit their own pod inside _build_pod_request
+            # (via _run_next_callback) and return None; there is nothing left to create here.
+            return
         # the watcher will monitor pods, so we do not block.
         self.run_pod_async(pod, **self.kube_config.kube_client_request_args)
         self.log.debug("Kubernetes Job created!")
 
-    def _build_pod_request(self, next_job: KubernetesJob) -> k8s.V1Pod:
+    def _build_pod_request(self, next_job: KubernetesJob) -> k8s.V1Pod | None:
         """
         Build the worker pod request object for a job.
 
-        Performs no API calls. May raise ``PodMutationHookException`` or
-        ``PodReconciliationError`` from the pod-mutation hook / reconciliation.
+        Performs no API calls (aside from callback workloads -- see below). May raise
+        ``PodMutationHookException`` or ``PodReconciliationError`` from the pod-mutation
+        hook / reconciliation.
+
+        Returns ``None`` for callback workloads: those build *and submit* their own pod via
+        ``_run_next_callback`` because callbacks are not batched through ``run_next_batch``'s
+        async-creation path, so the caller must not attempt to create a pod for a ``None`` result.
         """
         key = next_job.key
         command = next_job.command
@@ -630,7 +639,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             workload = command[0]
             if isinstance(workload, ExecuteCallback):
                 self._run_next_callback(workload.key, workload, pod_template_file)
-                return
+                return None
 
         from airflow.models.taskinstancekey import TaskInstanceKey
 
