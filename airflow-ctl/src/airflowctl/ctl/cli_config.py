@@ -292,20 +292,6 @@ ARG_LOGICAL_DATE = Arg(
     type=str,
     help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
-
-# Task Commands Args
-ARG_RUN_ID = Arg(
-    flags=("run_id",),
-    type=str,
-    nargs="?",
-    help="The run ID of the Dag run (pass this or --logical-date, not both)",
-)
-ARG_LOGICAL_DATE = Arg(
-    flags=("--logical-date",),
-    type=str,
-    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
-)
-
 ARG_DAG_RUN_ID = Arg(
     flags=("--run-id",),
     type=str,
@@ -349,6 +335,19 @@ ARG_DAG_CLEAR_YES = Arg(
     default=False,
     action="store_true",
     help="Do not prompt to confirm clearing task instances",
+)
+
+# Task Commands Args
+ARG_RUN_ID = Arg(
+    flags=("run_id",),
+    type=str,
+    nargs="?",
+    help="The run ID of the Dag run (pass this or --logical-date, not both)",
+)
+ARG_LOGICAL_DATE = Arg(
+    flags=("--logical-date",),
+    type=str,
+    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 
 ARG_ACTION_ON_EXISTING_KEY = Arg(
