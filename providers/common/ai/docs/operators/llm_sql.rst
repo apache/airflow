@@ -26,6 +26,11 @@ SQL queries from natural language using an LLM.
 The operator generates SQL but does not execute it. The generated query is returned
 as XCom and can be passed to ``SQLExecuteQueryOperator`` or used in downstream tasks.
 
+Install the ``sql`` extra, which adds ``apache-airflow-providers-common-sql`` and
+`sqlglot <https://github.com/tobymao/sqlglot>`__ (used to validate the generated SQL)::
+
+    pip install "apache-airflow-providers-common-ai[sql]"
+
 .. seealso::
     :ref:`Connection configuration <howto/connection:pydanticai>`
 
