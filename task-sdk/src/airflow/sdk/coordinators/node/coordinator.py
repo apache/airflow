@@ -145,7 +145,8 @@ class NodeCoordinator(SubprocessCoordinator):
         TypeScript bundle. Each bundle directory must contain ``bundle.mjs``
         with embedded metadata (as produced by ``airflow-ts-pack``). This is a
         fallback search path; it does not yet route different Dag/task pairs
-        to different bundles.
+        to different bundles. See :class:`SubprocessCoordinator` for its
+        interaction with ``dag_bundle_name``.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
@@ -153,11 +154,16 @@ class NodeCoordinator(SubprocessCoordinator):
     node_executable: str = "node"
     bundles_root: list[pathlib.Path] = attrs.field(
         converter=convert_roots,
-        validator=attrs.validators.min_len(1),
+        factory=list,
     )
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
+    def __attrs_post_init__(self) -> None:
+        self._classify_artifact_source(self.bundles_root, root_kwarg="bundles_root")
+
+    def _build_execute_task_command(
+        self, *, what: TaskInstance, roots: list[pathlib.Path]
+    ) -> tuple[list[str], str | None]:
         # Multi-bundle routing should be added here by passing `what.dag_id` and
         # `what.task_id` into bundle selection and matching against metadata["dags"].
-        bundle = _find_bundle(self.bundles_root)
+        bundle = _find_bundle(roots)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version
