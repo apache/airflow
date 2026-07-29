@@ -523,10 +523,13 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     #   versions of databricks-sql-connector do not have the thrift<=0.23.0 limitation, so the
     #   resolver preferred the latest thrift over the latest connector and downgraded the connector.
     #   This is tracked in https://github.com/databricks/databricks-sql-python/issues/859
+    # * gremlinpython>=3.8.0 - without this pin, the resolver picks an older gremlinpython and
+    #   downgrades apache-airflow-providers-apache-tinkerpop along with it (1.1.4 -> 1.0.2).
     additional_constraints_for_highest_resolution: list[str] = [
         "pyarrow>=22.0.0; python_version >= '3.14'",
         "pymysql>=1.0.3,<1.2",
         "databricks-sql-connector>=4.0.0",
+        "gremlinpython>=3.8.0",
     ]
 
     result = run_command(
