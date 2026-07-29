@@ -246,7 +246,7 @@ def get_task_map_length(
 
 @get_task_map_length.register
 def _(
-    xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+    xcom_arg: SchedulerPlainXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
 ) -> int | None:
     dag_id = xcom_arg.operator.dag_id
     task_id = xcom_arg.operator.task_id
@@ -289,17 +289,17 @@ def _(
 
 @get_task_map_length.register
 def _(
-    xcom_arg: SchedulerMapXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+    xcom_arg: SchedulerMapXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
 ) -> int | None:
-    return get_task_map_length(xcom_arg.arg, run_id, session=session, lengths=lengths)
+    return get_task_map_length(xcom_arg.arg, run_id, lengths=lengths, session=session)
 
 
 @get_task_map_length.register
 def _(
-    xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+    xcom_arg: SchedulerZipXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
 ) -> int | None:
     all_lengths = (
-        get_task_map_length(arg, run_id, session=session, lengths=lengths) for arg in xcom_arg.args
+        get_task_map_length(arg, run_id, lengths=lengths, session=session) for arg in xcom_arg.args
     )
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
@@ -311,10 +311,10 @@ def _(
 
 @get_task_map_length.register
 def _(
-    xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+    xcom_arg: SchedulerConcatXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
 ) -> int | None:
     all_lengths = (
-        get_task_map_length(arg, run_id, session=session, lengths=lengths) for arg in xcom_arg.args
+        get_task_map_length(arg, run_id, lengths=lengths, session=session) for arg in xcom_arg.args
     )
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
