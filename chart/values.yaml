@@ -2531,7 +2531,6 @@ webserver:
   enabled: true
 
   # Kubernetes Gateway API (HTTPRoute) configuration for the Webserver.
-  # Only applies to Airflow 2 (`airflowVersion` < 3.0.0), where the Webserver exists.
   # Requires the Gateway API CRDs to be installed in the cluster
   # (https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api).
   # The HTTPRoute references an externally managed Gateway via `parentRefs`.
