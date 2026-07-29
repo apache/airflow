@@ -27,6 +27,8 @@ draining machinery in this module rather than re-implementing it.
 
 from __future__ import annotations
 
+import contextlib
+import enum
 import ipaddress
 import itertools
 import os
@@ -46,6 +48,7 @@ from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess, NeverRaised, ProcessTracker
 
 if TYPE_CHECKING:
+    import pathlib
     from collections.abc import Sequence
 
     from structlog.typing import FilteringBoundLogger
@@ -371,6 +374,17 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         return code
 
 
+class _ArtifactSource(enum.Enum):
+    """How a subprocess coordinator locates the compiled task artifacts."""
+
+    EXPLICIT_ROOT = enum.auto()
+    """An explicit filesystem root (``jars_root`` / ``executables_root`` / ``bundles_root``)."""
+    NAMED_BUNDLE = enum.auto()
+    """``dag_bundle_name`` names a configured Dag bundle; its latest version is used."""
+    TASK_BUNDLE = enum.auto()
+    """Neither is set: the task's own (co-located) bundle, pinned to the run's version."""
+
+
 @attrs.define(kw_only=True)
 class SubprocessCoordinator(BaseCoordinator):
     """
@@ -385,22 +399,133 @@ class SubprocessCoordinator(BaseCoordinator):
     :param task_startup_timeout: Maximum time the coordinator waits for the
         subprocess to connect to both servers, in seconds. The default is 10
         seconds.
+    :param dag_bundle_name: Locate artifacts through a configured Dag bundle rather
+        than an explicit root. Mutually exclusive with the subclass's explicit root;
+        if neither is set, the task's own bundle is used. A named bundle resolves to
+        its latest version; the task's own bundle is pinned to the run's version.
     """
 
     task_startup_timeout: float = 10.0
+    dag_bundle_name: str | None = None
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
+    # Classified once at construction by :meth:`_classify_artifact_source` and
+    # dispatched on by :meth:`_init_root_source` at execute time.
+    _artifact_source: _ArtifactSource | None = attrs.field(init=False, default=None)
+    # The subclass's explicit root, recorded at construction so the base can
+    # resolve roots without knowing the subclass field name.
+    _configured_roots: list[pathlib.Path] = attrs.field(init=False, factory=list)
+    # The task's own bundle, bound for the duration of a single :meth:`execute_task`
+    # call by :meth:`_set_current_bundle` so :meth:`_init_root_source` can resolve
+    # co-located artifacts.
+    _active_bundle_info: BundleInfo | None = attrs.field(init=False, default=None)
+
+    def _classify_artifact_source(self, configured: Sequence[pathlib.Path], *, root_kwarg: str) -> None:
+        """
+        Classify and validate how this coordinator locates artifacts (construction time).
+
+        Subclasses call this from ``__attrs_post_init__`` with their own root
+        field. It rejects setting both an explicit root and ``dag_bundle_name``,
+        fails fast when ``dag_bundle_name`` names a bundle that is not configured,
+        and records the resulting :class:`_ArtifactSource` and explicit root.
+        """
+        if configured and self.dag_bundle_name is not None:
+            raise ValueError(
+                f"Set at most one of {root_kwarg!r} or 'dag_bundle_name': {root_kwarg!r} for an "
+                f"explicit path, 'dag_bundle_name' for a configured Dag bundle, or leave both "
+                f"unset to scan the task's own bundle."
+            )
+        if configured:
+            source = _ArtifactSource.EXPLICIT_ROOT
+            self._configured_roots = list(configured)
+        elif self.dag_bundle_name is not None:
+            source = _ArtifactSource.NAMED_BUNDLE
+            from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
+
+            if not DagBundlesManager.is_bundle_configured(self.dag_bundle_name):
+                raise ValueError(
+                    f"Coordinator 'dag_bundle_name' references unconfigured Dag bundle "
+                    f"{self.dag_bundle_name!r}."
+                )
+        else:
+            source = _ArtifactSource.TASK_BUNDLE
+
+        self._artifact_source = source
+        details: dict[str, str | list[str]] = {"mode": source.name}
+        if self.dag_bundle_name is not None:
+            details["dag_bundle_name"] = self.dag_bundle_name
+        if self._configured_roots:
+            details["configured_roots"] = [str(root) for root in self._configured_roots]
+        log.debug("Coordinator artifact source selected", **details)
+
+    def _init_root_source(self) -> list[pathlib.Path]:
+        """
+        Resolve the directories to scan for artifacts for the current task.
+
+        Dispatches on the :class:`_ArtifactSource` classified at construction.
+        An explicit root is returned as-is (no Dag bundle is resolved); otherwise
+        the root is a Dag bundle's materialized path — the named
+        ``dag_bundle_name`` bundle at its latest version, or the task's own
+        bundle pinned to the run's version. Called by :meth:`execute_task`, which
+        forwards the result to :meth:`_build_execute_task_command`.
+        """
+        if self._artifact_source is _ArtifactSource.EXPLICIT_ROOT:
+            return self._configured_roots
+
+        if self._artifact_source is _ArtifactSource.NAMED_BUNDLE:
+            from airflow.sdk.api.datamodels._generated import BundleInfo
+
+            # NAMED_BUNDLE implies dag_bundle_name is set.
+            target = BundleInfo(name=cast("str", self.dag_bundle_name))
+        elif self._artifact_source is _ArtifactSource.TASK_BUNDLE:
+            if self._active_bundle_info is None:
+                raise RuntimeError("_init_root_source requires an active task; call it during execute_task.")
+            target = self._active_bundle_info
+        else:
+            raise RuntimeError(
+                "Coordinator artifact source was not classified; call _classify_artifact_source first."
+            )
+
+        # Lazy import: task_runner is a heavy module and importing it at module
+        # load would risk an import cycle through the supervisor.
+        from airflow.sdk.execution_time.task_runner import initialize_ti_bundle
+
+        bundle = initialize_ti_bundle(target, log)
+        path = bundle.path
+        if not path.exists():
+            raise FileNotFoundError(f"Dag bundle {target.name!r} resolved to {path}, which does not exist.")
+        return [path]
+
+    def _build_execute_task_command(
+        self, *, what: TaskInstance, roots: list[pathlib.Path]
+    ) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
 
-        Returns a ``(command, subprocess_schema_version)`` pair. *command*
-        MUST NOT include the ``--comm`` / ``--logs`` flags — those are
-        appended by :class:`_PopenActivitySubprocess` once the listening
-        sockets have been bound. A ``None`` schema version disables schema
-        migration; messages are then exchanged at the runtime's native wire
-        format.
+        *roots* are the directories to scan for artifacts, already resolved by
+        :meth:`_init_root_source` from the coordinator's configured source.
+        Returns a ``(command, subprocess_schema_version)`` pair. *command* MUST
+        NOT include the ``--comm`` / ``--logs`` flags — those are appended by
+        :class:`_PopenActivitySubprocess` once the listening sockets have been
+        bound. A ``None`` schema version disables schema migration; messages are
+        then exchanged at the runtime's native wire format.
         """
         raise NotImplementedError
+
+    @contextlib.contextmanager
+    def _set_current_bundle(self, bundle_info: BundleInfo):
+        """
+        Bind *bundle_info* as the active task for the duration of the block, clearing it on exit.
+
+        Rejects a second concurrent bind: this coordinator runs one blocking task
+        per process and is not re-entrant.
+        """
+        if self._active_bundle_info is not None:
+            raise RuntimeError("SubprocessCoordinator.execute_task is not re-entrant.")
+        self._active_bundle_info = bundle_info
+        try:
+            yield
+        finally:
+            self._active_bundle_info = None
 
     def execute_task(
         self,
@@ -414,18 +539,20 @@ class SubprocessCoordinator(BaseCoordinator):
         subprocess_logs_to_stdout: bool,
         **kwargs,
     ) -> BaseCoordinator.ExecutionResult:
-        command, subprocess_schema_version = self._build_execute_task_command(what=what)
-        process = _PopenActivitySubprocess.start(
-            what=what,
-            dag_rel_path=dag_rel_path,
-            bundle_info=bundle_info,
-            client=client,
-            logger=logger,
-            subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-            sentry_integration=sentry_integration,
-            command=command,
-            subprocess_schema_version=subprocess_schema_version,
-            startup_timeout=self.task_startup_timeout,
-        )
-        exit_code = process.wait()
-        return self.ExecutionResult(exit_code, process.final_state)
+        with self._set_current_bundle(bundle_info):
+            roots = self._init_root_source()
+            command, subprocess_schema_version = self._build_execute_task_command(what=what, roots=roots)
+            process = _PopenActivitySubprocess.start(
+                what=what,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
+                client=client,
+                logger=logger,
+                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+                sentry_integration=sentry_integration,
+                command=command,
+                subprocess_schema_version=subprocess_schema_version,
+                startup_timeout=self.task_startup_timeout,
+            )
+            exit_code = process.wait()
+            return self.ExecutionResult(exit_code, process.final_state)
