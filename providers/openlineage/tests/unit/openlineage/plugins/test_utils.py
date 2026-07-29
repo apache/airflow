@@ -50,7 +50,11 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import (
     BashOperator,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_1_PLUS,
+)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dag import get_next_data_interval
@@ -437,7 +441,7 @@ def test_serialize_timetable_complex_with_alias():
     dag.timetable = AssetTriggeredTimetable(asset)
     dag_info = DagInfo(dag)
 
-    assert dag_info.timetable == {
+    expected: dict = {
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ANY,
             "objects": [
@@ -478,38 +482,47 @@ def test_serialize_timetable_complex_with_alias():
                     ],
                 },
             ],
-        }
+        },
     }
+    if AIRFLOW_V_3_3_1_PLUS:
+        expected["batch_asset_events"] = True
+    assert dag_info.timetable == expected
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
 def test_serialize_timetable_single_asset():
     dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=Asset("a"))
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    expected: dict = {
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET,
             "uri": "a",
             "name": "a",
             "group": "asset",
             "extra": {},
-        }
+        },
     }
+    if AIRFLOW_V_3_3_1_PLUS:
+        expected["batch_asset_events"] = True
+    assert dag_info.timetable == expected
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
 def test_serialize_timetable_list_of_assets():
     dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=[Asset("a"), Asset("b")])
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    expected: dict = {
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ALL,
             "objects": [
                 {"__type": DagAttributeTypes.ASSET, "uri": "a", "name": "a", "group": "asset", "extra": {}},
                 {"__type": DagAttributeTypes.ASSET, "uri": "b", "name": "b", "group": "asset", "extra": {}},
             ],
-        }
+        },
     }
+    if AIRFLOW_V_3_3_1_PLUS:
+        expected["batch_asset_events"] = True
+    assert dag_info.timetable == expected
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
@@ -521,7 +534,7 @@ def test_serialize_timetable_with_complex_logical_condition():
         & (Asset("ds3") | Asset("ds4", extra={"another_extra": 345})),
     )
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    expected: dict = {
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ALL,
             "objects": [
@@ -564,8 +577,11 @@ def test_serialize_timetable_with_complex_logical_condition():
                     ],
                 },
             ],
-        }
+        },
     }
+    if AIRFLOW_V_3_3_1_PLUS:
+        expected["batch_asset_events"] = True
+    assert dag_info.timetable == expected
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
