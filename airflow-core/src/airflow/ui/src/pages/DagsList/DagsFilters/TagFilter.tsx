@@ -33,6 +33,8 @@ type Props = {
   readonly tags: Array<string>;
 };
 
+const dagTagFilterMaxWidth = "var(--airflow-dag-tag-filter-max-width, 300px)";
+
 export const TagFilter = ({
   onMenuScrollToBottom,
   onMenuScrollToTop,
@@ -46,7 +48,7 @@ export const TagFilter = ({
   const { t: translate } = useTranslation("common");
 
   return (
-    <Box maxWidth="300px" minWidth="64px">
+    <Box maxWidth={dagTagFilterMaxWidth} minWidth="64px">
       <Field.Root>
         <ReactSelect
           aria-label={translate("table.filterByTag")}
@@ -57,7 +59,7 @@ export const TagFilter = ({
             }),
             container: (provided) => ({
               ...provided,
-              maxWidth: 300,
+              maxWidth: dagTagFilterMaxWidth,
               minWidth: 64,
             }),
             control: (provided) => ({
