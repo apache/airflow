@@ -531,9 +531,7 @@ class DagRunOperations(BaseOperations):
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
         logical_date_gte: datetime.datetime | None = None,
-        logical_date_gt: datetime.datetime | None = None,
         logical_date_lte: datetime.datetime | None = None,
-        logical_date_lt: datetime.datetime | None = None,
         partition_date_gte: datetime.date | None = None,
         partition_date_lte: datetime.date | None = None,
         order_by: str | None = None,
@@ -554,9 +552,7 @@ class DagRunOperations(BaseOperations):
             offset: Offset to start returning results from
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
             logical_date_gte: Filter Dag runs with a logical date greater than or equal to this value.
-            logical_date_gt: Filter Dag runs with a logical date greater than this value.
             logical_date_lte: Filter Dag runs with a logical date less than or equal to this value.
-            logical_date_lt: Filter Dag runs with a logical date less than this value.
             partition_date_gte: Inclusive lower bound of the partition_date window, as a local
                 calendar day in the Dag's timetable timezone.
             partition_date_lte: Inclusive upper bound of the partition_date window, as a local
@@ -578,9 +574,7 @@ class DagRunOperations(BaseOperations):
             start_date=start_date,
             end_date=end_date,
             logical_date_gte=logical_date_gte,
-            logical_date_gt=logical_date_gt,
             logical_date_lte=logical_date_lte,
-            logical_date_lt=logical_date_lt,
             partition_date_gte=partition_date_gte,
             partition_date_lte=partition_date_lte,
             order_by=order_by,
