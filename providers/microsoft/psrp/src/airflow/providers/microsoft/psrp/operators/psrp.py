@@ -105,6 +105,13 @@ class PsrpOperator(BaseOperator):
         psrp_session_init: Command | None = None,
         **kwargs,
     ) -> None:
+        # Truthiness would otherwise reject a provided-but-empty option such as command="".
+        if not exactly_one(command is not None, powershell is not None, cmdlet is not None):
+            raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
+        if arguments is not None and powershell is None and cmdlet is None:
+            raise ValueError("Arguments only allowed with 'powershell' or 'cmdlet'")
+        if parameters is not None and powershell is None and cmdlet is None:
+            raise ValueError("Parameters only allowed with 'powershell' or 'cmdlet'")
         super().__init__(**kwargs)
         self.conn_id = psrp_conn_id
         self.command = command
@@ -118,14 +125,6 @@ class PsrpOperator(BaseOperator):
         self.psrp_session_init = psrp_session_init
 
     def execute(self, context: Context) -> list[Any] | None:
-        # A provided option can render to a falsy value, so validate on is-not-None (usage),
-        # not truthiness.
-        if not exactly_one(self.command is not None, self.powershell is not None, self.cmdlet is not None):
-            raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
-        if self.arguments is not None and self.powershell is None and self.cmdlet is None:
-            raise ValueError("Arguments only allowed with 'powershell' or 'cmdlet'")
-        if self.parameters is not None and self.powershell is None and self.cmdlet is None:
-            raise ValueError("Parameters only allowed with 'powershell' or 'cmdlet'")
         with (
             PsrpHook(
                 self.conn_id,

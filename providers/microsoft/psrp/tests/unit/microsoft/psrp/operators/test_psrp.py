@@ -39,26 +39,37 @@ class ExecuteParameter(NamedTuple):
 
 
 class TestPsrpOperator:
-    def test_no_command_or_powershell(self):
-        exception_msg = "Must provide exactly one of 'command', 'powershell', or 'cmdlet'"
-        op = PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID)
-        with pytest.raises(ValueError, match=exception_msg):
-            op.execute(None)
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({}, "exactly one", id="no-option"),
+            pytest.param({"command": "", "powershell": "Get-Bar"}, "exactly one", id="two-options-one-empty"),
+            pytest.param({"command": "x", "powershell": "x"}, "exactly one", id="two-equal-options"),
+            pytest.param(
+                {"command": "hostname", "arguments": ["x"]}, "Arguments only allowed", id="arguments"
+            ),
+            pytest.param(
+                {"command": "hostname", "parameters": {"k": "v"}}, "Parameters only allowed", id="parameters"
+            ),
+        ],
+    )
+    def test_invalid_option_combination(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, **kwargs)
 
-    def test_multiple_options_raise_when_one_renders_empty(self):
-        # Two options are provided; the error must fire even though command renders to a falsy "".
-        op = PsrpOperator(
-            task_id="test", psrp_conn_id=CONNECTION_ID, command="{{ '' }}", powershell="Get-Bar"
-        )
-        op.render_template_fields({})
-        assert op.command == ""
-        with pytest.raises(ValueError, match="exactly one"):
-            op.execute(None)
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"command": ""}, id="empty-command"),
+            pytest.param({"powershell": "", "arguments": ["a"]}, id="arguments"),
+            pytest.param({"powershell": "", "parameters": {"k": "v"}}, id="parameters"),
+        ],
+    )
+    def test_empty_option_counts_as_provided(self, kwargs):
+        PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, **kwargs)
 
     @patch(f"{PsrpOperator.__module__}.PsrpHook")
-    def test_provided_command_rendering_to_empty_dispatches(self, hook_impl):
-        # A provided command is valid usage even when it renders to "": no error, and it
-        # dispatches as the command option rather than falling through.
+    def test_command_rendering_to_empty_dispatches_as_command(self, hook_impl):
         op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, command="{{ '' }}")
         op.render_template_fields({})
         assert op.command == ""
@@ -68,30 +79,6 @@ class TestPsrpOperator:
         )
         op.execute(None)
         ps.add_script.assert_called_once_with("cmd.exe /c @'\n\n'@")
-
-    @pytest.mark.parametrize(
-        ("kwargs", "match"),
-        [
-            ({"command": "hostname", "arguments": ["x"]}, "Arguments only allowed"),
-            ({"command": "hostname", "parameters": {"k": "v"}}, "Parameters only allowed"),
-        ],
-    )
-    def test_arguments_and_parameters_require_powershell_or_cmdlet(self, kwargs, match):
-        op = PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID, **kwargs)
-        with pytest.raises(ValueError, match=match):
-            op.execute(None)
-
-    @pytest.mark.parametrize("kwargs", [{"arguments": ["a"]}, {"parameters": {"k": "v"}}])
-    @patch(f"{PsrpOperator.__module__}.PsrpHook")
-    def test_arguments_and_parameters_allowed_when_powershell_renders_empty(self, hook_impl, kwargs):
-        op = PsrpOperator(task_id="test", psrp_conn_id=CONNECTION_ID, powershell="{{ '' }}", **kwargs)
-        op.render_template_fields({})
-        assert op.powershell == ""
-        ps = Mock(spec=PowerShell, output=[], had_errors=False, runspace_pool=Mock(host=Mock(rc=0)))
-        hook_impl.configure_mock(
-            **{"return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps}
-        )
-        op.execute(None)
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize(
