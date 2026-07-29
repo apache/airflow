@@ -592,7 +592,7 @@ class KubernetesExecutor(BaseExecutor):
 
         if TYPE_CHECKING:
             assert self.task_queue
-        key: TaskInstanceKey = task.key
+        key: WorkloadKey = WorkloadKey(task.key)
         if isinstance(e, PodReconciliationError):
             self.log.exception(
                 "Pod reconciliation failed, likely due to kubernetes library upgrade. "
