@@ -597,3 +597,4 @@ class TestProvideApiClientEnvironment:
             command(args)
 
         assert recorded_kwargs == {"kind": ClientKind.CLI, "api_token": "TOKEN", "api_environment": "staging"}
+        
