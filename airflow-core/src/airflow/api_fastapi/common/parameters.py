@@ -290,6 +290,11 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         return value
 
 
+def _build_pipe_clause(pipe_as_or: bool) -> str:
+    """Build the per-parameter pipe note. OR is the documented default (see the API description), so only the literal exception is spelled out."""
+    return "" if pipe_as_or else "Here `|` is matched literally, not as OR. "
+
+
 _LIKE_ESCAPE_CHAR = "\\"
 
 
@@ -422,13 +427,10 @@ class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
         task_display_name_prefix_pattern: str | None = Query(
             default=None,
             description=(
-                "Prefix match on task display name: optional ``_task_display_property_value`` else "
-                "``task_id`` (same as ``coalesce``). Case-sensitive. Index-friendly alternative to "
-                "``task_display_name_pattern``. On large databases, combine with ``dag_id_prefix_pattern`` "
-                "(or a specific Dag in the path) so ``(dag_id, task_id, ...)`` indexes apply. "
-                "Use ``|`` for OR. Use ``~`` to match all. Trailing non-alphanumeric characters in the "
-                "term are stripped before matching so the range scan stays index-compatible under "
-                "locale-aware collations."
+                "Case-sensitive prefix match on task display name (`_task_display_property_value` else "
+                "`task_id`). Index-friendly alternative to `task_display_name_pattern`; on large databases "
+                "combine with `dag_id_prefix_pattern` (or a specific Dag in the path) so composite indexes "
+                'apply. See "Filtering with pattern parameters".'
             ),
         ),
     ) -> Self:
@@ -493,20 +495,11 @@ def search_param_factory(
     skip_none: bool = True,
     pipe_as_or: bool = True,
 ) -> Callable[[str | None], _SearchParam]:
-    pipe_clause = (
-        "Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). "
-        if pipe_as_or
-        else "The pipe `|` is matched literally, not as an OR separator. "
-    )
+    prefix_pattern_name = pattern_name.replace("_pattern", "_prefix_pattern")
     DESCRIPTION = (
-        "SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). "
-        f"{pipe_clause}"
-        "Regular expressions are **not** supported. "
-        "\n\n"
-        "**Performance note:** this full-match pattern is evaluated as ``ILIKE '%term%'`` and "
-        "most of the time prevents the database from using B-tree indexes, which can be very "
-        "slow on large tables. Prefer the equivalent "
-        f"``{pattern_name.replace('_pattern', '_prefix_pattern')}`` parameter when possible."
+        "Case-insensitive substring match (SQL `ILIKE`). "
+        f"{_build_pipe_clause(pipe_as_or)}"
+        f'Slower than `{prefix_pattern_name}` on large tables — see "Filtering with pattern parameters".'
     )
 
     def depends_search(
@@ -600,20 +593,10 @@ def prefix_search_param_factory(
     Prefer this over :func:`search_param_factory` for performance: prefix matching uses a
     B-tree index range scan, while substring matching requires a full table scan.
     """
-    pipe_clause = (
-        "Use the pipe `|` operator for OR logic (e.g. `dag1|dag2`). "
-        if pipe_as_or
-        else "The pipe `|` is part of the prefix, not an OR separator. "
-    )
     DESCRIPTION = (
-        "Prefix match — returns items whose value starts with the given string "
-        f"(case-sensitive, index-friendly). {pipe_clause}"
-        "Use `~` to match all. Wildcard characters (`%`, `_`) "
-        "are treated as literal characters. Trailing non-alphanumeric characters "
-        "in the prefix are stripped before matching so the range scan stays "
-        "index-compatible under locale-aware collations — e.g. `test_` effectively "
-        "matches items starting with `test`, and `s3://` matches items starting with "
-        "`s3`."
+        "Case-sensitive, index-friendly prefix match. "
+        f"{_build_pipe_clause(pipe_as_or)}"
+        'See "Filtering with pattern parameters".'
     )
 
     def depends_prefix_search(
@@ -1433,7 +1416,12 @@ class _ConsumingAssetFilter(BaseParam[str | None]):
     def depends(
         cls,
         consuming_asset_pattern: str | None = Query(
-            None, description="Filter by consuming asset name or URI using pattern matching"
+            None,
+            description=(
+                "Case-insensitive substring match against the consuming asset name or URI. "
+                "Unlike the wildcard `*_pattern` parameters, `%` and `_` are matched literally, "
+                "`|` is not an OR separator, and `~` does not match everything."
+            ),
         ),
     ) -> _ConsumingAssetFilter:
         return cls().set_value(consuming_asset_pattern)

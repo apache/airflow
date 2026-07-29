@@ -261,7 +261,9 @@ def list_edge_workers(args) -> None:
     from airflow.providers.edge3.models.edge_worker import get_registered_edge_hosts
 
     all_hosts_iter = get_registered_edge_hosts(
-        states=args.state, worker_name_pattern=args.worker_name_pattern
+        states=args.state,
+        worker_name_pattern=args.worker_name_pattern,
+        queues=args.queues.split(",") if args.queues else None,
     )
     # Format and print worker info on the screen
     fields = [
@@ -326,8 +328,8 @@ def remote_worker_update_maintenance_comment(args) -> None:
     try:
         change_maintenance_comment(args.edge_hostname, args.comments)
         logger.info("Maintenance comments updated for %s by %s.", args.edge_hostname, getuser())
-    except TypeError:
-        raise SystemExit
+    except TypeError as e:
+        raise SystemExit(str(e))
 
 
 @cli_utils.action_cli(check_db=False)
@@ -341,8 +343,8 @@ def remove_remote_worker(args) -> None:
     try:
         remove_worker(args.edge_hostname)
         logger.info("Edge Worker host %s removed by %s.", args.edge_hostname, getuser())
-    except TypeError:
-        raise SystemExit
+    except TypeError as e:
+        raise SystemExit(str(e))
 
 
 @cli_utils.action_cli(check_db=False)
@@ -404,8 +406,7 @@ def add_worker_queues(args) -> None:
         add_worker_queues(args.edge_hostname, queues)
         logger.info("Added queues %s to Edge Worker host %s by %s.", queues, args.edge_hostname, getuser())
     except TypeError as e:
-        logger.error(str(e))
-        raise SystemExit
+        raise SystemExit(str(e))
 
 
 @cli_utils.action_cli(check_db=False)
@@ -426,8 +427,7 @@ def remove_worker_queues(args) -> None:
             "Removed queues %s from Edge Worker host %s by %s.", queues, args.edge_hostname, getuser()
         )
     except TypeError as e:
-        logger.error(str(e))
-        raise SystemExit
+        raise SystemExit(str(e))
 
 
 @cli_utils.action_cli(check_db=False)
@@ -450,5 +450,4 @@ def set_remote_worker_concurrency(args) -> None:
             getuser(),
         )
     except TypeError as e:
-        logger.error(str(e))
-        raise SystemExit
+        raise SystemExit(str(e))
