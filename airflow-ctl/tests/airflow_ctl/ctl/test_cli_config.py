@@ -909,7 +909,7 @@ class TestCliConfigMethods:
                         )
                         return
         pytest.fail(f"Auto-generated command not found: {group_name} {subcommand_name}")
-        
+
     @pytest.mark.parametrize(
         ("dag_id_value", "expected_dag_id"),
         [
