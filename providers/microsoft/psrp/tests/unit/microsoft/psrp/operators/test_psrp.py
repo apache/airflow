@@ -44,6 +44,36 @@ class TestPsrpOperator:
         with pytest.raises(ValueError, match=exception_msg):
             PsrpOperator(task_id="test_task_id", psrp_conn_id=CONNECTION_ID)
 
+    def test_duplicate_field_values_still_raise_exactly_one(self):
+        exception_msg = "Must provide exactly one of 'command', 'powershell', or 'cmdlet'"
+        with pytest.raises(ValueError, match=exception_msg):
+            PsrpOperator(
+                task_id="test_task_id",
+                psrp_conn_id=CONNECTION_ID,
+                command="Get-Item",
+                powershell="Get-Item",
+            )
+
+    def test_arguments_without_powershell_or_cmdlet(self):
+        exception_msg = "Arguments only allowed with 'powershell' or 'cmdlet'"
+        with pytest.raises(ValueError, match=exception_msg):
+            PsrpOperator(
+                task_id="test_task_id",
+                psrp_conn_id=CONNECTION_ID,
+                command="foo",
+                arguments=[],
+            )
+
+    def test_parameters_without_powershell_or_cmdlet(self):
+        exception_msg = "Parameters only allowed with 'powershell' or 'cmdlet'"
+        with pytest.raises(ValueError, match=exception_msg):
+            PsrpOperator(
+                task_id="test_task_id",
+                psrp_conn_id=CONNECTION_ID,
+                command="foo",
+                parameters={},
+            )
+
     def test_cmdlet_task_id_default(self):
         operator = PsrpOperator(cmdlet="Invoke-Foo", psrp_conn_id=CONNECTION_ID)
         assert operator.task_id == "Invoke-Foo"
