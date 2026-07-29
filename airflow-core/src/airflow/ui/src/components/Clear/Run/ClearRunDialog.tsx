@@ -27,6 +27,7 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import { useClearRunDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -54,7 +55,8 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     setNote(dagRun.note);
     onClose();
   };
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["existingTasks"]);
+  const [clearRunDefaultOptions] = useClearRunDefaultOptions();
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearRunDefaultOptions);
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const onlyNew = selectedOptions.includes("newTasks");
 
@@ -127,7 +129,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
-              defaultValues={["existingTasks"]}
+              defaultValues={clearRunDefaultOptions}
               onChange={setSelectedOptions}
               options={[
                 {

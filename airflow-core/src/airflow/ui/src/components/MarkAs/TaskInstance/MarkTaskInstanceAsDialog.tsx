@@ -26,6 +26,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import { useMarkTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
 
@@ -43,7 +44,8 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const mapIndex = taskInstance.map_index;
   const { t: translate } = useTranslation();
 
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
+  const [markTaskInstanceDefaultOptions] = useMarkTaskInstanceDefaultOptions();
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(markTaskInstanceDefaultOptions);
 
   const past = selectedOptions.includes("past");
   const future = selectedOptions.includes("future");
@@ -126,6 +128,7 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
+              defaultValues={markTaskInstanceDefaultOptions}
               multiple
               onChange={setSelectedOptions}
               options={[
