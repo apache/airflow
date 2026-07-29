@@ -8743,6 +8743,18 @@ export const $BaseNodeResponse = {
                 }
             ],
             title: 'Team'
+        },
+        asset_condition_type: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['or-gate', 'and-gate']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Asset Condition Type'
         }
     },
     type: 'object',
@@ -9533,6 +9545,26 @@ export const $DagRunStatsResponse = {
     description: 'DAG Run statistics serializer for responses.'
 } as const;
 
+export const $DagTimetableTypeCollectionResponse = {
+    properties: {
+        timetable_types: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Timetable Types'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['timetable_types', 'total_entries'],
+    title: 'DagTimetableTypeCollectionResponse',
+    description: 'Timetable types used by Dags.'
+} as const;
+
 export const $DashboardDagStatsResponse = {
     properties: {
         active_dag_count: {
@@ -9601,9 +9633,16 @@ export const $DeadlineAlertResponse = {
             title: 'Reference Type'
         },
         interval: {
-            type: 'number',
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
             title: 'Interval',
-            description: 'Interval in seconds between deadline evaluations.'
+            description: 'Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.'
         },
         created_at: {
             type: 'string',
@@ -9612,7 +9651,7 @@ export const $DeadlineAlertResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'reference_type', 'interval', 'created_at'],
+    required: ['id', 'reference_type', 'created_at'],
     title: 'DeadlineAlertResponse',
     description: 'DeadlineAlert serializer for responses.'
 } as const;
@@ -9767,17 +9806,6 @@ export const $EdgeResponse = {
                 }
             ],
             title: 'Label'
-        },
-        is_source_asset: {
-            anyOf: [
-                {
-                    type: 'boolean'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Is Source Asset'
         }
     },
     type: 'object',
@@ -10418,6 +10446,18 @@ export const $NodeResponse = {
             ],
             title: 'Team'
         },
+        asset_condition_type: {
+            anyOf: [
+                {
+                    type: 'string',
+                    enum: ['or-gate', 'and-gate']
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Asset Condition Type'
+        },
         children: {
             anyOf: [
                 {
@@ -10476,18 +10516,6 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Operator'
-        },
-        asset_condition_type: {
-            anyOf: [
-                {
-                    type: 'string',
-                    enum: ['or-gate', 'and-gate']
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Asset Condition Type'
         },
         ui_color: {
             anyOf: [
