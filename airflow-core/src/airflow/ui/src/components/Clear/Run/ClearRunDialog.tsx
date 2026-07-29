@@ -94,11 +94,13 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
 
   // Non-versioned bundles (e.g. LocalDagBundle) always leave bundle_version null and
   // resolve to the latest serialized Dag at run time, so "run on latest" is a no-op there.
-  // Only offer it when the run is pinned to an older bundle version, where it actually changes the outcome.
+  // Offer it only when re-running on the latest would actually change the outcome:
+  // the run's Dag version differs from the latest while the bundle is versioned
+  // (latest bundle_version present), or the run's bundle version differs from the latest.
   const { shouldShowRunOnLatestOption } = getRunOnLatestVersionState({
     latestBundleVersion: dagDetails?.bundle_version,
     latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
-    selectedBundleVersion: dagRun.dag_versions.at(-1)?.bundle_version,
+    selectedBundleVersion: dagRun.bundle_version,
     selectedDagVersionNumber: dagRun.dag_versions.at(-1)?.version_number,
   });
   const shouldShowBundleVersionOption = shouldShowRunOnLatestOption && !onlyNew;
