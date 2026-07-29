@@ -337,12 +337,14 @@ def deadline_reference(deadline_reference_type=None):
     May be used with or without parentheses. Without parentheses the reference is evaluated when a
     new dagrun is created; pass a ``DeadlineReference.TYPES`` value to choose a different time.
 
-    Usage:
+    .. code-block:: python
+
         @deadline_reference
         class MyBareReference(BaseDeadlineReference):
             # Equivalent to @deadline_reference(); evaluated when a new dagrun is created.
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
                 return some_datetime
+
 
         @deadline_reference()
         class MyCustomReference(BaseDeadlineReference):
@@ -350,16 +352,18 @@ def deadline_reference(deadline_reference_type=None):
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
                 # Put your business logic here (use deferred imports for Core types)
                 from airflow.models import DagRun
+
                 return some_datetime
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}
 
+
+        # Optionally, specify when it is calculated by providing a DeadlineReference.TYPES value.
         @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
         class MyQueuedRef(BaseDeadlineReference):
-            # Optionally, you can specify when you want it calculated by providing a DeadlineReference.TYPES
             def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                 # Put your business logic here
+                # Put your business logic here
                 return some_datetime
 
             def serialize_reference(self) -> dict:
