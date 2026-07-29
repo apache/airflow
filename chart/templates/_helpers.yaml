@@ -953,16 +953,16 @@ Values are not accumulated meaning that if runAsUser is set to 10 in <node>.secu
 any extra values set to securityContexts or uid+gid will be ignored.
 
 If securityContexts.disableDefaults is true and no explicit runAsUser/fsGroup is set anywhere,
-this template renders an empty string, since there is no meaningful id to chown to.
+this template renders an empty string, since there is no id to chown to.
 
 The template can be called like so:
-   include "airflowPodSecurityContextsIds" (list . .Values.webserver)
+   include "airflowPodSecurityContextsIds" (list .Values.webserver .)
 
-Where `.` is the global variables scope and `.Values.workers` the local variables scope for the workers template.
+Where `.Values.workers` is the local variables scope for the workers template and `.` the global variables scope.
 */}}
 {{- define "airflowPodSecurityContextsIds" -}}
-  {{- $ := index . 0 -}}
-  {{- with index . 1 }}
+  {{- $ := last . -}}
+  {{- with first . }}
     {{- if .securityContexts.pod -}}
       {{ pluck "runAsUser" .securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContexts.pod | first | default $.Values.gid }}
     {{- else if $.Values.securityContexts.pod -}}

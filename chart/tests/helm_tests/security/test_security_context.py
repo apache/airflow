@@ -536,6 +536,34 @@ class TestSecurityContext:
         ]
         assert "volume-permissions" in init_container_names
 
+    def test_disable_defaults_component_level_override_still_applied(self):
+        """A component-level securityContexts override takes priority over global disableDefaults."""
+        ctx_value = {"runAsUser": 8000}
+        docs = render_chart(
+            values={
+                "securityContexts": {"disableDefaults": True},
+                "scheduler": {"securityContexts": {"pod": ctx_value}},
+                "workers": {
+                    "celery": {
+                        "securityContexts": {"pod": ctx_value},
+                        "persistence": {"enabled": True, "fixPermissions": True},
+                    }
+                },
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
+
+        init_container_names = [
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[1])
+        ]
+        assert "volume-permissions" in init_container_names
+
     def test_workers_overwrite_local(self):
         docs = render_chart(
             values={
