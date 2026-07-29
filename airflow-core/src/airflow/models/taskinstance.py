@@ -599,16 +599,14 @@ def _maybe_refund_infra_attempt(*, task_instance, task, failure_kind, reason=Non
     """
     Refund one retry attempt (bump ``max_tries``) for an infra-classified failure.
 
-    Fires only when ``failure_kind == INFRA``, ``[core] infra_failure_refund_retries``
-    is on, and the ``[core] max_infra_refunds`` cap is not yet reached. Every other
-    kind — and an unclassified (``None``) failure — spends the user's retry. Returns
-    True if an attempt was refunded.
+    Opt-in and capped by config. Every other kind, and an unclassified failure,
+    spends the user's retry as before. Returns True if an attempt was refunded.
 
     :meta private:
     """
     # retries may be None (unset); treat it as falsy like is_eligible_to_retry does.
-    # The refund still applies at retries=0: an infra disruption is not the user's
-    # failure, so it earns an attempt back regardless of the user's retry budget.
+    # Refunds still apply at retries=0: an infra disruption is not the user's failure,
+    # so it earns an attempt back regardless of their retry budget.
     retries = getattr(task, "retries", None) or 0
     if (
         failure_kind != TaskFailureKind.INFRA
@@ -1940,8 +1938,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             ``None``). ``INFRA`` refunds the attempt instead of charging the user's
             retry budget, gated by config.
         :param reason: the executor's token for an infra failure (e.g. ``Evicted``).
-            The worker never reported an error in that case, so it is surfaced as the
-            failure's ``reason`` argument to the listener rather than persisted.
+            The worker reported no error in that case, so this is passed to the
+            listener rather than persisted.
         """
         if error:
             cls.logger().error("%s", error)
@@ -1973,9 +1971,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Actual callbacks are handled by the DAG processor, not the scheduler
         task = getattr(ti, "task", None)
 
-        # An infra-classified failure refunds the attempt instead of spending the
-        # user's retry budget (opt-in, capped). Extends the Kubernetes executor's
-        # pre-execution requeue-without-consuming-a-retry to the mid-execution case.
         _maybe_refund_infra_attempt(task_instance=ti, task=task, failure_kind=failure_kind, reason=reason)
 
         if not ti.is_eligible_to_retry():
@@ -2031,8 +2026,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         :param session: SQLAlchemy ORM Session
         :param failure_kind: what caused the failure (:class:`TaskFailureKind` or
             ``None``), forwarded to the listener and the retry decision.
-        :param reason: the executor's token for an infra failure, surfaced to the
-            listener as the failure's ``error`` (not persisted).
+        :param reason: the executor's token for an infra failure, passed to the
+            listener rather than persisted.
         """
         if TYPE_CHECKING:
             assert self.task

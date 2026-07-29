@@ -17,7 +17,7 @@
 """
 AIP-97 SIGTERM-source classification safety.
 
-A SIGTERM to a running task is ambiguous — a user mark-failed and an infra
+A SIGTERM to a running task is ambiguous: a user mark-failed and an infra
 eviction both deliver one. The refund must never fire for a user-initiated
 stop. The single gate is ``failure_kind``: only ``INFRA`` refunds. These tests
 pin that the kind each termination source carries maps to the right refund
@@ -51,14 +51,14 @@ class _Task:
 @pytest.mark.parametrize(
     ("source", "failure_kind", "should_refund"),
     [
-        # non-infra causes — never refunded, whatever signal did the killing
+        # non-infra causes, never refunded whatever signal did the killing
         ("mark_task_failed", TaskFailureKind.MANUAL, False),
         ("mark_dagrun_failed", TaskFailureKind.MANUAL, False),
         ("app_exception", TaskFailureKind.APPLICATION, False),
         ("own_limit_oom", TaskFailureKind.APPLICATION, False),
         ("execution_timeout", TaskFailureKind.TIMEOUT, False),
         ("unclassified", None, False),
-        # infrastructure disruption — the only refunded cause
+        # infrastructure disruption, the only refunded cause
         ("pod_evicted", TaskFailureKind.INFRA, True),
     ],
 )

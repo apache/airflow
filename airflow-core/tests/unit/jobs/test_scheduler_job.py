@@ -582,15 +582,15 @@ class TestSchedulerJob:
             ti.refresh_from_db(session=session)
             return ti
 
-        # Unclassified (executor only reports a state) → no refund, exactly as today.
+        # Unclassified: no refund, exactly as today.
         ti = _run("aip97_unclassified", stashed=None)
         assert ti.max_tries == 1
 
-        # Bridge classified it infra (e.g. a pod Evicted) → refunded.
+        # Classified infra (a pod Evicted): refunded.
         ti = _run("aip97_infra", stashed=(TaskFailureKind.INFRA, "Evicted"))
         assert ti.max_tries == 2
 
-        # Bridge classified it user (e.g. an app OOM against its own limit) → no refund.
+        # Classified application (an OOM against its own limit): no refund.
         ti = _run("aip97_app_oom", stashed=(TaskFailureKind.APPLICATION, "OOMKilled"))
         assert ti.max_tries == 1
 

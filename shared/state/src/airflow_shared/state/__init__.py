@@ -79,11 +79,10 @@ class TaskFailureKind(str, Enum):
     Set on ``on_task_instance_failed`` so a listener can act on the cause without
     parsing the error.
 
-    ``INFRA`` — an infrastructure disruption (eviction, preemption, node loss).
-    ``APPLICATION`` — the task's own code (a raised exception, an OOM against its
-    own limit, a non-zero exit).
-    ``TIMEOUT`` — the task exceeded its ``execution_timeout``.
-    ``MANUAL`` — an operator set it failed (mark task or dag run failed).
+    - ``INFRA``: an infrastructure disruption (eviction, preemption, node loss).
+    - ``APPLICATION``: the task's own code, including an OOM against its own limit.
+    - ``TIMEOUT``: the task exceeded its ``execution_timeout``.
+    - ``MANUAL``: an operator set it failed (mark task or dag run failed).
     """
 
     INFRA = "infra"

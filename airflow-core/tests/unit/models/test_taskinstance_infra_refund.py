@@ -53,7 +53,7 @@ class TestMaybeRefundInfraAttempt:
 
     @conf_vars(ENABLED)
     def test_app_failure_does_not_refund(self):
-        # failure_kind=None is the ordinary worker-exception path — a real bug must spend the budget.
+        # failure_kind=None is the ordinary worker-exception path: a real bug spends the budget.
         ti, task = _FakeTI(max_tries=1), _FakeTask(retries=1)
         assert _maybe_refund_infra_attempt(task_instance=ti, task=task, failure_kind=None) is False
         assert ti.max_tries == 1
@@ -93,7 +93,7 @@ class TestMaybeRefundInfraAttempt:
 
     @conf_vars(ENABLED)
     def test_cap_bounds_the_refunds(self):
-        # retries=1, cap=3 → refunds allowed only while (max_tries - retries) < 3, i.e. max_tries in {1,2,3}.
+        # retries=1, cap=3: refunds allowed only while (max_tries - retries) < 3.
         ti, task = _FakeTI(max_tries=1), _FakeTask(retries=1)
         assert [
             _maybe_refund_infra_attempt(task_instance=ti, task=task, failure_kind="infra") for _ in range(5)

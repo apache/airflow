@@ -338,9 +338,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     pod_name,
                     annotations_string,
                 )
-                # A running task's pod removed by the platform (drain, preemption, spot
-                # reclaim, force-delete) is an infra disruption. An Airflow-initiated stop
-                # sets the TI terminal first, so the scheduler skips that case by state.
+                # An Airflow-initiated stop sets the TI terminal first, so the scheduler
+                # excludes that case by state and only a real disruption reaches here.
                 self.watcher_queue.put(
                     KubernetesWatch(
                         pod_name,
@@ -417,13 +416,12 @@ def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None
         }
 
 
-# Reason token for a pod removed by the platform while its task was still running
-# (node drain, preemption, spot reclaim, or a force-delete) — an infra disruption,
-# not the task's own code. Distinct from a container that ran and exited on its own.
+# A pod taken by the platform while its task ran: node drain, preemption, spot reclaim,
+# or a force-delete. Distinct from a container that ran and exited on its own.
 POD_DELETED_REASON = "PodDeleted"
 
-# Pod/node-level reasons that mean the platform ended the pod (an infrastructure
-# disruption), as opposed to the container terminating on its own.
+# Pod/node-level reasons meaning the platform ended the pod, as opposed to the container
+# terminating on its own.
 _INFRA_FAILURE_REASONS = frozenset(
     {
         "Evicted",
@@ -443,11 +441,9 @@ def classify_pod_failure(failure_details: FailureDetails | None):
     """
     Classify a pod failure into a ``(TaskFailureKind, reason)`` pair.
 
-    A node-level disruption (eviction, preemption, node shutdown) is ``INFRA``;
-    a container that ended on its own, an app crash or an ``OOMKilled`` against
-    its own limit, is ``APPLICATION``, so it earns no infra refund. Returns None
-    when there is nothing to classify, or when running against an Airflow that
-    predates the ``TaskFailureKind`` failure-context API (3.4).
+    A node-level disruption is ``INFRA``. A container that ended on its own, including
+    an ``OOMKilled`` against its own limit, is ``APPLICATION`` and earns no refund.
+    Returns None with nothing to classify, or on an Airflow predating the API (3.4).
     """
     if not failure_details or not AIRFLOW_V_3_4_PLUS:
         return None

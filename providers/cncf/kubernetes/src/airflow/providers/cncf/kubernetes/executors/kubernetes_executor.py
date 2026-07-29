@@ -719,9 +719,8 @@ class KubernetesExecutor(BaseExecutor):
                     exit_code,
                 )
 
-                # Classify the pod failure so the scheduler can tell an infra
-                # disruption from the task's own failure; it reads this back via
-                # get_task_failure_info() when it processes the failure event.
+                # The scheduler reads this back via get_task_failure_info() when it
+                # processes the failure event.
                 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
                     classify_pod_failure,
                 )

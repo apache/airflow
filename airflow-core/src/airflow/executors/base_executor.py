@@ -229,7 +229,6 @@ class BaseExecutor(LoggingMixin):
         self.queued_connection_tests: dict[ConnectionTestKey, workloads.TestConnection] = {}
         self.running: set[WorkloadKey] = set()
         self.event_buffer: dict[WorkloadKey, EventBufferValueType] = {}
-        # An executor's (failure_kind, reason) for a key, read once by the scheduler.
         self.task_failure_info: dict[WorkloadKey, tuple[TaskFailureKind, str | None]] = {}
         self._task_event_logs: deque[Log] = deque()
         self.conf = ExecutorConf(team_name)
@@ -560,8 +559,7 @@ class BaseExecutor(LoggingMixin):
         """
         Return and clear the ``(failure_kind, reason)`` this executor classified for ``key``.
 
-        Populated by executors that can read the real failure cause (e.g. the Kubernetes
-        executor telling an ``Evicted`` pod from an ``OOMKilled`` one). Returns None otherwise.
+        None unless the executor can read the real cause, as the Kubernetes executor does.
         """
         return self.task_failure_info.pop(key, None)
 
