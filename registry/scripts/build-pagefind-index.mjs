@@ -40,9 +40,14 @@ async function buildPagefindIndex() {
   let modulesAdded = 0;
 
   for (const provider of providers.providers) {
+    const integrations = (provider.categories || [])
+      .map((category) => category.name)
+      .filter(Boolean)
+      .join(' ');
+
     await index.addCustomRecord({
       url: `/providers/${provider.id}/${provider.version}/`,
-      content: `${provider.name} ${provider.description}`,
+      content: `${provider.name} ${provider.description} ${integrations}`,
       language: 'en',
       meta: {
         type: 'provider',
