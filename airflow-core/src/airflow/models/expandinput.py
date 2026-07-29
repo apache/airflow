@@ -136,7 +136,7 @@ class SchedulerDictOfListsExpandInput:
 
         def _get_length(v: ExpandArgument) -> int | None:
             if isinstance(v, SchedulerXComArg):
-                return get_task_map_length(v, run_id, session=session, lengths=lengths)
+                return get_task_map_length(v, run_id, lengths=lengths, session=session)
 
             # Unfortunately a user-defined TypeGuard cannot apply negative type
             # narrowing. https://github.com/python/typing/discussions/1013
@@ -189,7 +189,7 @@ class SchedulerListOfDictsExpandInput:
         if isinstance(self.value, Sized):
             return len(self.value)
         lengths = prefetch_map_lengths([self.value], run_id, session=session)
-        length = get_task_map_length(self.value, run_id, session=session, lengths=lengths)
+        length = get_task_map_length(self.value, run_id, lengths=lengths, session=session)
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
