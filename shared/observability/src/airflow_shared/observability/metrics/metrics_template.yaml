@@ -86,6 +86,14 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "resumable_job.reconnect_failure"
+    description: "Number of times a ResumableJobMixin operator found a stored run ID
+    on retry but could not determine the prior job's status because the status check
+    raised, so the reconnect could not proceed. Metric with operator tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "ti_failures"
     description: "Overall task instances failures. Metric with dag_id and task_id tagging."
     type: "counter"
