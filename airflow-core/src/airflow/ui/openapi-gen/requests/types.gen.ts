@@ -2408,6 +2408,14 @@ export type DagRunStatsResponse = {
 };
 
 /**
+ * Timetable types used by Dags.
+ */
+export type DagTimetableTypeCollectionResponse = {
+    timetable_types: Array<(string)>;
+    total_entries: number;
+};
+
+/**
  * Dashboard DAG Stats serializer for responses.
  */
 export type DashboardDagStatsResponse = {
@@ -3550,9 +3558,21 @@ export type GetDagsUiData = {
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;
+    timetableType?: Array<(string)>;
 };
 
 export type GetDagsUiResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type GetDagTimetableTypesUiData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    timetableTypePrefixPattern?: string | null;
+};
+
+export type GetDagTimetableTypesUiResponse = DagTimetableTypeCollectionResponse;
 
 export type GetLatestRunInfoData = {
     dagId: string;
@@ -6412,6 +6432,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGWithLatestDagRunsCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/timetable_types': {
+        get: {
+            req: GetDagTimetableTypesUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagTimetableTypeCollectionResponse;
                 /**
                  * Validation Error
                  */

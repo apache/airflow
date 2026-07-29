@@ -525,6 +525,14 @@ paths:
           description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
         description: Filter Dags by asset dependency (name or URI)
+      - name: timetable_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Timetable Type
       - name: has_pending_actions
         in: query
         required: false
@@ -540,6 +548,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGWithLatestDagRunsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/timetable_types:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Timetable Types
+      description: Get timetable types used by readable Dags.
+      operationId: get_dag_timetable_types_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: timetable_type_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Timetable Type Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagTimetableTypeCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -2749,6 +2809,22 @@ components:
       - dag_display_name
       title: DagTagResponse
       description: Dag Tag serializer for responses.
+    DagTimetableTypeCollectionResponse:
+      properties:
+        timetable_types:
+          items:
+            type: string
+          type: array
+          title: Timetable Types
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - timetable_types
+      - total_entries
+      title: DagTimetableTypeCollectionResponse
+      description: Timetable types used by Dags.
     DagVersionResponse:
       properties:
         id:
