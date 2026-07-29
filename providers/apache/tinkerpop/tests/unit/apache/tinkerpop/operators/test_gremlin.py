@@ -21,7 +21,7 @@ from unittest import mock
 
 from airflow.models import Connection
 from airflow.providers.apache.tinkerpop.operators.gremlin import GremlinOperator
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"

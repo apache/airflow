@@ -2433,9 +2433,9 @@ export type DeadlineAlertResponse = {
     name?: string | null;
     reference_type: string;
     /**
-     * Interval in seconds between deadline evaluations.
+     * Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.
      */
-    interval: number;
+    interval?: number | null;
     created_at: string;
 };
 
@@ -3604,6 +3604,14 @@ export type GetEventLogsData = {
     orderBy?: Array<(string)>;
     owner?: string | null;
     /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    ownerDisplayNamePattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    ownerDisplayNamePrefixPattern?: string | null;
+    /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     ownerPattern?: string | null;
@@ -4596,7 +4604,7 @@ export type GetDagDeadlineAlertsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      */
     orderBy?: Array<(string)>;
 };

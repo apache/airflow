@@ -385,6 +385,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Misc options",
             "options": [
+                "--python",
                 "--include-commits",
                 "--github-repository",
                 "--builder",
