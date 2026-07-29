@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "Must complete within {{interval}} of {{reference}}",
+    "completionRuleDynamic": "Must complete within a variable interval measured from {{reference}}",
     "count_one": "{{count}} deadline",
     "count_other": "{{count}} deadlines",
     "referenceType": {

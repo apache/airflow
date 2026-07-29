@@ -28,7 +28,7 @@ import signal
 import textwrap
 import time
 import zipfile
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
@@ -1085,6 +1085,46 @@ class TestDagFileProcessorManager:
             ).all()
         )
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
+        """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
+
+        Their files were removed during the upgrade, so nothing will ever parse them and fill the
+        column in, and the time-based check cannot reach them either (see #60763).
+
+        Migration ``0082_3_1_0_make_bundle_name_not_nullable`` backfills the column and makes it NOT
+        NULL, so the row can no longer be stored as NULL; the scan is fed the row the way a database
+        upgraded from 2.x to 3.0.x still holds it.
+        """
+        session.add(
+            DagModel(
+                dag_id="legacy_dag",
+                bundle_name="testing",
+                relative_fileloc="legacy_file.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        LegacyRow = namedtuple("LegacyRow", "dag_id bundle_name fileloc last_parsed_time relative_fileloc")
+        original_execute = session.execute
+
+        def execute_with_null_bundle_name(statement, *args, **kwargs):
+            result = original_execute(statement, *args, **kwargs)
+            if getattr(statement, "is_select", False) and "relative_fileloc" in str(statement):
+                return [
+                    LegacyRow(r.dag_id, None, r.fileloc, r.last_parsed_time, r.relative_fileloc)
+                    for r in result
+                ]
+            return result
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+        with mock.patch.object(session, "execute", side_effect=execute_with_null_bundle_name):
+            manager.deactivate_stale_dags(last_parsed={}, session=session)
+
+        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
 
     @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
     @pytest.mark.usefixtures("testing_dag_bundle")
