@@ -450,7 +450,6 @@ is configured in an Airflow 2 deployment:
 
 Flower HTTPRoute resources are only created when Flower itself is created, so ``flower.enabled`` must be
 ``true`` and the executor must include ``CeleryExecutor`` or ``CeleryKubernetesExecutor``.
-Webserver HTTPRoute resources are only created for Airflow 2 deployments (``airflowVersion`` < 3.0.0).
 
 For fine-grained routing, supply ``apiServer.httpRoute.rules``, ``flower.httpRoute.rules``, or
 ``webserver.httpRoute.rules`` directly — the entry mirrors the upstream ``HTTPRouteRule`` schema and
