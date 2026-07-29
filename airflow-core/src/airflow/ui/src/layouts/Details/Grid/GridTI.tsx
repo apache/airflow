@@ -70,15 +70,16 @@ export const GridTI = ({
   searchParams.delete("try_number");
   const redirectionSearch = searchParams.toString();
 
-  const isSelected = selectedRunId === runId && (selectedTaskId === taskId || selectedGroupId === taskId);
+  const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
+  const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
   const selectedOutlineColor = SELECTED_TASK_OUTLINE_COLOR[colorMode];
 
   return (
     <Flex
       alignItems="center"
-      bg={isSelected ? "brand.emphasized" : undefined}
+      bg={isSelectedRow ? "brand.emphasized" : undefined}
       data-run-id={runId}
-      data-selected={isSelected}
+      data-selected={isSelectedRow}
       data-task-id={taskId}
       height="20px"
       id={`task-${taskId.replaceAll(".", "-")}`}
@@ -110,16 +111,16 @@ export const GridTI = ({
               alignItems="center"
               borderRadius={4}
               colorPalette={instance.state ?? "none"}
-              data-selected={isSelected || undefined}
+              data-selected={isSelectedTaskInstance || undefined}
               data-testid="task-state-badge"
               display="flex"
               height="14px"
               justifyContent="center"
               minH={0}
-              outlineColor={isSelected ? selectedOutlineColor : undefined}
+              outlineColor={isSelectedTaskInstance ? selectedOutlineColor : undefined}
               outlineOffset="1px"
-              outlineStyle={isSelected ? "solid" : undefined}
-              outlineWidth={isSelected ? "2px" : undefined}
+              outlineStyle={isSelectedTaskInstance ? "solid" : undefined}
+              outlineWidth={isSelectedTaskInstance ? "2px" : undefined}
               p={0}
               style={hasNote ? { background: NOTE_GRADIENT } : undefined}
               transition="outline-color 0.2s"

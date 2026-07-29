@@ -78,6 +78,10 @@ describe("GridTI", () => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`);
 
     expect(screen.getByTestId("task-state-badge")).toHaveAttribute("data-selected", "true");
+    expect(screen.getByTestId("task-state-badge").closest("[data-task-id='selected_task']")).toHaveAttribute(
+      "data-selected",
+      "true",
+    );
   });
 
   it("uses a lighter outline for the selected task square in dark mode", () => {
@@ -88,9 +92,13 @@ describe("GridTI", () => {
     renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`, "other_task");
 
     expect(screen.getByTestId("task-state-badge")).not.toHaveAttribute("data-selected");
+    expect(screen.getByTestId("task-state-badge").closest("[data-task-id='other_task']")).toHaveAttribute(
+      "data-selected",
+      "false",
+    );
   });
 
-  it("does not mark the same task square in another Dag run as selected", () => {
+  it("keeps the task row selected without marking the same task square in another Dag run as selected", () => {
     renderGridTI(
       `/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`,
       "selected_task",
@@ -98,5 +106,9 @@ describe("GridTI", () => {
     );
 
     expect(screen.getByTestId("task-state-badge")).not.toHaveAttribute("data-selected");
+    expect(screen.getByTestId("task-state-badge").closest("[data-task-id='selected_task']")).toHaveAttribute(
+      "data-selected",
+      "true",
+    );
   });
 });
