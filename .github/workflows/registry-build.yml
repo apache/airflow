@@ -60,6 +60,14 @@ on:  # yamllint disable-line rule:truthy
         required: false
         type: boolean
         default: false
+      image-stash-ref:
+        description: >
+          Ref whose CI image stash to use (empty = the per-branch one). Set it to whatever the
+          caller passed to ci-image-build.yml, which stashes an image built for a ref under a
+          key of its own rather than in the branch-wide stash.
+        required: false
+        type: string
+        default: ""
     secrets:
       DOCS_AWS_ACCESS_KEY_ID:
         required: true
@@ -169,6 +177,7 @@ jobs:
           platform: "linux/amd64"
           use-uv: "true"
           make-mnt-writeable-and-cleanup: "true"
+          image-stash-ref: "${{ inputs.image-stash-ref }}"
 
       - name: "Install AWS CLI v2"
         run: |
