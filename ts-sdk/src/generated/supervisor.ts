@@ -599,6 +599,9 @@ export type DagId22 = string;
 export type DagRunId = string;
 export type Type81 = "TriggerDagRun";
 export type TiId9 = string;
+export type Note3 = string | null;
+export type Type82 = "UpdateDagRunNote";
+export type TiId10 = string;
 /**
  * @minItems 1
  */
@@ -606,22 +609,22 @@ export type ChosenOptions = [string, ...string[]];
 export type ParamsInput = {
   [k: string]: unknown;
 } | null;
-export type Type82 = "UpdateHITLDetail";
-export type TiId10 = string;
-export type Type83 = "ValidateInletsAndOutlets";
+export type Type83 = "UpdateHITLDetail";
+export type TiId11 = string;
+export type Type84 = "ValidateInletsAndOutlets";
 export type Keys = string[];
 export type TotalEntries = number;
-export type Type84 = "VariableKeysResult";
+export type Type85 = "VariableKeysResult";
 export type Key19 = string;
 export type Value2 = string | null;
-export type Type85 = "VariableResult";
+export type Type86 = "VariableResult";
 export type Len = number;
-export type Type86 = "XComCountResponse";
+export type Type87 = "XComCountResponse";
 export type Key20 = string;
-export type Type87 = "XComResult";
-export type Type88 = "XComSequenceIndexResult";
+export type Type88 = "XComResult";
+export type Type89 = "XComSequenceIndexResult";
 export type Root = JsonValue[];
-export type Type89 = "XComSequenceSliceResult";
+export type Type90 = "XComSequenceSliceResult";
 
 export interface SupervisorWireSchema {}
 /**
@@ -1818,24 +1821,33 @@ export interface TriggerDagRun {
   type?: Type81;
 }
 /**
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "UpdateDagRunNote".
+ */
+export interface UpdateDagRunNote {
+  ti_id: TiId9;
+  note: Note3;
+  type?: Type82;
+}
+/**
  * Update the response content part of an existing Human-in-the-loop response.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "UpdateHITLDetail".
  */
 export interface UpdateHITLDetail {
-  ti_id: TiId9;
+  ti_id: TiId10;
   chosen_options: ChosenOptions;
   params_input?: ParamsInput;
-  type?: Type82;
+  type?: Type83;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "ValidateInletsAndOutlets".
  */
 export interface ValidateInletsAndOutlets {
-  ti_id: TiId10;
-  type?: Type83;
+  ti_id: TiId11;
+  type?: Type84;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1844,7 +1856,7 @@ export interface ValidateInletsAndOutlets {
 export interface VariableKeysResult {
   keys: Keys;
   total_entries: TotalEntries;
-  type?: Type84;
+  type?: Type85;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1853,7 +1865,7 @@ export interface VariableKeysResult {
 export interface VariableResult {
   key: Key19;
   value?: Value2;
-  type?: Type85;
+  type?: Type86;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1861,7 +1873,7 @@ export interface VariableResult {
  */
 export interface XComCountResponse {
   len: Len;
-  type?: Type86;
+  type?: Type87;
 }
 /**
  * Response to ReadXCom request.
@@ -1872,7 +1884,7 @@ export interface XComCountResponse {
 export interface XComResult {
   key: Key20;
   value: JsonValue;
-  type?: Type87;
+  type?: Type88;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1880,7 +1892,7 @@ export interface XComResult {
  */
 export interface XComSequenceIndexResult {
   root: JsonValue;
-  type?: Type88;
+  type?: Type89;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1888,7 +1900,7 @@ export interface XComSequenceIndexResult {
  */
 export interface XComSequenceSliceResult {
   root: Root;
-  type?: Type89;
+  type?: Type90;
 }
 
 /** Cadwyn schema version this SDK was generated against.

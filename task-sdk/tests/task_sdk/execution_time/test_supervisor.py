@@ -38,6 +38,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import httpx
 import msgspec
@@ -148,6 +149,7 @@ from airflow.sdk.execution_time.comms import (
     TICount,
     ToSupervisor,
     TriggerDagRun,
+    UpdateDagRunNote,
     UpdateHITLDetail,
     ValidateInletsAndOutlets,
     VariableKeysResult,
@@ -2584,6 +2586,19 @@ REQUEST_TEST_CASES = [
             response=DagRunStateResult(state=DagRunState.RUNNING),
         ),
         test_id="get_dag_run_state",
+    ),
+    RequestTestCase(
+        message=UpdateDagRunNote(
+            ti_id=UUID("9c230b40-da03-451d-8bd7-be30471be383"),
+            note="Updated from task runtime",
+        ),
+        expected_body={"ok": True, "type": "OKResponse"},
+        client_mock=ClientMock(
+            method_path="task_instances.update_dagrun_note",
+            args=(UUID("9c230b40-da03-451d-8bd7-be30471be383"), "Updated from task runtime"),
+            response=OKResponse(ok=True),
+        ),
+        test_id="update_dag_run_note",
     ),
     RequestTestCase(
         message=GetPreviousDagRun(

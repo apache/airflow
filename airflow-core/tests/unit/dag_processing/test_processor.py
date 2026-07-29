@@ -77,10 +77,12 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComSequenceSlice,
+    OKResponse,
     TaskStatesResult,
     TICount,
     ToSupervisor,
     ToTask,
+    UpdateDagRunNote,
     XComResult,
     XComSequenceSliceResult,
 )
@@ -2275,6 +2277,28 @@ class TestDagFileProcessorProcess:
             "value": "super-secret-value",
             "type": "VariableResult",
         }
+
+    def test_handle_request_update_dag_run_note(self, proc):
+        ti_id = uuid.uuid4()
+        proc.client.task_instances.update_dagrun_note.return_value = OKResponse(ok=True)
+
+        with patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg:
+            proc._handle_request(
+                UpdateDagRunNote(ti_id=ti_id, note="Updated from task runtime"),
+                structlog.get_logger(),
+                req_id=789,
+            )
+
+        proc.client.task_instances.update_dagrun_note.assert_called_once_with(
+            ti_id, "Updated from task runtime"
+        )
+
+        mock_send_msg.assert_called_once()
+        _, args, kwargs = mock_send_msg.mock_calls[0]
+        assert args[0] is proc
+        assert args[1] == OKResponse(ok=True)
+        assert kwargs["request_id"] == 789
+        assert kwargs["error"] is None
 
 
 class TestMultiTeamCallbackMetrics:

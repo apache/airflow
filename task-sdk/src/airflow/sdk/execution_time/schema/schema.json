@@ -4267,6 +4267,38 @@
       "title": "TriggerDagRun",
       "type": "object"
     },
+    "UpdateDagRunNote": {
+      "properties": {
+        "ti_id": {
+          "format": "uuid",
+          "title": "Ti Id",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        },
+        "type": {
+          "const": "UpdateDagRunNote",
+          "default": "UpdateDagRunNote",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ti_id",
+        "note"
+      ],
+      "title": "UpdateDagRunNote",
+      "type": "object"
+    },
     "UpdateHITLDetail": {
       "description": "Update the response content part of an existing Human-in-the-loop response.",
       "properties": {

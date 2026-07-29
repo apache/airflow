@@ -156,7 +156,7 @@ def perform_clear_dag_run(
     if not dag_run_cleared:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after clearing")
     if note is not None:
-        patch_dag_run_note(dag_run=dag_run_cleared, note=note, user=user)
+        patch_dag_run_note(dag_run=dag_run_cleared, note=note, user_id=user.get_id())
     return dag_run_cleared
 
 
@@ -228,15 +228,20 @@ def patch_dag_run_state(
             log.exception("error calling listener")
 
 
-def patch_dag_run_note(*, dag_run: DagRun, note: str | None, user: BaseUser) -> None:
-    """Set, update, or clear a Dag Run's note. An empty note removes it so the run is left without a note."""
+def patch_dag_run_note(*, dag_run: DagRun, note: str | None, user_id: str | None) -> None:
+    """
+    Set, update, or clear a Dag Run's note. An empty note removes it so the run is left without a note.
+
+    ``user_id`` is the author to attribute the note to, or ``None`` for an unattributed note
+    (e.g. a note written from task runtime, which has no acting user).
+    """
     if note == "":
         dag_run.dag_run_note = None
     elif dag_run.dag_run_note is None:
-        dag_run.note = (note, user.get_id())
+        dag_run.note = (note, user_id)
     else:
         dag_run.dag_run_note.content = note
-        dag_run.dag_run_note.user_id = user.get_id()
+        dag_run.dag_run_note.user_id = user_id
 
 
 @attrs.define
@@ -426,7 +431,7 @@ class BulkDagRunService(BulkService[BulkDAGRunBody]):
                     dag = get_dag_for_run(self.dag_bag, dag_run, session=self.session)
                     patch_dag_run_state(dag=dag, dag_run=dag_run, state=entity.state, session=self.session)
                 if entity.note is not None:
-                    patch_dag_run_note(dag_run=dag_run, note=entity.note, user=self.user)
+                    patch_dag_run_note(dag_run=dag_run, note=entity.note, user_id=self.user.get_id())
                 results.success.append(f"{dag_id}.{run_id}")
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

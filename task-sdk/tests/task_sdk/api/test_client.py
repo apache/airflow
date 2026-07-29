@@ -441,6 +441,21 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.heartbeat(ti_id, 100)
 
+    def test_task_instance_update_dagrun_note(self):
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/dag-run-note":
+                assert json.loads(request.read()) == {"note": "Updated from task runtime"}
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        response = client.task_instances.update_dagrun_note(ti_id, "Updated from task runtime")
+
+        assert response == OKResponse(ok=True)
+
     @pytest.mark.parametrize("queues_enabled", [False, True])
     def test_task_instance_defer(self, queues_enabled: bool):
         # Simulate a successful response from the server that defers a task

@@ -66,6 +66,12 @@ class TIEnterRunningPayload(StrictBaseModel):
     """When the task started executing"""
 
 
+class DagRunNoteUpdatePayload(StrictBaseModel):
+    """Schema for updating the DagRun note associated with a task instance."""
+
+    note: str | None = Field(None, max_length=1000)
+
+
 # Create an enum to give a nice name in the generated datamodels
 class TerminalStateNonSuccess(str, Enum):
     """TaskInstance states that can be reported without extra information."""

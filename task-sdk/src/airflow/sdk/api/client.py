@@ -56,12 +56,14 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionTestState,
     DagResponse,
     DagRun,
+    DagRunNoteUpdatePayload,
     DagRunStateResponse,
     DagRunType,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     InactiveAssetsResponse,
+    Note,
     PrevSuccessfulDagRunResponse,
     ResultMessage,
     TaskBreadcrumbsResponse,
@@ -329,6 +331,12 @@ class TaskInstanceOperations:
         """Tell the API server to skip the downstream tasks of this TI."""
         body = TISkippedDownstreamTasksStatePayload(tasks=msg.tasks)
         self.client.patch(f"task-instances/{id}/skip-downstream", content=body.model_dump_json())
+
+    def update_dagrun_note(self, id: uuid.UUID, note: str | None) -> OKResponse:
+        """Update the note for the DagRun associated with this task instance."""
+        body = DagRunNoteUpdatePayload(note=Note(note) if note is not None else None)
+        self.client.patch(f"task-instances/{id}/dag-run-note", content=body.model_dump_json())
+        return OKResponse(ok=True)
 
     def set_rtif(self, id: uuid.UUID, body: dict[str, str]) -> OKResponse:
         """Set Rendered Task Instance Fields via the API server."""
