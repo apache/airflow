@@ -111,7 +111,9 @@ class NodeCoordinator(SubprocessCoordinator):
     :param node_executable: Path to the ``node`` binary (defaults to
         ``"node"``, which relies on ``$PATH``).
     :param bundles_root: Ordered list of directories scanned for the first
-        verified ``bundle.mjs`` that declares the task instance's Dag.
+        verified ``bundle.mjs`` that declares the task instance's Dag. See
+        :class:`SubprocessCoordinator` for its interaction with
+        ``dag_bundle_name``.
     :param task_startup_timeout: Maximum time the coordinator waits for a task
         process to start, in seconds. The default is 10 seconds.
     """
@@ -119,9 +121,14 @@ class NodeCoordinator(SubprocessCoordinator):
     node_executable: str = "node"
     bundles_root: list[pathlib.Path] = attrs.field(
         converter=convert_roots,
-        validator=attrs.validators.min_len(1),
+        factory=list,
     )
 
-    def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
-        bundle = _Bundle.find(self.bundles_root, what.dag_id)
+    def __attrs_post_init__(self) -> None:
+        self._classify_artifact_source(self.bundles_root, root_kwarg="bundles_root")
+
+    def _build_execute_task_command(
+        self, *, what: TaskInstance, roots: list[pathlib.Path]
+    ) -> tuple[list[str], str | None]:
+        bundle = _Bundle.find(roots, what.dag_id)
         return [self.node_executable, os.fspath(bundle.path)], bundle.schema_version

@@ -167,6 +167,15 @@ def test_get_bundle():
     assert bundle.version is None
 
 
+def test_is_bundle_configured():
+    """is_bundle_configured reports membership without constructing the bundle."""
+    with patch.dict(
+        os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(BASIC_BUNDLE_CONFIG)}
+    ):
+        assert DagBundlesManager.is_bundle_configured("my-test-bundle") is True
+        assert DagBundlesManager.is_bundle_configured("bundle-that-doesn't-exist") is False
+
+
 @pytest.fixture
 def clear_db():
     clear_db_dag_bundles()

@@ -653,6 +653,11 @@ class DagBundlesManager(LoggingMixin):
             name=name, version=version, version_data=version_data, **cfg_bundle.kwargs
         )
 
+    @classmethod
+    def is_bundle_configured(cls, name: str) -> bool:
+        """Return whether *name* is a configured Dag bundle, without constructing the bundle."""
+        return name in cls()._bundle_config
+
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
         Get all DAG bundles.
