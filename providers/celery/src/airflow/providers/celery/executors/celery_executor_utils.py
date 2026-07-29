@@ -26,6 +26,7 @@ import contextlib
 import gc
 import logging
 import math
+import multiprocessing
 import os
 import subprocess
 import sys
@@ -407,13 +408,9 @@ def send_workload_to_executor(
     """
     Send workload to executor (serialized and executed as a Celery task).
 
-    This function runs either inline in the long-lived scheduler process (single-workload or
-    sync_parallelism=1 path) or in short-lived ProcessPoolExecutor subprocesses (multi-workload
-    path). To avoid pickling issues with team-specific Celery apps, we pass the team_name and
-    create the app at call time. The cached app lives for the duration of the caller process, so
-    the main benefit is the scheduler-inline path where the cache persists across publish cycles.
-    In the ProcessPoolExecutor path, each subprocess is recreated per publish batch and the cache
-    only lasts for that single batch.
+    This runs inline in the long-lived caller process (the scheduler, when publishing). The
+    team-specific Celery app is built from ``team_name`` at call time and cached for the life of
+    that process, so result backend resolution is amortized across publish cycles.
     """
     key, args, queue, team_name = workload_tuple
 
@@ -485,6 +482,46 @@ def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | Excep
     except Exception as e:
         exception_traceback = f"Celery Task ID: {async_result}\n{traceback.format_exc()}"
         return async_result.task_id, ExceptionWithTraceback(e, exception_traceback), None
+
+
+def _get_state_fetch_mp_context() -> multiprocessing.context.BaseContext:
+    """
+    Return the ``multiprocessing`` context for the bulk state-fetch pool.
+
+    ``fork`` is unsafe here because the pool is created from the multi-threaded scheduler
+    process: a worker can inherit a mutex held by a thread that ``fork()`` did not copy, then
+    block forever acquiring it, which stalls the scheduling loop until the scheduler is
+    restarted. ``forkserver``/``spawn`` workers start without the parent's locks.
+
+    Honours ``[celery] mp_start_method`` (then ``[core] mp_start_method``) so an operator who
+    has deliberately pinned a method keeps control, and falls back to ``forkserver`` then
+    ``spawn``.
+    """
+    available = multiprocessing.get_all_start_methods()
+    configured = None
+    if AIRFLOW_V_3_3_PLUS:
+        from airflow.utils.process_utils import resolve_mp_start_method
+
+        configured = resolve_mp_start_method("celery")
+
+    if configured:
+        if configured not in available:
+            log.warning(
+                "Configured mp_start_method=%r is not available on this platform (available: %s); "
+                "falling back to a non-fork start method for the Celery state-fetch pool.",
+                configured,
+                available,
+            )
+        else:
+            if configured == "fork":
+                log.warning(
+                    "mp_start_method is set to 'fork' for the Celery state-fetch pool. Forking the "
+                    "multi-threaded scheduler can deadlock a worker on an inherited lock and stall "
+                    "scheduling; prefer 'forkserver' or 'spawn'."
+                )
+            return multiprocessing.get_context(configured)
+
+    return multiprocessing.get_context("forkserver" if "forkserver" in available else "spawn")
 
 
 class BulkStateFetcher(LoggingMixin):
@@ -564,7 +601,9 @@ class BulkStateFetcher(LoggingMixin):
     ) -> Mapping[str, EventBufferValueType]:
         num_process = min(len(async_results), self._sync_parallelism)
 
-        with ProcessPoolExecutor(max_workers=num_process) as sync_pool:
+        with ProcessPoolExecutor(
+            max_workers=num_process, mp_context=_get_state_fetch_mp_context()
+        ) as sync_pool:
             chunksize = max(1, math.ceil(len(async_results) / self._sync_parallelism))
 
             task_id_to_states_and_info = list(

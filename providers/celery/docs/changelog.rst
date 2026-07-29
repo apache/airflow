@@ -27,6 +27,16 @@
 Changelog
 ---------
 
+.. note::
+    ``CeleryExecutor`` now publishes workloads to the broker from the scheduler process instead of
+    a forked worker pool. Forking that pool from the multi-threaded scheduler could deadlock: a
+    worker inherited a lock held by a thread ``fork()`` did not copy and blocked forever acquiring
+    it, silently stalling scheduling until the scheduler was restarted. Publishing is a single
+    short broker round-trip, so the pool cost more to start than the sends it parallelized at the
+    batch sizes the scheduler produces. ``[celery] sync_parallelism`` now applies only to fetching
+    task state, which is its documented purpose; it no longer affects publishing. Deployments that
+    set ``[celery] sync_parallelism = 1`` to work around the hang can drop that override.
+
 3.23.0
 ......
 

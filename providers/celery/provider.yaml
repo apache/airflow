@@ -153,9 +153,11 @@ config:
         default: "16"
       mp_start_method:
         description: |
-          The ``multiprocessing`` start method the ``airflow celery worker`` process uses for the
+          The ``multiprocessing`` start method used by the ``airflow celery worker`` process for the
           standard-library ``multiprocessing`` helpers it starts: the log server (``serve_logs``),
-          the stale-bundle-cleanup process, and the optional ``[secrets] use_cache`` manager. Must
+          the stale-bundle-cleanup process, and the optional ``[secrets] use_cache`` manager. It also
+          selects the start method for the scheduler's Celery task-state fetch pool (used when
+          ``[celery] result_backend`` is neither a key-value store nor a database). Must
           be one of the values returned by ``multiprocessing.get_all_start_methods()`` on your
           platform (typically ``fork``, ``forkserver`` or ``spawn``). When unset (the default) it
           falls back to ``[core] mp_start_method`` and then to the platform default.
@@ -166,6 +168,11 @@ config:
           the pre-3.14 behaviour. This setting governs the standard-library ``multiprocessing``
           helpers only: Celery's ``prefork`` pool is driven by ``billiard`` (a separate fork of
           ``multiprocessing``) and always uses ``fork``, so it is unaffected either way.
+
+          Setting this to ``fork`` is not recommended for the scheduler's state-fetch pool: forking
+          the multi-threaded scheduler can leave a worker blocked forever on a lock it inherited
+          from a thread ``fork()`` did not copy, which stalls scheduling until a restart. The pool
+          defaults to ``forkserver`` (or ``spawn``) for that reason.
         version_added: ~
         type: string
         example: "fork"
