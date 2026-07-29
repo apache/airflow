@@ -22,6 +22,7 @@ import logging
 import os
 import signal
 import sys
+from concurrent.futures.process import BrokenProcessPool
 from datetime import timedelta
 from unittest import mock
 
@@ -574,7 +575,6 @@ def test_send_workloads_to_celery_never_forks(mock_send, num_workloads, monkeypa
     assert results == [(i, None, 1) for i in range(num_workloads)]
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="resolve_mp_start_method only exists on Airflow 3.3+")
 class TestStateFetchMpContext:
     """The bulk state-fetch pool must not fork from the multi-threaded scheduler."""
 
@@ -614,13 +614,76 @@ class TestStateFetchMpContext:
 @mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
 def test_bulk_state_fetcher_passes_non_fork_context(mock_pool):
     """The state-fetch pool is constructed with an explicit non-fork context."""
-    mock_pool.return_value.__enter__.return_value.map.return_value = []
+    mock_pool.return_value.map.return_value = []
     fetcher = celery_executor_utils.BulkStateFetcher(2)
 
     fetcher._get_many_using_multiprocessing([mock.MagicMock(), mock.MagicMock()])
 
     ctx = mock_pool.call_args.kwargs["mp_context"]
     assert ctx.get_start_method() != "fork"
+
+
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
+def test_bulk_state_fetcher_reuses_pool_across_syncs(mock_pool):
+    """forkserver/spawn workers re-import Airflow, so the pool must outlive a single sync."""
+    mock_pool.return_value.map.return_value = []
+    fetcher = celery_executor_utils.BulkStateFetcher(2)
+
+    fetcher._get_many_using_multiprocessing([mock.MagicMock()])
+    fetcher._get_many_using_multiprocessing([mock.MagicMock()])
+
+    mock_pool.assert_called_once()
+
+
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
+def test_bulk_state_fetcher_recreates_broken_pool(mock_pool):
+    """A dead worker breaks the pool permanently, so it is discarded and retried once."""
+    first, second = mock.MagicMock(), mock.MagicMock()
+    first.map.side_effect = BrokenProcessPool("worker died")
+    second.map.return_value = [("task-1", "success", None)]
+    mock_pool.side_effect = [first, second]
+    fetcher = celery_executor_utils.BulkStateFetcher(2)
+
+    result = fetcher._get_many_using_multiprocessing([mock.MagicMock()])
+
+    assert mock_pool.call_count == 2
+    first.shutdown.assert_called_once()
+    assert result == {"task-1": ("success", None)}
+
+
+@pytest.mark.parametrize("wait", [True, False])
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
+def test_bulk_state_fetcher_shutdown(mock_pool, wait):
+    mock_pool.return_value.map.return_value = []
+    fetcher = celery_executor_utils.BulkStateFetcher(2)
+    fetcher._get_many_using_multiprocessing([mock.MagicMock()])
+
+    fetcher.shutdown(wait=wait)
+
+    mock_pool.return_value.shutdown.assert_called_once_with(wait=wait, cancel_futures=not wait)
+    assert fetcher._sync_pool is None
+
+
+def test_bulk_state_fetcher_shutdown_without_pool_is_a_noop():
+    """end()/terminate() must be safe when the pool was never created (Redis and DB backends)."""
+    celery_executor_utils.BulkStateFetcher(2).shutdown()
+
+
+@pytest.mark.parametrize(
+    ("method", "expected_wait"),
+    [("end", True), ("terminate", False)],
+)
+def test_executor_shuts_down_state_fetch_pool(method, expected_wait):
+    executor = celery_executor.CeleryExecutor()
+
+    with mock.patch.object(executor.bulk_state_fetcher, "shutdown") as mock_shutdown:
+        with mock.patch.object(executor, "sync"):
+            getattr(executor, method)()
+
+    if expected_wait:
+        mock_shutdown.assert_called_once_with()
+    else:
+        mock_shutdown.assert_called_once_with(wait=False)
 
 
 def _has_external_executor_id_field() -> bool:

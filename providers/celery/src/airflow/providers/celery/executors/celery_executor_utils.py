@@ -33,6 +33,7 @@ import sys
 import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 from functools import cache
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
@@ -166,9 +167,8 @@ def _get_celery_app_for_workload(team_name: str | None) -> Celery:
     """
     Return a Celery app cached by team name for task publishing.
 
-    Publishing workloads may run either inline in the scheduler process or in a publisher
-    subprocess. Cache the app in whichever process executes the publish path so result
-    backend resolution is amortized while retaining per-team broker isolation.
+    Publishing runs in the caller process (the scheduler). Caching the app there amortizes
+    result backend resolution across publish cycles while retaining per-team broker isolation.
     """
     if AIRFLOW_V_3_2_PLUS:
         from airflow.executors.base_executor import ExecutorConf
@@ -495,14 +495,15 @@ def _get_state_fetch_mp_context() -> multiprocessing.context.BaseContext:
 
     Honours ``[celery] mp_start_method`` (then ``[core] mp_start_method``) so an operator who
     has deliberately pinned a method keeps control, and falls back to ``forkserver`` then
-    ``spawn``.
+    ``spawn``. The lookup is inlined rather than delegated to
+    ``airflow.utils.process_utils.resolve_mp_start_method`` because that helper only exists on
+    Airflow 3.3+, and this provider supports 2.11 onwards.
     """
     available = multiprocessing.get_all_start_methods()
-    configured = None
-    if AIRFLOW_V_3_3_PLUS:
-        from airflow.utils.process_utils import resolve_mp_start_method
-
-        configured = resolve_mp_start_method("celery")
+    configured = conf.get("celery", "mp_start_method", fallback=None) or conf.get(
+        "core", "mp_start_method", fallback=None
+    )
+    configured = configured.strip() if configured else None
 
     if configured:
         if configured not in available:
@@ -537,6 +538,28 @@ class BulkStateFetcher(LoggingMixin):
         super().__init__()
         self._sync_parallelism = sync_parallelism
         self.celery_app = celery_app or app  # Use provided app or fall back to module-level app.
+        self._sync_pool: ProcessPoolExecutor | None = None
+
+    def _get_or_create_sync_pool(self) -> ProcessPoolExecutor:
+        """
+        Return the state-fetch pool, creating it on first use.
+
+        The pool is reused across syncs. ``forkserver``/``spawn`` workers re-import Airflow
+        instead of inheriting it, so rebuilding the pool on every sync would pay that import
+        cost on every scheduler heartbeat.
+        """
+        if self._sync_pool is None:
+            self._sync_pool = ProcessPoolExecutor(
+                max_workers=max(1, self._sync_parallelism), mp_context=_get_state_fetch_mp_context()
+            )
+        return self._sync_pool
+
+    def shutdown(self, wait: bool = True) -> None:
+        """Shut the state-fetch pool down, if one was ever created."""
+        if self._sync_pool is None:
+            return
+        pool, self._sync_pool = self._sync_pool, None
+        pool.shutdown(wait=wait, cancel_futures=not wait)
 
     def _tasks_list_to_task_ids(self, async_tasks: Collection[AsyncResult]) -> set[str]:
         return {a.task_id for a in async_tasks}
@@ -599,26 +622,30 @@ class BulkStateFetcher(LoggingMixin):
     def _get_many_using_multiprocessing(
         self, async_results: Collection[AsyncResult]
     ) -> Mapping[str, EventBufferValueType]:
-        num_process = min(len(async_results), self._sync_parallelism)
+        chunksize = max(1, math.ceil(len(async_results) / self._sync_parallelism))
 
-        with ProcessPoolExecutor(
-            max_workers=num_process, mp_context=_get_state_fetch_mp_context()
-        ) as sync_pool:
-            chunksize = max(1, math.ceil(len(async_results) / self._sync_parallelism))
+        try:
+            task_id_to_states_and_info = self._map_fetch_over_pool(async_results, chunksize)
+        except BrokenProcessPool:
+            # A worker died, which breaks the pool permanently. Discard it and retry once on a
+            # fresh pool so one dead worker does not wedge state fetching until a restart.
+            self.log.warning("Celery state-fetch pool broke; recreating it and retrying.")
+            self.shutdown(wait=False)
+            task_id_to_states_and_info = self._map_fetch_over_pool(async_results, chunksize)
 
-            task_id_to_states_and_info = list(
-                sync_pool.map(fetch_celery_task_state, async_results, chunksize=chunksize)
-            )
-
-            states_and_info_by_task_id: MutableMapping[str, EventBufferValueType] = {}
-            for task_id, state_or_exception, info in task_id_to_states_and_info:
-                if isinstance(state_or_exception, ExceptionWithTraceback):
-                    self.log.error(
-                        "%s:%s\n%s\n",
-                        CELERY_FETCH_ERR_MSG_HEADER,
-                        state_or_exception.exception,
-                        state_or_exception.traceback,
-                    )
-                else:
-                    states_and_info_by_task_id[task_id] = state_or_exception, info
+        states_and_info_by_task_id: MutableMapping[str, EventBufferValueType] = {}
+        for task_id, state_or_exception, info in task_id_to_states_and_info:
+            if isinstance(state_or_exception, ExceptionWithTraceback):
+                self.log.error(
+                    "%s:%s\n%s\n",
+                    CELERY_FETCH_ERR_MSG_HEADER,
+                    state_or_exception.exception,
+                    state_or_exception.traceback,
+                )
+            else:
+                states_and_info_by_task_id[task_id] = state_or_exception, info
         return states_and_info_by_task_id
+
+    def _map_fetch_over_pool(self, async_results: Collection[AsyncResult], chunksize: int) -> list:
+        pool = self._get_or_create_sync_pool()
+        return list(pool.map(fetch_celery_task_state, async_results, chunksize=chunksize))

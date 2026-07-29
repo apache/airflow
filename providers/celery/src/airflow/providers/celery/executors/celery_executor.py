@@ -288,9 +288,10 @@ class CeleryExecutor(BaseExecutor):
             ):
                 time.sleep(5)
         self.sync()
+        self.bulk_state_fetcher.shutdown()
 
     def terminate(self):
-        pass
+        self.bulk_state_fetcher.shutdown(wait=False)
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         # The scheduler pre-assigns external_executor_id at queuing time (committed to DB
