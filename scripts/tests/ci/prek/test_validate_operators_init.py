@@ -66,8 +66,8 @@ class TestConstructorFieldLogic:
             pytest.param("self._validate(foo)\nself.foo = foo", 1, id="validation-call"),
             pytest.param(
                 "if foo is not None:\n    self._validate(foo)\nself.foo = foo",
-                2,
-                id="nested-validation-call",
+                1,
+                id="validation-call-behind-provision-guard",
             ),
             pytest.param("self.foo = foo\nself.bar = foo.upper()", 1, id="derived-assignment"),
             pytest.param(
@@ -79,6 +79,52 @@ class TestConstructorFieldLogic:
                 "if not foo:\n    raise ValueError(f'unsupported: {foo}')\nself.foo = foo",
                 2,
                 id="ctor-validation-raise",
+            ),
+            pytest.param(
+                "if foo is None:\n    raise ValueError('foo is required')\nself.foo = foo",
+                0,
+                id="provision-check-raise",
+            ),
+            pytest.param(
+                "self.foo = foo\nif self.foo is not None:\n    self.bar = 1",
+                0,
+                id="provision-check-on-self-attribute",
+            ),
+            pytest.param(
+                "if foo is None:\n    raise ValueError('required')\n"
+                "if foo.startswith('x'):\n    raise ValueError('bad')\nself.foo = foo",
+                1,
+                id="provision-check-alongside-value-read",
+            ),
+            pytest.param(
+                "if foo.get('x') is None:\n    raise ValueError('bad')\nself.foo = foo",
+                1,
+                id="none-check-on-derived-value",
+            ),
+            pytest.param(
+                "if foo == None:\n    raise ValueError('required')\nself.foo = foo",
+                1,
+                id="equality-check-is-not-a-provision-check",
+            ),
+            pytest.param(
+                "if foo is False:\n    raise ValueError('bad')\nself.foo = foo",
+                1,
+                id="identity-check-against-a-non-none-constant",
+            ),
+            pytest.param(
+                "if foo is bar:\n    raise ValueError('bad')\nself.foo = foo",
+                1,
+                id="identity-check-against-a-non-constant",
+            ),
+            pytest.param(
+                "if foo is None is not bar:\n    raise ValueError('bad')\nself.foo = foo",
+                1,
+                id="chained-comparison-is-not-a-provision-check",
+            ),
+            pytest.param(
+                "if not exactly_one(foo is None, bar is None):\n    raise ValueError('x')\nself.foo = foo",
+                0,
+                id="provision-check-passed-to-a-helper",
             ),
         ],
     )
@@ -148,15 +194,73 @@ class TestTemplateFieldExtraction:
 
 
 class TestValuePreservingTernaryAssignment:
-    def test_ternary_default_is_a_valid_assignment(self):
-        code = """
+    @pytest.mark.parametrize(
+        "value, expected",
+        [
+            pytest.param("conf if conf else {}", 0, id="value-preserving"),
+            # Neither a valid assignment nor a substitute for one: invalid, and still missing.
+            pytest.param('conf if conf == "x" else {}', 2, id="value-comparison"),
+        ],
+    )
+    def test_ternary_default_assignment(self, value: str, expected: int):
+        code = f"""
         class Op(BaseOperator):
             template_fields = ("conf",)
 
             def __init__(self, conf=None, **kwargs):
-                self.conf = conf if conf else {}
+                self.conf = {value}
         """
-        assert _check_constructor_template_fields(_first_class(code), ["conf"]) == 0
+        assert _check_constructor_template_fields(_first_class(code), ["conf"]) == expected
+
+    @pytest.mark.parametrize(
+        "nested",
+        [
+            pytest.param("if baz:\n        self.foo = derive(bar)", id="doubly-nested"),
+            pytest.param("super().__init__(foo=derive(bar), **kwargs)", id="super-kwarg"),
+            pytest.param("self.foo = derive(bar)\n    self.foo = derive(baz)", id="reported-once"),
+            pytest.param(
+                "try:\n        pass\n    except ValueError:\n        self.foo = derive(bar)",
+                id="except-handler",
+            ),
+        ],
+    )
+    def test_derived_assignment_nested_in_a_branch_is_invalid(self, nested: str):
+        code = _operator_code(f"self.foo = foo\nif bar:\n    {nested}")
+        assert _check_constructor_template_fields(_first_class(code), ["foo"]) == 1
+
+    @pytest.mark.parametrize(
+        "nested",
+        [
+            pytest.param("hook.foo = derive()", id="other-object-attribute"),
+            pytest.param("hook.foo: str = derive()", id="other-object-annotated"),
+            pytest.param("cfg.foo, cfg.bar = 1, 2", id="other-object-tuple-target"),
+        ],
+    )
+    def test_assignment_to_another_objects_attribute_is_not_the_field(self, nested: str):
+        code = _operator_code(f"self.foo = foo\nif bar:\n    {nested}")
+        assert _check_constructor_template_fields(_first_class(code), ["foo"]) == 0
+
+    @pytest.mark.parametrize(
+        "ctor_body",
+        [
+            pytest.param("if kwargs:\n    self.foo = foo", id="branch"),
+            pytest.param("if foo is None:\n    super().__init__(foo=foo, **kwargs)", id="super-call"),
+        ],
+    )
+    def test_conditional_assignment_does_not_satisfy_the_field(self, ctor_body: str):
+        assert _check_constructor_template_fields(_first_class(_operator_code(ctor_body)), ["foo"]) == 1
+
+    @pytest.mark.parametrize(
+        "scope",
+        [
+            pytest.param("def on_kill():\n    self.foo = derive()", id="nested-function"),
+            pytest.param("async def on_kill():\n    self.foo = derive()", id="nested-async-function"),
+            pytest.param("class Inner:\n    self.foo = derive()", id="nested-class"),
+        ],
+    )
+    def test_assignment_in_a_nested_scope_belongs_to_that_scope(self, scope: str):
+        code = _operator_code(f"self.foo = foo\n{scope}")
+        assert _check_constructor_template_fields(_first_class(code), ["foo"]) == 0
 
 
 class TestExemptions:
