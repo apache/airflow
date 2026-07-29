@@ -22,34 +22,30 @@
 // respectively by the per-provider page's category chips and the Explore
 // landing page's per-category provider listing) can't drift apart.
 
-// Two arbitrary strings "match" a keyword if either contains the other
-// (case-insensitively), mirroring the original id-only substring check.
+// A value "matches" a keyword if the value contains the keyword,
+// case-insensitively, after collapsing runs of "-_\s" to a single space
+// (so 'pydantic-ai' matches "Pydantic AI"). Collapse, don't strip:
+// stripping would turn "Microsoft Power BI" into "microsoftpowerbi",
+// which contains "ftp" and would falsely match the orchestration category.
+function normalize(text) {
+  return text.toLowerCase().replace(/[-_\s]+/g, ' ');
+}
+
 function fuzzyIncludes(value, keyword) {
   if (!value) {
     return false;
   }
-  const normalizedValue = value.toLowerCase();
-  const normalizedKeyword = keyword.toLowerCase();
-  return normalizedValue.includes(normalizedKeyword) || normalizedKeyword.includes(normalizedValue);
+  return normalize(value).includes(normalize(keyword));
 }
 
-// Every string a provider is searchable by: its id/slug, its declared
+// Every string a provider is searchable by: its id/slug and its declared
 // integration names (provider.categories[].name — e.g. "LangChain",
-// "Pydantic AI"), and, once populated, each connection type's declared
-// external integrations. The latter field doesn't exist in the generated
-// data yet, so this reads as an empty list until a future change in
-// dev/registry/extract_metadata.py starts populating it — no further
-// changes needed here when that lands.
+// "Pydantic AI").
 function collectSearchableValues(provider) {
   const values = [provider.id];
   for (const category of provider.categories || []) {
     if (category.name) {
       values.push(category.name);
-    }
-  }
-  for (const connectionType of provider.connection_types || []) {
-    for (const externalIntegration of connectionType.external_integrations || []) {
-      values.push(externalIntegration);
     }
   }
   return values;
