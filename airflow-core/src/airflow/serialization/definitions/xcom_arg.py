@@ -26,7 +26,10 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
-from airflow.models.xcom import XCOM_RETURN_KEY
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
+from airflow.serialization.definitions.mappedoperator import is_mapped
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
@@ -179,11 +182,6 @@ def prefetch_map_lengths(
     Tasks whose length is not known yet are absent from the result, mirroring the
     ``None`` that :func:`get_task_map_length` returns for them.
     """
-    from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskmap import TaskMap
-    from airflow.models.xcom import XComModel
-    from airflow.serialization.definitions.mappedoperator import is_mapped
-
     operators = {(op.dag_id, op.task_id): op for arg in xcom_args for op, _ in arg.iter_references()}
     if not operators:
         return {}
@@ -199,7 +197,7 @@ def prefetch_map_lengths(
                 *_match_referenced_tasks(TaskMap, unmapped),
             )
         )
-        lengths.update({(dag_id, task_id): length for dag_id, task_id, length in rows})
+        lengths.update(((dag_id, task_id), length) for dag_id, task_id, length in rows)
     if mapped:
         unfinished = set(
             session.execute(
@@ -234,7 +232,7 @@ def prefetch_map_lengths(
             }
             # A finished mapped task that pushed nothing has no row to group, but its
             # length is a known zero rather than an unresolved value.
-            lengths.update({key: counts.get(key, 0) for key in finished})
+            lengths.update((key, counts.get(key, 0)) for key in finished)
     return lengths
 
 
@@ -250,11 +248,6 @@ def get_task_map_length(
 def _(
     xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
 ) -> int | None:
-    from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskmap import TaskMap
-    from airflow.models.xcom import XComModel
-    from airflow.serialization.definitions.mappedoperator import is_mapped
-
     dag_id = xcom_arg.operator.dag_id
     task_id = xcom_arg.operator.task_id
 
