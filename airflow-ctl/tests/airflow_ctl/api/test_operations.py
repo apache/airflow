@@ -1304,29 +1304,24 @@ class TestDagRunOperations:
     def test_list_with_clear_filters(self):
         logical_date_start = datetime.datetime(2025, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
         logical_date_end = datetime.datetime(2025, 1, 2, 23, 59, 59, tzinfo=datetime.timezone.utc)
-        partition_date_start = datetime.datetime(2025, 2, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
-        partition_date_after_start = datetime.datetime(2025, 2, 2, 0, 0, 0, tzinfo=datetime.timezone.utc)
-        partition_date_before_end = datetime.datetime(2025, 2, 3, 0, 0, 0, tzinfo=datetime.timezone.utc)
-        partition_date_end = datetime.datetime(2025, 2, 4, 23, 59, 59, tzinfo=datetime.timezone.utc)
         partition_day_start = datetime.date(2025, 2, 1)
         partition_day_end = datetime.date(2025, 2, 4)
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
-            params = dict(request.url.params)
-            assert params["limit"] == "50"
-            assert params["offset"] == "100"
-            assert params["logical_date_gte"] == logical_date_start.isoformat()
-            assert params["logical_date_lte"] == logical_date_end.isoformat()
-            assert params["partition_date_gte"] == partition_date_start.isoformat()
-            assert params["partition_date_gt"] == partition_date_after_start.isoformat()
-            assert params["partition_date_lt"] == partition_date_before_end.isoformat()
-            assert params["partition_date_lte"] == partition_date_end.isoformat()
-            assert params["partition_date_start"] == partition_day_start.isoformat()
-            assert params["partition_date_end"] == partition_day_end.isoformat()
-            assert params["order_by"] == "logical_date"
-            assert params["run_id_pattern"] == "manual__"
-            assert params["partition_key_pattern"] == "2025-01-01"
+            # Asserted exactly: a name the endpoint does not declare is silently ignored by
+            # FastAPI, so an unfiltered list would come back and the caller would act on it.
+            assert dict(request.url.params) == {
+                "limit": "50",
+                "offset": "100",
+                "logical_date_gte": logical_date_start.isoformat(),
+                "logical_date_lte": logical_date_end.isoformat(),
+                "partition_date_gte": partition_day_start.isoformat(),
+                "partition_date_lte": partition_day_end.isoformat(),
+                "order_by": "logical_date",
+                "run_id_pattern": "manual__",
+                "partition_key_pattern": "2025-01-01",
+            }
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
@@ -1336,12 +1331,8 @@ class TestDagRunOperations:
             offset=100,
             logical_date_gte=logical_date_start,
             logical_date_lte=logical_date_end,
-            partition_date_gte=partition_date_start,
-            partition_date_gt=partition_date_after_start,
-            partition_date_lt=partition_date_before_end,
-            partition_date_lte=partition_date_end,
-            partition_date_start=partition_day_start,
-            partition_date_end=partition_day_end,
+            partition_date_gte=partition_day_start,
+            partition_date_lte=partition_day_end,
             order_by="logical_date",
             run_id_pattern="manual__",
             partition_key_pattern="2025-01-01",

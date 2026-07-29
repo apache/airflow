@@ -19,14 +19,14 @@ from __future__ import annotations
 import datetime
 from types import SimpleNamespace
 from unittest import mock
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, create_autospec
 
 import httpx
 import pytest
 
 from airflowctl.api.client import ClientKind
 from airflowctl.api.datamodels.generated import DAGResponse
-from airflowctl.api.operations import ServerResponseError
+from airflowctl.api.operations import DagRunOperations, ServerResponseError
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
 
@@ -153,7 +153,7 @@ class TestDagCommands:
     @staticmethod
     def _api_client_mock():
         api_client = Mock(spec_set=["dag_runs"])
-        api_client.dag_runs = Mock(spec_set=["get", "list", "_clear_task_instances"])
+        api_client.dag_runs = create_autospec(DagRunOperations, instance=True, spec_set=True)
         return api_client
 
     def test_pause_dag(self, api_client_maker, monkeypatch):
@@ -529,8 +529,8 @@ class TestDagCommands:
             dag_id=self.dag_id,
             offset=0,
             order_by="partition_date",
-            partition_date_start=datetime.date(2025, 1, 1),
-            partition_date_end=datetime.date(2025, 1, 2),
+            partition_date_gte=datetime.date(2025, 1, 1),
+            partition_date_lte=datetime.date(2025, 1, 2),
         )
         api_client.dag_runs._clear_task_instances.assert_called_once_with(
             dag_id=self.dag_id,
@@ -569,8 +569,8 @@ class TestDagCommands:
             dag_id=self.dag_id,
             offset=0,
             order_by="partition_date",
-            partition_date_start=datetime.date(2025, 1, 1),
-            partition_date_end=datetime.date(2025, 1, 2),
+            partition_date_gte=datetime.date(2025, 1, 1),
+            partition_date_lte=datetime.date(2025, 1, 2),
         )
 
     def test_clear_by_partition_date_accepts_naive_datetime_as_calendar_date(self):
@@ -602,8 +602,8 @@ class TestDagCommands:
             dag_id=self.dag_id,
             offset=0,
             order_by="partition_date",
-            partition_date_start=datetime.date(2025, 1, 1),
-            partition_date_end=datetime.date(2025, 1, 2),
+            partition_date_gte=datetime.date(2025, 1, 1),
+            partition_date_lte=datetime.date(2025, 1, 2),
         )
 
     def test_clear_prompts_before_clearing(self, monkeypatch):

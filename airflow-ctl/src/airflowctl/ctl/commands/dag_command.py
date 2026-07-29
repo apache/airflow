@@ -248,8 +248,8 @@ def _get_dag_runs_to_clear(args, api_client) -> list:
             api_client,
             args.dag_id,
             order_by="partition_date",
-            partition_date_start=partition_date_start,
-            partition_date_end=partition_date_end,
+            partition_date_gte=partition_date_start,
+            partition_date_lte=partition_date_end,
         )
 
     return []

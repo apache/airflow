@@ -91,7 +91,8 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def _serialize_query_param(value: Any) -> Any:
-    if isinstance(value, datetime.datetime):
+    # datetime.datetime subclasses datetime.date, so this covers both.
+    if isinstance(value, datetime.date):
         return value.isoformat()
     return value
 
@@ -533,12 +534,8 @@ class DagRunOperations(BaseOperations):
         logical_date_gt: datetime.datetime | None = None,
         logical_date_lte: datetime.datetime | None = None,
         logical_date_lt: datetime.datetime | None = None,
-        partition_date_gte: datetime.datetime | None = None,
-        partition_date_gt: datetime.datetime | None = None,
-        partition_date_lte: datetime.datetime | None = None,
-        partition_date_lt: datetime.datetime | None = None,
-        partition_date_start: datetime.date | None = None,
-        partition_date_end: datetime.date | None = None,
+        partition_date_gte: datetime.date | None = None,
+        partition_date_lte: datetime.date | None = None,
         order_by: str | None = None,
         run_id_pattern: str | None = None,
         partition_key_pattern: str | None = None,
@@ -560,12 +557,10 @@ class DagRunOperations(BaseOperations):
             logical_date_gt: Filter Dag runs with a logical date greater than this value.
             logical_date_lte: Filter Dag runs with a logical date less than or equal to this value.
             logical_date_lt: Filter Dag runs with a logical date less than this value.
-            partition_date_gte: Filter Dag runs with a partition date greater than or equal to this value.
-            partition_date_gt: Filter Dag runs with a partition date greater than this value.
-            partition_date_lte: Filter Dag runs with a partition date less than or equal to this value.
-            partition_date_lt: Filter Dag runs with a partition date less than this value.
-            partition_date_start: Filter Dag runs whose partition date is on or after this local day.
-            partition_date_end: Filter Dag runs whose partition date is on or before this local day.
+            partition_date_gte: Inclusive lower bound of the partition_date window, as a local
+                calendar day in the Dag's timetable timezone.
+            partition_date_lte: Inclusive upper bound of the partition_date window, as a local
+                calendar day in the Dag's timetable timezone.
             order_by: Order the results by the specified field.
             run_id_pattern: Filter Dag runs by run ID pattern.
             partition_key_pattern: Filter Dag runs by partition key pattern.
@@ -587,11 +582,7 @@ class DagRunOperations(BaseOperations):
             logical_date_lte=logical_date_lte,
             logical_date_lt=logical_date_lt,
             partition_date_gte=partition_date_gte,
-            partition_date_gt=partition_date_gt,
             partition_date_lte=partition_date_lte,
-            partition_date_lt=partition_date_lt,
-            partition_date_start=partition_date_start,
-            partition_date_end=partition_date_end,
             order_by=order_by,
             run_id_pattern=run_id_pattern,
             partition_key_pattern=partition_key_pattern,
