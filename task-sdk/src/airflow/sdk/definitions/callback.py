@@ -28,6 +28,20 @@ from airflow.sdk._shared.module_loading import import_string, is_valid_dotpath
 log = structlog.getLogger(__name__)
 
 
+class _SerializedCallbackPath(str):
+    """
+    A callback path which was read back from serialized data.
+
+    The path of a ``Callback`` is checked when the ``Callback`` is first created. Rebuilding
+    that ``Callback`` from its serialized form carries the path in this wrapper so that
+    :meth:`Callback.get_callback_path` keeps it as-is instead of resolving it a second time.
+
+    :meta private:
+    """
+
+    __slots__ = ()
+
+
 class Callback(ABC):
     """
     Base class for Deadline Alert callbacks.
@@ -66,6 +80,14 @@ class Callback(ABC):
 
         stripped_callback = _callback.strip()
 
+        if isinstance(_callback, _SerializedCallbackPath):
+            # This path was already checked when the Callback it belongs to was created, so
+            # rebuilding that Callback keeps it as it is. Reconstruction happens in components
+            # which never call the callback themselves, and resolving the path there is neither
+            # needed nor wanted: the module it names is not necessarily importable in that
+            # process, and importing it has no bearing on the path we return either way.
+            return stripped_callback
+
         try:
             # The provided callback is a string which appears to be a valid dotpath, attempt to import it.
             callback = import_string(stripped_callback)
@@ -95,6 +117,10 @@ class Callback(ABC):
     @classmethod
     def deserialize(cls, data: dict, version):
         path = data.pop("path")
+        if isinstance(path, str):
+            # Mark the path as coming from serialized data, so that it is taken as it was
+            # stored rather than resolved again. See ``get_callback_path``.
+            path = _SerializedCallbackPath(path)
         return cls(callback_callable=path, **data)
 
     @classmethod
