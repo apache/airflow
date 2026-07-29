@@ -1632,6 +1632,11 @@
                     "type": "integer",
                     "default": 3600
                 },
+                "readonlyWorkerCache": {
+                    "description": "Should the worker kerberos cache be readonly for the worker container.",
+                    "type": "boolean",
+                    "default": true
+                },
                 "config": {
                     "description": "Contents of krb5.conf.",
                     "type": "string",

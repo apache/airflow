@@ -314,7 +314,7 @@ spec:
               readOnly: true
             - name: kerberos-ccache
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
-              readOnly: true
+              readOnly: {{ or .Values.celery.kerberosSidecar.enabled .Values.celery.kerberosInitContainer.enabled .Values.kerberos.readonlyWorkerCache }}
             {{- end }}
             {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
               {{- include "airflow_dags_mount" . | nindent 12 }}

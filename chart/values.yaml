@@ -581,6 +581,7 @@ kerberos:
   keytabPath: /etc/airflow.keytab
   principal: airflow@FOO.COM
   reinitFrequency: 3600
+  readonlyWorkerCache: true
   config: |
     # This is an example config showing how you can use templating and how "example" config
     # might look like. It works with the test kerberos server that we are using during integration
