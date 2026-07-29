@@ -38,6 +38,7 @@ export const useDags = ({
   tags,
   tagsMatchMode,
   teams,
+  timetableType,
 }: {
   advancedSearch?: boolean;
   dagDisplayNamePattern?: string;
@@ -56,6 +57,7 @@ export const useDags = ({
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
   teams?: Array<string>;
+  timetableType?: Array<string>;
 }) => {
   const refetchInterval = useAutoRefresh({});
 
@@ -78,6 +80,7 @@ export const useDags = ({
       tags,
       tagsMatchMode,
       teams,
+      timetableType,
     },
     undefined,
     {
