@@ -26,11 +26,10 @@ class TestOnTaskInstanceFailedAcceptsFailureKind:
     (``infra`` / ``application`` / ``timeout`` / ``manual``) without parsing the error."""
 
     def test_listener_with_failure_kind_receives_it(self, listener_manager):
-        received: dict[str, str | None] = {"failure_kind": None}
+        received: dict[str, str | None] = {"failure_kind": None, "reason": None}
 
-        # Per the hookspec docstring, listener implementations must declare
-        # failure_kind WITHOUT a default value — pluggy treats the impl
-        # default as authoritative and silently overrides the caller's value.
+        # Must be declared WITHOUT a default: pluggy treats an impl-side default as
+        # authoritative and silently overrides the caller's value.
         class InfraListener:
             @hookimpl
             def on_task_instance_failed(
@@ -39,8 +38,10 @@ class TestOnTaskInstanceFailedAcceptsFailureKind:
                 task_instance,
                 error,
                 failure_kind,
+                reason,
             ):
                 received["failure_kind"] = failure_kind
+                received["reason"] = reason
 
         listener_manager(InfraListener())
 
@@ -49,9 +50,10 @@ class TestOnTaskInstanceFailedAcceptsFailureKind:
             task_instance=None,
             error=RuntimeError("boom"),
             failure_kind="infra",
+            reason="Evicted",
         )
 
-        assert received["failure_kind"] == "infra"
+        assert received == {"failure_kind": "infra", "reason": "Evicted"}
 
     def test_listener_without_failure_kind_param_keeps_working(self, listener_manager):
         """Pluggy dispatches by parameter name, so existing hookimpls that
@@ -70,6 +72,7 @@ class TestOnTaskInstanceFailedAcceptsFailureKind:
             task_instance=None,
             error=RuntimeError("boom"),
             failure_kind="infra",
+            reason=None,
         )
 
         assert called["count"] == 1

@@ -2305,6 +2305,7 @@ def finalize(
                 failure_kind=TaskFailureKind.TIMEOUT
                 if isinstance(error, AirflowTaskTimeout)
                 else TaskFailureKind.APPLICATION,
+                reason=None,
             )
         except Exception:
             log.exception("error calling listener")
@@ -2320,6 +2321,7 @@ def finalize(
                 failure_kind=TaskFailureKind.TIMEOUT
                 if isinstance(error, AirflowTaskTimeout)
                 else TaskFailureKind.APPLICATION,
+                reason=None,
             )
         except Exception:
             log.exception("error calling listener")

@@ -40,22 +40,21 @@ class TestClassifyPodFailure:
     @pytest.mark.parametrize(
         ("pod_reason", "container_reason", "expected_kind"),
         [
-            # Node/platform ended the pod -> infra (earns a refund).
+            # Node/platform ended the pod -> infra.
             ("Evicted", None, "infra"),
             ("Preempting", None, "infra"),
             ("NodeShutdown", None, "infra"),
             ("NodeLost", None, "infra"),
             ("DisruptionTarget", None, "infra"),
             ("TerminationByKubelet", None, "infra"),
-            # A running task's pod removed by the platform (drain, preempt, spot reclaim,
-            # force-delete) -> infra. The task didn't fail on its own; its pod was taken.
+            # Pod taken while the task ran (drain, preempt, spot reclaim, force-delete).
             ("PodDeleted", None, "infra"),
-            # Container ended on its own -> user (no refund). The key one: an OOM against
-            # the container's OWN limit is the app's memory problem, not an infra disruption.
+            # Container ended on its own -> application. An OOM against the container's OWN
+            # limit is the app's memory problem, not a disruption.
             (None, "OOMKilled", "application"),
             (None, "Error", "application"),
             (None, "ContainerCannotRun", "application"),
-            # A node eviction that also shows a container OOM is still infra (the node acted).
+            # A node eviction that also shows a container OOM is still infra: the node acted.
             ("Evicted", "OOMKilled", "infra"),
         ],
     )
@@ -72,9 +71,8 @@ class TestClassifyPodFailure:
         assert classify_pod_failure({}) is None
 
     def test_end_to_end_oomkilled_pod_is_application(self):
-        # Mirrors the live kind result: a real OOMKilled container (exit 137) flows through
-        # collect_pod_failure_details -> classify_pod_failure and classifies as application, not infra,
-        # so an app OOM does not earn an infra refund.
+        # Mirrors the live kind result: a real OOMKilled container (exit 137) classifies as
+        # application, so an app OOM earns no refund.
         pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name="aip97-oom"),
             status=k8s.V1PodStatus(
@@ -103,11 +101,9 @@ class TestClassifyPodFailure:
         assert infra_reason == "OOMKilled"
 
     def test_end_to_end_evicted_pod_is_infra(self):
-        # A real node-pressure eviction: the kubelet sets the pod phase=Failed with
-        # status.reason=Evicted (the pod object persists). This flows through
-        # collect_pod_failure_details -> classify_pod_failure and classifies as infra,
-        # so the disruption earns a refund. This is the positive-infra path the
-        # conservative default requires (an unclassified death does not refund).
+        # A real node-pressure eviction: the kubelet sets phase=Failed with reason=Evicted and
+        # the pod object persists. This is the positive-infra path the conservative default
+        # requires, since an unclassified death does not refund.
         pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name="aip97-evicted"),
             status=k8s.V1PodStatus(
@@ -123,10 +119,9 @@ class TestClassifyPodFailure:
         assert infra_reason == "Evicted"
 
     def test_pod_deleted_while_running_is_infra(self):
-        # A pod force-deleted / drained / preempted while its task was running has no
-        # container-exit status; the watcher emits {pod_reason: PodDeleted}. It must
-        # classify infra so the disruption earns a refund (the scheduler still gates on
-        # the TI being non-terminal, so an Airflow-initiated stop is excluded upstream).
+        # Force-delete / drain / preempt leaves no container-exit status, so the watcher emits
+        # {pod_reason: PodDeleted}. The scheduler still gates on the TI being non-terminal, so an
+        # Airflow-initiated stop is excluded upstream.
         failure_kind, infra_reason = classify_pod_failure(
             {"pod_status": "Running", "pod_reason": "PodDeleted"}
         )

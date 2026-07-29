@@ -68,13 +68,12 @@ def on_task_instance_failed(
         the cause was not classified.
     :param reason: For an ``INFRA`` failure, the executor's short token for what
         happened (e.g. ``Evicted``, ``PodDeleted``), since the worker left no
-        ``error``. ``None`` otherwise. Transient — persist it yourself if you need
-        it to outlive the failure.
+        ``error``. ``None`` otherwise, and never persisted.
 
         Pluggy dispatches by parameter name, so a ``hookimpl`` that doesn't declare
         ``failure_kind`` / ``reason`` keeps working. One that does must declare it
-        *without* a default — pluggy treats an impl-side default as authoritative and
-        overrides the caller's value::
+        *without* a default, since pluggy treats an impl-side default as authoritative
+        and overrides the caller's value::
 
             @hookimpl
             def on_task_instance_failed(self, previous_state, task_instance, error, failure_kind, reason): ...

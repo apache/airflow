@@ -113,7 +113,6 @@ def _emit_state_listener_hooks(updated_tis: list[TI], new_state: str | TaskInsta
             if new_state == TaskInstanceState.SUCCESS:
                 get_listener_manager().hook.on_task_instance_success(previous_state=None, task_instance=ti)
             elif new_state == TaskInstanceState.FAILED:
-                # An operator set this failed — a manual action, never refunded.
                 get_listener_manager().hook.on_task_instance_failed(
                     previous_state=None,
                     task_instance=ti,
