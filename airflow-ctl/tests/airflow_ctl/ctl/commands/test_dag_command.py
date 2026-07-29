@@ -71,6 +71,9 @@ class TestDagCommands:
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
     )
 
     dag_response_unpaused = DAGResponse(
@@ -101,6 +104,9 @@ class TestDagCommands:
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
     )
 
     dag_response_no_schedule = DAGResponse(
@@ -131,6 +137,9 @@ class TestDagCommands:
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
     )
 
     def test_pause_dag(self, api_client_maker, monkeypatch):
