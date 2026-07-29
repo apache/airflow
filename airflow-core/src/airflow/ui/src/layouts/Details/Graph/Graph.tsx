@@ -33,6 +33,7 @@ import { dependenciesKey, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
 import { useGroups } from "src/context/groups";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useDefaultDependencyView, useDefaultGraphDirection } from "src/hooks/useUserSettings";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils.ts";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
@@ -70,8 +71,13 @@ export const Graph = () => {
 
   const { allGroupIds, openGroupIds, setAllGroupIds } = useGroups();
 
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
-  const [direction] = useLocalStorage<Direction>(directionKey(dagId), "RIGHT");
+  const [defaultDependencyView] = useDefaultDependencyView();
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(
+    dependenciesKey(dagId),
+    defaultDependencyView,
+  );
+  const [defaultDirection] = useDefaultGraphDirection();
+  const [direction] = useLocalStorage<Direction>(directionKey(dagId), defaultDirection);
 
   const selectedColor = colorMode === "dark" ? selectedDarkColor : selectedLightColor;
   const { data: graphData = { edges: [], nodes: [] } } = useStructureServiceStructureData(

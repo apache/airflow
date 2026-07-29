@@ -23,6 +23,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { useStructureServiceStructureData } from "openapi/queries";
 import { allGroupsKey, dependenciesKey, openGroupsKey } from "src/constants/localStorage";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { useDefaultDependencyView } from "src/hooks/useUserSettings";
 import { flattenGraphNodes } from "src/layouts/Details/Grid/utils";
 
 import { GroupsContext, type GroupsContextType } from "./Context";
@@ -42,7 +43,11 @@ export const GroupsProvider = ({ children, dagId }: Props) => {
   }, [allGroupIds]);
 
   const selectedVersion = useSelectedVersion();
-  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(dependenciesKey(dagId), "tasks");
+  const [defaultDependencyView] = useDefaultDependencyView();
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(
+    dependenciesKey(dagId),
+    defaultDependencyView,
+  );
 
   const { data: structure = { edges: [], nodes: [] } } = useStructureServiceStructureData(
     {

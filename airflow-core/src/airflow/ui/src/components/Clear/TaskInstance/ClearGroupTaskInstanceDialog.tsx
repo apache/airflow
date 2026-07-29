@@ -28,6 +28,7 @@ import { ActionAccordion } from "src/components/ActionAccordion";
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import { useClearTaskInstanceDefaultOptions } from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -51,7 +52,8 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     onSuccessConfirm: onClose,
   });
 
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
+  const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const past = selectedOptions.includes("past");
@@ -144,7 +146,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
         <Dialog.Body width="full">
           <Flex justifyContent="center">
             <SegmentedControl
-              defaultValues={["downstream"]}
+              defaultValues={clearTaskInstanceDefaultOptions}
               multiple
               onChange={setSelectedOptions}
               options={[

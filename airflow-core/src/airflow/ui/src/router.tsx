@@ -55,6 +55,7 @@ import { Run } from "src/pages/Run";
 import { AssetEvents as DagRunAssetEvents } from "src/pages/Run/AssetEvents";
 import { Details as DagRunDetails } from "src/pages/Run/Details";
 import { Security } from "src/pages/Security";
+import { Settings } from "src/pages/Settings";
 import { Task } from "src/pages/Task";
 import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
@@ -132,6 +133,10 @@ export const routerConfig = [
       {
         element: <Configs />,
         path: "configs",
+      },
+      {
+        element: <Settings />,
+        path: "settings",
       },
       {
         children: [

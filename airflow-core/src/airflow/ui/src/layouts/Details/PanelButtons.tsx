@@ -46,6 +46,7 @@ import { dependenciesKey } from "src/constants/localStorage";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
+import { useDefaultDependencyView } from "src/hooks/useUserSettings";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
@@ -111,9 +112,10 @@ export const PanelButtons = ({
   const { dagId = "", runId } = useParams();
   const { fitView } = useReactFlow();
   const shouldShowToggleButtons = Boolean(runId);
+  const [defaultDependencyView] = useDefaultDependencyView();
   const [dependencies, setDependencies, removeDependencies] = useLocalStorage<Dependency>(
     dependenciesKey(dagId),
-    "tasks",
+    defaultDependencyView,
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);

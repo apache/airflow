@@ -29,6 +29,10 @@ import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLate
 import Time from "src/components/Time";
 import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
+import {
+  useClearPreventRunningTaskDefault,
+  useClearTaskInstanceDefaultOptions,
+} from "src/hooks/useUserSettings";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -77,14 +81,16 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
 
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
+  const [clearTaskInstanceDefaultOptions] = useClearTaskInstanceDefaultOptions();
+  const [preventRunningTaskDefault] = useClearPreventRunningTaskDefault();
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(clearTaskInstanceDefaultOptions);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const past = selectedOptions.includes("past");
   const future = selectedOptions.includes("future");
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
-  const [preventRunningTask, setPreventRunningTask] = useState(true);
+  const [preventRunningTask, setPreventRunningTask] = useState(preventRunningTaskDefault);
 
   const [note, setNote] = useState<string | null>(taskInstance?.note ?? null);
 
@@ -215,7 +221,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
           <Dialog.Body width="full">
             <Flex justifyContent="center">
               <SegmentedControl
-                defaultValues={["downstream"]}
+                defaultValues={clearTaskInstanceDefaultOptions}
                 multiple
                 onChange={setSelectedOptions}
                 options={[
