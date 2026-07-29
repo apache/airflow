@@ -238,7 +238,7 @@ def prefetch_map_lengths(
 
 @singledispatch
 def get_task_map_length(
-    xcom_arg: SchedulerXComArg, run_id: str, *, session: Session, lengths: MapLengths | None = None
+    xcom_arg: SchedulerXComArg, run_id: str, *, lengths: MapLengths | None = None, session: Session
 ) -> int | None:
     # The base implementation -- specific XComArg subclasses have specialised implementations
     raise NotImplementedError(f"get_task_map_length not implemented for {type(xcom_arg)}")
