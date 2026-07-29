@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 DEGRADED = "degraded"
+DOWN = "down"
 
 
 @provide_session
@@ -81,7 +82,7 @@ def _aggregate_detailed_status(jobs: list[Job]) -> str:
     """detailed_status: healthy (all alive), degraded (some alive), unhealthy (none alive)."""
     alive_count = sum(1 for job in jobs if job.is_alive())
     if alive_count == 0:
-        return UNHEALTHY
+        return DOWN
     if alive_count == len(jobs):
         return HEALTHY
     return DEGRADED
