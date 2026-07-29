@@ -40,7 +40,7 @@
 {{- $topologySpreadConstraints := or .Values.workers.celery.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.workers.celery.revisionHistoryLimit .Values.revisionHistoryLimit) }}
 {{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers.celery .Values) }}
-{{- $securityContextsIds := include "airflowPodSecurityContextsIds" (list . .Values.workers.celery) }}
+{{- $securityContextsIds := include "airflowPodSecurityContextsIds" (list .Values.workers.celery .) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list .Values.workers.celery .Values) }}
 {{- $containerSecurityContextPersistence := include "containerSecurityContext" (list .Values.workers.celery.persistence .Values) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.workers.celery.waitForMigrations .Values) }}
