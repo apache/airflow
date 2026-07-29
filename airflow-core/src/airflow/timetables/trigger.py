@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from airflow.utils.hashlib_wrapper import md5
 
 import datetime
 import functools
@@ -37,6 +36,7 @@ from airflow.exceptions import InvalidPartitionKeyError
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.strings import get_random_string
 
 if TYPE_CHECKING:
@@ -647,9 +647,7 @@ class JitteredCronTimetable(CronTriggerTimetable):
         h = int(md5(seed.encode()).hexdigest(), 16)
         max_jitter_us = max_jitter // datetime.timedelta(microseconds=1)
         self._offset = (
-            datetime.timedelta(microseconds=h % max_jitter_us)
-            if max_jitter_us > 0
-            else datetime.timedelta(0)
+            datetime.timedelta(microseconds=h % max_jitter_us) if max_jitter_us > 0 else datetime.timedelta(0)
         )
         self._seed = seed
         self._max_jitter = max_jitter
