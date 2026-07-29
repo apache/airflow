@@ -46,10 +46,12 @@ For example, you can create a Dag schedule to run at 12AM on the first Monday of
 
 .. note::
 
-    Cron expressions in Airflow are evaluated in the DAG's timezone, and cron schedules follow daylight saving transitions while ``timedelta`` 
-schedules do not see.
+    Cron schedules are evaluated in the Dag's time zone and follow daylight saving transitions, while ``timedelta`` schedules do not. See
+    :doc:`timezone`.
 
-    :doc:`timezone`. An online editor that has no timezone setting cannot show you this, so a schedule that looks unambiguous in a timezone-blind preview may still be skipped or repeated on a transition night. If your DAG uses a timezone that observes daylight saving, check the expression in a timezone-aware tool, or avoid scheduling between 01:00 and 03:00 local time. `CronForge <https://cronforge.dev/cron-timezone-dst>`_ documents the transition behaviour of Airflow and other schedulers side by side.
+    An online editor with no time zone setting cannot show this, so an expression that looks unambiguous in a preview may still be skipped or
+    run twice on a transition night. Check it in a time zone aware tool such as `CronForge <https://cronforge.dev/cron-timezone-dst>`_, or avoid
+    scheduling between 01:00 and 03:00 local time.
 
 +----------------+--------------------------------------------------------------------+-----------------+
 | preset         | meaning                                                            | cron            |
