@@ -351,6 +351,16 @@ class DbtCloudHook(HttpHook):
 
     @cached_property
     def connection(self) -> Connection:
+        """
+        Resolve and cache the dbt Cloud connection (sync).
+
+        Do not read this property from async code running inside the triggerer's
+        event loop — it calls the synchronous ``get_connection()``, whose secret-masking
+        step raises ``RuntimeError`` when invoked from a thread that's already running an
+        event loop. Use ``_resolve_connection_async()`` instead; it shares this property's
+        cache slot so the connection is still only looked up once per hook instance
+        regardless of which path is used first.
+        """
         return self._require_password(self.get_connection(self.dbt_cloud_conn_id))
 
     async def _resolve_connection_async(self) -> Connection:
