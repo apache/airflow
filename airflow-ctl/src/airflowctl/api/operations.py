@@ -535,9 +535,7 @@ class DagRunOperations(BaseOperations):
         partition_date_gte: datetime.date | None = None,
         partition_date_lte: datetime.date | None = None,
         order_by: str | None = None,
-        run_id_pattern: str | None = None,
         partition_key_pattern: str | None = None,
-        partition_key_prefix_pattern: str | None = None,
         *,
         suppress_error_log: bool = False,
     ) -> DAGRunCollectionResponse | ServerResponseError:
@@ -558,9 +556,7 @@ class DagRunOperations(BaseOperations):
             partition_date_lte: Inclusive upper bound of the partition_date window, as a local
                 calendar day in the Dag's timetable timezone.
             order_by: Order the results by the specified field.
-            run_id_pattern: Filter Dag runs by run ID pattern.
             partition_key_pattern: Filter Dag runs by partition key pattern.
-            partition_key_prefix_pattern: Filter Dag runs by partition key prefix pattern.
             suppress_error_log: Skip client-side error logging, for callers handling the error themselves.
         """
         # Use "~" for all Dags if dag_id is not specified
@@ -578,9 +574,7 @@ class DagRunOperations(BaseOperations):
             partition_date_gte=partition_date_gte,
             partition_date_lte=partition_date_lte,
             order_by=order_by,
-            run_id_pattern=run_id_pattern,
             partition_key_pattern=partition_key_pattern,
-            partition_key_prefix_pattern=partition_key_prefix_pattern,
         )
 
         self.response = self.client.get(
@@ -589,29 +583,6 @@ class DagRunOperations(BaseOperations):
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
         return DAGRunCollectionResponse.model_validate_json(self.response.content)
-
-    def _clear_task_instances(
-        self,
-        dag_id: str,
-        dag_run_id: str,
-        *,
-        dry_run: bool = False,
-        only_failed: bool = False,
-        only_running: bool = False,
-    ) -> TaskInstanceCollectionResponse | ServerResponseError:
-        """Clear task instances for a Dag run."""
-        body = ClearTaskInstancesBody(
-            dag_run_id=dag_run_id,
-            dry_run=dry_run,
-            only_failed=only_failed,
-            only_running=only_running,
-            reset_dag_runs=True,
-        )
-        self.response = self.client.post(
-            f"/dags/{dag_id}/clearTaskInstances",
-            json=body.model_dump(mode="json", by_alias=True, exclude_none=True),
-        )
-        return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
 
     def delete(self, dag_id: str, dag_run_id: str) -> str | ServerResponseError:
         """Delete a Dag run."""

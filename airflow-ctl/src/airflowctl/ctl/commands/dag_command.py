@@ -32,7 +32,11 @@ from airflowctl.api.client import (
     ServerResponseError,
     provide_api_client,
 )
-from airflowctl.api.datamodels.generated import DAGPatchBody, DAGRunResponse
+from airflowctl.api.datamodels.generated import (
+    ClearTaskInstancesBody,
+    DAGPatchBody,
+    DAGRunResponse,
+)
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 
@@ -301,12 +305,15 @@ def clear(args, api_client=NEW_API_CLIENT) -> dict[str, int | bool]:
 
     cleared_task_instances = 0
     for dag_run in dag_runs:
-        response = api_client.dag_runs._clear_task_instances(
+        response = api_client.tasks.clear(
             dag_id=args.dag_id,
-            dag_run_id=dag_run.dag_run_id,
-            dry_run=False,
-            only_failed=args.only_failed,
-            only_running=args.only_running,
+            clear_task_instances=ClearTaskInstancesBody(
+                dag_run_id=dag_run.dag_run_id,
+                dry_run=False,
+                only_failed=args.only_failed,
+                only_running=args.only_running,
+                reset_dag_runs=True,
+            ),
         )
         cleared_task_instances += response.total_entries or 0
 

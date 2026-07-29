@@ -25,8 +25,8 @@ import httpx
 import pytest
 
 from airflowctl.api.client import ClientKind
-from airflowctl.api.datamodels.generated import DAGResponse
-from airflowctl.api.operations import DagRunOperations, ServerResponseError
+from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, DAGResponse
+from airflowctl.api.operations import DagRunOperations, ServerResponseError, TasksOperations
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import dag_command
 
@@ -152,8 +152,9 @@ class TestDagCommands:
 
     @staticmethod
     def _api_client_mock():
-        api_client = Mock(spec_set=["dag_runs"])
+        api_client = Mock(spec_set=["dag_runs", "tasks"])
         api_client.dag_runs = create_autospec(DagRunOperations, instance=True, spec_set=True)
+        api_client.tasks = create_autospec(TasksOperations, instance=True, spec_set=True)
         return api_client
 
     def test_pause_dag(self, api_client_maker, monkeypatch):
@@ -407,7 +408,7 @@ class TestDagCommands:
     def test_clear_by_run_id(self):
         api_client = self._api_client_mock()
         api_client.dag_runs.get.return_value = self._dag_run("scheduled__2025-01-01")
-        api_client.dag_runs._clear_task_instances.return_value = SimpleNamespace(total_entries=2)
+        api_client.tasks.clear.return_value = SimpleNamespace(total_entries=2)
 
         result = dag_command.clear(
             self.parser.parse_args(
@@ -420,12 +421,15 @@ class TestDagCommands:
         api_client.dag_runs.get.assert_called_once_with(
             dag_id=self.dag_id, dag_run_id="scheduled__2025-01-01"
         )
-        api_client.dag_runs._clear_task_instances.assert_called_once_with(
+        api_client.tasks.clear.assert_called_once_with(
             dag_id=self.dag_id,
-            dag_run_id="scheduled__2025-01-01",
-            dry_run=False,
-            only_failed=False,
-            only_running=False,
+            clear_task_instances=ClearTaskInstancesBody(
+                dag_run_id="scheduled__2025-01-01",
+                dry_run=False,
+                only_failed=False,
+                only_running=False,
+                reset_dag_runs=True,
+            ),
         )
 
     def test_clear_by_partition_key_filters_exact_match_and_paginates(self):
@@ -457,7 +461,7 @@ class TestDagCommands:
                 total_entries=3,
             ),
         ]
-        api_client.dag_runs._clear_task_instances.side_effect = [
+        api_client.tasks.clear.side_effect = [
             SimpleNamespace(total_entries=1),
             SimpleNamespace(total_entries=2),
         ]
@@ -482,20 +486,26 @@ class TestDagCommands:
                 partition_key_pattern="customer-a",
             ),
         ]
-        assert api_client.dag_runs._clear_task_instances.call_args_list == [
+        assert api_client.tasks.clear.call_args_list == [
             call(
                 dag_id=self.dag_id,
-                dag_run_id="scheduled__2025-01-01",
-                dry_run=False,
-                only_failed=False,
-                only_running=False,
+                clear_task_instances=ClearTaskInstancesBody(
+                    dag_run_id="scheduled__2025-01-01",
+                    dry_run=False,
+                    only_failed=False,
+                    only_running=False,
+                    reset_dag_runs=True,
+                ),
             ),
             call(
                 dag_id=self.dag_id,
-                dag_run_id="scheduled__2025-01-03",
-                dry_run=False,
-                only_failed=False,
-                only_running=False,
+                clear_task_instances=ClearTaskInstancesBody(
+                    dag_run_id="scheduled__2025-01-03",
+                    dry_run=False,
+                    only_failed=False,
+                    only_running=False,
+                    reset_dag_runs=True,
+                ),
             ),
         ]
 
@@ -505,7 +515,7 @@ class TestDagCommands:
             dag_runs=[self._dag_run("scheduled__2025-01-01")],
             total_entries=1,
         )
-        api_client.dag_runs._clear_task_instances.return_value = SimpleNamespace(total_entries=1)
+        api_client.tasks.clear.return_value = SimpleNamespace(total_entries=1)
 
         result = dag_command.clear(
             self.parser.parse_args(
@@ -532,12 +542,15 @@ class TestDagCommands:
             partition_date_gte=datetime.date(2025, 1, 1),
             partition_date_lte=datetime.date(2025, 1, 2),
         )
-        api_client.dag_runs._clear_task_instances.assert_called_once_with(
+        api_client.tasks.clear.assert_called_once_with(
             dag_id=self.dag_id,
-            dag_run_id="scheduled__2025-01-01",
-            dry_run=False,
-            only_failed=False,
-            only_running=True,
+            clear_task_instances=ClearTaskInstancesBody(
+                dag_run_id="scheduled__2025-01-01",
+                dry_run=False,
+                only_failed=False,
+                only_running=True,
+                reset_dag_runs=True,
+            ),
         )
 
     def test_clear_by_partition_date_uses_calendar_dates_from_datetimes(self):
@@ -546,7 +559,7 @@ class TestDagCommands:
             dag_runs=[self._dag_run("scheduled__2025-01-01")],
             total_entries=1,
         )
-        api_client.dag_runs._clear_task_instances.return_value = SimpleNamespace(total_entries=1)
+        api_client.tasks.clear.return_value = SimpleNamespace(total_entries=1)
 
         result = dag_command.clear(
             self.parser.parse_args(
@@ -579,7 +592,7 @@ class TestDagCommands:
             dag_runs=[self._dag_run("scheduled__2025-01-01")],
             total_entries=1,
         )
-        api_client.dag_runs._clear_task_instances.return_value = SimpleNamespace(total_entries=1)
+        api_client.tasks.clear.return_value = SimpleNamespace(total_entries=1)
 
         result = dag_command.clear(
             self.parser.parse_args(
@@ -617,7 +630,7 @@ class TestDagCommands:
         )
 
         assert result == {"dag_run_count": 1, "cleared_task_instances": 0, "cancelled": True}
-        api_client.dag_runs._clear_task_instances.assert_not_called()
+        api_client.tasks.clear.assert_not_called()
 
     @pytest.mark.parametrize(
         "command",

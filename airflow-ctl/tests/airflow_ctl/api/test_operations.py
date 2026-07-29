@@ -1319,7 +1319,6 @@ class TestDagRunOperations:
                 "partition_date_gte": partition_day_start.isoformat(),
                 "partition_date_lte": partition_day_end.isoformat(),
                 "order_by": "logical_date",
-                "run_id_pattern": "manual__",
                 "partition_key_pattern": "2025-01-01",
             }
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
@@ -1334,39 +1333,10 @@ class TestDagRunOperations:
             partition_date_gte=partition_day_start,
             partition_date_lte=partition_day_end,
             order_by="logical_date",
-            run_id_pattern="manual__",
             partition_key_pattern="2025-01-01",
         )
 
         assert response == self.dag_run_collection_response
-
-    def test_clear_task_instances(self):
-        def handle_request(request: httpx.Request) -> httpx.Response:
-            assert request.method == "POST"
-            assert request.url.path == f"/api/v2/dags/{self.dag_id}/clearTaskInstances"
-            body = json.loads(request.content)
-            assert body == {
-                "dry_run": False,
-                "only_failed": True,
-                "only_running": False,
-                "reset_dag_runs": True,
-                "dag_run_id": self.dag_run_id,
-                "include_upstream": False,
-                "include_downstream": False,
-                "include_future": False,
-                "include_past": False,
-                "prevent_running_task": False,
-            }
-            return httpx.Response(200, json={"task_instances": [], "total_entries": 3})
-
-        client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.dag_runs._clear_task_instances(
-            dag_id=self.dag_id,
-            dag_run_id=self.dag_run_id,
-            only_failed=True,
-        )
-
-        assert response.total_entries == 3
 
     @pytest.mark.parametrize(
         (
