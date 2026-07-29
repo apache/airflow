@@ -24,9 +24,9 @@ import pytest
 from airflow._shared.timezones import timezone
 from airflow.api.common.airflow_health import (
     DEGRADED,
+    DOWN,
     HEALTHY,
     UNHEALTHY,
-    DOWN,
     get_airflow_health,
     get_jobs_health,
 )
