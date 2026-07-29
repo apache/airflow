@@ -105,7 +105,6 @@ class PsrpOperator(BaseOperator):
         psrp_session_init: Command | None = None,
         **kwargs,
     ) -> None:
-        # Truthiness would otherwise reject a provided-but-empty option such as command="".
         if not exactly_one(command is not None, powershell is not None, cmdlet is not None):
             raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
         if arguments is not None and powershell is None and cmdlet is None:
