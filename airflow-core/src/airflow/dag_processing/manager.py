@@ -469,9 +469,17 @@ class DagFileProcessorManager(LoggingMixin):
         for dag in dags_parsed:
             # Dags whose bundle has been removed from config (bundle no longer active) are stale —
             # the processor has stopped parsing their files, so the time-based check below would never fire.
-            if dag.bundle_name in inactive_bundles:
+            #
+            # A NULL bundle_name means the row predates bundles (carried over from Airflow 2.x) and has not
+            # been parsed since the upgrade — parsing is what fills bundle_name in. If the file was removed
+            # as part of the upgrade, no parse will ever happen, so bundle_name stays NULL forever. Such a
+            # row can never hit the time-based check below either, because that matches on
+            # (bundle_name, relative_fileloc) and there is no bundle to match against, so without this
+            # branch the Dag stays active in the UI indefinitely. If the file does still exist, the next
+            # parse fills in bundle_name and clears is_stale, so a Dag deactivated here is reactivated.
+            if dag.bundle_name is None or dag.bundle_name in inactive_bundles:
                 self.log.info(
-                    "Deactivating Dag %s. Its bundle %s is no longer active.",
+                    "Deactivating Dag %s. Its bundle %s is no longer active or is NULL.",
                     dag.dag_id,
                     dag.bundle_name,
                 )

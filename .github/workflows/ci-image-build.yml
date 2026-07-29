@@ -103,6 +103,25 @@ on:  # yamllint disable-line rule:truthy
         description: "Disable airflow repo cache read from main."
         required: true
         type: string
+      seed-cache-from-stashed-image:
+        description: >
+          Seed the build cache from the CI image an earlier run stashed (true/false). Worth it
+          where the registry cache is built for a different branch than the sources - the
+          previous image matches them layer for layer, the registry cache of another branch may
+          match nothing.
+        required: false
+        default: "false"
+        type: string
+      image-stash-suffix:
+        description: >
+          Appended verbatim to the key of an extra copy of the image stash (so it needs its own
+          leading separator). Callers that build many different refs from one branch pass the ref
+          here to keep a copy per ref: they all share the plain per-branch stash and would
+          otherwise seed each other's builds, and refs far enough apart make poor caches for one
+          another. Seeding prefers this copy and falls back to the per-branch one.
+        required: false
+        default: ""
+        type: string
 permissions:
   contents: read
 jobs:
@@ -166,6 +185,44 @@ jobs:
           breeze ci-image import-mount-cache
           --cache-file /tmp/ci-cache-mount-save-v3-${PYTHON_MAJOR_MINOR_VERSION}.tar.gz
         if: steps.restore-cache-mount.outputs.stash-hit == 'true'
+      # BuildKit reads an image's recorded layer cache only when it can pull that image's layers
+      # from a registry - one merely loaded into the docker engine contributes nothing. So the
+      # image an earlier run stashed is served back to the build from a registry on localhost.
+      - name: >
+          Restore CI docker image for this ref
+          ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+        with:
+          key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            ${{ inputs.image-stash-suffix }}"
+          path: "/mnt/"
+          only-current-branch: 'true'
+        id: restore-cache-image-for-ref
+        if: inputs.seed-cache-from-stashed-image == 'true' && inputs.image-stash-suffix != ''
+      - name: "Restore CI docker image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/restore@49df447b39b18354895520e0a63731b7cad7cbec
+        with:
+          key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+          path: "/mnt/"
+          only-current-branch: 'true'
+        id: restore-cache-image
+        if: >
+          inputs.seed-cache-from-stashed-image == 'true' &&
+          steps.restore-cache-image-for-ref.outputs.stash-hit != 'true'
+      - name: "Serve stashed image as cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          CACHE_IMAGE: "localhost:5000/ci-image-cache:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        run: |
+          docker run -d --name cache-registry -p 5000:5000 registry:2
+          breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON_MAJOR_MINOR_VERSION}" \
+            --image-file-dir "/mnt" --tag-as "${CACHE_IMAGE}"
+          docker push "${CACHE_IMAGE}"
+          echo "CACHE_FROM_IMAGE=${CACHE_IMAGE}" >> "${GITHUB_ENV}"
+        shell: bash
+        if: >
+          steps.restore-cache-image-for-ref.outputs.stash-hit == 'true' ||
+          steps.restore-cache-image.outputs.stash-hit == 'true'
       - name: "Login to ghcr.io"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -203,6 +260,14 @@ jobs:
           PUSH: ${{ inputs.push-image }}
           VERBOSE: "true"
           PLATFORM: ${{ inputs.platform }}
+      - name: "Stop serving the cache image"
+        # The registry holds a second copy of a multi-gigabyte image and the export below needs
+        # the room.
+        run: |
+          docker rm -f cache-registry
+          docker rmi "${CACHE_FROM_IMAGE}"
+        shell: bash
+        if: always() && env.CACHE_FROM_IMAGE != ''
       - name: "Export CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
@@ -216,6 +281,19 @@ jobs:
           if-no-files-found: 'error'
           retention-days: '2'
         if: inputs.upload-image-artifact == 'true'
+      # Everything in this run reads the stash above; this copy exists only so the next run
+      # built from the same ref can seed its cache from sources it actually matches. It outlives
+      # that one by days - the same ref is rebuilt three days apart at the very least, so the
+      # two-day retention the shared stash gets would expire it before it is ever read.
+      - name: "Stash CI docker image for this ref ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: apache/infrastructure-actions/stash/save@49df447b39b18354895520e0a63731b7cad7cbec
+        with:
+          key: "ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}\
+            ${{ inputs.image-stash-suffix }}"
+          path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
+          if-no-files-found: 'error'
+          retention-days: '6'
+        if: inputs.upload-image-artifact == 'true' && inputs.image-stash-suffix != ''
       - name: "Export mount cache ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}

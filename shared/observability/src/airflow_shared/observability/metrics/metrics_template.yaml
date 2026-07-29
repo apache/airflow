@@ -740,6 +740,19 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "kubernetes_executor.pod_creation_batch_duration"
+    description: "Milliseconds taken to create one batch of worker pods in a Kubernetes Executor scheduler
+    loop, covering both the sequential and the concurrent (``async_pod_creation``) creation paths."
+    type: "timer"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "kubernetes_executor.pod_creation_batch_size"
+    description: "Number of worker pods created in one Kubernetes Executor scheduler loop."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "kubernetes_executor.pod_deletion"
     description: "Milliseconds taken for a Kubernetes delete_namespaced_pod call from the Kubernetes Executor"
     type: "timer"
