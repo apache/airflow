@@ -32,6 +32,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    OKResponse,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
 )
@@ -59,7 +60,7 @@ def test_get_asset_state_store_by_name_wraps_response_as_result(client):
         client, GetAssetStateStoreByName(name="asset_a", key="watermark")
     )
 
-    client.asset_state_store.get.assert_called_once_with(key="watermark", name="asset_a")
+    client.asset_state_store.get.assert_called_once_with("watermark", name="asset_a")
     assert result == AssetStateStoreResult(value="2026-01-01")
     assert dump_opts == {}
 
@@ -83,7 +84,7 @@ def test_get_asset_state_store_by_uri_wraps_response_as_result(client):
         client, GetAssetStateStoreByUri(uri="s3://bucket/a", key="watermark")
     )
 
-    client.asset_state_store.get.assert_called_once_with(key="watermark", uri="s3://bucket/a")
+    client.asset_state_store.get.assert_called_once_with("watermark", uri="s3://bucket/a")
     assert result == AssetStateStoreResult(value="2026-01-01")
     assert dump_opts == {}
 
@@ -101,7 +102,7 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
 
 
 @pytest.mark.parametrize(
-    ("handler", "msg", "call_kwargs", "method"),
+    ("handler", "msg", "call_kwargs", "method", "expected_args", "expected_kwargs"),
     [
         (
             handle_set_asset_state_store_by_name,
@@ -112,6 +113,8 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
                 "value": "2026-01-01",
             },
             "set",
+            ("watermark", "2026-01-01"),
+            {"name": "asset_a"},
         ),
         (
             handle_set_asset_state_store_by_uri,
@@ -122,6 +125,8 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
                 "value": "2026-01-01",
             },
             "set",
+            ("watermark", "2026-01-01"),
+            {"uri": "s3://bucket/a"},
         ),
         (
             handle_delete_asset_state_store_by_name,
@@ -131,6 +136,8 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
                 "key": "watermark",
             },
             "delete",
+            ("watermark",),
+            {"name": "asset_a"},
         ),
         (
             handle_delete_asset_state_store_by_uri,
@@ -140,6 +147,8 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
                 "key": "watermark",
             },
             "delete",
+            ("watermark",),
+            {"uri": "s3://bucket/a"},
         ),
         (
             handle_clear_asset_state_store_by_name,
@@ -148,6 +157,8 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
                 "name": "asset_a",
             },
             "clear",
+            (),
+            {"name": "asset_a"},
         ),
         (
             handle_clear_asset_state_store_by_uri,
@@ -156,12 +167,16 @@ def test_get_asset_state_store_by_uri_passes_through_error_response(client):
                 "uri": "s3://bucket/a",
             },
             "clear",
+            (),
+            {"uri": "s3://bucket/a"},
         ),
     ],
 )
-def test_asset_store_delegates_to_client(client, handler, msg, call_kwargs, method):
+def test_asset_store_delegates_to_client(
+    client, handler, msg, call_kwargs, method, expected_args, expected_kwargs
+):
     result, dump_opts = handler(client, msg(**call_kwargs))
 
-    getattr(client.asset_state_store, method).assert_called_once_with(**call_kwargs)
-    assert result is None
+    getattr(client.asset_state_store, method).assert_called_once_with(*expected_args, **expected_kwargs)
+    assert result == OKResponse(ok=True)
     assert dump_opts == {}

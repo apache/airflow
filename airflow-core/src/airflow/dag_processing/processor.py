@@ -23,7 +23,7 @@ import os
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -71,24 +71,8 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
-from airflow.sdk.execution_time.request_handlers import (
-    handle_delete_variable,
-    handle_get_prev_successful_dag_run,
-    handle_get_previous_dag_run,
-    handle_get_previous_ti,
-    handle_get_task_states,
-    handle_get_ti_count,
-    handle_get_variable_keys,
-    handle_get_xcom,
-    handle_get_xcom_count,
-    handle_get_xcom_sequence_item,
-    handle_get_xcom_sequence_slice,
-    handle_mask_secret,
-    handle_put_variable,
-)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
-from airflow.sdk.log import mask_secret
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
@@ -562,13 +546,11 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     in core Airflow.
     """
 
+    _msg_union: ClassVar[Any] = ToManager
     logger_filehandle: BinaryIO
     parsing_result: DagFileParsingResult | None = None
     decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
-
-    client: Client
-    """The HTTP client to use for communication with the API server."""
 
     bundle_name: str
     dag_file_rel_path: str
@@ -651,75 +633,11 @@ class DagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         )
 
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
-        from airflow.sdk.api.datamodels._generated import (
-            ConnectionResponse,
-            VariableResponse,
-        )
-
-        resp: BaseModel | None = None
-        dump_opts: dict[str, bool] = {}
         if isinstance(msg, DagFileParsingResult):
             self.parsing_result = msg
-        elif isinstance(msg, GetConnection):
-            conn = self.client.connections.get(msg.conn_id)
-            if isinstance(conn, ConnectionResponse):
-                if conn.password:
-                    mask_secret(conn.password)
-                if conn.extra:
-                    mask_secret(conn.extra)
-                conn_result = ConnectionResult.from_conn_response(conn)
-                resp = conn_result
-                dump_opts = {"exclude_unset": True, "by_alias": True}
-            else:
-                resp = conn
-        elif isinstance(msg, GetVariable):
-            var = self.client.variables.get(msg.key)
-            if isinstance(var, VariableResponse):
-                if var.value:
-                    mask_secret(var.value, var.key)
-                var_result = VariableResult.from_variable_response(var)
-                resp = var_result
-                dump_opts = {"exclude_unset": True}
-            else:
-                resp = var
-        elif isinstance(msg, GetVariableKeys):
-            resp, dump_opts = handle_get_variable_keys(self.client, msg)
-        elif isinstance(msg, PutVariable):
-            resp, dump_opts = handle_put_variable(self.client, msg)
-        elif isinstance(msg, DeleteVariable):
-            resp, dump_opts = handle_delete_variable(self.client, msg)
-        elif isinstance(msg, GetPreviousDagRun):
-            resp, dump_opts = handle_get_previous_dag_run(self.client, msg)
-        elif isinstance(msg, GetPrevSuccessfulDagRun):
-            resp, dump_opts = handle_get_prev_successful_dag_run(self.client, self.id)
-        elif isinstance(msg, GetXCom):
-            resp, dump_opts = handle_get_xcom(self.client, msg)
-        elif isinstance(msg, GetXComCount):
-            resp, dump_opts = handle_get_xcom_count(self.client, msg)
-        elif isinstance(msg, GetXComSequenceItem):
-            resp, dump_opts = handle_get_xcom_sequence_item(self.client, msg)
-        elif isinstance(msg, GetXComSequenceSlice):
-            resp, dump_opts = handle_get_xcom_sequence_slice(self.client, msg)
-        elif isinstance(msg, MaskSecret):
-            handle_mask_secret(msg)
-        elif isinstance(msg, GetTICount):
-            resp, dump_opts = handle_get_ti_count(self.client, msg)
-        elif isinstance(msg, GetTaskStates):
-            resp, dump_opts = handle_get_task_states(self.client, msg)
-        elif isinstance(msg, GetPreviousTI):
-            resp, dump_opts = handle_get_previous_ti(self.client, msg)
-        else:
-            log.error("Unhandled request", msg=msg)
-            self.send_msg(
-                None,
-                request_id=req_id,
-                error=ErrorResponse(
-                    detail={"status_code": 400, "message": "Unhandled request"},
-                ),
-            )
+            self.send_msg(None, request_id=req_id, error=None)
             return
-
-        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+        super()._handle_request(msg, log, req_id)
 
     @property
     def is_ready(self) -> bool:

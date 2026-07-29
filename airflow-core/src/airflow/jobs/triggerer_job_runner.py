@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import functools
 import logging
 import math
 import os
@@ -101,30 +100,6 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
-from airflow.sdk.execution_time.request_handlers import (
-    handle_clear_asset_state_store_by_name,
-    handle_clear_asset_state_store_by_uri,
-    handle_delete_asset_state_store_by_name,
-    handle_delete_asset_state_store_by_uri,
-    handle_delete_variable,
-    handle_delete_xcom,
-    handle_get_asset_state_store_by_name,
-    handle_get_asset_state_store_by_uri,
-    handle_get_connection,
-    handle_get_dag_run_state,
-    handle_get_dr_count,
-    handle_get_previous_ti,
-    handle_get_task_states,
-    handle_get_ti_count,
-    handle_get_variable,
-    handle_get_variable_keys,
-    handle_get_xcom,
-    handle_mask_secret,
-    handle_put_variable,
-    handle_set_asset_state_store_by_name,
-    handle_set_asset_state_store_by_uri,
-    handle_set_xcom,
-)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import DagSerialization
@@ -484,6 +459,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     rather than silently zombieing the supervisor.
     """
 
+    _msg_union: ClassVar[Any] = ToTriggerSupervisor
     job: Job | None = None
     capacity: int
     queues: set[str] | None = None
@@ -547,6 +523,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc = super().start(
             id=proc_id,
             job=job,
+            client=cls.make_client(),
             target=cls.run_in_process,
             logger=logger,
             use_exec=supervisor._should_use_exec(),
@@ -558,11 +535,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         proc.send_msg(msg, request_id=0)
         return proc
 
-    @functools.cached_property
-    def client(self) -> Client:
-        return self.make_client()
-
-    def make_client(self) -> Client:
+    @classmethod
+    def make_client(cls) -> Client:
         """
         Build the API client used to talk to the API server.
 
@@ -580,9 +554,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return client
 
     def _handle_request(self, msg: ToTriggerSupervisor, log: FilteringBoundLogger, req_id: int) -> None:
-
-        resp: BaseModel | None = None
-        dump_opts: dict[str, bool] = {}
         self._last_runner_comms = time.monotonic()
 
         if isinstance(msg, messages.TriggerStateChanges):
@@ -608,85 +579,37 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             while self.persisted_event_seqs:
                 events_persisted.append(self.persisted_event_seqs.popleft())
 
-            response = messages.TriggerStateSync(
+            sync = messages.TriggerStateSync(
                 to_create=[],
-                to_cancel=self.cancelling_triggers,
+                to_cancel=self.cancelling_triggers.copy(),
                 events_persisted=events_persisted or None,
             )
 
             # Pull out of these dequeues in a thread-safe manner
             while self.creating_triggers:
                 workload = self.creating_triggers.popleft()
-                response.to_create.append(workload)
-            self.running_triggers.update(m.id for m in response.to_create)
-            resp = response
+                sync.to_create.append(workload)
+            self.running_triggers.update(m.id for m in sync.to_create)
+            self.send_msg(sync, request_id=req_id, error=None)
+            return
 
-        elif isinstance(msg, GetConnection):
-            resp, dump_opts = handle_get_connection(self.client, msg)
-        elif isinstance(msg, DeleteVariable):
-            resp, dump_opts = handle_delete_variable(self.client, msg)
-        elif isinstance(msg, GetVariable):
-            resp, dump_opts = handle_get_variable(self.client, msg)
-        elif isinstance(msg, GetVariableKeys):
-            resp, dump_opts = handle_get_variable_keys(self.client, msg)
-        elif isinstance(msg, PutVariable):
-            resp, dump_opts = handle_put_variable(self.client, msg)
-        elif isinstance(msg, DeleteXCom):
-            resp, dump_opts = handle_delete_xcom(self.client, msg)
-        elif isinstance(msg, GetXCom):
-            resp, dump_opts = handle_get_xcom(self.client, msg)
-        elif isinstance(msg, SetXCom):
-            resp, dump_opts = handle_set_xcom(self.client, msg)
-        elif isinstance(msg, GetDRCount):
-            resp, dump_opts = handle_get_dr_count(self.client, msg)
-        elif isinstance(msg, GetDagRunState):
-            resp, dump_opts = handle_get_dag_run_state(self.client, msg)
-
-        elif isinstance(msg, GetTICount):
-            resp, dump_opts = handle_get_ti_count(self.client, msg)
-
-        elif isinstance(msg, GetTaskStates):
-            resp, dump_opts = handle_get_task_states(self.client, msg)
-        elif isinstance(msg, GetPreviousTI):
-            resp, dump_opts = handle_get_previous_ti(self.client, msg)
-        elif isinstance(msg, UpdateHITLDetail):
+        if isinstance(msg, UpdateHITLDetail):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
                 chosen_options=msg.chosen_options,
                 params_input=msg.params_input,
             )
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
-        elif isinstance(msg, GetHITLDetailResponse):
+            self.send_msg(resp, request_id=req_id, error=None)
+            return
+
+        if isinstance(msg, GetHITLDetailResponse):
             api_resp = self.client.hitl.get_detail_response(ti_id=msg.ti_id)
             resp = HITLDetailResponseResult.from_api_response(response=api_resp)
-        elif isinstance(msg, MaskSecret):
-            handle_mask_secret(msg)
-        elif isinstance(msg, ClearAssetStateStoreByName):
-            handle_clear_asset_state_store_by_name(self.client, msg)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, ClearAssetStateStoreByUri):
-            handle_clear_asset_state_store_by_uri(self.client, msg)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetStateStoreByName):
-            handle_delete_asset_state_store_by_name(self.client, msg)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, DeleteAssetStateStoreByUri):
-            handle_delete_asset_state_store_by_uri(self.client, msg)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, GetAssetStateStoreByName):
-            resp, dump_opts = handle_get_asset_state_store_by_name(self.client, msg)
-        elif isinstance(msg, GetAssetStateStoreByUri):
-            resp, dump_opts = handle_get_asset_state_store_by_uri(self.client, msg)
-        elif isinstance(msg, SetAssetStateStoreByName):
-            handle_set_asset_state_store_by_name(self.client, msg)
-            resp = OKResponse(ok=True)
-        elif isinstance(msg, SetAssetStateStoreByUri):
-            handle_set_asset_state_store_by_uri(self.client, msg)
-            resp = OKResponse(ok=True)
-        else:
-            raise ValueError(f"Unknown message type {type(msg)}")
+            self.send_msg(resp, request_id=req_id, error=None)
+            return
 
-        self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+        super()._handle_request(msg, log, req_id)
 
     def run(self) -> None:
         """Run synchronously and handle all database reads/writes."""

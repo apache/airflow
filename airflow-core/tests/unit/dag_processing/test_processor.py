@@ -2214,7 +2214,7 @@ class TestDagFileProcessorProcess:
         )
 
         with (
-            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch("airflow.sdk.execution_time.request_handlers.mask_secret") as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(
@@ -2251,7 +2251,7 @@ class TestDagFileProcessorProcess:
         )
 
         with (
-            patch("airflow.dag_processing.processor.mask_secret") as mock_mask_secret,
+            patch("airflow.sdk.execution_time.request_handlers.mask_secret") as mock_mask_secret,
             patch.object(DagFileProcessorProcess, "send_msg", autospec=True) as mock_send_msg,
         ):
             proc._handle_request(

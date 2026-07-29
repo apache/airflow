@@ -75,18 +75,18 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import DAG, Asset, BaseHook, BaseOperator
+from airflow.sdk import DAG, BaseHook, BaseOperator
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
-from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResponse,
     AssetStateStoreResult,
     ClearAssetStateStoreByName,
     ClearAssetStateStoreByUri,
     DeleteAssetStateStoreByName,
     DeleteAssetStateStoreByUri,
     ErrorResponse,
+    ErrorType,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
     OKResponse,
@@ -97,7 +97,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
     _ResponseFrame,
 )
-from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+from airflow.sdk.execution_time.context import Asset, AssetStateStoreAccessors
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamProducer
@@ -283,6 +283,7 @@ def supervisor_builder(mocker, session):
             stdin=mock_stdin,
             process=process,
             capacity=10,
+            client=mocker.Mock(spec=Client),
         )
         # Mock the selector
         mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
@@ -315,6 +316,7 @@ def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
         process=process,
         capacity=10,
         team_name="team_x",
+        client=mocker.Mock(spec=Client),
     )
     assert proc.team_name == "team_x"
 
@@ -327,6 +329,7 @@ def test_supervisor_stores_team_name(supervisor_builder, mocker, session):
         process=process,
         capacity=10,
         team_name=None,
+        client=mocker.Mock(spec=Client),
     )
     assert proc_global.team_name is None
 
@@ -360,24 +363,6 @@ def test_run_invokes_seams_in_order(supervisor_builder, mocker):
     supervisor.run()
 
     assert events == ["enter", "tick-1", "tick-2", "tick-3", "exit"]
-
-
-def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, mocker):
-    """``supervisor.client`` delegates to ``make_client`` (the subclass-override hook)
-    and caches the result across accesses."""
-    supervisor = supervisor_builder()
-    make_client = mocker.patch.object(
-        TriggerRunnerSupervisor,
-        "make_client",
-        autospec=True,
-        return_value=mocker.sentinel.client,
-    )
-
-    first = supervisor.client
-    second = supervisor.client
-
-    assert first is second is mocker.sentinel.client  # cached — same object
-    make_client.assert_called_once_with(supervisor)
 
 
 def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
@@ -423,6 +408,7 @@ def jobless_supervisor(mocker):
         stdin=mock_stdin,
         process=process,
         capacity=10,
+        client=mocker.Mock(spec=Client),
     )
     mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
     mock_selector.select.return_value = []
@@ -895,7 +881,7 @@ class TestTriggerSupervisorAssetStateStore:
 
         self._handle(supervisor, GetAssetStateStoreByName(name="asset_a", key="watermark"))
 
-        supervisor.client.asset_state_store.get.assert_called_once_with(key="watermark", name="asset_a")
+        supervisor.client.asset_state_store.get.assert_called_once_with("watermark", name="asset_a")
         supervisor.send_msg.assert_called_once_with(
             AssetStateStoreResult(value="2026-01-01"), request_id=7, error=None
         )
@@ -905,7 +891,7 @@ class TestTriggerSupervisorAssetStateStore:
 
         self._handle(supervisor, GetAssetStateStoreByUri(uri="s3://bucket/a", key="watermark"))
 
-        supervisor.client.asset_state_store.get.assert_called_once_with(key="watermark", uri="s3://bucket/a")
+        supervisor.client.asset_state_store.get.assert_called_once_with("watermark", uri="s3://bucket/a")
         supervisor.send_msg.assert_called_once_with(
             AssetStateStoreResult(value="2026-01-01"), request_id=7, error=None
         )
@@ -924,7 +910,7 @@ class TestTriggerSupervisorAssetStateStore:
         )
 
         supervisor.client.asset_state_store.set.assert_called_once_with(
-            key="watermark", value="2026-01-01", name="asset_a"
+            "watermark", "2026-01-01", name="asset_a"
         )
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
@@ -934,22 +920,20 @@ class TestTriggerSupervisorAssetStateStore:
         )
 
         supervisor.client.asset_state_store.set.assert_called_once_with(
-            key="watermark", value="2026-01-01", uri="s3://bucket/a"
+            "watermark", "2026-01-01", uri="s3://bucket/a"
         )
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
     def test_delete_by_name(self, supervisor):
         self._handle(supervisor, DeleteAssetStateStoreByName(name="asset_a", key="watermark"))
 
-        supervisor.client.asset_state_store.delete.assert_called_once_with(key="watermark", name="asset_a")
+        supervisor.client.asset_state_store.delete.assert_called_once_with("watermark", name="asset_a")
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
     def test_delete_by_uri(self, supervisor):
         self._handle(supervisor, DeleteAssetStateStoreByUri(uri="s3://bucket/a", key="watermark"))
 
-        supervisor.client.asset_state_store.delete.assert_called_once_with(
-            key="watermark", uri="s3://bucket/a"
-        )
+        supervisor.client.asset_state_store.delete.assert_called_once_with("watermark", uri="s3://bucket/a")
         supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
 
     def test_clear_by_name(self, supervisor):
