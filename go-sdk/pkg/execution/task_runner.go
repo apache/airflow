@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"runtime/debug"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/apache/airflow/go-sdk/pkg/binding"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 	"github.com/apache/airflow/go-sdk/pkg/sdkcontext"
 	"github.com/apache/airflow/go-sdk/sdk"
@@ -124,7 +126,125 @@ func RunTask(
 	ctx = context.WithValue(ctx, sdkcontext.SdkClientContextKey, sdk.Client(client))
 	ctx = context.WithValue(ctx, sdkcontext.RuntimeContextKey, runtimeContext)
 
-	return executeTask(ctx, task, details.TIContext.ShouldRetry, logger)
+	args, err := convertArgBindings(details.TIContext.ArgBindings)
+	if err != nil {
+		logger.Error("Invalid arg_bindings spec from supervisor",
+			"dag_id", details.TI.DagID,
+			"task_id", details.TI.TaskID,
+			"error", err,
+		)
+		// Same retry semantics as a binding failure inside executeTask: an
+		// equally permanent spec error must not terminate differently.
+		if details.TIContext.ShouldRetry {
+			return genmodels.RetryTask{
+				EndDate:     time.Now().UTC(),
+				RetryReason: err.Error(),
+			}
+		}
+		return genmodels.TaskState{
+			State:   genmodels.TaskStateStateFailed,
+			EndDate: time.Now().UTC(),
+		}
+	}
+
+	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
+}
+
+// convertArgBindings maps the wire-model positional-argument spec (captured from
+// the Python stub Dag's TaskFlow call) onto the runtime binding sum type. The
+// wire union generates untyped items (msgpack delivers each XComArgBinding /
+// LiteralArgBinding as a plain map), so the kind dispatch and the optional
+// value_schema fragment are unpacked here.
+func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) {
+	if specsPtr == nil || len(*specsPtr) == 0 {
+		return nil, nil
+	}
+	specs := *specsPtr
+	args := make([]binding.Arg, len(specs))
+	for i, raw := range specs {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("arg_bindings[%d]: unexpected wire shape %T", i, raw)
+		}
+		name, ok := m["name"].(string)
+		if !ok || name == "" {
+			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
+		}
+		valueSchema := argValueSchema(m["value_schema"])
+		switch kind, _ := m["kind"].(string); kind {
+		case "xcom":
+			taskID, ok := m["task_id"].(string)
+			if !ok || taskID == "" {
+				return nil, fmt.Errorf(
+					"arg_bindings[%d] (%q): missing or empty task_id for xcom kind",
+					i,
+					name,
+				)
+			}
+			xa := binding.XComArg{
+				Kind:        kind,
+				Name:        name,
+				TaskID:      taskID,
+				ValueSchema: valueSchema,
+			}
+			// A mapped stub's expanded arg carries the upstream row to pull
+			// (map_index, over a mapped upstream) or the element of the pulled
+			// list to take (element_index, over an unmapped upstream). -1 is the
+			// unmapped-row sentinel, so leave MapIndex nil for it.
+			if mi, ok := wireInt(m["map_index"]); ok && mi >= 0 {
+				xa.MapIndex = &mi
+			}
+			if ei, ok := wireInt(m["element_index"]); ok {
+				xa.ElementIndex = ei
+			}
+			args[i] = xa
+		case "literal":
+			fromDefault, _ := m["from_default"].(bool)
+			args[i] = binding.LiteralArg{
+				Kind:        kind,
+				Name:        name,
+				Value:       m["value"],
+				ValueSchema: valueSchema,
+				FromDefault: fromDefault,
+			}
+		default:
+			return nil, fmt.Errorf("arg_bindings[%d]: unknown kind %q", i, kind)
+		}
+	}
+	return args, nil
+}
+
+// argValueSchema unpacks the optional value_schema fragment msgpack delivers as
+// a plain map into the generated ArgValueSchema type. A missing or empty
+// fragment yields nil, which the binding type check treats as unconstrained.
+func argValueSchema(raw any) *genmodels.ArgValueSchema {
+	m, ok := raw.(map[string]any)
+	if !ok || len(m) == 0 {
+		return nil
+	}
+	schema := make(genmodels.ArgValueSchema, len(m))
+	for k, v := range m {
+		schema[k] = v
+	}
+	return &schema
+}
+
+// wireInt coerces a msgpack/json numeric wire value to an int. The generic
+// interface decoder surfaces integers as any of the sized int/uint kinds (or a
+// float64 over JSON), so accept them all; a missing or non-numeric value yields
+// ok=false.
+func wireInt(v any) (int, bool) {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return int(rv.Int()), true
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return int(rv.Uint()), true
+	case reflect.Float32, reflect.Float64:
+		return int(rv.Float()), true
+	default:
+		return 0, false
+	}
 }
 
 // mapIndexPtr normalizes the supervisor's map_index into the optional form
@@ -142,9 +262,15 @@ func mapIndexPtr(mapIndex *int) *int {
 
 // executeTask runs the task, handling success, failure, and panics, and returns
 // the terminal body: genmodels.SucceedTask, TaskState, or RetryTask.
+//
+// args carries the positional-argument spec from the stub Dag's TaskFlow call;
+// tasks that implement bundlev1.TaskWithArgs bind it (an empty spec still runs
+// the arity check), while a custom Task implementation that receives a
+// non-empty spec fails loudly rather than silently dropping the arguments.
 func executeTask(
 	ctx context.Context,
 	task bundlev1.Task,
+	args []binding.Arg,
 	shouldRetry bool,
 	logger *slog.Logger,
 ) (result any) {
@@ -168,7 +294,19 @@ func executeTask(
 		}
 	}()
 
-	if err := task.Execute(ctx, logger); err != nil {
+	var err error
+	if tw, ok := task.(bundlev1.TaskWithArgs); ok {
+		err = tw.ExecuteArgs(ctx, logger, args)
+	} else if len(args) > 0 {
+		err = fmt.Errorf(
+			"task received %d positional argument(s) from the Dag but its implementation "+
+				"does not support argument binding (does not implement TaskWithArgs)",
+			len(args),
+		)
+	} else {
+		err = task.Execute(ctx, logger)
+	}
+	if err != nil {
 		logger.ErrorContext(ctx, "Task failed", "error", err)
 		// A task that fails when ti_context.should_retry is set is reported as
 		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.
