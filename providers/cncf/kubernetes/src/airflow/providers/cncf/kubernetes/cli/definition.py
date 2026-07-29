@@ -70,14 +70,11 @@ ARG_MIN_PENDING_MINUTES = Arg(
 
 ARG_MIN_COMPLETED_MINUTES = Arg(
     ("--min-completed-minutes",),
-    default=0,
+    default=1,
     type=positive_int(allow_zero=True),
     help=(
         "Minimum age in minutes of a completed (Succeeded/Failed/Evicted) pod before it is deleted. "
-        "Defaults to 0 (delete immediately, preserving current behaviour). "
-        "Set this to a positive value to prevent a race condition where the cleanup job removes a "
-        "just-completed pod before KubernetesPodOperator has polled its terminal phase, "
-        "causing a spurious task failure despite the pod having succeeded."
+        "Default is 1. Set to 0 to delete immediately."
     ),
 )
 

@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, call
 import kubernetes
 import pytest
 from dateutil.parser import parse
+from kubernetes.client import models as k8s
 
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
@@ -357,14 +358,23 @@ class TestCleanUpPodsCommand:
     def test_cleanup_min_completed_zero_deletes_immediately(
         self, load_incluster_config, list_namespaced_pod, delete_pod
     ):
-        # default (0) preserves existing behaviour: delete Succeeded pods regardless of age
+        # explicit 0 disables the age check: delete Succeeded pods regardless of age
         pod = self._make_pod("run-newpod", "Succeeded", parse("2099-12-20T08:01:07Z"))
         pods = MagicMock()
         pods.metadata._continue = None
         pods.items = [pod]
         list_namespaced_pod.return_value = pods
         kubernetes_command.cleanup_pods(
-            self.parser.parse_args(["kubernetes", "cleanup-pods", "--namespace", "awesome-namespace"])
+            self.parser.parse_args(
+                [
+                    "kubernetes",
+                    "cleanup-pods",
+                    "--namespace",
+                    "awesome-namespace",
+                    "--min-completed-minutes",
+                    "0",
+                ]
+            )
         )
         delete_pod.assert_called_with("run-newpod", "awesome-namespace")
 
@@ -395,3 +405,62 @@ class TestCleanUpPodsCommand:
             )
         )
         delete_pod.assert_not_called()
+
+
+class TestGetPodCompletionTime:
+    T1 = parse("2024-01-01T10:00:00Z")
+    T2 = parse("2024-01-01T10:05:00Z")
+    T3 = parse("2024-01-01T09:00:00Z")  # earlier than T1/T2, used as creation_timestamp
+
+    def _cs(self, finished_at=None):
+        """Real V1ContainerStatus with optional finished_at."""
+        return k8s.V1ContainerStatus(
+            name="base",
+            ready=False,
+            restart_count=0,
+            image="img",
+            image_id="id",
+            state=k8s.V1ContainerState(
+                terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=finished_at)
+                if finished_at
+                else None
+            ),
+        )
+
+    def _cond(self, last_transition_time):
+        return k8s.V1PodCondition(type="Ready", status="False", last_transition_time=last_transition_time)
+
+    def _pod(self, container_statuses=None, init_container_statuses=None, conditions=None):
+        pod = MagicMock()
+        pod.status.container_statuses = container_statuses
+        pod.status.init_container_statuses = init_container_statuses
+        pod.status.conditions = conditions
+        pod.metadata.creation_timestamp = self.T3
+        return pod
+
+    def test_single_main_container(self):
+        pod = self._pod(container_statuses=[self._cs(self.T1)])
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T1
+
+    def test_single_init_container_no_main(self):
+        pod = self._pod(container_statuses=[], init_container_statuses=[self._cs(self.T1)])
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T1
+
+    def test_main_and_init_returns_max(self):
+        pod = self._pod(
+            container_statuses=[self._cs(self.T1)],
+            init_container_statuses=[self._cs(self.T2)],
+        )
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T2
+
+    def test_no_finished_at_falls_back_to_conditions(self):
+        # container status present but no finished_at → conditions fallback
+        pod = self._pod(
+            container_statuses=[self._cs(finished_at=None)],
+            conditions=[self._cond(self.T1)],
+        )
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T1
+
+    def test_no_containers_no_conditions_falls_back_to_creation_timestamp(self):
+        pod = self._pod(container_statuses=[], init_container_statuses=[], conditions=[])
+        assert kubernetes_command._get_pod_completion_time(pod) == self.T3

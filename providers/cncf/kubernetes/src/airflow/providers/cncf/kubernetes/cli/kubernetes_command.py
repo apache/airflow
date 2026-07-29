@@ -121,17 +121,29 @@ def generate_pod_yaml(args):
 
 def _get_pod_completion_time(pod):
     """
-    Return the time the pod entered a terminal state, or its creation time as fallback.
+    Return the time the pod's last container finished.
 
-    Uses the latest ``finished_at`` timestamp across all container statuses so that pods
-    with multiple containers (e.g. an init container + a base container) are judged by
-    the time the *last* container finished, not by when the pod was created.
+    Scans both ``container_statuses`` and ``init_container_statuses`` and returns the
+    latest ``finished_at`` timestamp. Falls back to the latest condition
+    ``last_transition_time`` (which is updated at the terminal transition), and finally
+    to ``creation_timestamp`` as a last resort.
     """
-    times = []
-    for status in pod.status.container_statuses or []:
-        if status.state and status.state.terminated and status.state.terminated.finished_at:
-            times.append(status.state.terminated.finished_at)
-    return max(times) if times else pod.metadata.creation_timestamp
+    statuses = [*(pod.status.container_statuses or []), *(pod.status.init_container_statuses or [])]
+    times = [
+        s.state.terminated.finished_at
+        for s in statuses
+        if s.state and s.state.terminated and s.state.terminated.finished_at
+    ]
+    if times:
+        return max(times)
+    condition_times = [
+        c.last_transition_time
+        for c in (pod.status.conditions or [])
+        if c.last_transition_time
+    ]
+    if condition_times:
+        return max(condition_times)
+    return pod.metadata.creation_timestamp
 
 
 @cli_utils.action_cli(check_db=False)
