@@ -1281,6 +1281,7 @@ export type EventLogResponse = {
     event: string;
     logical_date: string | null;
     owner: string | null;
+    owner_display_name: string | null;
     extra: string | null;
     dag_display_name?: string | null;
     task_display_name?: string | null;
@@ -2432,9 +2433,9 @@ export type DeadlineAlertResponse = {
     name?: string | null;
     reference_type: string;
     /**
-     * Interval in seconds between deadline evaluations.
+     * Interval in seconds between the reference time and the deadline. Null for a dynamic interval (e.g. a VariableInterval) whose value is only resolved at scheduler evaluation time.
      */
-    interval: number;
+    interval?: number | null;
     created_at: string;
 };
 
@@ -3598,10 +3599,18 @@ export type GetEventLogsData = {
     mapIndex?: number | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
      */
     orderBy?: Array<(string)>;
     owner?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    ownerDisplayNamePattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    ownerDisplayNamePrefixPattern?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `owner_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
@@ -4595,7 +4604,7 @@ export type GetDagDeadlineAlertsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name, interval`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      */
     orderBy?: Array<(string)>;
 };
@@ -4630,6 +4639,14 @@ export type GetDagStructureData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    runIdPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**
@@ -4656,6 +4673,14 @@ export type GetGridRunsData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    runIdPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    runIdPrefixPattern?: string | null;
     runType?: Array<(string)>;
     state?: Array<(string)>;
     /**

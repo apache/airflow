@@ -52,8 +52,8 @@ from airflow.providers.common.ai.utils.hitl_review import (
     AgentSessionData,
     SessionStatus,
 )
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
