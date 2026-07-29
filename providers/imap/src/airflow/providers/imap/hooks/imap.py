@@ -332,11 +332,15 @@ class ImapHook(BaseHook):
         return os.path.islink(self._correct_path(name, local_output_directory))
 
     def _is_escaping_current_directory(self, name: str) -> bool:
-        # Windows also accepts "/" as a path separator, so a "../" attachment name
-        # traverses there even though os.sep is a backslash and the old
-        # f"..{os.sep}" check missed it. Normalise both separators and reject any
-        # ".." path component.
-        return any(part == ".." for part in name.replace("\\", "/").split("/"))
+        # On Windows os.altsep is "/", so a "../" attachment name traverses even
+        # though os.sep is a backslash and the old f"..{os.sep}" check missed it.
+        # Split on every separator the host recognises and reject any ".."
+        # component. Using os.altsep keeps backslashes as ordinary characters on
+        # POSIX, where they are legal in filenames.
+        normalised = name.replace(os.sep, "/")
+        if os.altsep:
+            normalised = normalised.replace(os.altsep, "/")
+        return any(part == ".." for part in normalised.split("/"))
 
     def _correct_path(self, name: str, local_output_directory: str) -> str:
         return (
