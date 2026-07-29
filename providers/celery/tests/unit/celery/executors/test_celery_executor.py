@@ -543,7 +543,11 @@ def test_send_workloads_to_celery_hang(mock_get_app, register_signals):
     """
     Test that celery_executor does not hang after many runs.
     """
-    mock_get_app.return_value.tasks = {"execute_workload": MockWorkload()}
+    # execute_workload (Airflow 3+) and execute_command (Airflow 2) so the test runs on both.
+    mock_get_app.return_value.tasks = {
+        "execute_workload": MockWorkload(),
+        "execute_command": MockWorkload(),
+    }
     executor = celery_executor.CeleryExecutor()
 
     workload_tuples_to_send = [(None, mock.MagicMock(), None, None) for _ in range(26)]
@@ -597,18 +601,22 @@ class TestStateFetchMpContext:
         assert ctx.get_start_method() == "spawn"
 
     def test_explicit_fork_is_honoured_with_a_warning(self, caplog):
-        with conf_vars({("celery", "mp_start_method"): "fork"}):
-            ctx = celery_executor_utils._get_state_fetch_mp_context()
+        # caplog.text (not the structlog-only `.entries`) keeps this working on the older
+        # Airflow versions the provider supports, where caplog is plain pytest's fixture.
+        with caplog.at_level(logging.WARNING, logger=celery_executor_utils.log.name):
+            with conf_vars({("celery", "mp_start_method"): "fork"}):
+                ctx = celery_executor_utils._get_state_fetch_mp_context()
 
         assert ctx.get_start_method() == "fork"
-        assert any("deadlock" in entry["event"] for entry in caplog.entries)
+        assert "deadlock" in caplog.text
 
     def test_unavailable_start_method_falls_back(self, caplog):
-        with conf_vars({("celery", "mp_start_method"): "not-a-method"}):
-            ctx = celery_executor_utils._get_state_fetch_mp_context()
+        with caplog.at_level(logging.WARNING, logger=celery_executor_utils.log.name):
+            with conf_vars({("celery", "mp_start_method"): "not-a-method"}):
+                ctx = celery_executor_utils._get_state_fetch_mp_context()
 
         assert ctx.get_start_method() in ("forkserver", "spawn")
-        assert any("is not available on this platform" in entry["event"] for entry in caplog.entries)
+        assert "is not available on this platform" in caplog.text
 
 
 @mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
