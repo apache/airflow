@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
-from concurrent.futures import Future
+from concurrent.futures import Future, ProcessPoolExecutor
 from contextlib import suppress
 from datetime import datetime
 from types import SimpleNamespace
@@ -2753,11 +2754,11 @@ class TestOpenLineageListenerAirflow3:
     def test_submit_callable_recreates_executor_after_shutdown(self):
         """A pool shut down by `before_stopping` must be replaced, not submitted to."""
         listener = OpenLineageListener()
-        dead_executor = MagicMock()
+        dead_executor = MagicMock(spec=ProcessPoolExecutor)
         dead_executor.submit.side_effect = RuntimeError("cannot schedule new futures after shutdown")
-        new_executor = MagicMock()
+        new_executor = MagicMock(spec=ProcessPoolExecutor)
         listener._executor = dead_executor
-        listener.log = MagicMock()
+        listener.log = MagicMock(spec=logging.Logger)
 
         with mock.patch(
             "airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor",
@@ -2781,7 +2782,7 @@ class TestOpenLineageListenerAirflow3:
         assert listener._executor is None
 
     def test_before_stopping_detaches_executor(self):
-        executor = MagicMock()
+        executor = MagicMock(spec=ProcessPoolExecutor)
         listener = OpenLineageListener()
         listener._executor = executor
 
@@ -2795,11 +2796,11 @@ class TestOpenLineageListenerAirflow3:
 
         `AirflowTaskTimeout` derives from `BaseException`, so the guard cannot be `except Exception`.
         """
-        executor = MagicMock()
+        executor = MagicMock(spec=ProcessPoolExecutor)
         executor.shutdown.side_effect = [AirflowTaskTimeout("timed out"), None]
         listener = OpenLineageListener()
         listener._executor = executor
-        listener.log = MagicMock()
+        listener.log = MagicMock(spec=logging.Logger)
 
         listener.before_stopping(MagicMock())
 
@@ -2817,9 +2818,11 @@ class TestOpenLineageListenerAirflow3:
         supervisor connection with the real one.
         """
         listener = OpenLineageListener()
-        listener.log = MagicMock()
+        listener.log = MagicMock(spec=logging.Logger)
 
-        listener._fork_execute(mock.Mock(side_effect=KeyboardInterrupt("ctrl-c")), "on_running")
+        listener._fork_execute(
+            mock.Mock(spec=Callable, side_effect=KeyboardInterrupt("ctrl-c")), "on_running"
+        )
 
         mock_exit.assert_called_once_with(0)
         mock_log_shutdown.assert_called_once()
@@ -2831,8 +2834,8 @@ class TestOpenLineageListenerAirflow3:
     def test_fork_execute_child_exits_when_setup_fails(self, mock_fork, mock_exit, mock_log_shutdown):
         """A failure before the emission call must still exit, not unwind into the caller."""
         listener = OpenLineageListener()
-        listener.log = MagicMock()
-        callable_ = mock.Mock()
+        listener.log = MagicMock(spec=logging.Logger)
+        callable_ = mock.Mock(spec=Callable)
 
         with mock.patch(
             "airflow.providers.openlineage.plugins.listener.getproctitle",
@@ -2843,6 +2846,32 @@ class TestOpenLineageListenerAirflow3:
         callable_.assert_not_called()
         mock_exit.assert_called_once_with(0)
         listener.log.warning.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.logging.shutdown",
+        side_effect=RuntimeError("handler close failed"),
+    )
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os._exit")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os.fork", return_value=0)
+    def test_fork_execute_child_exits_when_logging_shutdown_raises(
+        self, mock_fork, mock_exit, mock_log_shutdown
+    ):
+        """logging.shutdown() raising must not bypass os._exit(0).
+
+        A remote task-log handler (S3/GCS) whose close() raises, or a handler lock held
+        at fork time, can make logging.shutdown() propagate out of the finally block.
+        Without the nested finally the child unwinds into the task runner and runs as a
+        second process sharing the supervisor connection.
+        """
+        listener = OpenLineageListener()
+        listener.log = MagicMock(spec=logging.Logger)
+
+        # In the real process os._exit(0) terminates execution before the RuntimeError
+        # can propagate; with a mocked os._exit the exception surfaces in the test.
+        with pytest.raises(RuntimeError, match="handler close failed"):
+            listener._fork_execute(mock.Mock(spec=Callable), "on_running")
+
+        mock_exit.assert_called_once_with(0)
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
