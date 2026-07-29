@@ -336,6 +336,22 @@ Therefore, the following example is invalid:
             def __init__(self, foo) -> None:
                 self.foo = foo.lower()  # assignment should be only self.foo = foo
 
+4. Checking whether an argument was *passed* is allowed in the constructor — ``execute()`` cannot
+tell a supplied field from a missing one, because a field can be ``None`` after rendering. Write it
+as ``is None`` / ``is not None``, never as a truthiness test. Anything that inspects the *value*
+still belongs in ``execute()``:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = ("foo", "bar")
+
+            def __init__(self, foo=None, bar=None) -> None:
+                if foo is None and bar is None:  # allowed: asks what was passed
+                    raise ValueError("Either 'foo' or 'bar' must be provided")
+                self.foo = foo
+                self.bar = bar
+
 When an operator inherits from a base operator and does not have a constructor defined on its own, the limitations above
 do not apply. However, the templated fields must be set properly in the parent according to those limitations.
 
