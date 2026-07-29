@@ -653,8 +653,31 @@ class TestDagCommands:
                 "--only-failed",
                 "--only-running",
             ],
+            [
+                "dags",
+                "clear",
+                dag_id,
+                "--partition-date-start",
+                "2025-01-02",
+                "--partition-date-end",
+                "2025-01-01",
+            ],
+            [
+                "dags",
+                "clear",
+                dag_id,
+                "--partition-date-start",
+                "not-a-date",
+                "--partition-date-end",
+                "2025-01-01",
+            ],
         ],
     )
     def test_clear_validates_selectors(self, command):
+        api_client = self._api_client_mock()
+
         with pytest.raises(SystemExit):
-            dag_command.clear(self.parser.parse_args(command), api_client=self._api_client_mock())
+            dag_command.clear(self.parser.parse_args(command), api_client=api_client)
+
+        api_client.dag_runs.list.assert_not_called()
+        api_client.tasks.clear.assert_not_called()

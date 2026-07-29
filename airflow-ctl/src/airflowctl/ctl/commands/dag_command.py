@@ -193,7 +193,8 @@ def _parse_partition_date(value: str | None, *, option: str) -> datetime.date | 
         ) from None
 
 
-def _validate_clear_args(args) -> None:
+def _parse_and_validate_clear_args(args) -> tuple[datetime.date | None, datetime.date | None]:
+    """Reject invalid selector combinations and return the parsed partition_date window."""
     has_run_id = args.run_id is not None
     has_partition_key = args.partition_key is not None
     has_partition_date = args.partition_date_start is not None or args.partition_date_end is not None
@@ -207,6 +208,16 @@ def _validate_clear_args(args) -> None:
         raise SystemExit("--partition-date-start and --partition-date-end must be provided together.")
     if args.only_failed and args.only_running:
         raise SystemExit("--only-failed and --only-running are mutually exclusive.")
+
+    partition_date_start = _parse_partition_date(args.partition_date_start, option="--partition-date-start")
+    partition_date_end = _parse_partition_date(args.partition_date_end, option="--partition-date-end")
+    if (
+        partition_date_start is not None
+        and partition_date_end is not None
+        and partition_date_start > partition_date_end
+    ):
+        raise SystemExit("--partition-date-start must be before or equal to --partition-date-end.")
+    return partition_date_start, partition_date_end
 
 
 def _list_dag_runs(api_client, dag_id: str, *, order_by: str = "logical_date", **filters) -> list:
@@ -227,7 +238,12 @@ def _list_dag_runs(api_client, dag_id: str, *, order_by: str = "logical_date", *
             return dag_runs
 
 
-def _get_dag_runs_to_clear(args, api_client) -> list:
+def _get_dag_runs_to_clear(
+    args,
+    api_client,
+    partition_date_start: datetime.date | None,
+    partition_date_end: datetime.date | None,
+) -> list:
     if args.run_id is not None:
         return [api_client.dag_runs.get(dag_id=args.dag_id, dag_run_id=args.run_id)]
 
@@ -243,20 +259,13 @@ def _get_dag_runs_to_clear(args, api_client) -> list:
             if dag_run.partition_key == args.partition_key
         ]
 
-    partition_date_start = _parse_partition_date(args.partition_date_start, option="--partition-date-start")
-    partition_date_end = _parse_partition_date(args.partition_date_end, option="--partition-date-end")
-    if partition_date_start is not None and partition_date_end is not None:
-        if partition_date_start > partition_date_end:
-            raise SystemExit("--partition-date-start must be before or equal to --partition-date-end.")
-        return _list_dag_runs(
-            api_client,
-            args.dag_id,
-            order_by="partition_date",
-            partition_date_gte=partition_date_start,
-            partition_date_lte=partition_date_end,
-        )
-
-    return []
+    return _list_dag_runs(
+        api_client,
+        args.dag_id,
+        order_by="partition_date",
+        partition_date_gte=partition_date_start,
+        partition_date_lte=partition_date_end,
+    )
 
 
 def _print_dag_runs_to_clear(dag_id: str, dag_runs: list) -> None:
@@ -290,9 +299,9 @@ def _get_dag_run_sort_key(dag_run) -> tuple[str, str, str]:
 @provide_api_client(kind=ClientKind.CLI)
 def clear(args, api_client=NEW_API_CLIENT) -> dict[str, int | bool]:
     """Clear task instances for selected Dag runs."""
-    _validate_clear_args(args)
+    partition_date_start, partition_date_end = _parse_and_validate_clear_args(args)
 
-    dag_runs = _get_dag_runs_to_clear(args, api_client)
+    dag_runs = _get_dag_runs_to_clear(args, api_client, partition_date_start, partition_date_end)
     if not dag_runs:
         rich.print(f"[yellow]No matching Dag runs found for {args.dag_id}.[/yellow]")
         return {"dag_run_count": 0, "cleared_task_instances": 0}
