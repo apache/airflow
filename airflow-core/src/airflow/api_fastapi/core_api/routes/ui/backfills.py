@@ -100,7 +100,6 @@ def list_backfills_ui(
         BackfillResponse(**row._mapping) if not isinstance(row, Backfill) else row
         for row in session.scalars(select_stmt)
     ]
-    log.warning("inside backfill*******************************************")
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,
