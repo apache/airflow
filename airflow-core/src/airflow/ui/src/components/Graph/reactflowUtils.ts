@@ -141,3 +141,108 @@ export const formatFlowEdges = ({ edges }: { edges: Array<Edge> }): Array<FlowEd
     target: edge.targets[0] ?? "",
     type: "custom",
   }));
+
+type SelectionGraphEdge = { id: string; source: string; target: string };
+type SelectionGraphNode = { id: string; type?: string };
+
+/**
+ * Edges only highlight when one of their two endpoints has node-level `isSelected` set, or (for
+ * gate-adjacent edges) when this function marks that specific edge id. Gate edges are directional
+ * -- `source` is always the thing feeding the condition, `target` is what it schedules -- so:
+ *
+ * - Entering a gate from one of its inputs (an asset, or a nested gate below it) continues
+ *   through the gate's single output edge only. It does NOT fan out to the gate's other inputs,
+ *   which is exactly the over-highlighting bug this replaces: selecting one asset in an AND/OR
+ *   condition must not also light up sibling assets that happen to share the same gate.
+ * - Entering a gate from its output (e.g. selecting the Dag it schedules) fans out to every one
+ *   of its inputs, since all of them are genuinely part of what makes that Dag's condition true.
+ *
+ * Returns the set of edge ids to mark selected -- callers OR this into their own per-edge
+ * `isSelected` computation (see Graph.tsx / AssetGraph.tsx).
+ */
+export const getGatePathEdgeIdsForSelection = (
+  nodes: Array<SelectionGraphNode>,
+  edges: Array<SelectionGraphEdge>,
+  isNodeSelected: (nodeId: string) => boolean,
+): Set<string> => {
+  const gateNodeIds = new Set(nodes.filter((node) => node.type === "asset-condition").map((node) => node.id));
+
+  if (gateNodeIds.size === 0) {
+    return new Set();
+  }
+
+  const outgoingByNode = new Map<string, Array<SelectionGraphEdge>>();
+  const incomingByNode = new Map<string, Array<SelectionGraphEdge>>();
+  const addTo = (map: Map<string, Array<SelectionGraphEdge>>, key: string, edge: SelectionGraphEdge) => {
+    const existing = map.get(key);
+
+    if (existing) {
+      existing.push(edge);
+    } else {
+      map.set(key, [edge]);
+    }
+  };
+
+  edges.forEach((edge) => {
+    addTo(outgoingByNode, edge.source, edge);
+    addTo(incomingByNode, edge.target, edge);
+  });
+
+  const selectedEdgeIds = new Set<string>();
+  const visitedForward = new Set<string>();
+  const visitedBackward = new Set<string>();
+
+  const walkForward = (gateId: string) => {
+    if (visitedForward.has(gateId)) {
+      return;
+    }
+    visitedForward.add(gateId);
+
+    (outgoingByNode.get(gateId) ?? []).forEach((edge) => {
+      selectedEdgeIds.add(edge.id);
+
+      if (gateNodeIds.has(edge.target)) {
+        walkForward(edge.target);
+      }
+    });
+  };
+
+  const walkBackward = (gateId: string) => {
+    if (visitedBackward.has(gateId)) {
+      return;
+    }
+    visitedBackward.add(gateId);
+
+    (incomingByNode.get(gateId) ?? []).forEach((edge) => {
+      selectedEdgeIds.add(edge.id);
+
+      if (gateNodeIds.has(edge.source)) {
+        walkBackward(edge.source);
+      }
+    });
+  };
+
+  nodes.forEach((node) => {
+    if (!isNodeSelected(node.id)) {
+      return;
+    }
+
+    (outgoingByNode.get(node.id) ?? []).forEach((edge) => {
+      selectedEdgeIds.add(edge.id);
+
+      if (gateNodeIds.has(edge.target)) {
+        walkForward(edge.target);
+      }
+    });
+
+    (incomingByNode.get(node.id) ?? []).forEach((edge) => {
+      selectedEdgeIds.add(edge.id);
+
+      if (gateNodeIds.has(edge.source)) {
+        walkBackward(edge.source);
+      }
+    });
+  });
+
+  return selectedEdgeIds;
+};

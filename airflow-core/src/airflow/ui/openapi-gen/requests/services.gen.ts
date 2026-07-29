@@ -4901,7 +4901,6 @@ export class StructureService {
      * @param data.includeDownstream
      * @param data.depth
      * @param data.root
-     * @param data.externalDependencies
      * @param data.versionNumber
      * @returns StructureDataResponse Successful Response
      * @throws ApiError
@@ -4916,11 +4915,9 @@ export class StructureService {
                 include_downstream: data.includeDownstream,
                 depth: data.depth,
                 root: data.root,
-                external_dependencies: data.externalDependencies,
                 version_number: data.versionNumber
             },
             errors: {
-                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }
