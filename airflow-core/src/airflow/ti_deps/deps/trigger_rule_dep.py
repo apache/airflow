@@ -394,9 +394,12 @@ class TriggerRuleDep(BaseTIDep):
                 # identical for every downstream that shares the same set of direct upstreams, so
                 # we memoize them on the DepContext and run the query once per pass instead of
                 # once per downstream. The mapped-task-group case uses per-ti map-index predicates
-                # and is left un-memoized. The cache shares finished_tis' per-pass snapshot
-                # semantics; it is cleared in DagRun._get_ready_tis when a mapped task expands and
-                # changes its instance count.
+                # and is left un-memoized. The cache lives for one scheduling pass, and
+                # DagRun._get_ready_tis invalidates it for both of the things that change a mapped
+                # task's instance count mid-pass: expanding an unexpanded task, and
+                # _revise_map_indexes_if_mapped growing an already-expanded one. State-only changes
+                # (a task finishing, instances marked REMOVED) leave the row count alone, so they
+                # need no invalidation.
                 cache_key: tuple[str, str, frozenset[str]] | None = None
                 task_id_counts: list[tuple[str, int]] | None = None
                 if task.get_closest_mapped_task_group() is None:

@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
+import attrs
 import pytest
 from sqlalchemy import event
 
@@ -2343,3 +2344,40 @@ class TestTriggerRuleUpstreamCountMemo:
         with _count_upstream_count_queries() as counter:
             dr._get_ready_tis([d1, src0, d2], [], session)
         assert counter["n"] == 2
+
+    def test_memo_survives_the_up_for_reschedule_dep_context_evolve(self, dag_maker, session):
+        """
+        ``are_dependencies_met`` rebuilds the DepContext with ``attrs.evolve`` for every
+        ``UP_FOR_RESCHEDULE`` task instance, and ``UP_FOR_RESCHEDULE`` is in ``SCHEDULEABLE_STATES``, so
+        those instances do reach ``TriggerRuleDep`` through the evolved context.
+
+        ``attrs.evolve`` only carries over fields ``__init__`` accepts, so an ``init=False`` memo field
+        would hand each of these a fresh empty dict: they would neither read the memo nor warm it for
+        anything else. Reschedule-mode sensors fanned out behind a mapped upstream are the exact shape
+        this memo exists to collapse, so they must not be the one case that opts out of it.
+        """
+        dr = self._make_dag(dag_maker, session, n_downstreams=4, src_states=[SUCCESS, SUCCESS, SUCCESS])
+        downstreams = []
+        for k in range(4):
+            ti = dr.get_task_instance(f"p{k}", session=session)
+            ti.task = dr.dag.get_task(f"p{k}")
+            ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+            downstreams.append(ti)
+        session.commit()
+
+        dep_context = DepContext()
+        with _count_upstream_count_queries() as counter:
+            for ti in downstreams:
+                ti.are_dependencies_met(dep_context=dep_context, session=session)
+        assert counter["n"] == 1
+
+    def test_evolved_dep_context_shares_the_memo_object(self, dag_maker, session):
+        """Pin the attrs mechanism the test above depends on, so a field-level regression is obvious."""
+        dep_context = DepContext()
+        dep_context.upstream_task_id_counts[("d", "r", frozenset({"u"}))] = [("u", 3)]
+
+        evolved = attrs.evolve(dep_context, deps=dep_context.deps | {TriggerRuleDep()})
+
+        assert evolved.upstream_task_id_counts is dep_context.upstream_task_id_counts
+        evolved.upstream_task_id_counts[("d", "r", frozenset({"u2"}))] = [("u2", 1)]
+        assert ("d", "r", frozenset({"u2"})) in dep_context.upstream_task_id_counts

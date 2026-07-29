@@ -1699,15 +1699,13 @@ class DagRun(Base, LoggingMixin):
                     # Expansion changes a mapped task's instance count, which invalidates the
                     # trigger-rule upstream-count memo on this DepContext (a downstream evaluated
                     # later in this same pass must see the post-expansion count).
-                    dep_context.upstream_task_id_counts.clear()
+                    dep_context.invalidate_upstream_task_id_counts()
             if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
                 # It's enough to revise map index once per task id,
                 # checking the map index for each mapped task significantly slows down scheduling
                 if schedulable.task.task_id not in revised_map_index_task_ids:
-                    revised_tis = list(
-                        self._revise_map_indexes_if_mapped(
-                            schedulable.task, dag_version_id=schedulable.dag_version_id, session=session
-                        )
+                    revised_tis = self._revise_map_indexes_if_mapped(
+                        schedulable.task, dag_version_id=schedulable.dag_version_id, session=session
                     )
                     ready_tis.extend(revised_tis)
                     revised_map_index_task_ids.add(schedulable.task.task_id)
@@ -1715,7 +1713,7 @@ class DagRun(Base, LoggingMixin):
                         # Revising a mapped task can add new instances, growing its instance count
                         # the same way expansion does. Drop the upstream-count memo so a downstream
                         # evaluated later in this pass recomputes it instead of reading a stale value.
-                        dep_context.upstream_task_id_counts.clear()
+                        dep_context.invalidate_upstream_task_id_counts()
 
                 # _revise_map_indexes_if_mapped might mark the current task as REMOVED
                 # after calculating mapped task length, so we need to re-check
