@@ -137,9 +137,7 @@ def _get_pod_completion_time(pod):
     if times:
         return max(times)
     condition_times = [
-        c.last_transition_time
-        for c in (pod.status.conditions or [])
-        if c.last_transition_time
+        c.last_transition_time for c in (pod.status.conditions or []) if c.last_transition_time
     ]
     if condition_times:
         return max(condition_times)
@@ -202,23 +200,18 @@ def cleanup_pods(args):
             pod_restart_policy = pod.spec.restart_policy.lower()
             current_time = datetime.now(pod.metadata.creation_timestamp.tzinfo)
 
-            terminal = (
+            is_terminal = (
                 pod_phase == pod_succeeded
                 or (pod_phase == pod_failed and pod_restart_policy == pod_restart_policy_never)
                 or (pod_reason == pod_reason_evicted)
             )
-            terminal_old_enough = terminal and (
+            is_terminal_old_enough = is_terminal and (
                 min_completed_minutes == 0
-                or current_time - _get_pod_completion_time(pod)
-                > timedelta(minutes=min_completed_minutes)
+                or current_time - _get_pod_completion_time(pod) > timedelta(minutes=min_completed_minutes)
             )
-            if (
-                terminal_old_enough
-                or (
-                    pod_phase == pod_pending
-                    and current_time - pod.metadata.creation_timestamp
-                    > timedelta(minutes=min_pending_minutes)
-                )
+            if is_terminal_old_enough or (
+                pod_phase == pod_pending
+                and current_time - pod.metadata.creation_timestamp > timedelta(minutes=min_pending_minutes)
             ):
                 print(
                     f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
