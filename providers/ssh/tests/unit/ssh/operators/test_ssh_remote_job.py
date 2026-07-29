@@ -393,6 +393,34 @@ class TestSSHRemoteJobOperator:
         call_args = self.mock_hook.exec_ssh_client_command.call_args
         assert "rm -rf" in call_args[0][1]
 
+    def test_execute_complete_with_custom_cleanup_base(self):
+        """Cleanup uses the custom base directory carried by the trigger event."""
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            cleanup="on_success",
+        )
+
+        event = {
+            "done": True,
+            "status": "success",
+            "exit_code": 0,
+            "job_id": "test_job_123",
+            "base_dir": "/opt/custom-airflow-jobs",
+            "job_dir": "/opt/custom-airflow-jobs/test_job_123",
+            "log_file": "/opt/custom-airflow-jobs/test_job_123/stdout.log",
+            "exit_code_file": "/opt/custom-airflow-jobs/test_job_123/exit_code",
+            "log_chunk": "",
+            "log_offset": 0,
+            "remote_os": "posix",
+        }
+
+        op.execute_complete({}, event)
+
+        call_args = self.mock_hook.exec_ssh_client_command.call_args
+        assert "/opt/custom-airflow-jobs/test_job_123" in call_args[0][1]
+
     def test_on_kill(self):
         """Test on_kill attempts to kill remote process."""
         op = SSHRemoteJobOperator(

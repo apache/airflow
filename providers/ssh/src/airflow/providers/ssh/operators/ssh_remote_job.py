@@ -353,6 +353,7 @@ class SSHRemoteJobOperator(BaseOperator):
                     "log_file": self._paths.log_file,
                     "exit_code_file": self._paths.exit_code_file,
                     "pid_file": self._paths.pid_file,
+                    "base_dir": self._paths.base_dir,
                     "remote_os": self._detected_os,
                 },
             )
@@ -363,6 +364,7 @@ class SSHRemoteJobOperator(BaseOperator):
                 remote_host=self.remote_host,
                 job_id=self._job_id,
                 job_dir=self._paths.job_dir,
+                base_dir=self._paths.base_dir,
                 log_file=self._paths.log_file,
                 exit_code_file=self._paths.exit_code_file,
                 remote_os=self._detected_os,
@@ -406,6 +408,7 @@ class SSHRemoteJobOperator(BaseOperator):
                     remote_host=self.remote_host,
                     job_id=event["job_id"],
                     job_dir=event["job_dir"],
+                    base_dir=event.get("base_dir"),
                     log_file=event["log_file"],
                     exit_code_file=event["exit_code_file"],
                     remote_os=event["remote_os"],
@@ -423,12 +426,13 @@ class SSHRemoteJobOperator(BaseOperator):
         exit_code = event.get("exit_code")
         job_dir = event.get("job_dir", "")
         remote_os = event.get("remote_os", "posix")
+        base_dir = event.get("base_dir")
 
         self.log.info("Remote job completed with exit code: %s", exit_code)
 
         should_cleanup = self.cleanup == "always" or (self.cleanup == "on_success" and exit_code == 0)
         if should_cleanup and job_dir:
-            self._cleanup_remote_job(job_dir, remote_os)
+            self._cleanup_remote_job(job_dir, remote_os, base_dir)
 
         if exit_code is None:
             raise AirflowException(f"Remote job failed: {event.get('message', 'Unknown error')}")
@@ -441,7 +445,7 @@ class SSHRemoteJobOperator(BaseOperator):
 
         self.log.info("Remote job completed successfully")
 
-    def _cleanup_remote_job(self, job_dir: str, remote_os: str) -> None:
+    def _cleanup_remote_job(self, job_dir: str, remote_os: str, base_dir: str | None = None) -> None:
         """
         Clean up the remote job directory, retrying on transient SSH failures.
 
@@ -452,9 +456,9 @@ class SSHRemoteJobOperator(BaseOperator):
         """
         self.log.info("Cleaning up remote job directory: %s", job_dir)
         if remote_os == "posix":
-            cleanup_cmd = build_posix_cleanup_command(job_dir)
+            cleanup_cmd = build_posix_cleanup_command(job_dir, base_dir)
         else:
-            cleanup_cmd = build_windows_cleanup_command(job_dir)
+            cleanup_cmd = build_windows_cleanup_command(job_dir, base_dir)
 
         last_error: Exception | None = None
         for attempt in range(1, self.cleanup_retries + 1):

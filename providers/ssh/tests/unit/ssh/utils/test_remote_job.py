@@ -449,7 +449,20 @@ class TestCleanupCommands:
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_posix_cleanup_command("/tmp/other_dir")
 
+    def test_posix_cleanup_accepts_custom_base_directory(self):
+        """Cleanup accepts a job directory under the operator's custom base."""
+        cmd = build_posix_cleanup_command("/opt/custom-airflow-jobs/job_123", "/opt/custom-airflow-jobs")
+        assert "/opt/custom-airflow-jobs/job_123" in cmd
+
     def test_windows_cleanup_rejects_invalid_path(self):
         """Test Windows cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_windows_cleanup_command("C:\\temp\\other_dir")
+
+    def test_windows_cleanup_accepts_custom_base_directory(self):
+        """Cleanup accepts a job directory under the operator's custom base."""
+        cmd = build_windows_cleanup_command(
+            "D:\\airflow-jobs\\job_123",
+            "D:\\airflow-jobs",
+        )
+        assert "Remove-Item" in base64.b64decode(cmd.split("-EncodedCommand ")[1]).decode("utf-16-le")

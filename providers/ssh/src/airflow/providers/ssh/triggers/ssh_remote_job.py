@@ -66,6 +66,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
     :param remote_host: Optional override for the remote host
     :param job_id: Unique identifier for the remote job
     :param job_dir: Remote directory containing job artifacts
+    :param base_dir: Parent directory used to validate cleanup paths
     :param log_file: Path to the log file on the remote host
     :param exit_code_file: Path to the exit code file on the remote host
     :param remote_os: Operating system of the remote host ('posix' or 'windows')
@@ -86,6 +87,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
         log_file: str,
         exit_code_file: str,
         remote_os: Literal["posix", "windows"],
+        base_dir: str | None = None,
         poll_interval: int = 5,
         log_chunk_size: int = 65536,
         log_offset: int = 0,
@@ -97,6 +99,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
         self.remote_host = remote_host
         self.job_id = job_id
         self.job_dir = job_dir
+        self.base_dir = base_dir
         self.log_file = log_file
         self.exit_code_file = exit_code_file
         self.remote_os = remote_os
@@ -115,6 +118,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
                 "remote_host": self.remote_host,
                 "job_id": self.job_id,
                 "job_dir": self.job_dir,
+                "base_dir": self.base_dir,
                 "log_file": self.log_file,
                 "exit_code_file": self.exit_code_file,
                 "remote_os": self.remote_os,
@@ -224,6 +228,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
             {
                 "job_id": self.job_id,
                 "job_dir": self.job_dir,
+                "base_dir": self.base_dir,
                 "log_file": self.log_file,
                 "exit_code_file": self.exit_code_file,
                 "remote_os": self.remote_os,
@@ -298,6 +303,7 @@ class SSHRemoteJobTrigger(BaseTrigger):
                         {
                             "job_id": self.job_id,
                             "job_dir": self.job_dir,
+                            "base_dir": self.base_dir,
                             "log_file": self.log_file,
                             "exit_code_file": self.exit_code_file,
                             "remote_os": self.remote_os,

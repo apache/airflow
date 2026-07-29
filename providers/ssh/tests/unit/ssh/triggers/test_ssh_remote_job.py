@@ -30,6 +30,7 @@ def _make_trigger(**overrides):
         remote_host=None,
         job_id="test_job",
         job_dir="/tmp/job",
+        base_dir="/tmp",
         log_file="/tmp/job/stdout.log",
         exit_code_file="/tmp/job/exit_code",
         remote_os="posix",
@@ -46,6 +47,7 @@ class TestSSHRemoteJobTrigger:
             remote_host="test.example.com",
             job_id="test_job_123",
             job_dir="/tmp/airflow-ssh-jobs/test_job_123",
+            base_dir="/tmp/airflow-ssh-jobs",
             log_file="/tmp/airflow-ssh-jobs/test_job_123/stdout.log",
             exit_code_file="/tmp/airflow-ssh-jobs/test_job_123/exit_code",
             remote_os="posix",
@@ -62,6 +64,7 @@ class TestSSHRemoteJobTrigger:
         assert kwargs["remote_host"] == "test.example.com"
         assert kwargs["job_id"] == "test_job_123"
         assert kwargs["job_dir"] == "/tmp/airflow-ssh-jobs/test_job_123"
+        assert kwargs["base_dir"] == "/tmp/airflow-ssh-jobs"
         assert kwargs["log_file"] == "/tmp/airflow-ssh-jobs/test_job_123/stdout.log"
         assert kwargs["exit_code_file"] == "/tmp/airflow-ssh-jobs/test_job_123/exit_code"
         assert kwargs["remote_os"] == "posix"
@@ -104,6 +107,7 @@ class TestSSHRemoteJobTrigger:
         assert events[0].payload["done"] is True
         assert events[0].payload["exit_code"] == 0
         assert events[0].payload["log_chunk"] == "Final output\n"
+        assert events[0].payload["base_dir"] == "/tmp"
 
     @pytest.mark.asyncio
     async def test_run_job_completed_failure(self):
