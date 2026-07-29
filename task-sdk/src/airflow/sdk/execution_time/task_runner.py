@@ -1623,7 +1623,16 @@ def run(
         msg, state = _handle_current_task_success(context, ti)
     except DagRunTriggerException as drte:
         log.info("::group::Post Execute")
-        msg, state = _handle_trigger_dag_run(drte, context, ti, log)
+        try:
+            msg, state = _handle_trigger_dag_run(drte, context, ti, log)
+        except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
+            # Errors returned by the API server (for example a 404 for a missing
+            # target DAG) are raised while handling the trigger exception. They
+            # must still use the normal failure path so retries and callbacks run.
+            log.exception("Task failed while triggering DagRun")
+            log.info("::group::Post Execute")
+            msg, state = _handle_current_task_failed(ti, e, log, context)
+            error = e
     except TaskDeferred as defer:
         log.info("::group::Post Execute")
         msg, state = _defer_task(defer, ti, log)

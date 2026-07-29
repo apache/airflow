@@ -5180,6 +5180,37 @@ class TestTriggerDagRunOperator:
         with pytest.raises(_TriggerSendError):
             run(ti, ti.get_template_context(), log)
 
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_api_error_uses_failure_path(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """API errors while triggering a DAG should honor the task retry policy."""
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="missing_dag",
+            trigger_run_id="test_run_id",
+            retries=1,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_api_error",
+            run_id="test_run",
+            task=task,
+            should_retry=True,
+        )
+
+        def _send(msg=None, **kwargs):
+            if isinstance(msg, TriggerDagRun):
+                raise AirflowRuntimeError("target DAG was not found")
+            return mock.DEFAULT
+
+        mock_supervisor_comms.send.side_effect = _send
+
+        state, msg, error = run(ti, ti.get_template_context(), mock.MagicMock())
+
+        assert state == TaskInstanceState.UP_FOR_RETRY
+        assert msg.state == TaskInstanceState.UP_FOR_RETRY
+        assert isinstance(error, AirflowRuntimeError)
+
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "target_dr_state", "expected_task_state"),
         [
