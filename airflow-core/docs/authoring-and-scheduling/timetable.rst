@@ -390,8 +390,8 @@ January 31st,
   tick — midnight on January 31st. ``logical_date``, ``data_interval_start``,
   ``data_interval_end``, and the ``run_id`` timestamp are all that midnight.
 - `CronDataIntervalTimetable`_ immediately creates a Dag run for the most
-  recently completed interval (midnight January 30th through midnight
-  January 31st). ``logical_date`` / ``data_interval_start`` are January 30th;
+  recently completed interval (midnight January 30 through midnight
+  January 31st). ``logical_date`` / ``data_interval_start`` are January 30;
   ``run_after`` and the ``run_id`` timestamp are midnight on January 31st.
 
 The following is another example showing the difference when skipping Dag runs:
