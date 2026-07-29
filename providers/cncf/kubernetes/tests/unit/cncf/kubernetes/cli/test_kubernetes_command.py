@@ -329,7 +329,7 @@ class TestCleanUpPodsCommand:
         load_incluster_config.assert_called_once()
 
     @pytest.mark.parametrize(
-        "pod_kwargs, min_completed_minutes, expect_deleted",
+        ("pod_kwargs", "min_completed_minutes", "expect_deleted"),
         [
             pytest.param(
                 {"phase": "Succeeded", "finished_at": NOW - timedelta(seconds=3)},
