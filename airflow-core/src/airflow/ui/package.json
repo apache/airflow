@@ -82,7 +82,7 @@
     "@rolldown/plugin-babel": "^0.2.3",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@tanstack/eslint-plugin-query": "^5.101.4",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@types/culori": "^4.0.1",
