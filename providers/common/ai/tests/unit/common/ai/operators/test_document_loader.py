@@ -68,6 +68,13 @@ class TestDocumentLoaderInit:
         op = DocumentLoaderOperator(task_id="test", source_bytes=b"")
         with pytest.raises(ValueError, match="file_type"):
             op.execute(context={})
+    def test_source_path_none_after_render_raises(self):
+        # source_path can render to None even when supplied -- must raise ValueError,
+        # not a TypeError from _resolve_files.
+        op = DocumentLoaderOperator(task_id="test", source_path="{{ none }}")
+        op.source_path = None  # simulate the rendered value, bypassing real templating
+        with pytest.raises(ValueError, match="Provide exactly one"):
+            op.execute(context={})
 
 
 class TestTextParser:
