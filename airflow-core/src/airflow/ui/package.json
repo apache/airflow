@@ -118,7 +118,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vite": "^8.1.5",
-    "vite-plugin-css-injected-by-js": "^3.5.2",
+    "vite-plugin-css-injected-by-js": "^5.0.2",
     "vitest": "^4.1.9",
     "web-worker": "^1.5.0"
   },
