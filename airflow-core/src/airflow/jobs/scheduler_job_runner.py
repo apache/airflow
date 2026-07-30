@@ -1734,6 +1734,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .group_by(DagRun)
                 )
             )
+            # Stamp _team_name before update_state() calls notify_dagrun_state_changed(),
+            # which fires on_dag_run_success/failed listeners.
+            # _get_team_names_for_dag_ids caches results in self._dag_id_to_team_name, so
+            # this is usually a dict read with no DB query.
             if self._multi_team and paused_runs:
                 paused_dag_ids = {dr.dag_id for dr in paused_runs}
                 paused_team_mapping = self._get_team_names_for_dag_ids(paused_dag_ids, session)
@@ -1996,6 +2000,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
 
+            # Stamp _team_name before _schedule_all_dag_runs calls notify_dagrun_state_changed()
+            # (on_dag_run_success/failed listeners). Runs that just transitioned QUEUED→RUNNING
+            # in _start_queued_dagruns may already have _team_name set (SQLAlchemy identity map
+            # returns the same Python objects); overwriting with the same value is harmless.
+            # _get_team_names_for_dag_ids caches results in self._dag_id_to_team_name, so this
+            # is usually a dict read with no DB query.
             if self._multi_team and dag_runs:
                 unique_dag_ids = {dr.dag_id for dr in dag_runs}
                 dr_team_mapping = self._get_team_names_for_dag_ids(unique_dag_ids, session)
@@ -2844,6 +2854,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.scheduler_dag_bag.get_dag_for_run, session=session)
         )
 
+        # Stamp _team_name on each queued DagRun before the listener fires.
+        # Results are usually already cached in self._dag_id_to_team_name from the
+        # current or previous scheduler loop, so this is typically a dict read with no DB query.
+        if self._multi_team and dag_runs:
+            queued_team_map = self._get_team_names_for_dag_ids({dr.dag_id for dr in dag_runs}, session)
+            for dr in dag_runs:
+                if team := queued_team_map.get(dr.dag_id):
+                    dr._team_name = team
+
         for dag_run in dag_runs:
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
@@ -2981,6 +3000,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 execute=False,
             )
 
+            # dag_run was reloaded from DB above, so _team_name set on the original object is lost.
+            # Re-stamp it before the listener fires; the result is almost certainly cached in
+            # self._dag_id_to_team_name already, so this is a dict read with no DB query.
+            if self._multi_team:
+                if team := self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(dag_run.dag_id):
+                    dag_run._team_name = team
             dag_run.notify_dagrun_state_changed(msg="timed_out")
             if dag_run.end_date and dag_run.start_date:
                 duration = dag_run.end_date - dag_run.start_date
