@@ -57,7 +57,8 @@
     "owner": "소유자",
     "params": "매개변수",
     "schedule": "스케줄",
-    "tags": "태그"
+    "tags": "태그",
+    "team": "팀"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -324,6 +325,7 @@
     "from": "시작",
     "maxActiveRuns": "최대 활성 실행 수",
     "noTagsFound": "태그를 찾을 수 없습니다.",
+    "noTeamsFound": "팀을 찾을 수 없습니다.",
     "tagMode": {
       "all": "모두",
       "any": "하나 이상"
