@@ -114,24 +114,32 @@ class TestHttpOperator:
             operator.execute({})
         assert isinstance(exc.value.trigger, HttpTrigger), "Trigger is not a HttpTrigger"
 
-    def test_async_defer_warns_once_for_non_idempotent_method(self, monkeypatch):
+    def test_deferrable_warns_on_construction_for_non_idempotent_method(self, monkeypatch):
         captured = self._capture_defer(monkeypatch)
 
         with pytest.warns(UserWarning, match="HttpOperator with deferrable=True and method=POST") as warns:
-            HttpOperator(task_id="test_HTTP_op", deferrable=True).execute(context={})
+            operator = HttpOperator(task_id="test_HTTP_op", deferrable=True)
 
         assert len(warns) == 1
-        assert "HttpTrigger" not in str(warns[0].message)
-        assert isinstance(captured["trigger"], HttpTrigger)
-
-    def test_async_defer_does_not_warn_for_idempotent_method(self, monkeypatch):
-        captured = self._capture_defer(monkeypatch)
+        assert warns[0].filename == __file__
 
         with warnings.catch_warnings():
             warnings.simplefilter("error", UserWarning)
-            HttpOperator(task_id="test_HTTP_op", method="GET", deferrable=True).execute(context={})
+            operator.execute(context={})
 
         assert isinstance(captured["trigger"], HttpTrigger)
+
+    @pytest.mark.parametrize(
+        ("method", "deferrable"),
+        [
+            ("GET", True),
+            ("POST", False),
+        ],
+    )
+    def test_does_not_warn_on_construction(self, method, deferrable):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            HttpOperator(task_id="test_HTTP_op", method=method, deferrable=deferrable)
 
     def test_async_execute_successfully(self, requests_mock):
         operator = HttpOperator(
