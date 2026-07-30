@@ -1,0 +1,1 @@
+Fix log template sync failing when a custom SQL Alchemy schema is configured
