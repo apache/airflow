@@ -132,3 +132,31 @@ class TestEmrServerlessHookSession:
             with pytest.raises(RuntimeError, match="botocore >= 1.43.0"):
                 hook.start_session(application_id="app", execution_role_arn="role")
         conn_mock().start_session.assert_not_called()
+
+    @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
+    def test_get_session_endpoint_returns_raw_response(self, conn_mock: MagicMock):
+        raw = {
+            "applicationId": "app",
+            "sessionId": "sess-1",
+            "endpoint": "https://sess-1.example.amazonaws.com",
+            "authToken": "secret-token",
+            "authTokenExpiresAt": "2026-01-01T00:00:00Z",
+        }
+        conn_mock().get_session_endpoint.return_value = raw
+        hook = EmrServerlessHook(aws_conn_id="aws_default")
+
+        result = hook.get_session_endpoint("app", "sess-1")
+
+        assert result is raw
+        conn_mock().get_session_endpoint.assert_called_once_with(applicationId="app", sessionId="sess-1")
+
+    @patch.object(EmrServerlessHook, "conn", new_callable=PropertyMock)
+    def test_get_session_endpoint_gates_on_old_botocore(self, conn_mock: MagicMock):
+        hook = EmrServerlessHook(aws_conn_id="aws_default")
+        with patch(
+            "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
+            return_value=(1, 41, 0),
+        ):
+            with pytest.raises(RuntimeError, match="botocore >= 1.43.0"):
+                hook.get_session_endpoint("app", "sess-1")
+        conn_mock().get_session_endpoint.assert_not_called()
