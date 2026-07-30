@@ -1794,6 +1794,8 @@ TTY
 tunables
 twitterHandle
 txt
+TypeDoc
+TypeScript
 TZ
 tz
 tzinfo
