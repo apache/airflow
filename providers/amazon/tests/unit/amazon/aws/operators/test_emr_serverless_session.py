@@ -22,7 +22,10 @@ import pytest
 
 from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
-from airflow.providers.amazon.aws.operators.emr import EmrServerlessStartSessionOperator
+from airflow.providers.amazon.aws.operators.emr import (
+    EmrServerlessGetSessionEndpointOperator,
+    EmrServerlessStartSessionOperator,
+)
 from airflow.providers.amazon.aws.triggers.emr import EmrServerlessSessionTrigger
 
 APP_ID = "app-123"
@@ -135,3 +138,60 @@ class TestEmrServerlessStartSessionOperator:
         )
         with pytest.raises(RuntimeError):
             op.execute_complete({}, {"status": "failure", "session_id": SESSION_ID})
+
+
+class TestEmrServerlessGetSessionEndpointOperator:
+    RAW_RESPONSE = {
+        "applicationId": APP_ID,
+        "sessionId": SESSION_ID,
+        "endpoint": "https://sess-abc.s.emr-serverless-services.us-east-1.amazonaws.com",
+        "authToken": "tok",
+        "authTokenExpiresAt": None,
+    }
+
+    @pytest.fixture(autouse=True)
+    def _supported_botocore(self):
+        # The operator gates on botocore >= 1.43.0. Pin a supported version so these
+        # tests exercise the boto call regardless of the botocore installed in CI.
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
+            return_value=(1, 43, 0),
+        ):
+            yield
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_returns_transformed_endpoint(self, mock_conn):
+        mock_conn.get_session_endpoint.return_value = self.RAW_RESPONSE
+        op = EmrServerlessGetSessionEndpointOperator(
+            task_id="ep", application_id=APP_ID, session_id=SESSION_ID
+        )
+        out = op.execute({})
+        mock_conn.get_session_endpoint.assert_called_once_with(applicationId=APP_ID, sessionId=SESSION_ID)
+        assert out == {
+            "endpoint": "https://sess-abc.s.emr-serverless-services.us-east-1.amazonaws.com",
+            "auth_token": "tok",
+            "auth_token_expires_at": None,
+        }
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.mask_secret", autospec=True)
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_auth_token_is_masked(self, mock_conn, mask_secret_mock):
+        mock_conn.get_session_endpoint.return_value = self.RAW_RESPONSE
+        op = EmrServerlessGetSessionEndpointOperator(
+            task_id="ep", application_id=APP_ID, session_id=SESSION_ID
+        )
+        op.execute({})
+        mask_secret_mock.assert_called_once_with("tok")
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_gates_on_old_botocore(self, mock_conn):
+        op = EmrServerlessGetSessionEndpointOperator(
+            task_id="ep", application_id=APP_ID, session_id=SESSION_ID
+        )
+        with mock.patch(
+            "airflow.providers.amazon.aws.hooks.emr.get_botocore_version",
+            return_value=(1, 41, 0),
+        ):
+            with pytest.raises(RuntimeError, match="botocore >= 1.43.0"):
+                op.execute({})
+        mock_conn.get_session_endpoint.assert_not_called()
