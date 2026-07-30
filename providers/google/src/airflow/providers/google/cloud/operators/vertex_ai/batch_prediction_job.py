@@ -168,7 +168,6 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         "gcs_source",
         "bigquery_source",
         "gcs_destination_prefix",
-        "gcs_destination_prefix",
         "bigquery_destination_prefix",
     )
     operator_extra_links = (VertexAIBatchPredictionJobLink(),)
