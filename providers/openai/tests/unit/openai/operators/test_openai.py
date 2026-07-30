@@ -143,6 +143,7 @@ def _build_parsed_response(
     refusal: str | None = None,
     output_items: list[Any] | None = None,
 ) -> ParsedResponse:
+    content: list[ParsedResponseOutputText[BaseModel] | ResponseOutputRefusal]
     if output_items is not None:
         output = output_items
     elif output_parsed is not None:
