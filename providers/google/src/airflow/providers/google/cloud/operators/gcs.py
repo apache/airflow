@@ -40,11 +40,10 @@ from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
-from airflow.utils import timezone
 
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
