@@ -35,7 +35,7 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowOptiona
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    from airflow.providers.common.compat.sdk import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
