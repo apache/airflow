@@ -38,7 +38,6 @@ from http import HTTPStatus
 from itertools import chain
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
-from uuid import UUID
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
@@ -443,13 +442,25 @@ class KubernetesExecutor(BaseExecutor):
             )
             return True
 
+        # Bind the id as the mapped column's own Python type so the predicate stays sargable and
+        # uses the primary-key index. The column is a native ``Uuid`` on Airflow 3.2+ but a ``String``
+        # on older versions exercised by provider compatibility jobs, and SQLite rejects binding a
+        # ``UUID`` object against a string column.
+        try:
+            ti_id_python_type = TaskInstance.id.type.python_type
+        except NotImplementedError:
+            ti_id_python_type = str
+        ti_id = (
+            ti_id_python_type(str(workload_ti.id)) if ti_id_python_type is not str else str(workload_ti.id)
+        )
+
         ti = session.execute(
             select(
                 TaskInstance.id,
                 TaskInstance.state,
                 TaskInstance.try_number,
                 TaskInstance.queued_by_job_id,
-            ).where(TaskInstance.id == UUID(str(workload_ti.id)))
+            ).where(TaskInstance.id == ti_id)
         ).one_or_none()
         if ti is None:
             self.log.info(
