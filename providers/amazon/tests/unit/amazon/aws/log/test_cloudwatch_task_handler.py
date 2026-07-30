@@ -24,6 +24,7 @@ import textwrap
 import time
 from datetime import datetime as dt, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import ANY, call
 
@@ -612,7 +613,12 @@ class TestCloudwatchTaskHandler:
     # (`<task log stream>.trigger.<job id>.log`), which .stream()/._read_remote_logs()
     # must discover and merge in alongside the base stream -- CloudWatch has no glob()
     # equivalent to find them automatically the way the local-file reader does.
+    #
+    # CloudWatchRemoteLogIO.stream()/.get_trigger_stream_names() are exercised directly (not
+    # through the legacy _read_remote_logs() path) in a few of these -- same as
+    # TestCloudRemoteLogIO above, that only works on Airflow 3.
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
     def test_stream_includes_trigger_log_stream(self):
         current_time = int(time.time()) * 1000
         self._write_trigger_test_events(
@@ -629,6 +635,7 @@ class TestCloudwatchTaskHandler:
         assert any("trigger" in line for line in logs[1])
         assert any(trigger_stream in m for m in messages)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
     def test_stream_orders_multiple_trigger_streams_numerically_by_job_id(self):
         # job id 7 happened before job id 200 (a task deferred, resumed, and deferred
         # again). A plain lexicographic sort would put "200" before "7".
@@ -646,34 +653,37 @@ class TestCloudwatchTaskHandler:
         )
 
         self.ti.state = State.SUCCESS
-        names = self.cloudwatch_task_handler.io._get_trigger_stream_names(self.remote_log_stream)
+        names = self.cloudwatch_task_handler.io.get_trigger_stream_names(self.remote_log_stream)
 
         assert names == [
             f"{self.remote_log_stream}.trigger.7.log",
             f"{self.remote_log_stream}.trigger.200.log",
         ]
 
-    def test_stream_skips_trigger_discovery_while_deferred(self):
-        # While DEFERRED, the UI already tails trigger logs live from the triggerer over
-        # HTTP (FileTaskHandler._read_from_logs_server) -- discovery here would be both
-        # redundant and, over a long deferral, repeated on every poll.
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
+    def test_merge_trigger_logs_excludes_only_the_currently_live_stream_while_deferred(self):
+        # Re-deferral edge case: while DEFERRED, the *current* triggerer's stream is skipped
+        # (already tailed live over HTTP), but a stream from an *earlier* deferral of the same
+        # attempt must still come back -- otherwise those logs would be invisible until the
+        # task finishes, since the live HTTP tail only ever covers the current triggerer job.
         current_time = int(time.time()) * 1000
-        generate_log_events(
-            self.conn,
-            self.remote_log_group,
-            self.remote_log_stream,
-            [{"timestamp": current_time, "message": "base"}],
-        )
         self._write_trigger_test_events(
             f"{self.remote_log_stream}.trigger.1.log",
-            [{"timestamp": current_time, "message": "live trigger log"}],
+            [{"timestamp": current_time, "message": "first deferral (finished)"}],
+        )
+        self._write_trigger_test_events(
+            f"{self.remote_log_stream}.trigger.2.log",
+            [{"timestamp": current_time, "message": "second deferral (currently live)"}],
         )
 
-        self.ti.state = State.DEFERRED
-        messages, logs = self.cloudwatch_task_handler.io.stream(self.remote_log_stream, self.ti)
+        fake_ti = SimpleNamespace(state=State.DEFERRED, triggerer_job=SimpleNamespace(id=2))
+        messages, results = self.cloudwatch_task_handler.io.merge_trigger_logs(
+            self.remote_log_stream, fake_ti, lambda name: name
+        )
 
-        assert len(logs) == 1, "trigger-stream discovery must be skipped while DEFERRED"
+        assert results == [f"{self.remote_log_stream}.trigger.1.log"]
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
     def test_get_trigger_stream_names_empty_when_none_exist(self):
         current_time = int(time.time()) * 1000
         generate_log_events(
@@ -682,8 +692,9 @@ class TestCloudwatchTaskHandler:
             self.remote_log_stream,
             [{"timestamp": current_time, "message": "base"}],
         )
-        assert self.cloudwatch_task_handler.io._get_trigger_stream_names(self.remote_log_stream) == []
+        assert self.cloudwatch_task_handler.io.get_trigger_stream_names(self.remote_log_stream) == []
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
     def test_stream_tolerates_trigger_discovery_failure(self):
         # A DescribeLogStreams failure (e.g. a permissions issue) must not take down the
         # base stream read -- it should be reported as an extra message, not an exception.
@@ -722,25 +733,17 @@ class TestCloudwatchTaskHandler:
         # can't contain colons); the discovery prefix must match that, not the raw path.
         mock_describe.return_value = []
         raw_path = "dag_id=a/run_id=scheduled__2024-01-01T00:00:00+00:00/task_id=t/attempt=1.log"
-        self.cloudwatch_task_handler.io._get_trigger_stream_names(raw_path)
+        self.cloudwatch_task_handler.io.get_trigger_stream_names(raw_path)
         mock_describe.assert_called_once_with(
             log_group=self.remote_log_group,
             log_stream_name_prefix=f"{raw_path.replace(':', '_')}.trigger.",
         )
 
-    @pytest.mark.parametrize(
-        ("stream_names", "expected_error_code"),
-        [
-            pytest.param([], "ResourceNotFoundException", id="missing_log_group_returns_empty"),
-        ],
-    )
-    def test_describe_log_streams_missing_log_group_returns_empty(self, stream_names, expected_error_code):
+    def test_describe_log_streams_missing_log_group_returns_empty(self):
         hook = AwsLogsHook(aws_conn_id="aws_default", region_name=self.region_name)
         # No log group has been created in this moto session for this stream, so AWS
         # returns ResourceNotFoundException -- must come back as [], not raise.
-        assert (
-            hook.describe_log_streams(log_group="does-not-exist", log_stream_name_prefix="x") == stream_names
-        )
+        assert hook.describe_log_streams(log_group="does-not-exist", log_stream_name_prefix="x") == []
 
     def test_describe_log_streams_paginates(self):
         hook = AwsLogsHook(aws_conn_id="aws_default", region_name=self.region_name)

@@ -24,11 +24,11 @@ import json
 import logging
 import os
 import shutil
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
 import attrs
@@ -41,6 +41,8 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+
+T = TypeVar("T")
 
 if TYPE_CHECKING:
     import structlog.typing
@@ -272,41 +274,18 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         except Exception as e:
             messages.append(str(e))
 
-        # A deferred task's triggerer logs are stored under a *separate* stream
-        # (`<task log stream>.trigger.<job id>.log`) rather than the task's own stream --
-        # see FileTaskHandler.add_triggerer_suffix / TriggerLoggingFactory. The local-file
-        # reader picks these up for free via `glob(worker_log_path.name + "*")`
-        # (FileTaskHandler._read_from_local); CloudWatch has no glob equivalent, so they
-        # have to be discovered explicitly via a ListLogStreams-style prefix scan.
-        #
-        # Skip this while the task is actively DEFERRED: the UI already tails those logs
-        # live from the triggerer over HTTP in that state (FileTaskHandler
-        # ._read_from_logs_server), so the extra CloudWatch API call would be both redundant
-        # and, for a long-running deferral, repeated on every UI poll.
-        if getattr(ti, "state", None) != TaskInstanceState.DEFERRED:
-            try:
-                trigger_stream_names = self._get_trigger_stream_names(relative_path)
-            except Exception as e:
-                messages.append(f"Could not list trigger log streams for {relative_path}: {e}")
-                trigger_stream_names = []
+        def _read_trigger_stream(name: str) -> RawLogStream:
+            return (
+                self._parse_log_event_as_dumped_json(event) for event in self.get_cloudwatch_logs(name, ti)
+            )
 
-            for trigger_stream_name in trigger_stream_names:
-                messages.append(
-                    f"Reading remote log from Cloudwatch log_group: {self.log_group} "
-                    f"log_stream: {trigger_stream_name}"
-                )
-                try:
-                    trigger_gen: RawLogStream = (
-                        self._parse_log_event_as_dumped_json(event)
-                        for event in self.get_cloudwatch_logs(trigger_stream_name, ti)
-                    )
-                    logs.append(trigger_gen)
-                except Exception as e:
-                    messages.append(str(e))
+        extra_messages, extra_logs = self.merge_trigger_logs(relative_path, ti, _read_trigger_stream)
+        messages.extend(extra_messages)
+        logs.extend(extra_logs)
 
         return messages, logs
 
-    def _get_trigger_stream_names(self, relative_path: str) -> list[str]:
+    def get_trigger_stream_names(self, relative_path: str) -> list[str]:
         """
         Return the names of any trigger log streams associated with ``relative_path``.
 
@@ -329,6 +308,63 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             return (1, name)
 
         return sorted(names, key=_sort_key)
+
+    def merge_trigger_logs(
+        self,
+        relative_path: str,
+        ti: RuntimeTI,
+        read_stream: Callable[[str], T],
+    ) -> tuple[list[str], list[T]]:
+        """
+        Discover trigger log streams for ``relative_path`` and read each with ``read_stream``.
+
+        Shared by :meth:`stream` and the legacy :meth:`CloudwatchTaskHandler._read_remote_logs`
+        so both read/format trigger-log content in their own way (raw JSON-line generators vs.
+        joined strings) while sharing the discovery/ordering/exclusion logic. See :meth:`stream`
+        for why this lookup exists at all -- CloudWatch has no glob() equivalent to find trigger
+        streams the way the local-file reader does.
+
+        While the task instance is actively DEFERRED, the stream for the *currently active*
+        triggerer job is excluded: the UI already tails that one live from the triggerer over
+        HTTP (``FileTaskHandler._read_from_logs_server``), so re-reading it here would just be
+        redundant, and on every UI poll during a long-running deferral. Streams from any
+        *earlier* deferral of the same attempt (a task deferred, resumed, and deferred again)
+        are still included -- the live HTTP tail only ever covers the current triggerer job, so
+        without this those earlier logs would otherwise be invisible while re-deferred.
+
+        :param relative_path: The task's own (base) log stream name.
+        :param ti: The task instance being read for.
+        :param read_stream: Called with each trigger stream's name; return its content in
+            whatever form the caller needs (e.g. a generator of parsed lines, or a joined str).
+        :return: (extra messages to append, one result per successfully-read trigger stream).
+        """
+        messages: list[str] = []
+        results: list[T] = []
+        try:
+            trigger_stream_names = self.get_trigger_stream_names(relative_path)
+        except Exception as e:
+            messages.append(f"Could not list trigger log streams for {relative_path}: {e}")
+            return messages, results
+
+        if getattr(ti, "state", None) == TaskInstanceState.DEFERRED:
+            current_job_id = getattr(getattr(ti, "triggerer_job", None), "id", None)
+            if current_job_id is not None:
+                live_suffix = f".trigger.{current_job_id}.log"
+                trigger_stream_names = [
+                    name for name in trigger_stream_names if not name.endswith(live_suffix)
+                ]
+
+        for trigger_stream_name in trigger_stream_names:
+            messages.append(
+                f"Reading remote log from Cloudwatch log_group: {self.log_group} "
+                f"log_stream: {trigger_stream_name}"
+            )
+            try:
+                results.append(read_stream(trigger_stream_name))
+            except Exception as e:
+                messages.append(str(e))
+
+        return messages, results
 
     def get_cloudwatch_logs(
         self, stream_name: str, task_instance: RuntimeTI
@@ -485,25 +521,15 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             messages.append(str(e))
 
-        # See CloudWatchRemoteLogIO.stream() for why deferred-task trigger logs need a
-        # separate lookup -- the same gap applies to this (legacy) handler class.
-        if getattr(task_instance, "state", None) != TaskInstanceState.DEFERRED:
-            try:
-                trigger_stream_names = self.io._get_trigger_stream_names(stream_name)
-            except Exception as e:
-                messages.append(f"Could not list trigger log streams for {stream_name}: {e}")
-                trigger_stream_names = []
+        def _read_trigger_stream(name: str) -> str:
+            events = self.io.get_cloudwatch_logs(name, task_instance)
+            return "\n".join(self._event_to_str(event) for event in events)
 
-            for trigger_stream_name in trigger_stream_names:
-                messages.append(
-                    f"Reading remote log from Cloudwatch log_group: {self.io.log_group} "
-                    f"log_stream: {trigger_stream_name}"
-                )
-                try:
-                    events = self.io.get_cloudwatch_logs(trigger_stream_name, task_instance)
-                    logs.append("\n".join(self._event_to_str(event) for event in events))
-                except Exception as e:
-                    messages.append(str(e))
+        extra_messages, extra_logs = self.io.merge_trigger_logs(
+            stream_name, task_instance, _read_trigger_stream
+        )
+        messages.extend(extra_messages)
+        logs.extend(extra_logs)
 
         return messages, logs
 
