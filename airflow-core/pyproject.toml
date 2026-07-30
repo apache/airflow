@@ -85,7 +85,7 @@ dependencies = [
     "cadwyn>=6.1.1",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
-    "croniter>=6.1.0",
+    "croniter>=6.2.2",
     # Cryptography could be upgraded to 46.0.5, but it does not have overlap with earlier versions
     # Of Airflow which were limited to <46.0.0 also earlier provider versions will not be compatible with newer
     # airflow if we do not have overlapping version. We could set minimum version to 46.0.0 when we drop

@@ -2079,7 +2079,7 @@ requires-dist = [
     { name = "cadwyn", specifier = ">=6.1.1" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "cron-descriptor", specifier = ">=1.2.24" },
-    { name = "croniter", specifier = ">=6.1.0" },
+    { name = "croniter", specifier = ">=6.2.2" },
     { name = "cryptography", specifier = ">=44.0.3" },
     { name = "deprecated", specifier = ">=1.2.13" },
     { name = "dill", specifier = ">=0.2.2" },
