@@ -132,6 +132,8 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         except ImportError:
             self._is_match_glob_supported = False
         self.match_glob = match_glob
+        if not self._is_match_glob_supported and match_glob is not None:
+            raise ValueError("The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'.")
 
     def _transform_file_path(self, file_path: str) -> str:
         """
@@ -177,8 +179,6 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         }
         if self._is_match_glob_supported:
             list_kwargs["match_glob"] = self.match_glob
-        elif self.match_glob:
-            raise ValueError("The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'.")
 
         gcs_files = gcs_hook.list(**list_kwargs)  # type: ignore[call-arg]
 

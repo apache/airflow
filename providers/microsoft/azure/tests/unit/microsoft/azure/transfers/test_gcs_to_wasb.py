@@ -52,14 +52,14 @@ class TestGCSToAzureBlobStorageOperator:
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
     def test_match_glob_requires_recent_google_provider(self, mock_gcs_hook, mock_wasb_hook):
-        op = GCSToAzureBlobStorageOperator(
-            task_id=TASK_ID,
-            gcs_bucket=GCS_BUCKET,
-            container_name=CONTAINER,
-            match_glob="**/*.csv",
-        )
         with pytest.raises(ValueError, match="match_glob"):
-            op.execute(context=None)
+            GCSToAzureBlobStorageOperator(
+                task_id=TASK_ID,
+                gcs_bucket=GCS_BUCKET,
+                container_name=CONTAINER,
+                match_glob="**/*.csv",
+            )
+        mock_gcs_hook.return_value.list.assert_not_called()
 
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.WasbHook")
     @mock.patch("airflow.providers.microsoft.azure.transfers.gcs_to_wasb.GCSHook")
