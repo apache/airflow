@@ -177,6 +177,7 @@ def get_dag_deadline_alerts(
         select(SerializedDagModel)
         .where(SerializedDagModel.dag_id == dag_id)
         .order_by(SerializedDagModel.id.desc())
+        .limit(1)
     )
 
     if not serialized_dag:

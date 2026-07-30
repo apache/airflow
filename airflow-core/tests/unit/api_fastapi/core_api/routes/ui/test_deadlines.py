@@ -17,10 +17,14 @@
 
 from __future__ import annotations
 
+from unittest.mock import Mock
+
 import pytest
+from fastapi import HTTPException
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.core_api.routes.ui.deadlines import get_dag_deadline_alerts
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
@@ -472,6 +476,16 @@ class TestGetDeadlines:
 
 class TestGetDagDeadlineAlerts:
     """Tests for GET /dags/{dag_id}/deadlineAlerts."""
+
+    def test_limits_serialized_dag_lookup(self):
+        session = Mock()
+        session.scalar.return_value = None
+
+        with pytest.raises(HTTPException, match=f"Dag with id {DAG_ID} was not found"):
+            get_dag_deadline_alerts(DAG_ID, session, limit=100, offset=0, order_by=Mock())
+
+        statement = session.scalar.call_args.args[0]
+        assert "LIMIT 1" in str(statement.compile(compile_kwargs={"literal_binds": True}))
 
     def test_returns_deadline_alerts_for_dag(self, test_client):
         """Returns all deadline alerts defined on the DAG."""
