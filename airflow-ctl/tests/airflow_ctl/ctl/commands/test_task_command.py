@@ -76,6 +76,22 @@ class TestStatesForDagRun:
             pool="default_pool",
             pool_slots=1,
             executor_config="{}",
+            duration=None,
+            hostname=None,
+            unixname=None,
+            queue=None,
+            priority_weight=None,
+            operator=None,
+            operator_name=None,
+            queued_when=None,
+            scheduled_when=None,
+            pid=None,
+            executor=None,
+            note=None,
+            rendered_map_index=None,
+            trigger=None,
+            triggerer_job=None,
+            dag_version=None,
         )
 
     def _make_api_client(self, task_instances: list[TaskInstanceResponse]) -> mock.MagicMock:

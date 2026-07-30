@@ -321,8 +321,14 @@ class TestAssetsOperations:
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
                 dag_display_name=dag_id,
+                bundle_url=None,
             )
         ],
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
     )
 
     asset_create_event_body = CreateAssetEventsBody(asset_id=asset_id, extra=None)
@@ -676,12 +682,14 @@ class TestConnectionsOperations:
         connection_id=connection_id,
         conn_type=conn_type,
         host=host,
-        schema_=schema_,
+        schema=schema_,
         login=login,
         password=password,
         port=port,
         extra=extra,
-    )
+        description=None,
+        team_name=None,
+    )  # type: ignore[call-arg]
 
     connections_response = ConnectionCollectionResponse(
         connections=[connection_response],
@@ -707,7 +715,9 @@ class TestConnectionsOperations:
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.get(self.connection_id)
@@ -716,7 +726,9 @@ class TestConnectionsOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(200, json=json.loads(self.connections_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connections_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.list()
@@ -725,7 +737,9 @@ class TestConnectionsOperations:
     def test_create(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(connection=self.connection)
@@ -747,7 +761,9 @@ class TestConnectionsOperations:
                 "schema": self.schema_,
             }
             assert "schema_" not in request_body
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.create(connection=connection)
@@ -793,7 +809,9 @@ class TestConnectionsOperations:
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.delete(self.connection_id)
@@ -802,7 +820,9 @@ class TestConnectionsOperations:
     def test_update(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/connections/{self.connection_id}"
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.update(connection=self.connection)
@@ -831,7 +851,9 @@ class TestConnectionsOperations:
                 "team_name": None,
             }
             assert "schema_" not in request_body
-            return httpx.Response(200, json=json.loads(self.connection_response.model_dump_json()))
+            return httpx.Response(
+                200, json=json.loads(self.connection_response.model_dump_json(by_alias=True))
+            )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.connections.update(connection=connection)
@@ -916,6 +938,9 @@ class TestDagOperations:
         file_token="file_token",
         bundle_name="bundle_name",
         is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
     )
 
     dag_details_response = DAGDetailsResponse(
@@ -959,6 +984,11 @@ class TestDagOperations:
         concurrency=1,
         bundle_name="bundle_name",
         is_stale=False,
+        last_parse_duration=None,
+        bundle_version=None,
+        allowed_run_types=None,
+        default_args=None,
+        latest_dag_version=None,
     )
 
     dag_tag_collection_response = DAGTagCollectionResponse(
@@ -1003,6 +1033,7 @@ class TestDagOperations:
         bundle_version="1",
         created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
         dag_display_name=dag_id,
+        bundle_url=None,
     )
 
     dag_version_collection_response = DAGVersionCollectionResponse(
@@ -1028,10 +1059,7 @@ class TestDagOperations:
     )
 
     # DagRun related
-    trigger_dag_run = TriggerDAGRunPostBody(
-        conf=None,
-        note=None,
-    )
+    trigger_dag_run = TriggerDAGRunPostBody(conf=None, note=None, logical_date=None)
 
     dag_id = "dag_id"
     dag_run_id = "dag_run_id"
@@ -1061,8 +1089,14 @@ class TestDagOperations:
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
                 dag_display_name=dag_id,
+                bundle_url=None,
             )
         ],
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
     )
 
     def test_get(self):
@@ -1218,8 +1252,14 @@ class TestDagRunOperations:
                 bundle_version="1",
                 created_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
                 dag_display_name=dag_id,
+                bundle_url=None,
             )
         ],
+        duration=None,
+        triggering_user_name=None,
+        bundle_version=None,
+        partition_key=None,
+        partition_date=None,
     )
 
     dag_run_collection_response = DAGRunCollectionResponse(
@@ -1565,6 +1605,7 @@ class TestPoolsOperations:
         scheduled_slots=1,
         open_slots=1,
         deferred_slots=1,
+        team_name=None,
     )
     pool_response_collection = PoolCollectionResponse(
         pools=[pool_response],
@@ -1624,9 +1665,7 @@ class TestPoolsOperations:
 
 class TestProvidersOperations:
     provider_response = ProviderResponse(
-        package_name="package_name",
-        version="version",
-        description="description",
+        package_name="package_name", version="version", description="description", documentation_url=None
     )
     provider_collection_response = ProviderCollectionResponse(
         providers=[provider_response],
@@ -1659,6 +1698,25 @@ class TestTaskInstancesOperations:
         pool="default_pool",
         pool_slots=1,
         executor_config="{}",
+        logical_date=None,
+        start_date=None,
+        end_date=None,
+        duration=None,
+        hostname=None,
+        unixname=None,
+        queue=None,
+        priority_weight=None,
+        operator=None,
+        operator_name=None,
+        queued_when=None,
+        scheduled_when=None,
+        pid=None,
+        executor=None,
+        note=None,
+        rendered_map_index=None,
+        trigger=None,
+        triggerer_job=None,
+        dag_version=None,
     )
     task_instance_collection_response = TaskInstanceCollectionResponse(
         task_instances=[task_instance_response],
@@ -1698,6 +1756,26 @@ class TestTasksOperations:
         pool="default_pool",
         pool_slots=1,
         executor_config="{}",
+        logical_date=None,
+        start_date=None,
+        end_date=None,
+        duration=None,
+        state=None,
+        hostname=None,
+        unixname=None,
+        queue=None,
+        priority_weight=None,
+        operator=None,
+        operator_name=None,
+        queued_when=None,
+        scheduled_when=None,
+        pid=None,
+        executor=None,
+        note=None,
+        rendered_map_index=None,
+        trigger=None,
+        triggerer_job=None,
+        dag_version=None,
     )
     task_instance_collection_response = TaskInstanceCollectionResponse(
         task_instances=[task_instance_response],
@@ -1732,10 +1810,7 @@ class TestVariablesOperations:
         }
     )
     variable_response = VariableResponse(
-        key=key,
-        value=value,
-        description=description,
-        is_encrypted=False,
+        key=key, value=value, description=description, is_encrypted=False, team_name=None
     )
     variable_collection_response = VariableCollectionResponse(
         variables=[variable_response],
