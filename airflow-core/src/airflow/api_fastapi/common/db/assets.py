@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import subqueryload
+from sqlalchemy.orm import selectinload
 
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 
@@ -45,10 +45,10 @@ def generate_assets_with_last_event_query() -> Select:
         .outerjoin(max_asset_event_id_query, AssetModel.id == max_asset_event_id_query.c.asset_id)
         .outerjoin(AssetEvent, AssetEvent.id == max_asset_event_id_query.c.max_asset_event_id)
         .options(
-            subqueryload(AssetModel.scheduled_dags),
-            subqueryload(AssetModel.producing_tasks),
-            subqueryload(AssetModel.consuming_tasks),
-            subqueryload(AssetModel.aliases),
-            subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
+            selectinload(AssetModel.scheduled_dags),
+            selectinload(AssetModel.producing_tasks),
+            selectinload(AssetModel.consuming_tasks),
+            selectinload(AssetModel.aliases),
+            selectinload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
     )

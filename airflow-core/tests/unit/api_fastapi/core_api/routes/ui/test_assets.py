@@ -31,9 +31,11 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
+    AssetWatcherModel,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
 )
+from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.temporal import StartOfHourMapper
 from airflow.partition_mappers.window import HourWindow
@@ -746,12 +748,23 @@ class TestGetAssetsUi:
 
     def test_query_count(self, test_client, session):
         """The asset relationships are eager-loaded, so the query count stays fixed regardless of
-        how many assets are returned (a lazy-loading regression would issue queries per asset)."""
-        for i in range(5):
-            asset = AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset")
-            session.add(asset)
-            session.add(AssetActive.for_asset(asset))
+        how many assets are returned (a lazy-loading regression would issue queries per asset).
+
+        At least two assets carry a watcher (with a trigger) and an alias so the count guards the
+        ``selectinload`` of every relationship, including the nested ``watchers -> trigger`` join.
+        """
+        assets = [AssetModel(name=f"asset{i}", uri=f"s3://bucket/asset{i}", group="asset") for i in range(5)]
+        session.add_all(assets)
+        session.add_all(AssetActive.for_asset(asset) for asset in assets)
+        session.flush()
+
+        for i in range(2):
+            trigger = Trigger(classpath=f"airflow.triggers.testing.TestTrigger{i}", kwargs={})
+            session.add(trigger)
+            session.flush()
+            assets[i].watchers.append(AssetWatcherModel(name=f"watcher{i}", trigger_id=trigger.id))
+            assets[i].aliases.append(AssetAliasModel(name=f"alias{i}", group=""))
         session.commit()
 
-        with assert_queries_count(7):
+        with assert_queries_count(8):
             assert test_client.get("/assets").status_code == 200
