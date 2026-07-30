@@ -280,9 +280,6 @@ class SSHRemoteJobOperator(BaseOperator):
         )
         self.log.info("Generated job ID: %s", self._job_id)
 
-        # Reuse a single connection for OS detection (when 'auto') and submission so the
-        # operator opens one SSH handshake per task instead of two. Under a large fan-out
-        # this halves the connection burst that triggers sshd MaxStartups throttling.
         self.log.info("Connecting to %s", self.ssh_hook.remote_host)
         try:
             ssh_conn = self.ssh_hook.get_conn()
@@ -452,9 +449,9 @@ class SSHRemoteJobOperator(BaseOperator):
         """
         self.log.info("Cleaning up remote job directory: %s", job_dir)
         if remote_os == "posix":
-            cleanup_cmd = build_posix_cleanup_command(job_dir)
+            cleanup_cmd = build_posix_cleanup_command(job_dir, base_dir=self.remote_base_dir)
         else:
-            cleanup_cmd = build_windows_cleanup_command(job_dir)
+            cleanup_cmd = build_windows_cleanup_command(job_dir, base_dir=self.remote_base_dir)
 
         last_error: Exception | None = None
         for attempt in range(1, self.cleanup_retries + 1):

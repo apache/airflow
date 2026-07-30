@@ -30,22 +30,27 @@ POSIX_DEFAULT_BASE_DIR = "/tmp/airflow-ssh-jobs"
 WINDOWS_DEFAULT_BASE_DIR = "$env:TEMP\\airflow-ssh-jobs"
 
 
-def _validate_job_dir(job_dir: str, remote_os: Literal["posix", "windows"]) -> None:
+def _validate_job_dir(job_dir: str, remote_os: Literal["posix", "windows"], base_dir: str | None = None) -> None:
     """
     Validate that job_dir is under the expected base directory.
 
     :param job_dir: The job directory path to validate
     :param remote_os: Operating system type
+    :param base_dir: Expected base directory. Defaults to the hardcoded default.
     :raises ValueError: If job_dir doesn't start with the expected base path
     """
-    if remote_os == "posix":
-        expected_prefix = POSIX_DEFAULT_BASE_DIR + "/"
-    else:
-        expected_prefix = WINDOWS_DEFAULT_BASE_DIR + "\\"
+    if base_dir is None:
+        if remote_os == "posix":
+            base_dir = POSIX_DEFAULT_BASE_DIR
+        else:
+            base_dir = WINDOWS_DEFAULT_BASE_DIR
+
+    sep = "/" if remote_os == "posix" else "\\"
+    expected_prefix = base_dir + sep
 
     if not job_dir.startswith(expected_prefix):
         raise ValueError(
-            f"Invalid job directory '{job_dir}'. Expected path under '{expected_prefix[:-1]}' for safety."
+            f"Invalid job directory '{job_dir}'. Expected path under '{base_dir}' for safety."
         )
 
 
@@ -183,23 +188,6 @@ def build_posix_wrapper_command(
 
     escaped_command = command.replace("'", "'\"'\"'")
 
-    # Launch detached under ``setsid`` so the job is its own session/process-group
-    # leader, letting cancellation signal the whole job tree instead of orphaning the
-    # user command. We do NOT rely on the launcher's ``$!`` to identify that group:
-    # ``setsid(1)`` forks internally when the process about to exec into it is already
-    # a process-group leader (``setsid(2)`` cannot create a new session from a group
-    # leader), which happens whenever job control is on in the launching shell. When
-    # it forks, ``$!`` is the short-lived setsid parent, not the job's real PGID, and
-    # cancellation signals a dead group. Instead the job script reports its OWN pid:
-    # immediately after ``setsid(2)`` POSIX guarantees ``pid == pgid == sid`` for the
-    # caller, and that identity survives the following exec, so ``$$`` inside the job
-    # script is always the true PGID regardless of whether setsid forked to get there.
-    # The pid file is read only when cancelling (:func:`build_posix_kill_command`),
-    # which happens long after submission, so the job's asynchronous write lands well
-    # before any reader and the launcher does not wait for it (recording the launcher's
-    # ``$!`` would just reintroduce the wrong-pid bug on the fork path). Without
-    # ``setsid`` (some macOS/BSD hosts) ``$$`` is just the job's own PID and
-    # cancellation degrades to the previous single-process behaviour.
     wrapper = f"""set -euo pipefail
 job_dir='{paths.job_dir}'
 log_file='{paths.log_file}'
@@ -213,20 +201,16 @@ mkdir -p "$job_dir"
 
 job_script='
 set +e
-echo -n "$$" > "'"$pid_file"'"
-export LOG_FILE="'"$log_file"'"
-export STATUS_FILE="'"$status_file"'"
-{env_exports}{escaped_command} >>"'"$log_file"'" 2>&1
+echo -n "$$" > "'"'"'"$pid_file"'"'"'"
+export LOG_FILE="'"'"'"$log_file"'"'"'"
+export STATUS_FILE="'"'"'"$status_file"'"'"'"
+{env_exports}{escaped_command} >>"'"'"'"$log_file"'"'"'" 2>&1
 ec=$?
-echo -n "$ec" > "'"$exit_code_tmp"'"
-mv "'"$exit_code_tmp"'" "'"$exit_code_file"'"
+echo -n "$ec" > "'"'"'"$exit_code_tmp"'"'"'"
+mv "'"'"'"$exit_code_tmp"'"'"'" "'"'"'"$exit_code_file"'"'"'"
 exit 0
 '
 
-# Redirect stdin from /dev/null too, not just stdout/stderr: a fresh setsid session
-# leader that keeps the launching terminal on any fd re-acquires it as its controlling
-# terminal, so a hangup (SSH session with a PTY dropping) would SIGHUP the detached job
-# and defeat the whole point of running it in its own session.
 if command -v setsid >/dev/null 2>&1; then
   setsid bash -c "$job_script" </dev/null >/dev/null 2>&1 &
 else
@@ -314,7 +298,6 @@ def build_posix_log_tail_command(log_file: str, offset: int, max_bytes: int) -> 
     :param max_bytes: Maximum bytes to read
     :return: Shell command that outputs the log chunk
     """
-    # tail -c +N is 1-indexed, so offset 0 means start at byte 1
     tail_offset = offset + 1
     return f"tail -c +{tail_offset} '{log_file}' 2>/dev/null | head -c {max_bytes} || true"
 
@@ -408,18 +391,6 @@ def build_posix_kill_command(pid_file: str) -> str:
     """
     Build a POSIX command to kill the remote process.
 
-    Signals the whole process group first (the negative-PID form ``kill -<pgid>``) so
-    the user command and anything it spawned are terminated together, not just the
-    wrapper. The recorded PID is the job's session/group leader when it was launched
-    under ``setsid`` (see :func:`build_posix_wrapper_command`); if the job is not a
-    group leader (host without ``setsid``), the group signal is a no-op and we fall
-    back to killing the single PID, matching the previous behaviour.
-
-    The pid value is validated as an integer ``> 1`` before being negated: a corrupt
-    or partial pid of ``0``/``1`` would otherwise turn ``kill -<pid>`` into a broadcast
-    to every process the SSH account can signal. Best-effort: the command never fails
-    the SSH call.
-
     :param pid_file: Path to the PID file
     :return: Shell command to kill the process
     """
@@ -436,12 +407,6 @@ def build_windows_kill_command(pid_file: str) -> str:
     """
     Build a PowerShell command to kill the remote process.
 
-    Uses ``taskkill /T`` to terminate the recorded process *and its child
-    processes* (the Windows equivalent of a process-group kill), so the user
-    command launched by the detached wrapper is not left orphaned. ``$procId`` is
-    used instead of ``$pid`` because ``$PID`` is a read-only automatic variable in
-    PowerShell.
-
     :param pid_file: Path to the PID file
     :return: PowerShell command to kill the process
     """
@@ -456,27 +421,29 @@ if (Test-Path $path) {{
     return f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded_script}"
 
 
-def build_posix_cleanup_command(job_dir: str) -> str:
+def build_posix_cleanup_command(job_dir: str, base_dir: str | None = None) -> str:
     """
     Build a POSIX command to clean up the job directory.
 
     :param job_dir: Path to the job directory
+    :param base_dir: Expected base directory for validation. Defaults to the hardcoded default.
     :return: Shell command to remove the directory
     :raises ValueError: If job_dir is not under the expected base directory
     """
-    _validate_job_dir(job_dir, "posix")
+    _validate_job_dir(job_dir, "posix", base_dir)
     return f"rm -rf '{job_dir}'"
 
 
-def build_windows_cleanup_command(job_dir: str) -> str:
+def build_windows_cleanup_command(job_dir: str, base_dir: str | None = None) -> str:
     """
     Build a PowerShell command to clean up the job directory.
 
     :param job_dir: Path to the job directory
+    :param base_dir: Expected base directory for validation. Defaults to the hardcoded default.
     :return: PowerShell command to remove the directory
     :raises ValueError: If job_dir is not under the expected base directory
     """
-    _validate_job_dir(job_dir, "windows")
+    _validate_job_dir(job_dir, "windows", base_dir)
     escaped_path = job_dir.replace("'", "''")
     script = f"Remove-Item -Recurse -Force -Path '{escaped_path}' -ErrorAction SilentlyContinue"
     script_bytes = script.encode("utf-16-le")
