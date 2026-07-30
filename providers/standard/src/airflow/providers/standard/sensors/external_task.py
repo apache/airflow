@@ -204,7 +204,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            kwargs["poke_interval"] = poll_interval
+            kwargs.setdefault("poke_interval", poll_interval)
 
         super().__init__(**kwargs)
 
