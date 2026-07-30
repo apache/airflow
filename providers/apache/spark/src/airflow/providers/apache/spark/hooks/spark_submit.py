@@ -513,13 +513,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Assume that spark-submit is present in the path to the executing user
         return [self._connection["spark_binary"]]
 
-    # Bounds used by ``_mask_cmd`` below to keep the masking regex O(n) instead of
-    # O(n^2)/catastrophic. They are generous enough for any realistic CLI flag
-    # name or secret value while capping the amount of backtracking the regex
-    # engine can ever do on adversarial input (see GHSA / issue #70676).
+    # Bounds for _mask_cmd's regex: keep matching close to O(n) instead of
+    # O(n^2) on long input, while staying generous for any realistic flag
+    # name or secret value.
     _MASK_CMD_KEY_BOUND = 100
     _MASK_CMD_VALUE_BOUND = 1024
-
 
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
