@@ -362,6 +362,22 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             )
 
 
+def _disruption_target_reason(pod_status: k8s.V1PodStatus) -> str | None:
+    """
+    Return the ``DisruptionTarget`` condition's reason, which outlives the pod's phase.
+
+    Gated on status "True" like Kubernetes' own podFailurePolicy matcher, since the writers
+    update the condition in place and a stale reason can survive a flip to "False".
+    """
+    for condition in getattr(pod_status, "conditions", None) or []:
+        if (
+            getattr(condition, "type", None) == "DisruptionTarget"
+            and getattr(condition, "status", None) == "True"
+        ):
+            return getattr(condition, "reason", None)
+    return None
+
+
 def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None:
     """
     Collect detailed failure information from a failed pod.
@@ -385,6 +401,7 @@ def collect_pod_failure_details(pod: k8s.V1Pod, logger) -> FailureDetails | None
             "pod_status": getattr(pod.status, "phase", None),
             "pod_reason": getattr(pod.status, "reason", None),
             "pod_message": getattr(pod.status, "message", None),
+            "disruption_reason": _disruption_target_reason(pod.status),
         }
 
         # Check init containers first (they run before main containers)
@@ -434,7 +451,7 @@ POD_DELETED_REASON: str = "PodDeleted"
 #   NodeLost      pkg/controller/util/node/controller_utils.go#L108
 #
 # Matched against pod.status.reason and container reasons only, so condition reasons such as
-# DeletionByTaintManager do not belong here; they need pod.status.conditions.
+# DeletionByTaintManager belong in _DISRUPTION_TARGET_REASONS below, not here.
 _INFRA_FAILURE_REASONS: frozenset[str] = frozenset(
     {
         "Evicted",
@@ -443,6 +460,24 @@ _INFRA_FAILURE_REASONS: frozenset[str] = frozenset(
         "Terminated",
         "NodeLost",
         POD_DELETED_REASON,
+    }
+)
+
+# Reasons for the DisruptionTarget condition. The control plane sets it, then deletes the pod
+# without ever setting pod.status.reason, so the set above cannot see these. Verified live on
+# k8s v1.35.0: a node-drain taint eviction and a scheduler preemption both reach phase=Failed
+# with pod.status.reason empty and only "Error"/exit 143 on the container, and the condition is
+# still on that terminal object. Pinned to the same commit as above:
+#   PreemptionByScheduler   staging/src/k8s.io/api/core/v1/types.go#L3792
+#   TerminationByKubelet    staging/src/k8s.io/api/core/v1/types.go#L3788
+#   DeletionByTaintManager  pkg/controller/tainteviction/taint_eviction.go#L139
+#   DeletionByPodGC         pkg/controller/podgc/gc_controller.go#L257
+_DISRUPTION_TARGET_REASONS: frozenset[str] = frozenset(
+    {
+        "PreemptionByScheduler",
+        "TerminationByKubelet",
+        "DeletionByTaintManager",
+        "DeletionByPodGC",
     }
 )
 
@@ -464,6 +499,10 @@ def classify_pod_failure(
 
     pod_reason = failure_details.get("pod_reason")
     container_reason = failure_details.get("container_reason")
+    disruption_reason = failure_details.get("disruption_reason")
+
+    if disruption_reason in _DISRUPTION_TARGET_REASONS:
+        return TaskFailureKind.INFRA, disruption_reason
 
     if pod_reason in _INFRA_FAILURE_REASONS or container_reason in _INFRA_FAILURE_REASONS:
         failure_kind = TaskFailureKind.INFRA

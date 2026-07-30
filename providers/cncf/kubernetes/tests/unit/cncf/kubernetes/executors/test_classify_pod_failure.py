@@ -140,3 +140,94 @@ class TestClassifyPodFailure:
         # first read returns it, and clears it so a later event can't reuse stale context
         assert ex.get_task_failure_info(key) is classified
         assert ex.get_task_failure_info(key) is None
+
+
+class TestDisruptionTargetCondition:
+    """A control-plane disruption is only visible in the DisruptionTarget condition."""
+
+    @pytest.mark.parametrize(
+        "disruption_reason",
+        ["PreemptionByScheduler", "DeletionByTaintManager", "TerminationByKubelet", "DeletionByPodGC"],
+    )
+    def test_disruption_condition_is_infra(self, disruption_reason):
+        details = {
+            "pod_status": "Failed",
+            "pod_reason": None,
+            "container_reason": "Error",
+            "disruption_reason": disruption_reason,
+        }
+        failure_kind, infra_reason = classify_pod_failure(details)
+        assert failure_kind == "infra"
+        assert infra_reason == disruption_reason
+
+    def test_unrelated_condition_reason_stays_application(self):
+        details = {"pod_status": "Failed", "container_reason": "Error", "disruption_reason": "SomethingElse"}
+        failure_kind, _ = classify_pod_failure(details)
+        assert failure_kind == "application"
+
+    @pytest.mark.parametrize(
+        ("disruption_reason", "pod_name"),
+        [("DeletionByTaintManager", "aip97-victim"), ("PreemptionByScheduler", "aip97-victim2")],
+    )
+    def test_end_to_end_live_shape_is_infra(self, disruption_reason, pod_name):
+        # The exact object observed on a real k8s v1.35.0 cluster: a node-drain taint eviction
+        # and a scheduler preemption both land on phase=Failed with reason empty and the
+        # container reading only Error/143, so without the condition both look like an app crash.
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=pod_name, deletion_timestamp="2026-07-29T19:21:36Z"),
+            status=k8s.V1PodStatus(
+                phase="Failed",
+                reason=None,
+                conditions=[
+                    k8s.V1PodCondition(type="DisruptionTarget", status="True", reason=disruption_reason)
+                ],
+                container_statuses=[
+                    k8s.V1ContainerStatus(
+                        name="base",
+                        image="busybox:1.36",
+                        image_id="",
+                        ready=False,
+                        restart_count=0,
+                        state=k8s.V1ContainerState(
+                            terminated=k8s.V1ContainerStateTerminated(reason="Error", exit_code=143)
+                        ),
+                    )
+                ],
+            ),
+        )
+        details = collect_pod_failure_details(pod, logging.getLogger("test"))
+        assert details is not None
+        assert details["pod_reason"] is None
+        assert details["container_reason"] == "Error"
+        assert details["disruption_reason"] == disruption_reason
+
+        failure_kind, infra_reason = classify_pod_failure(details)
+        assert failure_kind == "infra"
+        assert infra_reason == disruption_reason
+
+    @pytest.mark.parametrize(
+        "conditions",
+        [
+            pytest.param(
+                [k8s.V1PodCondition(type="Ready", status="False", reason="DeletionByTaintManager")],
+                id="reason-on-a-different-condition-type",
+            ),
+            pytest.param(
+                [
+                    k8s.V1PodCondition(
+                        type="DisruptionTarget", status="False", reason="DeletionByTaintManager"
+                    )
+                ],
+                id="disruption-condition-no-longer-true",
+            ),
+        ],
+    )
+    def test_only_a_true_disruption_target_counts(self, conditions):
+        pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="aip97-negative"),
+            status=k8s.V1PodStatus(phase="Failed", reason=None, conditions=conditions),
+        )
+        details = collect_pod_failure_details(pod, logging.getLogger("test"))
+        assert details is not None
+        assert details["disruption_reason"] is None
+        assert classify_pod_failure(details)[0] != "infra"
