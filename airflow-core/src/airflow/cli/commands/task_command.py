@@ -291,6 +291,7 @@ def task_failed_deps(args) -> None:
         print("Task instance dependencies are all met.")
 
 
+@deprecated_for_airflowctl("airflowctl tasks state")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -308,6 +309,7 @@ def task_state(args) -> None:
     print(ti.state)
 
 
+@deprecated_for_airflowctl("airflowctl tasks list")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
