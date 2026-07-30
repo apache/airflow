@@ -59,7 +59,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_to_key,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
@@ -440,15 +440,15 @@ class KubernetesExecutor(BaseExecutor):
             )
             return True
 
-        ti = session.execute(
-            select(
-                TaskInstance.id,
-                TaskInstance.state,
-                TaskInstance.try_number,
-                TaskInstance.queued_by_job_id,
-                TaskInstance.external_executor_id,
-            ).where(TaskInstance.id == workload_ti.id)
-        ).one_or_none()
+        columns = [
+            TaskInstance.id,
+            TaskInstance.state,
+            TaskInstance.try_number,
+            TaskInstance.queued_by_job_id,
+        ]
+        if AIRFLOW_V_3_2_PLUS:
+            columns.append(TaskInstance.external_executor_id)
+        ti = session.execute(select(*columns).where(TaskInstance.id == workload_ti.id)).one_or_none()
         if ti is None:
             self.log.info(
                 "Dropping stale Kubernetes workload for %s because task instance id %s no longer exists",
@@ -457,27 +457,28 @@ class KubernetesExecutor(BaseExecutor):
             )
             return False
 
-        _, state, try_number, queued_by_job_id, external_executor_id = ti
+        _, state, try_number, queued_by_job_id, *optional_values = ti
+        external_executor_id = optional_values[0] if optional_values else None
         if (
             state == TaskInstanceState.QUEUED
             and try_number == workload_ti.try_number
             and queued_by_job_id == scheduler_job_id
-            and (launch_token is None or external_executor_id == launch_token)
+            and (not AIRFLOW_V_3_2_PLUS or launch_token is None or external_executor_id == launch_token)
         ):
             return True
 
         self.log.info(
             "Dropping stale Kubernetes workload for %s because current task instance launch does not "
-            "match queued workload: ti_id=%s state=%s try_number=%s queued_by_job_id=%s "
-            "external_executor_id=%s workload_try_number=%s workload_external_executor_id=%s "
-            "scheduler_job_id=%s",
+            "match queued workload: "
+            "ti_id=%s state=%s try_number=%s queued_by_job_id=%s workload_try_number=%s "
+            "external_executor_id=%s workload_external_executor_id=%s scheduler_job_id=%s",
             task.key,
             workload_ti.id,
             state,
             try_number,
             queued_by_job_id,
-            external_executor_id,
             workload_ti.try_number,
+            external_executor_id,
             launch_token,
             scheduler_job_id,
         )
