@@ -124,9 +124,10 @@ class TestBuildArgsValidator:
         with pytest.raises(ValidationError):
             _validate(validator, args, use_json)
 
-    def test_extra_keys_dropped(self, use_json):
+    def test_extra_keys_rejected(self, use_json):
         validator = build_args_validator(TOOL_SCHEMA)
-        assert _validate(validator, {"name": "a", "junk": 1}, use_json) == {"name": "a"}
+        with pytest.raises(ValidationError):
+            _validate(validator, {"name": "a", "junk": 1}, use_json)
 
     def test_additional_properties_preserved(self, use_json):
         schema = {**TOOL_SCHEMA, "additionalProperties": True}

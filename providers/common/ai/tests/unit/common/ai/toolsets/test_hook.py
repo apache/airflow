@@ -163,9 +163,10 @@ class TestHookToolsetArgsValidator:
             "bucket": "my-bucket",
             "prefix": None,
         }
-        assert list_keys_tool.args_validator.validate_python({"bucket": "my-bucket", "bogus": 1}) == {
-            "bucket": "my-bucket"
-        }
+
+    def test_rejects_undeclared_args(self, list_keys_tool):
+        with pytest.raises(ValidationError, match="bogus"):
+            list_keys_tool.args_validator.validate_python({"bucket": "my-bucket", "bogus": 1})
 
     def test_preserves_kwargs_accepted_by_method(self):
         ts = HookToolset(_FakeHook(), allowed_methods=["request"])

@@ -218,6 +218,26 @@ class TestAirflowToolsetToLangChainTools:
         with pytest.raises(ValidationError):
             add_one.invoke({"n": "bad"})
 
+    def test_tool_body_validation_error_propagates(self):
+        # A ValidationError raised inside call_tool must not be fed back as a
+        # retry — that would re-invoke a tool that may already have run a side
+        # effect. Only arg-validation ValidationError is retried.
+        class BodyValidationToolset(FakeToolset):
+            async def call_tool(self, name, tool_args, ctx, tool) -> Any:
+                if name == "boom":
+                    raise ValidationError.from_exception_data(
+                        "BodyValidation",
+                        [{"type": "missing", "loc": ("response",), "input": {}}],
+                    )
+                return await super().call_tool(name, tool_args, ctx, tool)
+
+        boom = {t.name: t for t in airflow_toolset_to_langchain_tools(BodyValidationToolset())}["boom"]
+
+        with pytest.raises(ValidationError, match="response"):
+            boom.invoke({})
+        with pytest.raises(ValidationError, match="response"):
+            asyncio.run(boom.ainvoke({}))
+
     def test_deps_are_exposed_on_the_run_context(self):
         sentinel = object()
         captured: dict[str, Any] = {}

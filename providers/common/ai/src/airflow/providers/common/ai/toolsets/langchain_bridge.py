@@ -86,16 +86,19 @@ def airflow_toolset_to_langchain_tools(
     works regardless of how the agent handles tool errors. Raising instead would
     abort the run under ``create_agent``'s default tool-error handling.
 
-    Malformed arguments are handled the same way: each tool validates its
-    arguments with the toolset's ``args_validator`` before dispatch, and a
-    :exc:`pydantic.ValidationError` is fed back to the model as the tool output
-    so it can correct the call, mirroring pydantic-ai's native retry behaviour.
+    Argument validation failures are handled the same way: each tool validates
+    its arguments with the toolset's ``args_validator`` before dispatch, and a
+    :exc:`pydantic.ValidationError` from that step is fed back to the model as
+    the tool output so it can correct the call. This mirrors pydantic-ai's
+    native two-stage behaviour: only arg-validation ``ValidationError`` is
+    retried; a ``ValidationError`` raised inside ``call_tool`` (for example from
+    a Hook method or MCP client) propagates rather than being fed back, so a
+    non-idempotent tool that already ran a side effect is not re-invoked.
 
     The retry message is bounded by the tool's ``max_retries``: a tool that keeps
-    raising ``ModelRetry`` or ``ValidationError`` (for example an unrecoverable
-    connection error) stops being fed back and propagates once the budget is
-    exhausted, so the run fails instead of looping forever. The count resets
-    after a successful call.
+    raising ``ModelRetry`` (or keeps failing arg validation) stops being fed back
+    and propagates once the budget is exhausted, so the run fails instead of
+    looping forever. The count resets after a successful call.
 
     The toolset's ``get_tools`` is invoked eagerly here to enumerate the tools.
 
@@ -160,13 +163,12 @@ def _build_structured_tool(
         # the args unchanged; a typed one coerces them (e.g. "5" -> 5).
         return toolset_tool.args_validator.validate_python(kwargs)
 
-    # ModelRetry and ValidationError are both "feed this back to the model and
-    # retry" signals (pydantic-ai's ToolManager treats them the same way), so the
-    # bridge returns their message as the tool output instead of raising (see
-    # docstring). Bound it the way native pydantic-ai does, via the tool's
-    # max_retries: a tool that keeps failing must eventually propagate so the run
-    # fails rather than looping forever. The count resets on the first successful
-    # call.
+    # Mirror pydantic-ai's ToolManager two-stage handling: ValidationError from
+    # arg validation is a "feed this back and retry" signal; ModelRetry from
+    # call_tool is too; a ValidationError raised inside call_tool is not (it
+    # would otherwise re-invoke a non-idempotent tool that already ran). Bound
+    # retries via the tool's max_retries so a tool that keeps failing eventually
+    # propagates. The count resets on the first successful call.
     max_retries = toolset_tool.max_retries if toolset_tool.max_retries is not None else 1
     retries = {"count": 0}
 
@@ -181,16 +183,24 @@ def _build_structured_tool(
 
     def _sync_call(**kwargs: Any) -> Any:
         try:
-            result = _run_coro_sync(toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool))
-        except (ModelRetry, ValidationError) as e:
+            validated = _validate(kwargs)
+        except ValidationError as e:
+            return _handle_retry(e)
+        try:
+            result = _run_coro_sync(toolset.call_tool(name, validated, ctx, toolset_tool))
+        except ModelRetry as e:
             return _handle_retry(e)
         retries["count"] = 0
         return result
 
     async def _async_call(**kwargs: Any) -> Any:
         try:
-            result = await toolset.call_tool(name, _validate(kwargs), ctx, toolset_tool)
-        except (ModelRetry, ValidationError) as e:
+            validated = _validate(kwargs)
+        except ValidationError as e:
+            return _handle_retry(e)
+        try:
+            result = await toolset.call_tool(name, validated, ctx, toolset_tool)
+        except ModelRetry as e:
             return _handle_retry(e)
         retries["count"] = 0
         return result

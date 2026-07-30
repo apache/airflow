@@ -93,6 +93,10 @@ def _object_fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.Cor
     contents. When ``properties`` is present, build a typed-dict that validates
     each declared field recursively — nested objects are handled the same way
     arrays already recurse into ``items``.
+
+    Undeclared keys follow native pydantic-ai: ``forbid`` for fixed signatures
+    (so a mistyped field name becomes a bounded retry), ``allow`` only when the
+    schema sets ``additionalProperties: true`` (methods that accept ``**kwargs``).
     """
     if "properties" not in fragment:
         return core_schema.dict_schema()
@@ -101,8 +105,8 @@ def _object_fragment_to_core_schema(fragment: dict[str, Any]) -> core_schema.Cor
         name: core_schema.typed_dict_field(_fragment_to_core_schema(prop), required=name in required)
         for name, prop in fragment["properties"].items()
     }
-    extra_behavior: Literal["allow", "ignore"] = (
-        "allow" if fragment.get("additionalProperties") is True else "ignore"
+    extra_behavior: Literal["allow", "forbid"] = (
+        "allow" if fragment.get("additionalProperties") is True else "forbid"
     )
     return core_schema.typed_dict_schema(fields, extra_behavior=extra_behavior)
 
