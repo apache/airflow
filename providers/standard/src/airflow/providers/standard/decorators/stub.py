@@ -186,6 +186,12 @@ def _resolve_param_annotations(python_callable: Callable, signature: inspect.Sig
 
 
 def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
+    if next(XComArg.iter_xcom_references(value), None) is not None:
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} received a collection with an "
+            "upstream task output nested inside it; only a direct XComArg argument can cross "
+            "the language boundary -- pass the upstream output as its own argument"
+        )
     try:
         json.dumps(value, allow_nan=False)
     except (TypeError, ValueError):
