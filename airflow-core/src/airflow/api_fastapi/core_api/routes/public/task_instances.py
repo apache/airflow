@@ -607,9 +607,8 @@ def get_task_instances(
             "int", limit.value
         )  # LimitFilter value is guaranteed to be set to the default value of QueryLimit
         cursor_limit = LimitFilter().set_value(page_limit + 1)
-        task_instance_select = apply_filters_to_select(
-            statement=query, filters=[*filters, order_by, cursor_limit]
-        )
+        task_instance_select = apply_filters_to_select(statement=query, filters=[*filters, cursor_limit])
+        task_instance_select = order_by.to_orm(task_instance_select)
 
         is_backward = False
         if cursor:
@@ -617,7 +616,11 @@ def get_task_instances(
             if is_backward:
                 task_instance_select = order_by.to_orm(task_instance_select, reversed=True)
             task_instance_select = apply_cursor_filter(
-                task_instance_select, token, order_by, is_backward=is_backward
+                task_instance_select,
+                token,
+                order_by,
+                session.get_bind().dialect.name,
+                is_backward=is_backward,
             )
 
         fetched = list(session.scalars(task_instance_select))
