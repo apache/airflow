@@ -72,6 +72,7 @@
     "expectedDuration": "预计耗时",
     "lastSchedulingDecision": "最后调度决策",
     "mappedPartitionKey": "映射分区键",
+    "partitionDate": "分区日期",
     "partitionKey": "分区键",
     "queuedAt": "开始排队时间",
     "runAfter": "最早可执行时间",
@@ -145,6 +146,9 @@
     "selectDateRange": "选择日期范围",
     "startTime": "开始时间"
   },
+  "fullscreen": {
+    "tooltip": "按下 {{hotkey}} 进入全屏"
+  },
   "generateToken": "生成令牌",
   "key": "键",
   "logicalDate": "逻辑日期",
@@ -176,10 +180,14 @@
   "note": {
     "add": "添加笔记",
     "dagRun": "Dag 执行笔记",
+    "edit": "编辑笔记",
     "label": "笔记",
     "placeholder": "添加笔记...",
-    "taskInstance": "任务实例笔记"
+    "preview": "预览",
+    "taskInstance": "任务实例笔记",
+    "write": "编写"
   },
+  "overallStatus": "总体状态",
   "partitionedDagRun_one": "分区 Dag 执行",
   "partitionedDagRun_other": "分区 Dag 执行",
   "partitionedDagRunDetail": {
@@ -218,6 +226,47 @@
   },
   "selectLanguage": "选择语言",
   "selected": "已选择",
+  "shortcuts": {
+    "categories": {
+      "code": "代码",
+      "dagView": "Dag 视图",
+      "filters": "筛选",
+      "global": "全局",
+      "logs": "日志",
+      "navigation": "导航",
+      "runActions": "执行与任务操作",
+      "search": "搜索"
+    },
+    "descriptions": {
+      "clearRun": "清除 $t(dagRun_one)",
+      "clearTaskInstance": "清除 $t(taskInstance_one)",
+      "downloadLogs": "下载日志",
+      "focusFilterSearch": "聚焦筛选搜索框",
+      "focusLogSearch": "搜索日志",
+      "focusSearch": "聚焦搜索框",
+      "markRunFailed": "标记 $t(dagRun_one) 为失败",
+      "markRunSuccess": "标记 $t(dagRun_one) 为成功",
+      "markTaskFailed": "标记 $t(task_one) 为失败",
+      "markTaskGroupFailed": "标记 $t(taskGroup_one) 为失败",
+      "markTaskGroupSuccess": "标记 $t(taskGroup_one) 为成功",
+      "markTaskSuccess": "标记 $t(task_one) 为成功",
+      "navigateTasks": "导航 $t(task_other)",
+      "openGraphFilters": "打开图形筛选",
+      "scrollBottom": "滚动到最下方",
+      "scrollTop": "滚动到最上方",
+      "searchDags": "搜索 $t(dag_other)",
+      "showHelp": "显示 $t(shortcuts.title)",
+      "toggleExpand": "展开或收起所有分组",
+      "toggleFullscreen": "切换全屏",
+      "toggleGraphGrid": "切换图形 / 网格视图",
+      "toggleSource": "切换源代码",
+      "toggleTaskGroup": "展开或收起 $t(taskGroup_one)",
+      "toggleTimestamp": "切换时间戳",
+      "toggleWrap": "切换 $t(wrap.wrap)"
+    },
+    "empty": "此页面没有可用的键盘快捷键。",
+    "title": "键盘快捷键"
+  },
   "showDetailsPanel": "显示详细信息",
   "signedInAs": "当前登录身份",
   "source": {
@@ -267,10 +316,13 @@
     "updatedAt": "更新时间"
   },
   "task": {
+    "dependsOnPast": "依赖过去",
     "documentation": "任务文档",
     "lastInstance": "最后实例",
     "operator": "任务操作器",
-    "triggerRule": "触发规则"
+    "retries": "重试次数",
+    "triggerRule": "触发规则",
+    "waitForDownstream": "等待下游"
   },
   "task_one": "任务",
   "task_other": "任务",
@@ -281,10 +333,12 @@
   "taskGroup_other": "任务分组",
   "taskId": "任务 ID",
   "taskInstance": {
+    "additionalAttributes": "任务实例附加属性",
     "dagVersion": "Dag 版本",
     "executor": "执行器",
     "executorConfig": "执行器配置",
     "hostname": "主机名称",
+    "id": "ID",
     "maxTries": "最大尝试次数",
     "pid": "PID",
     "pool": "资源池",
@@ -294,13 +348,15 @@
     "queuedWhen": "开始排队时间",
     "renderedMapIndex": "已渲染映射索引",
     "scheduledWhen": "开始调度时间",
+    "trigger": "触发器",
     "triggerer": {
-      "assigned": "指派的触发器",
+      "assigned": "指派的触发者",
       "class": "触发器类别",
       "createdAt": "触发器创建时间",
       "id": "触发器 ID",
-      "latestHeartbeat": "最新触发器心跳时间",
-      "title": "触发器信息"
+      "job": "触发者作业",
+      "latestHeartbeat": "最新触发者心跳时间",
+      "title": "触发者信息"
     },
     "unixname": "Unix 名称"
   },
