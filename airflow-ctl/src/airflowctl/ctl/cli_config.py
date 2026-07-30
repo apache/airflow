@@ -510,6 +510,7 @@ class CommandFactory:
             "trigger",
             "add",
             "edit",
+            "set",
             "clear",
         ]
         # Datamodels whose generated bool flags follow the datamodel field defaults instead of
