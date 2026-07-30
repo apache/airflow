@@ -60,6 +60,7 @@ expected_config_response = {
     "auto_refresh_interval": 3,
     "hide_paused_dags_by_default": True,
     "instance_name": "Airflow",
+    "default_landing_page": "home",
     "enable_swagger_ui": True,
     "require_confirmation_dag_change": False,
     "default_wrap": False,
@@ -184,6 +185,21 @@ class TestGetConfig:
         assert "white" in colors
         assert colors["black"] == {"value": "oklch(0.22 0.025 288.6)"}
         assert colors["white"] == {"value": "oklch(0.985 0.002 264.0)"}
+
+    @pytest.mark.parametrize(
+        ("conf_value", "expected"),
+        [
+            ("home", "home"),
+            ("dags", "dags"),
+            ("not-a-page", "home"),
+        ],
+    )
+    def test_default_landing_page(self, test_client, conf_value, expected):
+        with conf_vars({("api", "default_landing_page"): conf_value}):
+            response = test_client.get("/config")
+
+        assert response.status_code == 200
+        assert response.json()["default_landing_page"] == expected
 
     def test_should_response_200_with_css_only_theme(self, mock_config_data_css_only, test_client):
         """Theme with only globalCss (no tokens) is valid and round-trips correctly."""

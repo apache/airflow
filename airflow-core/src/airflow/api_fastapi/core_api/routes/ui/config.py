@@ -42,6 +42,8 @@ API_CONFIG_KEYS = [
     "require_confirmation_dag_change",
 ]
 
+VALID_LANDING_PAGES = {"home", "dags"}
+
 
 @config_router.get(
     "/config",
@@ -52,9 +54,14 @@ def get_configs() -> ConfigResponse:
     """Get configs for UI."""
     config = {key: conf.get("api", key) for key in API_CONFIG_KEYS}
 
+    landing_page = conf.get("api", "default_landing_page", fallback="home")
+    if landing_page not in VALID_LANDING_PAGES:
+        landing_page = "home"
+
     task_log_reader = TaskLogReader()
     additional_config: dict[str, Any] = {
         "instance_name": conf.get("api", "instance_name", fallback="Airflow"),
+        "default_landing_page": landing_page,
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         # Expose "dashboard_alert" using a list comprehension so UIAlert instances can be expressed dynamically.
         "dashboard_alert": [alert for alert in DASHBOARD_UIALERTS if isinstance(alert, UIAlert)],

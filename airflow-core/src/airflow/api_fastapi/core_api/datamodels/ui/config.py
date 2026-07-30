@@ -31,6 +31,7 @@ class ConfigResponse(BaseModel):
     auto_refresh_interval: int
     hide_paused_dags_by_default: bool
     instance_name: str
+    default_landing_page: str
     enable_swagger_ui: bool
     require_confirmation_dag_change: bool
     default_wrap: bool
