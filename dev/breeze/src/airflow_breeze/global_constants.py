@@ -20,6 +20,7 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
+import json
 import platform
 import re
 from enum import Enum
@@ -308,6 +309,7 @@ REGULAR_DOC_PACKAGES = [
     "apache-airflow-providers",
     "java-sdk",
     "task-sdk",
+    "ts-sdk",
     "apache-airflow-ctl",
 ]
 
@@ -737,6 +739,15 @@ def get_java_sdk_version() -> str:
         if match := re.match(r"^projectVersion\s*=\s*(\S+)$", line.strip()):
             return match.group(1)
     raise RuntimeError(f"Java SDK version not found in {props_path}")
+
+
+def get_ts_sdk_version() -> str:
+    """Read the TypeScript SDK version from 'ts-sdk/package.json'."""
+    package_json_path = AIRFLOW_ROOT_PATH / "ts-sdk" / "package.json"
+    version = json.loads(package_json_path.read_text()).get("version")
+    if not version:
+        raise RuntimeError(f"TypeScript SDK version not found in {package_json_path}")
+    return version
 
 
 @clearable_cache

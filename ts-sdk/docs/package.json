@@ -1,0 +1,12 @@
+{
+  "name": "ts-sdk-docs-toolchain",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Isolated documentation toolchain for the Apache Airflow TypeScript SDK (ts-sdk). Kept separate from the SDK's TypeScript 6 toolchain: sphinx-js drives TypeDoc via a bundled plugin that targets the TypeDoc 0.25 API, and TypeDoc 0.25 supports TypeScript <= 5.4.",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "typedoc": "0.25.13",
+    "typescript": "~5.4.5"
+  }
+}
