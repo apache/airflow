@@ -347,10 +347,8 @@ class SerializedDagModel(Base):
     def __init__(self, dag: LazyDeserializedDAG) -> None:
         self.dag_id = dag.dag_id
         dag_data = dag.data
-        self.dag_hash = SerializedDagModel.hash(dag_data)
-
-        # partially ordered json data
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        dag_hash, dag_data_json, _ = SerializedDagModel._compute_hash_and_storage_json(dag_data)
+        self.dag_hash = dag_hash
 
         if _COMPRESS_SERIALIZED_DAGS:
             self._data = None
@@ -367,18 +365,36 @@ class SerializedDagModel(Base):
         return f"<SerializedDag: {self.dag_id}>"
 
     @classmethod
+    def _compute_hash_and_storage_json(cls, dag_data: dict) -> tuple[str, bytes, dict]:
+        """
+        Compute the Dag hash and storage JSON in a single pass.
+
+        Sorts the serialized dict once, generates hash JSON (without fileloc/bundle_name),
+        then restores those fields and generates storage JSON.
+
+        :return: (dag_hash, storage_json_bytes, sorted_data)
+        """
+        sorted_data = cls._sort_serialized_dag_dict(dag_data)
+        dag_section = sorted_data["dag"]
+        saved_fileloc = dag_section.pop("fileloc", None)
+        saved_bundle_name = dag_section.pop("bundle_name", None)
+
+        hash_json = json.dumps(sorted_data, sort_keys=True).encode("utf-8")
+        dag_hash = md5(hash_json).hexdigest()
+
+        if saved_fileloc is not None:
+            dag_section["fileloc"] = saved_fileloc
+        if saved_bundle_name is not None:
+            dag_section["bundle_name"] = saved_bundle_name
+
+        storage_json = json.dumps(sorted_data, sort_keys=True).encode("utf-8")
+        return dag_hash, storage_json, sorted_data
+
+    @classmethod
     def hash(cls, dag_data):
         """Hash the data to get the dag_hash."""
-        dag_data = cls._sort_serialized_dag_dict(dag_data)
-        data_ = dag_data.copy()
-        # Remove fileloc from the hash so changes to fileloc
-        # does not affect the hash. In 3.0+, a combination of
-        # bundle_path and relative fileloc more correctly determines the
-        # dag file location.
-        data_["dag"].pop("fileloc", None)
-        data_["dag"].pop("bundle_name", None)
-        data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
-        return md5(data_json).hexdigest()
+        dag_hash, _, _ = cls._compute_hash_and_storage_json(dag_data)
+        return dag_hash
 
     @classmethod
     def _sort_serialized_dag_dict(cls, serialized_dag: Any):

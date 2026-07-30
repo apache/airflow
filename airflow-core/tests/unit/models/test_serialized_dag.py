@@ -1155,3 +1155,92 @@ class TestSerializedDagModel:
         alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
         assert alert is not None
         assert alert.id == orig_alert.id
+
+
+class TestComputeHashAndStorageJson:
+    """Tests for SerializedDagModel._compute_hash_and_storage_json."""
+
+    @staticmethod
+    def _make_dag_data(fileloc="/tmp/test.py", bundle_name="test-bundle", max_active_runs=16):
+        return {
+            "dag": {
+                "dag_id": "test_dag",
+                "fileloc": fileloc,
+                "bundle_name": bundle_name,
+                "max_active_runs": max_active_runs,
+                "tasks": [{"task_id": "t1"}, {"task_id": "t2"}],
+            },
+            "__version": 1,
+        }
+
+    def test_hash_matches_legacy_hash_method(self):
+        dag_data = self._make_dag_data()
+        new_hash, _, _ = SDM._compute_hash_and_storage_json(dag_data)
+
+        sorted_data = SDM._sort_serialized_dag_dict(dag_data)
+        legacy_copy = sorted_data.copy()
+        legacy_copy["dag"] = legacy_copy["dag"].copy()
+        legacy_copy["dag"].pop("fileloc", None)
+        legacy_copy["dag"].pop("bundle_name", None)
+        legacy_json = json.dumps(legacy_copy, sort_keys=True).encode("utf-8")
+        legacy_hash = md5(legacy_json).hexdigest()
+
+        assert new_hash == legacy_hash
+
+    def test_storage_json_contains_fileloc(self):
+        dag_data = self._make_dag_data(fileloc="/my/dag/file.py")
+        _, storage_json, _ = SDM._compute_hash_and_storage_json(dag_data)
+        parsed = json.loads(storage_json)
+        assert parsed["dag"]["fileloc"] == "/my/dag/file.py"
+
+    def test_hash_excludes_fileloc(self):
+        hash1, _, _ = SDM._compute_hash_and_storage_json(self._make_dag_data(fileloc="/path/a.py"))
+        hash2, _, _ = SDM._compute_hash_and_storage_json(self._make_dag_data(fileloc="/path/b.py"))
+        assert hash1 == hash2
+
+    def test_hash_excludes_bundle_name(self):
+        hash1, _, _ = SDM._compute_hash_and_storage_json(self._make_dag_data(bundle_name="bundle-a"))
+        hash2, _, _ = SDM._compute_hash_and_storage_json(self._make_dag_data(bundle_name="bundle-b"))
+        assert hash1 == hash2
+
+    def test_hash_changes_when_dag_content_changes(self):
+        hash1, _, _ = SDM._compute_hash_and_storage_json(self._make_dag_data(max_active_runs=16))
+        hash2, _, _ = SDM._compute_hash_and_storage_json(self._make_dag_data(max_active_runs=32))
+        assert hash1 != hash2
+
+    def test_original_dict_not_mutated(self):
+        import copy
+
+        dag_data = self._make_dag_data()
+        original = copy.deepcopy(dag_data)
+        SDM._compute_hash_and_storage_json(dag_data)
+        assert dag_data == original
+
+    @pytest.mark.parametrize(
+        "compress",
+        [
+            pytest.param(False, id="uncompressed"),
+            pytest.param(True, id="compressed"),
+        ],
+    )
+    def test_init_data_cache_and_storage(self, compress, monkeypatch):
+        import zlib
+
+        monkeypatch.setattr("airflow.models.serialized_dag._COMPRESS_SERIALIZED_DAGS", compress)
+        dag_data = self._make_dag_data()
+        lazy_dag = mock.MagicMock()
+        lazy_dag.dag_id = "test_dag"
+        lazy_dag.data = dag_data
+
+        sdm = SDM.__new__(SDM)
+        SDM.__init__(sdm, lazy_dag)
+
+        assert sdm._SerializedDagModel__data_cache is dag_data
+        if compress:
+            assert sdm._data is None
+            assert sdm._data_compressed is not None
+            decompressed = json.loads(zlib.decompress(sdm._data_compressed))
+            assert decompressed["dag"]["fileloc"] == dag_data["dag"]["fileloc"]
+        else:
+            assert sdm._data is dag_data
+            assert sdm._data_compressed is None
