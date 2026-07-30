@@ -437,10 +437,8 @@ POD_DELETED_REASON: str = "PodDeleted"
 #                 shutdown killing an already-running pod; sole writer of this reason)
 #   NodeLost      pkg/controller/util/node/controller_utils.go#L108
 #
-# Known gap: a taint-manager eviction and a scheduler preemption leave pod.status.reason
-# empty and are only observable via pod.status.conditions[type=DisruptionTarget].reason
-# ("DeletionByTaintManager" / "PreemptionByScheduler"). Reading conditions is a separate
-# change; those two disruptions currently classify as APPLICATION.
+# Matched against pod.status.reason and container reasons only, so condition reasons such as
+# DeletionByTaintManager do not belong here; they need pod.status.conditions.
 _INFRA_FAILURE_REASONS: frozenset[str] = frozenset(
     {
         "Evicted",
