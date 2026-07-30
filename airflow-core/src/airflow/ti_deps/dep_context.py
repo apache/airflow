@@ -67,6 +67,8 @@ class DepContext:
         trigger rule
     :param ignore_ti_state: Ignore the task instance's previous failure/success
     :param finished_tis: A list of all the finished task instances of this run
+    :param ensure_fresh_tis_before_state_change: Re-query finished task instances before writing
+        a terminal state based on trigger-rule dependency evaluation
     """
 
     deps: set = attr.ib(factory=set)
@@ -80,6 +82,7 @@ class DepContext:
     ignore_ti_state: bool = False
     ignore_unmapped_tasks: bool = False
     finished_tis: list[TaskInstance] | None = None
+    ensure_fresh_tis_before_state_change: bool = False
     description: str | None = None
 
     have_changed_ti_states: bool = False
@@ -103,3 +106,7 @@ class DepContext:
         else:
             finished_tis = self.finished_tis
         return finished_tis
+
+    def refresh_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
+        self.finished_tis = None
+        return self.ensure_finished_tis(dag_run=dag_run, session=session)
