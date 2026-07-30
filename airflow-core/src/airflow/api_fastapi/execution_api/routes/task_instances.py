@@ -32,7 +32,7 @@ from fastapi import Body, HTTPException, Query, Response, Security, status
 from opentelemetry import trace
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from pydantic import JsonValue
+from pydantic import JsonValue, ValidationError
 from sqlalchemy import and_, func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import DataError, NoResultFound, SQLAlchemyError
@@ -49,6 +49,7 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import get_arg_bindings_adapter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PreviousTIResponse,
@@ -75,6 +76,8 @@ from airflow.api_fastapi.execution_api.security import (
     get_team_name_for_ti,
     require_auth,
 )
+from airflow.api_fastapi.execution_api.services.task_instances import STUB_TASK_TYPE, get_arg_bindings
+from airflow.api_fastapi.execution_api.versions import bundle
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
 from airflow.models.asset import AssetActive
@@ -109,6 +112,22 @@ ti_id_router = VersionedAPIRouter(
 
 log = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
+
+# The first execution API version whose TIRunContext carries ``arg_bindings``.
+ARG_BINDINGS_API_VERSION = "2026-10-30"
+
+
+def _client_supports_arg_bindings() -> bool:
+    """
+    Whether the request's negotiated API version can receive ``arg_bindings``.
+
+    Clients on older versions never see the field (the version migration strips it from
+    the response), so the derivation -- and the structured failures it raises for
+    undeliverable mapped-stub specs -- must not run for them: a stub Dag that ran before
+    arg bindings existed keeps running against those clients.
+    """
+    version = bundle.api_version_var.get(None)
+    return version is None or str(version) >= ARG_BINDINGS_API_VERSION
 
 
 @ti_id_router.patch(
@@ -163,6 +182,8 @@ def ti_run(
             TI.hostname,
             TI.unixname,
             TI.pid,
+            TI.operator,
+            TI.dag_version_id,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -309,6 +330,30 @@ def ti_run(
             xcom_keys_to_clear=xcom_keys,
             should_retry=_is_eligible_to_retry(previous_state, ti.try_number, ti.max_tries),
         )
+
+        # Only set for stub (foreign-runtime) tasks with a captured TaskFlow arg
+        # spec; the route excludes unset fields, keeping regular responses lean.
+        if (
+            ti.operator == STUB_TASK_TYPE
+            and _client_supports_arg_bindings()
+            and (arg_bindings := get_arg_bindings(dag_bag, ti, session=session))
+        ):
+            try:
+                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+            except ValidationError:
+                log.exception(
+                    "Serialized arg_bindings spec failed validation",
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    dag_version_id=ti.dag_version_id,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={
+                        "reason": "invalid_arg_bindings",
+                        "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
+                    },
+                )
 
         # Only set if they are non-null
         if ti.next_method:
