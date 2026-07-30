@@ -44,6 +44,7 @@ export const FieldPassword = ({ name, namespace = "default", onUpdate }: Flexibl
     <>
       <div style={{ position: "relative", width: "100%" }}>
         <Input
+          autoComplete="new-password"
           disabled={disabled}
           id={`element_${name}`}
           list={param.schema.examples ? `list_${name}` : undefined}
