@@ -202,6 +202,7 @@ def team_list(args, *, session=NEW_SESSION):
 def team_sync(args, *, session=NEW_SESSION):
     """Sync missing teams from the dag bundle config."""
     if not conf.getboolean("core", "multi_team"):
+        print("Warning: multi-team is not enabled; nothing to synchronize.")
         return
 
     dag_bundle_teams = {
