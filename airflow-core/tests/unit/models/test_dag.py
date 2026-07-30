@@ -1156,7 +1156,7 @@ class TestDag:
         assert session.get(DagModel, dag.dag_id).is_paused
         mock_stats_incr.assert_any_call(
             "dag.auto_paused",
-            tags={"dag_id": dag_id, "run_type": DagRunType.MANUAL},
+            tags={"dag_id": dag_id},
         )
 
     def test_dag_is_deactivated_upon_dagfile_deletion(self, dag_maker):

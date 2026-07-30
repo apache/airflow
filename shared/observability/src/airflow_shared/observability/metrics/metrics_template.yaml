@@ -236,7 +236,7 @@ metrics:
 
   - name: "dag.auto_paused"
     description: "Number of Dags automatically paused due to consecutive failures exceeding
-    the configured threshold. Metric with dag_id tagging."
+      the configured threshold. Metric with dag_id tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
