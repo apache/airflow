@@ -42,12 +42,12 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors import (
     celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043.
 )
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
 from airflow.utils.helpers import prune_dict
 from airflow.utils.state import TaskInstanceState
 
-if AIRFLOW_V_3_3_PLUS:
+if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
@@ -112,7 +112,7 @@ class CeleryExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
-    if AIRFLOW_V_3_3_PLUS:
+    if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
     else:
         supports_callbacks: bool = True
@@ -223,7 +223,7 @@ class CeleryExecutor(BaseExecutor):
                     )
                     self.workload_publish_retries[key] = retries + 1
                     continue
-            if AIRFLOW_V_3_3_PLUS:
+            if AIRFLOW_V_3_4_PLUS:
                 if key in self.executor_queues.get(WorkloadType.EXECUTE_TASK, {}):
                     self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key)
                 else:
@@ -408,7 +408,7 @@ class CeleryExecutor(BaseExecutor):
             except Exception:
                 self.log.exception("Error revoking task instance %s from celery", ti.key)
         self.running.discard(ti.key)
-        if AIRFLOW_V_3_3_PLUS:
+        if AIRFLOW_V_3_4_PLUS:
             self.executor_queues[WorkloadType.EXECUTE_TASK].pop(ti.key, None)
         else:
             self.queued_tasks.pop(ti.key, None)
