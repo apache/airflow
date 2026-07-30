@@ -147,6 +147,12 @@ def expected_primary_component_response(asset1_id):
                 "type": "dag",
                 "team": None,
             },
+            {
+                "id": "dag:other_dag",
+                "label": "other_dag",
+                "type": "dag",
+                "team": None,
+            },
         ],
     }
 
@@ -551,3 +557,27 @@ class TestGetDependencies:
         task_nodes = [node for node in result["nodes"] if node["type"] == "task"]
         assert len(task_nodes) == 1
         assert task_nodes[0]["team"] == "data-team"
+
+    def test_trigger_target_without_scheduling_dependencies_is_materialised(self, dag_maker, test_client):
+        """A DAG triggered via TriggerDagRunOperator that has no scheduling dependencies must still appear as a node"""
+        with dag_maker(dag_id="parent_dag", serialized=True):
+            TriggerDagRunOperator(task_id="trigger_child_dag", trigger_dag_id="child_dag")
+
+        with dag_maker(dag_id="child_dag", serialized=True):
+            EmptyOperator(task_id="some_task")
+
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get("/dependencies")
+        assert response.status_code == 200
+
+        result = response.json()
+        node_ids = {node["id"] for node in result["nodes"]}
+        assert "dag:child_dag" in node_ids
+
+        expected_edge = (
+            "trigger:parent_dag:child_dag:trigger_child_dag",
+            "dag:child_dag",
+        )
+        actual_edges = {(edge["source_id"], edge["target_id"]) for edge in result["edges"]}
+        assert expected_edge in actual_edges
