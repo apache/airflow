@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack } from "@chakra-ui/react";
-import type { MultiValue } from "chakra-react-select";
+import { Box, HStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
@@ -26,6 +25,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
+import { useDagTimetableTypesInfinite } from "src/queries/useDagTimetableTypesInfinite";
 
 import { useTagFilter } from "../useTagFilter";
 import { FavoriteFilter } from "./FavoriteFilter";
@@ -34,6 +34,7 @@ import { RequiredActionFilter } from "./RequiredActionFilter";
 import { RunStateSelect } from "./RunStateSelect";
 import { TagFilter } from "./TagFilter";
 import { TeamFilter } from "./TeamFilter";
+import { TimetableTypeFilter } from "./TimetableTypeFilter";
 
 const {
   DAG_RUN_STATE: DAG_RUN_STATE_PARAM,
@@ -43,6 +44,7 @@ const {
   OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
   TEAMS: TEAMS_PARAM,
+  TIMETABLE_TYPE: TIMETABLE_TYPE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 type BooleanFilterValue = "all" | "false" | "true";
@@ -68,13 +70,27 @@ export const DagsFilters = () => {
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const activeRunState = searchParams.get(DAG_RUN_STATE_PARAM);
   const selectedTeams = searchParams.getAll(TEAMS_PARAM);
+  const timetableTypes = searchParams.getAll(TIMETABLE_TYPE_PARAM).filter(Boolean);
 
-  const [pattern, setPattern] = useState("");
+  const [tagPattern, setTagPattern] = useState("");
+  const [timetableTypePattern, setTimetableTypePattern] = useState("");
 
-  const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({
+  const {
+    data: tagData,
+    fetchNextPage: fetchNextTagPage,
+    fetchPreviousPage: fetchPreviousTagPage,
+  } = useDagTagsInfinite({
     limit: 10,
     orderBy: ["name"],
-    tagNamePattern: pattern,
+    tagNamePattern: tagPattern,
+  });
+  const {
+    data: timetableTypeData,
+    fetchNextPage: fetchNextTimetableTypePage,
+    fetchPreviousPage: fetchPreviousTimetableTypePage,
+  } = useDagTimetableTypesInfinite({
+    limit: 10,
+    timetableTypePrefixPattern: timetableTypePattern,
   });
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -141,13 +157,17 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
-  const handleSelectTagsChange = (
-    tags: MultiValue<{
-      label: string;
-      value: string;
-    }>,
-  ) => {
-    setSelectedTags(tags.map(({ value }) => value));
+  const handleTimetableTypeChange = (selectedTimetableTypes: Array<string>) => {
+    searchParams.delete(TIMETABLE_TYPE_PARAM);
+    for (const timetableType of selectedTimetableTypes) {
+      searchParams.append(TIMETABLE_TYPE_PARAM, timetableType);
+    }
+    resetPagination();
+    setSearchParams(searchParams);
+  };
+
+  const handleSelectTagsChange = (tags: Array<string>) => {
+    setSelectedTags(tags);
   };
 
   const handleTagModeChange = ({ checked }: { checked: boolean }) => {
@@ -167,7 +187,7 @@ export const DagsFilters = () => {
   const favoriteValue = toBooleanFilterValue(showFavorites);
 
   return (
-    <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
+    <HStack alignItems="flex-start" flexWrap="wrap" gap={2}>
       <RunStateSelect
         dataTestId="dags-last-run-state-filter"
         label={translate("filters.lastRunState")}
@@ -184,24 +204,38 @@ export const DagsFilters = () => {
       />
       <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
       <PausedFilter onChange={handlePausedChange} value={pausedValue} />
-      <TagFilter
+      <TimetableTypeFilter
+        onChange={handleTimetableTypeChange}
+        onInputChange={setTimetableTypePattern}
         onMenuScrollToBottom={() => {
-          void fetchNextPage();
+          void fetchNextTimetableTypePage();
         }}
         onMenuScrollToTop={() => {
-          void fetchPreviousPage();
+          void fetchPreviousTimetableTypePage();
+        }}
+        timetableTypes={timetableTypeData?.pages.flatMap((response) => response.timetable_types) ?? []}
+        values={timetableTypes}
+      />
+      <TagFilter
+        onMenuScrollToBottom={() => {
+          void fetchNextTagPage();
+        }}
+        onMenuScrollToTop={() => {
+          void fetchPreviousTagPage();
         }}
         onSelectTagsChange={handleSelectTagsChange}
         onTagModeChange={handleTagModeChange}
-        onUpdate={setPattern}
+        onUpdate={setTagPattern}
         selectedTags={selectedTags}
         tagFilterMode={tagFilterMode}
-        tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
+        tags={tagData?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
       />
-      <FavoriteFilter onChange={handleFavoriteChange} value={favoriteValue} />
       {multiTeamEnabled ? (
         <TeamFilter onChange={handleTeamsChange} selectedTeams={selectedTeams} />
       ) : undefined}
+      <Box marginInlineStart="auto">
+        <FavoriteFilter onChange={handleFavoriteChange} value={favoriteValue} />
+      </Box>
     </HStack>
   );
 };

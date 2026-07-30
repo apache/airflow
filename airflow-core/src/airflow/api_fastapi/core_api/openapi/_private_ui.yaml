@@ -525,6 +525,14 @@ paths:
           description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
         description: Filter Dags by asset dependency (name or URI)
+      - name: timetable_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Timetable Type
       - name: has_pending_actions
         in: query
         required: false
@@ -540,6 +548,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGWithLatestDagRunsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/timetable_types:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Timetable Types
+      description: Get timetable types used by readable Dags.
+      operationId: get_dag_timetable_types_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: timetable_type_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Timetable Type Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagTimetableTypeCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -937,13 +997,12 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, created_at,
-            name, interval`'
+            name`'
           default:
           - created_at
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id, created_at, name,
-          interval`'
+          with `-` for descending order. Supported attributes: `id, created_at, name`'
       responses:
         '200':
           description: Successful Response
@@ -1010,13 +1069,6 @@ paths:
           - type: string
           - type: 'null'
           title: Root
-      - name: external_dependencies
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: External Dependencies
       - name: version_number
         in: query
         required: false
@@ -1032,12 +1084,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StructureDataResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
@@ -2142,6 +2188,14 @@ components:
           - type: string
           - type: 'null'
           title: Team
+        asset_condition_type:
+          anyOf:
+          - type: string
+            enum:
+            - or-gate
+            - and-gate
+          - type: 'null'
+          title: Asset Condition Type
       type: object
       required:
       - id
@@ -2750,6 +2804,22 @@ components:
       - dag_display_name
       title: DagTagResponse
       description: Dag Tag serializer for responses.
+    DagTimetableTypeCollectionResponse:
+      properties:
+        timetable_types:
+          items:
+            type: string
+          type: array
+          title: Timetable Types
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - timetable_types
+      - total_entries
+      title: DagTimetableTypeCollectionResponse
+      description: Timetable types used by Dags.
     DagVersionResponse:
       properties:
         id:
@@ -2849,9 +2919,13 @@ components:
           type: string
           title: Reference Type
         interval:
-          type: number
+          anyOf:
+          - type: number
+          - type: 'null'
           title: Interval
-          description: Interval in seconds between deadline evaluations.
+          description: Interval in seconds between the reference time and the deadline.
+            Null for a dynamic interval (e.g. a VariableInterval) whose value is only
+            resolved at scheduler evaluation time.
         created_at:
           type: string
           format: date-time
@@ -2860,7 +2934,6 @@ components:
       required:
       - id
       - reference_type
-      - interval
       - created_at
       title: DeadlineAlertResponse
       description: DeadlineAlert serializer for responses.
@@ -2974,11 +3047,6 @@ components:
           - type: string
           - type: 'null'
           title: Label
-        is_source_asset:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Is Source Asset
       type: object
       required:
       - source_id
@@ -3627,6 +3695,14 @@ components:
           - type: string
           - type: 'null'
           title: Team
+        asset_condition_type:
+          anyOf:
+          - type: string
+            enum:
+            - or-gate
+            - and-gate
+          - type: 'null'
+          title: Asset Condition Type
         children:
           anyOf:
           - items:
@@ -3657,14 +3733,6 @@ components:
           - type: string
           - type: 'null'
           title: Operator
-        asset_condition_type:
-          anyOf:
-          - type: string
-            enum:
-            - or-gate
-            - and-gate
-          - type: 'null'
-          title: Asset Condition Type
         ui_color:
           anyOf:
           - type: string
