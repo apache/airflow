@@ -166,6 +166,42 @@ console = Console(width=400, color_system="standard")
             },
             id="PYTHONWARNINGS should be set when specified in environment",
         ),
+        pytest.param(
+            {},
+            {},
+            {"POSTGRES_DRIVER": "psycopg"},
+            id="POSTGRES_DRIVER defaults to psycopg (v3)",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "2.11.0"},
+            {"POSTGRES_DRIVER": "psycopg2"},
+            id="POSTGRES_DRIVER falls back to psycopg2 on Airflow 2.x (SQLAlchemy 1.4)",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "3.1.0"},
+            {"POSTGRES_DRIVER": "psycopg2"},
+            id="POSTGRES_DRIVER falls back to psycopg2 on released Airflow 3.x",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "wheel"},
+            {"POSTGRES_DRIVER": "psycopg"},
+            id="POSTGRES_DRIVER stays psycopg when installing from sources",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "70496"},
+            {"POSTGRES_DRIVER": "psycopg"},
+            id="POSTGRES_DRIVER stays psycopg when installing from a PR number",
+        ),
+        pytest.param(
+            {},
+            {"use_airflow_version": "apache/airflow:main"},
+            {"POSTGRES_DRIVER": "psycopg"},
+            id="POSTGRES_DRIVER stays psycopg when installing from a GitHub branch",
+        ),
     ],
 )
 def test_shell_params_to_env_var_conversion(

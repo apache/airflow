@@ -28,7 +28,7 @@ import signal
 import textwrap
 import time
 import zipfile
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
@@ -1085,6 +1085,46 @@ class TestDagFileProcessorManager:
             ).all()
         )
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
+        """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
+
+        Their files were removed during the upgrade, so nothing will ever parse them and fill the
+        column in, and the time-based check cannot reach them either (see #60763).
+
+        Migration ``0082_3_1_0_make_bundle_name_not_nullable`` backfills the column and makes it NOT
+        NULL, so the row can no longer be stored as NULL; the scan is fed the row the way a database
+        upgraded from 2.x to 3.0.x still holds it.
+        """
+        session.add(
+            DagModel(
+                dag_id="legacy_dag",
+                bundle_name="testing",
+                relative_fileloc="legacy_file.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        LegacyRow = namedtuple("LegacyRow", "dag_id bundle_name fileloc last_parsed_time relative_fileloc")
+        original_execute = session.execute
+
+        def execute_with_null_bundle_name(statement, *args, **kwargs):
+            result = original_execute(statement, *args, **kwargs)
+            if getattr(statement, "is_select", False) and "relative_fileloc" in str(statement):
+                return [
+                    LegacyRow(r.dag_id, None, r.fileloc, r.last_parsed_time, r.relative_fileloc)
+                    for r in result
+                ]
+            return result
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+        with mock.patch.object(session, "execute", side_effect=execute_with_null_bundle_name):
+            manager.deactivate_stale_dags(last_parsed={}, session=session)
+
+        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
 
     @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
     @pytest.mark.usefixtures("testing_dag_bundle")
@@ -2725,6 +2765,34 @@ class TestDagFileProcessorManager:
         state = manager.get_bundle_state(bundle_name)
 
         assert state == BundleState(last_refreshed=refreshed_at, version="v1")
+
+    def test_get_bundle_state_reads_latest_database_values(self, session):
+        bundle_name = "test_fresh_state_bundle"
+        initial_refreshed_at = timezone.datetime(2024, 1, 15, 12, 0, 0)
+        refreshed_at = timezone.datetime(2024, 1, 16, 12, 0, 0)
+        model = DagBundleModel(name=bundle_name, version="old")
+        model.last_refreshed = initial_refreshed_at
+        session.add(model)
+        session.commit()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=initial_refreshed_at, version="old")
+
+        with create_session(scoped=False) as update_session:
+            update_model = update_session.get(DagBundleModel, bundle_name)
+            assert update_model is not None
+            update_model.last_refreshed = refreshed_at
+            update_model.version = "fresh"
+
+        # End the read transaction started by the first get_bundle_state() call so we don't keep
+        # reading a stale snapshot on backends like SQLite.
+        session.commit()
+
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=refreshed_at, version="fresh")
 
     def test_get_bundle_state_null_fields(self, session):
         bundle_name = "test_null_state_bundle"

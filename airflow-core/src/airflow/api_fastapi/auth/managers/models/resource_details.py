@@ -101,6 +101,9 @@ class AccessView(Enum):
     CLUSTER_ACTIVITY = "CLUSTER_ACTIVITY"
     DOCS = "DOCS"
     IMPORT_ERRORS = "IMPORT_ERRORS"
+    # Import errors for files with no registered Dag: there is no per-Dag key to
+    # authorize on, so they get their own admin-by-default view.
+    IMPORT_ERRORS_ALL = "IMPORT_ERRORS_ALL"
     JOBS = "JOBS"
     PLUGINS = "PLUGINS"
     PROVIDERS = "PROVIDERS"

@@ -28,10 +28,11 @@ from uuid import UUID
 
 import uuid6
 from sqlalchemy import JSON, ForeignKey, LargeBinary, String, Uuid, exists, select, tuple_, update
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.sql.expression import func, literal
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.asset import (
@@ -762,6 +763,7 @@ class SerializedDagModel(Base):
             session.merge(dag_version)
             # Update the latest DagCode
             DagCode.update_source_code(dag_id=dag.dag_id, fileloc=dag.fileloc, session=session)
+            stats.incr("dag.serialization_writes", tags={"dag_id": dag.dag_id, "bundle_name": bundle_name})
             return True
 
         dagv = DagVersion.write_dag(
@@ -784,6 +786,7 @@ class SerializedDagModel(Base):
         cls._create_deadline_alert_records(new_serialized_dag, deadline_uuid_mapping)
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
+        stats.incr("dag.serialization_writes", tags={"dag_id": dag.dag_id, "bundle_name": bundle_name})
         return True
 
     @classmethod
@@ -955,7 +958,9 @@ class SerializedDagModel(Base):
             elif dialect == "postgresql":
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
-                data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
+                data_col_to_select = cls._data.op("#>")(
+                    literal(["dag", "dag_dependencies"], type_=ARRAY(String))
+                )
                 load_json = lambda x: x
             else:
                 data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")

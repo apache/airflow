@@ -27,11 +27,11 @@ import pytest
 from google.cloud.logging import Resource
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse, LogEntry
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.cloud.log.stackdriver_task_handler import (
     StackdriverRemoteLogIO,
     StackdriverTaskHandler,
 )
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars

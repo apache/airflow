@@ -122,6 +122,13 @@ class BaseSecretsBackend(ABC):
     def _deserialize_connection_value(conn_class: type, conn_id: str, value: str):
         value = value.strip()
         if value[0] == "{":
+            # JSON secrets stored by Airflow 2 backends may lack both "conn_type"
+            # and "uri" (e.g. {"host": ..., "login": ..., "password": ...}). This is
+            # valid: conn_type is intentionally optional on the SDK Connection model
+            # for Airflow 2 -> 3 migration compatibility.
+            # Check: https://github.com/apache/airflow/pull/61728
+            # TODO: Remove this compatibility once the minimum supported Airflow
+            #   version in providers is 3.0.
             return conn_class.from_json(value=value, conn_id=conn_id)  # type: ignore[attr-defined]
 
         # TODO: Only sdk has from_uri defined on it. Is it worthwhile developing the core path or not?

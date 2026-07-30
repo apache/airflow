@@ -124,6 +124,21 @@ class TestBaseSecretsBackend:
         assert conn.conn_id == "test_conn"
         assert conn._kwargs["conn_type"] == "mysql"
 
+    def test_deserialize_connection_json_without_conn_type(self):
+        """
+        Guards the Airflow 2 -> 3 migration compatibility established in
+        https://github.com/apache/airflow/pull/61728.
+        """
+        backend = _TestBackend()
+        backend._set_connection_class(MockConnection)
+
+        conn = backend.deserialize_connection(
+            "test_conn", '{"host": "example.com", "login": "admin", "password": "secret"}'
+        )
+        assert isinstance(conn, MockConnection)
+        assert conn.conn_id == "test_conn"
+        assert conn._kwargs == {"host": "example.com", "login": "admin", "password": "secret"}
+
     def test_deserialize_connection_uri(self, sample_conn_uri):
         """Test deserialize_connection with URI format through _TestBackend."""
         backend = _TestBackend()
