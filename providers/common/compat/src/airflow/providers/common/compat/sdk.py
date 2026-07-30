@@ -107,7 +107,7 @@ if TYPE_CHECKING:
         get_hook_lineage_collector as get_hook_lineage_collector,
     )
     from airflow.sdk.listener import get_listener_manager as get_listener_manager
-    from airflow.sdk.log import redact as redact
+    from airflow.sdk.log import mask_secret as mask_secret, redact as redact
     from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
 
     # Airflow 3-only exceptions (conditionally imported)
@@ -313,6 +313,11 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "redact": (
         "airflow.sdk.log",
         "airflow.sdk._shared.secrets_masker",
+        "airflow.sdk.execution_time.secrets_masker",
+        "airflow.utils.log.secrets_masker",
+    ),
+    "mask_secret": (
+        "airflow.sdk.log",
         "airflow.sdk.execution_time.secrets_masker",
         "airflow.utils.log.secrets_masker",
     ),
