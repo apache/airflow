@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from enum import Enum
-from functools import cache
+from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
@@ -44,6 +45,7 @@ from airflow.api_fastapi.auth.tokens import (
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.revoked_token import RevokedToken
@@ -357,13 +359,42 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         access_view: AccessView,
         user: T,
+        team_name: str | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to access a read-only state of the installation.
 
         :param access_view: the specific read-only view/state the authorization request is about.
         :param user: the user to performing the action
+        :param team_name: team the view is scoped to, if any. Managers without multi-team
+            support may accept and ignore it, which authorizes the view globally.
         """
+
+    @cached_property
+    def _is_authorized_view_team_aware(self) -> bool:
+        """Whether this manager's ``is_authorized_view`` override accepts ``team_name``."""
+        params = inspect.signature(self.is_authorized_view).parameters
+        return "team_name" in params or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+
+    def authorize_view(self, *, access_view: AccessView, user: T, team_name: str | None = None) -> bool:
+        """
+        Authorize a read-only view, tolerating auth managers that predate ``team_name``.
+
+        Core calls this instead of :meth:`is_authorized_view` on team-scoped paths: an
+        override still on the old ``(access_view, user)`` signature would otherwise raise
+        ``TypeError``. Removed in Airflow 4.
+        """
+        if self._is_authorized_view_team_aware:
+            return self.is_authorized_view(access_view=access_view, user=user, team_name=team_name)
+        warnings.warn(
+            f"The '{type(self).__name__}' auth manager is not team-aware, so team-scoped views are "
+            "authorized across all teams and may be visible to users of other teams. Add the "
+            "'team_name' argument to its is_authorized_view (or upgrade the provider). Airflow 4 "
+            "will require team-aware auth managers.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        return self.is_authorized_view(access_view=access_view, user=user)
 
     @abstractmethod
     def is_authorized_custom_view(self, *, method: ResourceMethod, resource_name: str, user: T) -> bool:

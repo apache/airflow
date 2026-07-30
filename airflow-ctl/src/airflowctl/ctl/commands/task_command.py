@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
+from airflowctl.api.datamodels.generated import TaskInstanceState
 from airflowctl.ctl.console_formatting import AirflowConsole
 
 if TYPE_CHECKING:
@@ -72,6 +73,57 @@ def _format_task_instance(ti: TaskInstanceResponse, has_mapped_instances: bool) 
     if has_mapped_instances:
         data["map_index"] = str(ti.map_index) if ti.map_index >= 0 else ""
     return data
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def failed_deps(args, api_client=NEW_API_CLIENT) -> None:
+    """Get task instance dependencies that were not met, from the scheduler's perspective."""
+    if (args.run_id is None) == (args.logical_date is None):
+        rich.print("[red]Provide either run_id or --logical-date, but not both[/red]")
+        sys.exit(1)
+
+    run_id = args.run_id or _find_run_id_by_logical_date(api_client, args.dag_id, args.logical_date)
+
+    try:
+        response = api_client.task_instances.get_dependencies(
+            dag_id=args.dag_id,
+            dag_run_id=run_id,
+            task_id=args.task_id,
+            map_index=args.map_index,
+            suppress_error_log=True,
+        )
+        if response.dependencies:
+            print("Task instance dependencies not met:")
+            for dep in response.dependencies:
+                print(f"{dep.name}: {dep.reason}")
+            return
+
+        # The API server evaluates scheduler dependencies only for task instances that have not been
+        # queued yet, so an empty response for any other state does not mean the dependencies are met.
+        task_instance = api_client.task_instances.get(
+            dag_id=args.dag_id,
+            dag_run_id=run_id,
+            task_id=args.task_id,
+            map_index=args.map_index,
+            suppress_error_log=True,
+        )
+    except ServerResponseError as e:
+        if e.response.status_code == 404:
+            map_index_part = f" with map index {args.map_index}" if args.map_index >= 0 else ""
+            rich.print(
+                f"[red]Task instance for task {args.task_id!r}{map_index_part} in Dag run "
+                f"{run_id!r} of Dag {args.dag_id!r} not found[/red]"
+            )
+            sys.exit(1)
+        raise
+
+    if task_instance.state is None or task_instance.state == TaskInstanceState.SCHEDULED:
+        print("Task instance dependencies are all met.")
+    else:
+        print(
+            f"Task instance is in the '{task_instance.state.value}' state; scheduler dependencies "
+            "are only evaluated for task instances that have not yet been queued."
+        )
 
 
 @provide_api_client(kind=ClientKind.CLI)
