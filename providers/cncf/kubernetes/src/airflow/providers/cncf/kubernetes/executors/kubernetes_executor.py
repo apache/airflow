@@ -38,10 +38,11 @@ from http import HTTPStatus
 from itertools import chain
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
-from sqlalchemy import String, cast, select
+from sqlalchemy import select
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
@@ -80,6 +81,7 @@ if TYPE_CHECKING:
     from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
+    from airflow.executors.workloads import ExecuteTask
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
@@ -417,7 +419,7 @@ class KubernetesExecutor(BaseExecutor):
     def _should_create_pod_for_execute_task(
         self,
         task: KubernetesJob,
-        workload: Any,
+        workload: ExecuteTask,
         *,
         session: Session = NEW_SESSION,
     ) -> bool:
@@ -440,7 +442,7 @@ class KubernetesExecutor(BaseExecutor):
                 TaskInstance.state,
                 TaskInstance.try_number,
                 TaskInstance.queued_by_job_id,
-            ).where(cast(TaskInstance.id, String) == str(workload_ti.id))
+            ).where(TaskInstance.id == UUID(str(workload_ti.id)))
         ).one_or_none()
         if ti is None:
             self.log.info(
