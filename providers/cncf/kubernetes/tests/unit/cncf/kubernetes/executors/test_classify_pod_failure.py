@@ -45,8 +45,8 @@ class TestClassifyPodFailure:
             ("Preempting", None, "infra"),
             ("NodeShutdown", None, "infra"),
             ("NodeLost", None, "infra"),
-            ("DisruptionTarget", None, "infra"),
-            ("TerminationByKubelet", None, "infra"),
+            # Graceful node shutdown killing an already-running pod: the node-drain case.
+            ("Terminated", None, "infra"),
             # Pod taken while the task ran (drain, preempt, spot reclaim, force-delete).
             ("PodDeleted", None, "infra"),
             # Container ended on its own -> application. An OOM against the container's OWN

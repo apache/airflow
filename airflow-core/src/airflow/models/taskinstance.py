@@ -595,7 +595,13 @@ def _date_or_empty(*, task_instance: TaskInstance, attr: str) -> str:
     return result.strftime("%Y%m%dT%H%M%S") if result else ""
 
 
-def _maybe_refund_infra_attempt(*, task_instance, task, failure_kind, reason=None) -> bool:
+def _maybe_refund_infra_attempt(
+    *,
+    task_instance: TaskInstance,
+    task: Operator | None,
+    failure_kind: TaskFailureKind | None,
+    reason: str | None = None,
+) -> bool:
     """
     Refund one retry attempt (bump ``max_tries``) for an infra-classified failure.
 
@@ -1923,7 +1929,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         *,
         session: Session,
         fail_fast: bool = False,
-        failure_kind: str | None = None,
+        failure_kind: TaskFailureKind | None = None,
         reason: str | None = None,
     ):
         """
@@ -2015,7 +2021,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         test_mode: bool | None = None,
         *,
         session: Session = NEW_SESSION,
-        failure_kind: str | None = None,
+        failure_kind: TaskFailureKind | None = None,
         reason: str | None = None,
     ) -> None:
         """

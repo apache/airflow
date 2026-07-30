@@ -555,7 +555,7 @@ class BaseExecutor(LoggingMixin):
 
         return cleared_events
 
-    def get_task_failure_info(self, key: WorkloadKey):
+    def get_task_failure_info(self, key: WorkloadKey) -> tuple[TaskFailureKind, str | None] | None:
         """
         Return and clear the ``(failure_kind, reason)`` this executor classified for ``key``.
 

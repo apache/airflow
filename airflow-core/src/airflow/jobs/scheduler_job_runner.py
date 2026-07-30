@@ -1514,7 +1514,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             state, info = event_buffer.pop(buffer_key)
             # Pop unconditionally, not only on the killed-externally branch below, so a
             # self-reporting task can't leak its entry.
-            executor_failure_kind = executor.get_task_failure_info(ti.key)
+            executor_failure_kind: tuple[TaskFailureKind, str | None] | None = executor.get_task_failure_info(
+                ti.key
+            )
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
