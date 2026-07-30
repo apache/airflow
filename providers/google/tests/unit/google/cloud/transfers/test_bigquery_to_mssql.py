@@ -82,6 +82,9 @@ class TestBigQueryToMsSqlOperator:
             replace=False,
         )
 
+        assert operator.dataset_id is None
+        assert operator.table_id is None
+
         operator.render_template_fields(
             {"var": {"value": {"source_project_dataset_table": source_project_dataset_table}}}
         )

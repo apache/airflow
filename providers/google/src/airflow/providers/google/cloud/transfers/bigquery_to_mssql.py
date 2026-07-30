@@ -83,7 +83,6 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
 
         super().__init__(
             target_table_name=target_table_name,
-            dataset_table="__airflow_unrendered_dataset.__airflow_unrendered_table",
             **kwargs,
         )
         self.mssql_conn_id = mssql_conn_id
