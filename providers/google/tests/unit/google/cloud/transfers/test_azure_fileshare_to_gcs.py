@@ -16,14 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+import warnings
 from unittest import mock
 
 import pytest
 
+from airflow import DAG
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs import AzureFileShareToGCSOperator
 
 pytestmark = pytest.mark.filterwarnings("ignore::FutureWarning")
 
+DEFAULT_DATE = datetime.datetime(2024, 1, 1)
 TASK_ID = "test-azure-fileshare-to-gcs"
 AZURE_FILESHARE_SHARE = "test-share"
 AZURE_FILESHARE_DIRECTORY_PATH = "/path/to/dir"
@@ -55,6 +60,96 @@ class TestAzureFileShareToGCSOperator:
         assert operator.gcp_conn_id == GCS_CONN_ID
         assert operator.dest_gcs == GCS_PATH_PREFIX
         assert operator.google_impersonation_chain == IMPERSONATION_CHAIN
+
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook")
+    def test_directory_name_alias_uses_rendered_value(self, gcs_mock_hook, azure_fileshare_mock_hook):
+        """A templated directory_name is aliased to directory_path using its rendered value, not the Jinja expression."""
+        dag = DAG("test_azure_fileshare_alias", schedule=None, start_date=DEFAULT_DATE)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Use 'directory_path' instead"):
+            operator = AzureFileShareToGCSOperator(
+                task_id=TASK_ID,
+                share_name=AZURE_FILESHARE_SHARE,
+                directory_name="{{ params.legacy_dir }}",
+                params={"legacy_dir": "rendered/dir"},
+                azure_fileshare_conn_id=AZURE_FILESHARE_CONN_ID,
+                gcp_conn_id=GCS_CONN_ID,
+                dest_gcs=GCS_PATH_PREFIX,
+                return_gcs_uris=True,
+                dag=dag,
+            )
+        assert operator.directory_path is None
+
+        operator.render_template_fields({"params": {"legacy_dir": "rendered/dir"}})
+        assert operator.directory_path == "rendered/dir"
+
+        azure_fileshare_mock_hook.return_value.list_files.return_value = MOCK_FILES
+        operator.execute(None)
+        azure_fileshare_mock_hook.assert_any_call(
+            share_name=AZURE_FILESHARE_SHARE,
+            azure_fileshare_conn_id=AZURE_FILESHARE_CONN_ID,
+            directory_path="rendered/dir",
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.GCSHook")
+    def test_native_directory_path_rendering_to_none_is_not_aliased(
+        self, gcs_mock_hook, azure_fileshare_mock_hook
+    ):
+        """
+        Behaviour-preservation guard for the __init__ -> render_template_fields move.
+
+        Deciding the alias from the pre-render values must be kept: with render_template_as_native_obj
+        an explicitly supplied directory_path can render to None, and re-inferring the alias afterwards
+        would wrongly fall back to the deprecated directory_name. This passes on the unrefactored code
+        (the provision decision was made in __init__) and fails if the decision is moved past rendering.
+        """
+        dag = DAG(
+            "test_azure_fileshare_native",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            render_template_as_native_obj=True,
+        )
+        operator = AzureFileShareToGCSOperator(
+            task_id=TASK_ID,
+            share_name=AZURE_FILESHARE_SHARE,
+            directory_path="{{ params.p }}",
+            directory_name="legacy",
+            params={"p": None},
+            azure_fileshare_conn_id=AZURE_FILESHARE_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+            return_gcs_uris=True,
+            dag=dag,
+        )
+
+        operator.render_template_fields({"params": {"p": None}})
+        assert operator.directory_path is None
+
+        # The deprecated alias must not silently substitute directory_name; a genuinely unset
+        # directory surfaces as the operator's own error instead of listing the wrong directory.
+        azure_fileshare_mock_hook.return_value.list_files.return_value = MOCK_FILES
+        with pytest.raises(RuntimeError, match="directory_name must be set"):
+            operator.execute(None)
+
+    @pytest.mark.parametrize(
+        "extra_kwargs",
+        [
+            pytest.param({"directory_path": AZURE_FILESHARE_DIRECTORY_PATH}, id="directory_path-supplied"),
+            pytest.param({}, id="neither-supplied"),
+        ],
+    )
+    def test_no_directory_name_deprecation_without_directory_name(self, extra_kwargs):
+        """The directory_name deprecation must fire only when directory_name is the argument supplied."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            AzureFileShareToGCSOperator(
+                task_id=TASK_ID,
+                share_name=AZURE_FILESHARE_SHARE,
+                dest_gcs=GCS_PATH_PREFIX,
+                return_gcs_uris=True,
+                **extra_kwargs,
+            )
 
     @pytest.mark.parametrize("return_gcs_uris", [True, False])
     @mock.patch("airflow.providers.google.cloud.transfers.azure_fileshare_to_gcs.AzureFileShareHook")

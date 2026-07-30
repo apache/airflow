@@ -35,6 +35,8 @@ except ModuleNotFoundError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -102,8 +104,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.share_name = share_name
         self.directory_path = directory_path
         self.directory_name = directory_name
-        if self.directory_path is None and self.directory_name is not None:
-            self.directory_path = self.directory_name
+        if directory_path is None and directory_name is not None:
             warnings.warn(
                 "Use 'directory_path' instead of 'directory_name'. Planned removal date: October 5, 2026.",
                 AirflowProviderDeprecationWarning,
@@ -126,6 +127,14 @@ class AzureFileShareToGCSOperator(BaseOperator):
             )
         else:
             self.return_gcs_uris = return_gcs_uris
+
+    def render_template_fields(self, context: Context, jinja_env: jinja2.Environment | None = None) -> None:
+        # Decide the deprecated directory_name->directory_path alias from the un-rendered values;
+        # native rendering can turn a supplied directory_path into None, so this can't wait until after.
+        use_directory_name = self.directory_path is None and self.directory_name is not None
+        super().render_template_fields(context=context, jinja_env=jinja_env)
+        if use_directory_name:
+            self.directory_path = self.directory_name
 
     def _check_inputs(self) -> None:
         if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
