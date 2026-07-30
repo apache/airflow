@@ -22,8 +22,6 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-
-
 import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
 
@@ -33,9 +31,9 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getDuration } from "src/utils";
-import { BackfillsFilters } from "./BackfillsFilters";
-import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 
+import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
+import { BackfillsFilters } from "./BackfillsFilters";
 
 const {
   COMPLETED_AT_GTE: COMPLETED_AT_GTE_PARAM,
@@ -52,9 +50,9 @@ const {
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const getColumns = (
-        onSelectBackfill: (backfillId: number) => void,
-        translate: TFunction,
-    ): Array<ColumnDef<BackfillResponse>> => [
+  onSelectBackfill: (backfillId: number) => void,
+  translate: TFunction,
+): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -199,7 +197,6 @@ export const Backfills = () => {
     );
   };
   const columns = getColumns(onSelectBackfill, translate);
-
 
   return (
     <>
