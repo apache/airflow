@@ -63,19 +63,13 @@ mainClass: providers-page
       {% set lc = provider.lifecycle or "production" %}
       {% set lcDisplay = "incubation" if lc == "incubation" else ("deprecated" if lc == "deprecated" else "stable") %}
       {% set cats = providerCategoryMap[provider.id] or [] %}
-      {% set integrations = [] %}
-      {% for cat in provider.categories or [] %}
-        {% if cat.name %}
-        {% set integrations = (integrations.push(cat.name | lower), integrations) %}
-        {% endif %}
-      {% endfor %}
       <li class="provider-item"
           data-lifecycle="{{ lcDisplay }}"
           data-name="{{ provider.name | lower }}"
           data-downloads="{{ provider.pypi_downloads.monthly }}"
           data-updated="{{ provider.last_updated or '' }}"
           data-categories="{{ cats | join(',') }}"
-          data-integrations="{{ integrations | join(',') }}">
+          data-integrations="{{ (provider.categories or []) | selectattr('name') | join(',', 'name') | lower }}">
         {% include "provider-card.njk" %}
       </li>
       {% endfor %}
