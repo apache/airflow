@@ -182,6 +182,12 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return []
 
+    def get_jwt_refresh_middleware(self) -> tuple[_MiddlewareFactory[Any], dict[str, Any]]:
+        """Return the JWTRefreshMiddleware to refresh the Airflow JWT token."""
+        from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+
+        return JWTRefreshMiddleware, {}
+
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
     ) -> str:

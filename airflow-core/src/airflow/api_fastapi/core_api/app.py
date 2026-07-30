@@ -172,12 +172,15 @@ def init_config(app: FastAPI) -> None:
 
 def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.app import get_auth_manager
-    from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
     from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 
-    app.add_middleware(JWTRefreshMiddleware)
+    auth_manager = get_auth_manager()
 
-    for middleware_cls, middleware_kwargs in get_auth_manager().get_fastapi_middlewares():
+    jwt_refresh_middleware, jwt_refresh_middleware_kwargs = auth_manager.get_jwt_refresh_middleware()
+
+    app.add_middleware(jwt_refresh_middleware, **jwt_refresh_middleware_kwargs)
+
+    for middleware_cls, middleware_kwargs in auth_manager.get_fastapi_middlewares():
         app.add_middleware(middleware_cls, **middleware_kwargs)
 
     # GZipMiddleware must be inside HttpAccessLogMiddleware so that access logs capture

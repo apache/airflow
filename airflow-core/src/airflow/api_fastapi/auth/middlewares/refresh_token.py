@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -45,11 +45,12 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         new_token = None
+        new_user = None
         current_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
         try:
             if current_token is not None:
                 try:
-                    new_user, current_user = await self._refresh_user(current_token)
+                    new_user, current_user = await self._refresh_user(current_token, request)
                     if user := (new_user or current_user):
                         # Stamp the trust sentinel alongside the user so `get_user()`
                         # can distinguish this trusted assignment from a stray write
@@ -68,35 +69,64 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
 
             if new_token is not None:
-                cookie_path = get_cookie_path()
                 secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-                response.set_cookie(
-                    COOKIE_NAME_JWT_TOKEN,
-                    new_token,
-                    path=cookie_path,
-                    httponly=True,
-                    secure=secure,
-                    samesite="lax",
-                    max_age=0 if new_token == "" else None,
-                )
-                # Clear any stale _token cookie at root path "/".
-                # Older Airflow instances may have set the cookie there;
-                # without this, the root-path cookie keeps being sent on
-                # every request, causing an infinite redirect loop.
-                if cookie_path != "/":
-                    response.delete_cookie(
-                        key=COOKIE_NAME_JWT_TOKEN,
-                        path="/",
-                        httponly=True,
-                        secure=secure,
-                        samesite="lax",
-                    )
+                response = await self._set_new_token(new_token, new_user, secure, response)
+
         except HTTPException as exc:
             # If any HTTPException is raised during user resolution or refresh, return it as response
             return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
         return response
 
+    @classmethod
+    async def _set_new_token(
+        cls,
+        new_token: str,
+        new_user: BaseUser | None,
+        secure: bool,
+        response: Response,
+        cookie_path: str | None = None,
+    ) -> Response:
+        """
+        Set Cookies in the response based on a new JWT token and a new user model.
+
+        :param new_token: New JWT Token to set in cookies
+        :param new_user: User model for the JWT token
+        :param secure: HTTP secure property for cookies
+        :param response: FastAPI response object to set the cookies on
+        :param cookie_path: Path for cookies in the response
+        """
+        if cookie_path is None:
+            cookie_path = get_cookie_path()
+        response.set_cookie(
+            COOKIE_NAME_JWT_TOKEN,
+            new_token,
+            path=cookie_path,
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+            max_age=0 if new_token == "" else None,
+        )
+        # Clear any stale _token cookie at root path "/".
+        # Older Airflow instances may have set the cookie there;
+        # without this, the root-path cookie keeps being sent on
+        # every request, causing an infinite redirect loop.
+        if cookie_path != "/":
+            response.delete_cookie(
+                key=COOKIE_NAME_JWT_TOKEN,
+                path="/",
+                httponly=True,
+                secure=secure,
+                samesite="lax",
+            )
+        return response
+
     @staticmethod
-    async def _refresh_user(current_token: str) -> tuple[BaseUser | None, BaseUser | None]:
+    async def _refresh_user(current_token: str, request: Request) -> tuple[BaseUser | None, BaseUser | None]:
+        """
+        Refresh the logged in user using the current JWT Token.
+
+        :param current_token: Current JWT Token
+        :param request: FastAPI Request
+        """
         user = await resolve_user_from_token(current_token)
         return get_auth_manager().refresh_user(user=user), user
