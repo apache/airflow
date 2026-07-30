@@ -30,9 +30,10 @@ import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
+import { TeamName } from "src/components/TeamName";
 import { TogglePause } from "src/components/TogglePause";
 import { RouterLink } from "src/components/ui";
-import { useConfig } from "src/queries/useConfig";
+import { useShowTeam } from "src/hooks/useShowTeam";
 
 import { DagOwners } from "../DagsList/DagOwners";
 import { DagTags } from "../DagsList/DagTags";
@@ -59,8 +60,7 @@ export const Header = ({
   const { t: translate } = useTranslation(["common", "dag"]);
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
-  const multiTeamEnabled = Boolean(useConfig("multi_team"));
-  const showTeam = multiTeamEnabled && dag?.team_name !== undefined && dag.team_name !== null;
+  const showTeam = useShowTeam(dag?.team_name);
   const isStale = dag?.is_stale;
 
   const nextRunStat = isStale
@@ -115,19 +115,18 @@ export const Header = ({
           ? undefined
           : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
     },
-    showTeam
-      ? {
-          label: translate("dagDetails.team"),
-          value: (
-            <RouterLink to={`/dags?teams=${encodeURIComponent(dag.team_name as string)}`}>
-              {dag.team_name}
-            </RouterLink>
-          ),
-        }
-      : {
-          label: translate("dagDetails.owner"),
-          value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
-        },
+    {
+      label: translate("dagDetails.owner"),
+      value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
+    },
+    ...(showTeam
+      ? [
+          {
+            label: translate("dagDetails.team"),
+            value: <TeamName teamName={dag?.team_name} />,
+          },
+        ]
+      : []),
     {
       label: translate("dagDetails.tags"),
       value: <DagTags tags={dag?.tags ?? []} />,

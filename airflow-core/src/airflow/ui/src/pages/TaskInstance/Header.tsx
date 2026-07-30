@@ -28,16 +28,16 @@ import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import NotePreview from "src/components/NotePreview";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { RouterLink } from "src/components/ui";
-import { useConfig } from "src/queries/useConfig";
+import { useShowTeam } from "src/hooks/useShowTeam";
 import { useTaskInstanceNote } from "src/queries/useTaskInstanceNote";
 import { getDuration, renderDuration } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
   const { isPending, note, onOpen, onSave, setNote } = useTaskInstanceNote(taskInstance);
-  const multiTeamEnabled = Boolean(useConfig("multi_team"));
+  const showTeam = useShowTeam(taskInstance.team_name);
 
   const stats = [
     { label: translate("task.operator"), value: taskInstance.operator_name },
@@ -59,15 +59,11 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
           },
         ]
       : []),
-    ...(multiTeamEnabled && taskInstance.team_name !== undefined && taskInstance.team_name !== null
+    ...(showTeam
       ? [
           {
             label: translate("dagDetails.team"),
-            value: (
-              <RouterLink to={`/dags?teams=${encodeURIComponent(taskInstance.team_name)}`}>
-                {taskInstance.team_name}
-              </RouterLink>
-            ),
+            value: <TeamName teamName={taskInstance.team_name} />,
           },
         ]
       : []),

@@ -55,7 +55,7 @@ class TestTeam:
         assert isinstance(result, set)
 
 
-class TestTeamOwnedMixin:
+class TestTeamName:
     """``team_name`` resolution on the models that reach a team through a relationship."""
 
     @pytest.fixture
@@ -97,6 +97,12 @@ class TestTeamOwnedMixin:
         options = eager_load_teams(DagRun.dag_model) if eager_load else ()
         return session.scalar(select(DagRun).where(DagRun.dag_id == DAG_ID).options(*options))
 
+    def get_dag_model(self, session, *, eager_load: bool) -> DagModel:
+        """Re-fetch the Dag, with or without the team eager loading options."""
+        session.expunge_all()
+        options = eager_load_teams() if eager_load else ()
+        return session.scalar(select(DagModel).where(DagModel.dag_id == DAG_ID).options(*options))
+
     @conf_vars({("core", "multi_team"): "True"})
     def test_team_name_uses_eager_loaded_relationships(self, team_owned_run, session):
         dag_run = self.get_run(session, eager_load=True)
@@ -105,21 +111,23 @@ class TestTeamOwnedMixin:
             assert dag_run.team_name == TEAM_NAME
 
     @conf_vars({("core", "multi_team"): "True"})
-    def test_team_name_falls_back_when_not_eager_loaded(self, team_owned_run, session):
+    @pytest.mark.parametrize("entity", ["dag", "dag_run"])
+    def test_team_name_falls_back_when_not_eager_loaded(self, team_owned_run, session, entity):
         """Paths that cannot eager load resolve via the cached resolver, not ``lazy="raise"``."""
-        dag_run = self.get_run(session, eager_load=False)
-
-        assert dag_run.team_name == TEAM_NAME
+        if entity == "dag":
+            assert self.get_dag_model(session, eager_load=False).team_name == TEAM_NAME
+        else:
+            assert self.get_run(session, eager_load=False).team_name == TEAM_NAME
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_team_name_fallback_keeps_caller_objects_attached(self, team_owned_run, session):
         """The fallback must not close the caller's scoped session out from under it."""
-        dag_run = self.get_run(session, eager_load=False)
+        dag_model = self.get_dag_model(session, eager_load=False)
 
-        assert dag_run.team_name == TEAM_NAME
-        assert not sa_inspect(dag_run).detached
+        assert dag_model.team_name == TEAM_NAME
+        assert not sa_inspect(dag_model).detached
         # Would raise DetachedInstanceError if the resolver had closed the shared session.
-        assert dag_run.dag_model.dag_id == DAG_ID
+        assert dag_model.dag_versions is not None
 
     @conf_vars({("core", "multi_team"): "False"})
     def test_team_name_is_none_without_multi_team(self, team_owned_run, session):

@@ -82,7 +82,7 @@ describe("Header", () => {
     expect(screen.queryByText("2024-08-22 19:00:00")).not.toBeInTheDocument();
   });
 
-  it("replaces the owner stat with the team when multi-team is enabled", () => {
+  it("shows the team alongside the owner when multi-team is enabled", () => {
     mockConfig.multi_team = true;
     render(
       <Wrapper>
@@ -92,7 +92,7 @@ describe("Header", () => {
 
     expect(screen.getByText(i18n.t("common:dagDetails.team"))).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "team-a" })).toHaveAttribute("href", "/dags?teams=team-a");
-    expect(screen.queryByText(i18n.t("common:dagDetails.owner"))).not.toBeInTheDocument();
+    expect(screen.getByText(i18n.t("common:dagDetails.owner"))).toBeInTheDocument();
   });
 
   it("shows the owner stat when multi-team is enabled but no team is resolved", () => {

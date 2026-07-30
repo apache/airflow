@@ -29,10 +29,11 @@ import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { StateBadge } from "src/components/StateBadge";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton, RouterLink } from "src/components/ui";
+import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { useConfig } from "src/queries/useConfig";
+import { useShowTeam } from "src/hooks/useShowTeam";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 
 import { BlockingDeps } from "./BlockingDeps";
@@ -43,7 +44,6 @@ export const Details = () => {
   const { t: translate } = useTranslation();
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const parsedMapIndex = parseInt(mapIndex, 10);
@@ -60,6 +60,8 @@ export const Details = () => {
       enabled: !isNaN(parsedMapIndex),
     },
   );
+
+  const showTeam = useShowTeam(taskInstance?.team_name);
 
   const onSelectTryNumber = (newTryNumber: number) => {
     if (newTryNumber === taskInstance?.try_number) {
@@ -181,13 +183,11 @@ export const Details = () => {
             <Table.Cell>{translate("mapIndex")}</Table.Cell>
             <Table.Cell>{tryInstance?.map_index}</Table.Cell>
           </Table.Row>
-          {multiTeamEnabled && taskInstance?.team_name !== undefined && taskInstance.team_name !== null ? (
+          {showTeam ? (
             <Table.Row>
               <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
               <Table.Cell>
-                <RouterLink to={`/dags?teams=${encodeURIComponent(taskInstance.team_name)}`}>
-                  {taskInstance.team_name}
-                </RouterLink>
+                <TeamName teamName={taskInstance?.team_name} />
               </Table.Cell>
             </Table.Row>
           ) : undefined}

@@ -25,15 +25,15 @@ import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardIconButton, RouterLink } from "src/components/ui";
-import { useConfig } from "src/queries/useConfig";
+import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { useShowTeam } from "src/hooks/useShowTeam";
 import { getDuration, isStatePending, renderDuration, useAutoRefresh } from "src/utils";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "components"]);
   const { dagId = "", runId = "" } = useParams();
-  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -47,6 +47,8 @@ export const Details = () => {
   );
 
   const { data: dagRunStats } = useDagRunServiceGetDagRunStats({ dagId, dagRunId: runId });
+
+  const showTeam = useShowTeam(dagRun?.team_name);
 
   if (!dagRun) {
     return undefined;
@@ -84,13 +86,11 @@ export const Details = () => {
             </HStack>
           </Table.Cell>
         </Table.Row>
-        {multiTeamEnabled && dagRun.team_name !== undefined && dagRun.team_name !== null ? (
+        {showTeam ? (
           <Table.Row>
             <Table.Cell>{translate("dagDetails.team")}</Table.Cell>
             <Table.Cell>
-              <RouterLink to={`/dags?teams=${encodeURIComponent(dagRun.team_name)}`}>
-                {dagRun.team_name}
-              </RouterLink>
+              <TeamName teamName={dagRun.team_name} />
             </Table.Cell>
           </Table.Row>
         ) : undefined}

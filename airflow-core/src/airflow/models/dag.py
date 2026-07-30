@@ -38,6 +38,7 @@ from sqlalchemy import (
     Text,
     case,
     func,
+    inspect as sa_inspect,
     or_,
     select,
 )
@@ -63,7 +64,7 @@ from airflow.models.asset import AssetDagRunQueue
 from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
-from airflow.models.team import Team, TeamOwnedMixin
+from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.encoders import DAT, encode_deadline_alert
 from airflow.serialization.enums import Encoding
@@ -79,6 +80,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from dateutil.relativedelta import relativedelta
+    from sqlalchemy.orm.state import InstanceState
 
     from airflow.sdk import Context
     from airflow.serialization.definitions.assets import (
@@ -307,7 +309,7 @@ class DagOwnerAttributes(Base):
         return dag_links
 
 
-class DagModel(Base, TeamOwnedMixin):
+class DagModel(Base):
     """Table containing DAG properties."""
 
     __tablename__ = "dag"
@@ -440,15 +442,28 @@ class DagModel(Base, TeamOwnedMixin):
     dag_versions = relationship(
         "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
     )
-    # The Dag's bundle, which carries the owning team. ``lazy="raise"`` forbids implicit
-    # loading so a caller that forgets ``eager_load_teams`` cannot emit a silent N+1;
-    # ``TeamOwnedMixin.team_name`` only reads this once loader options have populated it.
-    bundle = relationship(
-        "DagBundleModel",
-        primaryjoin="DagModel.bundle_name == DagBundleModel.name",
-        viewonly=True,
-        lazy="raise",
-    )
+    # Path from a Dag to its owning team, used by ``team_name`` below. ``lazy="raise"`` keeps the
+    # traversal opt-in so a caller that forgets eager_load_teams() cannot emit a silent N+1.
+    bundle = relationship("DagBundleModel", viewonly=True, lazy="raise")
+
+    @property
+    def team_name(self) -> str | None:
+        """Name of the team owning this Dag, or ``None`` when it is not team-owned."""
+        if not airflow_conf.getboolean("core", "multi_team"):
+            return None
+
+        state: InstanceState = sa_inspect(self)
+        if "bundle" in state.unloaded:
+            # Serialization paths that fetch a Dag by primary key cannot apply loader options
+            # (e.g. Deadline.handle_miss, asset materialization), so fall back to the cached
+            # resolver rather than tripping ``lazy="raise"``. Reuse this instance's own session:
+            # ``get_team_name`` is ``@provide_session``, and the session it would otherwise open
+            # is the *same* scoped session the caller holds, so closing it on exit would detach
+            # every object still in use.
+            if state.session is not None:
+                return DagModel.get_team_name(self.dag_id, session=state.session)
+            return DagModel.get_team_name(self.dag_id)
+        return self.bundle.team_name if self.bundle else None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
