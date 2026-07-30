@@ -1019,7 +1019,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     from airflow.models.tasklog import LogTemplate
 
     metadata = reflect_tables([LogTemplate], session)
-    log_template_table: Table | None = metadata.tables.get(LogTemplate.__tablename__)
+    log_template_table: Table | None = metadata.tables.get(LogTemplate.__table__.key)
 
     if log_template_table is None:
         log.info("Log template table does not exist (added in 2.3.0); skipping log template sync.")
@@ -1104,11 +1104,20 @@ def reflect_tables(tables: list[MappedClassProtocol | str] | None, session, sche
     else:
         for tbl in tables:
             try:
-                table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
                 tbl_schema: str | None
-                tbl_schema, sep, name = table_name.partition(".")
-                if not sep:
-                    tbl_schema, name = None, table_name
+                if isinstance(tbl, str):
+                    tbl_schema, sep, name = tbl.partition(".")
+                    if not sep:
+                        tbl_schema, name = None, tbl
+                else:
+                    # A mapped class already carries its configured schema (e.g. via
+                    # ``sql_alchemy_schema``) on its table; a bare ``__tablename__`` would
+                    # discard it and fall back to the connection's default schema.
+                    # ``__table__`` isn't declared on ``MappedClassProtocol`` (SQLAlchemy sets
+                    # it dynamically, invisible to mypy's static checks here), so read it via
+                    # ``getattr`` instead of a direct attribute access.
+                    name = tbl.__tablename__
+                    tbl_schema = getattr(tbl, "__table__").schema
                 metadata.reflect(
                     bind=bind, schema=tbl_schema, only=[name], extend_existing=True, resolve_fks=False
                 )

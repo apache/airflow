@@ -31,7 +31,7 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Column, Integer, MetaData, Table, select
+from sqlalchemy import Column, Integer, MetaData, String, Table, select
 
 from airflow import settings
 from airflow.models import Base as airflow_base
@@ -46,7 +46,9 @@ from airflow.utils.db import (
     create_default_connections,
     downgrade,
     initdb,
+    reflect_tables,
     resetdb,
+    synchronize_log_template,
     upgradedb,
 )
 from airflow.utils.db_manager import RunDBManager
@@ -400,6 +402,49 @@ class TestDb:
         lss = LazySelectSequence.from_select(select(t.c.id), order_by=[], session=MockSession())
 
         assert bool(lss) is False
+
+
+class TestReflectTablesSchemaQualified:
+    def test_reflect_tables_uses_mapped_class_configured_schema(self, mocker):
+        metadata = MetaData()
+        Table("scoped_model", metadata, Column("id", Integer, primary_key=True), schema="custom_schema")
+
+        class _ScopedModel:
+            __tablename__ = "scoped_model"
+            __table__ = metadata.tables["custom_schema.scoped_model"]
+
+        mock_reflect = mocker.patch.object(MetaData, "reflect")
+        session = mocker.MagicMock()
+
+        reflect_tables([_ScopedModel], session)
+
+        mock_reflect.assert_called_once_with(
+            bind=session.bind,
+            schema="custom_schema",
+            only=["scoped_model"],
+            extend_existing=True,
+            resolve_fks=False,
+        )
+
+    def test_synchronize_log_template_finds_table_in_configured_schema(self, mocker):
+        from airflow.models.tasklog import LogTemplate
+
+        metadata = MetaData()
+        Table(
+            LogTemplate.__tablename__,
+            metadata,
+            Column("id", Integer, primary_key=True),
+            Column("filename", String(2000)),
+            Column("elasticsearch_id", String(2000)),
+            schema="custom_schema",
+        )
+        mocker.patch.object(LogTemplate.__table__, "schema", "custom_schema")
+        mocker.patch("airflow.utils.db.reflect_tables", return_value=metadata)
+        session = mocker.MagicMock()
+
+        synchronize_log_template(session=session)
+
+        session.execute.assert_called()
 
 
 class TestAutocommitEngineForMySQL:
