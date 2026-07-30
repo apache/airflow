@@ -70,6 +70,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_2_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 try:
@@ -1635,7 +1636,7 @@ class TestKubernetesExecutor:
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.sync")
     @mock.patch(
         "airflow.executors.base_executor.BaseExecutor."
-        + ("trigger_workloads" if AIRFLOW_V_3_3_PLUS else "trigger_tasks")
+        + ("trigger_workloads" if AIRFLOW_V_3_4_PLUS else "trigger_tasks")
     )
     @mock.patch(f"{stats_reference}.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger, mock_sync, mock_kube_config):
