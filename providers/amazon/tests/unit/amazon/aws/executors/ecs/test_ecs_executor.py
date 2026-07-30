@@ -60,7 +60,12 @@ from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -413,7 +418,7 @@ class TestAwsEcsExecutor:
             airflow_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Test requires Airflow 3.4+")
     @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
     def test_task_sdk(self, change_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""

@@ -42,11 +42,11 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import prune_dict
 
-if AIRFLOW_V_3_3_PLUS:
+if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
@@ -75,8 +75,10 @@ class AwsLambdaExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
-    if AIRFLOW_V_3_3_PLUS:
+    if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
+    elif AIRFLOW_V_3_3_PLUS:
+        supports_callbacks: bool = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -240,7 +242,7 @@ class AwsLambdaExecutor(BaseExecutor):
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
-                if AIRFLOW_V_3_3_PLUS:
+                if AIRFLOW_V_3_4_PLUS:
                     del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
                 else:
                     del self.queued_tasks[key]
@@ -263,7 +265,10 @@ class AwsLambdaExecutor(BaseExecutor):
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
                     queue = workload.callback.data["queue"]
 
-                del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
+                else:
+                    del self.queued_callbacks[key]
 
                 self.execute_async(
                     key=key,
