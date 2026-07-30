@@ -106,6 +106,7 @@ The following config options support this ``_cmd`` and ``_secret`` version:
 * ``password`` in ``[atlas]`` section
 * ``smtp_password`` in ``[smtp]`` section
 * ``secret_key`` in ``[api]`` section
+* ``jwt_secret`` in ``[api_auth]`` section
 
 The ``_cmd`` config options can also be set using a corresponding environment variable
 the same way the usual config options can. For example:
