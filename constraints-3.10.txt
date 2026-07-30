@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-29T23:03:17.373797
+# This constraints file was automatically generated on 2026-07-30T06:54:22.632370
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -47,7 +47,7 @@ Jinja2==3.1.6
 Mako==1.3.12
 Markdown==3.10.2
 MarkupSafe==3.0.3
-PyAthena==3.35.2
+PyAthena==3.35.3
 PyGithub==2.9.1
 PyHive==0.7.0
 PyJWT==2.13.0
@@ -307,7 +307,7 @@ facebook_business==25.0.3
 fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.1.7
+fastcore==2.1.10
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.32.0
