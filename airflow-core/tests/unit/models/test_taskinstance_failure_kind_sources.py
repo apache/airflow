@@ -37,10 +37,10 @@ ENABLED = {("core", "infra_failure_refund_retries"): "True", ("core", "max_infra
 
 
 class _TI:
-    def __init__(self, max_tries=1):
+    def __init__(self, max_tries: int = 1):
         self.max_tries = max_tries
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "<TI>"
 
 

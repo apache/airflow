@@ -112,7 +112,7 @@ class TestIsEligibleToRetryUsesMaxTries:
     max_tries grants a retry even at retries=0 (and the two retry-decision paths stay in sync)."""
 
     @staticmethod
-    def _eligible(*, max_tries: int, try_number: int, state=None) -> bool:
+    def _eligible(*, max_tries: int, try_number: int, state: TaskInstanceState | None = None) -> bool:
         stub = SimpleNamespace(state=state, max_tries=max_tries, try_number=try_number)
         return TaskInstance.is_eligible_to_retry(stub)  # type: ignore[arg-type]
 
