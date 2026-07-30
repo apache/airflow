@@ -59,6 +59,7 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _DagIdTagsFilter,
     _DagIdTeamsFilter,
     _PrefixSearchParam,
     _SearchParam,
@@ -67,6 +68,7 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
     prefix_search_param_factory,
     search_param_factory,
+    tags_filter_factory,
     teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -504,6 +506,7 @@ def get_dag_runs(
         FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
     ],
     teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(DagRun.dag_id))],
+    tags: Annotated[_DagIdTagsFilter, Depends(tags_filter_factory(DagRun.dag_id))],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -660,6 +663,7 @@ def get_dag_runs(
         partition_key_prefix_pattern,
         consuming_asset_pattern,
         teams,
+        tags,
     ]
 
     if use_cursor:

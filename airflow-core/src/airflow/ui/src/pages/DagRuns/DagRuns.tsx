@@ -83,6 +83,7 @@ const {
   START_DATE_GTE: START_DATE_GTE_PARAM,
   START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
+  TAGS: TAGS_PARAM,
   TEAMS: TEAMS_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -280,6 +281,7 @@ export const DagRuns = () => {
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
+  const tags = searchParams.getAll(TAGS_PARAM);
   const teams = searchParams.getAll(TEAMS_PARAM);
 
   const refetchInterval = useAutoRefresh({});
@@ -335,6 +337,7 @@ export const DagRuns = () => {
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
+      tags: tags.length > 0 ? tags : undefined,
       teams: teams.length > 0 ? teams : undefined,
       ...triggeringUserArg,
     },

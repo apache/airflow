@@ -56,13 +56,40 @@ const dagRunInRange = {
   triggering_user_name: "admin",
 };
 
+const dagRunTaggedDag = {
+  conf: null,
+  dag_display_name: "tagged_dag",
+  dag_id: "tagged_dag",
+  dag_run_id: "run_tagged_dag",
+  dag_versions: [],
+  data_interval_end: null,
+  data_interval_start: null,
+  duration: 1.0,
+  end_date: "2025-01-15T00:00:01Z",
+  logical_date: "2025-01-15T00:00:00Z",
+  partition_key: null,
+  run_after: "2025-01-15T00:00:00Z",
+  run_type: "manual",
+  start_date: "2025-01-15T00:00:00Z",
+  state: "success",
+  triggering_user_name: "admin",
+};
+
+// Maps dag_id to the tags its Dag is annotated with, so the "tags" query
+// param can be simulated without a real Dags table backing the mock.
+const dagIdTags: Record<string, Array<string>> = {
+  tagged_dag: ["example_tag"],
+  test_dag: [],
+};
+
 export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/:dagId/dagRuns", ({ request }) => {
     const url = new URL(request.url);
     const logicalDateGte = url.searchParams.get("logical_date_gte");
     const logicalDateLte = url.searchParams.get("logical_date_lte");
+    const tags = url.searchParams.getAll("tags");
 
-    const allRuns = [dagRunBeforeFilter, dagRunInRange];
+    const allRuns = [dagRunBeforeFilter, dagRunInRange, dagRunTaggedDag];
 
     const filtered = allRuns.filter((run) => {
       const logicalDate = new Date(run.logical_date);
@@ -71,6 +98,9 @@ export const handlers: Array<HttpHandler> = [
         return false;
       }
       if (logicalDateLte !== null && logicalDate > new Date(logicalDateLte)) {
+        return false;
+      }
+      if (tags.length > 0 && !tags.some((tag) => dagIdTags[run.dag_id]?.includes(tag))) {
         return false;
       }
 

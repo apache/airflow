@@ -97,6 +97,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.START_DATE_RANGE
   | SearchParamsKeys.STATE
   | SearchParamsKeys.SUBJECT_SEARCH
+  | SearchParamsKeys.TAGS
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
   | SearchParamsKeys.TEAMS
