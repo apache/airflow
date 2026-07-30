@@ -221,6 +221,13 @@ class TestStubTaskflowArgs:
         with DAG(dag_id="d"), pytest.raises(ValueError, match="not JSON-serializable"):
             stub(fn)(datetime.datetime(2020, 1, 1))
 
+    @pytest.mark.parametrize("wrap", [lambda x: [x], lambda x: {"data": x}], ids=["list", "dict"])
+    def test_xcom_nested_in_collection_literal_rejected(self, wrap):
+        with DAG(dag_id="d"):
+            extracted = stub(fn_extract)()
+            with pytest.raises(ValueError, match="nested inside"):
+                stub(fn_transform)("uk", wrap(extracted))
+
     def test_mapped_xcom_arg_rejected(self):
         with DAG(dag_id="d"):
             extracted = stub(fn_extract)()
