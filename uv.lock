@@ -4763,9 +4763,9 @@ requires-dist = [
     { name = "datafusion", marker = "extra == 'datafusion'", specifier = ">=50.0.0,<52.0.0" },
     { name = "methodtools", specifier = ">=0.4.7" },
     { name = "more-itertools", specifier = ">=9.0.0" },
-    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3" },
-    { name = "pandas", extras = ["sql-other"], marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2" },
+    { name = "pandas", marker = "python_full_version == '3.13.*' and extra == 'pandas'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14' and extra == 'pandas'", specifier = ">=2.3.3,<3" },
+    { name = "pandas", extras = ["sql-other"], marker = "python_full_version < '3.13' and extra == 'pandas'", specifier = ">=2.1.2,<3" },
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "pyiceberg-core", marker = "extra == 'pyiceberg-core'", specifier = ">=0.8.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
@@ -9070,9 +9070,9 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "apache-airflow-providers-standard", editable = "providers/standard" },
-    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2" },
-    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3" },
-    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3" },
+    { name = "pandas", marker = "python_full_version < '3.13'", specifier = ">=2.1.2,<3" },
+    { name = "pandas", marker = "python_full_version == '3.13.*'", specifier = ">=2.2.3,<3" },
+    { name = "pandas", marker = "python_full_version >= '3.14'", specifier = ">=2.3.3,<3" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
