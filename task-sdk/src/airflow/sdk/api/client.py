@@ -90,7 +90,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceSliceResponse,
 )
 from airflow.sdk.configuration import conf
-from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError, TaskInstanceSupersededError
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
     CreateHITLDetailPayload,
@@ -185,6 +185,7 @@ __all__ = [
     "ConnectionOperations",
     "ServerResponseError",
     "TaskInstanceOperations",
+    "TaskInstanceSupersededError",
     "get_hostname",
     "getuser",
 ]
@@ -268,14 +269,22 @@ class TaskInstanceOperations:
         try:
             resp = self.client.patch(f"task-instances/{id}/run", content=body.model_dump_json())
         except ServerResponseError as e:
+            detail = e.detail
             if e.response.status_code == HTTPStatus.CONFLICT:
-                detail = e.detail
                 if (
                     isinstance(detail, dict)
                     and detail.get("reason") == "invalid_state"
                     and detail.get("previous_state") == "running"
                 ):
                     raise TaskAlreadyRunningError(f"Task instance {id} is already running") from e
+                if isinstance(detail, dict) and detail.get("reason") == "stale_executor_launch":
+                    raise TaskInstanceSupersededError(
+                        f"Task instance {id} was superseded by a newer launch"
+                    ) from e
+            if e.response.status_code == HTTPStatus.NOT_FOUND and (
+                not isinstance(detail, dict) or detail.get("reason") == "not_found"
+            ):
+                raise TaskInstanceSupersededError(f"Task instance {id} no longer exists") from e
             raise
         return TIRunContext.model_validate_json(resp.read())
 

@@ -50,7 +50,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComResponse,
 )
-from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError, TaskInstanceSupersededError
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
     DeferTask,
@@ -418,6 +418,45 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
 
         with pytest.raises(ServerResponseError):
+            client.task_instances.start(ti_id, 100, datetime(2024, 10, 31, tzinfo=timezone.utc))
+
+    def test_task_instance_start_not_found(self):
+        """Test that start() raises TaskInstanceSupersededError on a 404 not_found response."""
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(
+                    404,
+                    json={"detail": {"reason": "not_found", "message": "Task Instance not found"}},
+                )
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(TaskInstanceSupersededError, match="no longer exists"):
+            client.task_instances.start(ti_id, 100, datetime(2024, 10, 31, tzinfo=timezone.utc))
+
+    def test_task_instance_start_stale_executor_launch(self):
+        """Test that start() raises TaskInstanceSupersededError on a 409 stale_executor_launch response."""
+        ti_id = uuid6.uuid7()
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/run":
+                return httpx.Response(
+                    409,
+                    json={
+                        "detail": {
+                            "reason": "stale_executor_launch",
+                            "message": "TI executor launch token does not match the current queued task instance",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(TaskInstanceSupersededError, match="superseded"):
             client.task_instances.start(ti_id, 100, datetime(2024, 10, 31, tzinfo=timezone.utc))
 
     @pytest.mark.parametrize(

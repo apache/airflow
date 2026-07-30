@@ -403,6 +403,18 @@ class TaskAlreadyRunningError(AirflowException):
     """Raised when a task is already running on another worker."""
 
 
+class TaskInstanceSupersededError(AirflowException):
+    """
+    Raised when a worker's task instance launch has been superseded before it started running.
+
+    This happens when the task instance the worker was launched for no longer exists
+    (``/run`` returns ``404 not_found`` because a newer attempt replaced it) or the worker
+    no longer owns the current launch (``/run`` returns ``409 stale_executor_launch``). In
+    both cases the worker never executed the task, so it should exit cleanly without
+    consuming a task retry.
+    """
+
+
 class FailFastDagInvalidTriggerRule(AirflowException):
     """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
 
