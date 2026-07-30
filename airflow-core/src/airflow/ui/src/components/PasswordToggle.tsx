@@ -27,11 +27,11 @@ type Props = {
 };
 
 export const PasswordToggle = ({ isVisible, onToggle }: Props) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation("components");
 
   return (
     <IconButton
-      label={isVisible ? translate("password.hide") : translate("password.show")}
+      label={isVisible ? translate("passwordToggle.hide") : translate("passwordToggle.show")}
       onClick={onToggle}
       position="absolute"
       right={2}
