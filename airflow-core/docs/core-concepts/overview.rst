@@ -192,6 +192,36 @@ code is never executed in the context of the *scheduler*.
     bundle version when dispatching each task. If needed, the cadence of sync and scan
     of the *Dag bundle* can be configured.
 
+.. _overview-task-execution-architecture:
+
+Task execution architecture
+----------------------------
+
+The diagrams above show how Airflow's components are *deployed*. This section instead
+shows what happens *inside a worker when a task runs*, so you can reason about each
+process's lifecycle and how the processes relate.
+
+When a *worker* runs a task it does not execute the user's code directly. It first starts a
+**supervisor** process. The supervisor is the only side that holds the task's short-lived
+credentials and talks to the *Execution API* — it proxies every Connection, Variable and
+XCom lookup and every heartbeat on the task's behalf, so the code that runs the task never
+touches the database.
+
+Inside the supervisor, a ``CoordinatorManager`` selects a *coordinator* by matching the
+task's ``TaskInstance.queue``. Ordinary Python tasks run in the built-in coordinator under
+the same supervisor, with no separate language process. Non-Python tasks are routed to a
+language coordinator — a **Java** coordinator for JVM bundles, or an **Executable**
+coordinator for self-contained native bundles (for example, Go) — which launches the task's
+runtime as a **language SDK subprocess**. That subprocess talks back to the supervisor over
+a **MsgPack comm frame** protocol, so from the *Execution API*'s point of view a
+non-Python task behaves exactly like a Python one.
+
+.. image:: ../img/diagram_task_execution_architecture.png
+
+For the internal details — coordinator internals, subprocess drivers, the wire protocol
+and sequence diagrams — see the `task execution architecture developer guide
+<https://github.com/apache/airflow/blob/main/contributing-docs/31_task_execution_architecture.rst>`_.
+
 .. _overview:workloads:
 
 Workloads
