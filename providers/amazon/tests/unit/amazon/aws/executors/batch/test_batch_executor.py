@@ -53,7 +53,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
-    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
@@ -221,7 +221,7 @@ class TestAwsBatchExecutor:
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.active_workers) == 1
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Test requires Airflow 3.4+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
     def test_task_sdk(self, running_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution from end-to-end."""
@@ -293,7 +293,7 @@ class TestAwsBatchExecutor:
         assert job_id == ARN1
         running_state_mock.assert_called_once_with(workload.ti.key, ARN1)
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Test requires Airflow 3.4+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
     def test_task_sdk_callback(self, running_state_mock, mock_airflow_key, mock_executor, mock_cmd):
         """Test task sdk execution for callbacks from end-to-end."""
@@ -363,7 +363,7 @@ class TestAwsBatchExecutor:
         assert job_id == ARN1
         running_state_mock.assert_called_once_with(workload.callback.key, ARN1)
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Test requires Airflow 3.4+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
         """Test task sdk execution for callbacks with queue from end-to-end."""
