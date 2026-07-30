@@ -24,6 +24,8 @@ import httpx
 import pytest
 
 from airflowctl.api.datamodels.generated import (
+    TaskDependencyCollectionResponse,
+    TaskDependencyResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstanceState,
@@ -41,6 +43,318 @@ def _make_server_error(status_code: int) -> ServerResponseError:
 
 def _normalize_rich_output(text: str) -> str:
     return " ".join(text.split())
+
+
+class TestFailedDeps:
+    parser = cli_parser.get_parser()
+    dag_id = "test_dag"
+    run_id = "test_run"
+    task_id = "test_task"
+    logical_date = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+
+    def _make_task_instance(self, state: TaskInstanceState | None) -> TaskInstanceResponse:
+        return TaskInstanceResponse(
+            id=uuid.uuid4(),
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            map_index=-1,
+            run_after=self.logical_date,
+            state=state,
+            try_number=1,
+            max_tries=0,
+            task_display_name=self.task_id,
+            dag_display_name=self.dag_id,
+            pool="default_pool",
+            pool_slots=1,
+            executor_config="{}",
+        )
+
+    def _make_api_client(
+        self,
+        dependencies: list[TaskDependencyResponse] | None = None,
+        state: TaskInstanceState | None = None,
+    ) -> mock.MagicMock:
+        api_client = mock.MagicMock()
+        api_client.dag_runs.list.return_value.dag_runs = [mock.MagicMock(dag_run_id=self.run_id)]
+        api_client.task_instances.get_dependencies.return_value = TaskDependencyCollectionResponse(
+            dependencies=dependencies or [],
+        )
+        api_client.task_instances.get.return_value = self._make_task_instance(state=state)
+        return api_client
+
+    def test_failed_deps_not_met(self, capsys):
+        api_client = self._make_api_client(
+            dependencies=[
+                TaskDependencyResponse(
+                    name="Dagrun Running", reason="Task instance's dagrun was not in the 'running' state"
+                ),
+                TaskDependencyResponse(
+                    name="Trigger Rule", reason="requires all upstream tasks to have succeeded"
+                ),
+            ]
+        )
+
+        task_command.failed_deps(
+            self.parser.parse_args(["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id]),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.get_dependencies.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=-1,
+            suppress_error_log=True,
+        )
+        api_client.task_instances.get.assert_not_called()
+        assert capsys.readouterr().out == (
+            "Task instance dependencies not met:\n"
+            "Dagrun Running: Task instance's dagrun was not in the 'running' state\n"
+            "Trigger Rule: requires all upstream tasks to have succeeded\n"
+        )
+
+    @pytest.mark.parametrize("state", [None, TaskInstanceState.SCHEDULED])
+    def test_failed_deps_all_met(self, state, capsys):
+        api_client = self._make_api_client(state=state)
+
+        task_command.failed_deps(
+            self.parser.parse_args(["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id]),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.get.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=-1,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == "Task instance dependencies are all met.\n"
+
+    def test_failed_deps_not_evaluated_for_already_queued_task(self, capsys):
+        api_client = self._make_api_client(state=TaskInstanceState.SUCCESS)
+
+        task_command.failed_deps(
+            self.parser.parse_args(["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id]),
+            api_client=api_client,
+        )
+
+        assert capsys.readouterr().out == (
+            "Task instance is in the 'success' state; scheduler dependencies are only evaluated "
+            "for task instances that have not yet been queued.\n"
+        )
+
+    def test_failed_deps_with_map_index(self, capsys):
+        api_client = self._make_api_client(
+            dependencies=[TaskDependencyResponse(name="Pool Slots Available", reason="pool is full")]
+        )
+
+        task_command.failed_deps(
+            self.parser.parse_args(
+                ["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id, "--map-index", "3"]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.get_dependencies.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=3,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == (
+            "Task instance dependencies not met:\nPool Slots Available: pool is full\n"
+        )
+
+    def test_failed_deps_by_logical_date(self, capsys):
+        api_client = self._make_api_client(
+            dependencies=[TaskDependencyResponse(name="Trigger Rule", reason="upstream tasks not done")]
+        )
+
+        task_command.failed_deps(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "failed-deps",
+                    self.dag_id,
+                    self.task_id,
+                    "--logical-date",
+                    self.logical_date.isoformat(),
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.dag_runs.list.assert_called_once_with(
+            dag_id=self.dag_id,
+            logical_date_gte=self.logical_date,
+            logical_date_lte=self.logical_date,
+            order_by="-id",
+            limit=1,
+            suppress_error_log=True,
+        )
+        api_client.task_instances.get_dependencies.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=-1,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == (
+            "Task instance dependencies not met:\nTrigger Rule: upstream tasks not done\n"
+        )
+
+    @pytest.mark.parametrize(
+        "extra_args",
+        [
+            [],
+            ["test_run", "--logical-date", "2025-01-01T00:00:00+00:00"],
+        ],
+        ids=["neither", "both"],
+    )
+    def test_failed_deps_requires_exactly_one_of_run_id_and_logical_date(self, extra_args, capsys):
+        api_client = self._make_api_client()
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.failed_deps(
+                self.parser.parse_args(["tasks", "failed-deps", self.dag_id, self.task_id, *extra_args]),
+                api_client=api_client,
+            )
+
+        api_client.task_instances.get_dependencies.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Provide either run_id or --logical-date, but not both"
+        )
+
+    @pytest.mark.parametrize(
+        ("logical_date", "expected_message"),
+        [
+            ("not-a-date", "Invalid --logical-date: 'not-a-date'"),
+            ("2025-01-01T00:00:00", "--logical-date must include a timezone offset"),
+        ],
+        ids=["unparsable", "naive"],
+    )
+    def test_failed_deps_rejects_bad_logical_date(self, logical_date, expected_message, capsys):
+        api_client = self._make_api_client()
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.failed_deps(
+                self.parser.parse_args(
+                    ["tasks", "failed-deps", self.dag_id, self.task_id, "--logical-date", logical_date]
+                ),
+                api_client=api_client,
+            )
+
+        api_client.dag_runs.list.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == expected_message
+
+    @pytest.mark.parametrize("list_failure", ["no_matching_run", "dag_not_found_404"])
+    def test_failed_deps_dag_run_not_found_by_logical_date(self, list_failure, capsys):
+        api_client = self._make_api_client()
+        if list_failure == "no_matching_run":
+            api_client.dag_runs.list.return_value.dag_runs = []
+        else:
+            api_client.dag_runs.list.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.failed_deps(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "failed-deps",
+                        self.dag_id,
+                        self.task_id,
+                        "--logical-date",
+                        self.logical_date.isoformat(),
+                    ]
+                ),
+                api_client=api_client,
+            )
+
+        api_client.task_instances.get_dependencies.assert_not_called()
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Dag run for test_dag with logical date '2025-01-01T00:00:00+00:00' not found"
+        )
+
+    @pytest.mark.parametrize(
+        ("extra_args", "expected_message"),
+        [
+            ([], "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found"),
+            (
+                ["--map-index", "3"],
+                "Task instance for task 'test_task' with map index 3 in Dag run 'test_run' "
+                "of Dag 'test_dag' not found",
+            ),
+        ],
+    )
+    def test_failed_deps_task_instance_not_found(self, extra_args, expected_message, capsys):
+        api_client = self._make_api_client()
+        api_client.task_instances.get_dependencies.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.failed_deps(
+                self.parser.parse_args(
+                    ["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id, *extra_args]
+                ),
+                api_client=api_client,
+            )
+
+        assert _normalize_rich_output(capsys.readouterr().out) == expected_message
+
+    def test_failed_deps_task_instance_deleted_between_requests(self, capsys):
+        api_client = self._make_api_client()
+        api_client.task_instances.get.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.failed_deps(
+                self.parser.parse_args(["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id]),
+                api_client=api_client,
+            )
+
+        assert _normalize_rich_output(capsys.readouterr().out) == (
+            "Task instance for task 'test_task' in Dag run 'test_run' of Dag 'test_dag' not found"
+        )
+
+    def test_failed_deps_reraises_non_404_task_instance_get_error(self):
+        api_client = self._make_api_client()
+        api_client.task_instances.get.side_effect = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError):
+            task_command.failed_deps(
+                self.parser.parse_args(["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id]),
+                api_client=api_client,
+            )
+
+    def test_failed_deps_reraises_non_404_error(self):
+        api_client = self._make_api_client()
+        api_client.task_instances.get_dependencies.side_effect = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError):
+            task_command.failed_deps(
+                self.parser.parse_args(["tasks", "failed-deps", self.dag_id, self.task_id, self.run_id]),
+                api_client=api_client,
+            )
+
+    def test_failed_deps_reraises_non_404_dag_run_list_error(self):
+        api_client = self._make_api_client()
+        api_client.dag_runs.list.side_effect = _make_server_error(500)
+
+        with pytest.raises(ServerResponseError):
+            task_command.failed_deps(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "failed-deps",
+                        self.dag_id,
+                        self.task_id,
+                        "--logical-date",
+                        self.logical_date.isoformat(),
+                    ]
+                ),
+                api_client=api_client,
+            )
 
 
 class TestStatesForDagRun:
