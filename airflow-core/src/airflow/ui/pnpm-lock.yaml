@@ -66,8 +66,8 @@ importers:
         specifier: ^3.14.8
         version: 3.14.8(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@visx/group':
-        specifier: ^3.12.0
-        version: 3.12.0(react@19.2.8)
+        specifier: ^4.0.0
+        version: 4.0.0(@types/react@19.2.17)(react@19.2.8)
       '@visx/shape':
         specifier: ^4.0.0
         version: 4.0.0(@types/react@19.2.17)(react@19.2.8)
@@ -1398,11 +1398,6 @@ packages:
 
   '@visx/curve@4.0.0':
     resolution: {integrity: sha512-bXrOSd2BzVCxR7kBE7gPTSU4plxzYN75w7erdHYabwn3vzP+xFk1o0gg3NOHEPJzt5tXqf0Ecm5YqHACOnipTA==}
-
-  '@visx/group@3.12.0':
-    resolution: {integrity: sha512-Dye8iS1alVXPv7nj/7M37gJe6sSKqJLH7x6sEWAsRQ9clI0kFvjbKcKgF+U3aAVQr0NCohheFV+DtR8trfK/Ag==}
-    peerDependencies:
-      react: ^16.0.0-0 || ^17.0.0-0 || ^18.0.0-0
 
   '@visx/group@4.0.0':
     resolution: {integrity: sha512-HGAq8BCqn5x0t94CJOLJeKtWss9LFpF3HY69HbuO1PlR+B9c4aVT9xbjfudmU8wGQZLT6JNt+PJvxbO2aJ+1aA==}
@@ -5852,13 +5847,6 @@ snapshots:
   '@visx/curve@4.0.0':
     dependencies:
       '@visx/vendor': 4.0.0
-
-  '@visx/group@3.12.0(react@19.2.8)':
-    dependencies:
-      '@types/react': 19.2.17
-      classnames: 2.5.1
-      prop-types: 15.8.1
-      react: 19.2.8
 
   '@visx/group@4.0.0(@types/react@19.2.17)(react@19.2.8)':
     dependencies:
