@@ -40,6 +40,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
+from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.traces import override_ids
 from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
@@ -159,6 +160,8 @@ def ti_run(
             TI.try_number,
             TI.max_tries,
             TI.start_date,
+            TI.queue,
+            TI.queued_dttm,
             TI.next_method,
             TI.hostname,
             TI.unixname,
@@ -199,6 +202,10 @@ def ti_run(
     query = update(TI).where(TI.id == task_instance_id).values(data)
 
     previous_state = ti.state
+    # Set on a genuine QUEUED -> RUNNING transition so task.queued_duration is emitted once the
+    # DagRun is loaded below (its stats_tags supply the tags). A duplicate start request falls
+    # through the branch below without raising, so the flag keeps it from emitting twice.
+    emit_queued_duration = False
 
     # If we are already running, but this is a duplicate request from the same client return the same OK
     # -- it's possible there was a network glitch and they never got the response
@@ -242,6 +249,14 @@ def ti_run(
                 extra=json.dumps({"host_name": ti_run_payload.hostname}) if ti_run_payload.hostname else None,
             )
         )
+        # The scheduler refreshes queued_dttm every time it queues a task, so utcnow() - queued_dttm
+        # is a meaningful queue wait for first runs and retries alike (a retry is a new try that
+        # genuinely waited in the queue) -- mirroring the legacy emit in emit_state_change_metric,
+        # which fired on every transition to RUNNING. Only resumes from deferral are skipped,
+        # identified by next_method (the trigger sets it on resume), to avoid re-emitting within the
+        # same try. queued_dttm is None only in rare races and test setups.
+        emit_queued_duration = ti.queued_dttm is not None and ti.next_method is None
+
     # Ensure there is no end date set and clear retry policy overrides from the previous attempt.
     query = query.values(
         end_date=None,
@@ -297,7 +312,21 @@ def ti_run(
             or 0
         )
 
-        dr.team_name = get_team_name_for_ti(task_instance_id, session)
+        team_name = get_team_name_for_ti(task_instance_id, session)
+        dr.team_name = team_name
+
+        if emit_queued_duration:
+            # Tag via dr.stats_tags so this stays sliceable the same way as its sibling
+            # task.scheduled_duration, which emit_state_change_metric sends as
+            # {**ti.stats_tags, "queue": ti.queue} -- that is dag_run.stats_tags plus task_id.
+            # Team lives on the Bundle rather than the DagRun schema, so stats_tags cannot resolve
+            # it here; add the value looked up above instead. Falsy values are pruned from
+            # stats_tags, so only set it when there is a team. The registry-derived legacy name
+            # dag.<dag_id>.<task_id>.queued_duration is emitted by stats.timing automatically.
+            tags = {**dr.stats_tags, "task_id": ti.task_id, "queue": ti.queue}
+            if team_name:
+                tags["team_name"] = team_name
+            stats.timing("task.queued_duration", timezone.utcnow() - ti.queued_dttm, tags=tags)
 
         context = TIRunContext(
             dag_run=dr,
