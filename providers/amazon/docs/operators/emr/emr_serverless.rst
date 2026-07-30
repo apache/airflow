@@ -189,6 +189,20 @@ The token expires (about one hour), so run this immediately before connecting.
    :start-after: [START howto_operator_emr_serverless_get_session_endpoint]
    :end-before: [END howto_operator_emr_serverless_get_session_endpoint]
 
+.. _howto/operator:EmrServerlessStopSessionOperator:
+
+Stop an EMR Serverless interactive session
+==========================================
+
+To terminate an interactive session, use
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStopSessionOperator`.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_emr_serverless_session.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_emr_serverless_stop_session]
+   :end-before: [END howto_operator_emr_serverless_stop_session]
+
 Reference
 ---------
 

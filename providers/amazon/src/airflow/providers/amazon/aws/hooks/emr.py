@@ -376,6 +376,11 @@ class EmrServerlessHook(AwsBaseHook):
         self._check_interactive_session_support()
         return self.conn.get_session_endpoint(applicationId=application_id, sessionId=session_id)
 
+    def terminate_session(self, application_id: str, session_id: str) -> None:
+        """Terminate an interactive session."""
+        self._check_interactive_session_support()
+        self.conn.terminate_session(applicationId=application_id, sessionId=session_id)
+
 
 def is_connection_being_updated_exception(exception: BaseException) -> bool:
     return (

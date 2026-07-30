@@ -25,8 +25,12 @@ from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessGetSessionEndpointOperator,
     EmrServerlessStartSessionOperator,
+    EmrServerlessStopSessionOperator,
 )
-from airflow.providers.amazon.aws.triggers.emr import EmrServerlessSessionTrigger
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrServerlessSessionTrigger,
+    EmrServerlessStopSessionTrigger,
+)
 
 APP_ID = "app-123"
 SESSION_ID = "sess-abc"
@@ -136,3 +140,55 @@ class TestEmrServerlessGetSessionEndpointOperator:
         )
         op.execute({})
         mask_secret_mock.assert_called_once_with("tok")
+
+
+class TestEmrServerlessStopSessionOperator:
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "terminate_session")
+    def test_terminate_and_wait(self, terminate_session, get_waiter, wait_mock):
+        op = EmrServerlessStopSessionOperator(task_id="stop", application_id=APP_ID, session_id=SESSION_ID)
+        op.execute({})
+
+        terminate_session.assert_called_once_with(APP_ID, SESSION_ID)
+        wait_mock.assert_called_once()
+        get_waiter.assert_called_once_with("serverless_session_terminated")
+
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "terminate_session")
+    def test_terminate_no_wait(self, terminate_session, get_waiter, wait_mock):
+        op = EmrServerlessStopSessionOperator(
+            task_id="stop",
+            application_id=APP_ID,
+            session_id=SESSION_ID,
+            wait_for_completion=False,
+        )
+        op.execute({})
+        wait_mock.assert_not_called()
+
+    @mock.patch(WAIT)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "terminate_session")
+    def test_deferrable_defers(self, terminate_session, get_waiter, wait_mock):
+        op = EmrServerlessStopSessionOperator(
+            task_id="stop",
+            application_id=APP_ID,
+            session_id=SESSION_ID,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as deferred:
+            op.execute({})
+
+        terminate_session.assert_called_once_with(APP_ID, SESSION_ID)
+        assert isinstance(deferred.value.trigger, EmrServerlessStopSessionTrigger)
+        wait_mock.assert_not_called()
+
+    def test_execute_complete_success(self):
+        op = EmrServerlessStopSessionOperator(task_id="stop", application_id=APP_ID, session_id=SESSION_ID)
+        assert op.execute_complete({}, {"status": "success", "session_id": SESSION_ID}) is None
+
+    def test_execute_complete_failure_raises(self):
+        op = EmrServerlessStopSessionOperator(task_id="stop", application_id=APP_ID, session_id=SESSION_ID)
+        with pytest.raises(RuntimeError):
+            op.execute_complete({}, {"status": "failure", "session_id": SESSION_ID})

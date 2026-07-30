@@ -24,6 +24,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessGetSessionEndpointOperator,
     EmrServerlessStartSessionOperator,
     EmrServerlessStopApplicationOperator,
+    EmrServerlessStopSessionOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, TriggerRule, chain
 
@@ -77,6 +78,14 @@ with DAG(
     )
     # [END howto_operator_emr_serverless_get_session_endpoint]
 
+    # [START howto_operator_emr_serverless_stop_session]
+    stop_session = EmrServerlessStopSessionOperator(
+        task_id="stop_session",
+        application_id=application_id,
+        session_id=session_id,
+    )
+    # [END howto_operator_emr_serverless_stop_session]
+
     stop_app = EmrServerlessStopApplicationOperator(
         task_id="stop_app",
         application_id=application_id,
@@ -97,6 +106,7 @@ with DAG(
         # TEST BODY
         start_session,
         get_endpoint,
+        stop_session,
         # TEST TEARDOWN
         stop_app,
         delete_app,
