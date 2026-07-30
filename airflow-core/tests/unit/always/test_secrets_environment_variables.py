@@ -85,12 +85,36 @@ class TestEnvironmentVariablesBackendTeamScope:
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
-    def test_id_spelling_out_its_own_team_namespace_is_resolved(
+    def test_id_spelling_out_a_team_namespace_is_never_resolved(
         self, monkeypatch, env_prefix, method, team_name
     ):
+        """Even for the team that owns it: an id of that shape is not attributable to a team.
+
+        A caller reaches its own team's secret with the bare id plus its team scope. Allowing
+        the namespaced spelling as well is what made the caller's own prefix look like proof of
+        ownership, which it is not -- see the collision test below.
+        """
         monkeypatch.setenv(team_env_var(env_prefix, team_name), TEAM_VALUE)
 
-        assert lookup(env_prefix, method, team_scoped_id(team_name), team_name) == TEAM_VALUE
+        assert lookup(env_prefix, method, team_scoped_id(team_name), team_name) is None
+
+    @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    def test_team_whose_name_extends_the_callers_is_not_readable(self, monkeypatch, env_prefix, method):
+        """A team name may contain the ``___`` separator, so one team's namespace can start with another's.
+
+        Caller in ``team_a`` supplies ``_team_a___prod___dbconn``. That id starts with the
+        ``_TEAM_A___`` prefix the caller's own team builds, so a prefix-equals-ownership check
+        clears it; the team scoped lookup then misses and the team agnostic lookup lands on
+        ``AIRFLOW_CONN__TEAM_A___PROD___DBCONN`` -- team ``team_a___prod``'s secret.
+        """
+        caller_team, target_team = "team_a", "team_a___prod"
+        monkeypatch.setenv(team_env_var(env_prefix, target_team), TEAM_VALUE)
+
+        assert lookup(env_prefix, method, team_scoped_id(target_team), caller_team) is None
+        # and the owning team still cannot reach it by the namespaced spelling either
+        assert lookup(env_prefix, method, team_scoped_id(target_team), target_team) is None
+        # while the owning team reaches it normally, with the bare id
+        assert lookup(env_prefix, method, SECRET_ID, target_team) == TEAM_VALUE
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)

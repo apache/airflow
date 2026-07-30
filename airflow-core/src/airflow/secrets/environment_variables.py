@@ -32,14 +32,14 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
     def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
-        if self._is_team_specific_accessed_as_global(conn_id, team_name):
-            return None
-
         if team_name and (
             team_var := os.environ.get(f"{CONN_ENV_PREFIX}_{team_name.upper()}___" + conn_id.upper())
         ):
             # Format to set a team specific connection: AIRFLOW_CONN__<TEAM_ID>___<CONN_ID>
             return team_var
+
+        if self._names_a_team_namespace(conn_id):
+            return None
 
         return os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
 
@@ -51,34 +51,39 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
-        if self._is_team_specific_accessed_as_global(key, team_name):
-            return None
-
         if team_name and (
             team_var := os.environ.get(f"{VAR_ENV_PREFIX}_{team_name.upper()}___" + key.upper())
         ):
             # Format to set a team specific variable: AIRFLOW_VAR__<TEAM_ID>___<VAR_KEY>
             return team_var
 
+        if self._names_a_team_namespace(key):
+            return None
+
         return os.environ.get(VAR_ENV_PREFIX + key.upper())
 
     @staticmethod
-    def _is_team_specific_accessed_as_global(secret_id: str, team_name: str | None = None) -> bool:
+    def _names_a_team_namespace(secret_id: str) -> bool:
         """
-        Whether ``secret_id`` names a team specific secret outside of the team it is looked up for.
+        Whether ``secret_id`` spells out a team namespaced environment variable name.
 
         A team specific secret lives in the ``_<TEAM_NAME>___<SECRET_ID>`` namespace of the
-        environment, so an id that already spells such a namespace out resolves the team specific
-        environment variable through the team agnostic lookup. That is only correct when the
-        namespace is the one the lookup is made for -- ``team_name``.
+        environment. An id of that shape therefore makes the team agnostic lookup -- which
+        prepends only ``AIRFLOW_CONN_`` / ``AIRFLOW_VAR_`` -- land inside some team's namespace,
+        so that lookup is refused for such an id.
 
-        The namespace of a stored id is deliberately not parsed out of it: a team name may itself
-        contain underscores, so ``_a___b___c`` is both team ``a`` with id ``b___c`` and team
-        ``a___b`` with id ``c``, and no pattern can tell the two apart. Only the namespace prefix
-        that ``team_name`` itself builds is compared, which is unambiguous.
+        **The id is never attributed to a particular team**, because it cannot be: a team name
+        may itself contain the ``___`` separator, so ``_a___b___c`` is both team ``a`` with id
+        ``b___c`` and team ``a___b`` with id ``c``, and nothing in the string distinguishes them.
+        Only the caller's own namespace is ever constructed, never parsed.
+
+        This is why the check is not "does the id belong to some team other than the caller's".
+        Comparing the id against the prefix the caller's team builds looks equivalent and is not:
+        for a caller in team ``a`` the id ``_a___b___c`` starts with ``_A___``, yet the variable
+        it resolves, ``AIRFLOW_CONN__A___B___C``, is team ``a___b``'s. Treating a prefix match as
+        ownership hands one team the secrets of every team whose name extends it. Callers reach
+        their own team's secrets with the bare id plus their team scope -- handled above, and safe
+        because that path can only ever build the caller's own namespace -- so nothing legitimate
+        needs a namespaced id here.
         """
-        if not re.fullmatch(r"_.+___.+", secret_id):
-            return False
-        if not team_name:
-            return True
-        return not secret_id.upper().startswith(f"_{team_name.upper()}___")
+        return re.fullmatch(r"_.+___.+", secret_id) is not None
