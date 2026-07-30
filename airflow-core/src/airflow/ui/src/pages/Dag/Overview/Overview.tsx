@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Skeleton } from "@chakra-ui/react";
+import { Box, HStack, Skeleton, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { lazy, useState, Suspense } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,14 +26,18 @@ import { useLocalStorage } from "usehooks-ts";
 import {
   useAssetServiceGetAssetEvents,
   useDagRunServiceGetDagRuns,
+  usePluginServiceGetPlugins,
   useTaskInstanceServiceGetTaskInstances,
 } from "openapi/queries";
+import type { ReactAppResponse } from "openapi/requests/types.gen";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { DurationChart } from "src/components/DurationChart";
+import { SlowestTaskInstancesChart } from "src/components/SlowestTaskInstancesChart";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
 import { dagRunsLimitKey } from "src/constants/localStorage";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { ReactPlugin } from "src/pages/ReactPlugin";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -63,6 +67,21 @@ export const Overview = () => {
 
   const failedTaskCount = failedTasks?.total_entries ?? 0;
 
+  const { data: slowestTaskInstancesData, isLoading: isLoadingSlowestTaskInstances } =
+    useTaskInstanceServiceGetTaskInstances(
+      {
+        dagId: dagId ?? "",
+        dagRunId: "~",
+        limit: 10,
+        orderBy: ["-duration"],
+        runAfterGte: startDate,
+        runAfterLte: endDate,
+        state: ["success", "failed"],
+      },
+      undefined,
+      { enabled: Boolean(dagId) },
+    );
+
   const [limit] = useLocalStorage<number>(dagRunsLimitKey(dagId ?? ""), 10);
 
   const { data: failedRuns, isLoading: isLoadingFailedRuns } = useDagRunServiceGetDagRuns({
@@ -83,10 +102,15 @@ export const Overview = () => {
     timestampGte: startDate,
     timestampLte: endDate,
   });
+  const { data: pluginData } = usePluginServiceGetPlugins();
+  const dagOverviewReactPlugins =
+    pluginData?.plugins
+      .flatMap((plugin) => plugin.react_apps)
+      .filter((plugin: ReactAppResponse) => plugin.destination === "dag_overview") ?? [];
 
   return (
-    <Box m={4} spaceY={4}>
-      <Box my={2}>
+    <VStack alignItems="stretch" gap={4} m={4}>
+      <Box my={2} order={1}>
         <TimeRangeSelector
           defaultValue={defaultHour}
           endDate={endDate}
@@ -95,7 +119,7 @@ export const Overview = () => {
           startDate={startDate}
         />
       </Box>
-      <HStack flexWrap="wrap">
+      <HStack flexWrap="wrap" order={2}>
         <TrendCountButton
           colorPalette={failedTaskCount === 0 ? "green" : "failed"}
           count={failedTaskCount}
@@ -127,7 +151,7 @@ export const Overview = () => {
           startDate={startDate}
         />
       </HStack>
-      <HStack alignItems="flex-start" flexWrap="wrap">
+      <HStack alignItems="flex-start" flexWrap="wrap" order={3}>
         <Box
           borderRadius={4}
           borderStyle="solid"
@@ -147,6 +171,21 @@ export const Overview = () => {
             />
           )}
         </Box>
+        <Box
+          borderRadius={4}
+          borderStyle="solid"
+          borderWidth={1}
+          flex="1 1 520px"
+          maxWidth="900px"
+          minWidth="320px"
+          p={2}
+        >
+          {isLoadingSlowestTaskInstances ? (
+            <Skeleton height="380px" w="full" />
+          ) : (
+            <SlowestTaskInstancesChart taskInstances={slowestTaskInstancesData?.task_instances ?? []} />
+          )}
+        </Box>
         {assetEventsData && assetEventsData.total_entries > 0 ? (
           <AssetEvents
             data={assetEventsData}
@@ -157,10 +196,19 @@ export const Overview = () => {
           />
         ) : undefined}
       </HStack>
-      {dagId === undefined ? undefined : <DagDeadlines dagId={dagId} />}
-      <Suspense fallback={<Skeleton height="100px" width="full" />}>
-        <FailedLogs failedTasks={failedTasks} />
-      </Suspense>
-    </Box>
+      {dagId === undefined ? undefined : (
+        <Box css={{ "&:empty": { display: "none" } }} order={4}>
+          <DagDeadlines dagId={dagId} />
+        </Box>
+      )}
+      <Box css={{ "&:empty": { display: "none" } }} order={5}>
+        <Suspense fallback={<Skeleton height="100px" width="full" />}>
+          <FailedLogs failedTasks={failedTasks} />
+        </Suspense>
+      </Box>
+      {dagOverviewReactPlugins.map((plugin) => (
+        <ReactPlugin key={plugin.name} reactApp={plugin} />
+      ))}
+    </VStack>
   );
 };

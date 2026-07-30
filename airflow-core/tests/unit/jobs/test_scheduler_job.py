@@ -22,8 +22,10 @@ import datetime
 import logging
 import os
 import re
+import time
 from collections import Counter, deque
 from collections.abc import Callable, Generator, Iterator
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta
 from pathlib import Path
@@ -45,7 +47,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
-from airflow.assets.manager import AssetManager
+from airflow.assets.manager import AssetManager, _create_asset_event
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
@@ -1373,6 +1375,8 @@ class TestSchedulerJob:
 
     def test_executor_heartbeat_emits_timer(self, mock_executors, configure_testing_dag_bundle):
         with configure_testing_dag_bundle(os.devnull):
+            mock_executors[0].team_name = "team_a"
+            mock_executors[1].team_name = None
             scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
             with patch("airflow.jobs.scheduler_job_runner.stats.timer") as mock_timer:
@@ -1385,7 +1389,10 @@ class TestSchedulerJob:
             ]
             assert len(heartbeat_calls) == len(self.job_runner.executors)
             for executor, timer_call in zip(self.job_runner.executors, heartbeat_calls):
-                assert timer_call.kwargs.get("tags") == {"executor": type(executor).__name__}
+                expected_tags = {"executor": type(executor).__name__}
+                if executor.team_name:
+                    expected_tags["team_name"] = executor.team_name
+                assert timer_call.kwargs.get("tags") == expected_tags
 
     def test_executor_events_processed(self, mock_executors, configure_testing_dag_bundle):
         with configure_testing_dag_bundle(os.devnull):
@@ -5784,6 +5791,175 @@ class TestSchedulerJob:
         assert {e.id for e in created_run.consumed_asset_events} == expected
 
     @pytest.mark.need_serialized_dag
+    def test_create_dag_runs_asset_triggered_skips_stale_triggered_date(self, session, dag_maker):
+        asset = Asset(uri="test://asset-for-stale-trigger-date", name="asset-for-stale-trigger-date")
+        with dag_maker(dag_id="asset-consumer-stale-trigger-date", schedule=[asset], session=session):
+            pass
+        dag_model = dag_maker.dag_model
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        queued_at = timezone.utcnow()
+        session.add(AssetDagRunQueue(target_dag_id=dag_model.dag_id, asset_id=asset_id, created_at=queued_at))
+        session.flush()
+
+        # Simulate another scheduler consuming ADRQ rows after we computed triggered_date_by_dag.
+        session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id))
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[self.null_exec])
+        self.job_runner._create_dag_runs_asset_triggered(
+            dag_models=[dag_model],
+            session=session,
+        )
+
+        # We do not create a new DagRun since the ADRQ has already been consumed
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none() is None
+
+    @pytest.mark.need_serialized_dag
+    def test_create_dag_runs_asset_triggered_deletes_only_selected_adrq_rows(
+        self, session: Session, dag_maker
+    ):
+        asset_1 = Asset("ready-to-trigger-a-Dag-run")
+        asset_2 = Asset("should-still-exist-after-a-Dag-run-created")
+        with dag_maker(dag_id="asset-consumer-delete-selected", schedule=asset_1 | asset_2, session=session):
+            pass
+        dag_model = dag_maker.dag_model
+        asset_1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_1.name))
+        asset_2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_2.name))
+        session.add_all(
+            [
+                AssetEvent(
+                    asset_id=asset_1_id,
+                    timestamp=timezone.utcnow(),
+                ),
+                # The ADRQ that should triggers the Dag run creation
+                AssetDagRunQueue(
+                    asset_id=asset_1_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
+                ),
+                AssetEvent(asset_id=asset_2_id, timestamp=timezone.utcnow()),
+                # The ADRQ that arrives after the Dag run creation but before ADRQ clean up
+                # This situation is simulated by _lock_only_selected_asset below
+                AssetDagRunQueue(
+                    asset_id=asset_2_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
+                ),
+            ]
+        )
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
+
+        def _lock_only_selected_asset(query, **_):
+            # Simulate SKIP LOCKED behavior where this scheduler can only consume one ADRQ row.
+            return query.where(AssetDagRunQueue.asset_id == asset_1_id)
+
+        with patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=_lock_only_selected_asset):
+            self.job_runner._create_dag_runs_asset_triggered(
+                dag_models=[dag_model],
+                session=session,
+            )
+
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none()
+        assert dr is not None
+
+        adrq_1 = session.scalars(
+            select(AssetDagRunQueue).where(
+                AssetDagRunQueue.target_dag_id == dag_model.dag_id,
+                AssetDagRunQueue.asset_id == asset_1_id,
+            )
+        ).one_or_none()
+        assert adrq_1 is None
+        adrq_2 = session.scalars(
+            select(AssetDagRunQueue).where(
+                AssetDagRunQueue.target_dag_id == dag_model.dag_id,
+                AssetDagRunQueue.asset_id == asset_2_id,
+            )
+        ).one_or_none()
+        assert adrq_2 is not None
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.backend("postgres", "mysql")
+    def test_create_dag_runs_when_concurrent_asset_events_created(self, session: Session, dag_maker, caplog):
+
+        ASSET_EVENT_COUNT = 30
+        asset = Asset(name="test_asset")
+        with dag_maker(dag_id="consumer", schedule=asset, session=session):
+            pass
+        dag_model = dag_maker.dag_model
+        # Capture the dag_id as a plain string in the main thread. The worker threads must not
+        # touch this ORM object: it is bound to the main thread's session, which the loop below
+        # commits (and thus expires) concurrently, so any attribute access from a worker would
+        # load against another thread's session.
+        consumer_dag_id = dag_model.dag_id
+        with dag_maker(dag_id="asset-producer", start_date=timezone.utcnow(), session=session):
+            BashOperator(task_id="simulate-asset-outlet", bash_command="echo 1")
+        dag_maker.create_dagrun(run_id="asset-producer-run")
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+        futures = []
+        consumed_asset_events = []
+        asset_event_metadata: list[tuple[int, datetime.datetime]] = []
+
+        def create_asset_events(sleep):
+
+            with create_session() as session:
+                # Re-fetch the DagModel in this thread's own session so all ORM access stays
+                # thread-local.
+                dag = session.get(DagModel, consumer_dag_id)
+                now = timezone.utcnow()
+                asset_manager = AssetManager()
+                asset_event = _create_asset_event(session=session, asset_id=asset_id, timestamp=now)
+                time.sleep(sleep)  # widen the race window between event creation and queueing
+                dialect_name = inspect(session.get_bind()).dialect.name
+                if dialect_name in ("postgresql", "sqlite"):
+                    asset_manager._queue_dagruns_nonpartitioned_conflict_update(
+                        asset_id=asset_id,
+                        dags_to_queue=[dag],
+                        event=asset_event,
+                        session=session,
+                        dialect_name=dialect_name,
+                    )
+                elif dialect_name == "mysql":
+                    asset_manager._queue_dagruns_nonpartitioned_mysql(
+                        asset_id=asset_id, dags_to_queue=[dag], event=asset_event, session=session
+                    )
+
+            return asset_event.id, now.isoformat()
+
+        with (
+            ThreadPoolExecutor(max_workers=3) as executor,
+            caplog.at_level(
+                "WARNING",
+                logger="airflow.jobs.scheduler_job_runner",
+            ),
+        ):
+            for i in range(ASSET_EVENT_COUNT):
+                # Deterministically alternate between fast (0s) and slow (2s) workers so the
+                # test reliably exercises both code paths without relying on RNG.
+                future = executor.submit(create_asset_events, i % 3)
+                futures.append(future)
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
+            seen_dr_ids: set[int] = set()
+            for future in as_completed(futures, timeout=120):
+                asset_event_metadata.append(future.result())
+                self.job_runner._create_dag_runs_asset_triggered(
+                    dag_models=[dag_model],
+                    session=session,
+                )
+                session.commit()
+                all_drs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+                for dr in all_drs:
+                    if dr.id not in seen_dr_ids:
+                        seen_dr_ids.add(dr.id)
+                        consumed_asset_events += dr.consumed_asset_events
+        total_consumed_asset_events = len(consumed_asset_events)
+        assert total_consumed_asset_events == ASSET_EVENT_COUNT
+        assert len({event.id for event in consumed_asset_events}) == total_consumed_asset_events, (
+            "Expected no duplicated Asset event consumed"
+        )
+
+    @pytest.mark.need_serialized_dag
     def test_create_dag_runs_asset_alias_with_asset_event_attached(self, session, dag_maker):
         """
         Test Dag Run trigger on AssetAlias includes the corresponding AssetEvent in `consumed_asset_events`.
@@ -5892,6 +6068,10 @@ class TestSchedulerJob:
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
         dr = dag_maker.create_dagrun()
 
+        with dag_maker(
+            dag_id=f"consumer_{suffix}", schedule=[asset], bundle_name=bundle_name, session=session
+        ):
+            pass
         asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
         event = AssetEvent(
             asset_id=asset_id,
@@ -5901,12 +6081,8 @@ class TestSchedulerJob:
             source_map_index=-1,
         )
         session.add(event)
-
-        with dag_maker(
-            dag_id=f"consumer_{suffix}", schedule=[asset], bundle_name=bundle_name, session=session
-        ):
-            pass
-
+        # flush here to ensure event timestamp is before the ADRQ created_at timestamp
+        session.flush()
         session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=f"consumer_{suffix}"))
         session.flush()
 
@@ -5975,6 +6151,41 @@ class TestSchedulerJob:
         assert [e.source_run_id for e in session.scalars(ase_q)] == [dr1.run_id, dr2.run_id]
         assert len(session.scalars(adrq_q).all()) == 1
         assert session.scalars(adrq_q).one().target_dag_id == "consumer"
+
+    @pytest.mark.need_serialized_dag
+    def test_no_create_dag_runs_when_no_asset_event(self, session: Session, dag_maker, caplog):
+        asset = Asset(name="test_asset")
+        with dag_maker(dag_id="consumer", schedule=asset, session=session):
+            pass
+        dag_model = dag_maker.dag_model
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+        # Simulate an ADRQ row whose matching asset events were already consumed by an earlier DagRun.
+        # The ADRQ should be cleaned up even when no new DagRun is created, to prevent stale ADRQ
+        # rows from accumulating and causing infinite scheduler loops.
+        adrq = AssetDagRunQueue(
+            asset_id=asset_id, target_dag_id=dag_model.dag_id, created_at=timezone.utcnow()
+        )
+        session.add(adrq)
+        session.flush()
+        adrq.created_at = timezone.utcnow() + timedelta(seconds=1)
+        session.merge(adrq)
+        with caplog.at_level("INFO"):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
+            self.job_runner._create_dag_runs_asset_triggered(
+                dag_models=[dag_model],
+                session=session,
+            )
+        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none()
+        assert "No DagRun created" in caplog.text
+        assert dr is None
+        _adrq = session.scalars(
+            select(AssetDagRunQueue).where(
+                AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == dag_model.dag_id
+            )
+        ).one_or_none()
+        # ADRQ is deleted even when no DagRun is created, to prevent stale rows accumulating.
+        assert _adrq is None
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -12659,6 +12870,48 @@ class TestDispatchConnectionTests:
 
         assert mock_load.call_args.kwargs["team_name"] == "team_a"
 
+    @pytest.mark.parametrize(
+        ("multi_team", "row_team_name", "expected_workload_team"),
+        [
+            pytest.param(True, "team_a", "team_a", id="multi_team_with_team"),
+            pytest.param(True, None, None, id="multi_team_without_team"),
+            pytest.param(False, "team_a", None, id="single_team_ignores_row_team"),
+        ],
+    )
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY": "4",
+            "AIRFLOW__CONNECTION_TEST__TIMEOUT": "60",
+        },
+    )
+    def test_dispatch_puts_team_name_on_workload(
+        self,
+        scheduler_job_runner_for_connection_tests,
+        session,
+        multi_team,
+        row_team_name,
+        expected_workload_team,
+    ):
+        """Queued TestConnection workloads carry team_name only in multi-team mode."""
+        runner = scheduler_job_runner_for_connection_tests
+        runner._multi_team = multi_team
+
+        session.add(
+            ConnectionTestRequest(
+                conn_type="test_type",
+                connection_id="team_conn",
+                team_name=row_team_name,
+            )
+        )
+        session.commit()
+
+        runner._enqueue_connection_tests(session=session)
+
+        queued = list(runner.executor.queued_connection_tests.values())
+        assert len(queued) == 1
+        assert queued[0].team_name == expected_workload_team
+
     @mock.patch.dict(
         os.environ,
         {
@@ -13037,6 +13290,51 @@ class TestReapStaleConnectionTests:
         session.expire_all()
         assert session.get(ConnectionTestRequest, ct_success.id).state == ConnectionTestState.SUCCESS
         assert session.get(ConnectionTestRequest, ct_failed.id).state == ConnectionTestState.FAILED
+
+    @pytest.mark.parametrize(
+        ("multi_team", "team_name", "expected_tags"),
+        [
+            pytest.param(
+                True,
+                "team_alpha",
+                {"prior_state": "queued", "team_name": "team_alpha"},
+                id="with_team",
+            ),
+            pytest.param(True, None, {"prior_state": "queued"}, id="multi_team_no_team_on_row"),
+            pytest.param(False, "team_alpha", {"prior_state": "queued"}, id="single_team_ignores_row_team"),
+        ],
+    )
+    @mock.patch.dict(os.environ, {"AIRFLOW__CONNECTION_TEST__TIMEOUT": "60"})
+    def test_reap_emits_team_name_tag(
+        self,
+        scheduler_job_runner_for_connection_tests,
+        session,
+        multi_team,
+        team_name,
+        expected_tags,
+    ):
+        """Reaper connection_test.reaped metric includes team_name only when multi-team is on."""
+        runner = scheduler_job_runner_for_connection_tests
+        runner._multi_team = multi_team
+        initial_time = timezone.utcnow()
+
+        with time_machine.travel(initial_time, tick=False):
+            ct = ConnectionTestRequest(
+                conn_type="test_type",
+                connection_id="reap_team_conn",
+                team_name=team_name,
+            )
+            ct.state = ConnectionTestState.QUEUED
+            session.add(ct)
+            session.commit()
+
+        with (
+            time_machine.travel(initial_time + timedelta(seconds=200), tick=False),
+            mock.patch("airflow.jobs.scheduler_job_runner.stats.incr") as mock_stats_incr,
+        ):
+            runner._reap_stale_connection_tests(session=session)
+
+        mock_stats_incr.assert_called_once_with("connection_test.reaped", tags=expected_tags)
 
 
 @pytest.mark.need_serialized_dag

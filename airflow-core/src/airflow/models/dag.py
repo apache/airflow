@@ -97,8 +97,8 @@ if TYPE_CHECKING:
     ScheduleArg = (
         ScheduleInterval
         | Timetable
-        | "SerializedAssetBase"
-        | Collection["SerializedAsset" | "SerializedAssetAlias"]
+        | SerializedAssetBase
+        | Collection[SerializedAsset | SerializedAssetAlias]
     )
 
 log = structlog.getLogger(__name__)

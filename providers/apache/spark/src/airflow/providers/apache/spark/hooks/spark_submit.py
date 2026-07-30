@@ -27,6 +27,7 @@ import subprocess
 import tempfile
 import time
 import uuid
+from collections import deque
 from collections.abc import Iterator
 from functools import cached_property
 from pathlib import Path
@@ -53,6 +54,9 @@ DEFAULT_SPARK_BINARY = "spark-submit"
 ALLOWED_SPARK_BINARIES = [DEFAULT_SPARK_BINARY, "spark2-submit", "spark3-submit"]
 
 _K8S_WAIT_APP_COMPLETION_CONF = "spark.kubernetes.submission.waitAppCompletion"
+
+# The JVM's default uncaught-exception handler always prints this exact shape.
+_EXCEPTION_START_RE = re.compile(r'Exception in thread "[^"]*"')
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -318,6 +322,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._driver_id: str | None = None
         self._driver_status: str | None = None
         self._spark_exit_code: int | None = None
+        # Rolling tail of spark-submit's own output; widens once _EXCEPTION_START_RE fires.
+        self._last_submit_log_lines: deque[str] = deque(maxlen=20)
+        self._exception_anchor_seen: bool = False
         self._env: dict[str, Any] | None = None
         self._post_submit_commands: list[str] = list(post_submit_commands) if post_submit_commands else []
         self._post_submit_commands_done: bool = False
@@ -529,6 +536,18 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         )
 
         return connection_cmd_masked
+
+    @property
+    def _submit_log_tail(self) -> str:
+        """
+        The last few lines of the spark-submit process's own output.
+
+        Appended to submit-failure exceptions so the real root cause is visible instead of just an exit code.
+        """
+        if not self._last_submit_log_lines:
+            return ""
+        tail = "\n".join(self._mask_cmd([line]) for line in self._last_submit_log_lines)
+        return f"\nLast spark-submit output:\n{tail}"
 
     def _build_spark_common_args(self) -> list[str]:
         """
@@ -781,9 +800,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     raise AirflowException(
                         f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}. "
                         f"Kubernetes spark exit code is: {self._spark_exit_code}"
+                        f"{self._submit_log_tail}"
                     )
                 raise AirflowException(
                     f"Cannot execute: {self._mask_cmd(spark_submit_cmd)}. Error code is: {returncode}."
+                    f"{self._submit_log_tail}"
                 )
 
             if self._should_track_yarn_application_via_rm_api():
@@ -794,6 +815,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if self._should_track_driver_status and self._driver_id is None:
                 raise AirflowException(
                     "No driver id is known: something went wrong when executing the spark submit command"
+                    f"{self._submit_log_tail}"
                 )
         finally:
             # K8s-API tracking defers post-submit commands to _poll_k8s_driver_via_api's finally
@@ -866,6 +888,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     self._driver_id = match_driver_id.group(0)
                     self.log.info("identified spark driver id: %s", self._driver_id)
 
+            if not self._exception_anchor_seen and _EXCEPTION_START_RE.search(line):
+                # Drop the pre-exception banner noise, keep the whole trace from here on.
+                self._exception_anchor_seen = True
+                self._last_submit_log_lines = deque(maxlen=500)
+            self._last_submit_log_lines.append(line)
             self.log.info(line)
 
     def _start_yarn_application_status_tracking(self, application_id: str) -> None:
@@ -907,7 +934,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         while True:
             self.log.debug("Polling YARN RM REST API for application %s", application_id)
             try:
-                state, final_status = self._query_yarn_application_status(application_id)
+                state, final_status, diagnostics = self._query_yarn_application_status(application_id)
             except RuntimeError as exc:
                 consecutive_failures += 1
                 if consecutive_failures > max_consecutive_failures:
@@ -933,20 +960,23 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             elif poll_count % heartbeat_interval == 0:
                 self.log.info("YARN application %s is still %s", application_id, state)
 
+            diagnostics_suffix = f"\nDiagnostics: {diagnostics}" if diagnostics else ""
             if state in self._YARN_FINAL_FAILURES:
                 raise RuntimeError(
                     f"YARN application {application_id} ended with state: {state}, "
-                    f"final status: {final_status}"
+                    f"final status: {final_status}{diagnostics_suffix}"
                 )
             if final_status == self._YARN_FINAL_SUCCESS:
                 return
             if final_status in self._YARN_FINAL_FAILURES:
                 raise RuntimeError(
                     f"YARN application {application_id} ended with final status: {final_status}"
+                    f"{diagnostics_suffix}"
                 )
             if final_status != self._YARN_FINAL_UNDEFINED:
                 raise RuntimeError(
-                    f"YARN application {application_id} returned unexpected final status: {final_status}"
+                    f"YARN application {application_id} returned unexpected final status: "
+                    f"{final_status}{diagnostics_suffix}"
                 )
             time.sleep(poll_interval)
 
@@ -1001,8 +1031,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         return None
 
-    def _query_yarn_application_status(self, application_id: str) -> tuple[str, str]:
-        """GET ``/ws/v1/cluster/apps/{id}`` once and return ``app.state`` and ``app.finalStatus``."""
+    def _query_yarn_application_status(self, application_id: str) -> tuple[str, str, str]:
+        """
+        GET ``/ws/v1/cluster/apps/{id}`` once.
+
+        Returns ``app.state``, ``app.finalStatus``, and ``app.diagnostics`` - diagnostics is
+        where YARN puts the actual human readable failure reason (AM launch error, container
+        OOM, explicit kill, etc.), so failure exceptions can include it instead of just the
+        two terminal-state enum values.
+        """
         url = f"{self._get_yarn_rm_base_url()}/ws/v1/cluster/apps/{application_id}"
         try:
             resp = requests.get(url, auth=self._resolved_yarn_rm_auth, timeout=self._HTTP_TIMEOUT)
@@ -1017,7 +1054,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             )
         try:
             app = resp.json()["app"]
-            return app["state"], app["finalStatus"]
+            return app["state"], app["finalStatus"], app.get("diagnostics", "")
         except (ValueError, KeyError, TypeError) as exc:
             raise RuntimeError(
                 f"YARN RM REST API returned unexpected payload for application "
@@ -1362,7 +1399,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             - FINISHED + any other finalStatus -> "FAILED"
             - FAILED or KILLED -> "FAILED"
         """
-        state, final_status = self._query_yarn_application_status(application_id)
+        state, final_status, _ = self._query_yarn_application_status(application_id)
         if state in {"NEW", "NEW_SAVING", "SUBMITTED", "ACCEPTED", "RUNNING"}:
             return state
         if state == "FINISHED" and final_status == self._YARN_FINAL_SUCCESS:

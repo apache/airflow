@@ -88,12 +88,6 @@ To run an existing crawler and wait for it to complete, use
 The operator waits for completion by default. Set ``deferrable=True`` to perform the wait without
 occupying a worker slot.
 
-.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_glue.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_glue_crawler_run_deferrable]
-    :end-before: [END howto_operator_glue_crawler_run_deferrable]
-
 .. _howto/operator:GlueCrawlerDeleteOperator:
 
 Delete an AWS Glue crawler

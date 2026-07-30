@@ -28,7 +28,6 @@ try:
         resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
-    from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
 except ImportError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -226,6 +225,17 @@ class LLMSQLQueryOperator(LLMOperator):
 
     def _introspect_object_storage_schema(self):
         """Use DataFusion Engine to get the schema of object stores."""
+        try:
+            from airflow.providers.common.sql.datafusion.engine import DataFusionEngine
+        except ImportError as e:
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "Object-storage schema introspection requires the `datafusion` extra of "
+                "apache-airflow-providers-common-sql. Install it with: "
+                'pip install "apache-airflow-providers-common-sql[datafusion]"'
+            ) from e
+
         engine = DataFusionEngine()
         engine.register_datasource(self.datasource_config)
         return engine.get_schema(self.datasource_config.table_name)
