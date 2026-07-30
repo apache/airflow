@@ -306,6 +306,12 @@ def shell(args):
     url = settings.get_engine().url
     print(f"DB: {url!r}")
 
+    if not url.database:
+        raise ValueError(
+            "The metadata database name is missing from the connection URI. "
+            "Please check your AIRFLOW__DATABASE__SQL_ALCHEMY_CONN configuration."
+        )
+
     if url.get_backend_name() == "mysql":
         with NamedTemporaryFile(suffix="my.cnf") as f:
             f.write(_build_mysql_cnf(url))
