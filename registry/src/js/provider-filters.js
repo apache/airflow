@@ -33,6 +33,14 @@
   let currentSearch = '';
   let debounceTimer;
 
+  // Kept in sync by hand with normalize() in src/_data/providerKeywordMatch.js:
+  // that module runs at build time under CommonJS and this file is a browser
+  // IIFE, so the two can't share it. If the two drift, a query like
+  // 'pydantic-ai' stops finding the integration named "Pydantic AI".
+  function normalize(text) {
+    return text.toLowerCase().replace(/[-_\s]+/g, ' ');
+  }
+
   function filterProviders() {
     let visibleCount = 0;
 
@@ -43,8 +51,9 @@
       const integrations = item.dataset.integrations || '';
 
       const matchesLifecycle = currentLifecycle === 'all' || lifecycle === currentLifecycle;
-      const search = currentSearch.toLowerCase();
-      const matchesSearch = name.includes(search) || integrations.includes(search);
+      const search = normalize(currentSearch);
+      const matchesSearch = normalize(name).includes(search) ||
+        normalize(integrations).includes(search);
       const matchesCategory = currentCategory === 'all' ||
         categories.split(',').includes(currentCategory);
 
