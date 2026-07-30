@@ -19,8 +19,8 @@
 import { Field, Stack, Textarea, Input } from "@chakra-ui/react";
 import { useState } from "react";
 import { type Control, Controller } from "react-hook-form";
-import { FiEye, FiEyeOff } from "react-icons/fi";
 
+import { PasswordToggle } from "src/components/PasswordToggle";
 import type { StandardFieldSpec } from "src/queries/useConnectionTypeMeta";
 
 import type { ConnectionBody } from "./Connections";
@@ -69,19 +69,10 @@ const StandardFields = ({ control, standardFields }: StandardFieldsProps) => {
                         }
                       />
                       {key === "password" && (
-                        <button
-                          onClick={() => setShowPassword(!showPassword)}
-                          style={{
-                            cursor: "pointer",
-                            position: "absolute",
-                            right: "10px",
-                            top: "50%",
-                            transform: "translateY(-50%)",
-                          }}
-                          type="button"
-                        >
-                          {showPassword ? <FiEye size={15} /> : <FiEyeOff size={15} />}
-                        </button>
+                        <PasswordToggle
+                          isVisible={showPassword}
+                          onToggle={() => setShowPassword(!showPassword)}
+                        />
                       )}
                     </div>
                   )}

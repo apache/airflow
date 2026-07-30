@@ -19,8 +19,8 @@
 import { Input } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiEye, FiEyeOff } from "react-icons/fi";
 
+import { PasswordToggle } from "src/components/PasswordToggle";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
@@ -59,22 +59,7 @@ export const FieldPassword = ({ name, namespace = "default", onUpdate }: Flexibl
           type={showPassword ? "text" : "password"}
           value={(param.value ?? "") as string}
         />
-        <button
-          aria-label={
-            showPassword ? translate("flexibleForm.hidePassword") : translate("flexibleForm.showPassword")
-          }
-          onClick={() => setShowPassword(!showPassword)}
-          style={{
-            cursor: "pointer",
-            position: "absolute",
-            right: "10px",
-            top: "50%",
-            transform: "translateY(-50%)",
-          }}
-          type="button"
-        >
-          {showPassword ? <FiEye size={15} /> : <FiEyeOff size={15} />}
-        </button>
+        <PasswordToggle isVisible={showPassword} onToggle={() => setShowPassword(!showPassword)} />
       </div>
       {param.schema.examples ? (
         <datalist id={`list_${name}`}>
