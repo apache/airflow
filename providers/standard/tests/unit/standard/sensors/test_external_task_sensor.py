@@ -1447,7 +1447,7 @@ class TestExternalTaskSensorV3:
         assert exc.value.trigger.logical_dates == [DEFAULT_DATE]
 
     def test_poke_interval_set_on_init(self):
-        """Test that poke_interval is set on init and poll_interval is NOT."""
+        """Test that poke_interval is set on init and the deprecated poll_interval attribute mirrors it."""
         sensor = ExternalTaskSensor(
             task_id=TASK_ID,
             external_task_id=EXTERNAL_TASK_ID,
@@ -1456,7 +1456,22 @@ class TestExternalTaskSensorV3:
         )
 
         assert sensor.poke_interval == 30
-        assert not hasattr(sensor, "poll_interval")
+        with pytest.warns(AirflowProviderDeprecationWarning, match="poll_interval"):
+            assert sensor.poll_interval == 30
+
+    def test_poll_interval_attribute_get_set_deprecated(self):
+        """Reading or writing the poll_interval attribute is deprecated but still mirrors poke_interval."""
+        sensor = ExternalTaskSensor(
+            task_id=TASK_ID,
+            external_task_id=EXTERNAL_TASK_ID,
+            external_dag_id=EXTERNAL_DAG_ID,
+            poke_interval=30,
+        )
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match="poll_interval"):
+            sensor.poll_interval = 15
+
+        assert sensor.poke_interval == 15
 
     def test_poke_interval_default_when_unset(self):
         """The BaseSensor default of 60.0 must be preserved."""
@@ -1502,7 +1517,6 @@ class TestExternalTaskSensorV3:
             )
 
         assert sensor.poke_interval == 45
-        assert not hasattr(sensor, "poll_interval")
 
     def test_poll_interval_zero_still_deprecated(self):
         """Regression test: a falsy poll_interval (0) must still take the deprecation path."""
@@ -1516,7 +1530,7 @@ class TestExternalTaskSensorV3:
 
         assert sensor.poke_interval == 0
 
-    def test_poll_interval_overrides_poke_interval_when_both_set(self):
+    def test_poke_interval_overrides_poll_interval_when_both_set(self):
         """When both are provided, the deprecated poll_interval takes precedence."""
         with pytest.warns(AirflowProviderDeprecationWarning, match="poll_interval"):
             sensor = ExternalTaskSensor(
@@ -1527,7 +1541,7 @@ class TestExternalTaskSensorV3:
                 poll_interval=99,
             )
 
-        assert sensor.poke_interval == 99
+        assert sensor.poke_interval == 10
 
     @pytest.mark.execution_timeout(10)
     def test_deferrable_poke_interval_passed_to_trigger(self, dag_maker):
@@ -1783,7 +1797,7 @@ class TestExternalTaskAsyncSensor:
         assert sensor.external_dates_filter == DEFAULT_DATE.isoformat()
 
     def test_poke_interval_set_on_init(self):
-        """Test that poke_interval is set on init and poll_interval is NOT."""
+        """Test that poke_interval is set on init and the deprecated poll_interval attribute mirrors it."""
         sensor = ExternalTaskSensor(
             task_id=TASK_ID,
             external_task_id=EXTERNAL_TASK_ID,
@@ -1792,7 +1806,8 @@ class TestExternalTaskAsyncSensor:
         )
 
         assert sensor.poke_interval == 30
-        assert not hasattr(sensor, "poll_interval")
+        with pytest.warns(AirflowProviderDeprecationWarning, match="poll_interval"):
+            assert sensor.poll_interval == 30
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Needs Flask app context fixture for AF 2")

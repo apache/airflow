@@ -276,6 +276,27 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.external_dates_filter: str | None = None
 
+    @property
+    def poll_interval(self) -> float:
+        """Deprecated alias for poke_interval."""
+        warnings.warn(
+            "Attribute poll_interval is deprecated and will be removed in a future release. "
+            "Use poke_interval instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.poke_interval
+
+    @poll_interval.setter
+    def poll_interval(self, value: float) -> None:
+        warnings.warn(
+            "Attribute poll_interval is deprecated and will be removed in a future release. "
+            "Use poke_interval instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        self.poke_interval = value
+
     def _get_dttm_filter(self, context: Context) -> Sequence[datetime.datetime]:
         logical_date = self._get_logical_date(context)
 
