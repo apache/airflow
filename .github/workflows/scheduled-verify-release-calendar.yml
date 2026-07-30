@@ -50,7 +50,7 @@ jobs:
       # yamllint disable rule:line-length
       - name: "Notify Slack on failure"
         if: failure()
-        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
