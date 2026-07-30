@@ -91,7 +91,8 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def _serialize_query_param(value: Any) -> Any:
-    if isinstance(value, datetime.datetime):
+    # datetime.datetime subclasses datetime.date, so this covers both.
+    if isinstance(value, datetime.date):
         return value.isoformat()
     return value
 
@@ -525,12 +526,16 @@ class DagRunOperations(BaseOperations):
         self,
         state: str | None = None,
         limit: int = 100,
+        offset: int | None = None,
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
         dag_id: str | None = None,
         logical_date_gte: datetime.datetime | None = None,
         logical_date_lte: datetime.datetime | None = None,
+        partition_date_gte: datetime.date | None = None,
+        partition_date_lte: datetime.date | None = None,
         order_by: str | None = None,
+        partition_key_pattern: str | None = None,
         *,
         suppress_error_log: bool = False,
     ) -> DAGRunCollectionResponse | ServerResponseError:
@@ -542,10 +547,16 @@ class DagRunOperations(BaseOperations):
             start_date: Filter Dag runs by start date (optional)
             end_date: Filter Dag runs by end date (optional)
             limit: Limit the number of results returned
+            offset: Offset to start returning results from
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
             logical_date_gte: Filter Dag runs with a logical date greater than or equal to this value.
             logical_date_lte: Filter Dag runs with a logical date less than or equal to this value.
+            partition_date_gte: Inclusive lower bound of the partition_date window, as a local
+                calendar day in the Dag's timetable timezone.
+            partition_date_lte: Inclusive upper bound of the partition_date window, as a local
+                calendar day in the Dag's timetable timezone.
             order_by: Order the results by the specified field.
+            partition_key_pattern: Filter Dag runs by partition key pattern.
             suppress_error_log: Skip client-side error logging, for callers handling the error themselves.
         """
         # Use "~" for all Dags if dag_id is not specified
@@ -554,12 +565,16 @@ class DagRunOperations(BaseOperations):
 
         params = _build_query_params(
             limit=limit,
+            offset=offset,
             state=str(state) if state is not None else None,
             start_date=start_date,
             end_date=end_date,
             logical_date_gte=logical_date_gte,
             logical_date_lte=logical_date_lte,
+            partition_date_gte=partition_date_gte,
+            partition_date_lte=partition_date_lte,
             order_by=order_by,
+            partition_key_pattern=partition_key_pattern,
         )
 
         self.response = self.client.get(
