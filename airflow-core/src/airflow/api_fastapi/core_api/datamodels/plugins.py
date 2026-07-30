@@ -100,7 +100,7 @@ class ReactAppResponse(BaseUIResponse):
     model_config = ConfigDict(extra="allow")
 
     bundle_url: str
-    destination: Literal[BaseDestinationLiteral, "dashboard"] = "nav"
+    destination: Literal[BaseDestinationLiteral, "dashboard", "dag_overview", "task_overview"] = "nav"
 
 
 class PluginResponse(BaseModel):

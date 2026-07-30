@@ -301,6 +301,27 @@ definitions in Airflow.
 
 .. seealso:: :doc:`/howto/define-extra-link`
 
+React app context props
+-----------------------
+
+.. note::
+    The React app integration is experimental and these props may change in future versions.
+
+Unlike an external view, which only receives context through ``{DAG_ID}``-style tokens in its
+``bundle_url``, a React app is rendered as a component and receives context directly as props.
+The props available depend on where the app is mounted (its ``destination`` and route):
+
+- ``dagId``, ``runId``, ``taskId``, ``mapIndex``, ``assetId`` — the identifiers from the current
+  route (strings), when present.
+- ``assetUri`` — the URI of the current asset, when mounted on an asset route.
+- ``dag``, ``dagRun``, ``taskInstance``, ``asset`` — the full records for the current route,
+  matching the corresponding REST API response schemas
+  (``DAGDetailsResponse``, ``DAGRunResponse``, ``TaskInstanceResponse``, ``AssetResponse``).
+  Each object is only provided once the identifiers it depends on are present in the route, and
+  is served from the UI's query cache the details page has already populated (no extra request).
+  On routes or ``destination`` values without those identifiers (e.g. ``nav``, ``base``,
+  ``dashboard``), the corresponding objects are ``undefined``.
+
 Exclude views from CSRF protection
 ----------------------------------
 

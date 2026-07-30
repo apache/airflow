@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-ai``
 
-Release: ``0.6.0``
+Release: ``0.7.0``
 
 
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``common.ai`` provider. All classes for this prov
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.6.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.7.0/>`_.
 
 Installation
 ------------
@@ -69,12 +69,13 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai[common.sql]
+    pip install apache-airflow-providers-common-ai[amazon]
 
 
 ============================================================================================================  ==============
 Dependent package                                                                                             Extra
 ============================================================================================================  ==============
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_          ``amazon``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
 `apache-airflow-providers-git <https://airflow.apache.org/docs/apache-airflow-providers-git>`_                ``git``
 ============================================================================================================  ==============
@@ -82,9 +83,9 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-==============  ==========================================================================================================
+==============  =======================================================================================================================================
 Extra           Dependencies
-==============  ==========================================================================================================
+==============  =======================================================================================================================================
 ``anthropic``   ``pydantic-ai-slim[anthropic]``
 ``bedrock``     ``pydantic-ai-slim[bedrock]``
 ``google``      ``pydantic-ai-slim[google]``
@@ -92,17 +93,19 @@ Extra           Dependencies
 ``mcp``         ``pydantic-ai-slim[mcp]``
 ``code-mode``   ``pydantic-ai-harness[codemode]>=0.3.0``
 ``shields``     ``pydantic-ai-shields>=0.3.4``
-``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=0.11.0``
+``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0``
 ``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
-``sql``         ``apache-airflow-providers-common-sql``, ``sqlglot>=30.0.0``
-``common.sql``  ``apache-airflow-providers-common-sql``
+``sql``         ``apache-airflow-providers-common-sql>=1.33.0``, ``sqlglot>=30.0.0``
+``aws``         ``apache-airflow-providers-amazon>=9.0.0``
+``common.sql``  ``apache-airflow-providers-common-sql>=1.33.0``
 ``langchain``   ``langchain>=1.0.0``
-``llamaindex``  ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
+``llamaindex``  ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
 ``pdf``         ``pypdf>=4.0.0``
 ``docx``        ``python-docx>=1.0.0``
 ``git``         ``apache-airflow-providers-git``
-==============  ==========================================================================================================
+``amazon``      ``apache-airflow-providers-amazon``
+==============  =======================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.6.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.7.0/changelog.html>`_.

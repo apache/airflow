@@ -759,6 +759,9 @@ class TestAgentOperatorDurable:
 
         storage.cleanup.assert_not_called()
 
+    def test_supports_durable_execution_marker(self):
+        assert AgentOperator._AgentOperator__supports_durable_execution is True
+
 
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
@@ -874,16 +877,20 @@ class TestAgentOperatorMessageHistory:
         assert kwargs["usage_limits"] is limits
         assert kwargs["message_history"] == []
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
     def test_message_history_with_hitl_review_raises(self):
         """message_history cannot be combined with HITL review (post-review transcript is lost)."""
+        op = AgentOperator(
+            task_id="t",
+            prompt="run",
+            llm_conn_id="c",
+            message_history=[],
+            enable_hitl_review=True,
+        )
         with pytest.raises(ValueError, match="message_history and enable_hitl_review"):
-            AgentOperator(
-                task_id="t",
-                prompt="run",
-                llm_conn_id="c",
-                message_history=[],
-                enable_hitl_review=True,
-            )
+            op.execute(context={})
 
     @patch("pydantic_ai.models.wrapper.infer_model", side_effect=lambda m: m)
     @patch("pydantic_ai.models.infer_model", autospec=True)

@@ -27,7 +27,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineDeleteInstanceGroupManagerOperator,
@@ -42,7 +42,6 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineStartInstanceOperator,
     ComputeEngineStopInstanceOperator,
 )
-from airflow.utils import timezone
 
 EMPTY_CONTENT = b""
 GCP_PROJECT_ID = "project-id"
@@ -147,16 +146,24 @@ class TestGceInstanceInsert:
             request_id=None,
         )
 
-    def test_insert_instance_should_throw_ex_when_missing_project_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineInsertInstanceOperator(
-                project_id="",
-                body=GCE_INSTANCE_BODY_API_CALL,
-                zone=GCE_ZONE,
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_should_throw_ex_when_missing_project_id(self, mock_hook):
+        op = ComputeEngineInsertInstanceOperator(
+            project_id="",
+            body=GCE_INSTANCE_BODY_API_CALL,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_should_not_throw_ex_when_project_id_none(self, mock_hook):
@@ -190,52 +197,12 @@ class TestGceInstanceInsert:
             project_id=None,
         )
 
-    def test_insert_instance_should_throw_ex_when_missing_zone(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
-            ComputeEngineInsertInstanceOperator(
-                resource_id=GCE_RESOURCE_ID,
-                body=GCE_INSTANCE_BODY_API_CALL,
-                zone="",
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
-
-    def test_insert_instance_should_throw_ex_when_missing_resource_id(self):
-        with pytest.raises(
-            AirflowException,
-            match=r"The required parameters 'resource_id' and "
-            r"body\['name'\] are missing\. Please, provide "
-            r"at least one of them",
-        ):
-            ComputeEngineInsertInstanceOperator(
-                project_id=GCP_PROJECT_ID,
-                zone=GCE_ZONE,
-                body=GCE_INSTANCE_BODY_WITHOUT_NAME_API_CALL,
-                task_id=TASK_ID,
-                resource_id="",
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
-
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_insert_instance_should_not_throw_ex_when_name_is_templated(self, mock_hook):
-        get_instance_obj_mock = mock.MagicMock()
-        get_instance_obj_mock.__class__ = Instance
-        mock_hook.return_value.get_instance.side_effect = [
-            NotFound("Error message"),
-            get_instance_obj_mock,
-        ]
-        body_with_templated_name = deepcopy(GCE_INSTANCE_BODY_API_CALL)
-        body_with_templated_name["name"] = "{{ logical_date }}"
+    def test_insert_instance_should_throw_ex_when_missing_zone(self, mock_hook):
         op = ComputeEngineInsertInstanceOperator(
-            project_id=GCP_PROJECT_ID,
             resource_id=GCE_RESOURCE_ID,
-            body=body_with_templated_name,
-            zone=GCE_ZONE,
+            body=GCE_INSTANCE_BODY_API_CALL,
+            zone="",
             task_id=TASK_ID,
             retry=RETRY,
             timeout=TIMEOUT,
@@ -243,15 +210,83 @@ class TestGceInstanceInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context=mock.MagicMock())
+        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_should_throw_ex_when_missing_resource_id(self, mock_hook):
+        op = ComputeEngineInsertInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            body=GCE_INSTANCE_BODY_WITHOUT_NAME_API_CALL,
+            task_id=TASK_ID,
+            resource_id="",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameters 'resource_id' and "
+            r"body\['name'\] are missing\. Please, provide "
+            r"at least one of them",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
+
+    @pytest.mark.db_test
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_should_not_throw_ex_when_name_is_templated(
+        self,
+        mock_hook,
+        create_task_instance_of_operator,
+    ):
+        dag_id = "templated-instance-name"
+
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+
+        body_with_templated_name = deepcopy(GCE_INSTANCE_BODY_API_CALL)
+        body_with_templated_name["name"] = "{{ dag.dag_id }}"
+
+        ti = create_task_instance_of_operator(
+            ComputeEngineInsertInstanceOperator,
+            dag_id=dag_id,
+            project_id=GCP_PROJECT_ID,
+            body=body_with_templated_name,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        rendered = ti.render_templates()
+
+        assert rendered.body["name"] == dag_id
+        assert rendered.resource_id is None
+
+        rendered.execute(context=mock.MagicMock())
+
+        assert rendered.resource_id == dag_id
+
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        expected_body = deepcopy(GCE_INSTANCE_BODY_API_CALL)
+        expected_body["name"] = dag_id
+
         mock_hook.return_value.insert_instance.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
-            body=body_with_templated_name,
+            body=expected_body,
             zone=GCE_ZONE,
             request_id=None,
         )
@@ -358,7 +393,13 @@ class TestGceInstanceInsertFromTemplate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        assert op.resource_id is None
+
         op.execute(context=mock.MagicMock())
+
+        assert op.resource_id == GCP_INSTANCE_BODY_FROM_TEMPLATE["name"]
+
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -372,17 +413,25 @@ class TestGceInstanceInsertFromTemplate:
             request_id=None,
         )
 
-    def test_insert_instance_from_template_should_throw_ex_when_missing_project_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineInsertInstanceFromTemplateOperator(
-                project_id="",
-                source_instance_template=SOURCE_INSTANCE_TEMPLATE,
-                body=GCP_INSTANCE_BODY_FROM_TEMPLATE,
-                zone=GCE_ZONE,
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_from_template_should_throw_ex_when_missing_project_id(self, mock_hook):
+        op = ComputeEngineInsertInstanceFromTemplateOperator(
+            project_id="",
+            source_instance_template=SOURCE_INSTANCE_TEMPLATE,
+            body=GCP_INSTANCE_BODY_FROM_TEMPLATE,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_instance_from_template_should_not_throw_ex_when_project_id_none(self, mock_hook):
@@ -417,17 +466,25 @@ class TestGceInstanceInsertFromTemplate:
             request_id=None,
         )
 
-    def test_insert_instance_from_template_should_throw_ex_when_missing_zone(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
-            ComputeEngineInsertInstanceFromTemplateOperator(
-                project_id=GCP_PROJECT_ID,
-                zone="",
-                source_instance_template=SOURCE_INSTANCE_TEMPLATE,
-                body=GCP_INSTANCE_BODY_FROM_TEMPLATE,
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_from_template_should_throw_ex_when_missing_zone(self, mock_hook):
+        op = ComputeEngineInsertInstanceFromTemplateOperator(
+            project_id=GCP_PROJECT_ID,
+            zone="",
+            source_instance_template=SOURCE_INSTANCE_TEMPLATE,
+            body=GCP_INSTANCE_BODY_FROM_TEMPLATE,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'zone' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     def test_insert_instance_from_template_should_throw_ex_when_missing_source_instance_template(self):
         with pytest.raises(
@@ -453,17 +510,26 @@ class TestGceInstanceInsertFromTemplate:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 
+    @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_insert_instance_from_template_should_not_throw_ex_when_name_is_templated(self, mock_hook):
+    def test_insert_instance_from_template_should_not_throw_ex_when_name_is_templated(
+        self, mock_hook, create_task_instance_of_operator
+    ):
+        dag_id = "templated-instance-name"
+
         get_instance_obj_mock = mock.MagicMock()
         get_instance_obj_mock.__class__ = Instance
         mock_hook.return_value.get_instance.side_effect = [
             NotFound("Error message"),
             get_instance_obj_mock,
         ]
+
         body_with_templated_name = deepcopy(GCP_INSTANCE_BODY_FROM_TEMPLATE)
-        body_with_templated_name["name"] = "{{ execution_date }}"
-        op = ComputeEngineInsertInstanceFromTemplateOperator(
+        body_with_templated_name["name"] = "{{ dag.dag_id }}"
+
+        ti = create_task_instance_of_operator(
+            ComputeEngineInsertInstanceFromTemplateOperator,
+            dag_id=dag_id,
             project_id=GCP_PROJECT_ID,
             source_instance_template=SOURCE_INSTANCE_TEMPLATE,
             body=body_with_templated_name,
@@ -475,7 +541,16 @@ class TestGceInstanceInsertFromTemplate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(context=mock.MagicMock())
+
+        rendered = ti.render_templates()
+
+        assert rendered.body["name"] == dag_id
+        assert rendered.resource_id is None
+
+        rendered.execute(context=mock.MagicMock())
+
+        assert rendered.resource_id == dag_id
+
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -484,7 +559,10 @@ class TestGceInstanceInsertFromTemplate:
         mock_hook.return_value.insert_instance.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
-            body=body_with_templated_name,
+            body={
+                **GCP_INSTANCE_BODY_FROM_TEMPLATE,
+                "name": dag_id,
+            },
             source_instance_template=SOURCE_INSTANCE_TEMPLATE,
             request_id=None,
         )
@@ -516,37 +594,48 @@ class TestGceInstanceDelete:
             zone=GCE_ZONE,
         )
 
-    def test_delete_instance_should_throw_ex_when_missing_zone(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
-            ComputeEngineDeleteInstanceOperator(
-                resource_id=GCE_RESOURCE_ID,
-                zone="",
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_delete_instance_should_throw_ex_when_missing_zone(self, mock_hook):
+        op = ComputeEngineDeleteInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            zone="",
+            resource_id=GCE_RESOURCE_ID,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
-    def test_delete_instance_should_throw_ex_when_missing_resource_id(self):
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'zone' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_delete_instance_should_throw_ex_when_missing_resource_id(self, mock_hook):
+        op = ComputeEngineDeleteInstanceOperator(
+            resource_id="",
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
-            ComputeEngineDeleteInstanceOperator(
-                resource_id="",
-                zone=GCE_ZONE,
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
 
 class TestGceInstanceStart:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_start_instance_should_execute_successfully(self, mock_hook):
         mock_hook.return_value.start_instance.return_value = True
+
         op = ComputeEngineStartInstanceOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
@@ -555,6 +644,7 @@ class TestGceInstanceStart:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
         context = mock.MagicMock()
         op.execute(context=context)
 
@@ -564,14 +654,16 @@ class TestGceInstanceStart:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.start_instance.assert_called_once_with(
-            zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, project_id=GCP_PROJECT_ID
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            project_id=GCP_PROJECT_ID,
         )
 
     # Setting all the operator's input parameters as template dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_start_instance_with_templates(self, _, create_task_instance_of_operator, session):
+    def test_start_instance_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_instance_start_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineStartInstanceOperator,
@@ -590,19 +682,27 @@ class TestGceInstanceStart:
         assert dag_id == rendered.gcp_conn_id
         assert dag_id == rendered.api_version
 
-    def test_instance_start_should_throw_ex_when_missing_project_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineStartInstanceOperator(
-                project_id="",
-                zone=GCE_ZONE,
-                resource_id=GCE_RESOURCE_ID,
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_instance_start_should_throw_ex_when_missing_project_id(self, mock_hook):
+        op = ComputeEngineStartInstanceOperator(
+            project_id="",
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_instance_start_should_not_throw_ex_when_project_id_none(self, _):
+    def test_instance_start_should_not_throw_ex_when_project_id_none(self, mock_hook):
         op = ComputeEngineStartInstanceOperator(
             zone=GCE_ZONE,
             resource_id=GCE_RESOURCE_ID,
@@ -613,27 +713,54 @@ class TestGceInstanceStart:
         context = mock.MagicMock()
         op.execute(context=context)
 
-    def test_instance_start_should_throw_ex_when_missing_zone(self):
-        with pytest.raises(AirflowException, match=r"he required parameter 'zone' is missing"):
-            ComputeEngineStartInstanceOperator(
-                project_id=GCP_PROJECT_ID,
-                zone="",
-                resource_id=GCE_RESOURCE_ID,
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+        mock_hook.assert_called_once_with(
+            api_version="v1",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.start_instance.assert_called_once_with(
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            project_id=None,
+        )
 
-    def test_instance_start_should_throw_ex_when_missing_resource_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
-            ComputeEngineStartInstanceOperator(
-                project_id=GCP_PROJECT_ID,
-                zone=GCE_ZONE,
-                resource_id="",
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_instance_start_should_throw_ex_when_missing_zone(self, mock_hook):
+        op = ComputeEngineStartInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            zone="",
+            resource_id=GCE_RESOURCE_ID,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'zone' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_instance_start_should_throw_ex_when_missing_resource_id(self, mock_hook):
+        op = ComputeEngineStartInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            resource_id="",
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'resource_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
 
 class TestGceInstanceStop:
@@ -655,14 +782,20 @@ class TestGceInstanceStop:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.stop_instance.assert_called_once_with(
-            zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, project_id=GCP_PROJECT_ID
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            project_id=GCP_PROJECT_ID,
         )
 
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_instance_stop_with_templates(self, _, create_task_instance_of_operator, session):
+    def test_instance_stop_with_templates(
+        self,
+        _,
+        create_task_instance_of_operator,
+    ):
         dag_id = "test_instance_stop_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineStopInstanceOperator,
@@ -681,38 +814,78 @@ class TestGceInstanceStop:
         assert dag_id == rendered.gcp_conn_id
         assert dag_id == rendered.api_version
 
-    def test_instance_stop_should_throw_ex_when_missing_project_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineStopInstanceOperator(
-                project_id="", zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id="id"
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_instance_stop_should_throw_ex_when_missing_project_id(self, mock_hook):
+        op = ComputeEngineStopInstanceOperator(
+            project_id="",
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            task_id="id",
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_should_not_throw_ex_when_project_id_none(self, mock_hook):
-        op = ComputeEngineStopInstanceOperator(zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, task_id="id")
+        op = ComputeEngineStopInstanceOperator(
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            task_id="id",
+        )
+
         context = mock.MagicMock()
         op.execute(context=context)
+
         mock_hook.assert_called_once_with(
             api_version="v1",
             gcp_conn_id="google_cloud_default",
             impersonation_chain=None,
         )
         mock_hook.return_value.stop_instance.assert_called_once_with(
-            zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, project_id=None
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            project_id=None,
         )
 
-    def test_instance_stop_should_throw_ex_when_missing_zone(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
-            ComputeEngineStopInstanceOperator(
-                project_id=GCP_PROJECT_ID, zone="", resource_id=GCE_RESOURCE_ID, task_id="id"
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_instance_stop_should_throw_ex_when_missing_zone(self, mock_hook):
+        op = ComputeEngineStopInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            zone="",
+            resource_id=GCE_RESOURCE_ID,
+            task_id="id",
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'zone' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_should_throw_ex_when_missing_resource_id(self, mock_hook):
-        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
-            ComputeEngineStopInstanceOperator(
-                project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id="", task_id="id"
-            )
+        op = ComputeEngineStopInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            resource_id="",
+            task_id="id",
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'resource_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
 
 class TestGceInstanceSetMachineType:
@@ -736,14 +909,17 @@ class TestGceInstanceSetMachineType:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.set_machine_type.assert_called_once_with(
-            zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, project_id=GCP_PROJECT_ID
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            body=SET_MACHINE_TYPE_BODY,
+            project_id=GCP_PROJECT_ID,
         )
 
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
     @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator, session):
+    def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_set_machine_type_with_templates"
         ti = create_task_instance_of_operator(
             ComputeEngineSetMachineTypeOperator,
@@ -763,15 +939,23 @@ class TestGceInstanceSetMachineType:
         assert dag_id == rendered.gcp_conn_id
         assert dag_id == rendered.api_version
 
-    def test_machine_type_set_should_throw_ex_when_missing_project_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineSetMachineTypeOperator(
-                project_id="",
-                zone=GCE_ZONE,
-                resource_id=GCE_RESOURCE_ID,
-                body=SET_MACHINE_TYPE_BODY,
-                task_id=TASK_ID,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_machine_type_set_should_throw_ex_when_missing_project_id(self, mock_hook):
+        op = ComputeEngineSetMachineTypeOperator(
+            project_id="",
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            body=SET_MACHINE_TYPE_BODY,
+            task_id=TASK_ID,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_should_not_throw_ex_when_project_id_none(self, mock_hook):
@@ -783,39 +967,59 @@ class TestGceInstanceSetMachineType:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
         context = mock.MagicMock()
         op.execute(context=context)
+
         mock_hook.assert_called_once_with(
             api_version="v1",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_hook.return_value.set_machine_type.assert_called_once_with(
-            zone=GCE_ZONE, resource_id=GCE_RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, project_id=None
+            zone=GCE_ZONE,
+            resource_id=GCE_RESOURCE_ID,
+            body=SET_MACHINE_TYPE_BODY,
+            project_id=None,
         )
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_should_throw_ex_when_missing_zone(self, mock_hook):
-        with pytest.raises(AirflowException, match=r"The required parameter 'zone' is missing"):
-            ComputeEngineSetMachineTypeOperator(
-                project_id=GCP_PROJECT_ID,
-                zone="",
-                resource_id=GCE_RESOURCE_ID,
-                body=SET_MACHINE_TYPE_BODY,
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+        op = ComputeEngineSetMachineTypeOperator(
+            project_id=GCP_PROJECT_ID,
+            zone="",
+            resource_id=GCE_RESOURCE_ID,
+            body=SET_MACHINE_TYPE_BODY,
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
 
-    def test_machine_type_set_should_throw_ex_when_missing_resource_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
-            ComputeEngineSetMachineTypeOperator(
-                project_id=GCP_PROJECT_ID,
-                zone=GCE_ZONE,
-                resource_id="",
-                body=SET_MACHINE_TYPE_BODY,
-                task_id=TASK_ID,
-            )
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'zone' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_machine_type_set_should_throw_ex_when_missing_resource_id(self, mock_hook):
+        op = ComputeEngineSetMachineTypeOperator(
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            resource_id="",
+            body=SET_MACHINE_TYPE_BODY,
+            task_id=TASK_ID,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'resource_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_should_throw_ex_when_missing_machine_type(self, mock_hook):
@@ -829,13 +1033,13 @@ class TestGceInstanceSetMachineType:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         context = mock.MagicMock()
-        with pytest.raises(AirflowException, match=r"The required body field 'machineType' is missing"):
+        with pytest.raises(
+            AirflowException,
+            match=r"The required body field 'machineType' is missing",
+        ):
             op.execute(context=context)
-        mock_hook.assert_called_once_with(
-            api_version="v1",
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+
+        mock_hook.assert_not_called()
 
     MOCK_OP_RESPONSE = (
         "{'kind': 'compute#operation', 'id': '8529919847974922736', "
@@ -874,6 +1078,7 @@ class TestGceInstanceSetMachineType:
         get_conn.return_value = {}
         _execute_set_machine_type.return_value = {"name": "test-operation"}
         _check_zone_operation_status.return_value = ast.literal_eval(self.MOCK_OP_RESPONSE)
+
         op = ComputeEngineSetMachineTypeOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
@@ -881,14 +1086,27 @@ class TestGceInstanceSetMachineType:
             body=SET_MACHINE_TYPE_BODY,
             task_id=TASK_ID,
         )
+
         context = mock.MagicMock()
-        with pytest.raises(AirflowException, match=r"400 BAD REQUEST: {.+UNSUPPORTED_OPERATION"):
+
+        with pytest.raises(
+            AirflowException,
+            match=r"400 BAD REQUEST: {.+UNSUPPORTED_OPERATION",
+        ):
             op.execute(context=context)
+
         _check_zone_operation_status.assert_called_once_with(
-            {}, "test-operation", GCP_PROJECT_ID, GCE_ZONE, mock.ANY
+            {},
+            "test-operation",
+            GCP_PROJECT_ID,
+            GCE_ZONE,
+            mock.ANY,
         )
         _execute_set_machine_type.assert_called_once_with(
-            GCE_ZONE, GCE_RESOURCE_ID, SET_MACHINE_TYPE_BODY, GCP_PROJECT_ID
+            GCE_ZONE,
+            GCE_RESOURCE_ID,
+            SET_MACHINE_TYPE_BODY,
+            GCP_PROJECT_ID,
         )
 
 
@@ -923,6 +1141,7 @@ class TestGceTemplateInsert:
             NotFound("Error message"),
             get_template_obj_mock,
         ]
+
         op = ComputeEngineInsertInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             body=GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
@@ -933,7 +1152,13 @@ class TestGceTemplateInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        assert op.resource_id is None
+
         op.execute(context=mock.MagicMock())
+
+        assert op.resource_id == GCE_INSTANCE_TEMPLATE_BODY_API_CALL["name"]
+
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -945,17 +1170,25 @@ class TestGceTemplateInsert:
             request_id=None,
         )
 
-    def test_insert_template_should_throw_ex_when_missing_project_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineInsertInstanceTemplateOperator(
-                project_id="",
-                body=GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_template_should_throw_ex_when_missing_project_id(self, mock_hook):
+        op = ComputeEngineInsertInstanceTemplateOperator(
+            project_id="",
+            body=GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_template_should_not_throw_ex_when_project_id_none(self, mock_hook):
@@ -965,6 +1198,7 @@ class TestGceTemplateInsert:
             NotFound("Error message"),
             get_template_obj_mock,
         ]
+
         op = ComputeEngineInsertInstanceTemplateOperator(
             body=GCE_INSTANCE_TEMPLATE_BODY_API_CALL,
             task_id=TASK_ID,
@@ -974,7 +1208,13 @@ class TestGceTemplateInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        assert op.resource_id is None
+
         op.execute(context=mock.MagicMock())
+
+        assert op.resource_id == GCE_INSTANCE_TEMPLATE_BODY_API_CALL["name"]
+
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1005,8 +1245,10 @@ class TestGceTemplateInsert:
             NotFound("Error message"),
             get_template_obj_mock,
         ]
+
         body_with_templated_name = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_API_CALL)
         body_with_templated_name["name"] = "{{ execution_date }}"
+
         op = ComputeEngineInsertInstanceTemplateOperator(
             project_id=GCP_PROJECT_ID,
             body=body_with_templated_name,
@@ -1017,7 +1259,13 @@ class TestGceTemplateInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        assert op.resource_id is None
+
         op.execute(context=mock.MagicMock())
+
+        assert op.resource_id == body_with_templated_name["name"]
+
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1055,18 +1303,26 @@ class TestGceTemplateDelete:
             resource_id=GCE_RESOURCE_ID,
         )
 
-    def test_delete_template_should_throw_ex_when_missing_project_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineDeleteInstanceTemplateOperator(
-                project_id="",
-                resource_id=GCE_RESOURCE_ID,
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_delete_template_should_throw_ex_when_missing_project_id(self, mock_hook):
+        op = ComputeEngineDeleteInstanceTemplateOperator(
+            resource_id=GCE_RESOURCE_ID,
+            project_id="",
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_delete_template_should_not_throw_ex_when_project_id_none(self, mock_hook):
@@ -1091,18 +1347,26 @@ class TestGceTemplateDelete:
             request_id=None,
         )
 
-    def test_delete_template_should_throw_ex_when_missing_resource_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
-            ComputeEngineDeleteInstanceTemplateOperator(
-                resource_id="",
-                project_id=GCP_PROJECT_ID,
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_delete_template_should_throw_ex_when_missing_resource_id(self, mock_hook):
+        op = ComputeEngineDeleteInstanceTemplateOperator(
+            resource_id="",
+            project_id=GCP_PROJECT_ID,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'resource_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
 
 GCE_INSTANCE_TEMPLATE_NAME = "instance-template-test"
@@ -1441,20 +1705,45 @@ class TestGceInstanceTemplateCopy:
             request_id=None,
         )
 
-    def test_copy_template_with_missing_name_should_execute_successfully(self):
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_copy_template_should_throw_ex_when_missing_name(self, mock_hook):
+        op = ComputeEngineCopyInstanceTemplateOperator(
+            project_id=GCP_PROJECT_ID,
+            resource_id=GCE_INSTANCE_TEMPLATE_NAME,
+            request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
+            task_id=TASK_ID,
+            body_patch={"description": "New description"},
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
         with pytest.raises(
             AirflowException,
             match=r"should contain at least name for the new operator in the 'name' field",
         ):
-            ComputeEngineCopyInstanceTemplateOperator(
-                project_id=GCP_PROJECT_ID,
-                resource_id=GCE_INSTANCE_TEMPLATE_NAME,
-                request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
-                task_id=TASK_ID,
-                body_patch={"description": "New description"},
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_copy_template_should_throw_ex_when_missing_resource_id(self, mock_hook):
+        op = ComputeEngineCopyInstanceTemplateOperator(
+            project_id=GCP_PROJECT_ID,
+            resource_id="",
+            request_id=GCE_INSTANCE_TEMPLATE_REQUEST_ID,
+            task_id=TASK_ID,
+            body_patch={"name": "new-instance-template"},
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'resource_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
 
 GCE_INSTANCE_GROUP_MANAGER_NAME = "instance-group-test"
@@ -1566,7 +1855,12 @@ class TestGceInstanceGroupManagerInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        assert op.resource_id is None
+
         op.execute(context=mock.MagicMock())
+
+        assert op.resource_id == GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL["name"]
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1581,17 +1875,24 @@ class TestGceInstanceGroupManagerInsert:
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_igm_should_throw_ex_when_missing_project_id(self, mock_hook):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineInsertInstanceGroupManagerOperator(
-                project_id="",
-                body=GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
-                zone=GCE_ZONE,
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+        op = ComputeEngineInsertInstanceGroupManagerOperator(
+            project_id="",
+            body=GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_insert_igm_should_not_throw_ex_when_project_id_none(self, mock_hook):
@@ -1644,8 +1945,10 @@ class TestGceInstanceGroupManagerInsert:
             NotFound("Error message"),
             get_instance_group_manager_obj_mock,
         ]
+
         body_with_templated_name = deepcopy(GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL)
         body_with_templated_name["name"] = "{{ execution_date }}"
+
         op = ComputeEngineInsertInstanceGroupManagerOperator(
             project_id=GCP_PROJECT_ID,
             body=body_with_templated_name,
@@ -1657,7 +1960,13 @@ class TestGceInstanceGroupManagerInsert:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
+        assert op.resource_id is None
+
         op.execute(context=mock.MagicMock())
+
+        assert op.resource_id == body_with_templated_name["name"]
+
         mock_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1698,19 +2007,27 @@ class TestGceInstanceGroupManagerDelete:
             project_id=GCP_PROJECT_ID,
         )
 
-    def test_delete_igm_should_throw_ex_when_missing_project_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'project_id' is missing"):
-            ComputeEngineDeleteInstanceGroupManagerOperator(
-                project_id="",
-                resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-                zone=GCE_ZONE,
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_delete_igm_should_throw_ex_when_missing_project_id(self, mock_hook):
+        op = ComputeEngineDeleteInstanceGroupManagerOperator(
+            project_id="",
+            resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'project_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_delete_igm_should_not_throw_ex_when_project_id_none(self, mock_hook):
@@ -1737,18 +2054,27 @@ class TestGceInstanceGroupManagerDelete:
             project_id=None,
         )
 
-    def test_delete_igm_should_throw_ex_when_missing_resource_id(self):
-        with pytest.raises(AirflowException, match=r"The required parameter 'resource_id' is missing"):
-            ComputeEngineDeleteInstanceGroupManagerOperator(
-                resource_id="",
-                zone=GCE_ZONE,
-                task_id=TASK_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_delete_igm_should_throw_ex_when_missing_resource_id(self, mock_hook):
+        op = ComputeEngineDeleteInstanceGroupManagerOperator(
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            resource_id="",
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"The required parameter 'resource_id' is missing",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
 
 class TestGceInstanceGroupManagerUpdate:
@@ -1773,7 +2099,9 @@ class TestGceInstanceGroupManagerUpdate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
         result = op.execute(context=mock.MagicMock())
+
         mock_hook.assert_called_once_with(
             api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
@@ -1797,6 +2125,7 @@ class TestGceInstanceGroupManagerUpdate:
             get_instance_group_manager_obj_mock,
         ]
         igm.to_dict.return_value = GCE_INSTANCE_GROUP_MANAGER_GET
+
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             zone=GCE_ZONE,
             resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
@@ -1807,7 +2136,9 @@ class TestGceInstanceGroupManagerUpdate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
         result = op.execute(context=mock.MagicMock())
+
         mock_hook.assert_called_once_with(
             api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
@@ -1829,12 +2160,14 @@ class TestGceInstanceGroupManagerUpdate:
     ):
         instance_group_manager_no_template = deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
         del instance_group_manager_no_template["instanceTemplate"]
+
         get_instance_group_manager_obj_mock = mock.MagicMock()
         get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
         mock_hook.return_value.get_instance_group_manager.side_effect = [
             get_instance_group_manager_obj_mock,
         ]
         igm.to_dict.return_value = instance_group_manager_no_template
+
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
@@ -1846,14 +2179,18 @@ class TestGceInstanceGroupManagerUpdate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
         result = op.execute(context=mock.MagicMock())
+
         mock_hook.assert_called_once_with(
             api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
         expected_patch_no_instance_template = deepcopy(GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH)
         del expected_patch_no_instance_template["instanceTemplate"]
+
         mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
@@ -1868,12 +2205,14 @@ class TestGceInstanceGroupManagerUpdate:
     def test_update_instance_group_no_versions_field_should_execute_successfully(self, mock_hook, igm):
         instance_group_manager_no_versions = deepcopy(GCE_INSTANCE_GROUP_MANAGER_GET)
         del instance_group_manager_no_versions["versions"]
+
         get_instance_group_manager_obj_mock = mock.MagicMock()
         get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
         mock_hook.return_value.get_instance_group_manager.side_effect = [
             get_instance_group_manager_obj_mock,
         ]
         igm.to_dict.return_value = instance_group_manager_no_versions
+
         op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
@@ -1885,14 +2224,18 @@ class TestGceInstanceGroupManagerUpdate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
         result = op.execute(context=mock.MagicMock())
+
         mock_hook.assert_called_once_with(
             api_version="beta",
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+
         expected_patch_no_versions = deepcopy(GCE_INSTANCE_GROUP_MANAGER_EXPECTED_PATCH)
         del expected_patch_no_versions["versions"]
+
         mock_hook.return_value.patch_instance_group_manager.assert_called_once_with(
             project_id=GCP_PROJECT_ID,
             zone=GCE_ZONE,
@@ -1939,17 +2282,24 @@ class TestGceInstanceGroupManagerUpdate:
         assert result
 
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
-    def test_update_instance_group_try_to_use_api_v1_should_throw_ex(self, _):
-        with pytest.raises(AirflowException, match=r"Use beta api version or above"):
-            ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-                project_id=GCP_PROJECT_ID,
-                zone=GCE_ZONE,
-                resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
-                task_id=TASK_ID,
-                api_version="v1",
-                source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
-                destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
-            )
+    def test_update_instance_group_try_to_use_api_v1_should_throw_ex(self, mock_hook):
+        op = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            resource_id=GCE_INSTANCE_GROUP_MANAGER_NAME,
+            task_id=TASK_ID,
+            api_version="v1",
+            source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
+            destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
+        )
+
+        with pytest.raises(
+            AirflowException,
+            match=r"Use beta api version or above",
+        ):
+            op.execute(context=mock.MagicMock())
+
+        mock_hook.assert_not_called()
 
     @mock.patch(IGM_PATH)
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
