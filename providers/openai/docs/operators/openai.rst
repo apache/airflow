@@ -65,9 +65,14 @@ To request a structured response, pass a Pydantic ``BaseModel`` subclass as ``te
 operator then calls the Responses API's structured-output path (``responses.parse``) and returns
 the parsed model as a ``dict`` (via ``model_dump(mode="json")``), which is safe to push to XCom
 regardless of the field types the model uses (enums, dates, etc. are rendered as their JSON
-representations). If the model refuses, the response is incomplete, or the returned JSON cannot
-be coerced into ``text_format``, the operator raises ``ValueError`` with the API-reported
-``status``, ``error`` and ``incomplete_details``.
+representations).
+
+The operator rejects incomplete and failed responses even if the partial output happens to match
+the Pydantic model. The resulting ``ValueError`` includes the response id and available API details,
+such as ``status``, ``error``, ``incomplete_details``, refusal text, or output item types. If the SDK
+cannot parse the model output, it raises ``ValidationError`` before returning a response object; the
+operator converts that to ``ValueError`` naming the requested model and notes that reaching
+``max_output_tokens`` is a likely cause. In that case, a response id and API details are unavailable.
 
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
     :language: python
