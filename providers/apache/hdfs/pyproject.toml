@@ -65,9 +65,9 @@ dependencies = [
     'hdfs[avro,dataframe,kerberos]>=2.7.3;python_version>="3.12"',
     'fastavro>=1.10.0; python_version>="3.13" and python_version<"3.14"',
     'fastavro>=1.12.1; python_version>="3.14"',
-    'pandas>=2.1.2; python_version <"3.13"',
-    'pandas>=2.2.3; python_version >="3.13" and python_version <"3.14"',
-    'pandas>=2.3.3; python_version >="3.14"',
+    'pandas>=2.1.2,<3; python_version <"3.13"',
+    'pandas>=2.2.3,<3; python_version >="3.13" and python_version <"3.14"',
+    'pandas>=2.3.3,<3; python_version >="3.14"',
 ]
 
 [dependency-groups]
