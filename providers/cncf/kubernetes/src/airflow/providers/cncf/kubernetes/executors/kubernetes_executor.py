@@ -59,7 +59,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_to_key,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
@@ -440,13 +440,14 @@ class KubernetesExecutor(BaseExecutor):
             )
             return True
 
+        has_external_executor_id = hasattr(TaskInstance, "external_executor_id")
         columns = [
             TaskInstance.id,
             TaskInstance.state,
             TaskInstance.try_number,
             TaskInstance.queued_by_job_id,
         ]
-        if AIRFLOW_V_3_2_PLUS:
+        if has_external_executor_id:
             columns.append(TaskInstance.external_executor_id)
         ti = session.execute(select(*columns).where(TaskInstance.id == workload_ti.id)).one_or_none()
         if ti is None:
@@ -463,7 +464,7 @@ class KubernetesExecutor(BaseExecutor):
             state == TaskInstanceState.QUEUED
             and try_number == workload_ti.try_number
             and queued_by_job_id == scheduler_job_id
-            and (not AIRFLOW_V_3_2_PLUS or launch_token is None or external_executor_id == launch_token)
+            and (not has_external_executor_id or launch_token is None or external_executor_id == launch_token)
         ):
             return True
 
