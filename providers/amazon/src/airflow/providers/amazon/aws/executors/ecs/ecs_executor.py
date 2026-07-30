@@ -48,12 +48,16 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.amazon.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts, prune_dict
 from airflow.utils.state import State
 
-if AIRFLOW_V_3_3_PLUS:
+if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
 if TYPE_CHECKING:
@@ -102,10 +106,12 @@ class AwsEcsExecutor(BaseExecutor):
 
     supports_multi_team: bool = True
 
-    if AIRFLOW_V_3_3_PLUS:
+    if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = frozenset(
             {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
         )
+    elif AIRFLOW_V_3_3_PLUS:
+        supports_callbacks: bool = True
 
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
@@ -159,7 +165,7 @@ class AwsEcsExecutor(BaseExecutor):
                 queue = workload.ti.queue
                 executor_config = workload.ti.executor_config or {}
 
-                if AIRFLOW_V_3_3_PLUS:
+                if AIRFLOW_V_3_4_PLUS:
                     del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
                 else:
                     del self.queued_tasks[key]
@@ -170,7 +176,10 @@ class AwsEcsExecutor(BaseExecutor):
                 command = [workload]
                 key = workload.callback.key
 
-                del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
+                else:
+                    del self.queued_callbacks[key]
                 self.execute_async(key=key, command=command, queue=None)
                 self.running.add(key)
 

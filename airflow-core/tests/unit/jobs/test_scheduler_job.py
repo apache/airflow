@@ -13291,7 +13291,7 @@ class TestDispatchConnectionTests:
 
         runner._enqueue_connection_tests(session=session)
 
-        queued = list(runner.executor.queued_connection_tests.values())
+        queued = list(runner.executor.executor_queues[WorkloadType.TEST_CONNECTION].values())
         assert len(queued) == 1
         assert queued[0].team_name == expected_workload_team
 
