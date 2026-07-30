@@ -64,4 +64,21 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
 
     @staticmethod
     def _is_team_specific_accessed_as_global(secret_id: str, team_name: str | None = None) -> bool:
-        return team_name is None and bool(re.fullmatch(r"_[^_]+___.+", secret_id))
+        """
+        Whether ``secret_id`` names a team specific secret outside of the team it is looked up for.
+
+        A team specific secret lives in the ``_<TEAM_NAME>___<SECRET_ID>`` namespace of the
+        environment, so an id that already spells such a namespace out resolves the team specific
+        environment variable through the team agnostic lookup. That is only correct when the
+        namespace is the one the lookup is made for -- ``team_name``.
+
+        The namespace of a stored id is deliberately not parsed out of it: a team name may itself
+        contain underscores, so ``_a___b___c`` is both team ``a`` with id ``b___c`` and team
+        ``a___b`` with id ``c``, and no pattern can tell the two apart. Only the namespace prefix
+        that ``team_name`` itself builds is compared, which is unambiguous.
+        """
+        if not re.fullmatch(r"_.+___.+", secret_id):
+            return False
+        if not team_name:
+            return True
+        return not secret_id.upper().startswith(f"_{team_name.upper()}___")
