@@ -84,6 +84,27 @@ export const UseAssetServiceGetDagAssetQueuedEventKeyFn = ({ assetId, before, da
   before?: string;
   dagId: string;
 }, queryKey?: Array<unknown>) => [useAssetServiceGetDagAssetQueuedEventKey, ...(queryKey ?? [{ assetId, before, dagId }])];
+export type AssetServiceGetAssetsUiDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetsUi>>;
+export type AssetServiceGetAssetsUiQueryResult<TData = AssetServiceGetAssetsUiDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetsUiKey = "AssetServiceGetAssetsUi";
+export const UseAssetServiceGetAssetsUiKeyFn = ({ dagIds, groupPattern, groupPrefixPattern, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+  dagIds?: string[];
+  groupPattern?: string;
+  groupPrefixPattern?: string;
+  lastAssetEventTimestampGt?: string;
+  lastAssetEventTimestampGte?: string;
+  lastAssetEventTimestampLt?: string;
+  lastAssetEventTimestampLte?: string;
+  limit?: number;
+  namePattern?: string;
+  namePrefixPattern?: string;
+  offset?: number;
+  onlyActive?: boolean;
+  orderBy?: string[];
+  uri?: string[];
+  uriPattern?: string;
+  uriPrefixPattern?: string;
+} = {}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetsUiKey, ...(queryKey ?? [{ dagIds, groupPattern, groupPrefixPattern, lastAssetEventTimestampGt, lastAssetEventTimestampGte, lastAssetEventTimestampLt, lastAssetEventTimestampLte, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }])];
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<ReturnType<typeof AssetService.nextRunAssets>>;
 export type AssetServiceNextRunAssetsQueryResult<TData = AssetServiceNextRunAssetsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetServiceNextRunAssetsKey = "AssetServiceNextRunAssets";
