@@ -566,7 +566,7 @@ class TestSchedulerJob:
         classification (e.g. an app OOM) does not refund."""
         session = settings.Session()
 
-        def _run(dag_id, stashed):
+        def _run(dag_id: str, stashed: tuple[TaskFailureKind, str | None] | None) -> TaskInstance:
             with dag_maker(dag_id=dag_id, fileloc=f"/{dag_id}/"):
                 task = EmptyOperator(task_id="t", retries=1)
             ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
