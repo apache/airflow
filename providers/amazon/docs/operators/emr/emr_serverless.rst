@@ -174,6 +174,21 @@ Set ``deferrable=True`` to release the worker slot while the session warms up.
    :start-after: [START howto_operator_emr_serverless_start_session]
    :end-before: [END howto_operator_emr_serverless_start_session]
 
+.. _howto/operator:EmrServerlessGetSessionEndpointOperator:
+
+Get an interactive session endpoint
+===================================
+
+To resolve the Spark Connect endpoint and a short-lived auth token for a running session, use
+:class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessGetSessionEndpointOperator`.
+The token expires (about one hour), so run this immediately before connecting.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_emr_serverless_session.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_emr_serverless_get_session_endpoint]
+   :end-before: [END howto_operator_emr_serverless_get_session_endpoint]
+
 Reference
 ---------
 

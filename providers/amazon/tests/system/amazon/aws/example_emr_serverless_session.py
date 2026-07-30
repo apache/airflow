@@ -21,6 +21,7 @@ from datetime import datetime
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
+    EmrServerlessGetSessionEndpointOperator,
     EmrServerlessStartSessionOperator,
     EmrServerlessStopApplicationOperator,
 )
@@ -66,6 +67,15 @@ with DAG(
         idle_timeout_minutes=5,
     )
     # [END howto_operator_emr_serverless_start_session]
+    session_id = start_session.output["session_id"]
+
+    # [START howto_operator_emr_serverless_get_session_endpoint]
+    get_endpoint = EmrServerlessGetSessionEndpointOperator(
+        task_id="get_endpoint",
+        application_id=application_id,
+        session_id=session_id,
+    )
+    # [END howto_operator_emr_serverless_get_session_endpoint]
 
     stop_app = EmrServerlessStopApplicationOperator(
         task_id="stop_app",
@@ -86,6 +96,7 @@ with DAG(
         create_app,
         # TEST BODY
         start_session,
+        get_endpoint,
         # TEST TEARDOWN
         stop_app,
         delete_app,

@@ -65,7 +65,7 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_emr_serverless_properties,
 )
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, conf, mask_secret
 from airflow.utils.helpers import exactly_one, prune_dict
 
 if TYPE_CHECKING:
@@ -1965,3 +1965,58 @@ class EmrServerlessStartSessionOperator(AwsBaseOperator[EmrServerlessHook]):
             raise RuntimeError(f"Error starting EMR Serverless session: {validated_event}")
         self.log.info("EMR Serverless session %s started", validated_event["session_id"])
         return {"application_id": self.application_id, "session_id": validated_event["session_id"]}
+
+
+class EmrServerlessGetSessionEndpointOperator(AwsBaseOperator[EmrServerlessHook]):
+    """
+    Return a fresh Spark Connect endpoint and auth token for a running interactive session.
+
+    The returned ``auth_token`` is short-lived (about one hour), so this operator should run
+    immediately before the task that connects to the session. The token is registered with
+    Airflow's secrets masker so it is redacted from task logs and the rendered XCom value.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EmrServerlessGetSessionEndpointOperator`
+
+    :param application_id: ID of the EMR Serverless application.
+    :param session_id: ID of the interactive session.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    """
+
+    aws_hook_class = EmrServerlessHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "application_id",
+        "session_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        application_id: str,
+        session_id: str,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.application_id = application_id
+        self.session_id = session_id
+
+    def execute(self, context: Context) -> dict:
+        response = self.hook.get_session_endpoint(self.application_id, self.session_id)
+        # The auth token is a short-lived credential. Register it with the secrets masker so
+        # it is redacted from task logs and the rendered XCom value in the UI.
+        if auth_token := response.get("authToken"):
+            mask_secret(auth_token)
+        self.log.info("Resolved Spark Connect endpoint for session %s", self.session_id)
+        return {
+            "endpoint": response.get("endpoint"),
+            "auth_token": auth_token,
+            "auth_token_expires_at": response.get("authTokenExpiresAt"),
+        }

@@ -298,6 +298,11 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
         "airflow.sdk.execution_time.secrets_masker",
         "airflow.utils.log.secrets_masker",
     ),
+    "mask_secret": (
+        "airflow.sdk._shared.secrets_masker",
+        "airflow.sdk.execution_time.secrets_masker",
+        "airflow.utils.log.secrets_masker",
+    ),
     # ============================================================================
     # Listeners
     # ============================================================================
