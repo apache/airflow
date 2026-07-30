@@ -36,7 +36,11 @@ from airflow.version import version as airflow_version_str
 
 from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
@@ -126,7 +130,7 @@ class TestAwsLambdaExecutor:
             airflow_key, TaskInstanceState.RUNNING, ser_airflow_key, remove_running=False
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Test requires Airflow 3.4+")
     @mock.patch(
         "airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor.change_state"
     )
@@ -179,7 +183,7 @@ class TestAwsLambdaExecutor:
             workload.ti.key, TaskInstanceState.RUNNING, ser_airflow_key, remove_running=False
         )
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Test requires Airflow 3.4+")
     def test_task_sdk_callback(self, mock_executor):
         """Test task sdk callback execution end-to-end."""
         from airflow.executors.workloads import ExecuteCallback
@@ -232,7 +236,7 @@ class TestAwsLambdaExecutor:
         assert len(mock_executor.running_workloads) == 1
         assert str(callback_id) in mock_executor.running_workloads
 
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Test requires Airflow 3.4+")
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
         """Test callback workload execution with queue override."""
         from airflow.executors.workloads import ExecuteCallback
