@@ -138,7 +138,7 @@ class TestHelpers:
                 "characters, dashes, dots and underscores exclusively",
                 ValueError,
             ),
-            (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", ValueError),
+            (" " * 251, "The key has to be less than 250 characters, not 251", ValueError),
             (
                 "my..key",
                 "The key 'my..key' must not contain consecutive dots ('..') to prevent path traversal",
