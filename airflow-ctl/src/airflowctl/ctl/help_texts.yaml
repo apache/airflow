@@ -52,6 +52,7 @@ connections:
   test: "Test connectivity for a given connection"
 
 dags:
+  clear: "Clear task instances for Dag runs selected by run ID, partition key, or partition date"
   get: "Retrieve a Dag by its ID"
   get-details: "Retrieve detailed information for a Dag"
   get-tags: "List all tags used across Dags"
