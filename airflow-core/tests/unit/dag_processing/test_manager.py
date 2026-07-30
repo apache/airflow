@@ -351,6 +351,27 @@ class TestDagFileProcessorManager:
             pytest.param(True, id="safe-mode-on-filters-keywordless"),
         ],
     )
+    def test_find_files_in_bundle_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
+        (tmp_path / "with_keywords.py").write_text("from airflow.sdk import DAG\n")
+        (tmp_path / "no_keywords.py").write_text("from mycompany.pipelines import flow\n")
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.name = "testing"
+        bundle.path = tmp_path
+
+        manager = DagFileProcessorManager(max_runs=1, dag_discovery_safe_mode=safe_mode)
+
+        expected = {Path("with_keywords.py")}
+        if not safe_mode:
+            expected.add(Path("no_keywords.py"))
+        assert set(manager._find_files_in_bundle(bundle)) == expected
+
+    @pytest.mark.parametrize(
+        "safe_mode",
+        [
+            pytest.param(False, id="safe-mode-off-includes-keywordless"),
+            pytest.param(True, id="safe-mode-on-filters-keywordless"),
+        ],
+    )
     def test_get_observed_filelocs_respects_dag_discovery_safe_mode(self, tmp_path, safe_mode):
         """ZIP-member discovery used for deactivation must honor the configured safe_mode.
 
