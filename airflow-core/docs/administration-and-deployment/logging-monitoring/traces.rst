@@ -82,7 +82,7 @@ is applied when your provider is built:
     opentelemetry-instrument airflow scheduler
 
 Airflow registers the generator under the ``opentelemetry_id_generator`` entry point group, so this
-works with any distro or configurator that follows the OpenTelemetry SDK configuration conventions.
+works with any distro or configuration tool that follows the OpenTelemetry SDK configuration conventions.
 
 If the variable is not set, Airflow falls back to patching the generator onto the existing provider
 and logs a warning. That fallback is best-effort only: tracers that were already created keep the
