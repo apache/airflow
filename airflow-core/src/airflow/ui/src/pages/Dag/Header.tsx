@@ -115,19 +115,22 @@ export const Header = ({
           ? undefined
           : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
     },
-    showTeam
-      ? {
-          label: translate("dagDetails.team"),
-          value: (
-            <RouterLink to={`/dags?teams=${encodeURIComponent(dag.team_name as string)}`}>
-              {dag.team_name}
-            </RouterLink>
-          ),
-        }
-      : {
-          label: translate("dagDetails.owner"),
-          value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
-        },
+    {
+      label: translate("dagDetails.owner"),
+      value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
+    },
+    ...(showTeam
+      ? [
+          {
+            label: translate("dagDetails.team"),
+            value: (
+              <RouterLink to={`/dags?teams=${encodeURIComponent(dag.team_name as string)}`}>
+                {dag.team_name}
+              </RouterLink>
+            ),
+          },
+        ]
+      : []),
     {
       label: translate("dagDetails.tags"),
       value: <DagTags tags={dag?.tags ?? []} />,
