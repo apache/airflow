@@ -209,10 +209,11 @@ def cleanup_pods(args):
                 min_completed_minutes == 0
                 or current_time - _get_pod_completion_time(pod) > timedelta(minutes=min_completed_minutes)
             )
-            if is_terminal_old_enough or (
+            is_pending_too_long = (
                 pod_phase == pod_pending
                 and current_time - pod.metadata.creation_timestamp > timedelta(minutes=min_pending_minutes)
-            ):
+            )
+            if is_terminal_old_enough or is_pending_too_long:
                 print(
                     f'Deleting pod "{pod_name}" phase "{pod_phase}" and reason "{pod_reason}", '
                     f'restart policy "{pod_restart_policy}"'
