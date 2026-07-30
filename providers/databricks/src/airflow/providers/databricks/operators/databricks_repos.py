@@ -51,10 +51,8 @@ class DatabricksReposCreateOperator(BaseOperator):
         connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
-        using the default retry strategy. The wait uses exponential backoff (doubling after
-        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
-        point number.
+    :param databricks_retry_delay: Number of seconds to wait between retries (it
+            might be a floating point number).
     """
 
     # Used in airflow.models.BaseOperator
@@ -203,10 +201,8 @@ class DatabricksReposUpdateOperator(BaseOperator):
         connection and create the key ``host`` and leave the ``host`` field empty.  (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
-        using the default retry strategy. The wait uses exponential backoff (doubling after
-        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
-        point number.
+    :param databricks_retry_delay: Number of seconds to wait between retries (it
+            might be a floating point number).
     """
 
     # Used in airflow.models.BaseOperator
@@ -279,10 +275,8 @@ class DatabricksReposDeleteOperator(BaseOperator):
         connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
-    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts when
-        using the default retry strategy. The wait uses exponential backoff (doubling after
-        each failure, capped at ``2 ** databricks_retry_limit`` seconds). May be a floating
-        point number.
+    :param databricks_retry_delay: Number of seconds to wait between retries (it
+            might be a floating point number).
     """
 
     # Used in airflow.models.BaseOperator
