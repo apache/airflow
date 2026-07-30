@@ -357,6 +357,7 @@ Currently, **officially** using Airflow:
 1. [Met Office](https://www.metoffice.gov.uk/) [[@MetOffice](https://github.com/MetOffice)]
 1. [MeuVendoo](https://www.meuvendoo.com.br) [[@CarlosDutra](https://github.com/CarlosDutra)]
 1. [MFG Labs](https://github.com/MfgLabs)
+1. [Microsoft](https://www.microsoft.com/) [[@1fanwang](https://github.com/1fanwang)]
 1. [Ministry of Economy of Brazil](https://www.gov.br/economia/) [[@nitaibezerra](https://github.com/nitaibezerra), [@vitorbellini](https://github.com/vitorbellini)]
 1. [MiNODES](https://www.minodes.com) [[@dice89](https://github.com/dice89), [@diazcelsa](https://github.com/diazcelsa)]
 1. [MobiKwik](https://www.mobikwik.com) [[@mobikwik](https://github.com/mobikwik)]

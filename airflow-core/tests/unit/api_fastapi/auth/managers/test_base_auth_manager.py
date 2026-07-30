@@ -26,6 +26,7 @@ from jwt import InvalidTokenError
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, T
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
     ConnectionDetails,
     DagDetails,
     PoolDetails,
@@ -34,6 +35,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
 )
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models.team import Team
 
 from tests_common.test_utils.config import conf_vars
@@ -41,7 +43,6 @@ from tests_common.test_utils.config import conf_vars
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
-        AccessView,
         AssetAliasDetails,
         AssetDetails,
         ConfigurationDetails,
@@ -132,7 +133,11 @@ class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
         raise NotImplementedError()
 
     def is_authorized_view(
-        self, *, access_view: AccessView, user: BaseAuthManagerUserTest | None = None
+        self,
+        *,
+        access_view: AccessView,
+        user: BaseAuthManagerUserTest | None = None,
+        team_name: str | None = None,
     ) -> bool:
         raise NotImplementedError()
 
@@ -156,6 +161,47 @@ def auth_manager():
 class TestBaseAuthManager:
     def test_init_non_multi_team_mode(self, auth_manager):
         assert auth_manager.init() is None
+
+    @patch.object(EmptyAuthManager, "is_authorized_view")
+    def test_authorize_view_passes_team_name_to_team_aware_manager(
+        self, mock_is_authorized_view, auth_manager
+    ):
+        mock_is_authorized_view.return_value = True
+
+        result = auth_manager.authorize_view(access_view=AccessView.DOCS, user=None, team_name="team_a")
+
+        assert result is True
+        mock_is_authorized_view.assert_called_once_with(
+            access_view=AccessView.DOCS, user=None, team_name="team_a"
+        )
+
+    def test_authorize_view_drops_team_name_and_warns_for_legacy_manager(self):
+        # A manager whose is_authorized_view predates team_name (out-of-tree, or a provider
+        # released before the argument existed) must keep working: authorize_view falls back
+        # to a global check and warns that some views are not team-restricted.
+        class LegacyAuthManager(EmptyAuthManager):
+            def is_authorized_view(self, *, access_view, user=None):  # old signature, no team_name
+                return True
+
+        manager = LegacyAuthManager()
+
+        with pytest.warns(RemovedInAirflow4Warning, match="not team-aware"):
+            result = manager.authorize_view(access_view=AccessView.DOCS, user=None, team_name="team_a")
+
+        assert result is True
+
+    def test_authorize_view_treats_kwargs_override_as_team_aware(self):
+        class KwargsAuthManager(EmptyAuthManager):
+            def is_authorized_view(self, *, access_view, user=None, **kwargs):
+                return kwargs.get("team_name") == "team_a"
+
+        manager = KwargsAuthManager()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # a warning here would fail the test
+            result = manager.authorize_view(access_view=AccessView.DOCS, user=None, team_name="team_a")
+
+        assert result is True
 
     @conf_vars({("core", "multi_team"): "True"})
     @pytest.mark.parametrize(
