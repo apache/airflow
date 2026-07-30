@@ -97,9 +97,9 @@ def airflow_toolset_to_langchain_tools(
         and every ``call_tool`` each run under their own event loop, and pydantic-ai
         opens and tears the connection down around each one. For ``MCPToolset`` this
         means the server is reconnected on every tool call. That is fine for
-        stateless tools (and for HTTP/SSE servers, modulo per-call latency), but an
-        ``MCPServerStdio`` server, or any server that keeps state between calls,
-        will lose that state because each call starts a fresh process/session.
+        stateless tools (and for HTTP/SSE servers, modulo per-call latency), but a
+        stdio server, or any server that keeps state between calls, will lose that
+        state because each call starts a fresh process/session.
 
     .. note::
         A pydantic-ai toolset is normally driven inside an agent run, where a

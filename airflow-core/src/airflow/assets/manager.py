@@ -46,9 +46,12 @@ from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
 from airflow.utils.helpers import is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
@@ -115,6 +118,38 @@ def _lock_asset_model(
             raise RuntimeError(f"Asset {asset_id} does not exist – cannot lock.")
 
         yield
+
+
+def _create_asset_event(*, session: Session, **event_kwargs) -> AssetEvent:
+    """
+    Persist an :class:`AssetEvent` row and return it, bound to *session*.
+
+    On SQLite the event is added directly to the caller's *session* and
+    flushed. SQLite serialises writes at the database-file level: opening
+    a second connection here would compete with any write locks the
+    caller's transaction already holds (for example, an UPDATE on
+    ``dag_run`` flushed earlier in ``register_asset_changes_in_db``) and
+    deadlock with ``database is locked``.
+
+    On Postgres/MySQL a short-lived independent session is used so the
+    row is committed — and therefore visible to the scheduler's session
+    via MVCC — before the caller continues. The committed row is then
+    re-loaded into the caller's *session* so subsequent relationship
+    operations work correctly.
+    """
+    if get_dialect_name(session) == "sqlite":
+        asset_event = AssetEvent(**event_kwargs)
+        session.add(asset_event)
+        session.flush()
+        return asset_event
+
+    with create_session(scoped=False) as ae_session:
+        asset_event = AssetEvent(**event_kwargs)
+        ae_session.add(asset_event)
+        ae_session.flush()
+        asset_event_id = asset_event.id
+
+    return session.get_one(AssetEvent, asset_event_id)
 
 
 class AssetManager(LoggingMixin):
@@ -274,6 +309,7 @@ class AssetManager(LoggingMixin):
         source_alias_names: Collection[str] = (),
         session: Session,
         partition_key: str | None = None,
+        partition_date: datetime | None = None,
         source_is_api: bool = False,
         api_user_teams: set[str] | None = None,
         api_allow_consumer_teams: list[str] | None = None,
@@ -338,10 +374,7 @@ class AssetManager(LoggingMixin):
                 source_run_id=task_instance.run_id,
                 source_map_index=task_instance.map_index,
             )
-
-        asset_event = AssetEvent(**event_kwargs)
-        session.add(asset_event)
-        session.flush()  # Ensure the event is written earlier than ADRQ entries below.
+        asset_event = _create_asset_event(session=session, **event_kwargs)
 
         dags_to_queue_from_asset = {ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_paused}
 
@@ -394,6 +427,7 @@ class AssetManager(LoggingMixin):
                 source_map_index=asset_event.source_map_index,
                 source_aliases=[aam.to_serialized() for aam in asset_alias_models],
                 partition_key=partition_key,
+                partition_date=partition_date,
             )
         )
 
@@ -440,6 +474,7 @@ class AssetManager(LoggingMixin):
             asset_id=asset_model.id,
             dags_to_queue=dags_to_queue,
             partition_key=partition_key,
+            partition_date=partition_date,
             event=asset_event,
             task_instance=task_instance,
             session=session,
@@ -485,6 +520,7 @@ class AssetManager(LoggingMixin):
         asset_id: int,
         dags_to_queue: set[DagModel],
         partition_key: str | None,
+        partition_date: datetime | None,
         event: AssetEvent,
         task_instance: TaskInstance | None,
         session: Session,
@@ -499,6 +535,7 @@ class AssetManager(LoggingMixin):
             partition_dags=partition_dags,
             event=event,
             partition_key=partition_key,
+            partition_date=partition_date,
             task_instance=task_instance,
             session=session,
         )
@@ -511,13 +548,21 @@ class AssetManager(LoggingMixin):
         # mapped) tasks update the same asset, this can fail with a unique
         # constraint violation.
         #
-        # If we support it, use ON CONFLICT to do nothing, otherwise
-        # "fallback" to running this in a nested transaction. This is needed
-        # so that the adding of these rows happens in the same transaction
-        # where `ti.state` is changed.
-        if get_dialect_name(session) == "postgresql":
-            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, session)
-        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, session)
+        # Where the dialect supports a single-statement "insert, update on
+        # conflict" we use it; it is atomic, avoids the per-row SAVEPOINT churn,
+        # and holds locks for far less time (which on MySQL/InnoDB also makes the
+        # concurrent fan-out much less deadlock-prone). Otherwise we "fallback" to
+        # a nested transaction per row. Either way the rows are added in the same
+        # transaction where `ti.state` is changed.
+        dialect_name = get_dialect_name(session)
+        if TYPE_CHECKING:
+            assert dialect_name is not None
+        if dialect_name == "mysql":
+            return cls._queue_dagruns_nonpartitioned_mysql(asset_id, non_partitioned_dags, event, session)
+        # PostgreSQL and SQLite both support ON CONFLICT DO UPDATE.
+        return cls._queue_dagruns_nonpartitioned_conflict_update(
+            asset_id, non_partitioned_dags, event, session, dialect_name
+        )
 
     @classmethod
     def _queue_partitioned_dags(
@@ -527,6 +572,7 @@ class AssetManager(LoggingMixin):
         partition_dags: Iterable[DagModel],
         event: AssetEvent,
         partition_key: str | None,
+        partition_date: datetime | None,
         task_instance: TaskInstance | None,
         session: Session,
     ) -> None:
@@ -574,9 +620,9 @@ class AssetManager(LoggingMixin):
             if (asset_model := session.scalar(select(AssetModel).where(AssetModel.id == asset_id))) is None:
                 raise RuntimeError(f"Could not find asset for asset_id={asset_id}")
 
+            mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
             try:
                 # We'll need to catch every possible exception happen when mapping partition_key.
-                mapper = timetable.get_partition_mapper(name=asset_model.name, uri=asset_model.uri)
                 target_key = mapper.to_downstream(partition_key)
             except Exception as err:
                 log.exception(
@@ -643,9 +689,31 @@ class AssetManager(LoggingMixin):
                 )
                 continue
 
+            # The producer's partition_date (threaded in from its DagRun via
+            # register_asset_change) is carried onto the APDR only by mappers that
+            # opt in. IdentityMapper does, since its key carries no temporal meaning
+            # for the scheduler to re-derive at run creation; temporal and composite
+            # mappers return None here and are resolved from the key by the scheduler
+            # via PartitionMapper.to_partition_date.
+            target_partition_date: datetime | None
+            try:
+                target_partition_date = mapper.carry_partition_date(partition_date)
+            except Exception:
+                # A custom mapper override may raise. Mirror the to_downstream handling
+                # above and degrade rather than abort the whole write: the consumer is
+                # still queued via partition_key, just without a carried partition_date.
+                log.exception(
+                    "Partition mapper carry_partition_date failed; consumer partition_date will be None.",
+                    partition_key=partition_key,
+                    asset=asset_model,
+                    target_dag=target_dag,
+                )
+                target_partition_date = None
+
             for target_key in target_keys:
                 apdr = cls._get_or_create_apdr(
                     target_key=target_key,
+                    target_partition_date=target_partition_date,
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
                     asset_id=asset_id,
@@ -666,6 +734,7 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         target_key: str,
+        target_partition_date: datetime | None,
         target_dag: DagModel,
         rollup_fingerprint: dict,
         asset_id: int,
@@ -683,6 +752,20 @@ class AssetManager(LoggingMixin):
         ``rollup_fingerprint`` is the serialized mapper / window definition for all partitioned
         assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
         longer matches the current timetable's fingerprint (mapper / window may have changed).
+
+        Reconciling the carried ``partition_date`` on an existing pending APDR is best-effort:
+        a partitioned consumer's feeding assets are expected to agree on the partition's
+        datetime. The carry only matters for ``IdentityMapper`` (whose key the scheduler
+        cannot decode); temporal/composite feeds re-derive the date from the key at run
+        creation regardless of what is stored here. Within that contract:
+
+        - If the APDR carries no date yet (``None`` — created by an event that carried none),
+          adopt the incoming date when this event carries one. There is nothing to conflict
+          with, so a later identity event's date is not dropped.
+        - If the APDR already carries a date and this event carries a **different** non-null
+          one, the producing assets disagree; picking one would be order-dependent, so the
+          carried date is suppressed to ``None`` (and re-adoptable by a later event).
+        - Otherwise (the dates agree, or this event carries none) the existing value is kept.
         """
         with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
@@ -695,6 +778,29 @@ class AssetManager(LoggingMixin):
                 .limit(1)
             )
             if latest_apdr and latest_apdr.created_dag_run_id is None:
+                existing_partition_date = latest_apdr.partition_date
+                if existing_partition_date is None:
+                    # No carried date yet; adopt the incoming one if present (no conflict
+                    # to resolve). Keeps a later identity event's date from being dropped.
+                    if target_partition_date is not None:
+                        latest_apdr.partition_date = target_partition_date
+                        session.flush()
+                elif target_partition_date is not None and existing_partition_date != target_partition_date:
+                    # Two contributing events carry conflicting partition_dates for the same
+                    # (target_key, target_dag). Choosing one would be order-dependent, so
+                    # suppress: the consumer DagRun gets partition_date=None rather than a
+                    # wrong, unstable value.
+                    log.warning(
+                        "Conflicting partition_date carried for the same target key; "
+                        "suppressing it so the consumer DagRun's partition_date is None. "
+                        "The producing assets likely disagree on the partition's datetime.",
+                        target_dag_id=target_dag.dag_id,
+                        target_key=target_key,
+                        existing_partition_date=existing_partition_date,
+                        incoming_partition_date=target_partition_date,
+                    )
+                    latest_apdr.partition_date = None
+                    session.flush()
                 cls.logger().debug(
                     "Existing APDR found for key %s dag_id %s",
                     target_key,
@@ -707,6 +813,7 @@ class AssetManager(LoggingMixin):
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
                 partition_key=target_key,
+                partition_date=target_partition_date,
                 rollup_fingerprint=rollup_fingerprint,
             )
             session.add(apdr)
@@ -721,14 +828,20 @@ class AssetManager(LoggingMixin):
 
     @classmethod
     def _queue_dagruns_nonpartitioned_slow_path(
-        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+        cls, asset_id: int, dags_to_queue: set[DagModel], event: AssetEvent, session: Session
     ) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
+            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id, created_at=event.timestamp)
             # Don't error whole transaction when a single RunQueue item conflicts.
-            # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
+            # https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#using-savepoint
             try:
                 with session.begin_nested():
+                    existing = session.get(
+                        AssetDagRunQueue, {"target_dag_id": dag.dag_id, "asset_id": asset_id}
+                    )
+                    if existing and existing.created_at >= event.timestamp:
+                        cls.logger().debug("Skipping record %s due to newer timestamp", item)
+                        return dag.dag_id  # already queued with a newer timestamp
                     session.merge(item)
             except exc.IntegrityError:
                 cls.logger().debug("Skipping record %s", item, exc_info=True)
@@ -739,14 +852,46 @@ class AssetManager(LoggingMixin):
             cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
     @classmethod
-    def _queue_dagruns_nonpartitioned_postgres(
-        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    def _queue_dagruns_nonpartitioned_mysql(
+        cls, asset_id: int, dags_to_queue: set[DagModel], event: AssetEvent, session: Session
     ) -> None:
-        from sqlalchemy.dialects.postgresql import insert
+        from sqlalchemy import case
+        from sqlalchemy.dialects.mysql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id).on_conflict_do_nothing()
-        session.execute(stmt, values)
+        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id, created_at=event.timestamp)
+
+        update_stmt = stmt.on_duplicate_key_update(
+            created_at=case(
+                (stmt.inserted.created_at >= AssetDagRunQueue.created_at, stmt.inserted.created_at),
+                else_=AssetDagRunQueue.created_at,
+            )
+        )
+        session.execute(update_stmt, values)
+
+    @classmethod
+    def _queue_dagruns_nonpartitioned_conflict_update(
+        cls,
+        asset_id: int,
+        dags_to_queue: set[DagModel],
+        event: AssetEvent,
+        session: Session,
+        dialect_name: str,
+    ) -> None:
+        """Handle ON CONFLICT DO UPDATE upsert for dialects that support it (postgresql, sqlite)."""
+        if dialect_name == "postgresql":
+            from sqlalchemy.dialects.postgresql import insert
+        else:
+            from sqlalchemy.dialects.sqlite import insert  # type: ignore[assignment]
+
+        values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
+        stmt = insert(AssetDagRunQueue).values(asset_id=asset_id, created_at=event.timestamp)
+        update_stmt = stmt.on_conflict_do_update(
+            index_elements=["asset_id", "target_dag_id"],
+            set_={"created_at": stmt.excluded.created_at},
+            where=(AssetDagRunQueue.created_at < stmt.excluded.created_at),
+        )
+        session.execute(update_stmt, values)
 
 
 def resolve_asset_manager() -> AssetManager:

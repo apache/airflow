@@ -28,6 +28,8 @@ import { renderDuration } from "src/utils/datetimeUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
+  /** Effective task end (end_date, or "now" while running) — consistent across all segments of the same try. */
+  end_when?: string | null;
   isGroup?: boolean | null;
   isMapped?: boolean | null;
   /** Source try times for tooltips (matches TaskInstance `*_when` fields). */
@@ -135,11 +137,14 @@ export const transformGanttData = ({
             const queuedMs = queuedDttm === null ? undefined : dayjs(queuedDttm).valueOf();
             const scheduledMs = scheduledDttm === null ? undefined : dayjs(scheduledDttm).valueOf();
 
-            // Include scheduled/queued/start times in tooltip data whenever the timestamps exist.
+            const effectiveEndDate =
+              endDate ?? (hasTaskRunning && startDate !== null ? new Date().toISOString() : null);
+
             const tryWhenForTooltip = {
               ...(scheduledMs === undefined ? {} : { scheduled_when: scheduledDttm }),
               ...(queuedMs === undefined ? {} : { queued_when: queuedDttm }),
               ...(startDate === null ? {} : { start_when: startDate }),
+              ...(effectiveEndDate === null ? {} : { end_when: effectiveEndDate }),
             };
 
             let endMs: number;

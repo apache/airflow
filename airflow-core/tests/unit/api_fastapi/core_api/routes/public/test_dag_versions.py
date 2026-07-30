@@ -23,7 +23,7 @@ import pytest
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.db import clear_db_dags, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -33,7 +33,6 @@ class TestDagVersionEndpoint:
     def setup(request, dag_maker, session):
         clear_db_dags()
         clear_db_serialized_dags()
-        clear_db_dag_bundles()
 
         with dag_maker(
             dag_id="ANOTHER_DAG_ID", bundle_version="some_commit_hash", bundle_name="another_bundle_name"

@@ -17,39 +17,21 @@
  * under the License.
  */
 import { Box, Button, Separator, Text, VStack } from "@chakra-ui/react";
-import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
 import { useTranslation } from "react-i18next";
 import { FiClock } from "react-icons/fi";
 
 import { useDeadlinesServiceGetDagDeadlineAlerts } from "openapi/queries";
 import type { DeadlineAlertResponse } from "openapi/requests/types.gen";
 import { Popover } from "src/components/ui";
-
-dayjs.extend(duration);
-dayjs.extend(relativeTime);
+import { translateCompletionRule } from "src/utils/deadlines";
 
 const AlertRow = ({ alert }: { readonly alert: DeadlineAlertResponse }) => {
   const { t: translate } = useTranslation("dag");
-  const reference = translate(`deadlineAlerts.referenceType.${alert.reference_type}`, {
-    defaultValue: alert.reference_type,
-  });
-  // A fixed interval reports its seconds; a dynamic interval (e.g. VariableInterval) comes back
-  // as null, since its value is only resolved when the scheduler evaluates the deadline. Render a
-  // "dynamic interval" phrasing rather than a misleading "a few seconds" from dayjs.duration(null).
-  const completionRule =
-    alert.interval === null || alert.interval === undefined
-      ? translate("deadlineAlerts.completionRuleDynamic", { reference })
-      : translate("deadlineAlerts.completionRule", {
-          interval: dayjs.duration(alert.interval, "seconds").humanize(),
-          reference,
-        });
 
   return (
     <Box py={2} width="100%">
       <Text color="fg.muted" fontSize="xs">
-        {completionRule}
+        {translateCompletionRule(translate, alert)}
         {Boolean(alert.name) && (
           <Text as="span" color="fg.subtle" fontSize="xs">
             {" "}

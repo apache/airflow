@@ -28,7 +28,6 @@ import structlog
 
 from airflow._shared.timezones.timezone import (
     coerce_datetime,
-    convert_to_utc,
     make_aware,
     parse_timezone,
     utcnow,
@@ -468,24 +467,6 @@ class CronPartitionTimetable(CronTriggerTimetable):
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
-    def _localize_wall_clock_to_timetable_timezone(self, dt: datetime.datetime) -> DateTime:
-        """
-        Re-interpret *dt*'s wall-clock reading as a moment in this timetable's timezone.
-
-        The production backfill path attaches ``default_timezone`` (UTC) to the
-        bounds it passes in, but the user's intent is the same wall-clock time in
-        the timetable's local timezone. This method extracts the naive
-        year/month/day/hour/minute/second from *dt* (regardless of whatever
-        tzinfo it currently carries) and re-localises that wall-clock to
-        ``self._timezone``, returning a UTC instant.
-
-        Crucially it preserves sub-day precision — the hour, minute, and second
-        are kept intact — so a narrow hourly window is not widened to a whole day.
-        """
-        aware = coerce_datetime(dt)
-        naive = aware.replace(tzinfo=None)
-        return convert_to_utc(make_aware(naive, self._timezone))
-
     def iter_partition_dagrun_infos(
         self,
         *,
@@ -525,8 +506,8 @@ class CronPartitionTimetable(CronTriggerTimetable):
         Both bounds must be timezone-aware; a naive datetime is coerced to UTC before
         the wall-clock localization step.
         """
-        current = self._align_to_next(self._localize_wall_clock_to_timetable_timezone(earliest))
-        latest_dt = self._localize_wall_clock_to_timetable_timezone(latest)
+        current = self._align_to_next(self.localize_partition_datetime(earliest))
+        latest_dt = self.localize_partition_datetime(latest)
         while current <= latest_dt:
             partition_key = self._format_key(current)
             yield DagRunInfo(

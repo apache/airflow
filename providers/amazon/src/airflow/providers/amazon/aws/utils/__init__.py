@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import posixpath
 import re
 from datetime import datetime, timezone
 from enum import Enum
@@ -72,6 +73,31 @@ def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict
         log.error(err_msg)
         raise AirflowException(err_msg)
     return event
+
+
+def validate_destination_path(destination: str, base_path: str, *, base_name: str) -> None:
+    """
+    Ensure ``destination`` stays within ``base_path`` once resolved.
+
+    In multi-file transfers the destination is ``base_path`` concatenated with a key suffix
+    returned by ``list_keys``. S3 object names are arbitrary strings controlled by whoever can
+    write to the source bucket, so ``..`` segments or an absolute name could place the upload
+    outside ``base_path`` once the remote server resolves it on its host. ``base_name`` is the
+    operator argument name used in the error message (e.g. ``sftp_path`` or ``ftp_path``).
+    """
+    base = posixpath.normpath(base_path)
+    resolved = posixpath.normpath(destination)
+    escapes = (
+        resolved == ".."
+        or resolved.startswith("../")
+        or (posixpath.isabs(resolved) and not posixpath.isabs(base))
+        or (base != "." and resolved != base and not resolved.startswith(base.rstrip("/") + "/"))
+    )
+    if escapes:
+        raise ValueError(
+            f"Refusing to upload S3 object to {destination!r}: resolved path "
+            f"escapes configured {base_name} {base_path!r}."
+        )
 
 
 class _StringCompareEnum(Enum):

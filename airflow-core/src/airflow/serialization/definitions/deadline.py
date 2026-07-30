@@ -201,22 +201,13 @@ class SerializedReferenceModels:
                 self.min_runs = self.max_runs
             if self.min_runs < 1:
                 raise ValueError("min_runs must be at least 1")
-            if self.min_runs > self.max_runs:
-                # ``_evaluate_with`` samples at most ``max_runs`` rows (``LIMIT max_runs``) and
-                # then requires ``len(durations) >= min_runs``. With ``min_runs > max_runs`` that
-                # is never satisfiable, so the deadline would silently never be created no matter
-                # how many runs exist. Fail fast here (this also covers ``deserialize_reference``,
-                # which constructs via ``cls(...)``) rather than producing an inert deadline.
-                raise ValueError(
-                    f"min_runs ({self.min_runs}) cannot exceed max_runs ({self.max_runs}); "
-                    "the deadline would require more completed runs than it ever samples."
-                )
 
         @provide_session
         def _evaluate_with(self, *, session: Session, **kwargs: Any) -> datetime | None:
             from sqlalchemy import func, select, text
 
             from airflow.models import DagRun
+            from airflow.utils.state import DagRunState
 
             dag_id = kwargs["dag_id"]
 
@@ -232,9 +223,17 @@ class SerializedReferenceModels:
             else:
                 raise ValueError(f"Unsupported database dialect: {dialect}")
 
+            # Only SUCCESSFUL runs represent a "normal" runtime. A run that failed fast or hung
+            # before failing would otherwise skew the average and produce a misleading deadline
+            # (too short -> spurious misses, or too long -> real slowness never trips it).
             query = (
                 select(duration_expr)
-                .filter(DagRun.dag_id == dag_id, DagRun.start_date.isnot(None), DagRun.end_date.isnot(None))
+                .filter(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == DagRunState.SUCCESS,
+                    DagRun.start_date.isnot(None),
+                    DagRun.end_date.isnot(None),
+                )
                 .order_by(DagRun.logical_date.desc())
                 .limit(self.max_runs)
             )
@@ -321,22 +320,7 @@ class SerializedReferenceModels:
         def deserialize_reference(cls, reference_data: dict):
             from airflow.serialization.helpers import find_registered_custom_deadline_reference
 
-            # ``decode_deadline_reference`` also routes here for any reference it cannot otherwise
-            # classify — an unrecognized ``reference_type`` with no ``__class_path`` (corrupted /
-            # hand-edited rows, a blob from a newer version, or a legacy custom-ref whose plugin is
-            # gone). Without ``__class_path`` there is nothing to import, so a bare
-            # ``reference_data["__class_path"]`` would raise an opaque ``KeyError``. Surface a clear,
-            # actionable error instead (the deadline-creation isolation logs this and skips the
-            # alert rather than aborting the DagRun).
-            class_path = reference_data.get("__class_path")
-            if not class_path:
-                raise ValueError(
-                    "Cannot deserialize deadline reference: unrecognized reference_type "
-                    f"{reference_data.get(SerializedReferenceModels.REFERENCE_TYPE_FIELD)!r} with no "
-                    "'__class_path' to import. The stored reference is corrupt, from a newer "
-                    "Airflow version, or references a custom class whose plugin is no longer installed."
-                )
-            custom_class = find_registered_custom_deadline_reference(class_path)
+            custom_class = find_registered_custom_deadline_reference(reference_data["__class_path"])
             inner_ref = custom_class.deserialize_reference(reference_data)
             return cls(inner_ref)
 

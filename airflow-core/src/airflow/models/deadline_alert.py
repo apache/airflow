@@ -57,22 +57,11 @@ class DeadlineAlert(Base):
 
         interval_seconds = None
 
-        # ``interval`` is a JSON column holding the Airflow-serialized interval: a fixed timedelta is
-        # ``{"__classname__": "datetime.timedelta", "__data__": <seconds>}``, a dynamic
-        # ``VariableInterval`` is ``{"__classname__": ".../VariableInterval", "__data__": {...}}``, and
-        # a legacy pre-0117 blob may be a bare number. Extract seconds for the fixed/legacy cases and
-        # fall back to "dynamic" otherwise. (Note: the previous ``isinstance(self.interval,
-        # datetime.timedelta)`` branch was doubly broken — ``datetime`` here is the *class*
-        # ``datetime.datetime`` (``from datetime import datetime``), so ``datetime.timedelta`` raised
-        # ``AttributeError``, and ``interval`` is always a dict so that branch was also unreachable-by-type.
-        # A ``__repr__`` must never raise — it is used in logs, tracebacks, and debuggers.)
         if isinstance(self.interval, (int, float)):
             interval_seconds = int(self.interval)
 
-        elif isinstance(self.interval, dict):
-            data = self.interval.get("__data__")
-            if isinstance(data, (int, float)):
-                interval_seconds = int(data)
+        elif isinstance(self.interval, datetime.timedelta):
+            interval_seconds = int(self.interval.total_seconds())
 
         if interval_seconds is None:
             interval_display = "dynamic"

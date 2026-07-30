@@ -24,7 +24,14 @@ import type { UIAlert } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { Alert } from "src/components/ui";
 
-const MAX_VISIBLE_LINES = 5;
+// Clamp by height rather than `-webkit-line-clamp`: alert text is rendered as markdown
+// (a stack of block-level headings/paragraphs/lists), and line-clamp only counts inline
+// text lines, so it fails to clamp multi-block content. Overflow is then detected against
+// this height directly: comparing scrollHeight to clientHeight is unreliable because a
+// single line of inline content (bold, inline code) leaves scrollHeight a few px above
+// clientHeight even when nothing is clipped, producing a spurious "See more". ~5 lines.
+const MAX_VISIBLE_HEIGHT = 120;
+const FADE_MASK = "linear-gradient(to bottom, black calc(100% - 1.5rem), transparent)";
 
 export const AlertContent = ({ alert }: { readonly alert: UIAlert }) => {
   const { t: translate } = useTranslation("dashboard");
@@ -45,7 +52,7 @@ export const AlertContent = ({ alert }: { readonly alert: UIAlert }) => {
 
     const checkOverflow = () => {
       if (!isExpandedRef.current) {
-        setIsOverflowing(element.scrollHeight > element.clientHeight);
+        setIsOverflowing(element.scrollHeight > MAX_VISIBLE_HEIGHT);
       }
     };
 
@@ -60,15 +67,19 @@ export const AlertContent = ({ alert }: { readonly alert: UIAlert }) => {
   return (
     <Alert status={alert.category}>
       <Box
+        data-testid="dashboard-alert-content"
         ref={contentRef}
         style={
           isExpanded
             ? undefined
             : {
-                display: "-webkit-box",
+                // The clamp can land mid-line (markdown mixes line-heights and block margins);
+                // fade the bottom so the cut edge softens instead of showing a sliced line.
+                // Only when actually clipped, so a short alert that fits is not dimmed.
+                maskImage: isOverflowing ? FADE_MASK : undefined,
+                maxHeight: `${MAX_VISIBLE_HEIGHT}px`,
                 overflow: "hidden",
-                WebkitBoxOrient: "vertical",
-                WebkitLineClamp: MAX_VISIBLE_LINES,
+                WebkitMaskImage: isOverflowing ? FADE_MASK : undefined,
               }
         }
         width="100%"

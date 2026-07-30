@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-edge3``
 
-Release: ``4.0.0``
+Release: ``4.2.0``
 
 
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
@@ -48,7 +48,7 @@ This is a provider package for ``edge3`` provider. All classes for this provider
 are in ``airflow.providers.edge3`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/4.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/4.2.0/>`_.
 
 Installation
 ------------
@@ -73,24 +73,5 @@ PIP package                                 Version required
 ``aiohttp``                                 ``>=3.14.0``
 ==========================================  ===================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-edge3[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/4.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/4.2.0/changelog.html>`_.

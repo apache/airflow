@@ -180,6 +180,8 @@ class TestDb:
             lambda t: t[0] == "add_index" and t[1].name == "idx_ab_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_register_user_username",
             lambda t: t[0] == "remove_index" and t[1].name == "idx_ab_user_username",
+            # Postgres-only GIN index created by raw SQL in migration, not in SQLAlchemy model
+            lambda t: t[0] == "remove_index" and t[1].name == "idx_asset_event_extra_gin",
         ]
 
         for ignore in ignores:
@@ -406,7 +408,7 @@ class TestAutocommitEngineForMySQL:
     def test_non_mysql_database_is_noop(self, mocker):
         """Test that non-MySQL databases don't trigger any changes."""
         # Mock settings to use PostgreSQL
-        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "postgresql://user:pass@localhost/db")
+        mocker.patch.object(settings, "SQL_ALCHEMY_CONN", "postgresql+psycopg2://user:pass@localhost/db")
         mock_dispose = mocker.patch.object(settings, "dispose_orm")
         mock_configure = mocker.patch.object(settings, "configure_orm")
 

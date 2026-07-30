@@ -188,9 +188,9 @@ ARG_END_DATE = Arg(
 ARG_PARTITION_DATE_START = Arg(
     ("--partition-date-start",),
     help=(
-        "Inclusive lower bound of the partition_date window. Matched at local calendar-day "
-        "granularity: the start of the given local calendar day in the Dag's timetable timezone "
-        "(any time-of-day component is ignored). "
+        "Inclusive lower bound of the partition_date window. The wall-clock value is "
+        "re-interpreted in the Dag's timetable timezone. "
+        "A date-only value (no time) is treated as local midnight. "
         "Accepts the same datetime formats as --start-date."
     ),
     type=parsedate,
@@ -198,9 +198,9 @@ ARG_PARTITION_DATE_START = Arg(
 ARG_PARTITION_DATE_END = Arg(
     ("--partition-date-end",),
     help=(
-        "Inclusive upper bound of the partition_date window. Matched at local calendar-day "
-        "granularity: all runs whose partition_date falls on the given local calendar day in the "
-        "Dag's timetable timezone are included (any time-of-day component is ignored). "
+        "Inclusive upper bound of the partition_date window. The wall-clock value is "
+        "re-interpreted in the Dag's timetable timezone. "
+        "A date-only value (no time) is treated as local midnight. "
         "Accepts the same datetime formats as --end-date."
     ),
     type=parsedate,
@@ -1205,8 +1205,8 @@ DAGS_COMMANDS = (
             "Clear Dag runs of the given dag_id and re-queue them for reprocessing. Exactly one "
             "of the following selectors must be provided: --run-id (single run); --partition-key "
             "(every run with that exact partition_key); or a partition_date window via "
-            "--partition-date-start and/or --partition-date-end (both bounds are inclusive local "
-            "calendar days, anchored in the Dag's timetable timezone). "
+            "--partition-date-start and/or --partition-date-end (both bounds are inclusive, "
+            "interpreted in the Dag's timetable timezone). "
             "Intended for partitioned Dags, whose runs are keyed by partition_date / "
             "partition_key instead of logical_date. For traditional, non-partitioned Dags, use "
             "`airflow tasks clear --start-date / --end-date`."
@@ -1684,14 +1684,15 @@ TEAMS_COMMANDS = (
 )
 STATE_STORE_COMMANDS = (
     ActionCommand(
-        name="cleanup-task-state-store",
-        help="Remove expired task state store rows (MetastoreBackend only)",
+        name="clean",
+        help="Remove expired task state store rows (metastore backend only)",
         description=(
-            "Reads [state_store] default_retention_days from config and deletes task_state_store rows "
-            "older than the configured threshold. Only applies when MetastoreBackend is configured; "
-            "custom backends are skipped. Use --dry-run to preview without deleting."
+            "Deletes task_state_store rows whose expires_at is in the past, honoring the state_store "
+            "settings default_retention_days and state_cleanup_batch_size. Currently supports the "
+            "default metastore backend only; custom (worker-side) backends are skipped. Use --dry-run "
+            "to preview deletions."
         ),
-        func=lazy_load_command("airflow.cli.commands.state_store_command.cleanup_task_state_store"),
+        func=lazy_load_command("airflow.cli.commands.state_store_command.clean_state_store"),
         args=(ARG_DB_DRY_RUN, ARG_VERBOSE),
     ),
 )

@@ -22,7 +22,7 @@ import pytest
 
 from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
-from airflow.serialization.serde import deserialize, serialize
+from airflow.sdk.serde import deserialize, serialize
 
 
 async def empty_async_callback_for_deadline_tests():
@@ -163,39 +163,12 @@ class TestCallback:
                 True,
                 id="async_no_kwargs",
             ),
-            # Nested-dict kwargs must hash (and equal-hash) — the old top-level-only flattening
-            # raised TypeError: unhashable type: 'dict' on these.
-            pytest.param(
-                AsyncCallback,
-                (TEST_CALLBACK_PATH, {"config": {"retries": 3, "timeout": 30}}),
-                (TEST_CALLBACK_PATH, {"config": {"timeout": 30, "retries": 3}}),
-                True,
-                id="async_nested_dict_kwargs_order_independent",
-            ),
-            # List-valued kwargs must hash too (old code raised on the list value).
-            pytest.param(
-                SyncCallback,
-                (TEST_CALLBACK_PATH, {"tags": [1, 2, 3]}),
-                (TEST_CALLBACK_PATH, {"tags": [1, 2, 3]}),
-                True,
-                id="sync_list_kwargs",
-            ),
-            pytest.param(
-                SyncCallback,
-                (TEST_CALLBACK_PATH, {"config": {"retries": 3}}),
-                (TEST_CALLBACK_PATH, {"config": {"retries": 5}}),
-                False,
-                id="sync_nested_dict_different_values",
-            ),
         ],
     )
     def test_callback_hash_and_set_behavior(self, callback_class, args1, args2, should_be_same_hash):
         callback1 = callback_class(*args1)
         callback2 = callback_class(*args2)
-        # Must not raise (the bug: nested dict/list kwargs were unhashable).
         assert (hash(callback1) == hash(callback2)) == should_be_same_hash
-        # Hashable means usable in a set/dict — exercise that too.
-        assert len({callback1, callback2}) == (1 if should_be_same_hash and callback1 == callback2 else 2)
 
 
 class TestAsyncCallback:

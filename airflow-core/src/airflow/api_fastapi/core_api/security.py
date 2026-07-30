@@ -25,6 +25,7 @@ from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
+from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -193,6 +194,49 @@ def requires_access_dag(
                 details=DagDetails(id=dag_id, team_name=team_name),
                 user=user,
             )
+        )
+
+    return inner
+
+
+def requires_access_dag_from_file_token(
+    method: ResourceMethod,
+) -> Callable[[str, Request, BaseUser, Session], None]:
+    """
+    Authorize the caller against the DAGs referenced by a signed ``file_token``.
+
+    For ``file_token`` based endpoints (such as ``reparse``), the token is resolved to its referenced file, and authorization is performed against exactly the DAGs defined in that file, never against a request parameter.
+    """
+
+    def inner(
+        file_token: str,
+        request: Request,
+        user: GetUserDep,
+        session: SessionDep,
+    ) -> None:
+        try:
+            payload = URLSafeSerializer(request.app.state.secret_key).loads(file_token)
+        except BadSignature:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+        dag_ids = list(
+            session.scalars(
+                select(DagModel.dag_id).where(
+                    DagModel.bundle_name == payload["bundle_name"],
+                    DagModel.relative_fileloc == payload["relative_fileloc"],
+                )
+            )
+        )
+        if not dag_ids:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+        requests: list[IsAuthorizedDagRequest] = [
+            {"method": method, "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id))}
+            for dag_id in dag_ids
+        ]
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(requests, user=user),
         )
 
     return inner
@@ -823,6 +867,10 @@ def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseU
                 continue
             entity_methods.append((entity_dag_id, "PUT"))
 
+        if not body.dag_runs and body.has_partition_selectors:
+            if dag_id and dag_id != "~":
+                entity_methods.append((dag_id, "PUT"))
+
         requests = _build_dag_run_access_requests(entity_methods)
         _requires_access(
             is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
@@ -959,12 +1007,13 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
 
     # According to WHATWG for http/https /// is interpreted as // whereas urllib doesnt
     # this leads to an inconsistency where python returns a target url with /// as a valid url
-    # The same thing also happens with \ where under WHATWG \ are translated to /
-    target_url = unquote(target_url).strip()
-    if target_url.startswith(("//", "/\\", "\\/", "\\\\")):
+    # The same thing also happens with \ where under WHATWG \ are translated to /, including
+    # after a scheme, so "https:\\host" is an authority for a browser but a path for urllib.
+    target_url = unquote(target_url).strip().replace("\\", "/")
+    if target_url.startswith("//"):
         return False
     for base_url, parsed_base in parsed_bases:
-        parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
+        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
 
         base_path = parsed_base.path or "/"
         target_path = parsed_target.path or "/"

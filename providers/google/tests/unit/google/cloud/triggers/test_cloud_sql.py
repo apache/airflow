@@ -181,7 +181,14 @@ class TestCloudSQLExportTrigger:
         }
 
         task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(0.1)
+        # The custom-universe branch runs get_operation via sync_to_async, i.e. in a thread-pool
+        # executor, so the call can land a little later than a fixed short sleep -- flaky on loaded
+        # runners. Poll until it is observed; poke_interval is 10s, so no second call happens within
+        # this window and assert_called_once stays valid.
+        for _ in range(100):
+            await asyncio.sleep(0.05)
+            if sync_hook_mock.get_operation.called:
+                break
 
         sync_hook_mock.is_default_universe.assert_called_once()
         sync_hook_mock.get_operation.assert_called_once_with(

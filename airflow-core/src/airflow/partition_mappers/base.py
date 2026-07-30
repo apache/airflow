@@ -38,6 +38,12 @@ class PartitionMapper(ABC):
 
     is_rollup: ClassVar[bool] = False
 
+    max_downstream_keys: int | None = None
+
+    # Declared result type of decode_downstream; RollupMapper rejects windows
+    # whose expected_decoded_type does not match. Temporal mappers use datetime.
+    expected_decoded_type: ClassVar[type] = str
+
     def __init__(self, *, max_downstream_keys: int | None = None) -> None:
         if max_downstream_keys is not None and (
             not isinstance(max_downstream_keys, int) or max_downstream_keys < 1
@@ -117,6 +123,21 @@ class PartitionMapper(ABC):
         """
         return None
 
+    def carry_partition_date(self, source_partition_date: datetime | None) -> datetime | None:
+        """
+        Return the producer's ``partition_date`` to carry onto the consumer APDR.
+
+        Captured at queue time as an asset event arrives, *source_partition_date*
+        is the producing run's ``partition_date``. The base implementation returns
+        ``None``: for most mappers the consumer's date is derived from its own
+        downstream key by :meth:`to_partition_date` at run creation, not carried
+        from the producer.
+        :class:`~airflow.partition_mappers.identity.IdentityMapper` overrides to
+        pass it through, since the consumer's key equals the producer's and the
+        key carries no temporal meaning to decode.
+        """
+        return None
+
     def serialize(self) -> dict[str, Any]:
         if self.max_downstream_keys is None:
             return {}
@@ -149,16 +170,13 @@ class RollupMapper(PartitionMapper):
         wait_policy: WaitPolicy | None = None,
         max_downstream_keys: int | None = None,
     ) -> None:
-        decode_overridden = type(upstream_mapper).decode_downstream is not PartitionMapper.decode_downstream
-        if not decode_overridden and window.expected_decoded_type is not str:
+        if upstream_mapper.expected_decoded_type is not window.expected_decoded_type:
             raise TypeError(
                 f"{type(window).__name__} expects decoded values of type "
                 f"{window.expected_decoded_type.__name__!r}, but "
-                f"{type(upstream_mapper).__name__} does not override "
-                f"'decode_downstream' (base default returns str). Pair the window "
-                f"with an upstream mapper that decodes to "
-                f"{window.expected_decoded_type.__name__}, or use a window whose "
-                f"'expected_decoded_type' accepts str."
+                f"{type(upstream_mapper).__name__} decodes to "
+                f"{upstream_mapper.expected_decoded_type.__name__!r}. Pair a window and an "
+                f"upstream mapper whose 'expected_decoded_type' match."
             )
         if wait_policy is None:
             wait_policy = WaitForAll()

@@ -34,6 +34,7 @@ from airflow.api_fastapi.common.exceptions import (
     _DatabaseDialect,
     _UniqueConstraintErrorHandler,
 )
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.configuration import conf
 from airflow.exceptions import DeserializationError
 from airflow.models import DagRun, Pool, Variable
@@ -276,7 +277,22 @@ class TestUniqueConstraintErrorHandler:
 
         exeinfo_response_error.value.detail.pop("message", None)  # type: ignore[attr-defined]
         assert exeinfo_response_error.value.status_code == expected_exception.status_code
-        assert exeinfo_response_error.value.detail == expected_exception.detail
+
+        # The exact rendered SQL (e.g. explicit driver-added type casts) and trailing whitespace in
+        # the driver's own error text are driver-specific rendering details, not meaningful content —
+        # match on the statement's target table and normalize trailing newlines instead of an exact
+        # string compare.
+        response_detail = exeinfo_response_error.value.detail
+        expected_detail = expected_exception.detail
+        actual_statement = response_detail.pop("statement", None)  # type: ignore[attr-defined]
+        expected_statement = expected_detail.pop("statement", None)
+        response_detail["orig_error"] = response_detail["orig_error"].rstrip("\n")  # type: ignore[index]
+        expected_detail["orig_error"] = expected_detail["orig_error"].rstrip("\n")
+
+        assert response_detail == expected_detail
+        assert expected_statement is not None
+        assert actual_statement is not None
+        assert f"INSERT INTO {expected_statement.split()[2]}" in actual_statement
 
     @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
     @conf_vars({("api", "expose_stacktrace"): "False"})
@@ -390,6 +406,9 @@ class TestUniqueConstraintErrorHandler:
 
         # Removes the stacktrace from response to remove during comparison.
         response_detail.pop("message", None)  # type: ignore[attr-defined]
+        # Trailing whitespace in the driver's own error text is a driver-specific rendering detail.
+        response_detail["orig_error"] = response_detail["orig_error"].rstrip("\n")  # type: ignore[index]
+        expected_detail["orig_error"] = expected_detail["orig_error"].rstrip("\n")
         assert response_detail == expected_detail
         assert "INSERT INTO dag_run" in actual_statement
         assert exeinfo_response_error.value.detail == expected_exception.detail
@@ -453,7 +472,7 @@ class TestDataErrorHandler:
         exc = self._make_data_error(orig_msg)
         with pytest.raises(HTTPException) as exc_info:
             self.handler.exception_handler(Mock(), exc)
-        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert exc_info.value.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         assert exc_info.value.detail == {
             "reason": "Value rejected by database",
             "statement": "hidden",
@@ -472,7 +491,7 @@ class TestDataErrorHandler:
         exc = self._make_data_error(orig_msg)
         with pytest.raises(HTTPException) as exc_info:
             self.handler.exception_handler(Mock(), exc)
-        assert exc_info.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert exc_info.value.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         detail = exc_info.value.detail
         assert isinstance(detail, dict)
         assert detail["reason"] == "Value rejected by database"
@@ -491,11 +510,51 @@ class TestDataErrorHandler:
             raise self._make_data_error("(1406, \"Data too long for column 'conf' at row 1\")")
 
         response = TestClient(app, raise_server_exceptions=False).post("/test")
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == HTTP_422_UNPROCESSABLE_CONTENT
         detail = response.json()["detail"]
         assert detail["reason"] == "Value rejected by database"
         assert detail["statement"] == "hidden"
         assert detail["orig_error"] == "hidden"
+
+    @conf_vars({("api", "expose_stacktrace"): "False"})
+    @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
+    def test_sqlalchemy_error_dispatched_through_fastapi_app(self, mock_get_random_string) -> None:
+        """End-to-end: a route raising SQLAlchemyError returns 500 via the registered handler."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        app = FastAPI()
+        for h in ERROR_HANDLERS:
+            app.add_exception_handler(h.exception_cls, h.exception_handler)
+
+        @app.post("/test")
+        def trigger_error():
+            raise SQLAlchemyError("boom")
+
+        response = TestClient(app, raise_server_exceptions=False).post("/test")
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        detail = response.json()["detail"]
+        assert detail["reason"] == "Database error"
+        assert detail["message"] == MESSAGE
+
+    @conf_vars({("api", "expose_stacktrace"): "True"})
+    @patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value=MOCKED_ID)
+    def test_sqlalchemy_error_includes_traceback_with_stacktrace(self, mock_get_random_string) -> None:
+        """End-to-end: SQLAlchemyError exposes traceback details when stacktrace logging is enabled."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        app = FastAPI()
+        for h in ERROR_HANDLERS:
+            app.add_exception_handler(h.exception_cls, h.exception_handler)
+
+        @app.post("/test")
+        def trigger_error():
+            raise SQLAlchemyError("boom")
+
+        response = TestClient(app, raise_server_exceptions=False).post("/test")
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        detail = response.json()["detail"]
+        assert detail["reason"] == "Database error"
+        assert "trigger_error" in detail["message"]
 
 
 class TestDagErrorHandler:
@@ -512,6 +571,7 @@ class TestDagErrorHandler:
             "ValueError",
         ],
     )
+    @conf_vars({("api", "expose_stacktrace"): "True"})
     def test_handle_deserialization_error(self, cause: Exception) -> None:
         deserialization_error = DeserializationError("test_dag_id")
         deserialization_error.__cause__ = cause
@@ -524,6 +584,26 @@ class TestDagErrorHandler:
         with pytest.raises(HTTPException, match=re.escape(expected_exception.detail)):
             DagErrorHandler().exception_handler(Mock(), deserialization_error)
 
+    @conf_vars({("api", "expose_stacktrace"): "False"})
+    def test_handle_deserialization_error_without_stacktrace(self) -> None:
+        deserialization_error = DeserializationError("secret_dag_id")
+        deserialization_error.__cause__ = RuntimeError("internal credential leak xyz")
+
+        with patch("airflow.api_fastapi.common.exceptions.log") as mock_log:
+            with pytest.raises(HTTPException) as exc_info:
+                DagErrorHandler().exception_handler(Mock(), deserialization_error)
+
+        detail = exc_info.value.detail
+        assert exc_info.value.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        # Raw exception text is withheld when expose_stacktrace is off ...
+        assert str(deserialization_error) not in detail
+        assert "internal credential leak xyz" not in detail
+        # ... and the caller gets an id to correlate with the server-side log.
+        assert "look for ID" in detail
+        # The error is still logged server-side, so detail is not silently lost.
+        mock_log.error.assert_called_once()
+
+    @conf_vars({("api", "expose_stacktrace"): "True"})
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.need_serialized_dag
     def test_handle_real_dag_deserialization_error(self, session: Session, dag_maker: DagMaker) -> None:

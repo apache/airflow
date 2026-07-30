@@ -25,21 +25,62 @@ import aiohttp
 import pytest
 import time_machine
 from aiohttp.client_exceptions import ClientConnectorError
-from requests import exceptions as requests_exceptions
+from requests import Response, exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 from tenacity import AsyncRetrying, Future, RetryError, retry_if_exception, stop_after_attempt, wait_fixed
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.databricks.hooks.databricks_base import (
     DEFAULT_AZURE_CREDENTIAL_SETTING_KEY,
     DEFAULT_DATABRICKS_SCOPE,
     K8S_CA_CERT_PATH,
     TOKEN_REFRESH_LEAD_TIME,
     BaseDatabricksHook,
+    DatabricksProxyConfigurationError,
 )
 
 DEFAULT_CONN_ID = "databricks_default"
+PROXIES = {"http": "http://proxy.example.com:8080", "https": "http://proxy.example.com:8443"}
+
+_SUPPLIED_JWT = "supplied_oidc_jwt"
+
+
+def _supplied_token_provider() -> str:
+    """Module-level ``federated_token_provider`` callable used in tests (in-process token source)."""
+    return _SUPPLIED_JWT
+
+
+# Real, importable dotted path to the callable above, resolved the same way ``import_string`` will.
+_SUPPLIED_TOKEN_PROVIDER_PATH = (
+    f"{_supplied_token_provider.__module__}.{_supplied_token_provider.__qualname__}"
+)
+
+
+def _empty_token_provider() -> str:
+    """A misconfigured ``federated_token_provider`` that returns an empty token (tests validation)."""
+    return ""
+
+
+_EMPTY_TOKEN_PROVIDER_PATH = f"{_empty_token_provider.__module__}.{_empty_token_provider.__qualname__}"
+
+
+def _whitespace_token_provider() -> str:
+    """A misconfigured provider that returns a whitespace-only token (tests the strip guard)."""
+    return "  \t\n"
+
+
+_WHITESPACE_TOKEN_PROVIDER_PATH = (
+    f"{_whitespace_token_provider.__module__}.{_whitespace_token_provider.__qualname__}"
+)
+
+
+def _padded_token_provider() -> str:
+    """A provider that returns a valid token with surrounding whitespace (e.g. a trailing newline)."""
+    return f"  {_SUPPLIED_JWT}\n"
+
+
+_PADDED_TOKEN_PROVIDER_PATH = f"{_padded_token_provider.__module__}.{_padded_token_provider.__qualname__}"
 
 
 class TestBaseDatabricksHook:
@@ -109,6 +150,59 @@ class TestBaseDatabricksHook:
     )
     def test_parse_host(self, input_url, expected_host):
         assert BaseDatabricksHook._parse_host(input_url) == expected_host
+
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
+        new_callable=mock.PropertyMock,
+    )
+    def test_proxies_from_extra(self, mock_conn):
+        mock_conn.return_value = Connection(extra={"proxies": PROXIES})
+        hook = BaseDatabricksHook()
+
+        assert hook.proxies == PROXIES
+        assert hook._get_requests_kwargs() == {"proxies": PROXIES}
+        assert hook._get_azure_credential_kwargs() == {"proxies": PROXIES}
+
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
+        new_callable=mock.PropertyMock,
+    )
+    def test_aiohttp_proxy_uses_request_scheme(self, mock_conn):
+        mock_conn.return_value = Connection(extra={"proxies": PROXIES})
+        hook = BaseDatabricksHook()
+
+        assert hook._get_aiohttp_kwargs("https://example.databricks.com/api") == {"proxy": PROXIES["https"]}
+        assert hook._get_aiohttp_kwargs("http://example.databricks.com/api") == {"proxy": PROXIES["http"]}
+
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
+        new_callable=mock.PropertyMock,
+    )
+    def test_aiohttp_proxy_returns_empty_kwargs_without_matching_scheme(self, mock_conn):
+        mock_conn.return_value = Connection(extra={"proxies": {"http": PROXIES["http"]}})
+        hook = BaseDatabricksHook()
+
+        assert hook._get_aiohttp_kwargs("https://example.databricks.com/api") == {}
+
+    @mock.patch(
+        "airflow.providers.databricks.hooks.databricks_base.BaseDatabricksHook.databricks_conn",
+        new_callable=mock.PropertyMock,
+    )
+    @pytest.mark.parametrize(
+        ("proxies", "message"),
+        [
+            ("http://proxy.example.com:8080", "must be a JSON object"),
+            ({"ftp": "http://proxy.example.com:8080"}, "only supports 'http' and 'https' keys"),
+            ({"https": ""}, "values must be non-empty strings"),
+            ({"https": 8080}, "values must be non-empty strings"),
+        ],
+    )
+    def test_proxies_invalid_extra_raises(self, mock_conn, proxies, message):
+        mock_conn.return_value = Connection(extra={"proxies": proxies})
+        hook = BaseDatabricksHook()
+
+        with pytest.raises(DatabricksProxyConfigurationError, match=message):
+            hook.proxies
 
     @mock.patch("requests.post")
     @time_machine.travel("2025-07-12 12:00:00", tick=False)
@@ -183,7 +277,10 @@ class TestBaseDatabricksHook:
         hook.user_agent_header = {"User-Agent": "test-agent"}
         resource = ""
 
-        with pytest.raises(AirflowException, match="API requests to Databricks failed 2 times. Giving up."):
+        with pytest.raises(
+            AirflowException,
+            match=r"API requests to Databricks failed 2 times \(last error: Connection failed\)\. Giving up\.",
+        ):
             hook._get_sp_token(resource)
 
     @pytest.mark.asyncio
@@ -1115,8 +1212,229 @@ class TestBaseDatabricksHook:
         hook.user_agent_header = {"User-Agent": "test-agent"}
 
         resource = f"https://{mock_conn.host}/oidc/v1/token"
-        with pytest.raises(AirflowException, match="Failed to exchange Kubernetes JWT for Databricks token"):
+        with pytest.raises(
+            AirflowException, match="Failed to exchange the federated OIDC token for a Databricks token"
+        ):
             hook._get_federated_databricks_token(resource)
+
+    @pytest.mark.parametrize(
+        "client_id",
+        [
+            pytest.param(None, id="account-wide-policy"),
+            pytest.param("sp-client-id", id="service-principal-policy"),
+        ],
+    )
+    @mock.patch("requests.post")
+    def test_get_token_with_supplied_provider(self, mock_post, client_id):
+        """Provider supplies the subject token in-process; client_id is sent only when configured."""
+        db_response = mock.Mock(spec=Response)
+        db_response.json.return_value = {
+            "access_token": "databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        db_response.raise_for_status.return_value = None
+        mock_post.return_value = db_response
+
+        extra = {"federated_token_provider": _SUPPLIED_TOKEN_PROVIDER_PATH}
+        if client_id:
+            extra["client_id"] = client_id
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps(extra),
+        )
+
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        with mock.patch.object(hook, "_get_k8s_jwt_token") as mock_k8s:
+            token = hook._get_token()
+
+        assert token == "databricks_token"
+        # Routed through _get_token to the exchange, never touching the Kubernetes (disk) path.
+        mock_k8s.assert_not_called()
+        assert mock_post.call_count == 1
+        assert mock_post.call_args.args[0] == "https://my-workspace.cloud.databricks.com/oidc/v1/token"
+        data = mock_post.call_args.kwargs["data"]
+        assert data["subject_token"] == _SUPPLIED_JWT
+        assert data["subject_token_type"] == "urn:ietf:params:oauth:token-type:jwt"
+        assert data["grant_type"] == "urn:ietf:params:oauth:grant-type:token-exchange"
+        assert data["scope"] == "all-apis"
+        if client_id:
+            assert data["client_id"] == client_id  # service principal federation policy
+        else:
+            assert "client_id" not in data  # account-wide federation policy
+
+    @pytest.mark.parametrize(
+        "provider_path",
+        [
+            pytest.param(_EMPTY_TOKEN_PROVIDER_PATH, id="empty"),
+            pytest.param(_WHITESPACE_TOKEN_PROVIDER_PATH, id="whitespace-only"),
+        ],
+    )
+    def test_get_token_supplied_provider_invalid_return(self, provider_path):
+        """A provider returning an empty or whitespace-only token fails clearly, before any exchange."""
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps({"federated_token_provider": provider_path}),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+
+        with mock.patch("requests.post") as mock_post:
+            with pytest.raises(ValueError, match="must return a non-empty string token"):
+                hook._get_token()
+            mock_post.assert_not_called()
+
+    @mock.patch("requests.post")
+    def test_get_token_supplied_provider_strips_token(self, mock_post):
+        """A token returned with surrounding whitespace is stripped before it is exchanged."""
+        db_response = mock.Mock(spec=Response)
+        db_response.json.return_value = {
+            "access_token": "databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        db_response.raise_for_status.return_value = None
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps({"federated_token_provider": _PADDED_TOKEN_PROVIDER_PATH}),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        assert hook._get_token() == "databricks_token"
+        # The newline-padded token is stripped -- the raw value is never posted to the exchange.
+        assert mock_post.call_args.kwargs["data"]["subject_token"] == _SUPPLIED_JWT
+
+    @mock.patch("requests.post")
+    def test_supplied_provider_takes_precedence_over_federated_k8s(self, mock_post):
+        """With both configured, the supplied provider wins and the Kubernetes disk path is never used."""
+        db_response = mock.Mock(spec=Response)
+        db_response.json.return_value = {
+            "access_token": "databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        db_response.raise_for_status.return_value = None
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps(
+                {
+                    "federated_token_provider": _SUPPLIED_TOKEN_PROVIDER_PATH,
+                    "federated_k8s": True,
+                    "client_id": "sp-client-id",
+                }
+            ),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        with mock.patch.object(hook, "_get_k8s_jwt_token") as mock_k8s:
+            assert hook._get_token() == "databricks_token"
+        mock_k8s.assert_not_called()
+        assert mock_post.call_args.kwargs["data"]["subject_token"] == _SUPPLIED_JWT
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook")
+    @mock.patch("requests.post")
+    def test_federated_aws_takes_precedence_over_federated_k8s(self, mock_post, mock_sts_hook):
+        """With both configured, the AWS path wins and the Kubernetes disk path is never used."""
+        mock_sts_hook.return_value.get_conn.return_value.get_web_identity_token.return_value = {
+            "WebIdentityToken": "aws_signed_jwt"
+        }
+        db_response = mock.Mock(spec=Response)
+        db_response.json.return_value = {
+            "access_token": "databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        db_response.raise_for_status.return_value = None
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps(
+                {
+                    "federated_aws": True,
+                    "federated_k8s": True,
+                    "client_id": "sp-client-id",
+                }
+            ),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        with mock.patch.object(hook, "_get_k8s_jwt_token") as mock_k8s:
+            assert hook._get_token() == "databricks_token"
+        mock_k8s.assert_not_called()
+        assert mock_post.call_args.kwargs["data"]["subject_token"] == "aws_signed_jwt"
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.post")
+    async def test_a_get_token_with_supplied_provider(self, mock_post):
+        """Async _get_token resolves the provider off the event loop and exchanges the token."""
+        db_response = mock.AsyncMock(spec=aiohttp.ClientResponse)
+        db_response.__aenter__.return_value = db_response
+        db_response.__aexit__.return_value = None
+        db_response.raise_for_status.return_value = None
+        db_response.json.return_value = {
+            "access_token": "async_databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps({"federated_token_provider": _SUPPLIED_TOKEN_PROVIDER_PATH}),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+        hook.token_timeout_seconds = 10
+
+        with mock.patch.object(hook, "_a_get_k8s_jwt_token") as mock_k8s:
+            async with aiohttp.ClientSession() as session:
+                hook._session = session
+                token = await hook._a_get_token()
+
+        mock_k8s.assert_not_called()
+        assert token == "async_databricks_token"
+        data = mock_post.call_args.kwargs["data"]
+        assert data["subject_token"] == _SUPPLIED_JWT
+        assert "client_id" not in data
 
     @mock.patch("builtins.open")
     @mock.patch("requests.post")
@@ -1414,6 +1732,163 @@ class TestBaseDatabricksHook:
 
             assert token == "databricks_token"
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook")
+    @mock.patch("requests.post")
+    def test_get_token_with_federated_aws_login(self, mock_post, mock_sts_hook):
+        """_get_token with login='federated_aws' mints an STS token and exchanges it (service principal)."""
+        mock_sts_hook.return_value.get_conn.return_value.get_web_identity_token.return_value = {
+            "WebIdentityToken": "aws_signed_jwt"
+        }
+        db_response = mock.Mock(spec=Response)
+        db_response.json.return_value = {
+            "access_token": "databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        db_response.raise_for_status.return_value = None
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login="federated_aws",
+            password=None,
+            extra=json.dumps({"client_id": "test-client-id"}),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        assert hook._get_token() == "databricks_token"
+        mock_sts_hook.assert_called_once_with(aws_conn_id="aws_default")
+        data = mock_post.call_args.kwargs["data"]
+        assert data["subject_token"] == "aws_signed_jwt"
+        assert data["grant_type"] == "urn:ietf:params:oauth:grant-type:token-exchange"
+        assert data["client_id"] == "test-client-id"
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook")
+    @mock.patch("requests.post")
+    def test_get_token_with_federated_aws_extra_account_wide(self, mock_post, mock_sts_hook):
+        """federated_aws via extra flag: custom settings honored, no client_id (account-wide federation)."""
+        mock_client = mock_sts_hook.return_value.get_conn.return_value
+        mock_client.get_web_identity_token.return_value = {"WebIdentityToken": "aws_signed_jwt"}
+        db_response = mock.Mock(spec=Response)
+        db_response.json.return_value = {
+            "access_token": "databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        db_response.raise_for_status.return_value = None
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login=None,
+            password=None,
+            extra=json.dumps(
+                {
+                    "federated_aws": True,
+                    "aws_conn_id": "aws_prod",
+                    "aws_jwt_audience": "databricks-prod",
+                    "aws_web_identity_token_duration": 900,
+                }
+            ),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        assert hook._get_token() == "databricks_token"
+        mock_sts_hook.assert_called_once_with(aws_conn_id="aws_prod")
+        mock_client.get_web_identity_token.assert_called_once_with(
+            Audience=["databricks-prod"], SigningAlgorithm="RS256", DurationSeconds=900
+        )
+        data = mock_post.call_args.kwargs["data"]
+        assert data["subject_token"] == "aws_signed_jwt"
+        assert "client_id" not in data
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook")
+    def test_get_aws_subject_token_old_boto3(self, mock_sts_hook):
+        """federated_aws errors clearly when the installed AWS SDK lacks GetWebIdentityToken."""
+        mock_sts_hook.return_value.get_conn.return_value = mock.Mock(spec=["get_caller_identity"])
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login="federated_aws",
+            password=None,
+            extra=json.dumps({"client_id": "test-client-id"}),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+
+        with pytest.raises(
+            AirflowOptionalProviderFeatureException, match="does not support 'sts:GetWebIdentityToken'"
+        ):
+            hook._get_aws_subject_token()
+
+    def test_get_aws_subject_token_amazon_not_installed(self):
+        """federated_aws errors clearly when the amazon provider is not installed."""
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login="federated_aws",
+            password=None,
+            extra=json.dumps({"client_id": "test-client-id"}),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+
+        with mock.patch.dict("sys.modules", {"airflow.providers.amazon.aws.hooks.sts": None}):
+            with pytest.raises(
+                AirflowOptionalProviderFeatureException, match="apache-airflow-providers-amazon"
+            ):
+                hook._get_aws_subject_token()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook")
+    @mock.patch("aiohttp.ClientSession.post")
+    @time_machine.travel("2025-07-12 12:00:00", tick=False)
+    async def test_a_get_token_with_federated_aws(self, mock_post, mock_sts_hook):
+        """Async _a_get_token with federated_aws mints and exchanges the STS token."""
+        mock_sts_hook.return_value.get_conn.return_value.get_web_identity_token.return_value = {
+            "WebIdentityToken": "aws_signed_jwt"
+        }
+        db_response = mock.AsyncMock()
+        db_response.__aenter__.return_value = db_response
+        db_response.__aexit__.return_value = None
+        db_response.raise_for_status.return_value = None
+        db_response.json.return_value = {
+            "access_token": "async_databricks_token",
+            "expires_in": 3600,
+            "token_type": "Bearer",
+        }
+        mock_post.return_value = db_response
+
+        conn = Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="databricks",
+            host="my-workspace.cloud.databricks.com",
+            login="federated_aws",
+            password=None,
+            extra=json.dumps({"client_id": "test-client-id"}),
+        )
+        hook = BaseDatabricksHook()
+        hook.databricks_conn = conn
+        hook.user_agent_header = {"User-Agent": "test-agent"}
+
+        async with aiohttp.ClientSession() as session:
+            hook._session = session
+            token = await hook._a_get_token()
+
+        assert token == "async_databricks_token"
+        assert mock_post.call_args.kwargs["data"]["subject_token"] == "aws_signed_jwt"
+        assert mock_post.call_args.kwargs["data"]["client_id"] == "test-client-id"
+
     @pytest.mark.asyncio
     @mock.patch("aiohttp.ClientSession.post")
     @time_machine.travel("2025-07-12 12:00:00", tick=False)
@@ -1589,7 +2064,8 @@ class TestBaseDatabricksHook:
                 hook._session = session
                 resource = f"https://{mock_conn.host}/oidc/v1/token"
                 with pytest.raises(
-                    AirflowException, match="Failed to exchange Kubernetes JWT for Databricks token"
+                    AirflowException,
+                    match="Failed to exchange the federated OIDC token for a Databricks token",
                 ):
                     await hook._a_get_federated_databricks_token(resource)
 

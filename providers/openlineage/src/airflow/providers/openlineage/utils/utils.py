@@ -50,6 +50,7 @@ from airflow.providers.common.compat.sdk import (
     BaseOperator,
     BaseSensorOperator,
     MappedOperator,
+    conf as airflow_conf,
 )
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
@@ -72,6 +73,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
 from airflow.providers.openlineage.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
     get_base_airflow_version_tuple,
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -257,6 +259,7 @@ def build_task_event_run_facets(
     parent_job_name: str | None = None,
     dr_conf: dict | None = None,
     additional_run_facets: dict[str, RunFacet] | None = None,
+    include_full_task_info: bool = False,
 ) -> dict[str, RunFacet]:
     """Build the task-event run-facet dict."""
     if dr_conf is None:
@@ -287,7 +290,12 @@ def build_task_event_run_facets(
             dr_conf=dr_conf,
         ),
         **get_airflow_run_facet(
-            dag_run=dag_run, dag=dag, task_instance=task_instance, task=task, task_uuid=task_uuid
+            dag_run=dag_run,
+            dag=dag,
+            task_instance=task_instance,
+            task=task,
+            task_uuid=task_uuid,
+            include_full_task_info=include_full_task_info,
         ),
         **get_airflow_debug_facet(),
         **get_processing_engine_facet(),
@@ -974,6 +982,7 @@ class DagRunInfo(InfoJsonEncodable):
         "dag_bundle_version": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "bundle_version"),
         "dag_version_id": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_id"),
         "dag_version_number": lambda dagrun: DagRunInfo.dag_version_info(dagrun, "version_number"),
+        "dag_team_name": lambda dagrun: DagRunInfo.team_name(dagrun) if AIRFLOW_V_3_3_PLUS else None,
         "deadlines": lambda dagrun: DagRunInfo.deadlines(dagrun),
     }
 
@@ -1031,21 +1040,55 @@ class DagRunInfo(InfoJsonEncodable):
 
     @classmethod
     def dag_version_info(cls, dagrun: DagRun, key: str) -> str | int | None:
-        """Extract deg version info for given key, sourced from DagRun (on scheduler)."""
+        """Extract DAG version info for given key, sourced from DagRun (on scheduler)."""
         # AF2 DagRun and AF3 DagRun SDK model (on worker) do not have this information
         dag_versions = safe_getattr(dagrun, "dag_versions", [])
         if not dag_versions:
             return None
+        # The DagVersion rows themselves are lazy-loaded, so reading their columns can still hit
+        # a detached session even though fetching the list above succeeded.
         current_version = dag_versions[-1]
         if key == "bundle_name":
-            return current_version.bundle_name
+            return safe_getattr(current_version, "bundle_name")
         if key == "bundle_version":
-            return current_version.bundle_version
+            return safe_getattr(current_version, "bundle_version")
         if key == "version_id":
-            return str(current_version.id)
+            version_id = safe_getattr(current_version, "id")
+            return str(version_id) if version_id is not None else None
         if key == "version_number":
-            return current_version.version_number
+            return safe_getattr(current_version, "version_number")
         raise ValueError(f"Unsupported key: {key}`")
+
+    @classmethod
+    def team_name(cls, dagrun: DagRun) -> str | None:
+        """Extract the team name for the DagRun."""
+        if not AIRFLOW_V_3_3_PLUS or not airflow_conf.getboolean("core", "multi_team", fallback=False):
+            return None
+
+        # The Execution API delivers the team name on the DagRun payload it sends to the task
+        # runner, so task events resolve it from there rather than through the bundle lookup below,
+        # which needs a metadata DB session the task runner does not have.
+        # `hasattr` rather than a None check -- a team-less run legitimately carries None, while
+        # the scheduler's ORM DagRun has no such attribute at all.
+        if hasattr(dagrun, "team_name"):
+            return dagrun.team_name
+
+        try:
+            bundle_name = cls.dag_version_info(dagrun, "bundle_name")
+            if not isinstance(bundle_name, str):
+                return None
+
+            from airflow.models.dagbundle import DagBundleModel
+
+            return DagBundleModel.get_team_name(bundle_name)
+        except Exception as e:
+            log.warning(
+                "OpenLineage failed to resolve the team name for dag `%s`: %s.",
+                safe_getattr(dagrun, "dag_id"),
+                e,
+            )
+            log.debug("Exception details:", exc_info=True)
+            return None
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
@@ -1244,6 +1287,7 @@ class TaskInfoComplete(TaskInfo):
     includes = []
     excludes = [
         "_BaseOperator__instantiated",
+        "_BaseOperator__init_kwargs",  # Causes recursion error on AF3, nothing useful there
         "_dag",
         "_hook",
         "_log",
@@ -1324,6 +1368,7 @@ def get_airflow_run_facet(
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,
+    include_full_task_info: bool = False,
 ) -> dict[str, AirflowRunFacet]:
     runtime_assets = get_runtime_outlet_assets(task_instance)
     return {
@@ -1333,7 +1378,7 @@ def get_airflow_run_facet(
             taskInstance=TaskInstanceInfo(task_instance),
             task=(
                 TaskInfoComplete(task, runtime_assets=runtime_assets)
-                if conf.include_full_task_info()
+                if include_full_task_info
                 else TaskInfo(task, runtime_assets=runtime_assets)
             ),
             taskUuid=task_uuid,
@@ -1362,23 +1407,28 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
 def get_airflow_state_run_facet(
     dag_id: str, run_id: str, task_ids: list[str], dag_run_state: DagRunState
 ) -> dict[str, AirflowStateRunFacet]:
-    tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
+    try:
+        tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
 
-    def get_task_duration(ti):
-        if ti.duration is not None:
-            return ti.duration
-        if ti.end_date is not None and ti.start_date is not None:
-            return (ti.end_date - ti.start_date).total_seconds()
-        # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
-        return 0.0
+        def get_task_duration(ti):
+            if ti.duration is not None:
+                return ti.duration
+            if ti.end_date is not None and ti.start_date is not None:
+                return (ti.end_date - ti.start_date).total_seconds()
+            # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
+            return 0.0
 
-    return {
-        "airflowState": AirflowStateRunFacet(
-            dagRunState=dag_run_state,
-            tasksState={ti.task_id: ti.state for ti in tis},
-            tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
-        )
-    }
+        return {
+            "airflowState": AirflowStateRunFacet(
+                dagRunState=dag_run_state,
+                tasksState={ti.task_id: ti.state for ti in tis},
+                tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
+            )
+        }
+    except Exception as e:
+        log.warning("Failed to build AirflowStateRunFacet for DagRun %s/%s: %s.", dag_id, run_id, e)
+        log.debug("Exception details:", exc_info=True)
+        return {}
 
 
 def is_dag_run_asset_triggered(
@@ -1839,8 +1889,14 @@ def _get_task_groups_details(dag: DAG | SerializedDAG, edge_map: dict[str, tuple
 
 
 def _emits_ol_events(task: AnyOperator) -> bool:
-    config_selective_enabled = is_selective_lineage_enabled(task)
-    config_disabled_for_operators = is_operator_disabled(task)
+    from airflow.providers.openlineage.utils.emission_policy import resolve_task_emission_policy
+
+    # resolve_task_emission_policy already incorporates the selective_enable check.
+    controls = resolve_task_emission_policy(
+        operator=task,
+        dag_id=task.dag_id,
+        task_id=task.task_id,
+    )
 
     is_task_schedulable_method = getattr(TaskInstance, "is_task_schedulable", None)  # Added in 3.2.0 #56039
     if is_task_schedulable_method and callable(is_task_schedulable_method):
@@ -1870,8 +1926,7 @@ def _emits_ol_events(task: AnyOperator) -> bool:
 
     emits_ol_events = all(
         (
-            config_selective_enabled,
-            not config_disabled_for_operators,
+            controls.emit,
             not is_skipped_as_empty_operator,
         )
     )

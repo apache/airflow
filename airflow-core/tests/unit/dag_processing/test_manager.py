@@ -28,7 +28,7 @@ import signal
 import textwrap
 import time
 import zipfile
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict, namedtuple
 from datetime import datetime, timedelta
 from pathlib import Path
 from socket import socket, socketpair
@@ -295,6 +295,20 @@ class TestDagFileProcessorManager:
             "test_zip.zip/broken_dag.py",
         }
 
+    def test_sync_bundles_deactivates_missing_when_owning_all_bundles(self):
+        """A processor with no bundle filter owns the full config and may deactivate missing bundles."""
+        manager = DagFileProcessorManager(max_runs=1)
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=True)
+
+    def test_sync_bundles_does_not_deactivate_missing_when_filtered(self):
+        """A processor started with ``--bundle-name`` owns a subset and must not deactivate others."""
+        manager = DagFileProcessorManager(max_runs=1, bundle_names_to_parse=["only-mine"])
+        with mock.patch("airflow.dag_processing.manager.DagBundlesManager") as mock_bundles_manager:
+            manager.sync_bundles()
+        mock_bundles_manager.return_value.sync_bundles_to_db.assert_called_once_with(deactivate_missing=False)
+
     @pytest.mark.usefixtures("clear_parse_import_errors")
     def test_refresh_dag_bundles_keeps_zip_inner_file_errors(self, session, tmp_path, configure_dag_bundles):
         bundle_path = tmp_path / "bundleone"
@@ -496,6 +510,23 @@ class TestDagFileProcessorManager:
             tags={"file_path": "callbacks_with_spaces.py", "action": "stop"},
         )
         processor.kill.assert_called_once_with(signal.SIGKILL)
+
+    def test_terminate_orphan_processes_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1)
+        versioned_file = _get_versioned_file_info("callbacks.py")
+        processor, _ = self.mock_processor()
+        processor.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+
+        manager._processors[versioned_file] = processor
+
+        with (
+            mock.patch.object(type(processor), "kill"),
+            mock.patch("airflow.dag_processing.manager.stats.decr"),
+        ):
+            manager.terminate_orphan_processes(present=set())
+
+        assert manager._processors == {}
 
     def test_remove_orphaned_file_stats_keeps_versioned_callback_stats_when_unversioned_file_is_present(self):
         manager = DagFileProcessorManager(max_runs=1)
@@ -1055,6 +1086,46 @@ class TestDagFileProcessorManager:
         )
         assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
+        """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
+
+        Their files were removed during the upgrade, so nothing will ever parse them and fill the
+        column in, and the time-based check cannot reach them either (see #60763).
+
+        Migration ``0082_3_1_0_make_bundle_name_not_nullable`` backfills the column and makes it NOT
+        NULL, so the row can no longer be stored as NULL; the scan is fed the row the way a database
+        upgraded from 2.x to 3.0.x still holds it.
+        """
+        session.add(
+            DagModel(
+                dag_id="legacy_dag",
+                bundle_name="testing",
+                relative_fileloc="legacy_file.py",
+                last_parsed_time=timezone.utcnow(),
+                is_stale=False,
+            )
+        )
+        session.flush()
+
+        LegacyRow = namedtuple("LegacyRow", "dag_id bundle_name fileloc last_parsed_time relative_fileloc")
+        original_execute = session.execute
+
+        def execute_with_null_bundle_name(statement, *args, **kwargs):
+            result = original_execute(statement, *args, **kwargs)
+            if getattr(statement, "is_select", False) and "relative_fileloc" in str(statement):
+                return [
+                    LegacyRow(r.dag_id, None, r.fileloc, r.last_parsed_time, r.relative_fileloc)
+                    for r in result
+                ]
+            return result
+
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
+        with mock.patch.object(session, "execute", side_effect=execute_with_null_bundle_name):
+            manager.deactivate_stale_dags(last_parsed={}, session=session)
+
+        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
+
     @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_handles_lock_timeout(self, mock_is_lock_not_available, session, caplog):
@@ -1183,6 +1254,26 @@ class TestDagFileProcessorManager:
         )
         assert len(manager._processors) == 0
         processor.logger_filehandle.close.assert_called()
+
+    def test_kill_timed_out_processors_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
+        start_time = time.monotonic() - manager.processor_timeout - 1
+        processor, _ = self.mock_processor(start_time=start_time)
+        processor.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+        manager._processors = {
+            DagFileInfo(
+                bundle_name="testing", rel_path=Path("abc.py"), bundle_path=TEST_DAGS_FOLDER
+            ): processor
+        }
+        with (
+            mock.patch.object(type(processor), "kill"),
+            mock.patch("airflow.dag_processing.manager.stats.decr"),
+            mock.patch("airflow.dag_processing.manager.stats.incr"),
+        ):
+            manager._kill_timed_out_processors()
+
+        assert len(manager._processors) == 0
 
     def test_kill_timed_out_processors_no_kill(self):
         manager = DagFileProcessorManager(
@@ -1338,6 +1429,24 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file_b].run_count == 2
         assert len(manager._processors) == 0
 
+    def test_collect_results_tolerates_stale_file_handle_on_close(self):
+        """A stale NFS file handle on close (e.g. OpenShift) must not crash the manager."""
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_stats[file] = DagFileStat()
+        manager._bundle_versions["testing"] = "v1"
+
+        proc, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        proc.had_callbacks = False
+        proc.parsing_result = DagFileParsingResult(fileloc="a.py", serialized_dags=[])
+        proc.logger_filehandle.close.side_effect = OSError(116, "Stale file handle")
+        manager._processors = {file: proc}
+
+        with mock.patch.object(manager, "persist_parsing_result"):
+            manager._collect_results()
+
+        assert len(manager._processors) == 0
+
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
         ("callbacks", "path", "expected_body"),
@@ -1375,6 +1484,7 @@ class TestDagFileProcessorManager:
                             "filepath": "dag_callback_dag.py",
                             "bundle_name": "testing",
                             "bundle_version": None,
+                            "version_data": None,
                             "msg": None,
                             "dag_id": "dag_id",
                             "run_id": "run_id",
@@ -1965,6 +2075,30 @@ class TestDagFileProcessorManager:
 
         assert manager.prepare_callback_bundle(request) is bundle
         bundle.initialize.assert_called_once()
+
+    @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
+    def test_prepare_callback_bundle_forwards_version_data(self, mock_bundle_manager):
+        manager = DagFileProcessorManager(max_runs=1)
+        bundle = MagicMock(spec=BaseDagBundle)
+        bundle.supports_versioning = True
+        mock_bundle_manager.return_value.get_bundle.return_value = bundle
+
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        request = DagCallbackRequest(
+            filepath="file1.py",
+            dag_id="dag1",
+            run_id="run1",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="some_commit_hash",
+            version_data=version_data,
+            msg=None,
+        )
+
+        manager.prepare_callback_bundle(request)
+        mock_bundle_manager.return_value.get_bundle.assert_called_once_with(
+            name="testing", version="some_commit_hash", version_data=version_data
+        )
 
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager")
     def test_prepare_callback_bundle_skips_initialize_for_unversioned_request(self, mock_bundle_manager):
@@ -2631,6 +2765,34 @@ class TestDagFileProcessorManager:
         state = manager.get_bundle_state(bundle_name)
 
         assert state == BundleState(last_refreshed=refreshed_at, version="v1")
+
+    def test_get_bundle_state_reads_latest_database_values(self, session):
+        bundle_name = "test_fresh_state_bundle"
+        initial_refreshed_at = timezone.datetime(2024, 1, 15, 12, 0, 0)
+        refreshed_at = timezone.datetime(2024, 1, 16, 12, 0, 0)
+        model = DagBundleModel(name=bundle_name, version="old")
+        model.last_refreshed = initial_refreshed_at
+        session.add(model)
+        session.commit()
+
+        manager = DagFileProcessorManager(max_runs=1)
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=initial_refreshed_at, version="old")
+
+        with create_session(scoped=False) as update_session:
+            update_model = update_session.get(DagBundleModel, bundle_name)
+            assert update_model is not None
+            update_model.last_refreshed = refreshed_at
+            update_model.version = "fresh"
+
+        # End the read transaction started by the first get_bundle_state() call so we don't keep
+        # reading a stale snapshot on backends like SQLite.
+        session.commit()
+
+        state = manager.get_bundle_state(bundle_name, session=session)
+
+        assert state == BundleState(last_refreshed=refreshed_at, version="fresh")
 
     def test_get_bundle_state_null_fields(self, session):
         bundle_name = "test_null_state_bundle"

@@ -54,7 +54,7 @@ with DAG(
         task_id="run_query_neo4j_operator",
         neo4j_conn_id="neo4j_default",
         parameters={"name": "Tom Hanks"},
-        sql="CREATE (actor {name: $name})",
+        cypher="CREATE (actor {name: $name})",
         dag=dag,
     )
 

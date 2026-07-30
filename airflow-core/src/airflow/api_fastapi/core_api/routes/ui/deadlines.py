@@ -129,7 +129,7 @@ def get_deadlines(
         session=session,
     )
 
-    deadlines = session.scalars(deadlines_select).unique()
+    deadlines = session.scalars(deadlines_select)
 
     if dag_run_id != "~" and total_entries == 0:
         dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
@@ -165,14 +165,6 @@ def get_dag_deadline_alerts(
     order_by: Annotated[
         SortParam,
         Depends(
-            # NOTE: ``interval`` is intentionally NOT a sortable key. ``DeadlineAlert.interval`` is a
-            # JSON column holding the Airflow-serialized interval — a dict such as
-            # ``{"__classname__": "datetime.timedelta", "__data__": 300.0}`` for a fixed interval, or a
-            # structurally different dict for a ``VariableInterval``. Ordering by it at the DB level
-            # sorts by the JSON text/structure, not the duration, so the result is arbitrary and
-            # misleading (e.g. a dynamic VariableInterval sorts before/after fixed intervals by shape,
-            # and "300" vs "3600" compare lexicographically). Meaningful sorting would need a computed
-            # seconds column. Allow only columns that sort correctly.
             SortParam(
                 ["id", "created_at", "name"],
                 DeadlineAlert,

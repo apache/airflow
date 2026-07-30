@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1779137143
+source-date-epoch: 1784746595
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.6.0
   - 9.5.0
   - 9.4.2
   - 9.4.1
@@ -195,6 +196,20 @@ connection-types:
             - boolean
             - 'null'
           default: false
+      ssl:
+        label: Ssl
+        schema:
+          type:
+            - boolean
+            - 'null'
+          default: true
+      zoo_keeper_namespace:
+        label: Zoo Keeper Namespace
+        schema:
+          type:
+            - string
+            - 'null'
+          default: 'hiveserver2'
   - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
     hook-name: "Hive Server 2 Thrift"
     connection-type: hiveserver2

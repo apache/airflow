@@ -27,10 +27,12 @@ from airflow_breeze.utils.packages import (
     apply_version_suffix_to_non_provider_pyproject_tomls,
     apply_version_suffix_to_provider_pyproject_toml,
     convert_cross_package_dependencies_to_table,
+    convert_optional_dependencies_to_table,
     convert_pip_requirements_to_table,
     expand_all_provider_distributions,
     find_matching_long_package_names,
     get_available_distributions,
+    get_cross_provider_dependencies_for_extras,
     get_cross_provider_dependent_packages,
     get_dist_package_name_prefix,
     get_long_package_name,
@@ -38,11 +40,13 @@ from airflow_breeze.utils.packages import (
     get_pip_package_name,
     get_provider_details,
     get_provider_info_dict,
+    get_provider_jinja_context,
     get_provider_requirements,
     get_removed_provider_ids,
     get_short_package_name,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
+    render_template,
     validate_provider_info_with_runtime_schema,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -85,6 +89,7 @@ def test_get_short_package_name():
     assert get_short_package_name("apache-airflow") == "apache-airflow"
     assert get_short_package_name("docker-stack") == "docker-stack"
     assert get_short_package_name("task-sdk") == "task-sdk"
+    assert get_short_package_name("java-sdk") == "java-sdk"
     assert get_short_package_name("apache-airflow-providers-amazon") == "amazon"
     assert get_short_package_name("apache-airflow-providers-apache-hdfs") == "apache.hdfs"
 
@@ -98,6 +103,7 @@ def test_get_long_package_name():
     assert get_long_package_name("apache-airflow") == "apache-airflow"
     assert get_long_package_name("docker-stack") == "docker-stack"
     assert get_long_package_name("task-sdk") == "task-sdk"
+    assert get_long_package_name("java-sdk") == "java-sdk"
     assert get_long_package_name("amazon") == "apache-airflow-providers-amazon"
     assert get_long_package_name("apache.hdfs") == "apache-airflow-providers-apache-hdfs"
 
@@ -130,6 +136,7 @@ def test_get_suspended_provider_folders():
     ("short_packages", "filters", "long_packages"),
     [
         (("amazon",), (), ("apache-airflow-providers-amazon",)),
+        (("java-sdk",), (), ("java-sdk",)),
         (("apache.hdfs",), (), ("apache-airflow-providers-apache-hdfs",)),
         (
             ("apache.hdfs",),
@@ -263,6 +270,44 @@ def test_get_min_airflow_version(provider_id: str, min_version: str):
     assert get_min_airflow_version(provider_id) == min_version
 
 
+@pytest.mark.parametrize(
+    ("cross_provider_deps", "suspended_ids", "requirements", "expected"),
+    [
+        pytest.param(
+            ["common.compat", "common.sql", "google", "apache.beam"],
+            ["apache.beam"],
+            ["apache-airflow-providers-common-compat>=1.2.3"],
+            ["common.sql", "google"],
+            id="filters_suspended_and_required",
+        ),
+        pytest.param(
+            ["common.sql"],
+            [],
+            ["apache-airflow-providers-common-sql-extra>=1.0.0"],
+            ["common.sql"],
+            id="substring_collision_not_filtered",
+        ),
+    ],
+)
+def test_get_cross_provider_dependencies_for_extras(
+    monkeypatch, cross_provider_deps, suspended_ids, requirements, expected
+):
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_cross_provider_dependent_packages",
+        lambda provider_id: cross_provider_deps,
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_suspended_provider_ids",
+        lambda: suspended_ids,
+    )
+    monkeypatch.setattr(
+        "airflow_breeze.utils.packages.get_provider_requirements",
+        lambda provider_id: requirements,
+    )
+
+    assert get_cross_provider_dependencies_for_extras("test.provider") == expected
+
+
 def test_convert_cross_package_dependencies_to_table():
     EXPECTED = """
 | Dependent package                                                                       | Extra           |
@@ -276,6 +321,43 @@ def test_convert_cross_package_dependencies_to_table():
         convert_cross_package_dependencies_to_table(get_cross_provider_dependent_packages("trino")).strip()
         == EXPECTED.strip()
     )
+
+
+@pytest.mark.parametrize("markdown", [True, False])
+def test_convert_optional_dependencies_to_table(markdown: bool):
+    optional_dependencies = {
+        "aiobotocore": ["aiobotocore>=3.0.0"],
+        "s3fs": ["s3fs>=2023.10.0", "boto3>=1.0"],
+    }
+    table = convert_optional_dependencies_to_table(optional_dependencies, markdown=markdown)
+    quote = "`" if markdown else "``"
+    assert "Extra" in table
+    assert "Dependencies" in table
+    assert f"{quote}aiobotocore{quote}" in table
+    assert f"{quote}aiobotocore>=3.0.0{quote}" in table
+    # Multiple dependencies for a single extra are comma-joined in one cell.
+    assert f"{quote}s3fs>=2023.10.0{quote}, {quote}boto3>=1.0{quote}" in table
+
+
+def test_provider_index_template_renders_optional_dependencies():
+    # Amazon carries plain-PyPI extras (e.g. ``aiobotocore``) that are not cross-provider
+    # dependencies, so their only rendering path is the "Optional dependencies" section.
+    context = get_provider_jinja_context("amazon", current_release_version="1.0.0", version_suffix="")
+    rendered = render_template(
+        template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
+    )
+    assert "Optional dependencies\n---------------------" in rendered
+    assert "``aiobotocore``" in rendered
+
+
+def test_provider_index_template_omits_optional_dependencies_when_none():
+    context = get_provider_jinja_context("amazon", current_release_version="1.0.0", version_suffix="")
+    context["OPTIONAL_DEPENDENCIES"] = {}
+    context["OPTIONAL_DEPENDENCIES_TABLE_RST"] = ""
+    rendered = render_template(
+        template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
+    )
+    assert "Optional dependencies\n---------------------" not in rendered
 
 
 def test_get_provider_info_dict():

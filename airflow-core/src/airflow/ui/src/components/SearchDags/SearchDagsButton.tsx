@@ -18,11 +18,12 @@
  */
 import { Button, Box, Kbd } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { MdSearch } from "react-icons/md";
 
 import { Dialog } from "src/components/ui";
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 import { getMetaKey } from "src/utils";
 
 import { SearchDags } from "./SearchDags";
@@ -36,14 +37,14 @@ export const SearchDagsButton = () => {
     setIsOpen(false);
   };
 
-  useHotkeys(
-    "mod+k",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.search.searchDags,
+    callback: () => {
       setIsOpen(true);
     },
-    [isOpen],
-    { preventDefault: true },
-  );
+    dependencies: [isOpen],
+    options: { preventDefault: true },
+  });
 
   return (
     <Box>

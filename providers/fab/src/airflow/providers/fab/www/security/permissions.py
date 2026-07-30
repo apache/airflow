@@ -40,6 +40,7 @@ RESOURCE_DOCS = "Documentation"
 RESOURCE_DOCS_MENU = "Docs"
 RESOURCE_HITL_DETAIL = "HITL Detail"
 RESOURCE_IMPORT_ERROR = "ImportError"
+RESOURCE_IMPORT_ERROR_ALL = "All Import Errors"
 RESOURCE_JOB = "Jobs"
 RESOURCE_MY_PASSWORD = "My Password"
 RESOURCE_MY_PROFILE = "My Profile"
@@ -96,8 +97,6 @@ PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RES
 
 def resource_name(dag_id: str, resource: str) -> str:
     """Return the resource name for a DAG id."""
-    if dag_id in RESOURCE_DETAILS_MAP.keys():
-        return dag_id
     if dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
         return dag_id
     return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{dag_id}"
