@@ -607,3 +607,36 @@ class TestCliConfigUpdate:
         assert os.path.exists(backup_path), "Backup file should be created."
         backup_content = open(backup_path).read()
         assert "backup_config" in backup_content, "Backup file should contain the original content."
+
+    @pytest.mark.parametrize(
+        ("flag", "present_key", "absent_key"),
+        [
+            ("--option", "core/dag_concurrency", "core/worker_precheck"),
+            ("--ignore-option", "core/worker_precheck", "core/dag_concurrency"),
+        ],
+    )
+    def test_update_config_filters_by_bare_option_name(
+        self, flag, present_key, absent_key, tmp_path, monkeypatch, capsys
+    ):
+        cfg_file = tmp_path / "airflow.cfg"
+        cfg_file.write_text("[core]\ndag_concurrency = 16\nworker_precheck = True\n")
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+        monkeypatch.setattr(
+            conf,
+            "as_dict",
+            lambda *args, **kwargs: {
+                "core": {
+                    "dag_concurrency": ("16", "airflow.cfg"),
+                    "worker_precheck": ("True", "airflow.cfg"),
+                }
+            },
+        )
+        monkeypatch.setattr(conf, "write_custom_config", lambda file, **kwargs: file.write(""))
+
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(["config", "update", "--all-recommendations", flag, "dag_concurrency"])
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+        assert f"'{present_key}'" in output
+        assert f"'{absent_key}'" not in output
