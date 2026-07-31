@@ -10,11 +10,13 @@
   "filters": {
     "allRunTypes": "모든 실행 유형",
     "allStates": "모든 상태",
+    "anyRunState": "하나 이상의 실행",
     "favorite": {
       "all": "전체",
       "favorite": "즐겨찾기",
       "unfavorite": "즐겨찾기 해제"
     },
+    "lastRunState": "마지막 실행",
     "paused": {
       "active": "활성",
       "all": "모두",
