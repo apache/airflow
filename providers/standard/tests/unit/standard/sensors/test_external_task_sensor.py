@@ -1531,7 +1531,7 @@ class TestExternalTaskSensorV3:
         assert sensor.poke_interval == 0
 
     def test_poke_interval_overrides_poll_interval_when_both_set(self):
-        """When both are provided, the deprecated poll_interval takes precedence."""
+        """When both are provided, poke_interval takes precedence over the deprecated poll_interval."""
         with pytest.warns(AirflowProviderDeprecationWarning, match="poll_interval"):
             sensor = ExternalTaskSensor(
                 task_id=TASK_ID,
