@@ -246,7 +246,16 @@ class TestConnectionAccessor:
         accessor = ConnectionAccessor()
 
         # Conn from the supervisor / API Server
-        conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
+        conn_result = ConnectionResult(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
+        )
 
         mock_supervisor_comms.send.return_value = conn_result
 
@@ -259,7 +268,16 @@ class TestConnectionAccessor:
     def test_get_method_valid_connection(self, mock_supervisor_comms):
         """Test that the get method returns the requested connection using `conn.get`."""
         accessor = ConnectionAccessor()
-        conn_result = ConnectionResult(conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306)
+        conn_result = ConnectionResult(
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
+        )
 
         mock_supervisor_comms.send.return_value = conn_result
 
@@ -289,6 +307,9 @@ class TestConnectionAccessor:
             host="mysql",
             port=3306,
             extra='{"extra_key": "extra_value"}',
+            schema=None,
+            login=None,
+            password=None,
         )
 
         mock_supervisor_comms.send.return_value = conn_result
@@ -306,7 +327,14 @@ class TestConnectionAccessor:
 
         # Conn from the supervisor / API Server
         conn_result = ConnectionResult(
-            conn_id="mysql_conn", conn_type="mysql", host="mysql", port=3306, extra="This is not JSON!"
+            conn_id="mysql_conn",
+            conn_type="mysql",
+            host="mysql",
+            port=3306,
+            extra="This is not JSON!",
+            schema=None,
+            login=None,
+            password=None,
         )
 
         mock_supervisor_comms.send.return_value = conn_result
@@ -1115,6 +1143,11 @@ class TestInletEventAccessor:
             run_type="scheduled",
             state="success",
             consumed_asset_events=[],
+            logical_date=None,
+            data_interval_start=None,
+            data_interval_end=None,
+            end_date=None,
+            partition_key=None,
         )
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [dag_run_result]
@@ -1160,6 +1193,8 @@ class TestDagRunStartDateNullable:
             state="queued",
             conf=None,
             consumed_asset_events=[],
+            end_date=None,
+            partition_key=None,
         )
 
         assert dag_run.start_date is None
@@ -1238,6 +1273,10 @@ class TestSecretsBackend:
             conn_type="http",
             host="example.com",
             port=443,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
         )
         conn_result = ConnectionResult.from_conn_response(conn_response)
         mock_supervisor_comms.send.return_value = conn_result
@@ -1270,6 +1309,11 @@ class TestSecretsBackend:
             conn_id="test_conn",
             conn_type="postgres",
             host="db.example.com",
+            schema=None,
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
         )
         conn_result = ConnectionResult.from_conn_response(conn_response)
         mock_supervisor_comms.send.return_value = conn_result

@@ -79,7 +79,25 @@ def discover_remote_log_handler(
     fallback_path: str,
     import_string: Callable[[str], Any],
 ) -> tuple[RemoteLogIO | None, str | None]:
-    """Discover and load the remote log handler from a logging config module."""
+    """
+    Look up the optional remote-log handler alongside a logging dictConfig.
+
+    ``[logging] logging_config_class`` is a dotted path to a
+    ``logging.config.dictConfig`` dict. After importing the dict, this helper
+    re-imports the enclosing module and reads two optional module-level
+    attributes via ``getattr``:
+
+    * ``REMOTE_TASK_LOG`` — :class:`RemoteLogIO` / :class:`RemoteLogStreamIO`
+      instance that uploads and reads task logs.
+    * ``DEFAULT_REMOTE_CONN_ID`` — default Airflow connection id for that
+      backend.
+
+    Either may be ``None`` immediately after this call; provider task handlers
+    can still populate ``REMOTE_TASK_LOG`` from inside ``__init__`` when
+    ``dictConfig`` instantiates them (deprecated path). Callers that want to
+    warn on missing remote-log configuration should re-check
+    ``_ActiveLoggingConfig.remote_task_log`` *after* ``dictConfig`` has run.
+    """
     # Sometimes we end up with `""` as the value!
     logging_class_path = logging_class_path or fallback_path
 

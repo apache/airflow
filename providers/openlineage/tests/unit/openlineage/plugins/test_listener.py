@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from collections import defaultdict
 from collections.abc import Callable
-from concurrent.futures import Future
+from concurrent.futures import Future, ProcessPoolExecutor
 from contextlib import suppress
 from datetime import datetime
 from types import SimpleNamespace
@@ -36,7 +37,7 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout, BaseOperator
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
@@ -163,6 +164,26 @@ class TestProcessAdapterReuse:
 
         assert pid_first == pid_second
         assert adapter_id_first == adapter_id_second
+
+    @patch("airflow.providers.openlineage.plugins.listener.Stats")
+    @patch("airflow.providers.openlineage.plugins.listener.Serde")
+    @patch("airflow.providers.openlineage.plugins.listener._get_process_adapter")
+    def test_pool_wrappers_return_nothing(self, mock_get_adapter, mock_serde, mock_stats):
+        """The emitted event must not be pickled back to the parent.
+
+        An event the pickler chokes on would fail the future and be reported as a submission
+        failure, even though the emission itself succeeded.
+        """
+        from airflow.providers.openlineage.plugins.listener import (
+            _emit_manual_state_change_event,
+            _run_adapter_method,
+        )
+
+        assert _run_adapter_method("dag_started", dag_id="dag") is None
+        assert _emit_manual_state_change_event("fail_task", "ol.event.size.fail.op") is None
+
+        mock_get_adapter.return_value.dag_started.assert_called_once_with(dag_id="dag")
+        mock_get_adapter.return_value.fail_task.assert_called_once_with()
 
 
 class TestExecutorInitializer:
@@ -1351,9 +1372,17 @@ class TestOpenLineageListenerAirflow3:
                             "run_type": DagRunType.MANUAL,
                             "run_after": timezone.datetime(2023, 1, 3, 13, 1, 1),
                             "consumed_asset_events": [],
-                            **(
-                                {"state": SdkDagRunState.RUNNING} if "state" in SdkDagRun.model_fields else {}
-                            ),
+                            # Nullable-but-required on newer SDKs, absent on older ones.
+                            **{
+                                field: value
+                                for field, value in (
+                                    ("state", SdkDagRunState.RUNNING),
+                                    ("data_interval_start", None),
+                                    ("data_interval_end", None),
+                                    ("partition_key", None),
+                                )
+                                if field in SdkDagRun.model_fields
+                            },
                         }
                     ),
                     task_reschedule_count=0,
@@ -2729,6 +2758,128 @@ class TestOpenLineageListenerAirflow3:
         assert fut is new_future
         listener.log.warning.assert_called_once()
         assert "recreating" in listener.log.warning.call_args[0][0]
+
+    def test_submit_callable_recreates_executor_after_shutdown(self):
+        """A pool shut down by `before_stopping` must be replaced, not submitted to."""
+        listener = OpenLineageListener()
+        dead_executor = MagicMock(spec=ProcessPoolExecutor)
+        dead_executor.submit.side_effect = RuntimeError("cannot schedule new futures after shutdown")
+        new_executor = MagicMock(spec=ProcessPoolExecutor)
+        listener._executor = dead_executor
+        listener.log = MagicMock(spec=logging.Logger)
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor",
+            return_value=new_executor,
+        ):
+            fut = listener.submit_callable(lambda: None)
+
+        assert fut is new_executor.submit.return_value
+        assert listener._executor is new_executor
+
+    def test_before_stopping_does_not_create_executor(self):
+        """On the task runner this hook fires per task; it must not spawn a pool to tear it down."""
+        listener = OpenLineageListener()
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.ProcessPoolExecutor"
+        ) as mock_pool_cls:
+            listener.before_stopping(MagicMock())
+
+        mock_pool_cls.assert_not_called()
+        assert listener._executor is None
+
+    def test_before_stopping_detaches_executor(self):
+        executor = MagicMock(spec=ProcessPoolExecutor)
+        listener = OpenLineageListener()
+        listener._executor = executor
+
+        listener.before_stopping(MagicMock())
+
+        executor.shutdown.assert_called_once_with(wait=True)
+        assert listener._executor is None
+
+    def test_before_stopping_swallows_shutdown_failure(self):
+        """A timed-out or off-main-thread shutdown must not escape the hook.
+
+        `AirflowTaskTimeout` derives from `BaseException`, so the guard cannot be `except Exception`.
+        """
+        executor = MagicMock(spec=ProcessPoolExecutor)
+        executor.shutdown.side_effect = [AirflowTaskTimeout("timed out"), None]
+        listener = OpenLineageListener()
+        listener._executor = executor
+        listener.log = MagicMock(spec=logging.Logger)
+
+        listener.before_stopping(MagicMock())
+
+        assert executor.shutdown.call_args_list == [mock.call(wait=True), mock.call(wait=False)]
+        assert listener._executor is None
+        listener.log.warning.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.logging.shutdown")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os._exit")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os.fork", return_value=0)
+    def test_fork_execute_child_exits_on_base_exception(self, mock_fork, mock_exit, mock_log_shutdown):
+        """A SIGINT to the process group reaches the child as KeyboardInterrupt.
+
+        The child must never return: doing so leaves a duplicate task runner behind, sharing the
+        supervisor connection with the real one.
+        """
+        listener = OpenLineageListener()
+        listener.log = MagicMock(spec=logging.Logger)
+
+        listener._fork_execute(
+            mock.Mock(spec=Callable, side_effect=KeyboardInterrupt("ctrl-c")), "on_running"
+        )
+
+        mock_exit.assert_called_once_with(0)
+        mock_log_shutdown.assert_called_once()
+        listener.log.warning.assert_called_once()
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.logging.shutdown")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os._exit")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os.fork", return_value=0)
+    def test_fork_execute_child_exits_when_setup_fails(self, mock_fork, mock_exit, mock_log_shutdown):
+        """A failure before the emission call must still exit, not unwind into the caller."""
+        listener = OpenLineageListener()
+        listener.log = MagicMock(spec=logging.Logger)
+        callable_ = mock.Mock(spec=Callable)
+
+        with mock.patch(
+            "airflow.providers.openlineage.plugins.listener.getproctitle",
+            side_effect=OSError("cannot read proc title"),
+        ):
+            listener._fork_execute(callable_, "on_running")
+
+        callable_.assert_not_called()
+        mock_exit.assert_called_once_with(0)
+        listener.log.warning.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.logging.shutdown",
+        side_effect=RuntimeError("handler close failed"),
+    )
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os._exit")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.os.fork", return_value=0)
+    def test_fork_execute_child_exits_when_logging_shutdown_raises(
+        self, mock_fork, mock_exit, mock_log_shutdown
+    ):
+        """logging.shutdown() raising must not bypass os._exit(0).
+
+        A remote task-log handler (S3/GCS) whose close() raises, or a handler lock held
+        at fork time, can make logging.shutdown() propagate out of the finally block.
+        Without the nested finally the child unwinds into the task runner and runs as a
+        second process sharing the supervisor connection.
+        """
+        listener = OpenLineageListener()
+        listener.log = MagicMock(spec=logging.Logger)
+
+        # In the real process os._exit(0) terminates execution before the RuntimeError
+        # can propagate; with a mocked os._exit the exception surfaces in the test.
+        with pytest.raises(RuntimeError, match="handler close failed"):
+            listener._fork_execute(mock.Mock(spec=Callable), "on_running")
+
+        mock_exit.assert_called_once_with(0)
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")

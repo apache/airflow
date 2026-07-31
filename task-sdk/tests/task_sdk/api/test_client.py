@@ -1127,6 +1127,12 @@ class TestConnectionOperations:
                     json={
                         "conn_id": "test_conn",
                         "conn_type": "mysql",
+                        "host": None,
+                        "schema": None,
+                        "login": None,
+                        "password": None,
+                        "port": None,
+                        "extra": None,
                     },
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
@@ -1631,6 +1637,10 @@ class TestDagRunOperations:
                         "run_type": "scheduled",
                         "state": "success",
                         "consumed_asset_events": [],
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "end_date": None,
+                        "partition_key": None,
                     },
                 )
             return httpx.Response(status_code=422)
@@ -1666,6 +1676,10 @@ class TestDagRunOperations:
                         "run_type": "scheduled",
                         "state": "success",
                         "consumed_asset_events": [],
+                        "data_interval_start": None,
+                        "data_interval_end": None,
+                        "end_date": None,
+                        "partition_key": None,
                     },
                 )
             return httpx.Response(status_code=422)

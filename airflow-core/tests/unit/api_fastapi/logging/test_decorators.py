@@ -16,14 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
+from unittest.mock import MagicMock
 
 import pytest
+from fastapi import Request
+from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.logging.decorators import (
     _mask_connection_fields,
     _mask_variable_fields,
     _sanitize_for_stdlib_log,
+    action_logging,
 )
 
 
@@ -122,3 +128,28 @@ class TestMaskVariableFields:
     def test_value_without_key_is_still_masked(self):
         result = _mask_variable_fields({"value": "secretval"})
         assert result == {"value": "***"}
+
+
+class TestActionLoggingUserFields:
+    """The audit Log records the raw identifier in ``owner`` and the human-friendly
+    ``get_display_name()`` in ``owner_display_name``."""
+
+    def test_owner_and_display_name_use_the_matching_user_methods(self):
+        class FakeUser(BaseUser):
+            def get_id(self) -> str:
+                return "id"
+
+            def get_name(self) -> str:
+                return "jdoe"
+
+            def get_display_name(self) -> str:
+                return "Jane Doe"
+
+        request = Request({"type": "http", "method": "GET", "headers": [], "query_string": b""})
+        session = MagicMock(spec=Session)
+
+        asyncio.run(action_logging(event="test_event")(request=request, session=session, user=FakeUser()))
+
+        (logged,) = session.add.call_args.args
+        assert logged.owner == "jdoe"
+        assert logged.owner_display_name == "Jane Doe"

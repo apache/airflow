@@ -223,10 +223,14 @@ mv "'"$exit_code_tmp"'" "'"$exit_code_file"'"
 exit 0
 '
 
+# Redirect stdin from /dev/null too, not just stdout/stderr: a fresh setsid session
+# leader that keeps the launching terminal on any fd re-acquires it as its controlling
+# terminal, so a hangup (SSH session with a PTY dropping) would SIGHUP the detached job
+# and defeat the whole point of running it in its own session.
 if command -v setsid >/dev/null 2>&1; then
-  setsid bash -c "$job_script" >/dev/null 2>&1 &
+  setsid bash -c "$job_script" </dev/null >/dev/null 2>&1 &
 else
-  nohup bash -c "$job_script" >/dev/null 2>&1 &
+  nohup bash -c "$job_script" </dev/null >/dev/null 2>&1 &
 fi
 echo "{paths.job_id}"
 """
