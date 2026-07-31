@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Sequence
 
 from google.auth.exceptions import DefaultCredentialsError
@@ -36,6 +37,10 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 log = logging.getLogger(__name__)
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
+
+# Separator between the team name and the secret id in a team scoped secret name.
+# Matches the convention the other secrets backends use.
+TEAM_SEP = "--"
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -166,7 +171,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        return self._get_secret(self.connections_prefix, conn_id)
+        return self._get_secret(self.connections_prefix, conn_id, team_name)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
@@ -179,7 +184,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.variables_prefix is None:
             return None
 
-        return self._get_secret(self.variables_prefix, key)
+        return self._get_secret(self.variables_prefix, key, team_name)
 
     def get_config(self, key: str) -> str | None:
         """
@@ -193,12 +198,52 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
+    def _build_team_secret_name(self, path_prefix: str, team_name: str, secret_id: str) -> str:
+        """Build a team scoped secret name using a dedicated separator before the secret id."""
+        team_prefix = self.build_path(path_prefix, team_name, self.sep)
+        normalized_secret_id = secret_id.replace("_", self.sep)
+        return f"{team_prefix}{TEAM_SEP}{normalized_secret_id}"
+
+    def _names_a_team_namespace(self, secret_id: str) -> bool:
+        """
+        Whether ``secret_id`` spells out a team scoped secret name.
+
+        A team scoped secret is named ``<prefix><sep><team><TEAM_SEP><secret id>``, so an id
+        that already contains the team separator makes the team agnostic lookup resolve a
+        secret inside some team's namespace. That lookup is refused for such an id.
+
+        The id is never parsed to work out *which* team it names, because it cannot be: a
+        team name may itself contain the separator, so nothing in the string distinguishes
+        team ``a`` with id ``b--c`` from team ``a--b`` with id ``c``. Comparing the id against
+        the prefix the caller's own team builds looks equivalent and is not -- a caller in
+        team ``a`` would match ``a--b``'s namespace on the prefix and read its secrets. Only
+        the caller's own namespace is ever constructed, never parsed.
+        """
+        normalized_secret_id = self.build_path("", secret_id, self.sep)
+        return bool(re.fullmatch(rf".+{re.escape(TEAM_SEP)}.+", normalized_secret_id))
+
+    def _get_secret(self, path_prefix: str, secret_id: str, team_name: str | None = None) -> str | None:
         """
         Get secret value from the SecretManager based on prefix.
 
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
+        :param team_name: Team the lookup is scoped to (if any)
         """
+        # The team scoped name is tried first and is safe by construction: it can only ever
+        # build the caller's own namespace.
+        if team_name:
+            team_secret = self.client.get_secret(
+                secret_id=self._build_team_secret_name(path_prefix, team_name, secret_id),
+                project_id=self.project_id,
+            )
+            if team_secret is not None:
+                return team_secret
+
+        # Falling through to the team agnostic name would resolve a secret in some team's
+        # namespace when the id spells one out, so that is refused rather than resolved.
+        if self._names_a_team_namespace(secret_id):
+            return None
+
         secret_id = self.build_path(path_prefix, secret_id, self.sep)
         return self.client.get_secret(secret_id=secret_id, project_id=self.project_id)
