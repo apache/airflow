@@ -124,6 +124,32 @@ class TestSsmSecrets:
         assert ssm_backend.get_conn_value(conn_id="my_team--test_postgres") is None
 
     @mock_aws
+    def test_another_teams_secret_is_not_reachable(self):
+        """A caller scoped to one team must not reach another team's parameter by naming it."""
+        param = {
+            "Name": "/airflow/connections/my_team--test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        assert ssm_backend.get_conn_value(conn_id="my_team--test_postgres", team_name="other_team") is None
+
+    @mock_aws
+    def test_team_whose_name_extends_the_callers_is_not_reachable(self):
+        """A prefix match on the caller's own namespace is not proof of ownership."""
+        param = {
+            "Name": "/airflow/connections/my_team--prod--test_postgres",
+            "Type": "String",
+            "Value": "postgresql://airflow:airflow@host:5432/airflow",
+        }
+        ssm_backend = SystemsManagerParameterStoreBackend()
+        ssm_backend.client.put_parameter(**param)
+
+        assert ssm_backend.get_conn_value(conn_id="my_team--prod--test_postgres", team_name="my_team") is None
+
+    @mock_aws
     def test_team_caller_falls_back_to_global_connection(self):
         param = {
             "Name": "/airflow/connections/test_postgres",

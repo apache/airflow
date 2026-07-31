@@ -322,19 +322,27 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
                 lookup_pattern,
             )
             return None
-        if team_name is None and re.fullmatch(r"[^-]+--.+", secret_id):
-            self.log.warning(
-                "Secret ID %r contains a '--' separator, which is reserved for team-scoped lookups, "
-                "but no team context was provided. Returning None.",
-                secret_id,
-            )
-            return None
+        # Tried first and safe by construction: it can only build the caller's own namespace.
         if path_prefix and team_name:
             secrets_path = self.build_path(path_prefix, f"{team_name}--{secret_id}", self.sep)
             value = self._get_secret_value(secret_id, secrets_path)
             if value is not None:
                 return value
 
+        # Falling through to the team agnostic path would resolve a secret inside some team's
+        # namespace when the id spells one out, so that is refused rather than resolved. The id
+        # is never parsed to work out *which* team it names: a team name may itself contain the
+        # separator, so nothing distinguishes team "a" with id "b--c" from team "a--b" with id
+        # "c". Comparing it against the prefix the caller's own team builds looks equivalent and
+        # is not -- a caller in team "a" matches "a--b"'s namespace on the prefix. Only the
+        # caller's own namespace is ever constructed, never parsed.
+        if re.fullmatch(r".+--.+", secret_id):
+            self.log.warning(
+                "Secret ID %r contains a '--' separator, which is reserved for team-scoped "
+                "lookups, so it cannot be resolved through the team agnostic name. Returning None.",
+                secret_id,
+            )
+            return None
         if path_prefix:
             secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         else:

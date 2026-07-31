@@ -93,6 +93,26 @@ class TestSecretsManagerBackend:
         assert secrets_manager_backend.get_conn_value(conn_id="my_team--test_postgres") is None
 
     @mock_aws
+    def test_another_teams_secret_is_not_reachable(self):
+        """A caller scoped to one team must not reach another team's secret by naming it."""
+        secret_id = "airflow/connections/my_team--test_postgres"
+        create_param = {"Name": secret_id, "SecretString": "postgresql://airflow:airflow@host:5432/airflow"}
+        backend = SecretsManagerBackend()
+        backend.client.create_secret(**create_param)
+
+        assert backend.get_conn_value(conn_id="my_team--test_postgres", team_name="other_team") is None
+
+    @mock_aws
+    def test_team_whose_name_extends_the_callers_is_not_reachable(self):
+        """A prefix match on the caller's own namespace is not proof of ownership."""
+        secret_id = "airflow/connections/my_team--prod--test_postgres"
+        create_param = {"Name": secret_id, "SecretString": "postgresql://airflow:airflow@host:5432/airflow"}
+        backend = SecretsManagerBackend()
+        backend.client.create_secret(**create_param)
+
+        assert backend.get_conn_value(conn_id="my_team--prod--test_postgres", team_name="my_team") is None
+
+    @mock_aws
     def test_team_caller_falls_back_to_global_connection(self):
         secret_id = "airflow/connections/test_postgres"
         create_param = {
