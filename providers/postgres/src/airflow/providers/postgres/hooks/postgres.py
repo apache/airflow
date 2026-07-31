@@ -18,14 +18,12 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, NoReturn, Protocol, TypeAlias, cast, overload
 
 from more_itertools import chunked
-from psycopg2 import connect as ppg2_connect
-from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_values
 
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -54,9 +52,35 @@ if USE_PSYCOPG3:
     from psycopg.rows import dict_row, namedtuple_row
     from psycopg.types.json import register_default_adapters
 
+try:
+    import psycopg2 as _psycopg2
+    import psycopg2.extras as _psycopg2_extras
+except (ImportError, ModuleNotFoundError):
+    _psycopg2 = None
+    _psycopg2_extras = None
+
+ppg2_connect: Callable[..., Any] | None = _psycopg2.connect if _psycopg2 else None
+DictCursor: type | None = _psycopg2_extras.DictCursor if _psycopg2_extras else None
+NamedTupleCursor: type | None = _psycopg2_extras.NamedTupleCursor if _psycopg2_extras else None
+RealDictCursor: type | None = _psycopg2_extras.RealDictCursor if _psycopg2_extras else None
+execute_values: Callable[..., Any] | None = _psycopg2_extras.execute_values if _psycopg2_extras else None
+
+
+def _require_psycopg2() -> NoReturn:
+    raise AirflowOptionalProviderFeatureException(
+        "psycopg2 is not installed. Please install it with "
+        "`pip install apache-airflow-providers-postgres[psycopg2]`."
+    )
+
+
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
+    from psycopg2.extras import (
+        DictCursor as _DictCursorType,
+        NamedTupleCursor as _NamedTupleCursorType,
+        RealDictCursor as _RealDictCursorType,
+    )
     from sqlalchemy.engine import URL
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
@@ -65,34 +89,18 @@ if TYPE_CHECKING:
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
 
-    CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
+    CursorType: TypeAlias = _DictCursorType | _RealDictCursorType | _NamedTupleCursorType
     CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
 
 
 class CompatConnection(Protocol):
-    """Protocol for type hinting psycopg2 and psycopg3 connection objects."""
+    """Protocol for the common interface shared by psycopg2 and psycopg3 connection objects."""
 
     def cursor(self, *args, **kwargs) -> Any: ...
     def commit(self) -> None: ...
     def close(self) -> None: ...
-
-    # Context manager support
-    def __enter__(self) -> CompatConnection: ...
+    def __enter__(self) -> Any: ...
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None: ...
-
-    # Common properties
-    @property
-    def notices(self) -> list[Any]: ...
-
-    # psycopg3 specific (optional)
-    @property
-    def adapters(self) -> Any: ...
-
-    @property
-    def row_factory(self) -> Any: ...
-
-    # Optional method for psycopg3
-    def add_notice_handler(self, handler: Any) -> None: ...
 
 
 class PostgresHook(DbApiHook):
@@ -220,6 +228,9 @@ class PostgresHook(DbApiHook):
             valid_cursors = "dictcursor, namedtuplecursor"
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
+        if DictCursor is None:
+            _require_psycopg2()
+
         cursor_types = {
             "dictcursor": DictCursor,
             "realdictcursor": RealDictCursor,
@@ -250,6 +261,9 @@ class PostgresHook(DbApiHook):
                 connection.add_notice_handler(self._notice_handler)
 
             return connection
+
+        if ppg2_connect is None:
+            _require_psycopg2()
 
         return ppg2_connect(**conn_args)
 
@@ -707,6 +721,8 @@ class PostgresHook(DbApiHook):
             )
 
         # if fast_executemany is enabled with psycopg2, use optimized execute_values from psycopg
+        if execute_values is None:
+            _require_psycopg2()
         self._insert_statement_format = "INSERT INTO {} {} VALUES %s"
 
         nb_rows = 0
@@ -741,3 +757,42 @@ class PostgresHook(DbApiHook):
 
         self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
         return None
+
+    def upsert_rows(
+        self,
+        table: str,
+        rows: Iterable[tuple[Any, ...]],
+        target_fields: list[str],
+        conflict_fields: list[str],
+        update_fields: list[str] | None = None,
+        commit_every: int = 1000,
+        *,
+        fast_executemany: bool = False,
+        autocommit: bool = False,
+    ) -> None:
+        """
+        Upsert rows into a PostgreSQL table using ``ON CONFLICT``.
+
+        :param table: Name of the target table.
+        :param rows: Rows to upsert.
+        :param target_fields: Non-empty column names used in the ``INSERT`` statement.
+        :param conflict_fields: Non-empty column names used in the ``ON CONFLICT`` clause.
+        :param update_fields: Columns updated on conflict. If omitted, all
+            non-conflict columns are updated. If an empty list is provided,
+            conflicting rows are ignored via ``DO NOTHING``.
+        :param commit_every: Maximum number of rows per transaction. Default value is 1000.
+        :param fast_executemany: Use ``psycopg2.extras.execute_batch`` for improved
+            batch performance.
+        :param autocommit: Connection autocommit setting.
+        """
+        return self.insert_rows(
+            table=table,
+            rows=rows,
+            target_fields=target_fields,
+            replace_index=conflict_fields,
+            replace_target=update_fields,
+            commit_every=commit_every,
+            replace=True,
+            fast_executemany=fast_executemany,
+            autocommit=autocommit,
+        )

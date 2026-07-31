@@ -34,6 +34,7 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_job_namespace,
     lineage_run_id,
 )
+from airflow.providers.openlineage.utils.emission_policy import resolve_task_emission_policy
 from airflow.providers.openlineage.utils.utils import (
     build_task_event_job_facets,
     build_task_event_run_facets,
@@ -48,6 +49,7 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 log = logging.getLogger(__name__)
 
@@ -56,9 +58,9 @@ __all__ = ["emit_dataset_lineage"]
 
 def emit_dataset_lineage(
     *,
-    inputs: list[InputDataset] | None = None,
-    outputs: list[OutputDataset] | None = None,
-    task_instance: RuntimeTaskInstance | TaskInstance | None = None,
+    inputs: list[InputDataset | Dataset] | None = None,
+    outputs: list[OutputDataset | Dataset] | None = None,
+    task_instance: RuntimeTaskInstanceProtocol | RuntimeTaskInstance | TaskInstance | None = None,
     additional_run_facets: dict[str, RunFacet] | None = None,
     additional_job_facets: dict[str, JobFacet] | None = None,
     raise_on_error: bool = False,
@@ -130,6 +132,20 @@ def emit_dataset_lineage(
         dag_run, dag, task = get_dag_run_dag_and_task_from_ti(task_instance)
         task_uuid = lineage_run_id(task_instance)
 
+        controls = resolve_task_emission_policy(
+            operator=task,
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+        )
+        if not controls.emit:
+            log.info(
+                "Skipping OpenLineage RUNNING event emission for task `%s` in dag `%s` "
+                "due to emission policy. emit_dataset_lineage will have no effect.",
+                task_instance.task_id,
+                task_instance.dag_id,
+            )
+            return
+
         run_facets = build_task_event_run_facets(
             task_instance=task_instance,
             dag_run=dag_run,
@@ -145,6 +161,7 @@ def emit_dataset_lineage(
             parent_job_name=dag.dag_id,
             dr_conf=_get_dag_run_conf(task_instance),
             additional_run_facets=additional_run_facets,
+            include_full_task_info=controls.include_full_task_info,
         )
         job_facets = build_task_event_job_facets(
             task=task, dag=dag, additional_job_facets=additional_job_facets
@@ -159,8 +176,8 @@ def emit_dataset_lineage(
                 name=lineage_job_name(task_instance),
                 facets=job_facets,
             ),
-            inputs=inputs,
-            outputs=outputs,
+            inputs=inputs,  # type: ignore[arg-type]
+            outputs=outputs,  # type: ignore[arg-type]
             producer=_PRODUCER,
         )
 

@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.core_api import security as core_api_security
 from airflow.providers.fab.auth_manager.middleware import FabAuthRolePublicMiddleware
 
 
@@ -47,6 +48,18 @@ class TestFabAuthRolePublicMiddleware:
         await middleware.dispatch(request, call_next)
 
         assert request.state.user is public_user
+
+        trusted_marker = getattr(
+            core_api_security,
+            "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
+            None,
+        )
+
+        if trusted_marker is not None:
+            assert request.state.user_authenticated_via is trusted_marker
+        else:
+            assert not hasattr(request.state, "user_authenticated_via")
+
         auth_manager.build_public_user.assert_called_once_with()
         call_next.assert_awaited_once_with(request)
 

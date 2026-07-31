@@ -99,7 +99,8 @@ class AirflowClient:
             **kwargs,
         )
         response.raise_for_status()
-        return response.json()
+        # DELETE and other no-content responses (204) have an empty body; json() would choke on it.
+        return response.json() if response.content else None
 
     def get_dag(self, dag_id: str):
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}")

@@ -42,6 +42,7 @@
   },
   "deadlineAlerts": {
     "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
+    "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
     "count_one": "{{count}} 個期限",
     "count_other": "{{count}} 個期限",
     "referenceType": {
@@ -91,10 +92,6 @@
     "critical": "CRITICAL",
     "debug": "DEBUG",
     "error": "ERROR",
-    "fullscreen": {
-      "button": "全螢幕",
-      "tooltip": "按下 {{hotkey}} 進入全螢幕"
-    },
     "info": "INFO",
     "noTryNumber": "無嘗試次數",
     "search": {
@@ -105,11 +102,6 @@
     "settings": "日誌設定",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
-  },
-  "navigation": {
-    "navigation": "導航: {{arrow}}",
-    "openGraphFilters": "任務篩選條件: Ctrl+Shift+F",
-    "toggleGroup": "展開/收合群組: 空白鍵"
   },
   "notFound": {
     "back": "返回",
@@ -232,7 +224,7 @@
     "runs": "執行紀錄",
     "storage": "儲存空間",
     "taskInstances": "任務實例",
-    "taskStore": "任務儲存區",
+    "taskStateStore": "任務儲存區",
     "tasks": "任務",
     "xcom": "XCom"
   },
@@ -240,7 +232,7 @@
     "collapseAll": "收合所有任務群組",
     "expandAll": "展開所有任務群組"
   },
-  "taskStore": {
+  "taskStateStore": {
     "add": "新增任務儲存區",
     "clearAll": {
       "resource": "所有任務儲存區",

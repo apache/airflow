@@ -25,6 +25,7 @@
   - [Identifiers](#identifiers)
   - [Project-specific labels](#project-specific-labels)
   - [Grace windows](#grace-windows)
+  - [Feedback delivery](#feedback-delivery)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -75,3 +76,9 @@ days).
 | Stale-review-ping cooldown | 7 days | 7 days |
 | Stale-workflow-approval threshold | 28 days | 28 days |
 | Stale-Copilot-review threshold | 7 days | 7 days |
+
+## Feedback delivery
+
+| Key | Value | Notes |
+|---|---|---|
+| `triage_feedback_channel` | `pr-body` | Deterministic quality-violation feedback for the `draft`, `comment` (deterministic-flag), and `close` actions is **folded into the PR description** as a managed marker block rather than posted as a comment. Editing a PR body does not notify subscribers, so the maintainer mailbox stays quiet (the [denoise rationale](../../skills/pr-management-triage/rationale.md#why-fold-feedback-into-the-pr-body-denoise)). Pings, `request-author-confirmation`, security-language, suspicious-changes, and stale-sweep messages always post a comment regardless — their purpose *is* to notify a human. Set to `comment` to revert to the legacy notifying-comment behaviour for all violation feedback. |

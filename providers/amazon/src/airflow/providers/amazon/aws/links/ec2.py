@@ -44,3 +44,14 @@ class EC2InstanceDashboardLink(BaseAwsLink):
     @staticmethod
     def format_instance_id_filter(instance_ids: list[str]) -> str:
         return ",:".join(instance_ids)
+
+
+class VpcEndpointLink(BaseAwsLink):
+    """Helper class for constructing a VPC Endpoint link."""
+
+    name = "VPC Endpoint"
+    key = "_vpc_endpoint"
+    format_str = (
+        BASE_AWS_CONSOLE_LINK
+        + "/vpcconsole/home?region={region_name}#EndpointDetails:vpcEndpointId={endpoint_id}"
+    )

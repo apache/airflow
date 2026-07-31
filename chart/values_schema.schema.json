@@ -1,5 +1,5 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
     "description": "This schema is used to validate `values.schema.json` to ensure each parameter has `default` and `description` set, and that top level properties have a `x-docsSection` set.",
     "definitions": {

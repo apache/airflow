@@ -1,0 +1,65 @@
+[
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "timetable": {
+                            "expression": "21 13 29 2 4",
+                            "timezone": "UTC",
+                            "interval": 0.0,
+                            "run_immediately": false
+                        },
+                        "timetable_summary": "21 13 29 2 4"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_cron_trigger_timetable_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "expression": "21 13 29 2 4",
+                            "timezone": "UTC",
+                            "interval": 0.0,
+                            "run_immediately": false
+                        },
+                        "timetable_summary": "21 13 29 2 4"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_cron_trigger_timetable_dag.do_nothing_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "dag": {
+                        "timetable": {
+                            "expression": "21 13 29 2 4",
+                            "timezone": "UTC",
+                            "interval": 0.0,
+                            "run_immediately": false
+                        },
+                        "timetable_summary": "21 13 29 2 4"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_schedule_cron_trigger_timetable_dag.do_nothing_task"
+        }
+    }
+]

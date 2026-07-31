@@ -55,6 +55,10 @@ Before running:
 1. Create an LLM connection named ``pydanticai_default`` (or the value of
    ``LLM_CONN_ID``) for your chosen model provider.
 2. Place the cleaned survey CSV at the path set by ``SURVEY_CSV_PATH``.
+
+This DAG needs the optional ``sql`` extra::
+
+    pip install "apache-airflow-providers-common-ai[sql]"
 """
 
 from __future__ import annotations
@@ -64,11 +68,15 @@ import json
 import os
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.common.sql.config import DataSourceConfig
 from airflow.providers.common.sql.operators.analytics import AnalyticsOperator
 from airflow.providers.standard.operators.hitl import ApprovalOperator
+
+try:
+    from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
+except Exception:
+    LLMSQLQueryOperator = None  # type: ignore[assignment,misc]
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -134,138 +142,137 @@ Focus on patterns and proportions rather than raw counts."""
 # DAG: Agentic multi-query synthesis
 # ---------------------------------------------------------------------------
 
+if LLMSQLQueryOperator is not None:
+    # [START example_llm_survey_agentic]
+    @dag(tags=["example"])
+    def example_llm_survey_agentic():
+        """
+        Fan-out across four survey dimensions, then synthesize into a single narrative.
 
-# [START example_llm_survey_agentic]
-@dag(tags=["example"])
-def example_llm_survey_agentic():
-    """
-    Fan-out across four survey dimensions, then synthesize into a single narrative.
+        Task graph::
 
-    Task graph::
+            decompose_question (@task)
+                → generate_sql  (LLMSQLQueryOperator ×4, via Dynamic Task Mapping)
+                → wrap_query    (@task ×4)
+                → run_query     (AnalyticsOperator ×4, via Dynamic Task Mapping)
+                → collect_results (@task)
+                → synthesize_answer (LLMOperator)
+                → result_confirmation (ApprovalOperator)
+        """
 
-        decompose_question (@task)
-            → generate_sql  (LLMSQLQueryOperator ×4, via Dynamic Task Mapping)
-            → wrap_query    (@task ×4)
-            → run_query     (AnalyticsOperator ×4, via Dynamic Task Mapping)
-            → collect_results (@task)
-            → synthesize_answer (LLMOperator)
-            → result_confirmation (ApprovalOperator)
-    """
-
-    # ------------------------------------------------------------------
-    # Step 1: Decompose the high-level question into sub-questions,
-    # one per dimension.  Each string becomes one mapped task instance
-    # in the next step.
-    # ------------------------------------------------------------------
-    @task
-    def decompose_question() -> list[str]:
-        return [
-            """\
+        # ------------------------------------------------------------------
+        # Step 1: Decompose the high-level question into sub-questions,
+        # one per dimension.  Each string becomes one mapped task instance
+        # in the next step.
+        # ------------------------------------------------------------------
+        @task
+        def decompose_question() -> list[str]:
+            return [
+                """\
 Among respondents who use AI/LLM tools to write Airflow code,
 what executor types (CeleryExecutor, KubernetesExecutor, LocalExecutor)
 are most commonly enabled? Count an executor as enabled only if the
 column value is clearly affirmative. Treat blank, NULL, and negative
 values as not enabled. Return the count per executor type.""",
-            """\
+                """\
 Among respondents who use AI/LLM tools to write Airflow code,
 how do they deploy Airflow? Return the count per deployment method.""",
-            """\
+                """\
 Among respondents who use AI/LLM tools to write Airflow code,
 which cloud providers are most commonly used for Airflow?
 Return the count per cloud provider.""",
-            """\
+                """\
 Among respondents who use AI/LLM tools to write Airflow code,
 what version of Airflow are they currently running?
 Return the count per version.""",
-        ]
+            ]
 
-    sub_questions = decompose_question()
+        sub_questions = decompose_question()
 
-    # ------------------------------------------------------------------
-    # Step 2: Generate SQL for each sub-question in parallel.
-    # LLMSQLQueryOperator is expanded over the sub-question list --
-    # four mapped instances, each translating one natural-language
-    # question into validated SQL.
-    # ------------------------------------------------------------------
-    generate_sql = LLMSQLQueryOperator.partial(
-        task_id="generate_sql",
-        llm_conn_id=LLM_CONN_ID,
-        datasource_config=survey_datasource,
-        schema_context=SURVEY_SCHEMA,
-        system_prompt=SQL_SYSTEM_PROMPT,
-    ).expand(prompt=sub_questions)
+        # ------------------------------------------------------------------
+        # Step 2: Generate SQL for each sub-question in parallel.
+        # LLMSQLQueryOperator is expanded over the sub-question list --
+        # four mapped instances, each translating one natural-language
+        # question into validated SQL.
+        # ------------------------------------------------------------------
+        generate_sql = LLMSQLQueryOperator.partial(
+            task_id="generate_sql",
+            llm_conn_id=LLM_CONN_ID,
+            datasource_config=survey_datasource,
+            schema_context=SURVEY_SCHEMA,
+            system_prompt=SQL_SYSTEM_PROMPT,
+        ).expand(prompt=sub_questions)
 
-    # ------------------------------------------------------------------
-    # Step 3: Wrap each SQL string into a single-element list.
-    # AnalyticsOperator expects queries: list[str]; this step bridges
-    # the scalar output of LLMSQLQueryOperator to that interface.
-    # ------------------------------------------------------------------
-    @task
-    def wrap_query(sql: str) -> list[str]:
-        return [sql]
+        # ------------------------------------------------------------------
+        # Step 3: Wrap each SQL string into a single-element list.
+        # AnalyticsOperator expects queries: list[str]; this step bridges
+        # the scalar output of LLMSQLQueryOperator to that interface.
+        # ------------------------------------------------------------------
+        @task
+        def wrap_query(sql: str) -> list[str]:
+            return [sql]
 
-    wrapped_queries = wrap_query.expand(sql=generate_sql.output)
+        wrapped_queries = wrap_query.expand(sql=generate_sql.output)
 
-    # ------------------------------------------------------------------
-    # Step 4: Execute each SQL against the survey CSV via DataFusion.
-    # Four mapped instances run in parallel.  If one fails, only that
-    # instance retries -- the other three hold their XCom results.
-    # ------------------------------------------------------------------
-    run_query = AnalyticsOperator.partial(
-        task_id="run_query",
-        datasource_configs=[survey_datasource],
-        result_output_format="json",
-    ).expand(queries=wrapped_queries)
+        # ------------------------------------------------------------------
+        # Step 4: Execute each SQL against the survey CSV via DataFusion.
+        # Four mapped instances run in parallel.  If one fails, only that
+        # instance retries -- the other three hold their XCom results.
+        # ------------------------------------------------------------------
+        run_query = AnalyticsOperator.partial(
+            task_id="run_query",
+            datasource_configs=[survey_datasource],
+            result_output_format="json",
+        ).expand(queries=wrapped_queries)
 
-    # ------------------------------------------------------------------
-    # Step 5: Collect all four JSON results and label them by dimension.
-    # The default trigger rule (all_success) ensures synthesis only runs
-    # when the complete picture is available.
-    # ------------------------------------------------------------------
-    @task
-    def collect_results(results: list[str]) -> dict:
-        # Airflow preserves index order for mapped task outputs, so zip is safe here:
-        # results[i] corresponds to the mapped instance at index i, which matches
-        # the sub-question at DIMENSION_KEYS[i].
-        labeled: dict[str, list] = {}
-        for key, raw in zip(DIMENSION_KEYS, results):
-            items = json.loads(raw)
-            data = [row for item in items for row in item["data"]]
-            labeled[key] = data
-        return labeled
+        # ------------------------------------------------------------------
+        # Step 5: Collect all four JSON results and label them by dimension.
+        # The default trigger rule (all_success) ensures synthesis only runs
+        # when the complete picture is available.
+        # ------------------------------------------------------------------
+        @task
+        def collect_results(results: list[str]) -> dict:
+            # Airflow preserves index order for mapped task outputs, so zip is safe here:
+            # results[i] corresponds to the mapped instance at index i, which matches
+            # the sub-question at DIMENSION_KEYS[i].
+            labeled: dict[str, list] = {}
+            for key, raw in zip(DIMENSION_KEYS, results):
+                items = json.loads(raw)
+                data = [row for item in items for row in item["data"]]
+                labeled[key] = data
+            return labeled
 
-    collected = collect_results(run_query.output)
+        collected = collect_results(run_query.output)
 
-    # ------------------------------------------------------------------
-    # Step 6: Synthesize the four labeled result sets into a narrative.
-    # This is the second LLM call -- the first four generated SQL,
-    # this one interprets the results.  Inputs are fully visible in XCom.
-    # ------------------------------------------------------------------
-    synthesize_answer = LLMOperator(
-        task_id="synthesize_answer",
-        llm_conn_id=LLM_CONN_ID,
-        system_prompt=SYNTHESIS_SYSTEM_PROMPT,
-        prompt="""\
+        # ------------------------------------------------------------------
+        # Step 6: Synthesize the four labeled result sets into a narrative.
+        # This is the second LLM call -- the first four generated SQL,
+        # this one interprets the results.  Inputs are fully visible in XCom.
+        # ------------------------------------------------------------------
+        synthesize_answer = LLMOperator(
+            task_id="synthesize_answer",
+            llm_conn_id=LLM_CONN_ID,
+            system_prompt=SYNTHESIS_SYSTEM_PROMPT,
+            prompt="""\
 Given these four independent survey query results about practitioners
 who use AI tools to write Airflow code, write a 2-3 sentence
 characterization of what a typical Airflow deployment looks like for
 this group.
 
 Results: {{ ti.xcom_pull(task_ids='collect_results') }}""",
-    )
-    collected >> synthesize_answer
+        )
+        collected >> synthesize_answer
 
-    # ------------------------------------------------------------------
-    # Step 7: Human reviews the synthesized narrative before the DAG ends.
-    # ------------------------------------------------------------------
-    result_confirmation = ApprovalOperator(  # noqa: F841
-        task_id="result_confirmation",
-        subject="Review the synthesized survey analysis",
-        body=synthesize_answer.output,
-        response_timeout=datetime.timedelta(hours=1),
-    )
+        # ------------------------------------------------------------------
+        # Step 7: Human reviews the synthesized narrative before the DAG ends.
+        # ------------------------------------------------------------------
+        result_confirmation = ApprovalOperator(  # noqa: F841
+            task_id="result_confirmation",
+            subject="Review the synthesized survey analysis",
+            body=synthesize_answer.output,
+            response_timeout=datetime.timedelta(hours=1),
+        )
 
+    # [END example_llm_survey_agentic]
 
-# [END example_llm_survey_agentic]
-
-example_llm_survey_agentic()
+    example_llm_survey_agentic()

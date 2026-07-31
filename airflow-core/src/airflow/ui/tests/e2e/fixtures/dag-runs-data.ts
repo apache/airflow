@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Dag  Runs page data fixture — creates runs across two Dags for filtering tests.
  */
@@ -26,9 +25,9 @@ import {
   apiCreateDagRun,
   apiSetDagRunState,
   safeCleanupDagRun,
-  uniqueRunId,
   waitForDagReady,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/dag-runs";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 export type DagRunsPageData = {
   dag1Id: string;

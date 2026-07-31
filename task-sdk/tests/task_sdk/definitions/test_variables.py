@@ -25,7 +25,15 @@ import pytest
 
 from airflow.sdk import Variable
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.execution_time.comms import GetVariableKeys, PutVariable, VariableKeysResult, VariableResult
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.comms import (
+    DeleteVariable,
+    ErrorResponse,
+    GetVariableKeys,
+    PutVariable,
+    VariableKeysResult,
+    VariableResult,
+)
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
@@ -88,6 +96,11 @@ class TestVariables:
                 key=key, value=expected_value, description=description, serialize_json=serialize_json
             ),
         )
+
+    def test_var_delete(self, mock_supervisor_comms):
+        Variable.delete(key="my_key")
+
+        mock_supervisor_comms.send.assert_called_once_with(msg=DeleteVariable(key="my_key"))
 
 
 class TestVariableKeys:
@@ -171,8 +184,6 @@ class TestVariableKeys:
         )
 
     def test_keys_raises_on_error_response(self, mock_supervisor_comms):
-        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-        from airflow.sdk.execution_time.comms import ErrorResponse
 
         mock_supervisor_comms.send.return_value = ErrorResponse(
             error=ErrorType.GENERIC_ERROR, detail={"message": "boom"}

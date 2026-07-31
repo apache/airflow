@@ -29,6 +29,7 @@ import pytest
 from airflow._shared.module_loading import qualname
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
+from airflow.partition_mappers.window import Window
 from airflow.plugins_manager import AirflowPlugin
 
 from tests_common.test_utils.config import conf_vars
@@ -79,7 +80,7 @@ class TestPluginsManager:
             example_plugins_module="airflow.example_dags.plugins",
         )
 
-        assert len(plugins) == 10
+        assert len(plugins) == 13
         assert not import_errors
         for plugin in plugins:
             if "AirflowTestOnLoadPlugin" in str(plugin):
@@ -102,7 +103,7 @@ class TestPluginsManager:
         ):
             plugins, import_errors = plugins_manager._get_plugins()
 
-        assert len(plugins) == 3  # three are loaded from examples
+        assert len(plugins) == 6  # four are loaded from examples
         assert len(import_errors) == 1
 
         received_logs = caplog.text
@@ -407,4 +408,103 @@ class TestPluginsManager:
         # Mock/skip loading from plugin dir
         with mock.patch("airflow.plugins_manager._load_plugins_from_plugin_directory", return_value=([], [])):
             plugins = plugins_manager._get_plugins()[0]
-        assert len(plugins) == 6
+        assert len(plugins) == 7
+
+
+class TestWindowPluginRegistration:
+    """``windows`` plugin attribute surfaces via ``get_windows_plugins()``."""
+
+    def test_windows_attribute_surfaces_via_getter(self):
+        from airflow import plugins_manager
+
+        class MyCustomWindow(Window):
+            name = "test_window_plugin"
+
+            def to_upstream(self, decoded_downstream):
+                return [decoded_downstream]
+
+        class MyWindowPlugin(AirflowPlugin):
+            name = "test_window_plugin"
+            windows = [MyCustomWindow]
+
+        with mock_plugin_manager(plugins=[MyWindowPlugin()]):
+            plugins_manager.get_windows_plugins.cache_clear()
+            registered = plugins_manager.get_windows_plugins()
+
+        assert qualname(MyCustomWindow) in registered
+        assert registered[qualname(MyCustomWindow)] is MyCustomWindow
+
+
+class TestPluginTeamName:
+    """``team_name`` exposure through ``get_plugin_info`` (attribute default is covered
+    by the shared plugins_manager tests)."""
+
+    def test_get_plugin_info_includes_team_name(self):
+        from airflow import plugins_manager
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_plugin"
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "team_a"
+
+        with mock_plugin_manager(plugins=[GlobalPlugin(), TeamPlugin()]):
+            info_by_name = {info["name"]: info for info in plugins_manager.get_plugin_info()}
+
+        assert info_by_name["global_plugin"]["team_name"] is None
+        assert info_by_name["team_plugin"]["team_name"] == "team_a"
+
+
+class TestValidatePluginTeams:
+    """``validate_plugin_teams`` startup validation."""
+
+    def test_no_op_when_multi_team_disabled(self):
+        from airflow import plugins_manager
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "nonexistent_team"
+
+        # multi_team defaults to False; validation must return early without hitting
+        # the database, even for a plugin pointing at a nonexistent team.
+        with mock_plugin_manager(plugins=[TeamPlugin()]):
+            with mock.patch("airflow.models.team.Team.get_all_team_names") as mock_get_all_team_names:
+                plugins_manager.validate_plugin_teams()
+        mock_get_all_team_names.assert_not_called()
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.models.team.Team.get_all_team_names", return_value={"team_a"})
+    def test_passes_for_global_and_known_team_plugins(self, mock_get_all_team_names):
+        from airflow import plugins_manager
+
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_plugin"
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "team_a"
+
+        with mock_plugin_manager(plugins=[GlobalPlugin(), TeamPlugin()]):
+            plugins_manager.validate_plugin_teams()
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.models.team.Team.get_all_team_names", return_value={"team_a"})
+    def test_get_fastapi_plugins_records_unknown_team_import_error(self, mock_get_all_team_names, caplog):
+        from airflow import plugins_manager
+
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "unknown_team"
+
+        # get_fastapi_plugins() is what init_plugins() calls, so validation runs
+        # automatically: a plugin on a nonexistent team is recorded as an import error
+        # and warned, not raised, so the API server and every other plugin still start.
+        with mock_plugin_manager(plugins=[TeamPlugin()], import_errors={}):
+            with caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+                plugins_manager.get_fastapi_plugins()
+            recorded = plugins_manager.get_import_errors()
+
+        assert "unknown_team" in recorded["team_plugin"]
+        warnings = [msg for _, level, msg in caplog.record_tuples if level == logging.WARNING]
+        assert any("team_plugin" in msg and "unknown_team" in msg for msg in warnings)

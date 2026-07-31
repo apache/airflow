@@ -28,7 +28,9 @@ import { useAssetServiceGetAsset } from "openapi/queries";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { ProgressBar } from "src/components/ui";
 import { GroupsProvider } from "src/context/groups";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { NavTabs } from "src/layouts/Details/NavTabs";
+import { useDocumentTitle } from "src/utils";
 
 import { AssetGraph } from "./AssetGraph";
 import { AssetPanelButtons } from "./AssetPanelButtons";
@@ -49,6 +51,8 @@ export const AssetLayout = () => {
     },
   );
 
+  useDocumentTitle(asset?.name);
+
   const links = [
     {
       label: asset?.name,
@@ -59,9 +63,16 @@ export const AssetLayout = () => {
 
   const { fitView, getZoom } = useReactFlow();
 
+  const externalTabs = usePluginTabs("asset");
+
   const tabs = [
     { icon: <MdTimeline />, label: translate("assets:events"), value: "" },
-    { icon: <MdOutlineStorage />, label: translate("assets:assetStore.title"), value: "asset-store" },
+    {
+      icon: <MdOutlineStorage />,
+      label: translate("assets:assetStateStore.title"),
+      value: "asset-state-store",
+    },
+    ...externalTabs,
   ];
 
   return (

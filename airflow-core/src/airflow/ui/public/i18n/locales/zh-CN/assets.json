@@ -2,7 +2,7 @@
   "additional_data": "附加数据",
   "asset_many": "资源",
   "asset_one": "资源",
-  "assetStore": {
+  "assetStateStore": {
     "add": "新增资源存储",
     "clearAll": {
       "resource": "所有资源存储",
@@ -13,6 +13,9 @@
     "deleteWarning": "该资源将丢失此持久化的存储条目。",
     "edit": "编辑资源存储",
     "emptyState": "资源存储保存与某个资源身份关联的值，并在所有 Dag 执行之间共享。工作节点可以通过 Task SDK 写入资源存储。",
+    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedByApi": "API",
+    "lastUpdatedByWatcher": "Watcher",
     "title": "资源存储"
   },
   "consumingDags": "消费者 Dags",

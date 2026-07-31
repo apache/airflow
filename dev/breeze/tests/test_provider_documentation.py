@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from airflow_breeze.prepare_providers.provider_documentation import (
+    NEEDS_LLM_CLASSIFICATION,
     VERSION_MAJOR_INDEX,
     VERSION_MINOR_INDEX,
     VERSION_PATCHLEVEL_INDEX,
@@ -34,6 +35,7 @@ from airflow_breeze.prepare_providers.provider_documentation import (
     _get_changes_classified,
     _get_git_log_command,
     classification_result,
+    classify_change_deterministically,
     get_most_impactful_change,
     get_version_tag,
 )
@@ -490,3 +492,43 @@ def test_get_most_impactful_change(changes, expected):
 def test_classify_provider_pr_files_logic(provider_id, changed_files, expected):
     result = classification_result(provider_id, changed_files)
     assert result == expected
+
+
+def _make_change(subject: str) -> Change:
+    return Change(
+        full_hash="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        short_hash="deadbee",
+        date="2026-06-08",
+        version="1.0.0",
+        message=subject,
+        message_without_backticks=subject.replace("`", "'"),
+        pr="123",
+    )
+
+
+@pytest.mark.parametrize(
+    ("files_class", "subject", "expected"),
+    [
+        # changed-files verdict wins, regardless of the subject
+        pytest.param("documentation", "Fix typo in docs", "documentation", id="doc_only"),
+        pytest.param("documentation", "Bump aiohttp", "documentation", id="doc_only_beats_bump"),
+        pytest.param("test_or_example_only", "Add a flaky test", "skip", id="test_only"),
+        # subject-based deterministic rule: dependency bumps
+        pytest.param("other", "Bump aiohttp regarding dependabot warning", "misc", id="bump_misc"),
+        pytest.param("other", "bump the deps group across 1 directory", "misc", id="lowercase_bump_misc"),
+        # everything else is intentionally left to the LLM (conservative)
+        pytest.param("other", "Fix the ftp tls", NEEDS_LLM_CLASSIFICATION, id="fix_needs_llm"),
+        pytest.param("other", "Add DmsModifyTaskOperator", NEEDS_LLM_CLASSIFICATION, id="add_needs_llm"),
+        pytest.param("other", "Rename resumablemixin file", NEEDS_LLM_CLASSIFICATION, id="rename_needs_llm"),
+    ],
+)
+def test_classify_change_deterministically(files_class, subject, expected):
+    from unittest import mock
+
+    with mock.patch(
+        "airflow_breeze.prepare_providers.provider_documentation.classify_provider_pr_files",
+        return_value=files_class,
+    ):
+        classification, reason = classify_change_deterministically("amazon", _make_change(subject))
+    assert classification == expected
+    assert reason, "a non-empty reason must always be returned"

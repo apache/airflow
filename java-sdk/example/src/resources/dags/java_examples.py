@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from airflow.sdk import dag, task
 
 
@@ -33,6 +35,42 @@ def extract(): ...
 
 @task.stub(queue="java")
 def transform(): ...
+
+
+@task.stub(queue="java", retries=1, retry_delay=timedelta(seconds=5))
+def load(): ...
+
+
+@task.stub(queue="java")
+def concurrent(): ...
+
+
+@task.stub(queue="java")
+def produce_number(): ...
+
+
+@task.stub(queue="java")
+def widen_to_long(): ...
+
+
+@task.stub(queue="java")
+def widen_to_double(): ...
+
+
+@task.stub(queue="java")
+def produce_nothing(): ...
+
+
+@task.stub(queue="java")
+def consume_nullable(): ...
+
+
+@task.stub(queue="java")
+def produce_fraction(): ...
+
+
+@task.stub(queue="java")
+def consume_float(): ...
 
 
 @task()
@@ -54,7 +92,17 @@ def java_annotation_example():
     transformed = transform()
     python_task_1() >> extract() >> transformed
     python_task_2(transformed)
+    transformed >> load()
+    concurrent()
+
+
+@dag(dag_id="java_xcom_casting_example")
+def java_xcom_casting_example():
+    produce_number() >> widen_to_long() >> widen_to_double()
+    produce_nothing() >> consume_nullable()
+    produce_fraction() >> consume_float()
 
 
 java_interface_example()
 java_annotation_example()
+java_xcom_casting_example()

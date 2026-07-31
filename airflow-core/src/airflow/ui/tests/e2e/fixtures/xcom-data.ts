@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * XCom data fixture — triggers example_xcom Dag runs to generate XCom entries.
  */
@@ -25,10 +24,10 @@ import { test as base } from "tests/e2e/fixtures";
 import {
   apiCreateDagRun,
   safeCleanupDagRun,
-  uniqueRunId,
   waitForDagReady,
   waitForDagRunStatus,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/dag-runs";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 export type XcomRunsData = {
   dagId: string;

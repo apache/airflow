@@ -423,19 +423,22 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
             """Get the task instance for the current trigger (Airflow 2.x compatibility)."""
             from sqlalchemy import select
 
+            ti = self.task_instance
+            if ti is None:
+                raise RuntimeError("task_instance is not set on the trigger")
             query = select(TaskInstance).where(
-                TaskInstance.dag_id == self.task_instance.dag_id,
-                TaskInstance.task_id == self.task_instance.task_id,
-                TaskInstance.run_id == self.task_instance.run_id,
-                TaskInstance.map_index == self.task_instance.map_index,
+                TaskInstance.dag_id == ti.dag_id,
+                TaskInstance.task_id == ti.task_id,
+                TaskInstance.run_id == ti.run_id,
+                TaskInstance.map_index == ti.map_index,
             )
             task_instance = session.scalars(query).one_or_none()
             if task_instance is None:
                 raise ValueError(
-                    f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
-                    f"task_id: {self.task_instance.task_id}, "
-                    f"run_id: {self.task_instance.run_id} and "
-                    f"map_index: {self.task_instance.map_index} is not found"
+                    f"TaskInstance with dag_id: {ti.dag_id}, "
+                    f"task_id: {ti.task_id}, "
+                    f"run_id: {ti.run_id} and "
+                    f"map_index: {ti.map_index} is not found"
                 )
             return task_instance
 

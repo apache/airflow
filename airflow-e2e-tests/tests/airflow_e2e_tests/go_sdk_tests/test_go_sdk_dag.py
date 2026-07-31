@@ -38,8 +38,9 @@ Python tasks::
   msgpack-over-IPC coordinator protocol.
 * ``python_task_1`` (Python) pushes an XCom; ``extract`` (Go) fetches the
   ``test_http`` connection and returns ``{go_version, timestamp}``; ``transform``
-  (Go) reads ``my_variable``; ``load`` (Go) returns an error on purpose;
-  ``python_task_2`` (Python) pulls and re-emits the Go ``extract`` task's XCom.
+  (Go) reads ``my_variable``; ``load`` (Go) fails on its first attempt and
+  succeeds on the retry (``retries=1``); ``python_task_2`` (Python) pulls and
+  re-emits the Go ``extract`` task's XCom.
 
 The Dag is triggered exactly once by the module-scoped ``completed_run`` fixture;
 each test asserts a different facet of that single run. Together they confirm,
@@ -47,7 +48,8 @@ end-to-end:
 
 1. ``ExecutableCoordinator`` discovers the AFBNDL01 bundle by dag_id and runs the
    binary in coordinator mode for every Go task, reporting ``SucceedTask`` for
-   extract/transform and a failed ``TaskState`` for load.
+   extract/transform and -- because ``load`` has ``retries=1`` -- a ``RetryTask``
+   (UP_FOR_RETRY) for its first failing attempt, after which the retry succeeds.
 2. Connection / Variable reads and XCom writes work through the Task Execution
    API, XCom values keep their types (the ``timestamp`` stays an ``int``), and
    XCom crosses the Python <-> Go boundary in both directions.
@@ -56,6 +58,9 @@ end-to-end:
 4. The runtime context surfaced to Go tasks via ``sdk.CurrentContext`` is fully
    populated on the coordinator path: the task-instance identifiers and the Dag
    run's scheduling timestamps (logical_date / data_interval_start/end).
+5. A Go task that fails with retries left emits ``RetryTask`` rather than a
+   terminal ``FAILED``, so the supervisor marks it UP_FOR_RETRY and re-runs it;
+   ``load`` therefore ends ``success`` on its second attempt (try_number 2).
 """
 
 from __future__ import annotations
@@ -86,6 +91,10 @@ class _CompletedRun:
     run_id: str
     state: str
     ti_states: dict[str, str]
+    ti_attrs: dict[str, dict]
+
+    def try_number(self, task_id: str) -> int | None:
+        return self.ti_attrs.get(task_id, {}).get("try_number")
 
     def xcom(self, task_id: str, key: str = "return_value"):
         return self.client.get_xcom_value(dag_id=_DAG_ID, task_id=task_id, run_id=self.run_id, key=key).get(
@@ -121,17 +130,18 @@ def completed_run() -> _CompletedRun:
     run_id = resp["dag_run_id"]
     state = client.wait_for_dag_run(dag_id=_DAG_ID, run_id=run_id, timeout=_GO_TASK_TIMEOUT)
     ti_resp = client.get_task_instances(dag_id=_DAG_ID, run_id=run_id)
-    ti_states = {ti["task_id"]: ti.get("state") for ti in ti_resp.get("task_instances", [])}
-    return _CompletedRun(client=client, run_id=run_id, state=state, ti_states=ti_states)
+    ti_attrs = {ti["task_id"]: ti for ti in ti_resp.get("task_instances", [])}
+    ti_states = {task_id: ti.get("state") for task_id, ti in ti_attrs.items()}
+    return _CompletedRun(client=client, run_id=run_id, state=state, ti_states=ti_states, ti_attrs=ti_attrs)
 
 
 def test_task_states(completed_run: _CompletedRun):
-    """Every task ends in its expected state (the Go ``load`` task fails on purpose)."""
+    """Every task ends ``success`` (the Go ``load`` task succeeds on its retry)."""
     expected = {
         "python_task_1": "success",
         "extract": "success",
         "transform": "success",
-        "load": "failed",
+        "load": "success",
         "python_task_2": "success",
     }
     for task_id, want in expected.items():
@@ -140,11 +150,32 @@ def test_task_states(completed_run: _CompletedRun):
         )
 
 
-def test_dag_run_failed(completed_run: _CompletedRun):
-    """The failing ``load`` leaf makes the overall run fail."""
-    assert completed_run.state == "failed", (
-        f"expected the run to fail because 'load' fails; got {completed_run.state!r}. "
+def test_dag_run_succeeded(completed_run: _CompletedRun):
+    """The run succeeds once ``load`` recovers on its retry."""
+    assert completed_run.state == "success", (
+        f"expected the run to succeed because 'load' recovers on retry; got {completed_run.state!r}. "
         f"task states: {completed_run.ti_states}"
+    )
+
+
+def test_load_retried_then_succeeded(completed_run: _CompletedRun):
+    """``load`` fails once (UP_FOR_RETRY) then succeeds on the second attempt.
+
+    The Go coordinator must emit ``RetryTask`` (not terminal ``FAILED``) when the
+    task fails with retries left, so the supervisor re-runs it. The end state is
+    ``success`` reached on ``try_number`` 2, and each attempt's log reflects the
+    first failure and then the recovery.
+    """
+    assert completed_run.ti_states.get("load") == "success", completed_run.ti_states
+    assert completed_run.try_number("load") == 2, (
+        f"'load' should have run twice (fail then retry); try_number="
+        f"{completed_run.try_number('load')!r}, ti: {completed_run.ti_attrs.get('load')}"
+    )
+    assert "Please fail" in completed_run.logs("load", try_number=1), (
+        "load's first attempt should log its failure message 'Please fail'"
+    )
+    assert "Recovered on retry" in completed_run.logs("load", try_number=2), (
+        "load's retry attempt should log 'Recovered on retry'"
     )
 
 
@@ -229,11 +260,4 @@ def test_transform_logs_show_variable_read(completed_run: _CompletedRun):
     """The Go 'transform' task logs the variable it read."""
     assert "Obtained variable" in completed_run.logs("transform"), (
         "transform task should log 'Obtained variable'"
-    )
-
-
-def test_load_logs_show_failure(completed_run: _CompletedRun):
-    """The Go 'load' task's error surfaces in its task log."""
-    assert "Please fail" in completed_run.logs("load"), (
-        "load task log should contain its failure message 'Please fail'"
     )

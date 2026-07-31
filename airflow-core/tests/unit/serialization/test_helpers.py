@@ -47,6 +47,29 @@ def test_serialize_template_field_truncation_kicks_in(monkeypatch):
     assert "Truncated. You can change this behaviour" in result
 
 
+@pytest.mark.enable_redact
+def test_serialize_template_field_masks_dotted_sensitive_keys_on_truncation(monkeypatch):
+    """Dotted config keys like spark.hadoop.*.access.key must be masked even when field is truncated."""
+    monkeypatch.setenv("AIRFLOW__CORE__MAX_TEMPLATED_FIELD_LENGTH", "1500")
+
+    access_key_value = "AKIA-REGRESSION-FIXTURE-ACCESS-KEY"
+    token_value = "REGRESSION-FIXTURE-JWT-TOKEN-VALUE"
+
+    payload = {
+        "spark.hadoop.fs.s3a.bucket.spark.access.key": access_key_value,
+        "spark.sql.catalog.kometa.token": token_value,
+        "zpadding": "z" * 2000,  # forces truncation
+    }
+
+    result = serialize_template_field(payload, "conf")
+
+    assert isinstance(result, str)
+    assert "Truncated. You can change this behaviour" in result
+    assert access_key_value not in result, "S3 access key must not appear in truncated output"
+    assert token_value not in result, "JWT token must not appear in truncated output"
+    assert "***" in result
+
+
 def test_serialize_template_field_with_notset():
     """NOTSET must serialize deterministically via serialize(), not str() fallback."""
     result = serialize_template_field(NOTSET, "logical_date")

@@ -150,7 +150,7 @@ the example below.
     version                | 2.9.0.dev0
     executor               | LocalExecutor
     task_logging_handler   | airflow.utils.log.file_task_handler.FileTaskHandler
-    sql_alchemy_conn       | postgresql+psycopg2://postgres:airflow@postgres/airflow
+    sql_alchemy_conn       | postgresql+psycopg://postgres:airflow@postgres/airflow
     dags_folder            | /files/dags
     plugins_folder         | /root/airflow/plugins
     base_log_folder        | /root/airflow/logs
@@ -180,7 +180,7 @@ Most task handlers send logs upon completion of a task. In order to view logs in
 
 In triggerer, logs are served unless the service is started with option ``--skip-serve-logs``.
 
-The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section, and option ``triggerer_log_server_port`` for triggerer.  Defaults are 8793 and 8794, respectively.
+The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section, and option ``trigger_log_server_port`` for triggerer.  Defaults are 8793 and 8794, respectively.
 Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``[api]`` section. You must ensure that the key matches so that communication can take place without problems.
 
 We are using `Gunicorn <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__.

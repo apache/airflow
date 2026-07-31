@@ -60,10 +60,6 @@ class AzureVirtualMachineStateSensor(BaseSensorOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-        if target_state not in self.VALID_STATES:
-            raise ValueError(
-                f"Invalid target_state: {target_state}. Must be one of {sorted(self.VALID_STATES)}"
-            )
         super().__init__(**kwargs)
         self.resource_group_name = resource_group_name
         self.vm_name = vm_name
@@ -84,6 +80,10 @@ class AzureVirtualMachineStateSensor(BaseSensorOperator):
         In deferrable mode, the polling is deferred to the triggerer. Otherwise
         the sensor waits synchronously.
         """
+        if self.target_state not in self.VALID_STATES:
+            raise ValueError(
+                f"Invalid target_state: {self.target_state}. Must be one of {sorted(self.VALID_STATES)}"
+            )
         if not self.deferrable:
             super().execute(context=context)
         else:

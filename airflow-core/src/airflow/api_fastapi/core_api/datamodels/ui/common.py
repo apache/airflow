@@ -54,6 +54,8 @@ class BaseNodeResponse(BaseModel):
         "sensor",
         "trigger",
     ]
+    team: str | None = None
+    asset_condition_type: Literal["or-gate", "and-gate"] | None = None
 
 
 E = TypeVar("E", bound=BaseEdgeResponse)
@@ -92,6 +94,7 @@ class GridRunsResponse(BaseModel):
     run_type: DagRunType
     dag_versions: list[DagVersionResponse] = []
     has_missed_deadline: bool
+    has_note: bool
 
     @computed_field
     def duration(self) -> float:

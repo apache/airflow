@@ -26,6 +26,7 @@ import org.apache.airflow.sdk.Dag
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.execution.comm.BundleInfo
 import org.apache.airflow.sdk.execution.comm.DagRun
+import org.apache.airflow.sdk.execution.comm.RetryTask
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TIRunContext
@@ -59,6 +60,25 @@ class TaskTest {
   @DisplayName("Should return failed when task throws")
   fun shouldReturnFailedWhenTaskThrows() {
     val result = runTask(bundleWith("failing", FailingTask::class.java), startupDetails(taskId = "failing"), noOpClient())
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
+  @Test
+  @DisplayName("Should return retry when task throws and should_retry is true")
+  fun shouldReturnRetryWhenTaskThrowsAndShouldRetryIsTrue() {
+    val details = startupDetails(taskId = "failing")
+    details.tiContext?.shouldRetry = true
+    val result = runTask(bundleWith("failing", FailingTask::class.java), details, noOpClient())
+
+    Assertions.assertInstanceOf(RetryTask::class.java, result)
+  }
+
+  @Test
+  @DisplayName("Should return failed when task throws an Error")
+  fun shouldReturnFailedWhenTaskThrowsError() {
+    val result = runTask(bundleWith("erroring", ErrorThrowingTask::class.java), startupDetails(taskId = "erroring"), noOpClient())
 
     Assertions.assertInstanceOf(TaskState::class.java, result)
     Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
@@ -143,5 +163,12 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw IllegalStateException("boom")
+  }
+
+  class ErrorThrowingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ): Unit = throw NoClassDefFoundError("simulated")
   }
 }

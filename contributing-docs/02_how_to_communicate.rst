@@ -49,7 +49,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
    * general issues, asking community for opinion
    * discussing proposals
    * voting
-* The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home?src=breadcrumbs>`_ for:
+* The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Wiki?src=breadcrumbs>`_ for:
    * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
 * GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs

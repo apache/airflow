@@ -24,6 +24,20 @@
     "success": "{{taskId}} response successful",
     "title": "Human Task Instance - {{taskId}}"
   },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Select a required action to see details"
+    },
+    "list": {
+      "completedRequiredActions": "Completed required actions ({{count}})",
+      "loadError": "Unable to load required actions",
+      "loadingActions": "Loading required actions...",
+      "pendingRequiredActions": "Pending required actions ({{count}})"
+    },
+    "openReviewDrawer": "Open Review Drawer",
+    "pageLimitHint": "Only the first few of actions are shown here. Use \"$t(review.viewAll)\" to see all of them.",
+    "viewAll": "View all required actions"
+  },
   "state": {
     "approvalReceived": "Approval Received",
     "approvalRequired": "Approval Required",

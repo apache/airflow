@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Audit log data fixture — triggers Dag runs to generate audit log entries.
  */
@@ -27,7 +26,7 @@ import {
   safeCleanupDagRun,
   waitForDagReady,
   waitForDagRunStatus,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/dag-runs";
 
 export type AuditLogData = {
   dagId: string;

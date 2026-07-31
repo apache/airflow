@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.models.dagbag import DBDagBag
+from airflow.models.serialized_dag import SerializedDagModel
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -113,6 +114,30 @@ def get_dag_for_run_or_latest_version(
     if not dag:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_id}` was not found")
     return dag
+
+
+def resolve_run_on_latest_version(
+    explicit_value: bool | None,
+    dag_id: str,
+    session: Session,
+    fallback: bool = False,
+) -> bool:
+    """
+    Resolve run_on_latest_version using precedence: explicit > DAG-level > global config > fallback.
+
+    :param explicit_value: Value from the API request body (or None if not specified).
+    :param dag_id: The DAG ID to look up.
+    :param session: Database session.
+    :param fallback: Default to use when neither DAG-level nor global config is set.
+        Clear/rerun endpoints use False (the historical default).
+        Backfill endpoint uses True (the historical default for backfills).
+    """
+    if explicit_value is not None:
+        return explicit_value
+    serialized = SerializedDagModel.get_dag(dag_id, session=session)
+    if serialized and serialized.rerun_with_latest_version is not None:
+        return serialized.rerun_with_latest_version
+    return conf.getboolean("core", "rerun_with_latest_version", fallback=fallback)
 
 
 DagBagDep = Annotated[DBDagBag, Depends(dag_bag_from_app)]

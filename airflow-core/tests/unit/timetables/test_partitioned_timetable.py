@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import datetime
 from collections.abc import Callable, Iterable
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
@@ -27,6 +26,7 @@ import pendulum
 import pytest
 
 from airflow._shared.module_loading import qualname
+from airflow.exceptions import InvalidPartitionKeyError
 from airflow.partition_mappers.base import RollupMapper
 from airflow.partition_mappers.identity import IdentityMapper as IdentityMapper
 from airflow.partition_mappers.temporal import StartOfDayMapper
@@ -258,18 +258,24 @@ class TestPartitionedAssetTimetable:
         assert isinstance(timetable.default_partition_mapper, IdentityMapper)
         assert isinstance(timetable.partition_mapper_config[ser_asset], IdentityMapper)
 
-    def test_partitioned_asset_timetable_resolve_day_bound_returns_midnight_utc(self):
-        """PartitionedAssetTimetable has no local timezone; resolve_day_bound uses the base default.
-
-        Non-regression: verifies the timetable walks the base-default code path
-        (midnight UTC) rather than any CronMixin path.
-        """
-        tt = PartitionedAssetTimetable(
-            assets=Asset(name="asset-a"),
-            default_partition_mapper=IdentityMapper(),
+    @pytest.mark.parametrize(
+        "asset_like",
+        [
+            Asset(name="daily", uri="s3://bucket/daily"),
+            Asset.ref(name="daily"),
+        ],
+    )
+    def test_decode_partition_date_raises_on_invalid_key(self, asset_like):
+        timetable = PartitionedAssetTimetable(
+            assets=asset_like,
+            default_partition_mapper=StartOfDayMapper(),
         )
-        result = tt.resolve_day_bound(datetime.date(2026, 4, 10))
+        with pytest.raises(InvalidPartitionKeyError, match="is invalid for this timetable's mappers"):
+            timetable._decode_partition_date("not-a-date")
 
-        expected = pendulum.datetime(2026, 4, 10, 0, 0, 0, tz="UTC")
-        assert result == expected
-        assert result.timezone_name == "UTC"
+    def test_decode_partition_date_returns_period_start_for_valid_key(self):
+        timetable = PartitionedAssetTimetable(
+            assets=Asset(name="daily", uri="s3://bucket/daily"),
+            default_partition_mapper=StartOfDayMapper(),
+        )
+        assert timetable._decode_partition_date("2025-01-01") == pendulum.datetime(2025, 1, 1, tz="UTC")

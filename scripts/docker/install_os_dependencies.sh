@@ -28,6 +28,11 @@ fi
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
 PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
+TEMURIN_VERSION=${TEMURIN_VERSION:-11}
+NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
+# Keep in sync with the "packageManager" pin in ts-sdk/package.json so the version corepack
+# resolves for ts-sdk is the one baked into the image.
+PNPM_VERSION=${PNPM_VERSION:-10.28.1}
 RUSTUP_DEFAULT_TOOLCHAIN=${RUSTUP_DEFAULT_TOOLCHAIN:-stable}
 RUSTUP_VERSION=${RUSTUP_VERSION:-1.29.0}
 COSIGN_VERSION=${COSIGN_VERSION:-3.0.5}
@@ -401,6 +406,54 @@ function install_golang() {
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
+function install_jdk() {
+    # Install Eclipse Temurin JDK from the Adoptium apt repository (https://adoptium.net/installation/linux/).
+    apt-get update -qq
+    apt-get install -y --no-install-recommends wget gnupg apt-transport-https ca-certificates
+    mkdir -p /etc/apt/keyrings
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
+        | tee /etc/apt/keyrings/adoptium.asc > /dev/null
+    # shellcheck disable=SC1091
+    DISTRO_CODENAME=$(. /etc/os-release; echo "${VERSION_CODENAME}")
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] \
+https://packages.adoptium.net/artifactory/deb ${DISTRO_CODENAME} main" \
+        | tee /etc/apt/sources.list.d/adoptium.list > /dev/null
+    apt-get update -qq
+    apt-get install -y --no-install-recommends "temurin-${TEMURIN_VERSION}-jdk"
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+}
+
+function install_nodejs() {
+    local arch
+    arch="$(dpkg --print-architecture)"
+    declare -A nodejs_targets=(
+        [amd64]="linux-x64"
+        [arm64]="linux-arm64"
+    )
+    declare -A nodejs_sha256s=(
+        # https://nodejs.org/dist/v${NODEJS_VERSION}/SHASUMS256.txt
+        [amd64]="9749e988f437343b7fa832c69ded82a312e41a03116d766797ac14f6f9eee578"
+        [arm64]="0294e8b915ab75f92c7513d2fcb830ae06e10684e6c603e99a87dbf8835389c1"
+    )
+    local target="${nodejs_targets[${arch}]}"
+    local nodejs_sha256="${nodejs_sha256s[${arch}]}"
+    if [[ -z "${target}" ]]; then
+        echo "Unsupported architecture for nodejs: ${arch}"
+        exit 1
+    fi
+    curl --retry 3 --retry-delay 5 \
+        "https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-${target}.tar.xz" \
+        -o /tmp/nodejs.tar.xz
+    echo "${nodejs_sha256}  /tmp/nodejs.tar.xz" | sha256sum --check
+    tar -xJf /tmp/nodejs.tar.xz --strip-components=1 -C /usr/local --no-same-owner
+    rm -f /tmp/nodejs.tar.xz
+    corepack enable --install-directory /usr/local/bin
+    # corepack enable only writes shims; prepare downloads and caches the pnpm binary into the
+    # image so it is available offline and matches the version ts-sdk pins.
+    corepack prepare "pnpm@${PNPM_VERSION}" --activate
+}
+
 function install_rustup() {
     local arch
     arch="$(dpkg --print-architecture)"
@@ -446,6 +499,8 @@ else
     install_rustup
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
+        install_jdk
+        install_nodejs
     fi
     install_docker_cli
     apt_clean

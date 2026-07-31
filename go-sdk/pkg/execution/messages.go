@@ -20,410 +20,203 @@ package execution
 import (
 	"fmt"
 	"time"
+
+	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 // SupervisorSchemaVersion is the dated AIP-72 supervisor wire-schema version
-// this SDK's coordinator protocol is compiled against, in YYYY-MM-DD form. It
-// is reported in a bundle's airflow-metadata manifest as
-// sdk.supervisor_schema_version so the supervisor can downgrade outbound
-// messages / upgrade inbound messages to a shape the bundle understands.
+// (YYYY-MM-DD) this SDK's coordinator protocol is compiled against. It must
+// match the "api_version" of the schema the models are generated from, and is
+// reported in a bundle's airflow-metadata manifest as
+// sdk.supervisor_schema_version so the supervisor can down/upgrade messages to
+// a shape the bundle understands.
 const SupervisorSchemaVersion = "2026-06-16"
 
-// Inbound messages (Supervisor -> Runtime).
+// The message-type discriminator strings (genmodels.Type*) are generated from the
+// schema's "type" consts in discriminators.gen.go; outbound messages stamp the
+// value and inbound dispatch matches it, so nothing here hand-writes a wire string.
 
-// TaskInstanceInfo holds task instance details from StartupDetails.
-type TaskInstanceInfo struct {
-	ID             string
-	TaskID         string
-	DagID          string
-	RunID          string
-	TryNumber      int
-	DagVersionID   string
-	MapIndex       int
-	ContextCarrier map[string]any
+// typeEnvelope peeks only the "type" discriminator from a raw body; msgpack
+// ignores unknown map keys, so it decodes against any message body.
+type typeEnvelope struct {
+	Type string `msgpack:"type"`
 }
 
-func decodeTaskInstanceInfo(m map[string]any) (TaskInstanceInfo, error) {
-	if m == nil {
-		return TaskInstanceInfo{}, fmt.Errorf("nil task instance map")
+// peekBodyType returns the "type" discriminator of a raw msgpack body, or "" if
+// the body is nil or carries no type.
+func peekBodyType(raw msgpack.RawMessage) string {
+	if isNilRaw(raw) {
+		return ""
 	}
-	id, err := mapString(m, "id")
-	if err != nil {
-		return TaskInstanceInfo{}, fmt.Errorf("ti.id: %w", err)
+	var env typeEnvelope
+	if err := msgpack.Unmarshal(raw, &env); err != nil {
+		return ""
 	}
-	taskID, err := mapString(m, "task_id")
-	if err != nil {
-		return TaskInstanceInfo{}, fmt.Errorf("ti.task_id: %w", err)
-	}
-	dagID, err := mapString(m, "dag_id")
-	if err != nil {
-		return TaskInstanceInfo{}, fmt.Errorf("ti.dag_id: %w", err)
-	}
-	runID, err := mapString(m, "run_id")
-	if err != nil {
-		return TaskInstanceInfo{}, fmt.Errorf("ti.run_id: %w", err)
-	}
-	tryNumber, err := mapInt(m, "try_number")
-	if err != nil {
-		return TaskInstanceInfo{}, fmt.Errorf("ti.try_number: %w", err)
-	}
-	dagVersionID := mapStringOr(m, "dag_version_id", "")
-	mapIndex := mapIntOr(m, "map_index", -1)
-	contextCarrier := mapMap(m, "context_carrier")
-
-	return TaskInstanceInfo{
-		ID:             id,
-		TaskID:         taskID,
-		DagID:          dagID,
-		RunID:          runID,
-		TryNumber:      tryNumber,
-		DagVersionID:   dagVersionID,
-		MapIndex:       mapIndex,
-		ContextCarrier: contextCarrier,
-	}, nil
+	return env.Type
 }
 
-// BundleInfoMsg holds bundle identification from StartupDetails.
-type BundleInfoMsg struct {
-	Name    string
-	Version string
-}
-
-func decodeBundleInfo(m map[string]any) BundleInfoMsg {
-	if m == nil {
-		return BundleInfoMsg{}
-	}
-	return BundleInfoMsg{
-		Name:    mapStringOr(m, "name", ""),
-		Version: mapStringOr(m, "version", ""),
-	}
-}
-
-// TIRunContext holds the runtime context for a task instance.
-type TIRunContext struct {
-	LogicalDate       *time.Time
-	DataIntervalStart *time.Time
-	DataIntervalEnd   *time.Time
-}
-
-func decodeTIRunContext(m map[string]any) (TIRunContext, error) {
-	if m == nil {
-		return TIRunContext{}, nil
-	}
-	// The scheduling timestamps live on the nested dag_run object in the
-	// supervisor's TIRunContext schema (ti_context.dag_run.logical_date, ...),
-	// not at the top level of ti_context. See task-sdk's
-	// airflow.sdk.api.datamodels._generated.{TIRunContext,DagRun}.
-	dagRun := mapMap(m, "dag_run")
-	if dagRun == nil {
-		return TIRunContext{}, nil
-	}
-	ctx := TIRunContext{}
-	for _, f := range []struct {
-		key string
-		dst **time.Time
-	}{
-		{"logical_date", &ctx.LogicalDate},
-		{"data_interval_start", &ctx.DataIntervalStart},
-		{"data_interval_end", &ctx.DataIntervalEnd},
-	} {
-		raw, present := dagRun[f.key]
-		if !present || raw == nil {
-			continue
-		}
-		t, err := asTime(raw)
-		if err != nil {
-			return TIRunContext{}, fmt.Errorf("ti_context.dag_run.%s: %w", f.key, err)
-		}
-		*f.dst = &t
-	}
-	return ctx, nil
-}
-
-// StartupDetails is sent by the supervisor to initiate task execution.
-type StartupDetails struct {
-	TI                TaskInstanceInfo
-	DagRelPath        string
-	BundleInfo        BundleInfoMsg
-	StartDate         time.Time
-	TIContext         TIRunContext
-	SentryIntegration string
-}
-
-func decodeStartupDetails(m map[string]any) (*StartupDetails, error) {
-	tiMap := mapMap(m, "ti")
-	ti, err := decodeTaskInstanceInfo(tiMap)
-	if err != nil {
-		return nil, fmt.Errorf("decoding ti: %w", err)
-	}
-
-	dagRelPath := mapStringOr(m, "dag_rel_path", "")
-	bundleInfo := decodeBundleInfo(mapMap(m, "bundle_info"))
-
-	var startDate time.Time
-	if raw, present := m["start_date"]; present && raw != nil {
-		startDate, err = asTime(raw)
-		if err != nil {
-			return nil, fmt.Errorf("start_date: %w", err)
-		}
-	}
-
-	tiContext, err := decodeTIRunContext(mapMap(m, "ti_context"))
-	if err != nil {
-		return nil, fmt.Errorf("decoding ti_context: %w", err)
-	}
-	sentryIntegration := mapStringOr(m, "sentry_integration", "")
-
-	return &StartupDetails{
-		TI:                ti,
-		DagRelPath:        dagRelPath,
-		BundleInfo:        bundleInfo,
-		StartDate:         startDate,
-		TIContext:         tiContext,
-		SentryIntegration: sentryIntegration,
-	}, nil
-}
-
-// Response types (for runtime-initiated requests).
-
-// ConnectionResult is the response to GetConnection. Login and Password are
-// nullable in the supervisor schema (None vs "" are distinct), so they are
-// decoded as *string to preserve that distinction.
-type ConnectionResult struct {
-	ConnID   string
-	ConnType string
-	Host     string
-	Schema   string
-	Login    *string
-	Password *string
-	Port     int
-	Extra    string
-}
-
-func decodeConnectionResult(m map[string]any) (*ConnectionResult, error) {
-	return &ConnectionResult{
-		ConnID:   mapStringOr(m, "conn_id", ""),
-		ConnType: mapStringOr(m, "conn_type", ""),
-		Host:     mapStringOr(m, "host", ""),
-		Schema:   mapStringOr(m, "schema", ""),
-		Login:    mapStringPtr(m, "login"),
-		Password: mapStringPtr(m, "password"),
-		Port:     mapIntOr(m, "port", 0),
-		Extra:    mapStringOr(m, "extra", ""),
-	}, nil
-}
-
-// VariableResult is the response to GetVariable.
-type VariableResult struct {
-	Key   string
-	Value any
-}
-
-func decodeVariableResult(m map[string]any) (*VariableResult, error) {
-	return &VariableResult{
-		Key:   mapStringOr(m, "key", ""),
-		Value: m["value"],
-	}, nil
-}
-
-// XComResult is the response to GetXCom.
-type XComResult struct {
-	Key   string
-	Value any
-}
-
-func decodeXComResult(m map[string]any) (*XComResult, error) {
-	return &XComResult{
-		Key:   mapStringOr(m, "key", ""),
-		Value: m["value"],
-	}, nil
-}
-
-// ErrorResponse represents an error returned by the supervisor.
-type ErrorResponse struct {
-	Error  string
-	Detail any
-}
-
-func decodeErrorResponse(m map[string]any) *ErrorResponse {
-	if m == nil {
-		return nil
-	}
-	return &ErrorResponse{
-		Error:  mapStringOr(m, "error", ""),
-		Detail: m["detail"],
-	}
-}
-
-// Outbound messages (Runtime -> Supervisor).
-
-// GetConnectionMsg is sent to request a connection from the supervisor.
-type GetConnectionMsg struct {
-	ConnID string
-}
-
-func (m GetConnectionMsg) toMap() map[string]any {
-	return map[string]any{
-		"type":    "GetConnection",
-		"conn_id": m.ConnID,
-	}
-}
-
-// GetVariableMsg is sent to request a variable from the supervisor.
-type GetVariableMsg struct {
-	Key string
-}
-
-func (m GetVariableMsg) toMap() map[string]any {
-	return map[string]any{
-		"type": "GetVariable",
-		"key":  m.Key,
-	}
-}
-
-// GetXComMsg is sent to request an XCom value from the supervisor.
-type GetXComMsg struct {
-	Key               string
-	DagID             string
-	TaskID            string
-	RunID             string
-	MapIndex          *int
-	IncludePriorDates bool
-}
-
-func (m GetXComMsg) toMap() map[string]any {
-	result := map[string]any{
-		"type":                "GetXCom",
-		"key":                 m.Key,
-		"dag_id":              m.DagID,
-		"task_id":             m.TaskID,
-		"run_id":              m.RunID,
-		"include_prior_dates": m.IncludePriorDates,
-	}
-	if m.MapIndex != nil {
-		result["map_index"] = *m.MapIndex
-	}
-	return result
-}
-
-// SetXComMsg is sent to set an XCom value. MapIndex mirrors Python's
-// SetXCom.map_index (int | None): nil means "unmapped task", and is omitted
-// from the wire payload rather than encoded as a -1 sentinel.
-type SetXComMsg struct {
-	Key          string
-	Value        any
-	DagID        string
-	TaskID       string
-	RunID        string
-	MapIndex     *int
-	MappedLength *int
-}
-
-func (m SetXComMsg) toMap() map[string]any {
-	result := map[string]any{
-		"type":    "SetXCom",
-		"key":     m.Key,
-		"value":   m.Value,
-		"dag_id":  m.DagID,
-		"task_id": m.TaskID,
-		"run_id":  m.RunID,
-	}
-	if m.MapIndex != nil {
-		result["map_index"] = *m.MapIndex
-	}
-	if m.MappedLength != nil {
-		result["mapped_length"] = *m.MappedLength
-	}
-	return result
-}
-
-// SucceedTaskMsg is sent as a terminal message when a task succeeds.
-type SucceedTaskMsg struct {
-	EndDate      time.Time
-	TaskOutlets  []any
-	OutletEvents []any
-}
-
-func (m SucceedTaskMsg) toMap() map[string]any {
-	taskOutlets := m.TaskOutlets
-	if taskOutlets == nil {
-		taskOutlets = []any{}
-	}
-	outletEvents := m.OutletEvents
-	if outletEvents == nil {
-		outletEvents = []any{}
-	}
-	return map[string]any{
-		"type":          "SucceedTask",
-		"end_date":      m.EndDate.UTC().Format(time.RFC3339Nano),
-		"task_outlets":  taskOutlets,
-		"outlet_events": outletEvents,
-	}
-}
-
-// TaskState is the terminal non-success state reported via TaskStateMsg.
-// The wire values match Python's TaskInstanceState enum (and the generated
-// api.TerminalStateNonSuccess); we define a local typed string so call
-// sites get compile-time checking and don't have to import pkg/api just
-// for the constants.
-type TaskState string
-
-const (
-	TaskStateFailed  TaskState = "failed"
-	TaskStateRemoved TaskState = "removed"
-	TaskStateSkipped TaskState = "skipped"
-)
-
-// TaskStateMsg is sent as a terminal message for failed/removed/skipped tasks.
-type TaskStateMsg struct {
-	State   TaskState
-	EndDate time.Time
-}
-
-func (m TaskStateMsg) toMap() map[string]any {
-	return map[string]any{
-		"type":     "TaskState",
-		"state":    string(m.State),
-		"end_date": m.EndDate.UTC().Format(time.RFC3339Nano),
-	}
-}
-
-// Message dispatch.
-
-// decodeIncomingBody dispatches decoding of a body map based on its "type" field.
-func decodeIncomingBody(m map[string]any) (any, error) {
-	if m == nil {
+// decodeIncomingBody decodes a raw msgpack body into the concrete genmodels
+// message named by its "type" discriminator, for the types that can arrive
+// unsolicited as the supervisor's first frame.
+func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
+	if isNilRaw(raw) {
 		return nil, nil
 	}
-	typ, _ := m["type"].(string)
+	typ := peekBodyType(raw)
 	switch typ {
-	case "StartupDetails":
-		return decodeStartupDetails(m)
-	case "ConnectionResult":
-		return decodeConnectionResult(m)
-	case "VariableResult":
-		return decodeVariableResult(m)
-	case "XComResult":
-		return decodeXComResult(m)
-	case "ErrorResponse":
-		return decodeErrorResponse(m), nil
+	case genmodels.TypeStartupDetails:
+		var msg genmodels.StartupDetails
+		if err := msgpack.Unmarshal(raw, &msg); err != nil {
+			return nil, fmt.Errorf("decoding StartupDetails: %w", err)
+		}
+		if err := validateStartupTI(msg.TI); err != nil {
+			return nil, fmt.Errorf("decoding StartupDetails: %w", err)
+		}
+		return &msg, nil
+	case genmodels.TypeDagFileParseRequest:
+		var msg genmodels.DagFileParseRequest
+		if err := msgpack.Unmarshal(raw, &msg); err != nil {
+			return nil, fmt.Errorf("decoding DagFileParseRequest: %w", err)
+		}
+		return &msg, nil
+	case genmodels.TypeErrorResponse:
+		var msg genmodels.ErrorResponse
+		if err := msgpack.Unmarshal(raw, &msg); err != nil {
+			return nil, fmt.Errorf("decoding ErrorResponse: %w", err)
+		}
+		return &msg, nil
 	default:
 		return nil, fmt.Errorf("unknown message type %q", typ)
 	}
 }
 
-// asTime parses a time value that may be a time.Time (from msgpack timestamp ext)
-// or a string (ISO 8601 format).
-func asTime(v any) (time.Time, error) {
-	if v == nil {
-		return time.Time{}, fmt.Errorf("nil time value")
+// validateStartupTI fails fast when StartupDetails omits a required TaskInstance
+// field: msgpack decodes a missing key to the Go zero value, which would
+// otherwise silently run the task with e.g. try_number 0.
+func validateStartupTI(ti genmodels.TaskInstance) error {
+	switch {
+	case ti.ID == "":
+		return fmt.Errorf("ti.id: missing or empty")
+	case ti.DagID == "":
+		return fmt.Errorf("ti.dag_id: missing or empty")
+	case ti.TaskID == "":
+		return fmt.Errorf("ti.task_id: missing or empty")
+	case ti.RunID == "":
+		return fmt.Errorf("ti.run_id: missing or empty")
+	case ti.TryNumber < 1:
+		return fmt.Errorf("ti.try_number: missing or invalid (%d)", ti.TryNumber)
 	}
-	switch t := v.(type) {
-	case time.Time:
-		return t, nil
-	case string:
-		return time.Parse(time.RFC3339Nano, t)
+	return nil
+}
+
+// decodeBody decodes a raw msgpack response body into dst, a pointer to the
+// genmodels result type the caller expects.
+func decodeBody(raw msgpack.RawMessage, dst any) error {
+	if isNilRaw(raw) {
+		return fmt.Errorf("empty response body")
+	}
+	return msgpack.Unmarshal(raw, dst)
+}
+
+// apiErrorFromFrame returns the supervisor error carried by a frame, or nil if
+// it is not an error reply. An error arrives either as the third element of a
+// 3-tuple frame (frame.Err) or as a 2-tuple body whose "type" is "ErrorResponse".
+func apiErrorFromFrame(f IncomingFrame) *ApiError {
+	var raw msgpack.RawMessage
+	switch {
+	case !isNilRaw(f.Err):
+		raw = f.Err
+	case peekBodyType(f.Body) == genmodels.TypeErrorResponse:
+		raw = f.Body
 	default:
-		return time.Time{}, fmt.Errorf("expected time, got %T", v)
+		return nil
+	}
+
+	var resp genmodels.ErrorResponse
+	if err := msgpack.Unmarshal(raw, &resp); err != nil {
+		// detail is off-contract (schema types it as object|null); still recover
+		// the error code so callers get the typed error, not a generic one.
+		var code struct {
+			Error genmodels.ErrorType `msgpack:"error"`
+		}
+		_ = msgpack.Unmarshal(raw, &code)
+		errCode := string(code.Error)
+		if errCode == "" {
+			errCode = string(genmodels.ErrorTypeGENERICERROR)
+		}
+		return &ApiError{
+			Err:    errCode,
+			Detail: fmt.Sprintf("undecodable error frame: %v", err),
+		}
+	}
+	var detail any
+	if resp.Detail != nil {
+		detail = map[string]any(*resp.Detail)
+	}
+	return &ApiError{Err: string(resp.Error), Detail: detail}
+}
+
+// ifaceString returns the string carried by a nullable schema field decoded as
+// any, or "" when the value is nil or not a string.
+func ifaceString(v any) string {
+	s, _ := v.(string)
+	return s
+}
+
+// ifaceStringPtr preserves the null-vs-empty distinction for a nullable string
+// field decoded as any: nil when missing/null, else a pointer to the string.
+// Used for connection credentials, where an explicit "" must stay distinct from
+// "not set".
+func ifaceStringPtr(v any) *string {
+	s, ok := v.(string)
+	if !ok {
+		return nil
+	}
+	return &s
+}
+
+// ifaceTimePtr returns a pointer to the time carried by a nullable date-time
+// field decoded as any, or nil when missing/null. msgpack decodes the
+// supervisor's timestamp extension straight into time.Time.
+func ifaceTimePtr(v any) *time.Time {
+	t, ok := v.(time.Time)
+	if !ok {
+		return nil
+	}
+	return &t
+}
+
+// ifaceInt converts a numeric value decoded as any (msgpack yields various
+// int/uint/float widths) into int, returning def when nil or non-numeric.
+func ifaceInt(v any, def int) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int8:
+		return int(n)
+	case int16:
+		return int(n)
+	case int32:
+		return int(n)
+	case int64:
+		return int(n)
+	case uint:
+		return int(n)
+	case uint8:
+		return int(n)
+	case uint16:
+		return int(n)
+	case uint32:
+		return int(n)
+	case uint64:
+		return int(n)
+	case float32:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return def
 	}
 }

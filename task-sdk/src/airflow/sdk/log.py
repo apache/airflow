@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
-from airflow.sdk._shared.secrets_masker import redact
+from airflow.sdk._shared.secrets_masker import _secrets_masker, redact
 
 
 class _ActiveLoggingConfig:
@@ -172,7 +173,12 @@ def init_log_file(local_relative_path: str) -> Path:
 
 
 def _load_logging_config() -> None:
-    """Load and cache the remote logging configuration from SDK config."""
+    """
+    Load and cache the remote logging configuration from SDK config.
+
+    SDK mirror of :func:`airflow.logging_config.load_logging_config` — see that
+    function for the ``logging_config_class`` / ``REMOTE_TASK_LOG`` contract.
+    """
     from airflow.sdk._shared.logging.factory import resolve_remote_task_log
     from airflow.sdk._shared.module_loading import import_string
     from airflow.sdk.configuration import conf
@@ -249,10 +255,6 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
     they're masked in both the task subprocess AND supervisor's log output.
     Works safely in both sync and async contexts.
     """
-    from contextlib import suppress
-
-    from airflow.sdk._shared.secrets_masker import _secrets_masker
-
     _secrets_masker().add_mask(secret, name)
 
     with suppress(Exception):
@@ -262,6 +264,24 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
 
         if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
             comms.send(MaskSecret(value=secret, name=name))
+
+
+async def amask_secret(secret: JsonValue, name: str | None = None) -> None:
+    """
+    Async version of mask_secret for use in async contexts.
+
+    Uses asend() instead of send() to avoid deadlock when called from within
+    an async task that already has an asend() in flight.
+    """
+    _secrets_masker().add_mask(secret, name)
+
+    with suppress(Exception):
+        # Try to tell supervisor (only if in task execution context)
+        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.comms import MaskSecret
+
+        if comms := getattr(task_runner, "SUPERVISOR_COMMS", None):
+            await comms.asend(MaskSecret(value=secret, name=name))
 
 
 def reset_logging():

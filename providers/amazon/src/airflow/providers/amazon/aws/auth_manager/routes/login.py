@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import anyio
@@ -36,6 +36,9 @@ from airflow.providers.amazon.aws.auth_manager.datamodels.login import LoginResp
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_1_1_PLUS, AIRFLOW_V_3_1_8_PLUS
 from airflow.providers.common.compat.sdk import conf
+
+if TYPE_CHECKING:
+    from starlette.datastructures import FormData
 
 if AIRFLOW_V_3_1_8_PLUS:
     from airflow.api_fastapi.app import get_cookie_path
@@ -55,6 +58,15 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["AWSAuthManagerLogin"])
+
+
+def _read_form(request: Request) -> FormData:
+    """Read the request form from a synchronous context running in a worker thread."""
+
+    async def _form() -> FormData:
+        return await request.form()
+
+    return anyio.from_thread.run(_form)
 
 
 @login_router.get("/login")
@@ -101,12 +113,12 @@ def login_callback(request: Request):
     url = conf.get("api", "base_url", fallback="/")
     token = get_auth_manager().generate_jwt(user)
 
-    form_data = anyio.from_thread.run(request.form)
+    form_data = _read_form(request)
     relay_state = form_data["RelayState"]
 
     if relay_state == "login-redirect":
         response = RedirectResponse(url=url, status_code=303)
-        secure = bool(conf.get("api", "ssl_cert", fallback=""))
+        secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
         # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
         # See https://github.com/apache/airflow/pull/55506
         cookie_path = get_cookie_path()
@@ -151,7 +163,7 @@ def _prepare_request(request: Request) -> dict:
         "get_data": request.query_params,
         "post_data": {},
     }
-    form_data = anyio.from_thread.run(request.form)
+    form_data = _read_form(request)
     if "SAMLResponse" in form_data:
         data["post_data"]["SAMLResponse"] = form_data["SAMLResponse"]
     if "RelayState" in form_data:

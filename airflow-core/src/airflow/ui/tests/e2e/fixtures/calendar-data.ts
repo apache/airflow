@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Calendar data fixture — creates success + failed Dag runs for calendar tests.
  */
@@ -27,9 +26,9 @@ import {
   apiCreateDagRun,
   apiSetDagRunState,
   safeCleanupDagRun,
-  uniqueRunId,
   waitForDagReady,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/dag-runs";
+import { uniqueRunId } from "tests/e2e/utils/shared";
 
 export type CalendarRunsData = {
   dagId: string;

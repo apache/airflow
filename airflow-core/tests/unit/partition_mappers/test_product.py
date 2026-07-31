@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 from airflow.partition_mappers.identity import IdentityMapper
@@ -120,3 +122,41 @@ class TestProductMapper:
         mapper = ProductMapper(StartOfHourMapper(), StartOfDayMapper())
         encoded_var = encode_partition_mapper(mapper)[Encoding.VAR]
         assert "max_downstream_keys" not in encoded_var
+
+    @pytest.mark.parametrize(
+        ("mapper", "downstream_key", "expected"),
+        [
+            pytest.param(
+                ProductMapper(StartOfDayMapper(), IdentityMapper()),
+                "2024-01-15|us-east-1",
+                datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc),
+                id="one-temporal-one-categorical-returns-temporal-anchor",
+            ),
+            pytest.param(
+                ProductMapper(IdentityMapper(), StartOfDayMapper()),
+                "us-east-1|2024-01-15",
+                datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc),
+                id="categorical-first-temporal-second-returns-temporal-anchor",
+            ),
+            pytest.param(
+                ProductMapper(StartOfDayMapper(), StartOfHourMapper()),
+                "2024-01-15|2024-01-15T10",
+                None,
+                id="two-temporal-children-returns-none",
+            ),
+            pytest.param(
+                ProductMapper(IdentityMapper(), IdentityMapper()),
+                "us-east-1|batch-42",
+                None,
+                id="all-categorical-returns-none",
+            ),
+            pytest.param(
+                ProductMapper(StartOfDayMapper(), IdentityMapper()),
+                "2024-01-15",
+                None,
+                id="wrong-segment-count-returns-none",
+            ),
+        ],
+    )
+    def test_to_partition_date(self, mapper, downstream_key, expected):
+        assert mapper.to_partition_date(downstream_key) == expected

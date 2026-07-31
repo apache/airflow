@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Asset data fixture — triggers asset_produces_1 Dag and waits for success.
  */
@@ -26,7 +25,7 @@ import {
   safeCleanupDagRun,
   waitForDagReady,
   waitForDagRunStatus,
-} from "tests/e2e/utils/test-helpers";
+} from "tests/e2e/utils/api/dag-runs";
 
 export type AssetData = {
   dagId: string;

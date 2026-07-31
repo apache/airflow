@@ -85,7 +85,7 @@ export const getDownloadText = ({
 
 export type HighlightOptions = {
   currentMatchLineIndex?: number;
-  hash: string;
+  hashIndex?: number;
   index: number;
   searchMatchIndices?: Set<number>;
 };
@@ -97,7 +97,7 @@ export type HighlightOptions = {
  */
 export const getHighlightColor = ({
   currentMatchLineIndex,
-  hash,
+  hashIndex,
   index,
   searchMatchIndices,
 }: HighlightOptions): string => {
@@ -107,7 +107,7 @@ export const getHighlightColor = ({
   if (searchMatchIndices?.has(index)) {
     return "yellow.subtle";
   }
-  if (Boolean(hash) && index === Number(hash) - 1) {
+  if (hashIndex !== undefined && index === hashIndex) {
     return "brand.emphasized";
   }
 

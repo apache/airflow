@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * Page Object Model fixtures for E2E tests.
  *
@@ -33,6 +32,8 @@ import { ConfigurationPage } from "../pages/ConfigurationPage";
 import { ConnectionsPage } from "../pages/ConnectionsPage";
 import { DagCalendarTab } from "../pages/DagCalendarTab";
 import { DagCodePage } from "../pages/DagCodePage";
+import { DagDetailPage } from "../pages/DagDetailPage";
+import { DagRunPage } from "../pages/DagRunPage";
 import { DagRunsPage } from "../pages/DagRunsPage";
 import { DagRunsTabPage } from "../pages/DagRunsTabPage";
 import { DagsPage } from "../pages/DagsPage";
@@ -60,6 +61,8 @@ export type PomFixtures = {
   connectionsPage: ConnectionsPage;
   dagCalendarTab: DagCalendarTab;
   dagCodePage: DagCodePage;
+  dagDetailPage: DagDetailPage;
+  dagRunPage: DagRunPage;
   dagRunsPage: DagRunsPage;
   dagRunsTabPage: DagRunsTabPage;
   dagsPage: DagsPage;
@@ -110,6 +113,12 @@ export const test = base.extend<PomFixtures, PomWorkerFixtures>({
   },
   dagCodePage: async ({ page }, use) => {
     await use(new DagCodePage(page));
+  },
+  dagDetailPage: async ({ page }, use) => {
+    await use(new DagDetailPage(page));
+  },
+  dagRunPage: async ({ page }, use) => {
+    await use(new DagRunPage(page));
   },
   dagRunsPage: async ({ page }, use) => {
     await use(new DagRunsPage(page));

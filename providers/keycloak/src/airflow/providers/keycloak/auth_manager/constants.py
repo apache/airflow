@@ -25,3 +25,11 @@ CONF_REALM_KEY = "realm"
 CONF_SERVER_URL_KEY = "server_url"
 CONF_REQUESTS_POOL_SIZE_KEY = "requests_pool_size"
 CONF_REQUESTS_RETRIES_KEY = "requests_retries"
+
+# Extra Cookie names
+COOKIE_NAME_ACCESS_TOKEN = "access_token"
+COOKIE_NAME_ID_TOKEN = "_id_token"
+COOKIE_NAME_NAME = "name"
+COOKIE_NAME_OAUTH_STATE = "_oauth_state"
+COOKIE_NAME_REFRESH_TOKEN = "refresh_token"
+COOKIE_NAME_USER_ID = "user_id"

@@ -234,3 +234,45 @@ def test_resolves_task_instance_from_context(patched_emit):
         emit_dataset_lineage(inputs=[Dataset(namespace="ns", name="a")])
         get_ti.assert_called_once()
     patched_emit.assert_called_once()
+
+
+def test_noop_when_emission_policy_blocks_emit(patched_emit):
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    ti = _make_task_instance()
+    with mock.patch(
+        f"{_MODULE}.resolve_task_emission_policy",
+        return_value=EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        ),
+    ):
+        emit_dataset_lineage(inputs=[Dataset(namespace="ns", name="a")], task_instance=ti)
+
+    patched_emit.assert_not_called()
+
+
+def test_passes_include_full_task_info_to_run_facets(patched_emit):
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    ti = _make_task_instance()
+    with (
+        mock.patch(
+            f"{_MODULE}.resolve_task_emission_policy",
+            return_value=EmissionPolicy(
+                emit=True,
+                extract_operator_metadata=True,
+                include_source_code=True,
+                hook_lineage=True,
+                include_full_task_info=True,
+            ),
+        ),
+        mock.patch(f"{_MODULE}.build_task_event_run_facets", return_value={}) as mock_build_run_facets,
+    ):
+        emit_dataset_lineage(inputs=[Dataset(namespace="ns", name="a")], task_instance=ti)
+
+    mock_build_run_facets.assert_called_once()
+    assert mock_build_run_facets.call_args.kwargs["include_full_task_info"] is True

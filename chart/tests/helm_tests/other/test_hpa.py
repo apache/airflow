@@ -35,21 +35,10 @@ class TestHPA:
             "CeleryExecutor,KubernetesExecutor",
         ],
     )
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"hpa": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
-            {"celery": {"hpa": {"enabled": True}, "persistence": {"enabled": False}}},
-            {
-                "hpa": {"enabled": False},
-                "celery": {"hpa": {"enabled": True}, "persistence": {"enabled": False}},
-            },
-        ],
-    )
-    def test_hpa_enabled(self, executor, workers_values):
+    def test_hpa_enabled(self, executor):
         docs = render_chart(
             values={
-                "workers": workers_values,
+                "workers": {"celery": {"hpa": {"enabled": True}, "persistence": {"enabled": False}}},
                 "executor": executor,
             },
             show_only=["templates/workers/worker-hpa.yaml"],
@@ -66,20 +55,11 @@ class TestHPA:
         assert jmespath.search("spec.minReplicas", docs[0]) == 0
         assert jmespath.search("spec.maxReplicas", docs[0]) == 5
 
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {"hpa": {"enabled": True, "minReplicaCount": 2, "maxReplicaCount": 8}},
-            {"celery": {"hpa": {"enabled": True, "minReplicaCount": 2, "maxReplicaCount": 8}}},
-            {
-                "hpa": {"enabled": True, "minReplicaCount": 1, "maxReplicaCount": 10},
-                "celery": {"hpa": {"enabled": True, "minReplicaCount": 2, "maxReplicaCount": 8}},
-            },
-        ],
-    )
-    def test_min_max_replicas(self, workers_values):
+    def test_min_max_replicas(self):
         docs = render_chart(
-            values={"workers": workers_values},
+            values={
+                "workers": {"celery": {"hpa": {"enabled": True, "minReplicaCount": 2, "maxReplicaCount": 8}}}
+            },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
@@ -87,61 +67,23 @@ class TestHPA:
         assert jmespath.search("spec.maxReplicas", docs[0]) == 8
 
     @pytest.mark.parametrize("executor", ["CeleryExecutor", "CeleryExecutor,KubernetesExecutor"])
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {
-                "hpa": {
-                    "enabled": True,
-                    "behavior": {
-                        "scaleDown": {
-                            "stabilizationWindowSeconds": 300,
-                            "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
-                        }
-                    },
-                }
-            },
-            {
-                "celery": {
-                    "hpa": {
-                        "enabled": True,
-                        "behavior": {
-                            "scaleDown": {
-                                "stabilizationWindowSeconds": 300,
-                                "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
-                            }
-                        },
-                    }
-                }
-            },
-            {
-                "hpa": {
-                    "behavior": {
-                        "scaleUp": {
-                            "stabilizationWindowSeconds": 300,
-                            "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
-                        }
-                    }
-                },
-                "celery": {
-                    "hpa": {
-                        "enabled": True,
-                        "behavior": {
-                            "scaleDown": {
-                                "stabilizationWindowSeconds": 300,
-                                "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
-                            }
-                        },
-                    }
-                },
-            },
-        ],
-    )
-    def test_hpa_behavior(self, executor, workers_values):
+    def test_hpa_behavior(self, executor):
         """Verify HPA behavior."""
         docs = render_chart(
             values={
-                "workers": workers_values,
+                "workers": {
+                    "celery": {
+                        "hpa": {
+                            "enabled": True,
+                            "behavior": {
+                                "scaleDown": {
+                                    "stabilizationWindowSeconds": 300,
+                                    "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
+                                }
+                            },
+                        }
+                    }
+                },
                 "executor": executor,
             },
             show_only=["templates/workers/worker-hpa.yaml"],
@@ -158,8 +100,6 @@ class TestHPA:
         [
             ({"celery": {"hpa": {"enabled": True}, "persistence": {"enabled": True}}}, "StatefulSet"),
             ({"celery": {"hpa": {"enabled": True}, "persistence": {"enabled": False}}}, "Deployment"),
-            ({"persistence": {"enabled": True}, "celery": {"hpa": {"enabled": True}}}, "StatefulSet"),
-            ({"persistence": {"enabled": False}, "celery": {"hpa": {"enabled": True}}}, "Deployment"),
         ],
     )
     def test_persistence(self, workers_values, kind):

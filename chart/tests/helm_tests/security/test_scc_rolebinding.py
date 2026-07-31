@@ -117,9 +117,7 @@ class TestSCCActivation:
         "executor",
         [
             "CeleryExecutor",
-            "KubernetesExecutor",
             "LocalExecutor,CeleryExecutor",
-            "LocalExecutor,KubernetesExecutor",
         ],
     )
     def test_worker_role_binding_should_exists(self, executor):
@@ -136,10 +134,18 @@ class TestSCCActivation:
             "namespace": "airflow",
         }
 
-    def test_worker_role_binding_should_not_exists(self):
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "LocalExecutor",
+            "KubernetesExecutor",
+            "LocalExecutor,KubernetesExecutor",
+        ],
+    )
+    def test_worker_role_binding_should_not_exists(self, executor):
         docs = render_chart(
             name="prod",
-            values={"rbac": {"create": True, "createSCCRoleBinding": True}, "executor": "LocalExecutor"},
+            values={"rbac": {"create": True, "createSCCRoleBinding": True}, "executor": executor},
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )
 
@@ -226,7 +232,7 @@ class TestSCCActivation:
     @pytest.mark.parametrize("executor", ["LocalExecutor", "CeleryExecutor", "KubernetesExecutor"])
     @pytest.mark.parametrize(
         "service_account_values",
-        [{"create": False}, {"create": False, "name": None}, {"create": None, "name": None}, {}],
+        [{"create": False}, {"create": False, "name": None}],
     )
     def test_worker_kubernetes_role_binding_should_not_exists(self, executor, service_account_values):
         docs = render_chart(
@@ -242,6 +248,21 @@ class TestSCCActivation:
 
         assert jmespath.search("subjects[?name=='prod-airflow-worker-kubernetes']", docs[0]) == []
 
+    @pytest.mark.parametrize("executor", ["LocalExecutor", "CeleryExecutor"])
+    def test_worker_kubernetes_role_binding_should_not_exists_default(self, executor):
+        docs = render_chart(
+            name="prod",
+            namespace="airflow",
+            values={
+                "rbac": {"create": True, "createSCCRoleBinding": True},
+                "allowJobLaunching": True,
+                "executor": executor,
+            },
+            show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
+        )
+
+        assert jmespath.search("subjects[?name=='prod-airflow-worker-kubernetes']", docs[0]) == []
+
     @pytest.mark.parametrize(
         "executor",
         [
@@ -250,15 +271,14 @@ class TestSCCActivation:
             "LocalExecutor,CeleryExecutor,KubernetesExecutor",
         ],
     )
-    @pytest.mark.parametrize("create", [True, None])
-    def test_worker_role_binding_should_exists_with_celery(self, executor, create):
+    def test_worker_role_binding_should_exists_with_celery(self, executor):
         docs = render_chart(
             name="prod",
             namespace="airflow",
             values={
                 "rbac": {"create": True, "createSCCRoleBinding": True},
                 "executor": executor,
-                "workers": {"celery": {"serviceAccount": {"create": create}}},
+                "workers": {"celery": {"serviceAccount": {"create": True}}},
             },
             show_only=["templates/rbac/security-context-constraint-rolebinding.yaml"],
         )

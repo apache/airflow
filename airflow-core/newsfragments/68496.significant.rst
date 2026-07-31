@@ -1,0 +1,32 @@
+Default async Postgres driver changed from asyncpg to psycopg3
+
+When ``[database] sql_alchemy_conn_async`` is not set, Airflow derives the async metadata database URL from ``sql_alchemy_conn``. For PostgreSQL, the derived URL now uses psycopg3 (``postgresql+psycopg_async://``) instead of asyncpg (``postgresql+asyncpg://``) when psycopg3 is installed. If psycopg3 is not installed — for example with an older ``apache-airflow-providers-postgres`` release that ships ``asyncpg`` but not ``psycopg`` — the derived URL keeps using asyncpg, so upgrading core without upgrading the provider does not break the async engine.
+
+**Why:** Airflow recommends running PgBouncer in front of PostgreSQL in production. asyncpg uses named server-side prepared statements, which break under transaction-mode PgBouncer unless prepared-statement caching is explicitly disabled. psycopg3 is safe behind transaction-mode PgBouncer with no extra configuration, so the default async engine now works out of the box in recommended production deployments.
+
+The SQLite (``aiosqlite``) and MySQL (``aiomysql``) async URL derivations are unchanged, and an explicitly configured ``sql_alchemy_conn_async`` is never rewritten.
+
+**Packaging:** the ``apache-airflow-providers-postgres`` distribution now installs ``psycopg`` (psycopg3) by default, and ``asyncpg`` is no longer installed by default. Instead, it moved to the ``asyncpg`` optional extra. Note that Airflow versions older than 3.4.0 always derive an asyncpg URL (they have no psycopg3 fallback), so running the new provider release on an older core requires either the ``asyncpg`` extra or an explicitly configured ``sql_alchemy_conn_async``.
+
+**To keep using asyncpg**, install the extra and configure the async URL explicitly:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-postgres[asyncpg]'
+
+.. code-block:: ini
+
+    [database]
+    sql_alchemy_conn_async = postgresql+asyncpg://<user>:<password>@<host>/<db>
+
+When running behind transaction-mode PgBouncer, also disable asyncpg's prepared-statement caching by pointing ``sql_alchemy_connect_args_async`` at a dict defined in ``airflow_local_settings.py``:
+
+.. code-block:: python
+
+    # airflow_local_settings.py
+    connect_args_async = {"statement_cache_size": 0, "prepared_statement_cache_size": 0}
+
+.. code-block:: ini
+
+    [database]
+    sql_alchemy_connect_args_async = airflow_local_settings.connect_args_async

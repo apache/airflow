@@ -58,6 +58,27 @@ else:
     import psycopg2.extras
 
 
+def test_hooks_postgres_raises_clear_error_without_psycopg2(monkeypatch):
+    """PostgresHook must fail loudly (not with a bare ImportError or a real connection attempt)
+    when psycopg2-specific functionality is used but psycopg2 isn't installed."""
+    import airflow.providers.postgres.hooks.postgres as postgres_module
+
+    monkeypatch.setattr(postgres_module, "USE_PSYCOPG3", False)
+    monkeypatch.setattr(postgres_module, "ppg2_connect", None)
+    monkeypatch.setattr(postgres_module, "DictCursor", None)
+    monkeypatch.setattr(postgres_module, "RealDictCursor", None)
+    monkeypatch.setattr(postgres_module, "NamedTupleCursor", None)
+    monkeypatch.setattr(postgres_module, "execute_values", None)
+
+    hook = postgres_module.PostgresHook.__new__(postgres_module.PostgresHook)
+    with pytest.raises(AirflowOptionalProviderFeatureException, match="psycopg2 is not installed"):
+        hook._get_cursor("dictcursor")
+    with pytest.raises(AirflowOptionalProviderFeatureException, match="psycopg2 is not installed"):
+        hook._create_connection({})
+    with pytest.raises(AirflowOptionalProviderFeatureException, match="psycopg2 is not installed"):
+        hook.insert_rows(table="t", rows=[(1,)], fast_executemany=True)
+
+
 @pytest.fixture
 def mock_connect(mocker):
     """Mock the connection object according to the correct psycopg version."""
@@ -910,6 +931,35 @@ class _BasePostgresHookRuntimeTests:
             f"ON CONFLICT ({', '.join(fields)}) DO NOTHING"
         )
         self.cur.executemany.assert_any_call(sql, rows)
+
+    @mock.patch("airflow.providers.postgres.hooks.postgres.PostgresHook.insert_rows")
+    def test_upsert_rows(self, mock_insert_rows):
+
+        rows = [(1, "hello")]
+        table = "table"
+
+        self.db_hook.upsert_rows(
+            table=table,
+            rows=rows,
+            target_fields=["id", "value"],
+            conflict_fields=["id"],
+            update_fields=["value"],
+            commit_every=123,
+            fast_executemany=True,
+            autocommit=True,
+        )
+
+        mock_insert_rows.assert_called_once_with(
+            table=table,
+            rows=rows,
+            target_fields=["id", "value"],
+            replace_index=["id"],
+            replace_target=["value"],
+            commit_every=123,
+            replace=True,
+            fast_executemany=True,
+            autocommit=True,
+        )
 
     def test_dialect_name(self):
         assert self.db_hook.dialect_name == "postgresql"

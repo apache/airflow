@@ -35,8 +35,12 @@ from pathlib import Path
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.skills import GitSkills
 from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
-from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import dag
+
+try:
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+except Exception:
+    SQLToolset = None  # type: ignore[assignment,misc]
 
 # Skills ship next to this DAG file; resolve relative to __file__ so the path
 # holds regardless of the dag-processor's working directory.
@@ -49,27 +53,28 @@ SKILLS_DIR = Path(__file__).parent / "skills"
 
 
 # [START howto_operator_agent_skills_local]
-@dag(tags=["example"])
-def example_agent_skills_local():
-    AgentOperator(
-        task_id="reporter",
-        prompt="How many orders did our top 5 customers place last month?",
-        llm_conn_id="pydanticai_default",
-        system_prompt="You are a data analyst. Consult your skills before writing SQL.",
-        toolsets=[
-            AgentSkillsToolset(sources=[str(SKILLS_DIR)]),
-            SQLToolset(
-                db_conn_id="postgres_default",
-                allowed_tables=["customers", "orders"],
-                max_rows=50,
-            ),
-        ],
-    )
+if SQLToolset is not None:
 
+    @dag(tags=["example"])
+    def example_agent_skills_local():
+        AgentOperator(
+            task_id="reporter",
+            prompt="How many orders did our top 5 customers place last month?",
+            llm_conn_id="pydanticai_default",
+            system_prompt="You are a data analyst. Consult your skills before writing SQL.",
+            toolsets=[
+                AgentSkillsToolset(sources=[str(SKILLS_DIR)]),
+                SQLToolset(
+                    db_conn_id="postgres_default",
+                    allowed_tables=["customers", "orders"],
+                    max_rows=50,
+                ),
+            ],
+        )
 
-# [END howto_operator_agent_skills_local]
+    # [END howto_operator_agent_skills_local]
 
-example_agent_skills_local()
+    example_agent_skills_local()
 
 
 # ---------------------------------------------------------------------------
