@@ -58,6 +58,7 @@ from registry_tools.types import (
     BASE_CLASS_IMPORTS,
     CLASS_LEVEL_CATEGORY_OVERRIDES,
     CLASS_LEVEL_SECTIONS,
+    DICT_SHAPED_CLASS_LEVEL_SECTIONS,
     MODULE_LEVEL_SECTIONS,
 )
 
@@ -628,9 +629,12 @@ def discover_classes_from_provider(
                 )
             )
 
-    # --- Plugins (dict entries with "name" + "plugin-class") ---
+    # --- Plugins (dict entries with "name" + a class-path field, see types.py) ---
+    plugin_class_field = DICT_SHAPED_CLASS_LEVEL_SECTIONS["plugins"][1]
     for plugin in provider_yaml.get("plugins", []):
-        if not (class_path := plugin.get("plugin-class", "")):
+        if not isinstance(plugin, dict):
+            continue
+        if not (class_path := plugin.get(plugin_class_field, "")):
             continue
         if (resolved := _resolve_dotted_path(class_path)) is None:
             continue
@@ -647,13 +651,16 @@ def discover_classes_from_provider(
                 class_path,
                 module_path,
                 integration=plugin.get("name", ""),
-                category="plugins",
+                category=CLASS_LEVEL_CATEGORY_OVERRIDES.get("plugins", "plugins"),
             )
         )
 
-    # --- Dialects (dict entries with "dialect-type" + "dialect-class-name") ---
+    # --- Dialects (dict entries with "dialect-type" + a class-path field, see types.py) ---
+    dialect_class_field = DICT_SHAPED_CLASS_LEVEL_SECTIONS["dialects"][1]
     for dialect in provider_yaml.get("dialects", []):
-        if not (class_path := dialect.get("dialect-class-name", "")):
+        if not isinstance(dialect, dict):
+            continue
+        if not (class_path := dialect.get(dialect_class_field, "")):
             continue
         if (resolved := _resolve_dotted_path(class_path)) is None:
             continue
@@ -670,7 +677,7 @@ def discover_classes_from_provider(
                 class_path,
                 module_path,
                 integration=dialect.get("dialect-type", ""),
-                category="dialects",
+                category=CLASS_LEVEL_CATEGORY_OVERRIDES.get("dialects", "dialects"),
             )
         )
 

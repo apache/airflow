@@ -25,7 +25,7 @@ from extract_versions import (
     SCRIPT_DIR,
     extract_modules_from_yaml,
 )
-from registry_tools.types import CLASS_LEVEL_SECTIONS
+from registry_tools.types import CLASS_LEVEL_SECTIONS, DICT_SHAPED_CLASS_LEVEL_SECTIONS
 
 
 class TestProvidersJsonCandidates:
@@ -117,3 +117,52 @@ class TestExtractModulesFromYamlClassLevelSections:
         modules = _extract_class_level_modules(provider_yaml)
 
         assert {m["type"] for m in modules} == set(CLASS_LEVEL_SECTIONS.values())
+
+
+# plugins/dialects aren't in CLASS_LEVEL_CATEGORY_OVERRIDES, so category ==
+# yaml_key itself (same fallback as EXPECTED_CLASS_LEVEL_CATEGORIES above).
+EXPECTED_DICT_SHAPED_CATEGORIES = {
+    "plugins": "plugins",
+    "dialects": "dialects",
+}
+
+EXPECTED_DICT_SHAPED_DESC_SUFFIXES = {
+    "plugin": "plugin",
+    "dialect": "dialect",
+}
+
+
+class TestExtractModulesFromYamlDictShapedSections:
+    @pytest.mark.parametrize(
+        ("yaml_key", "type_and_field"),
+        list(DICT_SHAPED_CLASS_LEVEL_SECTIONS.items()),
+    )
+    def test_dict_shaped_section_produces_module(self, yaml_key, type_and_field):
+        mod_type, class_path_field = type_and_field
+        class_path = f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"
+        provider_yaml = {yaml_key: [{class_path_field: class_path}]}
+
+        modules = _extract_class_level_modules(provider_yaml)
+
+        assert len(modules) == 1
+        module = modules[0]
+        assert module["type"] == mod_type
+        assert module["category"] == EXPECTED_DICT_SHAPED_CATEGORIES[yaml_key]
+        expected_desc_suffix = EXPECTED_DICT_SHAPED_DESC_SUFFIXES[mod_type]
+        assert module["short_description"] == f"ExampleClass {expected_desc_suffix}"
+
+    def test_all_dict_shaped_sections_produce_covered_types(self):
+        """Type coverage must track DICT_SHAPED_CLASS_LEVEL_SECTIONS; a key
+        added there without matching handling in extract_versions.py fails here."""
+        provider_yaml = {
+            yaml_key: [
+                {
+                    class_path_field: f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"
+                }
+            ]
+            for yaml_key, (_, class_path_field) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items()
+        }
+
+        modules = _extract_class_level_modules(provider_yaml)
+
+        assert {m["type"] for m in modules} == {t for t, _ in DICT_SHAPED_CLASS_LEVEL_SECTIONS.values()}

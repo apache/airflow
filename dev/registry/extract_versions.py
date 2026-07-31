@@ -62,6 +62,7 @@ from extract_metadata import fetch_provider_inventory, read_connection_urls, res
 from registry_tools.types import (
     CLASS_LEVEL_CATEGORY_OVERRIDES,
     CLASS_LEVEL_SECTIONS,
+    DICT_SHAPED_CLASS_LEVEL_SECTIONS,
     MODULE_LEVEL_SECTIONS,
     TYPE_SUFFIXES,
 )
@@ -94,6 +95,8 @@ FQCN_DESC_SUFFIXES: dict[str, str] = {
     "queue": "queue",
     "auth_manager": "auth manager",
     "db_manager": "db manager",
+    "plugin": "plugin",
+    "dialect": "dialect",
 }
 
 
@@ -328,6 +331,34 @@ def extract_modules_from_yaml(
         category = CLASS_LEVEL_CATEGORY_OVERRIDES.get(yaml_key, yaml_key)
         desc_suffix = FQCN_DESC_SUFFIXES[mod_type]
         for class_path in provider_yaml.get(yaml_key, []):
+            if not class_path:
+                continue
+            parts = class_path.rsplit(".", 1)
+            if len(parts) != 2:
+                continue
+            mod_path, class_name = parts
+            api_ref = mod_path.replace(".", "/")
+            modules.append(
+                {
+                    "name": class_name,
+                    "type": mod_type,
+                    "import_path": class_path,
+                    "short_description": f"{class_name} {desc_suffix}",
+                    "docs_url": f"{base_docs_url}/_api/{api_ref}/index.html#{class_path}",
+                    "source_url": f"{base_source_url}/{api_ref}.py",
+                    "category": category,
+                }
+            )
+
+    # Dict-shaped class-level sections (each entry is a dict carrying the
+    # class path under a section-specific field name, see types.py).
+    for yaml_key, (mod_type, class_path_field) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+        category = CLASS_LEVEL_CATEGORY_OVERRIDES.get(yaml_key, yaml_key)
+        desc_suffix = FQCN_DESC_SUFFIXES[mod_type]
+        for entry in provider_yaml.get(yaml_key, []):
+            if not isinstance(entry, dict):
+                continue
+            class_path = entry.get(class_path_field, "")
             if not class_path:
                 continue
             parts = class_path.rsplit(".", 1)

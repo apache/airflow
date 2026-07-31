@@ -24,6 +24,7 @@ from registry_tools.types import (
     BASE_CLASS_IMPORTS,
     CLASS_LEVEL_CATEGORY_OVERRIDES,
     CLASS_LEVEL_SECTIONS,
+    DICT_SHAPED_CLASS_LEVEL_SECTIONS,
     FLAT_LEVEL_SECTIONS,
     MODULE_LEVEL_SECTIONS,
     MODULE_TYPES,
@@ -96,6 +97,11 @@ class TestDerivedLookups:
 
     def test_class_level_category_overrides_are_subset_of_class_level_sections(self):
         assert set(CLASS_LEVEL_CATEGORY_OVERRIDES.keys()) <= set(CLASS_LEVEL_SECTIONS.keys())
+
+    def test_dict_shaped_class_level_sections_are_subset_of_flat(self):
+        for yaml_key, (type_id, _field_name) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+            assert yaml_key in FLAT_LEVEL_SECTIONS
+            assert FLAT_LEVEL_SECTIONS[yaml_key] == type_id
 
 
 class TestBaseClassImports:
