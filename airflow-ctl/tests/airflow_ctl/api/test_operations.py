@@ -1119,6 +1119,41 @@ class TestDagOperations:
         response = client.dags.get_details("dag_id")
         assert response == self.dag_details_response
 
+    @pytest.mark.parametrize(
+        ("operation", "path", "payload_attr"),
+        [
+            (lambda dags, patch_body: dags.get("dag_id"), "/api/v2/dags/dag_id", "dag_response"),
+            (
+                lambda dags, patch_body: dags.get_details("dag_id"),
+                "/api/v2/dags/dag_id/details",
+                "dag_details_response",
+            ),
+            (
+                lambda dags, patch_body: dags.update(dag_id="dag_id", dag_body=patch_body),
+                "/api/v2/dags/dag_id",
+                "dag_response",
+            ),
+        ],
+        ids=["get", "get_details", "update"],
+    )
+    @pytest.mark.parametrize("omitted_field", ["is_backfillable", "timetable_periodic"])
+    def test_single_object_response_tolerates_field_an_older_server_omits(
+        self, operation, path, payload_attr, omitted_field
+    ):
+        """A server on an older Airflow line omits fields the generated models declare as required."""
+        payload = json.loads(getattr(self, payload_attr).model_dump_json())
+        del payload[omitted_field]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == path
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = operation(client.dags, self.dag_patch_body)
+
+        assert response.dag_id == self.dag_id
+        assert getattr(response, omitted_field) is False
+
     def test_get_tags(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dagTags"
