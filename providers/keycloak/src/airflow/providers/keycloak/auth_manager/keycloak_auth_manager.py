@@ -57,9 +57,13 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SERVER_URL_KEY,
     CONF_USE_SEPARATE_COOKIES_KEY,
 )
-from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
+from airflow.providers.keycloak.auth_manager.middleware import (
+    KeycloakJWTMiddleware,
+    KeycloakJWTRefreshMiddleware,
+)
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_4_PLUS
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -381,8 +385,23 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         return app
 
+    def get_jwt_refresh_middleware(self):
+        if AIRFLOW_V_3_4_PLUS and conf.getboolean(
+            CONF_SECTION_NAME, CONF_USE_SEPARATE_COOKIES_KEY, fallback=False
+        ):
+            from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTRefreshMiddleware
+
+            return KeycloakJWTRefreshMiddleware, {}
+        return super().get_jwt_refresh_middleware()
+
     def get_fastapi_middlewares(self):
-        if conf.getboolean(CONF_SECTION_NAME, CONF_USE_SEPARATE_COOKIES_KEY, fallback=False):
+        if (
+            conf.getboolean(CONF_SECTION_NAME, CONF_USE_SEPARATE_COOKIES_KEY, fallback=False)
+            and not AIRFLOW_V_3_4_PLUS
+        ):
+            from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
+
+            # KeycloakJWTMiddleware is included in get_jwt_refresh_middleware()
             return [(KeycloakJWTMiddleware, {})]
         return []
 
