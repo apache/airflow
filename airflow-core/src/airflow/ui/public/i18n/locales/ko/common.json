@@ -244,8 +244,9 @@
     "roles": "역할",
     "users": "사용자"
   },
-  "selected": "선택됨",
+
   "selectLanguage": "언어 선택",
+  "selected": "선택됨",
   "shortcuts": {
     "categories": {
       "code": "코드",
