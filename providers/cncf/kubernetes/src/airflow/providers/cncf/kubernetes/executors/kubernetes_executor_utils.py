@@ -603,7 +603,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
             if isinstance(command[0], ExecuteTask):
                 workload = command[0]
-                external_executor_id = workload.ti.external_executor_id
+                # ``external_executor_id`` is only present on the workload TI in Airflow 3.2+; on
+                # older versions exercised by provider compatibility jobs it is absent, so fall back
+                # to ``None`` (the launch-token annotation is simply omitted from the pod there).
+                external_executor_id = getattr(workload.ti, "external_executor_id", None)
                 command = workload_to_command_args(workload)
             else:
                 raise ValueError(
