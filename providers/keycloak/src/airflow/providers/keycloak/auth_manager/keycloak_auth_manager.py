@@ -23,11 +23,11 @@ import time
 import warnings
 from base64 import urlsafe_b64decode
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urljoin
 
 import requests
-from fastapi import Cookie, FastAPI
+from fastapi import FastAPI
 from keycloak import KeycloakOpenID
 from keycloak.exceptions import KeycloakPostError
 from requests.adapters import HTTPAdapter
@@ -55,7 +55,9 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_REQUESTS_RETRIES_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
+    CONF_USE_SEPARATE_COOKIES_KEY,
 )
+from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.utils.helpers import prune_dict
@@ -90,11 +92,6 @@ TEAM_SCOPED_RESOURCES = frozenset(
         KeycloakResource.VARIABLE,
     }
 )
-
-
-def _get_keycloak_jwt(user: Annotated[KeycloakAuthManagerUser | None, Cookie(default=None)] = None):
-    """Populate Keycloak user from cookies."""
-    return user
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
@@ -134,19 +131,42 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return self._http_session
 
     def deserialize_user(self, token: dict[str, Any]) -> KeycloakAuthManagerUser:
-        user = _get_keycloak_jwt()
-        if user is None:
-            raise ValueError("Couldn't deserialise user from Cookies.")
-        if user_id := token.pop("user_id"):
-            if user.get_id() != user_id:
-                raise ValueError("Keycloak user in Cookies does not match Airflow JWT.")
-        return user
+        return KeycloakAuthManagerUser(
+            user_id=token["user_id"],
+            name=token["name"],
+            access_token=token.get("access_token", ""),
+            refresh_token=token.get("refresh_token", None),
+        )
 
     def serialize_user(self, user: KeycloakAuthManagerUser) -> dict[str, Any]:
-        return {
+        data: dict[str, str | None] = {
             "user_id": user.get_id(),
             "name": user.get_name(),
         }
+        if not conf.getboolean(CONF_SECTION_NAME, CONF_USE_SEPARATE_COOKIES_KEY, fallback=False):
+            data["access_token"] = user.access_token
+            data["refresh_token"] = user.refresh_token
+        return data
+
+    async def get_user_from_token(
+        self, token: str, access_token: str | None = None, refresh_token: str | None = None
+    ):
+        """
+        Get the user from the Airflow and Keycloak Tokens.
+
+        :param token: Airflow JWT
+        :param access_token: Keycloak access JWT
+        :param refresh_token: Keycloak refresh JWT
+        """
+        user = cast("KeycloakAuthManagerUser", await super().get_user_from_token(token))
+        if not conf.getboolean(CONF_SECTION_NAME, CONF_USE_SEPARATE_COOKIES_KEY, fallback=False):
+            return user
+        if access_token:
+            user.access_token = access_token
+            user.refresh_token = refresh_token
+            return user
+        # Skip refreshing JWT if Keycloak JWTs are not included.
+        return None
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
@@ -360,6 +380,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         app.include_router(token_router)
 
         return app
+
+    def get_fastapi_middlewares(self):
+        if conf.getboolean(CONF_SECTION_NAME, CONF_USE_SEPARATE_COOKIES_KEY, fallback=False):
+            return [(KeycloakJWTMiddleware, {})]
+        return []
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
