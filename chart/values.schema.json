@@ -85,8 +85,8 @@
         "defaultAirflowDigest": {
             "description": "Default airflow digest to deploy. Overrides tag.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "default": null,
             "x-docsSection": "Common"
@@ -212,8 +212,8 @@
         "schedulerName": {
             "description": "Specify kube scheduler name for Pods.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "default": null,
             "x-docsSection": "Common"
@@ -798,8 +798,8 @@
         "airflowLocalSettings": {
             "description": "`airflow_local_settings` file as a string (templated). You can bake an `airflow_local_settings.py` into your image instead. In that case, set this value to null.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": "See values.yaml"
@@ -854,24 +854,24 @@
                         "repository": {
                             "description": "The airflow image repository.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "tag": {
                             "description": "The airflow image tag.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "digest": {
                             "description": "The airflow image digest. If set, it will override the tag.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -907,24 +907,24 @@
                         "repository": {
                             "description": "The pod_template image repository. If ``config.kubernetes.worker_container_repository`` is set, k8s executor will use config value instead.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "tag": {
                             "description": "The pod_template image tag. If ``config.kubernetes.worker_container_tag`` is set, k8s executor will use config value instead.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "digest": {
                             "description": "The pod_template image digest. If set, it will override the tag. If ``config.kubernetes_executor.worker_container_repository`` and ``config.kubernetes_executor.worker_container_tag`` are set, the k8s executor will use those instead.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -948,16 +948,16 @@
                         "repository": {
                             "description": "The flower image repository.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "tag": {
                             "description": "The flower image tag.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -1442,40 +1442,40 @@
                 "metadataSecretName": {
                     "description": "Metadata connection string secret.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "metadataSecretKey": {
                     "description": "Key in the metadata connection secret containing the connection string. Only used when `metadataSecretName` is set.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "resultBackendSecretName": {
                     "description": "Result backend connection string secret.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "resultBackendSecretKey": {
                     "description": "Key in the result backend connection secret containing the connection string. Only used when `resultBackendSecretName` is set.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "brokerUrlSecretName": {
                     "description": "Redis broker URL secret.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Redis",
                     "default": null
@@ -1483,8 +1483,8 @@
                 "brokerUrlSecretKey": {
                     "description": "Key in the broker URL secret containing the broker URL. Only used when `brokerUrlSecretName` is set.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Redis",
                     "default": null
@@ -1512,8 +1512,8 @@
                         "host": {
                             "description": "The database host.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -1545,8 +1545,8 @@
                 "resultBackendConnection": {
                     "description": "Result backend connection configuration.",
                     "type": [
-                        "object",
-                        "null"
+                        "null",
+                        "object"
                     ],
                     "default": null,
                     "additionalProperties": false,
@@ -1569,8 +1569,8 @@
                         "host": {
                             "description": "The database host.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -1611,8 +1611,8 @@
                 "brokerUrl": {
                     "description": "Direct url to the redis broker (when using an external redis instance) (can only be set during install, not upgrade).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Redis",
                     "default": null
@@ -1630,8 +1630,8 @@
         "fernetKey": {
             "description": "The Fernet key used to encrypt passwords (can only be set during install, not upgrade).",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": null
@@ -1639,8 +1639,8 @@
         "fernetKeySecretName": {
             "description": "The Fernet key secret name.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null
@@ -1657,8 +1657,8 @@
         "apiSecretKey": {
             "description": "The Flask secret key for Airflow Api to encrypt browser session.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": null
@@ -1675,8 +1675,8 @@
         "apiSecretKeySecretName": {
             "description": "The Secret name containing Flask secret_key for the Api.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null
@@ -1684,8 +1684,8 @@
         "jwtSecret": {
             "description": "Secret key used to encode and decode JWTs to authenticate to public and private APIs. Note: It is not recommended to use in production as during helm upgrade it will be changed which can cause dag failures during component rollover.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": null
@@ -1693,8 +1693,8 @@
         "jwtSecretName": {
             "description": "The JWT secret name.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null
@@ -1711,8 +1711,8 @@
         "webserverSecretKey": {
             "description": "The Flask secret key for Airflow Webserver to encrypt browser session.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Common",
             "default": null
@@ -1729,8 +1729,8 @@
         "webserverSecretKeySecretName": {
             "description": "The Secret name containing Flask secret_key for the Webserver.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null
@@ -1763,8 +1763,8 @@
                 "keytabBase64Content": {
                     "description": "Kerberos keytab base64 encoded content.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -1929,8 +1929,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use (deprecated, use ``workers.celery.serviceAccount.name`` and/or ``workers.kubernetes.serviceAccount.name`` instead). If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -2084,8 +2084,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated) (deprecated, use `workers.celery.persistence.storageClassName` instead).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -2408,16 +2408,16 @@
                 "runtimeClassName": {
                     "description": "Specify runtime for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.runtimeClassName`` and/or ``workers.kubernetes.runtimeClassName`` instead).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "priorityClassName": {
                     "description": "Specify priority for Airflow Celery worker pods and pods created with pod-template-file (deprecated, use ``workers.celery.priorityClassName`` and/or ``workers.kubernetes.priorityClassName`` instead).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -2486,8 +2486,8 @@
                 "schedulerName": {
                     "description": "Specify kube scheduler name for Airflow Celery workers objects and pods created with pod-template-file (deprecated, use ``workers.celery.schedulerName`` and/or ``workers.kubernetes.schedulerName`` instead).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null,
                     "x-docsSection": "Common"
@@ -3117,8 +3117,8 @@
                                             "description": "Max unavailable pods for worker.",
                                             "type": [
                                                 "integer",
-                                                "string",
-                                                "null"
+                                                "null",
+                                                "string"
                                             ],
                                             "default": null
                                         },
@@ -3126,8 +3126,8 @@
                                             "description": "Min available pods for worker.",
                                             "type": [
                                                 "integer",
-                                                "string",
-                                                "null"
+                                                "null",
+                                                "string"
                                             ],
                                             "default": null
                                         }
@@ -3158,8 +3158,8 @@
                                 "name": {
                                     "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 },
@@ -3250,8 +3250,8 @@
                                 "query": {
                                     "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 },
@@ -3333,16 +3333,16 @@
                                 "size": {
                                     "description": "Volume size for Airflow Celery worker StatefulSet.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 },
                                 "storageClassName": {
                                     "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 },
@@ -3645,16 +3645,16 @@
                         "runtimeClassName": {
                             "description": "Specify runtime for Airflow Celery worker pods.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "priorityClassName": {
                             "description": "Specify priority for Airflow Celery worker pods.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -4053,8 +4053,8 @@
                         "schedulerName": {
                             "description": "Specify kube scheduler name for Airflow Celery worker pods.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null,
                             "x-docsSection": "Common"
@@ -4165,8 +4165,8 @@
                                 "name": {
                                     "description": "The name of the ServiceAccount to use. If not set and ``create`` is 'true', a name is generated using the release name with kubernetes dedicated name.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 },
@@ -4429,16 +4429,16 @@
                         "runtimeClassName": {
                             "description": "Specify runtime for pods created with pod-template-file.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "priorityClassName": {
                             "description": "Specify priority for pods created with pod-template-file.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -4564,8 +4564,8 @@
                         "schedulerName": {
                             "description": "Specify kube scheduler name for pods created with pod-template-file.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null,
                             "x-docsSection": "Common"
@@ -4641,8 +4641,8 @@
                             "default": null,
                             "items": {
                                 "type": [
-                                    "string",
-                                    "null"
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
@@ -4682,8 +4682,8 @@
                             "default": null,
                             "items": {
                                 "type": [
-                                    "string",
-                                    "null"
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
@@ -4789,8 +4789,8 @@
                                 "audience": {
                                     "description": "Intended audience of the token. Optional - defaults to the identifier of the Kubernetes API server.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 }
@@ -4804,8 +4804,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -4920,8 +4920,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for scheduler pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -5240,8 +5240,8 @@
                             "default": null,
                             "items": {
                                 "type": [
-                                    "string",
-                                    "null"
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
@@ -5326,8 +5326,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -5363,8 +5363,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -5484,8 +5484,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for triggerer pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -5863,10 +5863,10 @@
                                 "default": {},
                                 "additionalProperties": {
                                     "type": [
-                                        "string",
-                                        "number",
                                         "boolean",
-                                        "null"
+                                        "null",
+                                        "number",
+                                        "string"
                                     ]
                                 }
                             }
@@ -5907,8 +5907,8 @@
                             "default": null,
                             "items": {
                                 "type": [
-                                    "string",
-                                    "null"
+                                    "null",
+                                    "string"
                                 ]
                             }
                         }
@@ -5985,8 +5985,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -6101,8 +6101,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for dag processor pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -6503,8 +6503,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -6683,8 +6683,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for the create user job pod.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -6852,8 +6852,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -7032,8 +7032,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for the migrate database job pod.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -7427,8 +7427,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -7604,8 +7604,8 @@
                 "apiServerConfig": {
                     "description": "This string (templated) will be mounted into the Airflow API Server as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Common",
                     "default": null,
@@ -7616,8 +7616,8 @@
                 "apiServerConfigConfigMapName": {
                     "description": "The configmap name containing the webserver_config.py.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Common",
                     "default": null,
@@ -7687,20 +7687,20 @@
                                     },
                                     "port": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "targetPort": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "nodePort": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "protocol": {
@@ -7730,8 +7730,8 @@
                         "loadBalancerIP": {
                             "description": "API server Service loadBalancerIP.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -7759,8 +7759,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for API server pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -8196,8 +8196,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -8463,8 +8463,8 @@
                 "webserverConfig": {
                     "description": "This string (templated) will be mounted into the Airflow webserver as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Common",
                     "default": null,
@@ -8475,8 +8475,8 @@
                 "webserverConfigConfigMapName": {
                     "description": "The configmap name containing the webserver_config.py.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "x-docsSection": "Common",
                     "default": null,
@@ -8514,20 +8514,20 @@
                                     },
                                     "port": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "targetPort": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "nodePort": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "protocol": {
@@ -8557,8 +8557,8 @@
                         "loadBalancerIP": {
                             "description": "Webserver Service loadBalancerIP.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -8586,8 +8586,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for webserver pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9048,8 +9048,8 @@
                 "secretName": {
                     "description": "A secret containing the user and password pair.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9064,16 +9064,16 @@
                 "username": {
                     "description": "Username use to access Flower.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "password": {
                     "description": "Password use to access Flower.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9107,14 +9107,14 @@
                                     },
                                     "port": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "targetPort": {
                                         "type": [
-                                            "string",
-                                            "integer"
+                                            "integer",
+                                            "string"
                                         ]
                                     },
                                     "protocol": {
@@ -9139,8 +9139,8 @@
                         "loadBalancerIP": {
                             "description": "Flower Service loadBalancerIP.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -9174,8 +9174,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -9224,8 +9224,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for Flower pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9530,8 +9530,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -9561,8 +9561,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for StatsD pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9765,8 +9765,8 @@
                 "config": {
                     "description": "Override the OTel Collector `config.yml`. When set (non-empty), this string replaces the chart's default collector config. The value is rendered with `tpl`, so values like `{{ .Values.ports.otelCollectorOtlpHttp }}` or `{{ include \"airflow.fullname\" . }}` can be referenced from inside the string. Leave empty to use the chart default.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9912,8 +9912,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for OTel Collector pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -9980,8 +9980,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -10128,8 +10128,8 @@
                 "configSecretName": {
                     "description": "The PgBouncer config Secret name.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -10295,8 +10295,8 @@
                         "clusterIp": {
                             "description": "Specific ClusterIP for the PgBouncer Service.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         }
@@ -10352,24 +10352,24 @@
                         "ca": {
                             "description": "Certificate Authority for server side",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "cert": {
                             "description": "Server Certificate for server side",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "key": {
                             "description": "Private key used to authenticate with the server",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         }
@@ -10378,24 +10378,24 @@
                 "extraIniMetadata": {
                     "description": "Add extra metadata database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "extraIniResultBackend": {
                     "description": "Add extra result backend database specific PgBouncer ini configuration: https://www.pgbouncer.org/config.html#section-databases",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "extraIni": {
                     "description": "Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -10440,8 +10440,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -10466,8 +10466,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for PgBouncer pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -10527,16 +10527,16 @@
                         "statsSecretName": {
                             "description": "Name of an existing Secrets object containing PgBouncer Metrics secrets.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "statsSecretKey": {
                             "description": "Key referencing the PGBouncer Metrics connection URI within an existing Secrets object. Defaults to `connection` if left null.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -10702,8 +10702,8 @@
                         "clusterIP": {
                             "description": "If using `ClusterIP` service type, custom IP address can be specified.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -10735,8 +10735,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -10751,8 +10751,8 @@
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -10789,16 +10789,16 @@
                 "passwordSecretName": {
                     "description": "Redis password secret.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
                 "password": {
                     "description": "If password is set, create secret with it, else generate a new one on install (can only be set during install, not upgrade).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -10850,8 +10850,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for redis pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -10872,8 +10872,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -11007,8 +11007,8 @@
                 "secretName": {
                     "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets) (Deprecated - renamed to `registry.secretNames`).",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -11064,8 +11064,8 @@
                 "secretName": {
                     "description": "A secret containing the connection string.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -11135,8 +11135,8 @@
                 "secretName": {
                     "description": "A secret containing the connection string.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -11361,8 +11361,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for cleanup pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -11440,8 +11440,8 @@
                                 "audience": {
                                     "description": "Intended audience of the token. Optional - defaults to the identifier of the Kubernetes API server.",
                                     "type": [
-                                        "string",
-                                        "null"
+                                        "null",
+                                        "string"
                                     ],
                                     "default": null
                                 }
@@ -11455,8 +11455,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -11750,8 +11750,8 @@
                 "priorityClassName": {
                     "description": "Specify priority for database cleanup pods.",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -11807,8 +11807,8 @@
                         "name": {
                             "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -11998,24 +11998,24 @@
                         "postgresPassword": {
                             "description": "Password for the 'postgres' admin user.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": "postgres"
                         },
                         "username": {
                             "description": "Name for a custom user to create",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": ""
                         },
                         "password": {
                             "description": "Password for the custom user to create.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": ""
                         }
@@ -12066,8 +12066,8 @@
         "podTemplate": {
             "description": "The content of ``pod_template_file.yaml`` used for KubernetesExecutor workers (templated). The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
             "type": [
-                "string",
-                "null"
+                "null",
+                "string"
             ],
             "x-docsSection": "Airflow",
             "default": null,
@@ -12084,8 +12084,8 @@
                 "mountPath": {
                     "description": "Where dags volume will be mounted. Works for both `persistence` and `gitSync`. If not specified, dags mount path will be set to `$AIRFLOW_HOME/dags`",
                     "type": [
-                        "string",
-                        "null"
+                        "null",
+                        "string"
                     ],
                     "default": null
                 },
@@ -12107,8 +12107,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -12125,8 +12125,8 @@
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -12141,8 +12141,8 @@
                         "subPath": {
                             "description": "Subpath within the PVC where dags are located.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         }
@@ -12389,32 +12389,32 @@
                         "credentialsSecret": {
                             "description": "Name of a Secret containing the repo `GIT_SYNC_USERNAME` and `GIT_SYNC_PASSWORD`.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "sshKey": {
                             "description": "SSH private key",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "sshKeySecret": {
                             "description": "Name of a Secret containing the repo `sshKeySecret`.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "knownHosts": {
                             "description": "When using a ssh private key, the contents of your `known_hosts` file.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null,
                             "examples": [
@@ -12503,8 +12503,8 @@
                         "storageClassName": {
                             "description": "If using a custom StorageClass, pass name here (templated).",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
@@ -12519,16 +12519,16 @@
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         },
                         "subPath": {
                             "description": "The subpath of the existing PVC to use.",
                             "type": [
-                                "string",
-                                "null"
+                                "null",
+                                "string"
                             ],
                             "default": null
                         }
@@ -15962,8 +15962,8 @@
         "persistentVolumeClaimRetentionPolicy": {
             "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet",
             "type": [
-                "object",
-                "null"
+                "null",
+                "object"
             ],
             "default": null,
             "additionalProperties": false,
