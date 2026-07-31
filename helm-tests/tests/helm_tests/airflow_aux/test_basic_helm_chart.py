@@ -390,6 +390,25 @@ class TestBaseChartTest:
             ),
             pytest.param(
                 {
+                    "ingress": {
+                        "web": {"enabled": True},
+                        "apiServer": {"enabled": True},
+                    },
+                    "flower": {
+                        "enabled": True,
+                        "httpRoute": {
+                            "enabled": True,
+                            "parentRefs": [{"name": "main-gateway"}],
+                        },
+                    },
+                },
+                ("flower-httproute", "HTTPRoute", "flower-httproute"),
+                ("ingress", "Ingress", "airflow-ingress"),
+                ["gateway.networking.k8s.io/v1"],
+                id="flower-httproute",
+            ),
+            pytest.param(
+                {
                     "ingress": {"apiServer": {"enabled": True}},
                     "flower": {
                         "enabled": True,
