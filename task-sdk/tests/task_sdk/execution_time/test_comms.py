@@ -61,16 +61,6 @@ class TestCommsModels:
         mask_secret_object = MaskSecret(value=object_to_mask, name="test_secret")
         assert mask_secret_object.value == object_to_mask
 
-    def test_mask_secret_with_list(self):
-        example_dict = ["test"]
-        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
-        assert mask_secret_object.value == example_dict
-
-    def test_mask_secret_with_iterable(self):
-        example_dict = ["test"]
-        mask_secret_object = MaskSecret(value=example_dict, name="test_secret")
-        assert mask_secret_object.value == example_dict
-
 
 class TestCommsDecoder:
     """Test the communication between the subprocess and the "supervisor"."""
