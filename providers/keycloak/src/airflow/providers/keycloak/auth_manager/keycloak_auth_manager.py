@@ -64,10 +64,12 @@ from airflow.providers.keycloak.auth_manager.constants import (
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_3_PLUS
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from starlette.middleware import _MiddlewareFactory
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -171,8 +173,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         :param refresh_token: Keycloak refresh JWT
         """
         user = cast("KeycloakAuthManagerUser", await super().get_user_from_token(token))
-        if not AIRFLOW_V_3_3_PLUS:
+        if not AIRFLOW_V_3_3_PLUS or AIRFLOW_V_3_4_PLUS:
             return user
+        # For Airflow v3.3.X, the JWTRefreshMiddleware will call this method
+        # without any Keycloak JWTs, they need to be added by KeycloakJWTMiddleware.
         if access_token:
             user.access_token = access_token
             user.refresh_token = refresh_token
@@ -393,10 +397,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         return app
 
-    def get_fastapi_middlewares(self):
+    def _get_jwt_refresh_middleware(self):
         from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
 
-        return [(KeycloakJWTMiddleware, {})]
+        return KeycloakJWTMiddleware, {}
+
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory, dict[str, Any]]]:
+        if not AIRFLOW_V_3_4_PLUS:
+            from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
+
+            return [(KeycloakJWTMiddleware, {})]
+        return super().get_fastapi_middlewares()
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
