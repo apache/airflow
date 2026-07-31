@@ -69,7 +69,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
       <HeaderCard
         actions={
           <>
-            <IconButton label={translate("dagRun.showInGrid")} onClick={showInGrid} variant="outline">
+            <IconButton label={translate("dagRun.showInGrid")} onClick={showInGrid}>
               <LuScanSearch />
             </IconButton>
             <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} />
