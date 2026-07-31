@@ -107,7 +107,9 @@ to be notified when that happens.
 
 The callback is invoked once per scheduler decision that creates a new scheduled Dag run while
 intervals were skipped between the previous automated run and the new run. No Dag runs are
-created for the skipped intervals.
+created for the skipped intervals. It does not fire on a Dag's first automated run (no previous
+run to compare against), even when ``catchup=False`` leaves intervals after ``start_date``
+uncreated.
 
 The callback runs in the dag processor (like other Dag-level callbacks), not in the scheduler.
 The context mapping contains:

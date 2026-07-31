@@ -72,7 +72,8 @@ a scheduler restart or when a paused Dag is re-enabled), the scheduler invokes t
 ``on_intervals_skipped`` listener hook with a
 :class:`~airflow.timetables.base.SkippedIntervalsSummary`. This is the listener counterpart to the Dag-level
 ``on_skipped_intervals_callback``; listeners run synchronously in the scheduler, while the callback
-is dispatched to the dag processor.
+is dispatched to the dag processor. Like the callback, it does not fire on a Dag's first
+automated run (no previous run to compare against).
 
 - ``on_intervals_skipped``
 
