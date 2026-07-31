@@ -329,8 +329,8 @@ windows instead.
   kinds based on how they handle the data interval, as described in
   :ref:`timetables_run_id_logical_date`.
 
-Whether taking care of *Data Interval*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*Data Interval* Shape
+~~~~~~~~~~~~~~~~~~~~~
 
 A trigger timetable uses a *point* (zero-width) data interval by default. This
 means that the values of ``data_interval_start`` and ``data_interval_end`` are
@@ -360,7 +360,8 @@ scheduled run time:
 
 If you set ``catchup=True``, the scheduler creates a Dag run for every scheduled
 run time (or completed interval) between ``start_date`` and "now" that has not
-yet run (or has been cleared), and executes them sequentially.
+yet run (or has been cleared). Runs are created in chronological order and may
+run concurrently up to the Dag's ``max_active_runs`` (defaulted from :ref:`config:core__max_active_runs_per_dag`).
 
 Catchup also applies when you pause a Dag for a period and then re-enable it.
 
