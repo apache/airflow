@@ -281,17 +281,6 @@ ARG_DAG_ID = Arg(
     type=str,
     help="The Dag ID",
 )
-ARG_RUN_ID = Arg(
-    flags=("run_id",),
-    type=str,
-    nargs="?",
-    help="The run ID of the Dag run (pass this or --logical-date, not both)",
-)
-ARG_LOGICAL_DATE = Arg(
-    flags=("--logical-date",),
-    type=str,
-    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
-)
 ARG_DAG_RUN_ID = Arg(
     flags=("--run-id",),
     type=str,

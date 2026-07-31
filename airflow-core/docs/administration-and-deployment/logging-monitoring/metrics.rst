@@ -155,7 +155,9 @@ Allow/Block Lists
 -----------------
 
 If you want to avoid sending all the available metrics, you can configure an allow list or block list
-of prefixes to send or block only the metrics that start with the elements of the list:
+to send or block only certain metrics. Each list is a comma-separated set of regular expressions
+matched anywhere in the metric name (anchor a pattern with ``^`` to match a prefix). If both lists
+are set, the block list is ignored:
 
 .. code-block:: ini
 
@@ -179,6 +181,73 @@ to the stat name if necessary, and returns the transformed stat name. The functi
 
     def my_custom_stat_name_handler(stat_name: str) -> str:
         return stat_name.lower()[:32]
+
+
+Custom Metrics
+--------------
+
+You can emit your own metrics from inside a task, plugin, or custom operator through
+the same stats client Airflow uses internally. In Airflow 3 the recommended import
+path is ``airflow.sdk.observability``:
+
+.. code-block:: python
+
+    from airflow.sdk.observability import stats
+
+    stats.incr("my_service.processed")
+    stats.decr("my_service.in_flight")
+    stats.gauge("my_service.queue_depth", 42)
+    stats.timing("my_service.batch_ms", 1234)
+
+    with stats.timer("my_service.batch"):
+        ...
+
+.. versionadded:: 3.3.0
+    The module-level ``stats`` functions (``stats.incr()``, ``stats.gauge()``, and so on).
+
+On earlier versions, use the ``Stats`` class instead:
+``from airflow.sdk.observability.stats import Stats``, then ``Stats.incr(...)``.
+
+``incr``, ``decr``, ``gauge``, ``timing`` and ``timer`` also accept an optional
+``tags`` mapping for dimensional metrics on backends that support them:
+
+.. code-block:: python
+
+    stats.incr("my_service.requests", tags={"endpoint": "checkout"})
+
+``incr`` and ``decr`` also accept ``count`` and ``rate``, and ``gauge`` accepts
+``rate`` and ``delta``, following the `StatsD data types
+<https://statsd.readthedocs.io/en/stable/types.html#data-types>`__.
+
+.. note::
+
+    Tag support depends on the backend. The classic StatsD protocol has no concept of tags.
+
+    * **OpenTelemetry** (``otel_on``) sends tags as native attributes.
+    * **StatsD** (``statsd_on``) drops the ``tags`` mapping by default. To turn tags into labels,
+      enable a tagged wire format, either ``statsd_influxdb_enabled = True`` (InfluxDB
+      ``name,key=value``) or ``statsd_datadog_enabled = True`` (DogStatsD ``|#key:value``). The
+      Prometheus ``statsd_exporter`` reads the tags from either format and turns them into labels.
+      These flags only change how tags are written on the wire. You can also embed the values in the
+      metric name and map those name segments back to labels with ``statsd_exporter`` mapping rules.
+
+.. note::
+
+    Metric names must be 250 characters or fewer and may only contain the characters
+    ``a-z``, ``A-Z``, ``0-9``, ``_``, ``.``, ``-`` and ``/``. An invalid name is logged
+    and the metric is not emitted.
+
+.. note::
+
+    These metrics are silently dropped unless a backend is enabled (see `Setup - StatsD`_
+    or `Setup - OpenTelemetry`_).
+
+.. note::
+
+    If your custom metrics do not appear, check ``[metrics] metrics_allow_list`` and
+    ``[metrics] metrics_block_list`` (see `Allow/Block Lists`_). When
+    ``metrics_allow_list`` is set, only metrics matching it are emitted, so a custom
+    metric that is not listed is silently dropped.
 
 
 Other Configuration Options
