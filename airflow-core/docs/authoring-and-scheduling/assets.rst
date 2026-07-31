@@ -819,7 +819,8 @@ the expected key set matches the hours that actually occur and a spring-forward 
 no longer held forever waiting for a key (e.g. ``2024-03-10T02``) that never arrives. On
 a fall-back day the local clock 01:00 occurs twice; unless the upstream mapper's
 ``input_format`` carries the UTC offset (``%z``), the two hours share a single key (the
-rollup still does not hang). See the ``DayWindow`` class docstring for details.
+rollup still does not hang). With ``%z`` in ``input_format`` the two offsets encode as
+distinct keys (twenty-five total). See the ``DayWindow`` class docstring for details.
 
 Wait policies
 ~~~~~~~~~~~~~
