@@ -113,6 +113,45 @@ class TestAzureKeyVaultBackend:
         assert backend.get_variable("teama--hello") is None
         mock_client.get_secret.assert_not_called()
 
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_another_teams_secret_is_not_reachable(self, mock_client):
+        """A caller scoped to one team must not reach another team's secret by naming it.
+
+        The target secret is resolvable, so a backend that falls through to the team agnostic
+        name returns it. Only a backend that refuses that fall-through returns None.
+        """
+
+        def only_the_target_exists(name):
+            if name == "airflow-connections-teama--my-db":
+                return mock.Mock(value="teama-secret")
+            raise ResourceNotFoundError
+
+        mock_client.get_secret.side_effect = only_the_target_exists
+
+        backend = AzureKeyVaultBackend()
+
+        assert backend.get_conn_value("teama--my_db", team_name="teamb") is None
+
+    @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
+    def test_team_whose_name_extends_the_callers_is_not_reachable(self, mock_client):
+        """A prefix match on the caller's own namespace is not proof of ownership.
+
+        Team names may contain the separator, so ``teama--prod`` is a distinct team whose
+        namespace starts with ``teama``'s. Treating that prefix as ownership would hand one
+        team the secrets of every team whose name extends it.
+        """
+
+        def only_the_target_exists(name):
+            if name == "airflow-connections-teama--prod--my-db":
+                return mock.Mock(value="teama-prod-secret")
+            raise ResourceNotFoundError
+
+        mock_client.get_secret.side_effect = only_the_target_exists
+
+        backend = AzureKeyVaultBackend()
+
+        assert backend.get_conn_value("teama--prod--my_db", team_name="teama") is None
+
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):
         """

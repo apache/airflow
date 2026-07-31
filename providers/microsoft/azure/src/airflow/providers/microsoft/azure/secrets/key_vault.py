@@ -157,9 +157,6 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        if self._is_team_specific_accessed_as_global(conn_id, team_name):
-            return None
-
         return self._get_secret(self.connections_prefix, conn_id, team_name=team_name)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
@@ -171,9 +168,6 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :return: Variable Value
         """
         if self.variables_prefix is None:
-            return None
-
-        if self._is_team_specific_accessed_as_global(key, team_name):
             return None
 
         return self._get_secret(self.variables_prefix, key, team_name=team_name)
@@ -215,9 +209,23 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         normalized_secret_id = secret_id.replace("_", self.sep)
         return f"{team_prefix}{TEAM_SEP}{normalized_secret_id}"
 
-    def _is_team_specific_accessed_as_global(self, secret_id: str, team_name: str | None = None) -> bool:
+    def _names_a_team_namespace(self, secret_id: str) -> bool:
+        """
+        Whether ``secret_id`` spells out a team scoped secret name.
+
+        A team scoped secret is named ``<team>{TEAM_SEP}<secret id>``, so an id that already
+        contains the team separator makes the team agnostic lookup resolve a secret inside
+        some team's namespace. That lookup is refused for such an id.
+
+        The id is never parsed to work out *which* team it names, because it cannot be: a team
+        name may itself contain the separator, so nothing distinguishes team ``a`` with id
+        ``b--c`` from team ``a--b`` with id ``c``. Comparing the id against the prefix the
+        caller's own team builds looks equivalent and is not -- a caller in team ``a`` matches
+        ``a--b``'s namespace on the prefix and would read its secrets. Only the caller's own
+        namespace is ever constructed, never parsed.
+        """
         normalized_secret_id = self.build_path("", secret_id, self.sep)
-        return team_name is None and bool(re.fullmatch(rf".+{re.escape(TEAM_SEP)}.+", normalized_secret_id))
+        return bool(re.fullmatch(rf".+{re.escape(TEAM_SEP)}.+", normalized_secret_id))
 
     def _get_secret(self, path_prefix: str, secret_id: str, team_name: str | None = None) -> str | None:
         """
@@ -225,13 +233,20 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
+        :param team_name: Team the lookup is scoped to (if any)
         """
+        # Tried first and safe by construction: it can only build the caller's own namespace.
         if team_name:
             team_secret = self._get_secret_value(
                 path_prefix, self._build_team_secret_name("", team_name, secret_id)
             )
             if team_secret is not None:
                 return team_secret
+
+        # Falling through would resolve a secret inside some team's namespace when the id
+        # spells one out, so that is refused rather than resolved.
+        if self._names_a_team_namespace(secret_id):
+            return None
 
         return self._get_secret_value(path_prefix, secret_id)
 
