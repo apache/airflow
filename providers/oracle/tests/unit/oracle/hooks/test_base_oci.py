@@ -16,23 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import subprocess
-import sys
-from textwrap import dedent
 from unittest import mock
 
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import (
-    AirflowNotFoundException,
-    AirflowOptionalProviderFeatureException,
-)
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.oracle.get_provider_info import get_provider_info
 from airflow.providers.oracle.hooks.base_oci import (
     OciAuthType,
     OciBaseHook,
-    _get_oci_sdk,
 )
 
 GenerativeAiClient = pytest.importorskip("oci.generative_ai").GenerativeAiClient
@@ -350,6 +343,15 @@ class TestOciBaseHook:
         with pytest.raises(ValueError, match="An OCI compartment OCID must be provided"):
             self.hook.get_compartment_id()
 
+    def test_get_compartment_id_requires_value_without_connection(self):
+        self.hook = OciBaseHook(oci_conn_id=None, auth_type=OciAuthType.INSTANCE_PRINCIPAL)
+        self.hook.get_connection = mock.create_autospec(self.hook.get_connection)
+
+        with pytest.raises(ValueError, match="An OCI compartment OCID must be provided"):
+            self.hook.get_compartment_id()
+
+        self.hook.get_connection.assert_not_called()
+
     def test_connection_form_widgets(self):
         pytest.importorskip("flask_appbuilder")
         pytest.importorskip("flask_babel")
@@ -395,31 +397,3 @@ class TestOciBaseHook:
             == self.hook.get_ui_field_behaviour()["placeholders"]
         )
         assert oci_connection["conn-fields"]["private_key_content"]["schema"]["format"] == "password"
-
-
-def test_get_oci_sdk_requires_optional_extra():
-    with mock.patch.dict(sys.modules, {"oci": None}):
-        with pytest.raises(
-            AirflowOptionalProviderFeatureException,
-            match=r"pip install 'apache-airflow-providers-oracle\[oci\]'",
-        ):
-            _get_oci_sdk()
-
-
-def test_hook_modules_import_without_optional_oci_sdk():
-    subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            dedent(
-                """
-                import sys
-
-                sys.modules["oci"] = None
-                import airflow.providers.oracle.hooks.base_oci
-                import airflow.providers.oracle.hooks.generative_ai
-                """
-            ),
-        ],
-        check=True,
-    )

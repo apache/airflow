@@ -232,7 +232,9 @@ class OciBaseHook(BaseHook, Generic[OciClient]):
 
     def get_compartment_id(self, compartment_id: str | None = None) -> str:
         """Return an explicit compartment OCID or the default from the connection."""
-        resolved_compartment_id = compartment_id or self.connection.extra_dejson.get("compartment_id")
+        resolved_compartment_id = compartment_id or self._get_optional_connection_extras().get(
+            "compartment_id"
+        )
         if not resolved_compartment_id:
             raise ValueError(
                 "An OCI compartment OCID must be provided as a method argument or in the connection extra."
