@@ -65,6 +65,19 @@ Two entry points:
   rebasing a release PR before merging). Skip ahead to the
   **Incremental Update** section after Phase 5.
 
+Either entry point runs in one of two **release shapes**. Establish which one
+applies before starting — the incremental flow behaves differently in each:
+
+- **Wave** (the default) — the regular cycle that releases *every* provider
+  with pending changes. The provider list is an **output** of the run, so it
+  may legitimately grow between the initial cut and the merge.
+- **Ad-hoc** — a release deliberately scoped to a fixed provider list (the
+  release manager named a subset, or set `DISTRIBUTIONS_LIST`). The provider
+  list is an **input** and must not grow on its own.
+
+Ask the release manager if it is not obvious, and record the answer —
+Incremental Phases 2 and 3.6 branch on it.
+
 Do **not** use this skill for:
 
 - `--only-min-version-update` runs (these don't need classification — just
@@ -255,6 +268,21 @@ Airflow version.
 > caught by the deterministic rules but should still be classified as `skip`
 > — they have zero user-facing impact on the provider package itself.
 
+That rule cuts one way only. Read the next one before applying it.
+
+> [!WARNING]
+> The converse trap: a PR is **not** `skip` merely because its subject
+> describes tooling. `provider.yaml` is a **source** file, never a regenerated
+> one — anything it declares (`connection-types`, `conn-fields`,
+> `ui-field-behaviour`, `extra-links`, `hook-class-names`, dependencies) ships
+> to users through `get_provider_info.py`, so a change to it is `misc` at
+> minimum. `get_provider_info.py` moving *because `provider.yaml` moved* is
+> therefore not "regenerated metadata" in the sense above. Worked example:
+> `Fix conn-fields check crash for nested provider packages (#70224)` fixes a
+> prek check under `scripts/ci/prek/`, and in the same commit declares a new
+> `Verify SSL` connection-form field for `atlassian.jira` — `misc`, not `skip`.
+> Classify from the provider-scoped diff, never from the subject.
+
 #### Classify the `needs_llm` commits — batched per provider, not one agent per PR
 
 Only the commits the classifier returned as `needs_llm` still need a sub-agent.
@@ -313,7 +341,13 @@ For EACH commit above:
                     PR's actual code changes are entirely in dev/breeze/
                     or similar tooling and the provider-scoped diff is
                     limited to regenerated docs/metadata, classify as
-                    skip.
+                    skip. NEVER skip a slice that touches
+                    provider.yaml — that is a source file whose
+                    contents ship in get_provider_info.py
+                    (connection-types, conn-fields,
+                    ui-field-behaviour, extra-links, dependencies),
+                    so it is misc at minimum even when the PR's
+                    headline change is tooling.
    - min_airflow_bump: explicitly bumps the minimum Airflow version pin
 4. Set BREAKING_RISK to "maybe" whenever the diff has any signal from the
    breaking-change checklist below, even if you think the author intended
@@ -675,6 +709,11 @@ This is the equivalent of `breeze release-management
 prepare-provider-documentation --incremental-update`, but driven by the
 same AI classification logic as the initial run.
 
+On a **wave**, "extend" is not only about the providers already in the PR: a
+provider that had nothing pending when the wave was cut can pick up a
+user-facing change before the PR merges, and the flow below is responsible for
+surfacing it rather than letting the release ship without it.
+
 > [!IMPORTANT]
 > Run on the **release PR branch** *after* rebasing onto the latest base
 > branch. Do not start the incremental flow on a clean checkout — it needs
@@ -694,49 +733,89 @@ the auto-generated build files for every provider — picking up any
 upstream template changes that landed since the original PR was opened.
 It does **not** touch `provider.yaml` or `changelog.rst`.
 
-### Incremental Phase 2 — Detect new commits per provider
+### Incremental Phase 2 — Detect unrecorded commits across **all** providers
 
-For each provider that already has a new version section in its
-`changelog.rst` (the providers in the release PR), get the current commit
-list the same way as Phase 2 of the initial run:
+> [!IMPORTANT]
+> On a **wave**, sweep **every** provider — not just the ones already in the
+> release PR. A provider that had nothing pending when the wave was cut can
+> acquire its first user-facing change hours later, and iterating only over
+> providers that already have a new version section can never discover it: it
+> has no section to extend. That provider then stays invisible for the rest of
+> the release. This is an observed miss, not a hypothetical one — see the
+> worked example at the end of this phase.
 
-```bash
-PROVIDER_ID=<dotted.id>
-PROVIDER_PATH=$(echo "$PROVIDER_ID" | tr '.' '/')   # folder path (slashes)
-PROVIDER_TAG=$(echo "$PROVIDER_ID" | tr '.' '-')    # tag segment (hyphens)
-# Same tag-selection rules as Phase 2: hyphenated tag segment, and skip sentinel
-# (99.98.0/99.99.0) and rc tags so we compare against the last *final* release.
-LAST_TAG=$(git tag --list "providers-${PROVIDER_TAG}/*" --sort=-v:refname \
-    | grep -vE '/99\.9[0-9]\.' | grep -vE 'rc[0-9]+$' | head -n1)
-git log --pretty=format:'%H %h %cd %s' --date=short \
-    "${LAST_TAG}..apache-https-for-providers/main" \
-    -- "providers/${PROVIDER_PATH}/"
-```
-
-Then identify **new** commits by comparing PR numbers to the existing
-changelog. A commit is "new" if its `(#NNNN)` PR suffix is **not** already
-present anywhere in `providers/${PROVIDER_PATH}/docs/changelog.rst`. This
-is exactly the same predicate breeze uses internally (see
-`_generate_new_changelog` append branch in
-`dev/breeze/src/airflow_breeze/prepare_providers/provider_documentation.py`).
+Re-run the deterministic classifier over the full provider set — the same
+command as Phase 1 of the initial run, with **no** provider ids appended:
 
 ```bash
-CHANGELOG="providers/${PROVIDER_PATH}/docs/changelog.rst"
-# pseudo: emit only commits whose #NNNN is NOT in the changelog
-git log --pretty=format:'%H %h %cd %s' --date=short \
-    "${LAST_TAG}..apache-https-for-providers/main" \
-    -- "providers/${PROVIDER_PATH}/" \
-  | python3 -c "
-import re, sys
-seen = open('${CHANGELOG}').read()
-for line in sys.stdin:
-    m = re.search(r'\(#(\d+)\)', line)
-    if not m or f'(#{m.group(1)})' not in seen:
-        print(line, end='')
-"
+breeze release-management classify-provider-changes \
+    --base-branch main \
+    --output-file /tmp/provider-changes.json
 ```
 
-If there are zero new commits for a provider, skip it.
+Then reduce its output to commits **not yet recorded** in the matching
+provider's changelog. A commit is unrecorded when its `#NNNN` PR number
+appears nowhere in `providers/<provider-path>/docs/changelog.rst` — the same
+predicate breeze uses internally (see the `_generate_new_changelog` append
+branch in
+`dev/breeze/src/airflow_breeze/prepare_providers/provider_documentation.py`):
+
+```bash
+python3 - <<'EOF'
+import json, pathlib
+
+data = json.loads(pathlib.Path("/tmp/provider-changes.json").read_text())
+for provider_id, info in sorted(data["providers"].items()):
+    base = pathlib.Path("providers") / provider_id.replace(".", "/")
+    changelog = base / "docs" / "changelog.rst"
+    seen = changelog.read_text() if changelog.exists() else ""
+    doc_only = base / "docs" / ".latest-doc-only-change.txt"
+    doc_hash = doc_only.read_text().strip() if doc_only.exists() else ""
+    for commit in info.get("commits", []):
+        pr = commit.get("pr")
+        # Substring match, NOT "(#NNNN)": a collapsed within-wave entry reads
+        # "(#68082, #70014)", which an exact-suffix match would report as new.
+        if pr and f"#{pr}" in seen:
+            continue
+        if not pr and commit["subject"].replace("`", "'") in seen:
+            continue
+        if doc_hash and commit["hash"].startswith(doc_hash[:10]):
+            continue
+        print(f"{provider_id}\t{commit['hash'][:10]}\t#{pr}\t"
+              f"{commit['classification']}\t{commit['subject']}")
+EOF
+```
+
+Split the result into two buckets. A provider is **already in the wave** iff
+its `provider.yaml` changed on this branch:
+
+```bash
+git diff --name-only <base-branch>..HEAD -- '**/provider.yaml' \
+  | sed 's|providers/||; s|/provider.yaml||' | tr '/' '.' | sort
+```
+
+- **Bucket A — already in the wave.** Fold the unrecorded commits into the
+  existing version section: continue through Incremental Phases 3 → 3.5 → 4a.
+- **Bucket B — not in the wave.** The provider has unrecorded commits but no
+  new version section, so it is a candidate to *join*. Classify it
+  (Incremental Phase 3), then take it to **Incremental Phase 3.6**.
+
+Most Bucket B rows are ordinary noise — repo-wide tooling and test commits
+that correctly keep a provider out of the release. A Bucket B provider whose
+unrecorded commits are **all** `skip` stays out silently; escalate only when
+at least one classifies as something other than `skip`.
+
+If a provider has zero unrecorded commits, skip it.
+
+> [!NOTE]
+> **Worked example — the miss this phase exists to prevent.** In the
+> 2026-07-22 wave, `atlassian.jira` had nothing pending when the wave was cut
+> at 22:15. PR #70224 merged at 03:41 the next morning, adding a `Verify SSL`
+> conn-field to `providers/atlassian/jira/provider.yaml`. The branch was
+> rebased past that commit and an incremental fold-in ran — but because
+> `atlassian.jira` had no version section, the old per-wave-provider loop
+> never looked at it, and the provider was still missing from the release PR
+> a day later. The full sweep above surfaces it; Phase 3.6 asks about it.
 
 ### Incremental Phase 3 — Classify the new commits
 
@@ -770,7 +849,37 @@ update the version header in `changelog.rst`'s new section to match.
 the old version, the new version, and which incoming commit forced the
 escalation. Don't silently re-bump.
 
+### Incremental Phase 3.6 — Ask before adding a provider to the wave
+
+Every Bucket B provider (Incremental Phase 2) with at least one unrecorded
+commit classified as something other than `skip` is a provider the release is
+currently missing. **Never add one silently, and never drop one silently —
+always ask.** The release manager owns the scope of the release; your job is
+to make sure the choice is made deliberately rather than by omission.
+
+On an **ad-hoc** release the answer is usually "leave it out" — the provider
+list is a fixed input — but still surface it, so the release manager knows the
+change exists and needs a later release.
+
+Ask once per provider. State what landed, why it is user-facing, when it
+landed relative to the cut, and the version consequence of each option:
+
+> Provider `atlassian.jira` is **not** in this wave, but PR #70224 ("Fix
+> conn-fields check crash for nested provider packages", merged 2026-07-23
+> 03:41 — about 5h after the wave was cut) added a `Verify SSL` conn-field and
+> `ui-field-behaviour` to its `provider.yaml`. That is shipped metadata: it
+> changes the Jira connection form. Its other pending commits (#67978, #68991)
+> are test/template-only.
+> **Add it to the wave** (3.3.4 → 3.3.5, most-impactful `misc`), or **leave it
+> out** and let the change ride the next release?
+
+Record the answer. If the release manager says **add**, the provider follows
+the *initial-run* application path rather than the append path — see
+Incremental Phase 4b.
+
 ### Incremental Phase 4 — Apply the new entries
+
+#### 4a. Providers already in the wave — append to the existing section
 
 For each new commit, insert into the existing latest-version section of
 `changelog.rst` under the right header:
@@ -797,7 +906,27 @@ new bump kind.
 
 If a new commit is classified `breaking`, add (or extend) a `.. note::` at the
 top of the version section explaining what breaks and how users should adapt,
-exactly as in the breaking-change note rule in Phase 4b.
+exactly as in the breaking-change note rule in the initial run's Phase 4b.
+
+#### 4b. Providers joining the wave — apply the initial-run path
+
+A provider the release manager confirmed in Incremental Phase 3.6 has no new
+version section yet, so there is nothing to append to. Run the steps of the
+**initial run's Phase 4** for that provider only:
+
+- **initial-run 4a** — prepend the new version to `provider.yaml` and refresh
+  `source-date-epoch`. Reuse the epoch the rest of the wave already carries
+  (`grep -h source-date-epoch` across the providers this branch bumped) so the
+  release stays on a single value rather than gaining a stray third one.
+- **initial-run 4b** — write a complete new version section in
+  `changelog.rst`: the classified commits under their headers, **every**
+  `skip` commit in the `.. Below changes are excluded …` block, and a
+  `.. note::` if the bump is breaking or a min-Airflow bump.
+- **initial-run 4c** — re-run `--reapply-templates-only` so the joining
+  provider's `__init__.py`, `README.rst`, `pyproject.toml`, `index.rst` pick
+  up the new version. Expect a diff for exactly that provider and no other.
+- **initial-run 4d** — re-run `update-providers-next-version`: a `# use next
+  version` pin pointing at the joining provider must now resolve.
 
 ### Incremental Phase 5 — Validate
 
@@ -808,10 +937,17 @@ no leftover "Please review …" markers from a prior interactive
 incremental flow before invoking this skill), remove them as part of the
 final pass. Then walk the diff with the release manager.
 
+Also confirm that **every Bucket B provider from Incremental Phase 2 was
+either added or explicitly declined** by the release manager — none dropped
+by omission. Re-run the Phase 2 sweep after applying; the only providers it
+should still report are ones whose unrecorded commits are all `skip`, plus any
+the release manager deliberately left out.
+
 If the incremental run bumped a provider to a *new* version (Incremental
-Phase 3.5), re-run Phase 4d (`update-providers-next-version`) as well — a
-`# use next version` pin on that provider must resolve to the freshly
-bumped version before the rebased PR is pushed.
+Phase 3.5) or added one to the wave (Incremental Phase 3.6), re-run Phase 4d
+(`update-providers-next-version`) as well — a `# use next version` pin on that
+provider must resolve to the freshly bumped version before the rebased PR is
+pushed.
 
 ---
 
@@ -850,6 +986,9 @@ two alternatives with the version-bump consequence.
 ### Things you must NOT do silently
 
 - Bump major version without explicit confirmation from the release manager.
+- Add a provider to the wave — or leave one out — without asking
+  (Incremental Phase 3.6). Scope is the release manager's call, and a
+  provider dropped by omission is as much a silent decision as one added.
 - Reclassify a commit the RM already confirmed.
 - Skip commits that don't fit a category — flag them as `?` and ask.
 - Edit `commits.rst`, `index.rst`, `__init__.py`, `README.rst`,

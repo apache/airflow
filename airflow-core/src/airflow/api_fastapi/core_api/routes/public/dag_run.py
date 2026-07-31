@@ -42,6 +42,7 @@ from airflow.api_fastapi.common.db.dag_runs import (
     attach_dag_versions_to_runs,
     eager_load_dag_run_for_list,
 )
+from airflow.api_fastapi.common.db.dags import attach_team_names
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -58,6 +59,7 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
+    _DagIdTeamsFilter,
     _PrefixSearchParam,
     _SearchParam,
     datetime_range_filter_factory,
@@ -65,6 +67,7 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
     prefix_search_param_factory,
     search_param_factory,
+    teams_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
@@ -500,6 +503,7 @@ def get_dag_runs(
     bundle_version: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(DagRun.bundle_version, str | None))
     ],
+    teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(DagRun.dag_id))],
     order_by: Annotated[
         SortParam,
         Depends(
@@ -655,6 +659,7 @@ def get_dag_runs(
         partition_key_pattern,
         partition_key_prefix_pattern,
         consuming_asset_pattern,
+        teams,
     ]
 
     if use_cursor:
@@ -688,6 +693,7 @@ def get_dag_runs(
             has_next = has_more
 
         attach_dag_versions_to_runs(dag_runs, session=session)
+        attach_team_names(dag_runs, session=session)
 
         return DAGRunCollectionResponse(
             dag_runs=dag_runs,
@@ -707,6 +713,7 @@ def get_dag_runs(
     )
     dag_runs = list(session.scalars(dag_run_select))
     attach_dag_versions_to_runs(dag_runs, session=session)
+    attach_team_names(dag_runs, session=session)
 
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,

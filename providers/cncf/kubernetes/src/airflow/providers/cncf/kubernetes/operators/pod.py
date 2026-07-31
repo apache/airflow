@@ -34,7 +34,7 @@ from collections.abc import Callable, Container, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager, suppress
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 import kubernetes
 import pendulum
@@ -282,6 +282,10 @@ class KubernetesPodOperator(BaseOperator):
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
     #  - airflow-core/src/airflow/decorators/__init__.pyi  (by a separate PR)
+
+    # This operator supports durable execution directly, without ResumableJobMixin --
+    # it reconnects via task_state_store on retry instead of resubmitting.
+    __supports_durable_execution: ClassVar[bool] = True
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
@@ -1553,12 +1557,16 @@ class KubernetesPodOperator(BaseOperator):
             except kubernetes.client.exceptions.ApiException:
                 self.log.exception("Unable to delete pod %s", self.pod.metadata.name)
 
-    def build_pod_request_obj(self, context: Context | None = None) -> k8s.V1Pod:
+    def build_pod_request_obj(self, context: Context | None = None, *, dry_run: bool = False) -> k8s.V1Pod:
         """
         Return V1Pod object based on pod template file, full pod spec, and other operator parameters.
 
         The V1Pod attributes are derived (in order of precedence) from operator params, full pod spec, pod
         template file.
+
+        :param dry_run: if True, skip anything that requires a live Kubernetes API client
+            (e.g. determining whether the hook is running in-cluster), since dry runs must not
+            require kube credentials or config to be available.
         """
         self.log.debug("Creating pod for KubernetesPodOperator task %s", self.task_id)
 
@@ -1669,12 +1677,11 @@ class KubernetesPodOperator(BaseOperator):
         pod.metadata.labels.update(labels)
         # Add Airflow Version to the label
         # And a label to identify that pod is launched by KubernetesPodOperator
-        pod.metadata.labels.update(
-            {
-                "airflow_version": airflow_version.replace("+", "-"),
-                "airflow_kpo_in_cluster": str(self.hook.is_in_cluster),
-            }
-        )
+        pod.metadata.labels.update({"airflow_version": airflow_version.replace("+", "-")})
+        if not dry_run:
+            # self.hook.is_in_cluster instantiates a Kubernetes API client, which requires
+            # kube credentials/config to be available and must be skipped during a dry run.
+            pod.metadata.labels["airflow_kpo_in_cluster"] = str(self.hook.is_in_cluster)
         pod_mutation_hook(pod)
         return pod
 
@@ -1685,7 +1692,7 @@ class KubernetesPodOperator(BaseOperator):
         Does not include labels specific to the task instance (since there isn't
         one in a dry_run) and excludes all empty elements.
         """
-        pod = self.build_pod_request_obj()
+        pod = self.build_pod_request_obj(dry_run=True)
         print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
 
     def process_duplicate_label_pods(self, pod_list: list[k8s.V1Pod]) -> k8s.V1Pod:
