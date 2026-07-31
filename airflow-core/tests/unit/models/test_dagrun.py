@@ -4248,7 +4248,24 @@ def test_parent_trace_context_tracestate(tracestate, expected):
     assert span_ctx.trace_state.get("foo") == expected
 
 
-@mock.patch("airflow.models.dagrun.TraceContextTextMapPropagator.extract", side_effect=ValueError("boom"))
+def test_parent_trace_context_carrier_read_by_configured_propagators():
+    """A carrier dict is handed to the configured propagators, not filtered down to W3C keys."""
+    from opentelemetry import baggage
+
+    from airflow.models.dagrun import parent_trace_context
+
+    conf = {
+        DAGRUN_PARENT_TRACE_CONTEXT_KEY: {
+            "traceparent": f"00-{_EXTERNAL_TRACE_ID}-{_EXTERNAL_SPAN_ID}-01",
+            "baggage": "tenant=acme",
+        }
+    }
+    ctx = parent_trace_context(conf)
+    assert format(otel_trace.get_current_span(ctx).get_span_context().trace_id, "032x") == _EXTERNAL_TRACE_ID
+    assert baggage.get_all(ctx) == {"tenant": "acme"}
+
+
+@mock.patch("airflow.models.dagrun.propagate.extract", side_effect=ValueError("boom"))
 def test_parent_trace_context_swallows_propagator_error(mock_extract):
     """A propagator failure degrades to a root trace instead of failing run creation."""
     from airflow.models.dagrun import parent_trace_context

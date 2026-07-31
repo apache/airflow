@@ -36,9 +36,8 @@ from urllib.parse import quote
 import attrs
 import lazy_object_proxy
 import structlog
-from opentelemetry import trace
+from opentelemetry import propagate, trace
 from opentelemetry.trace import INVALID_SPAN, Status, StatusCode
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 from structlog.contextvars import bind_contextvars
 
@@ -203,9 +202,7 @@ class detail_span:
 
 @contextmanager
 def _make_task_span(msg: StartupDetails):
-    parent_context = (
-        TraceContextTextMapPropagator().extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
-    )
+    parent_context = propagate.extract(msg.ti.context_carrier) if msg.ti.context_carrier else None
     ti = msg.ti
     span_name = f"worker.{ti.task_id}"
     if ti.map_index is not None and ti.map_index >= 0:
