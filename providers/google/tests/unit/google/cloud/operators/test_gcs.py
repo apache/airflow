@@ -336,6 +336,49 @@ class TestGCSFileTransformOperator:
             filename=destination,
         )
 
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.NamedTemporaryFile")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_execute_defaults_destination_to_source(self, mock_hook, mock_subprocess, mock_tempfile):
+        source_bucket = TEST_BUCKET
+        source_object = "test.txt"
+        transform_script = "script.py"
+
+        source = "source"
+        destination = "destination"
+
+        mock1 = mock.Mock()
+        mock2 = mock.Mock()
+        mock1.name = source
+        mock2.name = destination
+
+        mock_tempfile.return_value.__enter__.side_effect = [mock1, mock2]
+
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout.readline = lambda: b""
+        mock_proc.wait.return_value = None
+        mock_popen = mock.MagicMock()
+        mock_popen.return_value.__enter__.return_value = mock_proc
+
+        mock_subprocess.Popen = mock_popen
+        mock_subprocess.PIPE = "pipe"
+        mock_subprocess.STDOUT = "stdout"
+
+        op = GCSFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket=source_bucket,
+            source_object=source_object,
+            transform_script=transform_script,
+        )
+        op.execute(context=mock.MagicMock())
+
+        mock_hook.return_value.upload.assert_called_with(
+            bucket_name=source_bucket,
+            object_name=source_object,
+            filename=destination,
+        )
+
     def test_get_openlineage_facets_on_start(self):
         expected_input = Dataset(
             namespace=f"gs://{TEST_BUCKET}",

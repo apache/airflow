@@ -603,8 +603,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.source_object = source_object
-        self.destination_bucket = destination_bucket or self.source_bucket
-        self.destination_object = destination_object or self.source_object
+        self.destination_bucket = destination_bucket
+        self.destination_object = destination_object
 
         self.gcp_conn_id = gcp_conn_id
         self.transform_script = transform_script
@@ -612,6 +612,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
+        destination_bucket = self.destination_bucket or self.source_bucket
+        destination_object = self.destination_object or self.source_object
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         with NamedTemporaryFile() as source_file, NamedTemporaryFile() as destination_file:
@@ -637,15 +639,15 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 
-            self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
+            self.log.info("Uploading file to %s as %s", destination_bucket, destination_object)
             FileDetailsLink.persist(
                 context=context,
-                uri=f"{self.destination_bucket}/{self.destination_object}",
+                uri=f"{destination_bucket}/{destination_object}",
                 project_id=hook.project_id,
             )
             hook.upload(
-                bucket_name=self.destination_bucket,
-                object_name=self.destination_object,
+                bucket_name=destination_bucket,
+                object_name=destination_object,
                 filename=destination_file.name,
             )
 
@@ -653,13 +655,15 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
+        destination_bucket = self.destination_bucket or self.source_bucket
+        destination_object = self.destination_object or self.source_object
         input_dataset = Dataset(
             namespace=f"gs://{self.source_bucket}",
             name=self.source_object,
         )
         output_dataset = Dataset(
-            namespace=f"gs://{self.destination_bucket}",
-            name=self.destination_object,
+            namespace=f"gs://{destination_bucket}",
+            name=destination_object,
         )
 
         return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
