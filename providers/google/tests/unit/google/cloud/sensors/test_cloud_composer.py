@@ -31,6 +31,13 @@ from airflow.providers.google.cloud.sensors.cloud_composer import (
     CloudComposerDAGRunSensor,
     CloudComposerExternalTaskSensor,
 )
+from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerDAGRunTrigger
+from airflow.providers.google.cloud.utils.composer import (
+    check_dag_run_states_in_window,
+    composer_dag_run_date_field,
+    is_in_execution_window,
+    parse_composer_airflow_datetime,
+)
 
 TEST_PROJECT_ID = "test_project_id"
 TEST_OPERATION_NAME = "test_operation_name"
@@ -247,14 +254,41 @@ class TestCloudComposerDAGRunSensor:
     @pytest.mark.parametrize("use_rest_api", [True, False])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
     @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
-    def test_poke_returns_false_when_only_boundary_runs(
+    def test_poke_includes_run_exactly_at_start_boundary(
         self, mock_hook, composer_airflow_version, use_rest_api
     ):
+        """Window is [start, end); schedule-aligned runs at start_date succeed."""
         mock_hook.return_value.get_dag_runs.return_value = build_dag_runs_result(
             composer_airflow_version,
             [
-                ("success", "2024-05-22T00:00:00+00:00"),
-                ("success", "2024-05-23T00:00:00+00:00"),
+                ("success", "2024-05-22T00:00:00+00:00"),  # == start (default range: end-1d)
+            ],
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            task = CloudComposerDAGRunSensor(
+                task_id="task-id",
+                project_id=TEST_PROJECT_ID,
+                region=TEST_REGION,
+                environment_id=TEST_ENVIRONMENT_ID,
+                composer_dag_id="test_dag_id",
+                allowed_states=["success"],
+                use_rest_api=use_rest_api,
+            )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
+
+    @pytest.mark.parametrize("use_rest_api", [True, False])
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_poke_excludes_run_exactly_at_end_boundary(
+        self, mock_hook, composer_airflow_version, use_rest_api
+    ):
+        """Window is [start, end); runs exactly at end_date keep waiting."""
+        mock_hook.return_value.get_dag_runs.return_value = build_dag_runs_result(
+            composer_airflow_version,
+            [
+                ("success", "2024-05-23T00:00:00+00:00"),  # == end
             ],
         )
         with pytest.warns(AirflowProviderDeprecationWarning):
@@ -270,6 +304,90 @@ class TestCloudComposerDAGRunSensor:
         task._composer_airflow_version = composer_airflow_version
 
         assert not task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_poke_skips_null_logical_or_execution_date(self, mock_hook, composer_airflow_version):
+        """AF3 may emit null logical_date; those runs must not crash or count."""
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.get_dag_runs.return_value = {
+            "dag_runs": [
+                {
+                    "dag_id": "test_dag_id",
+                    "dag_run_id": "manual__null-date",
+                    "state": "success",
+                    date_key: None,
+                },
+                {
+                    "dag_id": "test_dag_id",
+                    "dag_run_id": "scheduled__1",
+                    "state": "success",
+                    date_key: "2024-05-22T11:10:00+00:00",
+                },
+            ],
+            "total_entries": 2,
+        }
+        task = CloudComposerDAGRunSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_poke_treats_naive_api_datetimes_as_utc(self, mock_hook, composer_airflow_version):
+        """Naive Composer API timestamps are compared as UTC (not worker local tz)."""
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        mock_hook.return_value.get_dag_runs.return_value = {
+            "dag_runs": [
+                {
+                    "dag_id": "test_dag_id",
+                    "dag_run_id": "scheduled__naive",
+                    "state": "success",
+                    # No timezone suffix — must still match the UTC window.
+                    date_key: "2024-05-22T11:10:00",
+                }
+            ],
+            "total_entries": 1,
+        }
+        task = CloudComposerDAGRunSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch("airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerHook")
+    def test_empty_allowed_states_defaults_to_success(self, mock_hook, composer_airflow_version):
+        """Empty allowed_states must not treat every in-window run as failure."""
+        mock_hook.return_value.get_dag_runs.return_value = build_dag_runs_result(
+            composer_airflow_version,
+            [("success", "2024-05-22T11:10:00+00:00")],
+        )
+        task = CloudComposerDAGRunSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            allowed_states=[],
+        )
+        task._composer_airflow_version = composer_airflow_version
+
+        assert task.allowed_states == ["success"]
+        assert task.poke(context={"logical_date": datetime(2024, 5, 23, tzinfo=timezone.utc)})
 
     @pytest.mark.parametrize("use_rest_api", [True, False])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
@@ -659,3 +777,163 @@ class TestCloudComposerDAGRunSensorComposerDagRunIdPath:
             assert "['dag_run_id']" in block, (
                 f"{label} dag_run_sensor must subscript the trigger op's xcom for the 'dag_run_id' key"
             )
+
+
+class TestComposerDagRunWindowHelpers:
+    """Unit tests for shared Composer window/date helpers (E2/E3/E4/E6/E7)."""
+
+    def test_date_field_af2_vs_af3(self):
+        assert composer_dag_run_date_field(2) == "execution_date"
+        assert composer_dag_run_date_field(3) == "logical_date"
+
+    def test_parse_null_returns_none(self):
+        assert parse_composer_airflow_datetime(None) is None
+        assert parse_composer_airflow_datetime("") is None
+
+    def test_parse_naive_as_utc(self):
+        dt = parse_composer_airflow_datetime("2024-05-22T11:10:00")
+        assert dt is not None
+        assert dt.tzinfo is not None
+        assert dt.utcoffset().total_seconds() == 0
+        assert dt == datetime(2024, 5, 22, 11, 10, 0, tzinfo=timezone.utc)
+
+    def test_window_start_inclusive_end_exclusive(self):
+        start = datetime(2024, 5, 22, tzinfo=timezone.utc)
+        end = datetime(2024, 5, 23, tzinfo=timezone.utc)
+        assert is_in_execution_window(start, start, end)
+        assert is_in_execution_window(datetime(2024, 5, 22, 12, 0, 0, tzinfo=timezone.utc), start, end)
+        assert not is_in_execution_window(end, start, end)
+        assert not is_in_execution_window(datetime(2024, 5, 21, tzinfo=timezone.utc), start, end)
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    def test_check_skips_null_date_runs(self, composer_airflow_version):
+        date_key = composer_dag_run_date_field(composer_airflow_version)
+        dag_runs = [
+            {"state": "failed", date_key: None},
+            {"state": "success", date_key: "2024-05-22T12:00:00+00:00"},
+        ]
+        assert check_dag_run_states_in_window(
+            dag_runs,
+            start_date=datetime(2024, 5, 22, tzinfo=timezone.utc),
+            end_date=datetime(2024, 5, 23, tzinfo=timezone.utc),
+            allowed_states=["success"],
+            composer_airflow_version=composer_airflow_version,
+        )
+
+    def test_empty_allowed_states_defaults_to_success(self):
+        dag_runs = [{"state": "success", "logical_date": "2024-05-22T12:00:00+00:00"}]
+        assert check_dag_run_states_in_window(
+            dag_runs,
+            start_date=datetime(2024, 5, 22, tzinfo=timezone.utc),
+            end_date=datetime(2024, 5, 23, tzinfo=timezone.utc),
+            allowed_states=[],
+            composer_airflow_version=3,
+        )
+        assert not check_dag_run_states_in_window(
+            [{"state": "failed", "logical_date": "2024-05-22T12:00:00+00:00"}],
+            start_date=datetime(2024, 5, 22, tzinfo=timezone.utc),
+            end_date=datetime(2024, 5, 23, tzinfo=timezone.utc),
+            allowed_states=None,
+            composer_airflow_version=3,
+        )
+
+
+class TestCloudComposerDAGRunSensorTriggerParity:
+    """E8: sensor and trigger must produce identical verdicts for the same inputs."""
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @pytest.mark.parametrize(
+        ("dag_runs_spec", "expected"),
+        [
+            # empty window (only out-of-range)
+            ([("success", "2024-05-24T11:10:00+00:00")], False),
+            # in-window allowed
+            ([("success", "2024-05-22T11:10:00+00:00")], True),
+            # in-window disallowed
+            ([("failed", "2024-05-22T11:10:00+00:00")], False),
+            # start boundary inclusive
+            ([("success", "2024-05-22T00:00:00+00:00")], True),
+            # end boundary exclusive
+            ([("success", "2024-05-23T00:00:00+00:00")], False),
+            # mixed: out-of-window failed + in-window success
+            (
+                [
+                    ("failed", "2024-05-24T11:10:00+00:00"),
+                    ("success", "2024-05-22T11:10:00+00:00"),
+                ],
+                True,
+            ),
+            # null date only -> empty window
+            # handled separately below for null payload shape
+        ],
+    )
+    def test_sensor_and_trigger_agree_on_window_verdicts(
+        self, composer_airflow_version, dag_runs_spec, expected
+    ):
+        start = datetime(2024, 5, 22, tzinfo=timezone.utc)
+        end = datetime(2024, 5, 23, tzinfo=timezone.utc)
+        payload = build_dag_runs_result(composer_airflow_version, dag_runs_spec)
+        dag_runs = payload["dag_runs"]
+
+        sensor = CloudComposerDAGRunSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+        sensor._composer_airflow_version = composer_airflow_version
+        sensor_verdict = sensor._check_dag_runs_states(dag_runs, start, end)
+
+        trigger = CloudComposerDAGRunTrigger(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            start_date=start,
+            end_date=end,
+            allowed_states=["success"],
+            composer_airflow_version=composer_airflow_version,
+        )
+        trigger_verdict = trigger._check_dag_runs_states(dag_runs, start, end)
+
+        assert sensor_verdict is expected
+        assert trigger_verdict is expected
+        assert sensor_verdict is trigger_verdict
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    def test_sensor_and_trigger_agree_on_null_and_naive_dates(self, composer_airflow_version):
+        start = datetime(2024, 5, 22, tzinfo=timezone.utc)
+        end = datetime(2024, 5, 23, tzinfo=timezone.utc)
+        date_key = composer_dag_run_date_field(composer_airflow_version)
+        dag_runs = [
+            {"dag_run_id": "n1", "state": "success", date_key: None},
+            {"dag_run_id": "n2", "state": "success", date_key: "2024-05-22T11:10:00"},  # naive
+        ]
+
+        sensor = CloudComposerDAGRunSensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            allowed_states=["success"],
+        )
+        sensor._composer_airflow_version = composer_airflow_version
+
+        trigger = CloudComposerDAGRunTrigger(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id="test_dag_id",
+            start_date=start,
+            end_date=end,
+            allowed_states=["success"],
+            composer_airflow_version=composer_airflow_version,
+        )
+
+        sensor_verdict = sensor._check_dag_runs_states(dag_runs, start, end)
+        trigger_verdict = trigger._check_dag_runs_states(dag_runs, start, end)
+        assert sensor_verdict is True
+        assert trigger_verdict is True

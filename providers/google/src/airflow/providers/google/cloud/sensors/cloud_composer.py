@@ -25,7 +25,6 @@ from datetime import datetime, timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from dateutil import parser
 from google.api_core.exceptions import NotFound
 from google.cloud.orchestration.airflow.service_v1.types import Environment
 
@@ -40,6 +39,12 @@ from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHoo
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerDAGRunTrigger,
     CloudComposerExternalTaskTrigger,
+)
+from airflow.providers.google.cloud.utils.composer import (
+    check_dag_run_states_in_window,
+    composer_dag_run_date_field,
+    is_in_execution_window,
+    parse_composer_airflow_datetime,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.providers.standard.exceptions import (
@@ -58,17 +63,30 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
     """
     Check if a DAG run has completed.
 
+    Success requires **at least one** Composer Dag run whose logical/execution
+    date falls in the execution window ``[start, end)``, and every in-window run
+    must be in ``allowed_states``. If no runs are in the window yet, the sensor
+    keeps waiting (it does **not** treat an empty window as success).
+
+    Because an empty window no longer succeeds immediately, configure a finite
+    ``timeout`` / ``execution_timeout`` (or use ``composer_dag_run_id`` to pin a
+    specific run) so the task cannot wait forever when the Composer Dag never
+    produces a run in range.
+
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param environment_id: The name of the Composer environment.
     :param composer_dag_id: The ID of executable Dag.
     :param allowed_states: Iterable of allowed states, default is ``['success']``.
+        ``None`` or an empty iterable is normalized to ``['success']``.
     :param execution_range: execution Dags time range. Sensor checks Dags states only for Dags which were
         started in this time range. For yesterday, use [positive!] datetime.timedelta(days=1).
         For future, use [negative!] datetime.timedelta(days=-1). For specific time, use list of
         datetimes [datetime(2024,3,22,11,0,0), datetime(2024,3,22,12,0,0)].
         Or [datetime(2024,3,22,0,0,0)] in this case sensor will check for states from specific time in the
         past till current time execution.
+        The window is half-open ``[start, end)`` so schedule-aligned runs at
+        ``start`` are included; runs exactly at ``end`` are not.
         Default value datetime.timedelta(days=1).
     :param composer_dag_run_id: The Run ID of executable task. The 'execution_range' param is ignored, if both specified.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
@@ -129,11 +147,6 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-
-        if self.composer_dag_run_id and self.execution_range:
-            self.log.warning(
-                "The composer_dag_run_id parameter and execution_range parameter do not work together. This run will ignore execution_range parameter and count only specified composer_dag_run_id parameter."
-            )
 
     def _get_logical_dates(self, context) -> tuple[datetime, datetime]:
         logical_date = context.get("logical_date", None)
@@ -218,16 +231,13 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         start_date: datetime,
         end_date: datetime,
     ) -> bool:
-        found_runs_in_window = False
-        for dag_run in dag_runs:
-            execution_date = parser.parse(
-                dag_run["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
-            )
-            if start_date.timestamp() < execution_date.timestamp() < end_date.timestamp():
-                found_runs_in_window = True
-                if dag_run["state"] not in self.allowed_states:
-                    return False
-        return found_runs_in_window
+        return check_dag_run_states_in_window(
+            dag_runs,
+            start_date=start_date,
+            end_date=end_date,
+            allowed_states=self.allowed_states,
+            composer_airflow_version=self._composer_airflow_version,
+        )
 
     def _get_composer_airflow_version(self) -> int:
         """Return Composer Airflow version."""
@@ -247,6 +257,13 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         return False
 
     def execute(self, context: Context) -> None:
+        # Warn after template rendering so Jinja values are already resolved.
+        if self.composer_dag_run_id and self.execution_range:
+            self.log.warning(
+                "The composer_dag_run_id parameter and execution_range parameter do not work together. "
+                "This run will ignore execution_range parameter and count only specified "
+                "composer_dag_run_id parameter."
+            )
         self._composer_airflow_version = self._get_composer_airflow_version()
         if self.deferrable:
             start_date, end_date = self._get_logical_dates(context)
@@ -527,15 +544,14 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
             self.composer_external_dag_id,
             self.environment_id,
         )
+        date_field = composer_dag_run_date_field(self._composer_airflow_version)
         task_instances_response = self.hook.get_task_instances(
             composer_airflow_uri=composer_airflow_uri,
             composer_dag_id=self.composer_external_dag_id,
             composer_airflow_version=self._composer_airflow_version,
             query_parameters={
-                "execution_date_gte"
-                if self._composer_airflow_version < 3
-                else "logical_date_gte": start_date,
-                "execution_date_lte" if self._composer_airflow_version < 3 else "logical_date_lte": end_date,
+                f"{date_field}_gte": start_date,
+                f"{date_field}_lte": end_date,
             },
             timeout=self.timeout,
         )
@@ -563,14 +579,12 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
         end_date: datetime,
         states: Iterable[str],
     ) -> bool:
+        date_field = composer_dag_run_date_field(self._composer_airflow_version)
         for task_instance in task_instances:
-            if (
-                start_date.timestamp()
-                < parser.parse(
-                    task_instance["execution_date" if self._composer_airflow_version < 3 else "logical_date"]
-                ).timestamp()
-                < end_date.timestamp()
-            ) and task_instance["state"] not in states:
+            run_dt = parse_composer_airflow_datetime(task_instance.get(date_field))
+            if run_dt is None:
+                continue
+            if is_in_execution_window(run_dt, start_date, end_date) and task_instance["state"] not in states:
                 return False
         return True
 

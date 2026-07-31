@@ -491,30 +491,52 @@ class CloudComposerHook(GoogleBaseHook, OperationHelper):
         """
         Get the list of dag runs for provided Dag.
 
+        Exhausts Airflow REST pagination (``limit``/``offset``) so callers see
+        every Dag run, not only the first page.
+
         :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
         :param composer_dag_id: The ID of Dag.
         :param composer_airflow_version: The version of Apache Airflow.
         :param timeout: The timeout for this request.
         """
-        resource_path = f"/api/{self.get_airflow_rest_api_version(composer_airflow_version)}/dags/{composer_dag_id}/dagRuns"
-        response = self.make_composer_airflow_api_request(
-            method="GET",
-            airflow_uri=composer_airflow_uri,
-            path=resource_path,
-            timeout=timeout,
-        )
+        api_version = self.get_airflow_rest_api_version(composer_airflow_version)
+        base_path = f"/api/{api_version}/dags/{composer_dag_id}/dagRuns"
+        all_dag_runs: list[dict] = []
+        offset = 0
+        # Airflow REST default page size is 100; request that size explicitly.
+        limit = 100
+        total_entries: int | None = None
 
-        if response.status_code != 200:
-            self.log.error(
-                "Failed to get Dag runs for dag_id=%s from %s (status=%s): %s",
-                composer_dag_id,
-                composer_airflow_uri,
-                response.status_code,
-                response.text,
+        while True:
+            query = urlencode({"limit": limit, "offset": offset})
+            response = self.make_composer_airflow_api_request(
+                method="GET",
+                airflow_uri=composer_airflow_uri,
+                path=f"{base_path}?{query}",
+                timeout=timeout,
             )
-            response.raise_for_status()
 
-        return response.json()
+            if response.status_code != 200:
+                self.log.error(
+                    "Failed to get Dag runs for dag_id=%s from %s (status=%s): %s",
+                    composer_dag_id,
+                    composer_airflow_uri,
+                    response.status_code,
+                    response.text,
+                )
+                response.raise_for_status()
+
+            body = response.json()
+            page = body.get("dag_runs") or []
+            all_dag_runs.extend(page)
+            total_entries = body.get("total_entries", len(all_dag_runs))
+
+            # Stop when exhausted, short page, or API ignored pagination.
+            if not page or len(all_dag_runs) >= total_entries or len(page) < limit:
+                break
+            offset += limit
+
+        return {"dag_runs": all_dag_runs, "total_entries": total_entries if total_entries is not None else 0}
 
     def get_task_instances(
         self,
@@ -876,30 +898,49 @@ class CloudComposerAsyncHook(GoogleBaseAsyncHook):
         """
         Get the list of dag runs for provided Dag.
 
+        Exhausts Airflow REST pagination (``limit``/``offset``) so callers see
+        every Dag run, not only the first page.
+
         :param composer_airflow_uri: The URI of the Apache Airflow Web UI hosted within Composer environment.
         :param composer_dag_id: The ID of Dag.
         :param composer_airflow_version: The version of Apache Airflow.
         :param timeout: The timeout for this request.
         """
-        resource_path = f"/api/{self.sync_hook_class.get_airflow_rest_api_version(composer_airflow_version)}/dags/{composer_dag_id}/dagRuns"
-        response_body, response_status_code = await self.make_composer_airflow_api_request(
-            method="GET",
-            airflow_uri=composer_airflow_uri,
-            path=resource_path,
-            timeout=timeout,
-        )
+        api_version = self.sync_hook_class.get_airflow_rest_api_version(composer_airflow_version)
+        base_path = f"/api/{api_version}/dags/{composer_dag_id}/dagRuns"
+        all_dag_runs: list[dict] = []
+        offset = 0
+        limit = 100
+        total_entries: int | None = None
 
-        if response_status_code != 200:
-            self.log.error(
-                "Failed to get Dag runs for dag_id=%s from %s (status=%s): %s",
-                composer_dag_id,
-                composer_airflow_uri,
-                response_status_code,
-                response_body["title"],
+        while True:
+            query = urlencode({"limit": limit, "offset": offset})
+            response_body, response_status_code = await self.make_composer_airflow_api_request(
+                method="GET",
+                airflow_uri=composer_airflow_uri,
+                path=f"{base_path}?{query}",
+                timeout=timeout,
             )
-            raise AirflowException(response_body["title"])
 
-        return response_body
+            if response_status_code != 200:
+                self.log.error(
+                    "Failed to get Dag runs for dag_id=%s from %s (status=%s): %s",
+                    composer_dag_id,
+                    composer_airflow_uri,
+                    response_status_code,
+                    response_body["title"],
+                )
+                raise AirflowException(response_body["title"])
+
+            page = response_body.get("dag_runs") or []
+            all_dag_runs.extend(page)
+            total_entries = response_body.get("total_entries", len(all_dag_runs))
+
+            if not page or len(all_dag_runs) >= total_entries or len(page) < limit:
+                break
+            offset += limit
+
+        return {"dag_runs": all_dag_runs, "total_entries": total_entries if total_entries is not None else 0}
 
     async def get_task_instances(
         self,

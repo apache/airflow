@@ -293,12 +293,17 @@ class TestCloudComposerHook:
     @mock.patch(COMPOSER_STRING.format("CloudComposerHook.make_composer_airflow_api_request"))
     def test_get_dag_runs(self, mock_composer_airflow_api_request, composer_airflow_version) -> None:
         if composer_airflow_version == 3:
-            expected_path = f"/api/v2/dags/{TEST_COMPOSER_DAG_ID}/dagRuns"
+            expected_path = f"/api/v2/dags/{TEST_COMPOSER_DAG_ID}/dagRuns?limit=100&offset=0"
         else:
-            expected_path = f"/api/v1/dags/{TEST_COMPOSER_DAG_ID}/dagRuns"
+            expected_path = f"/api/v1/dags/{TEST_COMPOSER_DAG_ID}/dagRuns?limit=100&offset=0"
+
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"dag_runs": [{"dag_run_id": "r1"}], "total_entries": 1}
+        mock_composer_airflow_api_request.return_value = mock_response
 
         self.hook.get_credentials = mock.MagicMock()
-        self.hook.get_dag_runs(
+        result = self.hook.get_dag_runs(
             composer_airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
             composer_dag_id=TEST_COMPOSER_DAG_ID,
             composer_airflow_version=composer_airflow_version,
@@ -311,6 +316,43 @@ class TestCloudComposerHook:
             path=expected_path,
             timeout=TEST_TIMEOUT,
         )
+        assert result == {"dag_runs": [{"dag_run_id": "r1"}], "total_entries": 1}
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    @mock.patch(COMPOSER_STRING.format("CloudComposerHook.make_composer_airflow_api_request"))
+    def test_get_dag_runs_exhausts_pagination(
+        self, mock_composer_airflow_api_request, composer_airflow_version
+    ) -> None:
+        """E5: list call must page until total_entries is exhausted."""
+        api = "v2" if composer_airflow_version == 3 else "v1"
+        page1 = mock.MagicMock()
+        page1.status_code = 200
+        page1.json.return_value = {
+            "dag_runs": [{"dag_run_id": f"r{i}"} for i in range(100)],
+            "total_entries": 150,
+        }
+        page2 = mock.MagicMock()
+        page2.status_code = 200
+        page2.json.return_value = {
+            "dag_runs": [{"dag_run_id": f"r{i}"} for i in range(100, 150)],
+            "total_entries": 150,
+        }
+        mock_composer_airflow_api_request.side_effect = [page1, page2]
+        self.hook.get_credentials = mock.MagicMock()
+
+        result = self.hook.get_dag_runs(
+            composer_airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            composer_airflow_version=composer_airflow_version,
+            timeout=TEST_TIMEOUT,
+        )
+
+        assert len(result["dag_runs"]) == 150
+        assert result["total_entries"] == 150
+        assert mock_composer_airflow_api_request.call_count == 2
+        paths = [c.kwargs["path"] for c in mock_composer_airflow_api_request.call_args_list]
+        assert paths[0] == f"/api/{api}/dags/{TEST_COMPOSER_DAG_ID}/dagRuns?limit=100&offset=0"
+        assert paths[1] == f"/api/{api}/dags/{TEST_COMPOSER_DAG_ID}/dagRuns?limit=100&offset=100"
 
     @pytest.mark.parametrize("query_parameters", [None, {"test_key": "test_value"}])
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
@@ -517,13 +559,16 @@ class TestCloudComposerAsyncHook:
         self, mock_composer_airflow_api_request, mock_sync_hook, composer_airflow_version
     ) -> None:
         if composer_airflow_version == 3:
-            expected_path = f"/api/v2/dags/{TEST_COMPOSER_DAG_ID}/dagRuns"
+            expected_path = f"/api/v2/dags/{TEST_COMPOSER_DAG_ID}/dagRuns?limit=100&offset=0"
             mock_sync_hook.return_value.get_airflow_rest_api_version = mock.MagicMock(return_value="v2")
         else:
-            expected_path = f"/api/v1/dags/{TEST_COMPOSER_DAG_ID}/dagRuns"
+            expected_path = f"/api/v1/dags/{TEST_COMPOSER_DAG_ID}/dagRuns?limit=100&offset=0"
             mock_sync_hook.return_value.get_airflow_rest_api_version = mock.MagicMock(return_value="v1")
-        mock_composer_airflow_api_request.return_value = ({}, 200)
-        await self.hook.get_dag_runs(
+        mock_composer_airflow_api_request.return_value = (
+            {"dag_runs": [{"dag_run_id": "r1"}], "total_entries": 1},
+            200,
+        )
+        result = await self.hook.get_dag_runs(
             composer_airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
             composer_dag_id=TEST_COMPOSER_DAG_ID,
             timeout=TEST_TIMEOUT,
@@ -535,6 +580,7 @@ class TestCloudComposerAsyncHook:
             path=expected_path,
             timeout=TEST_TIMEOUT,
         )
+        assert result == {"dag_runs": [{"dag_run_id": "r1"}], "total_entries": 1}
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("composer_airflow_version", [2, 3])
