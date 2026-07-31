@@ -72,7 +72,7 @@
       "mode": "Mode"
     },
     "expectedDuration": "Expected Duration",
-    "findOnGrid": "Find this run on the Grid",
+    "showInGrid": "Show in Grid View",
     "lastSchedulingDecision": "Last Scheduling Decision",
     "mappedPartitionKey": "Mapped Partition Key",
     "partitionDate": "Partition Date",
