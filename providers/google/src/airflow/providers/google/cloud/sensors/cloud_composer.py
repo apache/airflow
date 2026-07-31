@@ -596,25 +596,26 @@ class CloudComposerExternalTaskSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         # Validate and normalize the target only after its template fields have been rendered.
+        # Treat an empty list the same as an unset value before the exclusivity checks.
+        if not self.composer_external_task_ids:
+            self.composer_external_task_ids = None
+
         if self.composer_external_task_id is not None and self.composer_external_task_ids is not None:
             raise ValueError(
                 "Only one of `composer_external_task_id` or `composer_external_task_ids` may "
                 "be provided to CloudComposerExternalTaskSensor; "
                 "use `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id`."
             )
-        if self.composer_external_task_group_id is not None and (
-            self.composer_external_task_id is not None or self.composer_external_task_ids is not None
-        ):
+
+        if self.composer_external_task_id is not None:
+            self.composer_external_task_ids = [self.composer_external_task_id]
+
+        if self.composer_external_task_group_id is not None and self.composer_external_task_ids is not None:
             raise ValueError(
                 "Only one of `composer_external_task_group_id` or `composer_external_task_ids` may "
                 "be provided to CloudComposerExternalTaskSensor; "
                 "use `composer_external_task_id` or `composer_external_task_ids` or `composer_external_task_group_id`."
             )
-
-        if not self.composer_external_task_ids:
-            self.composer_external_task_ids = None
-        if self.composer_external_task_id is not None:
-            self.composer_external_task_ids = [self.composer_external_task_id]
 
         total_states = set(self.allowed_states + self.skipped_states + self.failed_states)
         if self.composer_external_task_ids or self.composer_external_task_group_id:
