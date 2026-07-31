@@ -481,3 +481,71 @@ class TestCloudComposerExternalTaskTrigger:
             },
         )
         assert actual_data == expected_data
+
+
+class TestCloudComposerDAGRunTriggerWindowLogic:
+    """Direct checks on trigger window helper path (parity with sensor)."""
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    def test_check_includes_start_boundary(self, composer_airflow_version):
+        trigger = CloudComposerDAGRunTrigger(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_LOCATION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+            allowed_states=TEST_ALLOWED_STATES,
+            composer_airflow_version=composer_airflow_version,
+        )
+        dag_runs = build_dag_runs_result(
+            composer_airflow_version,
+            [("success", "2024-03-22T11:00:00+00:00")],
+        )["dag_runs"]
+        assert trigger._check_dag_runs_states(
+            dag_runs,
+            start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+        )
+
+    @pytest.mark.parametrize("composer_airflow_version", [2, 3])
+    def test_check_skips_null_date(self, composer_airflow_version):
+        date_key = "execution_date" if composer_airflow_version < 3 else "logical_date"
+        trigger = CloudComposerDAGRunTrigger(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_LOCATION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+            allowed_states=TEST_ALLOWED_STATES,
+            composer_airflow_version=composer_airflow_version,
+        )
+        dag_runs = [
+            {"dag_run_id": "x", "state": "success", date_key: None},
+            {"dag_run_id": "y", "state": "success", date_key: "2024-03-22T11:10:00+00:00"},
+        ]
+        assert trigger._check_dag_runs_states(
+            dag_runs,
+            start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+        )
+
+    def test_empty_allowed_states_defaults_to_success(self):
+        trigger = CloudComposerDAGRunTrigger(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_LOCATION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+            allowed_states=[],
+            composer_airflow_version=3,
+        )
+        assert trigger.allowed_states == ["success"]
+        dag_runs = build_dag_runs_result(3, [("success", "2024-03-22T11:10:00+00:00")])["dag_runs"]
+        assert trigger._check_dag_runs_states(
+            dag_runs,
+            start_date=datetime(2024, 3, 22, 11, 0, 0, tzinfo=timezone.utc),
+            end_date=datetime(2024, 3, 22, 12, 0, 0, tzinfo=timezone.utc),
+        )
