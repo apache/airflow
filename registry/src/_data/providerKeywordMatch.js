@@ -19,8 +19,8 @@
 
 // Shared by providerCategoryMap.js and exploreCategoryProviders.js so the
 // two directions of the same provider <-> explore-category matching (used
-// respectively by the per-provider page's category chips and the Explore
-// landing page's per-category provider listing) can't drift apart.
+// respectively by the category dropdown on /providers/ and the Explore landing
+// page's per-category provider listing) can't drift apart.
 
 // A value "matches" a keyword if the value contains the keyword,
 // case-insensitively, after collapsing runs of "-_\s" to a single space
