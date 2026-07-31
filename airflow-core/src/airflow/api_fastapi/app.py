@@ -60,6 +60,22 @@ def get_cookie_path() -> str:
     return API_ROOT_PATH or "/"
 
 
+def request_cookie_is_secure(request) -> bool:
+    """
+    Return whether a FastAPI request cookie should be tagged as HTTP secure.
+
+    :param request: FastAPI Request object
+
+    usage:
+    ```python
+    secure = request_cookie_is_secure(request)
+
+    response.set_cookie("mycookie", "myvalue", path=get_cookie_path(), secure=secure, httponly=True)
+    ```
+    """
+    return request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+
+
 # Fast API apps mounted under these prefixes are not allowed
 RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2"]
 
