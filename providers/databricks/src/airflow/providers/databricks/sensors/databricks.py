@@ -69,7 +69,10 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         include_airflow_query_tags: bool = True,
         **kwargs,
     ):
-        # Handle the scenario where either both statement and statement_id are set/not set
+        # Handle the scenario where both statement and statement_id are set
+        if statement is not None and statement_id is not None:
+            raise AirflowException("Cannot provide both statement and statement_id.")
+
         if not warehouse_id:
             raise AirflowException("warehouse_id must be provided.")
 
@@ -107,8 +110,7 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         )
 
     def execute(self, context: Context):
-        if self.statement and self.statement_id:
-            raise AirflowException("Cannot provide both statement and statement_id.")
+        # Handle the scenario where both statement and statement_id are not set
         if not self.statement and not self.statement_id:
             raise AirflowException("One of either statement or statement_id must be provided.")
         if not self.statement_id:
