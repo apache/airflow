@@ -194,6 +194,12 @@ The policy runs in the **task worker process** (never the scheduler) between cat
 exception and deciding the task's next state. Each policy decision is logged in the task
 logs as ``Retry policy decision action=<action> reason=<reason>``.
 
+Because the decision is made from a caught exception, a policy governs failures that the
+task process raises. If the worker process is terminated without raising, such as an
+external kill, a node drain, a spot-instance reclaim or the OOM killer, there is no
+exception to evaluate and no process left to evaluate it in. Those attempts fall through
+to the standard ``retries`` count and ``retry_delay``.
+
 When a task fails, the policy evaluates the exception and returns one of three actions:
 
 * **RETRY** -- retry the task, optionally with a custom delay that overrides ``retry_delay``.
@@ -237,6 +243,10 @@ Composition with existing parameters
      - Fires on all retries, including policy-driven retries.
    * - ``AirflowFailException``
      - Always takes precedence. The policy is never consulted for this exception.
+   * - Worker process terminated without raising
+     - The policy is not consulted. An external kill, node drain, spot-instance reclaim or
+       OOM kill leaves no exception to evaluate, so the attempt counts against ``retries``
+       and the standard retry logic applies.
 
 Reusable policies
 ~~~~~~~~~~~~~~~~~

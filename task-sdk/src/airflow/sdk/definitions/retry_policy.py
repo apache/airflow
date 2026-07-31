@@ -97,6 +97,11 @@ class RetryPolicy(abc.ABC):
     in the **task worker process** and has full access to the exception object.
     The scheduler never calls this; it only sees the resulting state and
     optional delay override.
+
+    Because :meth:`evaluate` needs a caught exception, it is not consulted when
+    the worker process is terminated without raising one, such as an external
+    kill, a node drain, a spot-instance reclaim or the OOM killer.  Those
+    attempts follow the standard ``retries`` count.
     """
 
     @abc.abstractmethod
