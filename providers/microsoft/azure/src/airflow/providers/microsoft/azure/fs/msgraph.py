@@ -158,8 +158,14 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
             if param in options:
                 oauth2_client_params[param] = options[param]
 
-        if "scopes" in options and "scope" not in oauth2_client_params:
-            oauth2_client_params["scope"] = " ".join(_get_scopes(options))
+        # authlib expects a singular, space-delimited "scope"; the connection form only
+        # offers "scopes", which the hook treats as comma-separated, so translate it and
+        # always default so authlib never authenticates without a scope.
+        if "scope" not in oauth2_client_params:
+            scopes = options.get("scopes")
+            if isinstance(scopes, str):
+                scopes = " ".join(scope.strip() for scope in scopes.split(",") if scope.strip())
+            oauth2_client_params["scope"] = scopes or DEFAULT_SCOPE
 
         # Construct default token_endpoint from tenant_id if not explicitly provided
         if "token_endpoint" not in oauth2_client_params:
