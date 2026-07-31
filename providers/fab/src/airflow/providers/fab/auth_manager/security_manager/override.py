@@ -406,14 +406,33 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return resp.json()
         return {}
 
-    def _validate_jwt(self, id_token, jwks):
+    def _validate_jwt(self, id_token, jwks, claims_options: dict[str, dict] | None = None):
         from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
         keyset = JsonWebKey.import_key_set(jwks)
-        claims = authlib_jwt.decode(id_token, keyset)
+        claims = authlib_jwt.decode(id_token, keyset, claims_options=claims_options)
         claims.validate()
         log.info("JWT token is validated")
         return claims
+
+    def _get_authentik_claims_options(self) -> dict[str, dict]:
+        """
+        Build the claim constraints an authentik id_token must satisfy.
+
+        A valid signature only proves the token came from the identity provider, not that it was
+        issued to this Airflow instance, so the audience is pinned to our own client id.
+        """
+        remote = self.oauth_remotes["authentik"]
+        claims_options: dict[str, dict] = {"aud": {"essential": True, "values": [remote.client_id]}}
+        issuer = remote.server_metadata.get("issuer")
+        if issuer:
+            claims_options["iss"] = {"essential": True, "values": [issuer]}
+        else:
+            log.warning(
+                "issuer not specified in OAuth Providers, could not verify the id_token issuer. "
+                "Set 'issuer' in the authentik server_metadata to enable the check."
+            )
+        return claims_options
 
     def _get_authentik_token_info(self, id_token):
         verify_signature = self.oauth_remotes["authentik"].client_kwargs.get("verify_signature", True)
@@ -423,7 +442,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if jwks_uri:
                 jwks = self._get_authentik_jwks(jwks_uri)
                 if jwks:
-                    return self._validate_jwt(id_token, jwks)
+                    return self._validate_jwt(id_token, jwks, self._get_authentik_claims_options())
             else:
                 log.error("jwks_uri not specified in OAuth Providers, could not verify token signature")
         else:

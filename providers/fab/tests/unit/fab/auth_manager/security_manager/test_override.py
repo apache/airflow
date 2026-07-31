@@ -505,6 +505,109 @@ class TestFabAirflowSecurityManagerOverride:
         assert result == {"oid": "user-1"}
 
 
+AUTHENTIK_ISSUER = "https://authentik.example.com/application/o/airflow/"
+AUTHENTIK_CLIENT_ID = "airflow-client-id"
+
+
+@pytest.fixture(scope="module")
+def authentik_keypair():
+    from authlib.jose import JsonWebKey
+
+    key = JsonWebKey.generate_key("RSA", 2048, is_private=True)
+    return key, {"keys": [key.as_dict(is_private=False, alg="RS256", use="sig")]}
+
+
+class TestAuthentikIdTokenClaimValidation:
+    """An id_token must be issued by the configured authentik and addressed to this Airflow client."""
+
+    @staticmethod
+    def build_security_manager(server_metadata=None):
+        sm = EmptySecurityManager()
+        metadata = {"jwks_uri": "https://authentik.example.com/jwks", "issuer": AUTHENTIK_ISSUER}
+        sm.oauth_remotes = {
+            "authentik": Mock(
+                client_kwargs={},
+                client_id=AUTHENTIK_CLIENT_ID,
+                server_metadata=metadata if server_metadata is None else server_metadata,
+            )
+        }
+        return sm
+
+    @staticmethod
+    def build_id_token(private_key, drop=(), **claim_overrides):
+        import time
+
+        from authlib.jose import jwt as authlib_jwt
+
+        now = int(time.time())
+        claims = {
+            "iss": AUTHENTIK_ISSUER,
+            "aud": AUTHENTIK_CLIENT_ID,
+            "sub": "user-1",
+            "nickname": "jane",
+            "preferred_username": "jane@example.com",
+            "iat": now,
+            "exp": now + 300,
+        }
+        claims.update(claim_overrides)
+        for claim in drop:
+            del claims[claim]
+        return authlib_jwt.encode({"alg": "RS256"}, claims, private_key).decode()
+
+    def test_accepts_token_for_this_client_and_issuer(self, authentik_keypair):
+        private_key, jwks = authentik_keypair
+        sm = self.build_security_manager()
+
+        with mock.patch.object(EmptySecurityManager, "_get_authentik_jwks", return_value=jwks):
+            claims = sm._get_authentik_token_info(self.build_id_token(private_key))
+
+        assert claims["nickname"] == "jane"
+
+    @pytest.mark.parametrize(
+        ("claim_overrides", "rejected_claim"),
+        [
+            pytest.param({"aud": "some-other-client"}, "aud", id="audience-of-another-client"),
+            pytest.param({"aud": ["a", "b"]}, "aud", id="audience-list-without-our-client"),
+            pytest.param({"iss": "https://evil.example.com/"}, "iss", id="unexpected-issuer"),
+        ],
+    )
+    def test_rejects_token_with_wrong_claim(self, authentik_keypair, claim_overrides, rejected_claim):
+        from authlib.jose.errors import InvalidClaimError
+
+        private_key, jwks = authentik_keypair
+        sm = self.build_security_manager()
+        id_token = self.build_id_token(private_key, **claim_overrides)
+
+        with mock.patch.object(EmptySecurityManager, "_get_authentik_jwks", return_value=jwks):
+            with pytest.raises(InvalidClaimError, match=rejected_claim):
+                sm._get_authentik_token_info(id_token)
+
+    @pytest.mark.parametrize("missing_claim", ["aud", "iss"])
+    def test_rejects_token_missing_claim(self, authentik_keypair, missing_claim):
+        from authlib.jose.errors import MissingClaimError
+
+        private_key, jwks = authentik_keypair
+        sm = self.build_security_manager()
+        id_token = self.build_id_token(private_key, drop=[missing_claim])
+
+        with mock.patch.object(EmptySecurityManager, "_get_authentik_jwks", return_value=jwks):
+            with pytest.raises(MissingClaimError, match=missing_claim):
+                sm._get_authentik_token_info(id_token)
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_skips_issuer_check_when_issuer_not_configured(self, mock_log, authentik_keypair):
+        """Deployments that only configure jwks_uri keep working, with the audience still pinned."""
+        private_key, jwks = authentik_keypair
+        sm = self.build_security_manager(server_metadata={"jwks_uri": "https://authentik.example.com/jwks"})
+        id_token = self.build_id_token(private_key, iss="https://anything.example.com/")
+
+        with mock.patch.object(EmptySecurityManager, "_get_authentik_jwks", return_value=jwks):
+            claims = sm._get_authentik_token_info(id_token)
+
+        assert claims["nickname"] == "jane"
+        assert "issuer not specified" in mock_log.warning.call_args[0][0]
+
+
 def test_ldap_search_escapes_username_and_validates_filter():
     """Test that LDAP search properly escapes username and validates search filter."""
     mock_ldap = Mock()
