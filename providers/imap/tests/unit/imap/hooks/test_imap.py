@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import imaplib
 import json
-from unittest.mock import Mock, mock_open, patch
+import os
+from unittest.mock import ANY, Mock, mock_open, patch
 
 import pytest
 
@@ -313,7 +314,7 @@ class TestImapHook:
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments("test1.csv", "test_directory")
 
-        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb", opener=ANY)
         mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
 
     @patch("airflow.providers.imap.hooks.imap.os.path.exists")
@@ -327,7 +328,7 @@ class TestImapHook:
             imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite=True)
 
         # with overwrite=True, it should still write to the original filename
-        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb", opener=ANY)
 
     @patch("airflow.providers.imap.hooks.imap.os.path.exists")
     @patch(open_string, new_callable=mock_open)
@@ -341,7 +342,7 @@ class TestImapHook:
             imap_hook.download_mail_attachments("test1.csv", "test_directory", overwrite=False)
 
         # with overwrite=False, it should write to a renamed file
-        mock_open_method.assert_called_once_with("test_directory/test1_1.csv", "wb")
+        mock_open_method.assert_called_once_with("test_directory/test1_1.csv", "wb", opener=ANY)
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
@@ -365,7 +366,7 @@ class TestImapHook:
                 name=r"test(\d+).csv", local_output_directory="test_directory", check_regex=True
             )
 
-        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb", opener=ANY)
         mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
 
     @patch(open_string, new_callable=mock_open)
@@ -394,7 +395,7 @@ class TestImapHook:
                 name="test1.csv", local_output_directory="test_directory", latest_only=True
             )
 
-        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb")
+        mock_open_method.assert_called_once_with("test_directory/test1.csv", "wb", opener=ANY)
         mock_open_method.return_value.write.assert_called_once_with(b"SWQsTmFtZQoxLEZlbGl4")
 
     @patch(open_string, new_callable=mock_open)
@@ -417,9 +418,25 @@ class TestImapHook:
         with ImapHook() as imap_hook:
             imap_hook.download_mail_attachments(name="symlink", local_output_directory="test_directory")
 
-        assert mock_is_symlink.call_count == 1
+        mock_is_symlink.assert_called_once_with("test_directory/symlink")
         mock_open_method.assert_not_called()
         mock_open_method.return_value.write.assert_not_called()
+
+    @patch("airflow.providers.imap.hooks.imap.os.open")
+    @patch(open_string, new_callable=mock_open)
+    @patch(imaplib_string)
+    def test_download_mail_attachments_opens_without_following_symlink(
+        self, mock_imaplib, mock_open_method, mock_os_open
+    ):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+
+        with ImapHook() as imap_hook:
+            imap_hook.download_mail_attachments("test1.csv", "test_directory")
+
+        opener = mock_open_method.call_args.kwargs["opener"]
+        opener("test_directory/test1.csv", os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+        flags = mock_os_open.call_args.args[1]
+        assert flags & getattr(os, "O_NOFOLLOW", 0) == getattr(os, "O_NOFOLLOW", 0)
 
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)
