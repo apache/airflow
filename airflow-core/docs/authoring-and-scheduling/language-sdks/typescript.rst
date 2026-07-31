@@ -289,9 +289,14 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Default
      - Description
    * - ``bundles_root``
-     - *(required)*
+     - *(optional)*
      - One or more directories searched, in order, for a ``bundle.mjs`` (with embedded metadata, or with an
-       ``airflow-metadata.yaml`` sidecar). Accepts a string, a path, or a list of strings/paths.
+       ``airflow-metadata.yaml`` sidecar). Accepts a string, a path, or a list of strings/paths. When
+       omitted, the bundle is located through a Dag bundle instead (see the note below).
+   * - ``dag_bundle_name``
+     - *(auto: task's own bundle)*
+     - Name of a configured Dag bundle to load the ``bundle.mjs`` from. Mutually exclusive with
+       ``bundles_root``.
    * - ``node_executable``
      - ``"node"``
      - Path to the ``node`` binary. Defaults to ``node`` on ``$PATH``.
@@ -299,6 +304,17 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - ``10.0``
      - Seconds to wait for the Node.js subprocess to connect after launch. Increase this if your bundle
        startup is slow (e.g. on constrained hardware).
+
+.. note::
+
+  **Locating the bundle.** ``bundles_root`` and ``dag_bundle_name`` are mutually exclusive, and both
+  are optional:
+
+  * Set ``bundles_root`` to scan explicit filesystem directories you manage yourself.
+  * Set ``dag_bundle_name`` to load the bundle from a configured Dag bundle (its latest version), so it
+    is delivered and versioned through the same bundle machinery as your Dags.
+  * Leave both unset (the default) to load the bundle from the **task's own** Dag bundle, pinned to the
+    version the run was created with.
 
 Limitations
 -----------
