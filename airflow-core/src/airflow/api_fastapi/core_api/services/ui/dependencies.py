@@ -135,6 +135,19 @@ def get_scheduling_dependencies(readable_dag_ids: set[str] | None = None) -> dic
                     target = dep.target if ":" in dep.target else f"dag:{dep.target}"
                     edge_tuples.add((source, target))
 
+    # Create missing ``dag:`` nodes which may have been skipped by the loop above.
+    # A DAG referenced only as a trigger target or a sensor source may have no
+    # scheduling dependencies of its own. Without this loop, these DAGs will not be
+    # materialised and will result in dangling edges.
+    for source, target in edge_tuples:
+        for endpoint in (source, target):
+            if endpoint.startswith("dag:") and endpoint not in nodes_dict:
+                nodes_dict[endpoint] = {
+                    "id": endpoint,
+                    "label": endpoint.removeprefix("dag:"),
+                    "type": "dag",
+                }
+
     dag_ids = [node["label"] for node in nodes_dict.values() if node["type"] == "dag"]
     if dag_ids:
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids)

@@ -361,28 +361,34 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     justifyContent="center"
                     position="relative"
                     w={0.5}
-                  />
-                </PanelResizeHandle>
-
-                {/* Collapse button positioned next to the resize handle */}
-
-                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
-                  <Box display="flex" flexDirection="column" h="100%" position="relative">
+                  >
                     <IconButton
                       bg="fg.subtle"
-                      borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
+                      borderRadius="full"
                       boxShadow="md"
+                      cursor="pointer"
+                      insetInlineStart="50%"
                       label={translate("common:collapseDetailsPanel")}
-                      left={direction === "ltr" ? "0" : undefined}
                       onClick={() => setIsRightPanelCollapsed(true)}
                       position="absolute"
-                      right={direction === "rtl" ? "0" : undefined}
                       size="2xs"
                       top="50%"
+                      transform={direction === "ltr" ? "translate(-50%, -50%)" : "translate(50%, -50%)"}
                       zIndex={2}
                     >
                       {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
                     </IconButton>
+                  </Box>
+                </PanelResizeHandle>
+
+                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                  <Box
+                    display="flex"
+                    flexDirection="column"
+                    h="100%"
+                    paddingInlineStart={4}
+                    position="relative"
+                  >
                     {children}
                     {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                       <>
