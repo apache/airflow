@@ -495,8 +495,9 @@ def check_hook_class_name_entries_in_connection_types(yaml_files: dict[str, dict
 
 @run_check("Checking that python-modules in retry-policies exist and belong to provider package")
 def check_retry_policy_modules_exist_and_belong_to_package(yaml_files: dict[str, dict]) -> tuple[int, int]:
-    # retry-policies modules live under policies/, not retry-policies/, so parse_module_data's
-    # glob-based completeness assertion (which assumes directory name == resource_type) does not apply here.
+    # parse_module_data's glob-based completeness check assumes a category's modules live in a
+    # directory named after its yaml key. Retry policies intentionally live under policies/ instead,
+    # so that check cannot be reused and this existence-only check stands in for it.
     resource_type = "retry-policies"
     num_errors = 0
     num_retry_policy_modules = 0
