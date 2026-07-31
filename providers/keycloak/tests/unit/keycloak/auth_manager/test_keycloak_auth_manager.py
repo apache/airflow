@@ -66,7 +66,6 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     RESOURCE_ID_ATTRIBUTE_NAME,
     KeycloakAuthManager,
 )
-from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 
@@ -697,13 +696,15 @@ class TestKeycloakAuthManager:
         assert "Keycloak authorization resource is missing; denying access" in caplog.text
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
-    def test_filter_authorized_pools_no_team_returns_empty(self, auth_manager_multi_team, user):
-        with patch.object(KeycloakAuthManager, "_is_batch_authorized", return_value=set()) as mock_batch:
-            result = auth_manager_multi_team.filter_authorized_pools(
-                pool_names={"pool-a"}, user=user, team_name=None
-            )
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
+    def test_filter_authorized_pools_no_team_returns_empty(
+        self, mock_is_authorized, auth_manager_multi_team, user
+    ):
+        result = auth_manager_multi_team.filter_authorized_pools(
+            pool_names={"pool-a"}, user=user, team_name=None
+        )
 
-        mock_batch.assert_called_once()
+        mock_is_authorized.assert_called_once()
         assert result == set()
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
@@ -1024,11 +1025,11 @@ class TestKeycloakAuthManager:
         ],
     )
     def test_batch_is_authorized_dag(self, status_codes, expected, auth_manager, user):
-        authorized_all = all(code == 200 for code in status_codes)
-        requests = [{"method": "GET", "details": DagDetails(id=f"dag_{i}")} for i in range(len(status_codes))]
-        return_value = {("GET", KeycloakResource.DAG.value)} if authorized_all else set()
+        return_values = [code == 200 for code in status_codes]
 
-        with patch.object(KeycloakAuthManager, "_is_batch_authorized", return_value=return_value):
+        requests = [{"method": "GET", "details": DagDetails(id=f"dag_{i}")} for i in range(len(status_codes))]
+
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
             result = auth_manager.batch_is_authorized_dag(requests, user=user)
 
         assert result == expected
@@ -1041,14 +1042,14 @@ class TestKeycloakAuthManager:
         ],
     )
     def test_batch_is_authorized_connection(self, status_codes, expected, auth_manager, user):
-        authorized_all = all(code == 200 for code in status_codes)
+        return_values = [code == 200 for code in status_codes]
+
         requests = [
             {"method": "GET", "details": ConnectionDetails(conn_id=f"conn_{i}")}
             for i in range(len(status_codes))
         ]
-        return_value = {("GET", KeycloakResource.CONNECTION.value)} if authorized_all else set()
 
-        with patch.object(KeycloakAuthManager, "_is_batch_authorized", return_value=return_value):
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
             result = auth_manager.batch_is_authorized_connection(requests, user=user)
 
         assert result == expected
@@ -1061,13 +1062,13 @@ class TestKeycloakAuthManager:
         ],
     )
     def test_batch_is_authorized_pool(self, status_codes, expected, auth_manager, user):
-        authorized_all = all(code == 200 for code in status_codes)
+        return_values = [code == 200 for code in status_codes]
+
         requests = [
             {"method": "GET", "details": PoolDetails(name=f"pool_{i}")} for i in range(len(status_codes))
         ]
-        return_value = {("GET", KeycloakResource.POOL.value)} if authorized_all else set()
 
-        with patch.object(KeycloakAuthManager, "_is_batch_authorized", return_value=return_value):
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
             result = auth_manager.batch_is_authorized_pool(requests, user=user)
 
         assert result == expected
@@ -1080,13 +1081,13 @@ class TestKeycloakAuthManager:
         ],
     )
     def test_batch_is_authorized_variable(self, status_codes, expected, auth_manager, user):
-        authorized_all = all(code == 200 for code in status_codes)
+        return_values = [code == 200 for code in status_codes]
+
         requests = [
             {"method": "GET", "details": VariableDetails(key=f"var_{i}")} for i in range(len(status_codes))
         ]
-        return_value = {("GET", KeycloakResource.VARIABLE.value)} if authorized_all else set()
 
-        with patch.object(KeycloakAuthManager, "_is_batch_authorized", return_value=return_value):
+        with patch.object(KeycloakAuthManager, "_is_authorized", side_effect=return_values):
             result = auth_manager.batch_is_authorized_variable(requests, user=user)
 
         assert result == expected
@@ -1095,10 +1096,6 @@ class TestKeycloakAuthManager:
         result = auth_manager.batch_is_authorized_dag([], user=user)
         assert result is True
 
-    @pytest.mark.xfail(
-        reason="dag_entity attribute dropped in batch refactor; pending confirmation from reviewer",
-        strict=False,
-    )
     def test_batch_is_authorized_dag_with_access_entity(self, auth_manager, user):
         requests = [
             {
@@ -1153,76 +1150,125 @@ class TestKeycloakAuthManager:
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
         assert mock_is_authorized.call_count == 2
 
-    def test_filter_authorized_connections(self, auth_manager, user):
-        with patch.object(
-            KeycloakAuthManager,
-            "_is_batch_authorized",
-            return_value={("GET", KeycloakResource.CONNECTION.value)},
-        ):
-            result = auth_manager.filter_authorized_connections(
-                conn_ids={"conn_0", "conn_1", "conn_2"}, user=user, method="GET"
-            )
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_connection",
+        side_effect=lambda *, details, **kw: {"conn_0": True, "conn_1": False, "conn_2": True}[
+            details.conn_id
+        ],
+    )
+    def test_filter_authorized_connections(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_connections(
+            conn_ids={"conn_0", "conn_1", "conn_2"}, user=user, method="GET"
+        )
 
-        assert result == {"conn_0", "conn_1", "conn_2"}
+        assert result == {"conn_0", "conn_2"}
+        assert mock_is_authorized.call_count == 3
 
     def test_filter_authorized_connections_empty(self, auth_manager, user):
         result = auth_manager.filter_authorized_connections(conn_ids=set(), user=user, method="GET")
         assert result == set()
 
-    def test_filter_authorized_connections_all_denied(self, auth_manager, user):
-        with patch.object(KeycloakAuthManager, "_is_batch_authorized", return_value=set()):
-            result = auth_manager.filter_authorized_connections(
-                conn_ids={"conn_0", "conn_1"}, user=user, method="GET"
-            )
+    @patch.object(KeycloakAuthManager, "is_authorized_connection", return_value=False)
+    def test_filter_authorized_connections_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_connections(
+            conn_ids={"conn_0", "conn_1"}, user=user, method="GET"
+        )
 
         assert result == set()
+        assert mock_is_authorized.call_count == 2
 
-    def test_filter_authorized_pools(self, auth_manager, user):
-        with patch.object(
-            KeycloakAuthManager,
-            "_is_batch_authorized",
-            return_value={("GET", KeycloakResource.POOL.value)},
-        ):
-            result = auth_manager.filter_authorized_pools(
-                pool_names={"pool_0", "pool_1", "pool_2"}, user=user, method="GET"
-            )
+    @patch.object(KeycloakAuthManager, "is_authorized_connection", return_value=True)
+    def test_filter_authorized_connections_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        conn_ids = {"conn_0", "conn_1"}
 
-        assert result == {"pool_0", "pool_1", "pool_2"}
+        result1 = auth_manager.filter_authorized_connections(conn_ids=conn_ids, user=user, method="GET")
+        result2 = auth_manager.filter_authorized_connections(conn_ids=conn_ids, user=user, method="GET")
+
+        assert result1 == conn_ids
+        assert result2 == conn_ids
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_pool",
+        side_effect=lambda *, details, **kw: {"pool_0": True, "pool_1": False, "pool_2": True}[details.name],
+    )
+    def test_filter_authorized_pools(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_pools(
+            pool_names={"pool_0", "pool_1", "pool_2"}, user=user, method="GET"
+        )
+
+        assert result == {"pool_0", "pool_2"}
+        assert mock_is_authorized.call_count == 3
 
     def test_filter_authorized_pools_empty(self, auth_manager, user):
         result = auth_manager.filter_authorized_pools(pool_names=set(), user=user, method="GET")
         assert result == set()
 
-    def test_filter_authorized_pools_all_denied(self, auth_manager, user):
-        with patch.object(KeycloakAuthManager, "_is_batch_authorized", return_value=set()):
-            result = auth_manager.filter_authorized_pools(
-                pool_names={"pool_0", "pool_1"}, user=user, method="GET"
-            )
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
+    def test_filter_authorized_pools_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_pools(
+            pool_names={"pool_0", "pool_1"}, user=user, method="GET"
+        )
 
         assert result == set()
+        assert mock_is_authorized.call_count == 2
 
-    def test_filter_authorized_variables(self, auth_manager, user):
-        with patch.object(
-            KeycloakAuthManager,
-            "_is_batch_authorized",
-            return_value={("GET", KeycloakResource.VARIABLE.value)},
-        ):
-            result = auth_manager.filter_authorized_variables(
-                variable_keys={"var_0", "var_1", "var_2"}, user=user, method="GET"
-            )
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=True)
+    def test_filter_authorized_pools_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        pool_names = {"pool_0", "pool_1"}
 
-        assert result == {"var_0", "var_1", "var_2"}
+        result1 = auth_manager.filter_authorized_pools(pool_names=pool_names, user=user, method="GET")
+        result2 = auth_manager.filter_authorized_pools(pool_names=pool_names, user=user, method="GET")
+
+        assert result1 == pool_names
+        assert result2 == pool_names
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_variable",
+        side_effect=lambda *, details, **kw: {"var_0": True, "var_1": False, "var_2": True}[details.key],
+    )
+    def test_filter_authorized_variables(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_variables(
+            variable_keys={"var_0", "var_1", "var_2"}, user=user, method="GET"
+        )
+
+        assert result == {"var_0", "var_2"}
+        assert mock_is_authorized.call_count == 3
 
     def test_filter_authorized_variables_empty(self, auth_manager, user):
         result = auth_manager.filter_authorized_variables(variable_keys=set(), user=user, method="GET")
         assert result == set()
 
-    def test_filter_authorized_variables_all_denied(self, auth_manager, user):
-        with patch.object(KeycloakAuthManager, "_is_batch_authorized", return_value=set()):
-            result = auth_manager.filter_authorized_variables(
-                variable_keys={"var_0", "var_1"}, user=user, method="GET"
-            )
+    @patch.object(KeycloakAuthManager, "is_authorized_variable", return_value=False)
+    def test_filter_authorized_variables_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_variables(
+            variable_keys={"var_0", "var_1"}, user=user, method="GET"
+        )
+
         assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_variable", return_value=True)
+    def test_filter_authorized_variables_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        variable_keys = {"var_0", "var_1"}
+
+        result1 = auth_manager.filter_authorized_variables(
+            variable_keys=variable_keys, user=user, method="GET"
+        )
+        result2 = auth_manager.filter_authorized_variables(
+            variable_keys=variable_keys, user=user, method="GET"
+        )
+
+        assert result1 == variable_keys
+        assert result2 == variable_keys
+        assert mock_is_authorized.call_count == 2
 
     @pytest.mark.parametrize(
         ("dag_count", "pool_size", "expected_max_workers"),
