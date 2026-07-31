@@ -21,7 +21,7 @@ import { useReactFlow } from "@xyflow/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineStorage, MdTimeline } from "react-icons/md";
-import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset } from "openapi/queries";
@@ -63,6 +63,8 @@ export const AssetLayout = () => {
 
   const { fitView, getZoom } = useReactFlow();
 
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({ id: `asset-${direction}` });
+
   const externalTabs = usePluginTabs("asset");
 
   const tabs = [
@@ -83,13 +85,21 @@ export const AssetLayout = () => {
       </HStack>
       <ProgressBar size="xs" visibility={Boolean(isLoading) ? "visible" : "hidden"} />
       <Box flex={1} minH={0}>
-        <PanelGroup
-          autoSaveId={`asset-${direction}`}
+        <Group
+          defaultLayout={defaultLayout}
           dir={direction}
-          direction="horizontal"
           key={`asset-${direction}`}
+          onLayoutChanged={(layout, meta) => {
+            onLayoutChanged(layout, meta);
+            if (meta.isUserInteraction) {
+              const zoom = getZoom();
+
+              void fitView({ maxZoom: zoom, minZoom: zoom });
+            }
+          }}
+          orientation="horizontal"
         >
-          <Panel defaultSize={70} minSize={6}>
+          <Panel defaultSize={70} id="asset-graph" minSize={6}>
             <Box height="100%" position="relative" pr={2}>
               <AssetPanelButtons dependencyType={dependencyType} setDependencyType={setDependencyType} />
               <GroupsProvider dagId="~">
@@ -97,19 +107,10 @@ export const AssetLayout = () => {
               </GroupsProvider>
             </Box>
           </Panel>
-          <PanelResizeHandle
-            className="resize-handle"
-            onDragging={(isDragging) => {
-              if (!isDragging) {
-                const zoom = getZoom();
-
-                void fitView({ maxZoom: zoom, minZoom: zoom });
-              }
-            }}
-          >
+          <Separator className="resize-handle">
             <Box bg="fg.subtle" cursor="col-resize" h="100%" transition="background 0.2s" w={0.5} />
-          </PanelResizeHandle>
-          <Panel defaultSize={30} minSize={20}>
+          </Separator>
+          <Panel defaultSize={30} id="asset-details" minSize={20}>
             <Header asset={asset} />
             {asset?.extra && Object.keys(asset.extra).length > 0 ? (
               <Box mb={3} mt={3} px={3}>
@@ -134,7 +135,7 @@ export const AssetLayout = () => {
             <NavTabs tabs={tabs} />
             <Outlet />
           </Panel>
-        </PanelGroup>
+        </Group>
       </Box>
     </>
   );
