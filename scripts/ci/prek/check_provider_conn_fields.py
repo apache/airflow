@@ -46,6 +46,11 @@ def check_conn_fields_for_entry(
       at all — the entry is then skipped entirely (no ``conn-fields`` check), or
     - raises any other ``Exception`` to signal an unexpected failure (converted
       here into an error string so callers never need to catch it).
+
+    When the hook returns widgets, the ``conn-fields`` section in the provider YAML
+    must exactly match.  If ``conn-fields`` is absent, every widget key is treated
+    as missing from YAML (because any custom field missing from ``conn-fields`` will
+    be invisible in the new React connection UI).
     """
     hook_class_name: str = conn_type_entry["hook-class-name"]
     connection_type: str = conn_type_entry.get("connection-type", "?")
@@ -61,11 +66,8 @@ def check_conn_fields_for_entry(
     if widget_keys is None:
         return []
 
-    conn_fields = conn_type_entry.get("conn-fields")
-    if conn_fields is None:
-        # No conn-fields declared: the new UI simply exposes no custom fields for this
-        # connection type, which is intentional.  Nothing to validate.
-        return []
+    # Treat absent conn-fields as an empty dict so any hook widget is flagged as missing.
+    conn_fields: dict = conn_type_entry.get("conn-fields") or {}
 
     error = build_mismatch_error(
         set(conn_fields.keys()), widget_keys, connection_type, yaml_file_path, hook_class_name
