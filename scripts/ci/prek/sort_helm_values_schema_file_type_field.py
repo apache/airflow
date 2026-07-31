@@ -38,7 +38,9 @@ def _sort(data: dict | list) -> None:
         if "type" in data and isinstance(data["type"], list):
             data["type"].sort()
 
-        temp = list(data.values())
+        # Skip potential `type` fields inside `default` fields as defaults are not
+        # part of the schema file verification process
+        temp = list((v for k, v in data.items() if k != "default"))
     elif isinstance(data, list):
         temp = data
 
