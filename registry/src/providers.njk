@@ -66,6 +66,7 @@ mainClass: providers-page
       <li class="provider-item"
           data-lifecycle="{{ lcDisplay }}"
           data-name="{{ provider.name | lower }}"
+          data-id="{{ provider.id | lower }}"
           data-downloads="{{ provider.pypi_downloads.monthly }}"
           data-updated="{{ provider.last_updated or '' }}"
           data-categories="{{ cats | join(',') }}"

@@ -41,18 +41,31 @@
     return text.toLowerCase().replace(/[-_\s]+/g, ' ');
   }
 
+  // The card prints the full distribution name under the title, so that string
+  // has to be a working query. Matching against it directly would make
+  // 'apache', 'airflow' and 'providers' match every card, so drop the shared
+  // prefix off the query instead and match the id alone.
+  const PACKAGE_PREFIX = normalize('apache-airflow-providers-');
+
+  function normalizeSearch(text) {
+    const search = normalize(text);
+    return search.startsWith(PACKAGE_PREFIX) ? search.slice(PACKAGE_PREFIX.length) : search;
+  }
+
   function filterProviders() {
     let visibleCount = 0;
+    const search = normalizeSearch(currentSearch);
 
     providerItems.forEach(item => {
       const lifecycle = item.dataset.lifecycle;
       const name = item.dataset.name || '';
+      const id = item.dataset.id || '';
       const categories = item.dataset.categories || '';
       const integrations = item.dataset.integrations || '';
 
       const matchesLifecycle = currentLifecycle === 'all' || lifecycle === currentLifecycle;
-      const search = normalize(currentSearch);
       const matchesSearch = normalize(name).includes(search) ||
+        normalize(id).includes(search) ||
         normalize(integrations).includes(search);
       const matchesCategory = currentCategory === 'all' ||
         categories.split(',').includes(currentCategory);
