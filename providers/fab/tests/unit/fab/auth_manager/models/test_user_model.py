@@ -36,3 +36,10 @@ def test_get_id_returns_str(user_id: int, expected_id: str) -> None:
     result = user.get_id()
     assert isinstance(result, str), f"Expected str, got {type(result)}"
     assert result == expected_id
+
+
+def test_get_display_name_uses_full_name() -> None:
+    user = User()
+    user.first_name = "Jane"
+    user.last_name = "Doe"
+    assert user.get_display_name() == "Jane Doe"
