@@ -392,7 +392,8 @@ class DAG:
     :param on_skipped_intervals_callback: A function or list of functions invoked by the
         scheduler when a Dag with ``catchup=False`` advances past one or more scheduled
         data intervals without creating Dag runs for them (for example after a scheduler
-        restart or when a paused Dag is re-enabled). The callback receives a
+        restart or when a paused Dag is re-enabled). Does not fire on the first automated
+        run (no previous run to compare against). The callback receives a
         :class:`~airflow.sdk.definitions.context.SkippedIntervalsCallbackContext`.
         It runs in the dag processor, not in the scheduler.
     :param access_control: Specify optional DAG-level actions, e.g.,
