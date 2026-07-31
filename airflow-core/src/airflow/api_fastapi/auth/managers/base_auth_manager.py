@@ -180,7 +180,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         unauthenticated requests when public access is configured) should override this
         method.
         """
-        return []
+        return [self.get_jwt_refresh_middleware()]
 
     def get_jwt_refresh_middleware(self) -> tuple[_MiddlewareFactory[Any], dict[str, Any]]:
         """Return the JWTRefreshMiddleware to refresh the Airflow JWT token."""
