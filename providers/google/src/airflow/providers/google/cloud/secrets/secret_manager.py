@@ -171,6 +171,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         if self._names_a_team_namespace(conn_id):
+            self._log_refusal("connection", conn_id)
             return None
 
         return self._get_secret(self.connections_prefix, conn_id, team_name)
@@ -187,6 +188,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         if self._names_a_team_namespace(key):
+            self._log_refusal("variable", key)
             return None
 
         return self._get_secret(self.variables_prefix, key, team_name)
@@ -202,6 +204,15 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         return self._get_secret(self.config_prefix, key)
+
+    def _log_refusal(self, kind: str, secret_id: str) -> None:
+        self.log.warning(
+            "%s id %r contains %r, which separates the team name from the secret id in a team "
+            "scoped secret name. Such an id is ambiguous and is not looked up. Returning None.",
+            kind.capitalize(),
+            secret_id,
+            TEAM_SEP,
+        )
 
     def _build_team_secret_name(self, path_prefix: str, team_name: str, secret_id: str) -> str:
         """

@@ -434,6 +434,22 @@ class TestCloudSecretManagerBackendTeamScope:
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
+    def test_refusing_an_ambiguous_id_is_logged(self, mock_client, mock_get_creds, caplog):
+        """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged."""
+        mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
+        backend = self._backend(mock_client, {})
+        ambiguous = f"prod{TEAM_SEP}{CONN_ID}"
+
+        assert backend.get_conn_value(conn_id=ambiguous) is None
+        assert backend.get_variable(key=ambiguous) is None
+
+        refusals = [r for r in caplog.records if "is ambiguous and is not looked up" in r.getMessage()]
+        assert len(refusals) == 2
+        assert all(r.levelname == "WARNING" for r in refusals)
+        assert all(ambiguous in r.getMessage() for r in refusals)
+
+    @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
+    @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_config_lookup_is_not_team_scoped(self, mock_client, mock_get_creds):
         """
         ``get_config`` has no team scope, so the namespace guard must not apply to it.

@@ -227,8 +227,14 @@ the prefix from what follows. So with ``connections_prefix="airflow-connections"
 Because a team name may itself contain ``--``, an id that contains ``--`` is ambiguous — team
 ``team_a`` with conn_id ``prod--db`` and team ``team_a--prod`` with conn_id ``db`` would name the
 same secret. Such an id is therefore never resolved, for team-scoped and team-agnostic lookups
-alike, and the backend never parses an id to infer which team it belongs to. Avoid ``--`` in
-connection ids and variable keys when running in multi-team mode.
+alike, and the backend never parses an id to infer which team it belongs to. A warning is logged
+whenever an id is refused for this reason, so the resulting ``None`` is not mistaken for a missing
+secret. Avoid ``--`` in connection ids and variable keys.
+
+.. warning::
+
+    This refusal applies whether or not you use teams. If you already store a connection or
+    variable whose id contains ``--``, it stops resolving after upgrading and you must rename it.
 
 ``get_config`` is not team-scoped and is unaffected by any of the above.
 
