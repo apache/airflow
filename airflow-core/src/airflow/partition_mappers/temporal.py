@@ -225,16 +225,20 @@ class _BaseTemporalMapper(PartitionMapper):
         upstream member yielded by the window back into the form upstream
         producers actually emit.
 
-        When *dt* is aware (e.g. the default ``decode_downstream`` returned an
-        aware datetime because ``output_format`` contains ``%z``), converts to
-        the mapper timezone first so the resulting key reflects the same instant
-        rather than re-interpreting the wall-clock as local time.
+        When *dt* is aware (e.g. a DST-aware :class:`~airflow.partition_mappers.window.DayWindow`
+        member, or a ``decode_downstream`` result whose ``output_format`` contains
+        ``%z``), converts to the mapper timezone first so the resulting key
+        reflects the same instant rather than re-interpreting the wall-clock as
+        local time. The conversion keeps the original offset/fold so an
+        ``input_format`` with ``%z`` can distinguish the two local 01:00 hours
+        on a fall-back day (25 distinct keys). Naive *dt* values are localised
+        via :func:`~airflow._shared.timezones.timezone.make_aware`.
         """
         if dt.tzinfo is not None:
-            naive = dt.astimezone(self._timezone).replace(tzinfo=None)
-        else:
-            naive = dt
-        return make_aware(naive, self._timezone).strftime(self.input_format)
+            # Preserve offset/fold: do not round-trip through naive + make_aware
+            # (make_aware forces fold=1 and would collapse fall-back duplicates).
+            return dt.astimezone(self._timezone).strftime(self.input_format)
+        return make_aware(dt, self._timezone).strftime(self.input_format)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_timezone
