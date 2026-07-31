@@ -761,7 +761,7 @@ class SerializedDAG:
                 deadline_time = deserialized_deadline_alert.reference.evaluate_with(
                     session=session,
                     interval=interval,
-                    # TODO : Pretty sure we can drop these last two; verify after testing is complete
+                    dagrun=orm_dagrun,
                     dag_id=self.dag_id,
                     run_id=orm_dagrun.run_id,
                 )

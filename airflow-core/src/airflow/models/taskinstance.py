@@ -94,6 +94,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.serialization.decoders import decode_deadline_reference
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
@@ -222,14 +223,11 @@ def _add_and_prime_mapped_ti(
     set_committed_value(ti, "dag_run", dag_run)
 
 
-def _recalculate_dagrun_queued_at_deadlines(
-    dagrun: DagRun, new_queued_at: datetime, session: Session
-) -> None:
+def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session) -> None:
     """
     Recalculate deadline times for deadlines that reference dagrun.queued_at.
 
     :param dagrun: The DagRun whose deadlines should be recalculated
-    :param new_queued_at: The new queued_at timestamp to use for calculation
     :param session: Database session
 
     :meta private:
@@ -249,9 +247,16 @@ def _recalculate_dagrun_queued_at_deadlines(
         return
 
     for deadline, deadline_alert in results:
-        # We can't use evaluate_with() since the new queued_at is not written to the DB yet.
-        deadline_interval = timedelta(seconds=deadline_alert.interval)
-        new_deadline_time = new_queued_at + deadline_interval
+        new_deadline_time = decode_deadline_reference(deadline_alert.reference).evaluate_with(
+            session=session,
+            interval=timedelta(seconds=deadline_alert.interval),
+            dagrun=dagrun,
+            dag_id=dagrun.dag_id,
+            run_id=dagrun.run_id,
+        )
+
+        if new_deadline_time is None:
+            continue
 
         log.debug(
             "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
@@ -459,7 +464,7 @@ def clear_task_instances(
                 parent_context=parent_trace_context(dr.conf),
             )
 
-            _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
+            _recalculate_dagrun_queued_at_deadlines(dr, session=session)
 
             if dr.state in State.finished_dr_states:
                 dr.state = dag_run_state

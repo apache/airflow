@@ -46,7 +46,8 @@ class BaseDeadlineReference(ABC):
     The actual evaluation logic (_evaluate_with) is in Core's SerializedReferenceModels.
 
     For custom deadline references, users should inherit from this class and implement
-    _evaluate_with() with deferred Core imports (imports inside the method body).
+    _evaluate_with() with deferred Core imports (imports inside the method body). Its
+    keyword-only ``dagrun`` parameter receives the DagRun being evaluated.
     """
 
     @property
@@ -183,8 +184,8 @@ class DeadlineReference:
     The public interface class for all DeadlineReference options.
 
     This class provides a unified interface for working with Deadlines, supporting both
-    calculated deadlines (which fetch values from the database) and fixed deadlines
-    (which return a predefined datetime).
+    calculated deadlines, including references to the DagRun being evaluated and
+    historical runtime data, and fixed deadlines (which return a predefined datetime).
 
     ------
     Usage:
@@ -211,17 +212,13 @@ class DeadlineReference:
            ),
        )
 
-    3. Evaluating deadlines will ignore unexpected parameters:
+    3. Custom references receive the DagRun being evaluated:
 
     .. code-block:: python
 
-       # For deadlines requiring parameters:
-       deadline = DeadlineReference.DAGRUN_LOGICAL_DATE
-       deadline.evaluate_with(dag_id=dag.dag_id)
-
-       # For deadlines with no required parameters:
-       deadline = DeadlineReference.FIXED_DATETIME(datetime(2025, 5, 4))
-       deadline.evaluate_with()
+       class MyDeadlineReference(BaseDeadlineReference):
+           def _evaluate_with(self, *, session, dagrun):
+               return dagrun.logical_date
     """
 
     class TYPES:
@@ -320,10 +317,8 @@ def deadline_reference(
         @deadline_reference()
         class MyCustomReference(BaseDeadlineReference):
             # By default, evaluate_with will be called when a new dagrun is created.
-            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                # Put your business logic here (use deferred imports for Core types)
-                from airflow.models import DagRun
-                return some_datetime
+            def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+                return dagrun.logical_date
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}
@@ -331,9 +326,8 @@ def deadline_reference(
         @deadline_reference(DeadlineReference.TYPES.DAGRUN_QUEUED)
         class MyQueuedRef(BaseDeadlineReference):
             # Optionally, you can specify when you want it calculated by providing a DeadlineReference.TYPES
-            def _evaluate_with(self, *, session: Session, **kwargs) -> datetime:
-                 # Put your business logic here
-                return some_datetime
+            def _evaluate_with(self, *, session: Session, dagrun) -> datetime:
+                return dagrun.queued_at
 
             def serialize_reference(self) -> dict:
                 return {"reference_type": self.reference_name}
