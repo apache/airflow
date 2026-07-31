@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from pydantic import BaseModel
 
@@ -43,6 +43,8 @@ except ImportError:
     ) from None
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.retry_policy import RetryRule
 
@@ -64,6 +66,12 @@ DEFAULT_INSTRUCTIONS = (
     "60 for rate limits, 10 for network, 30 for transient. "
     "Set 0 for errors that should not retry."
 )
+
+
+def _mask_secrets(value: str) -> str:
+    """Default redactor: Airflow's secrets masker."""
+    # redact() is typed for arbitrary containers; a str in always yields a str out.
+    return cast("str", redact(value))
 
 
 class ErrorClassification(BaseModel):
@@ -102,12 +110,17 @@ class LLMRetryPolicy(RetryPolicy):
         falling back.  Defaults to 30s.  The LLM provider's own timeout
         (e.g. 600s for Anthropic) is much longer; this keeps the retry
         decision path fast even when the provider is degraded.
-    :param redact_exception: When ``True`` (the default), the exception's
-        string representation is passed through Airflow's secrets masker
-        (:func:`~airflow.sdk.log.redact`) before being added to the prompt.
-        Set to ``False`` only if you are certain your exception messages
-        contain no sensitive data and you need the raw text for accurate
-        classification.
+    :param redactor: Callable applied to the exception's string representation
+        before it is added to the classification prompt. Defaults to Airflow's
+        secrets masker (:func:`~airflow.sdk.log.redact`), which only masks
+        values already registered via ``mask_secret()``. Pass a custom
+        callable to replace the default masking entirely -- for example to
+        redact free-text PII the secrets masker cannot see, or
+        ``lambda s: s`` to disable redaction altogether.
+    :param max_exception_length: Maximum number of characters of the
+        (already redacted) exception message included in the prompt. Longer
+        messages are truncated with a trailing ``"... (truncated)"`` marker.
+        Must be a positive integer. Defaults to 4096.
 
     .. warning::
         The exception's string representation is sent to the configured
@@ -116,14 +129,15 @@ class LLMRetryPolicy(RetryPolicy):
         the failing task put in the exception message — connection strings,
         credential fragments, PII, or other secrets. By default
         ``_classify()`` runs the message through Airflow's secrets masker
-        (:func:`~airflow.sdk.log.redact`, controlled by ``redact_exception``),
-        which masks values already registered via ``mask_secret()`` (for
-        example, connection passwords Airflow captured while resolving the
-        failing task's connections). This does **not** perform
-        general-purpose PII detection and will not catch arbitrary sensitive
-        strings that were never registered as secrets. You are still
-        responsible for confirming that your task's exception messages are
-        safe to send to a third-party LLM provider.
+        (:func:`~airflow.sdk.log.redact`) via ``redactor``, which masks
+        values already registered via ``mask_secret()`` (for example,
+        connection passwords Airflow captured while resolving the failing
+        task's connections). This does **not** perform general-purpose PII
+        detection and will not catch arbitrary sensitive strings that were
+        never registered as secrets -- for free-text PII (emails, customer
+        names, etc.) supply your own ``redactor``. You are still responsible
+        for confirming that your task's exception messages are safe to send
+        to a third-party LLM provider.
     """
 
     def __init__(
@@ -134,14 +148,18 @@ class LLMRetryPolicy(RetryPolicy):
         fallback_rules: list[RetryRule] | None = None,
         timeout: float = 30.0,
         *,
-        redact_exception: bool = True,
+        redactor: Callable[[str], str] | None = None,
+        max_exception_length: int = 4096,
     ) -> None:
+        if max_exception_length <= 0:
+            raise ValueError(f"max_exception_length must be a positive integer, got {max_exception_length}")
         self.llm_conn_id = llm_conn_id
         self.model_id = model_id
         self.instructions = instructions or DEFAULT_INSTRUCTIONS
         self.fallback_rules = fallback_rules
         self.timeout = timeout
-        self.redact_exception = redact_exception
+        self.redactor: Callable[[str], str] = redactor or _mask_secrets
+        self.max_exception_length = max_exception_length
 
     def evaluate(
         self,
@@ -174,11 +192,14 @@ class LLMRetryPolicy(RetryPolicy):
             instructions=self.instructions,
         )
 
-        exception_message = redact(str(exception)) if self.redact_exception else str(exception)
+        # Redact before truncating -- truncating first could cut a registered secret in half.
+        message = self.redactor(str(exception))
+        if len(message) > self.max_exception_length:
+            message = f"{message[: self.max_exception_length]}... (truncated)"
         prompt = (
             f"Classify this error from a data pipeline task "
             f"(attempt {try_number} of {max_tries}):\n\n"
-            f"{type(exception).__name__}: {exception_message}"
+            f"{type(exception).__name__}: {message}"
         )
 
         from pydantic_ai.settings import ModelSettings
