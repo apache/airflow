@@ -37,9 +37,10 @@ class DateTimeTrigger(BaseTrigger):
     The provided datetime MUST be in UTC.
 
     :param moment: when to yield event
-    :param target_time: an unrendered, Jinja-templated ``target_time`` string. Used instead of
-        ``moment`` only when this trigger is created via ``start_from_trigger`` with a ``target_time``
-        that could not be resolved to a concrete datetime at Dag-parse time (i.e. it is a template).
+    :param target_time: a Jinja-templated ``target_time`` string that has not yet been rendered.
+        Used instead of ``moment`` only when this trigger is created via ``start_from_trigger`` with
+        a ``target_time`` that could not be resolved to a concrete datetime at Dag-parse time (i.e.
+        it is a template).
         Mutually exclusive with ``moment``. ``target_time`` is one of ``DateTimeSensor``'s
         ``template_fields``, so the triggerer renders it in place (see
         ``BaseTrigger.render_template_fields``) before ``run()`` is invoked; it is then parsed into
@@ -68,15 +69,16 @@ class DateTimeTrigger(BaseTrigger):
         # there before `run()`/`serialize()` need a concrete moment.
         self.target_time = target_time
 
+        self.moment: pendulum.DateTime | None
         if moment is None:
-            self.moment: pendulum.DateTime | None = None
+            self.moment = None
             return
         if not isinstance(moment, datetime.datetime):
             raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
         # Make sure it's in UTC
         if moment.tzinfo is None:
             raise ValueError("You cannot pass naive datetimes")
-        self.moment: pendulum.DateTime | None = timezone.convert_to_utc(moment)
+        self.moment = timezone.convert_to_utc(moment)
 
     def _resolve_moment(self) -> pendulum.DateTime:
         """Return ``moment``, parsing it from a (by now rendered) ``target_time`` if needed."""
@@ -96,6 +98,13 @@ class DateTimeTrigger(BaseTrigger):
         return self.moment
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
+        # `target_time` is deliberately not round-tripped here: it is folded into a concrete
+        # `moment` by `_resolve_moment()` before serialization, the same way `TimeDeltaTrigger`
+        # folds `delta` into `moment` (see the exclusion for this class in
+        # scripts/ci/prek/check_trigger_serialize_init.py). By the time serialize() is called,
+        # target_time has either already been rendered by the triggerer (see
+        # BaseTrigger.render_template_fields) or resolution raises a clear error -- there is no
+        # unrendered template left to preserve.
         return (
             "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
             {"moment": self._resolve_moment(), "end_from_trigger": self.end_from_trigger},
