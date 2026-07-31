@@ -29,7 +29,6 @@ from airflow.api_fastapi.core_api.security import (
     USER_INJECTED_BY_TRUSTED_MIDDLEWARE,
     resolve_user_from_token,
 )
-from airflow.configuration import conf
 
 
 class JWTRefreshMiddleware(BaseHTTPMiddleware):
