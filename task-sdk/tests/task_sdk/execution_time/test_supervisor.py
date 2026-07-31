@@ -1553,9 +1553,28 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql"),
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                host=None,
+                schema=None,
+                login=None,
+                password=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
-        expected_body={"conn_id": "test_conn", "conn_type": "mysql", "type": "ConnectionResult"},
+        expected_body={
+            "conn_id": "test_conn",
+            "conn_type": "mysql",
+            "host": None,
+            "schema": None,
+            "login": None,
+            "password": None,
+            "port": None,
+            "extra": None,
+            "type": "ConnectionResult",
+        },
     ),
     RequestTestCase(
         message=GetConnection(conn_id="test_conn"),
@@ -1563,12 +1582,26 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", password="password"),
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                password="password",
+                host=None,
+                schema=None,
+                login=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
             "conn_type": "mysql",
             "password": "password",
+            "host": None,
+            "schema": None,
+            "login": None,
+            "port": None,
+            "extra": None,
             "type": "ConnectionResult",
         },
         mask_secret_args=("password",),
@@ -1579,12 +1612,26 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+            response=ConnectionResult(
+                conn_id="test_conn",
+                conn_type="mysql",
+                schema="mysql",
+                host=None,
+                login=None,
+                password=None,
+                port=None,
+                extra=None,
+            ),  # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
             "conn_type": "mysql",
             "schema": "mysql",
+            "host": None,
+            "login": None,
+            "password": None,
+            "port": None,
+            "extra": None,
             "type": "ConnectionResult",
         },
     ),
@@ -1940,6 +1987,8 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -1984,6 +2033,8 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2021,6 +2072,8 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2065,6 +2118,8 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2102,6 +2157,8 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2146,6 +2203,8 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2182,6 +2241,8 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2224,6 +2285,8 @@ REQUEST_TEST_CASES = [
                 "before": timezone.parse("2024-10-15T12:00:00Z"),
                 "limit": 5,
                 "ascending": False,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": None,
             },
             response=AssetEventsResult(
@@ -2238,6 +2301,49 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_by_asset_alias_with_filters",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri="s3://bucket/obj",
+            name="test",
+            partition_key="us|2024-01-15",
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": "test",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": "us|2024-01-15",
+                "partition_key_regexp_pattern": None,
+                "extra": None,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_name_with_partition_key",
     ),
     RequestTestCase(
         message=GetAssetEventByAsset(
@@ -2265,6 +2371,8 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": {"region": "us"},
             },
             response=AssetEventsResult(
@@ -2279,6 +2387,47 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_with_extra_filter",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAssetAlias(
+            alias_name="test_alias",
+            partition_key="eu|2024-03",
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "alias_name": "test_alias",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+                "partition_key": "eu|2024-03",
+                "partition_key_regexp_pattern": None,
+                "extra": None,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_alias_with_partition_key",
     ),
     RequestTestCase(
         message=GetAssetEventByAssetAlias(
@@ -2304,6 +2453,8 @@ REQUEST_TEST_CASES = [
                 "before": None,
                 "limit": None,
                 "ascending": True,
+                "partition_key": None,
+                "partition_key_regexp_pattern": None,
                 "extra": {"env": "prod"},
             },
             response=AssetEventsResult(
@@ -2467,6 +2618,10 @@ REQUEST_TEST_CASES = [
                 consumed_asset_events=[],
                 state=DagRunState.SUCCESS,
                 triggering_user_name=None,
+                data_interval_start=None,
+                data_interval_end=None,
+                end_date=None,
+                partition_key=None,
             ),
         ),
         test_id="get_dag_run",
@@ -2527,6 +2682,10 @@ REQUEST_TEST_CASES = [
                     consumed_asset_events=[],
                     state=DagRunState.SUCCESS,
                     triggering_user_name=None,
+                    data_interval_start=None,
+                    data_interval_end=None,
+                    end_date=None,
+                    partition_key=None,
                 )
             ),
         ),
@@ -3543,7 +3702,7 @@ class TestInProcessClient:
 @pytest.mark.parametrize(
     ("remote_logging", "remote_conn", "expected_env"),
     (
-        pytest.param(True, "", "AIRFLOW_CONN_AWS_DEFAULT", id="no-conn-id"),
+        pytest.param(True, "", "", id="no-conn-id"),
         pytest.param(True, "aws_default", "AIRFLOW_CONN_AWS_DEFAULT", id="explicit-default"),
         pytest.param(True, "my_aws", "AIRFLOW_CONN_MY_AWS", id="other"),
         pytest.param(False, "", "", id="no-remote-logging"),
@@ -3566,6 +3725,12 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
                 # Minimal enough to pass validation, we don't care what fields are in here for the tests
                 "conn_id": remote_conn,
                 "conn_type": "aws",
+                "host": None,
+                "schema": None,
+                "login": None,
+                "password": None,
+                "port": None,
+                "extra": None,
             },
         )
 
@@ -3594,7 +3759,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
 
             with _remote_logging_conn(client):
                 new_keys = os.environ.keys() - env.keys()
-                if remote_logging:
+                if remote_logging and expected_env:
                     # _remote_logging_conn sets both the connection env var and _AIRFLOW_PROCESS_CONTEXT
                     assert new_keys == {expected_env, "_AIRFLOW_PROCESS_CONTEXT"}
                 else:
@@ -3903,7 +4068,7 @@ def test_fetch_remote_logging_conn_does_not_cache_none_result(mocker):
             conn_id=conn_id,
             conn_type="example",
             host=None,
-            schema_=None,
+            schema=None,
             login=None,
             password=None,
             port=None,
@@ -3975,7 +4140,14 @@ def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
         subprocess.check_call([sys.executable, "-c", dedent(script)])
 
     client_with_ti_start.connections.get.return_value = ConnectionResult(
-        conn_id="test_conn", conn_type="mysql", login="a", password="password1"
+        conn_id="test_conn",
+        conn_type="mysql",
+        login="a",
+        password="password1",
+        host=None,
+        schema=None,
+        port=None,
+        extra=None,
     )
     proc = ActivitySubprocess.start(
         dag_rel_path=os.devnull,

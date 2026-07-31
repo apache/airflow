@@ -62,15 +62,14 @@ export const AdminButton = ({
   readonly externalViews: Array<NavItemResponse>;
 }) => {
   const { t: translate } = useTranslation("common");
-  const menuItems = links
-    .filter(({ title }) => authorizedMenuItems.includes(title as MenuItem))
-    .map((link) => (
-      <Menu.Item asChild key={link.title} value={link.title}>
-        <RouterLink aria-label={translate(`admin.${link.title}`)} to={link.href}>
-          {translate(`admin.${link.title}`)}
-        </RouterLink>
-      </Menu.Item>
-    ));
+  const authorizedLinks = links.filter(({ title }) => authorizedMenuItems.includes(title as MenuItem));
+  const menuItems = authorizedLinks.map((link) => (
+    <Menu.Item asChild key={link.title} value={link.title}>
+      <RouterLink aria-label={translate(`admin.${link.title}`)} to={link.href}>
+        {translate(`admin.${link.title}`)}
+      </RouterLink>
+    </Menu.Item>
+  ));
 
   if (!menuItems.length && !externalViews.length) {
     return undefined;
@@ -79,7 +78,11 @@ export const AdminButton = ({
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={FiSettings} title={translate("nav.admin")} />
+        <NavButton
+          icon={FiSettings}
+          title={translate("nav.admin")}
+          to={authorizedLinks.map(({ href }) => href)}
+        />
       </Menu.Trigger>
       <Menu.Content>
         {menuItems}

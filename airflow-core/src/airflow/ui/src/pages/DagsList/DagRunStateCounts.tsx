@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Skeleton } from "@chakra-ui/react";
+import { HStack, Portal, Skeleton, Tooltip } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DagRunState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
-import { RouterLink, Tooltip } from "src/components/ui";
+import { RouterLink } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 const DISPLAYED_STATES: ReadonlyArray<DagRunState> = ["success", "failed", "running", "queued"];
@@ -55,33 +55,61 @@ export const DagRunStateCounts = ({ compact = false, counts, dagId, isLoading, s
     );
   }
 
-  return (
-    <HStack data-testid={`run-state-counts-${dagId}`} gap={gap}>
-      {DISPLAYED_STATES.map((state) => {
-        const count = counts[state] ?? 0;
-        // A count that reached the API cap is only a lower bound; suffix it with "+".
-        const isCapped = stateCountLimit !== undefined && count >= stateCountLimit;
-        const suffix = isCapped ? "+" : "";
-        const translatedState = translate(`common:states.${state}` as const);
-        const tooltipContent = translate("runStateCounts.tooltip", {
-          formattedCount: `${count}${suffix}`,
-          state: translatedState,
-        });
+  const describeState = (state: DagRunState) => {
+    const count = counts[state] ?? 0;
+    // A count that reached the API cap is only a lower bound; suffix it with "+".
+    const isCapped = stateCountLimit !== undefined && count >= stateCountLimit;
+    const formattedCount = `${count}${isCapped ? "+" : ""}`;
 
-        return (
-          <Tooltip content={tooltipContent} key={state}>
-            <RouterLink
-              aria-label={tooltipContent}
-              data-testid={`run-state-count-${state}-${dagId}`}
-              to={`/dags/${dagId}/runs?${SearchParamsKeys.STATE}=${state}`}
-            >
-              <StateBadge fontSize={fontSize} opacity={count === 0 ? 0.4 : 1} state={state}>
-                {`${count}${suffix}`}
-              </StateBadge>
-            </RouterLink>
-          </Tooltip>
-        );
-      })}
-    </HStack>
+    return {
+      formattedCount,
+      isZero: count === 0,
+      label: translate("runStateCounts.tooltip", {
+        formattedCount,
+        state: translate(`common:states.${state}` as const),
+      }),
+    };
+  };
+
+  // One shared tooltip root per card instead of one per badge, so a page of Dag
+  // cards doesn't mount hundreds of tooltip state machines (same pattern as RecentRuns).
+  return (
+    <Tooltip.Root>
+      <HStack data-testid={`run-state-counts-${dagId}`} gap={gap}>
+        {DISPLAYED_STATES.map((state) => {
+          const { formattedCount, isZero, label } = describeState(state);
+
+          return (
+            <Tooltip.Trigger asChild key={state} value={state}>
+              <RouterLink
+                aria-label={label}
+                data-testid={`run-state-count-${state}-${dagId}`}
+                to={`/dags/${dagId}/runs?${SearchParamsKeys.STATE}=${state}`}
+              >
+                <StateBadge fontSize={fontSize} opacity={isZero ? 0.4 : 1} state={state}>
+                  {formattedCount}
+                </StateBadge>
+              </RouterLink>
+            </Tooltip.Trigger>
+          );
+        })}
+      </HStack>
+      <Portal disabled>
+        <Tooltip.Positioner>
+          <Tooltip.Content>
+            <Tooltip.Arrow>
+              <Tooltip.ArrowTip />
+            </Tooltip.Arrow>
+            <Tooltip.Context>
+              {({ triggerValue }) => {
+                const state = DISPLAYED_STATES.find((displayed) => displayed === triggerValue);
+
+                return state === undefined ? undefined : describeState(state).label;
+              }}
+            </Tooltip.Context>
+          </Tooltip.Content>
+        </Tooltip.Positioner>
+      </Portal>
+    </Tooltip.Root>
   );
 };

@@ -102,6 +102,20 @@ MODULE_TYPES: dict[str, dict] = {
         "label": "Decorators",
         "icon": "@",
     },
+    "toolset": {
+        "yaml_key": "toolsets",
+        "level": "module",
+        "suffixes": ["Toolset"],
+        "label": "Toolsets",
+        "icon": "U",
+    },
+    "retry_policy": {
+        "yaml_key": "retry-policies",
+        "level": "module",
+        "suffixes": ["RetryPolicy"],
+        "label": "Retry Policies",
+        "icon": "R",
+    },
 }
 
 # Runtime base class imports for issubclass checks (extract_parameters.py).
@@ -113,6 +127,8 @@ BASE_CLASS_IMPORTS: list[tuple[str, str]] = [
     ("hook", "airflow.sdk.bases.hook.BaseHook"),
     ("bundle", "airflow.dag_processing.bundles.base.BaseDagBundle"),
     ("operator", "airflow.sdk.bases.operator.BaseOperator"),
+    ("toolset", "pydantic_ai.toolsets.abstract.AbstractToolset"),
+    ("retry_policy", "airflow.sdk.definitions.retry_policy.RetryPolicy"),
 ]
 
 # Derived lookups used by extraction scripts.

@@ -374,9 +374,10 @@ Durable execution
 
 ``BigQueryInsertJobOperator`` submits a job and then polls it to completion on the worker. By
 default the operator runs in a *durable* mode that makes this crash-safe: the submitted BigQuery
-job id is persisted to task state before polling begins, so if the worker crashes or is preempted
-and the task is retried, the operator reconnects to the job that is already running in BigQuery
-instead of submitting a duplicate.
+job id is persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>`
+before polling begins, so if the worker crashes or is preempted and the task is retried, the
+operator reconnects to the job that is already running in BigQuery instead of submitting a
+duplicate.
 
 On retry the operator checks the prior job's state:
 
@@ -406,6 +407,12 @@ earlier Airflow versions the flag is a no-op and the operator always submits a f
 exactly as before -- including the pre-existing ``reattach_states``/``Conflict`` behavior, which is
 unchanged. If the task state store is unavailable at runtime, the operator logs that crash
 recovery is disabled and behaves the same way.
+
+Like the persisted state itself, the stored job id isn't deleted automatically, that only happens
+when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the
+job id won't be there for the next retry, and the operator will submit a fresh job instead of
+reconnecting. Avoid running cleanup on a schedule shorter than your longest ``retry_delay``.
 
 To opt out and always submit a fresh job on retry, set ``durable=False``:
 

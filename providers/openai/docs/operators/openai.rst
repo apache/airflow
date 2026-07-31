@@ -20,8 +20,8 @@
 OpenAIEmbeddingOperator
 ========================
 
-Use the :class:`~airflow.providers.open_ai.operators.open_ai.OpenAIEmbeddingOperator` to
-interact with Open APIs to create embeddings for given text.
+Use the :class:`~airflow.providers.openai.operators.openai.OpenAIEmbeddingOperator` to
+interact with the OpenAI API to create embeddings for given text.
 
 
 Using the Operator
@@ -30,7 +30,7 @@ Using the Operator
 The OpenAIEmbeddingOperator requires the ``input_text`` as an input to embedding API. Use the ``conn_id`` parameter to specify the OpenAI connection to use to
 connect to your account.
 
-An example using the operator is in way:
+An example of using the operator:
 
 .. exampleinclude:: /../../openai/tests/system/openai/example_openai.py
     :language: python
@@ -89,20 +89,18 @@ For example, to create a conversation and continue it across responses:
 OpenAITriggerBatchOperator
 ===========================
 
-Use the :class:`~airflow.providers.open_ai.operators.open_ai.OpenAITriggerBatchOperator` to
-interact with Open APIs to trigger a batch job. This operator is used to trigger a batch job and wait for the job to complete.
+Use the :class:`~airflow.providers.openai.operators.openai.OpenAITriggerBatchOperator` to
+interact with the OpenAI API to trigger a batch job. This operator is used to trigger a batch job and wait for the job to complete.
 
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-The OpenAITriggerBatchOperator requires the prepared batch file as an input to trigger the batch job. Provide the ``file_id`` and the ``endpoint`` to trigger the batch job.
-Use the ``conn_id`` parameter to specify the OpenAI connection to use to
+The OpenAITriggerBatchOperator requires the prepared batch file as an input to trigger the
+batch job. Provide the ``file_id`` and the ``endpoint`` to trigger the batch job, and use the
+``conn_id`` parameter to specify the OpenAI connection to use.
 
-
-The OpenAITriggerBatchOperator
-
-An example using the operator is in way:
+An example of using the operator:
 
 .. exampleinclude:: /../../openai/tests/system/openai/example_trigger_batch_operator.py
     :language: python

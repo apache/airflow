@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-kafka``
 
-Release: ``1.14.0``
+Release: ``1.15.0``
 
 
 `Apache Kafka  <https://kafka.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.kafka`` provider. All classes for this p
 are in ``airflow.providers.apache.kafka`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.14.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.15.0/>`_.
 
 Installation
 ------------
@@ -88,8 +88,9 @@ Optional dependencies
 Extra                 Dependencies
 ====================  ====================================================
 ``google``            ``apache-airflow-providers-google``
+``msk``               ``aws-msk-iam-sasl-signer-python>=1.0.1``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.14.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.15.0/changelog.html>`_.

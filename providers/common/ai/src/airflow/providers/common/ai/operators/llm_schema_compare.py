@@ -127,6 +127,8 @@ class LLMSchemaCompareOperator(LLMOperator):
         **kwargs: Any,
     ) -> None:
         kwargs.pop("output_type", None)
+        if kwargs.get("require_approval"):
+            raise ValueError("require_approval=True is not supported by LLMSchemaCompareOperator.")
         super().__init__(**kwargs)
         self.data_sources = data_sources or []
         self.db_conn_ids = db_conn_ids or []

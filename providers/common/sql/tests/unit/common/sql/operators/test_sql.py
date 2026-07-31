@@ -34,6 +34,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
     BranchSQLOperator,
+    SQLBulkLoadOperator,
     SQLCheckOperator,
     SQLCheckResult,
     SQLColumnCheckOperator,
@@ -2957,3 +2958,86 @@ class TestSQLInsertRowsOperator:
             (4, "Lundgren", "Dolph", 66),
             (5, "Norris", "Chuck", 84),
         ]
+
+
+class TestSQLBulkLoadOperator:
+    def _construct_operator(self, table, tmp_file, **kwargs):
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
+        return SQLBulkLoadOperator(
+            task_id="test_task",
+            conn_id="default_conn",
+            table=table,
+            tmp_file=tmp_file,
+            dag=dag,
+            **kwargs,
+        )
+
+    @mock.patch.object(SQLBulkLoadOperator, "get_db_hook")
+    def test_execute(self, mock_get_db_hook):
+        operator = self._construct_operator(
+            table="users",
+            tmp_file="/tmp/users.tsv",
+            preoperator="CREATE TABLE users (id INT);",
+            postoperator="DROP TABLE users;",
+        )
+
+        operator.execute(context=MagicMock())
+
+        hook = mock_get_db_hook.return_value
+
+        assert hook.mock_calls == [
+            mock.call.run("CREATE TABLE users (id INT);"),
+            mock.call.bulk_load(
+                table="users",
+                tmp_file="/tmp/users.tsv",
+            ),
+            mock.call.run("DROP TABLE users;"),
+        ]
+
+    @mock.patch.object(SQLBulkLoadOperator, "get_db_hook")
+    def test_execute_templated_fields(self, mock_get_db_hook):
+        operator = self._construct_operator(
+            table="{{ params.table }}",
+            tmp_file="{{ params.file }}",
+            preoperator="TRUNCATE TABLE {{ params.table }};",
+            postoperator="DROP TABLE {{ params.table }};",
+        )
+
+        operator.render_template_fields(
+            {
+                "params": {
+                    "table": "users",
+                    "file": "/tmp/users.tsv",
+                }
+            }
+        )
+
+        operator.execute(context=MagicMock())
+
+        hook = mock_get_db_hook.return_value
+
+        assert hook.mock_calls == [
+            mock.call.run("TRUNCATE TABLE users;"),
+            mock.call.bulk_load(
+                table="users",
+                tmp_file="/tmp/users.tsv",
+            ),
+            mock.call.run("DROP TABLE users;"),
+        ]
+
+    @mock.patch.object(SQLBulkLoadOperator, "get_db_hook")
+    def test_execute_without_pre_or_post_operator(self, mock_get_db_hook):
+        operator = self._construct_operator(
+            table="users",
+            tmp_file="/tmp/users.tsv",
+        )
+
+        operator.execute(context=MagicMock())
+
+        hook = mock_get_db_hook.return_value
+
+        hook.run.assert_not_called()
+        hook.bulk_load.assert_called_once_with(
+            table="users",
+            tmp_file="/tmp/users.tsv",
+        )

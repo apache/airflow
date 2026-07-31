@@ -26,6 +26,7 @@ from unittest import mock
 
 import pytest
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -210,6 +211,54 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+    @pytest.mark.parametrize(
+        ("dialect_name", "expected_helper"),
+        [
+            ("postgresql", "_queue_dagruns_nonpartitioned_conflict_update"),
+            ("mysql", "_queue_dagruns_nonpartitioned_mysql"),
+            ("sqlite", "_queue_dagruns_nonpartitioned_conflict_update"),
+        ],
+    )
+    def test_queue_dagruns_routes_by_dialect(self, dialect_name, expected_helper):
+        """Test that _queue_dagruns routes to the dialect-appropriate queue helper."""
+        dag = DagModel(dag_id="dag1")
+        session = mock.MagicMock(spec=Session)
+        event = mock.MagicMock()
+        with (
+            mock.patch("airflow.assets.manager.get_dialect_name", return_value=dialect_name),
+            mock.patch.object(AssetManager, "_queue_partitioned_dags"),
+            mock.patch.object(AssetManager, expected_helper) as mock_helper,
+        ):
+            AssetManager._queue_dagruns(
+                asset_id=1,
+                dags_to_queue={dag},
+                partition_key=None,
+                partition_date=None,
+                event=event,
+                task_instance=None,
+                session=session,
+            )
+        if expected_helper == "_queue_dagruns_nonpartitioned_conflict_update":
+            mock_helper.assert_called_once_with(1, {dag}, event, session, dialect_name)
+        elif expected_helper == "_queue_dagruns_nonpartitioned_mysql":
+            mock_helper.assert_called_once_with(1, {dag}, event, session)
+        else:
+            raise AssertionError(f"Unexpected expected_helper: {expected_helper}")
+
+    def test_queue_dagruns_nonpartitioned_mysql_builds_upsert(self):
+        """Test that the MySQL queue path emits an INSERT ... ON DUPLICATE KEY UPDATE."""
+        dag = DagModel(dag_id="dag1")
+        session = mock.MagicMock(spec=Session)
+        event = AssetEvent(asset_id=1)
+        AssetManager._queue_dagruns_nonpartitioned_mysql(
+            asset_id=1, dags_to_queue={dag}, event=event, session=session
+        )
+
+        stmt, values = session.execute.call_args.args
+        compiled = str(stmt.compile(dialect=mysql.dialect())).upper()
+        assert "ON DUPLICATE KEY UPDATE" in compiled
+        assert values == [{"target_dag_id": "dag1"}]
 
     def test_register_asset_change_notifies_asset_listener(
         self, session, mock_task_instance, testing_dag_bundle, listener_manager

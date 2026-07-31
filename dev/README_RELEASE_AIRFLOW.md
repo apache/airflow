@@ -1631,9 +1631,12 @@ Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in t
 will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
 `chart/Chart.yaml`.
 
-Add or adjust significant `chart/newsfragments` to express that the default version of Airflow has changed.
+Add or adjust already existing significant `chart/newsfragments` to express that the default version of Airflow
+has changed.
 
 In `chart/Chart.yaml`, make sure the screenshot annotations are still all valid URLs.
+
+Add `backport-to-chart/v1-2x-test` for automatic backport PR creation for Helm Chart 1.2x release line. Manual backport is required when automatic one will fail.
 
 ## Update airflow/config_templates/config.yml file
 

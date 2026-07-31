@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 
 def rehydrate_pydantic_output(
@@ -30,25 +30,25 @@ def rehydrate_pydantic_output(
     serialize_output: bool,
 ) -> Any:
     """
-    Turn a JSON string back into the ``output_type`` Pydantic model.
+    Turn a JSON string back into a value of ``output_type``.
 
     Used by the HITL/approval paths in ``LLMOperator`` and ``AgentOperator``
-    that round-trip the model through a string when deferring to a human
-    reviewer. When ``output_type`` is not a ``BaseModel`` subclass, returns
-    ``raw`` unchanged so the caller can apply its own fallback (e.g.
-    ``json.loads``). When validation fails (reviewer edited the string into
-    something the schema rejects), also returns ``raw`` unchanged.
+    that round-trip the output through a string when deferring to a human
+    reviewer. ``str`` outputs pass through unchanged; any other ``output_type``
+    (``BaseModel`` subclass, ``int``, ``list[str]``, ...) is validated with a
+    pydantic ``TypeAdapter``. When validation fails (reviewer edited the string
+    into something the type rejects), returns ``raw`` unchanged.
 
     When ``serialize_output`` is ``True``, returns the model dumped to a
     ``dict`` -- matches the operator's ``serialize_output=True`` opt-in for
     consumers that want the dict shape.
     """
-    if not (isinstance(output_type, type) and issubclass(output_type, BaseModel)):
+    if output_type is str:
         return raw
     try:
-        rehydrated = output_type.model_validate_json(raw)
+        rehydrated = TypeAdapter(output_type).validate_json(raw)
     except (ValidationError, ValueError, TypeError):
         return raw
-    if serialize_output:
+    if serialize_output and isinstance(rehydrated, BaseModel):
         return rehydrated.model_dump()
     return rehydrated

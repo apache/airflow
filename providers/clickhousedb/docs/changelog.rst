@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Misc
+~~~~
+
+* ``Change Clickhouse lifecycle to incubation (#69166)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix ClickHouse test_connection unit test failing with newer clickhouse-connect (#70114)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
+
 1.0.0
 .....
 

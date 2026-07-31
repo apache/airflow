@@ -1087,6 +1087,162 @@ class TestGetAssetEvents(TestAssets):
         }
 
 
+class TestGetAssetEventsPartitionKeyRegex(TestAssets):
+    """Tests for partition_key_regexp_pattern regex filter on GET /assets/events.
+
+    Patterns are written to work consistently across PostgreSQL (~),
+    MySQL (REGEXP), and SQLite (re.match), including both anchored and
+    unanchored expressions where appropriate.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _enable_regexp_query_filters(self):
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            yield
+
+    @pytest.fixture(autouse=True)
+    def _create_partition_key_test_data(self, setup, session):
+        _create_assets(session=session)
+        events = [
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r1",
+                partition_key="2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r2",
+                partition_key="2024-01-02",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r3",
+                partition_key="us|2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=2,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r4",
+                partition_key="eu|2024-01-01",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r5",
+                partition_key="apac|2024-03-20",
+                timestamp=DEFAULT_DATE,
+            ),
+            AssetEvent(
+                asset_id=1,
+                extra={},
+                source_task_id="t",
+                source_dag_id="d",
+                source_run_id="r6",
+                partition_key=None,
+                timestamp=DEFAULT_DATE,
+            ),
+        ]
+        session.add_all(events)
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("partition_key_regexp_pattern", "expected_count"),
+        [
+            ("^2024-01-01$", 1),
+            ("^2024-01-", 2),
+            ("^us\\|", 1),
+            (".*\\|2024-01-01$", 2),
+            ("^(us|eu)\\|", 2),
+            ("^nonexistent", 0),
+        ],
+    )
+    def test_partition_key_regexp_pattern_filtering(
+        self, test_client, partition_key_regexp_pattern, expected_count
+    ):
+        response = test_client.get(
+            "/assets/events", params={"partition_key_regexp_pattern": partition_key_regexp_pattern}
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    @pytest.mark.parametrize(
+        ("params", "expected_count"),
+        [
+            ({"partition_key_regexp_pattern": "^us\\|", "asset_id": "1"}, 1),
+            ({"partition_key_regexp_pattern": "^us\\|", "asset_id": "2"}, 0),
+            ({"partition_key_regexp_pattern": ".*\\|2024-01-01$", "source_dag_id": "d"}, 2),
+            ({"partition_key_regexp_pattern": ".*\\|2024-01-01$", "source_dag_id": "other"}, 0),
+        ],
+    )
+    def test_partition_key_regexp_pattern_combined_filters(self, test_client, params, expected_count):
+        response = test_client.get("/assets/events", params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    def test_partition_key_regexp_pattern_invalid_regex_returns_400(self, test_client):
+        response = test_client.get(
+            "/assets/events", params={"partition_key_regexp_pattern": "[invalid(regex"}
+        )
+        assert response.status_code == 400
+        assert "Invalid regular expression" in response.json()["detail"]
+
+    def test_partition_key_regexp_pattern_disabled_returns_400(self, test_client):
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
+            response = test_client.get("/assets/events", params={"partition_key_regexp_pattern": "^2024-"})
+        assert response.status_code == 400
+        assert "disabled" in response.json()["detail"]
+
+    def test_exact_match_works_when_regex_disabled(self, test_client):
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
+            response = test_client.get("/assets/events", params={"partition_key": "2024-01-01"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    def test_partition_key_exact_match_via_regex(self, test_client):
+        response = test_client.get("/assets/events", params={"partition_key_regexp_pattern": "^2024-01-01$"})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+
+    @pytest.mark.parametrize(
+        ("partition_key", "expected_count"),
+        [
+            ("2024-01-01", 1),
+            ("us|2024-01-01", 1),
+            ("nonexistent", 0),
+        ],
+    )
+    def test_partition_key_exact_match(self, test_client, partition_key, expected_count):
+        response = test_client.get("/assets/events", params={"partition_key": partition_key})
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_count
+
+    def test_partition_key_and_pattern_combined(self, test_client):
+        # Both filters are allowed and combine with AND: a disjoint pair yields no results.
+        response = test_client.get(
+            "/assets/events",
+            params={"partition_key": "2024-01-01", "partition_key_regexp_pattern": "^2025-"},
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 0
+
+
 class TestGetAssetEventsExtraFilter(TestAssets):
     @pytest.fixture
     def _setup(self, session):
@@ -1671,6 +1827,7 @@ class TestPostAssetMaterialize(TestAssets):
             "triggering_user_name": "test",
             "conf": {},
             "note": None,
+            "team_name": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")

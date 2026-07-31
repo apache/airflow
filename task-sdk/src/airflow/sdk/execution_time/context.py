@@ -317,6 +317,18 @@ async def _async_get_connection(conn_id: str) -> Connection:
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
+def _mask_and_deserialize_variable(raw: str, key: str, deserialize_json: bool) -> Any:
+    mask_secret(raw, key)
+    if not deserialize_json:
+        return raw
+    val = json.loads(raw)
+    if isinstance(val, str):
+        mask_secret(val, key)
+    elif isinstance(val, dict):
+        mask_secret(val)
+    return val
+
+
 def _get_variable(key: str, deserialize_json: bool) -> Any:
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
@@ -325,13 +337,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     try:
         var_val = SecretCache.get_variable(key)
         if var_val is not None:
-            if deserialize_json:
-                import json
-
-                var_val = json.loads(var_val)
-            if isinstance(var_val, str):
-                mask_secret(var_val, key)
-            return var_val
+            return _mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
         pass  # Continue to check backends
 
@@ -344,13 +350,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
                 SecretCache.save_variable(key, var_val)
-                if deserialize_json:
-                    import json
-
-                    var_val = json.loads(var_val)
-                if isinstance(var_val, str):
-                    mask_secret(var_val, key)
-                return var_val
+                return _mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
             raise
@@ -1114,6 +1114,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
     _before: str | datetime | None
     _ascending: bool
     _limit: int | None
+    _partition_key: str | None
+    _partition_key_regexp_pattern: str | None
     _extra: dict[str, str]
     _asset_name: str | None
     _asset_uri: str | None
@@ -1129,6 +1131,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._before = None
         self._ascending = True
         self._limit = None
+        self._partition_key = None
+        self._partition_key_regexp_pattern = None
         self._extra: dict[str, str] = {}
 
     def after(self, after: str) -> Self:
@@ -1151,6 +1155,18 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._reset_cache()
         return self
 
+    def partition_key(self, key: str) -> Self:
+        """Filter by exact partition key match."""
+        self._partition_key = key
+        self._reset_cache()
+        return self
+
+    def partition_key_regexp_pattern(self, pattern: str) -> Self:
+        """Filter by partition key regexp pattern."""
+        self._partition_key_regexp_pattern = pattern
+        self._reset_cache()
+        return self
+
     def extra(self, key: str, value: str) -> Self:
         self._extra[key] = value
         self._reset_cache()
@@ -1165,6 +1181,8 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
             "before": self._before,
             "ascending": self._ascending,
             "limit": self._limit,
+            "partition_key": self._partition_key,
+            "partition_key_regexp_pattern": self._partition_key_regexp_pattern,
             "extra": self._extra or None,
         }
 

@@ -71,9 +71,9 @@ Durable execution
 
 ``RedshiftDataOperator`` submits a statement and then polls it to completion on the worker. By
 default the operator runs in a *durable* mode that makes this crash-safe: the Redshift statement
-id is persisted to task state before polling begins, so if the worker crashes or is preempted and
-the task is retried, the operator reconnects to the statement that is already executing in
-Redshift instead of resubmitting the SQL.
+id is persisted to :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before
+polling begins, so if the worker crashes or is preempted and the task is retried, the operator
+reconnects to the statement that is already executing in Redshift instead of resubmitting the SQL.
 
 On retry the operator checks the prior statement's state:
 
@@ -91,6 +91,13 @@ Durable execution requires Airflow 3.3 or newer, since it relies on the task sta
 earlier Airflow versions the flag is a no-op and the operator always submits fresh SQL on retry,
 exactly as before. If the task state store is unavailable at runtime, the operator logs that
 crash recovery is disabled and behaves the same way.
+
+Like the persisted state itself, the stored statement id isn't deleted automatically, that only
+happens when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is longer
+than ``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between,
+the statement id won't be there for the next retry, and the operator will submit the SQL fresh
+instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
+``retry_delay``.
 
 To opt out and always submit fresh SQL on retry, set ``durable=False``:
 

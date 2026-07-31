@@ -333,7 +333,9 @@ class DagFileProcessorManager(LoggingMixin):
 
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
-        DagBundlesManager().sync_bundles_to_db()
+        # When this processor only parses a subset of bundles, it does not see the full
+        # bundle configuration and must not deactivate bundles owned by other processors.
+        DagBundlesManager().sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
@@ -467,9 +469,17 @@ class DagFileProcessorManager(LoggingMixin):
         for dag in dags_parsed:
             # Dags whose bundle has been removed from config (bundle no longer active) are stale —
             # the processor has stopped parsing their files, so the time-based check below would never fire.
-            if dag.bundle_name in inactive_bundles:
+            #
+            # A NULL bundle_name means the row predates bundles (carried over from Airflow 2.x) and has not
+            # been parsed since the upgrade — parsing is what fills bundle_name in. If the file was removed
+            # as part of the upgrade, no parse will ever happen, so bundle_name stays NULL forever. Such a
+            # row can never hit the time-based check below either, because that matches on
+            # (bundle_name, relative_fileloc) and there is no bundle to match against, so without this
+            # branch the Dag stays active in the UI indefinitely. If the file does still exist, the next
+            # parse fills in bundle_name and clears is_stale, so a Dag deactivated here is reactivated.
+            if dag.bundle_name is None or dag.bundle_name in inactive_bundles:
                 self.log.info(
-                    "Deactivating Dag %s. Its bundle %s is no longer active.",
+                    "Deactivating Dag %s. Its bundle %s is no longer active or is NULL.",
                     dag.dag_id,
                     dag.bundle_name,
                 )
@@ -749,11 +759,11 @@ class DagFileProcessorManager(LoggingMixin):
 
         Returns ``None`` if the bundle has no database record.
         """
-        row = session.scalar(
-            select(DagBundleModel)
-            .where(DagBundleModel.name == bundle_name)
-            .options(load_only(DagBundleModel.last_refreshed, DagBundleModel.version))
-        )
+        row = session.execute(
+            select(DagBundleModel.last_refreshed, DagBundleModel.version).where(
+                DagBundleModel.name == bundle_name
+            )
+        ).one_or_none()
         if row is None:
             return None
         return BundleState(last_refreshed=row.last_refreshed, version=row.version)
@@ -815,7 +825,6 @@ class DagFileProcessorManager(LoggingMixin):
                 except AirflowException as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
-            # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             try:
                 bundle_state = self.get_bundle_state(bundle.name)
             except Exception:
