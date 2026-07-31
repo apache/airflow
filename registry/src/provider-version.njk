@@ -296,9 +296,9 @@ eleventyComputed:
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      <div class="module-tab-more-menu" id="module-tab-more-menu" role="menu" hidden>
+      <div class="module-tab-more-menu" id="module-tab-more-menu" hidden>
         {% for t in overflowTypes %}
-        <button class="module-tab" data-type="{{ t.id }}" role="menuitem">
+        <button class="module-tab" data-type="{{ t.id }}">
           <span class="tab-icon {{ t.id }}">{{ t.icon }}</span> {{ t.label }} ({{ t.count }})
         </button>
         {% endfor %}

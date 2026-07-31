@@ -154,6 +154,9 @@
       tab.classList.add('active');
       currentType = tab.dataset.type || 'all';
       filterModules();
+      if (moduleTabMoreBtn && moduleTabMoreMenu) {
+        moduleTabMoreBtn.classList.toggle('active', moduleTabMoreMenu.contains(tab));
+      }
     });
   });
 
@@ -163,8 +166,10 @@
 
   if (moduleTabMoreBtn && moduleTabMoreMenu) {
     function closeMoreMenu() {
+      var focusWasInMenu = moduleTabMoreMenu.contains(document.activeElement);
       moduleTabMoreBtn.setAttribute('aria-expanded', 'false');
       moduleTabMoreMenu.hidden = true;
+      if (focusWasInMenu) { moduleTabMoreBtn.focus(); }
     }
 
     moduleTabMoreBtn.addEventListener('click', function(e) {
