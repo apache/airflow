@@ -55,6 +55,13 @@ export const renderDuration = (
   return duration.asSeconds() < 86_400 ? duration.format("HH:mm:ss") : duration.format("D[d]HH:mm:ss");
 };
 
+// dayjs humanizes a missing or non-finite input as "a few seconds", so callers with no duration
+// to name get undefined instead of a made-up one.
+export const humanizeSeconds = (seconds: number | null | undefined): string | undefined =>
+  typeof seconds === "number" && Number.isFinite(seconds)
+    ? dayjs.duration(seconds, "seconds").humanize()
+    : undefined;
+
 // Chart axes need whole units at a glance; HH:mm:ss forces the reader to decode
 // every tick to work out the magnitude.
 export const renderCompactDuration = (durationSeconds: number): string => {

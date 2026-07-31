@@ -25,6 +25,7 @@ import select
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -305,15 +306,39 @@ class TestPosixKillBehaviour:
             if pid_text:
                 break
             time.sleep(0.02)
-        assert pid_text, "job never wrote its pid file"
+        # Say which half failed. The wrapper creates the job dir and log file before it
+        # backgrounds anything, so their absence means the launcher never got that far,
+        # while an empty job dir means the job was launched and then died before its first
+        # statement. A bare "no pid file" cannot tell those apart.
+        job_dir = Path(paths.job_dir)
+        state = (
+            f"job dir holds {sorted(p.name for p in job_dir.iterdir())}"
+            if job_dir.exists()
+            else "job dir was never created (launcher did not run)"
+        )
+        assert pid_text, f"job never wrote its pid file; {state}"
         return int(pid_text)
 
     @staticmethod
-    def _run_bash_mc_under_pty(script: str, marker: bytes, timeout: float = 8.0) -> None:
+    def _run_bash_mc_under_pty(
+        script: str,
+        marker: bytes,
+        detached: Callable[[], bool] | None = None,
+        timeout: float = 8.0,
+    ) -> None:
         """Run ``bash -mc script`` under a pty we own so job control genuinely activates
         (bash silently disables ``-m`` without a controlling terminal). Read until the
         marker, NOT to EOF: the detached job inherits the pty slave as its stdin, so EOF
-        would not arrive until the job itself exits (the full sleep runtime)."""
+        would not arrive until the job itself exits (the full sleep runtime).
+
+        The marker only says the launcher returned, which it does the moment it puts
+        ``setsid`` in the background - before that child has forked, called setsid(2) and
+        exec'd into the job. Closing the master hangs the pty up, and the launcher is the
+        session leader here (``pty.fork`` gives it the pty as controlling terminal), so a
+        hangup inside that window can take the job down with the session before it runs its
+        first statement. ``detached``, when given, is polled until the job has proven it
+        left the session (it records its own pid), and only then do we hang up.
+        """
         pid, fd = pty.fork()
         if pid == 0:
             try:
@@ -323,6 +348,7 @@ class TestPosixKillBehaviour:
         try:
             deadline = time.monotonic() + timeout
             buf = b""
+            seen = False
             while time.monotonic() < deadline:
                 r, _, _ = select.select([fd], [], [], 0.2)
                 if fd in r:
@@ -334,7 +360,13 @@ class TestPosixKillBehaviour:
                         break
                     buf += chunk
                     if marker in buf:
+                        seen = True
                         break
+            # Without this the launcher timing out is indistinguishable from the job dying:
+            # both surface later as an empty pid file.
+            assert seen, f"launcher never emitted {marker!r} within {timeout}s (got {buf!r})"
+            while detached is not None and time.monotonic() < deadline and not detached():
+                time.sleep(0.02)
         finally:
             os.close(fd)  # hangs up the pty; the launcher (not the detached job) exits
             with contextlib.suppress(ChildProcessError):
@@ -373,7 +405,15 @@ class TestPosixKillBehaviour:
         marker = self._marker("2")
         paths = RemoteJobPaths(job_id="killtree_jc", remote_os="posix", base_dir=str(tmp_path / "jobs"))
         wrapper = build_posix_wrapper_command(marker, paths)
-        self._run_bash_mc_under_pty(wrapper + "\necho SUBMIT_DONE\n", b"SUBMIT_DONE")
+        pid_path = Path(paths.pid_file)
+        self._run_bash_mc_under_pty(
+            wrapper + "\necho SUBMIT_DONE\n",
+            b"SUBMIT_DONE",
+            # Hang up only once the job is up (pid file written), so the pgrep below sees a
+            # started job. The job survives the hangup regardless: the wrapper detaches its
+            # stdin from the terminal, so the setsid session never adopts the pty.
+            detached=lambda: pid_path.exists() and bool(pid_path.read_text().strip()),
+        )
         pgid = self._await_recorded_pid(paths)
 
         job_pids = subprocess.run(
