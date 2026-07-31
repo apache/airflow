@@ -256,6 +256,76 @@ class TestWasbTaskHandler:
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
+    @mock.patch.object(WasbRemoteLogIO, "wasb_read")
+    @mock.patch.object(WasbRemoteLogIO, "wasb_log_exists")
+    def test_write_on_existing_log_already_newline_terminated(
+        self, mock_log_exists, mock_wasb_read, mock_hook
+    ):
+        mock_log_exists.return_value = True
+        mock_wasb_read.return_value = "old log\n"
+        self.wasb_task_handler.io.write("text", self.remote_log_location)
+        mock_hook.return_value.load_string.assert_called_once_with(
+            "old log\ntext",
+            self.container_name,
+            self.remote_log_location,
+            overwrite=True,
+        )
+
+    def test_upload_repeated_appends_no_duplication(self, tmp_path):
+        """Each execution lifecycle of one attempt appends to the same local log and uploads it."""
+        blobs: dict[str, str] = {}
+
+        class FakeHook:
+            def check_for_blob(self, container, blob_name, **kwargs):
+                return blob_name in blobs
+
+            def read_file(self, container, blob_name, **kwargs):
+                return blobs.get(blob_name, "")
+
+            def load_string(self, string_data, container, blob_name, **kwargs):
+                blobs[blob_name] = string_data
+
+        io = WasbRemoteLogIO(
+            remote_base="remote/log/location",
+            base_log_folder=str(tmp_path),
+            delete_local_copy=False,
+            wasb_container=self.container_name,
+        )
+        io.hook = FakeHook()
+
+        local_log = tmp_path / "attempt=1.log"
+        for cycle in range(1, 4):
+            with open(local_log, "a") as f:
+                f.write(f"cycle {cycle}\n")
+            io.upload("attempt=1.log")
+
+        assert blobs["remote/log/location/attempt=1.log"] == "cycle 1\ncycle 2\ncycle 3\n"
+        assert local_log.read_text() == ""
+
+    @pytest.mark.parametrize(
+        ("has_uploaded", "expected_local_content"),
+        [(True, ""), (False, "some log\n")],
+    )
+    @mock.patch.object(WasbRemoteLogIO, "write")
+    def test_upload_truncates_local_log_only_after_successful_write(
+        self, mock_write, tmp_path, has_uploaded, expected_local_content
+    ):
+        """A failed upload must leave the local log intact so it can be retried."""
+        mock_write.return_value = has_uploaded
+        io = WasbRemoteLogIO(
+            remote_base="remote/log/location",
+            base_log_folder=str(tmp_path),
+            delete_local_copy=False,
+            wasb_container=self.container_name,
+        )
+        local_log = tmp_path / "attempt=1.log"
+        local_log.write_text("some log\n")
+
+        io.upload("attempt=1.log")
+
+        assert local_log.read_text() == expected_local_content
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
     def test_write_when_append_is_false(self, mock_hook):
         self.wasb_task_handler.io.write("text", self.remote_log_location, False)
         mock_hook.return_value.load_string.assert_called_once_with(
