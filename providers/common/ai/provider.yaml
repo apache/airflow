@@ -153,7 +153,8 @@ connection-types:
       - Google
       - AWS Bedrock
       - Groq
-      - Mistral
+      - Mistral AI
+      - DeepSeek
       - Ollama
       - vLLM
       - LM Studio
@@ -432,11 +433,8 @@ connection-types:
     connection-type: llamaindex
     external-services:
       - OpenAI
-      - Anthropic
-      - Cohere
-      - AWS Bedrock
-      - Google Vertex AI
-      - HuggingFace
+      - Ollama
+      - vLLM
     ui-field-behaviour:
       hidden-fields:
         - schema
