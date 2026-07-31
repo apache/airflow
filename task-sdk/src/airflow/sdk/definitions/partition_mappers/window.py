@@ -97,8 +97,11 @@ class DayWindow(Window):
 
     Twenty-four with a UTC/naive upstream mapper; DST-aware with a local-timezone upstream
     mapper (twenty-three on the spring-forward day, twenty-five on the fall-back day). The
-    DST-aware enumeration runs in the scheduler (airflow-core); this Task SDK definition only
-    declares the window for Dag authoring and serialization.
+    DST-aware enumeration runs in the scheduler (airflow-core) via ``to_upstream_tz`` — the
+    extension point for calendar-sensitive windows. Custom ``Window`` subclasses keep the
+    one-argument ``to_upstream`` contract; only windows that need the upstream mapper's
+    timezone override ``to_upstream_tz``. This Task SDK definition only declares the window
+    for Dag authoring and serialization.
     """
 
     expected_decoded_type: ClassVar[type] = datetime

@@ -128,14 +128,31 @@ class Window(ABC):
         self.direction = self.Direction(direction)
 
     @abstractmethod
-    def to_upstream(self, decoded_downstream: Any, tz: tzinfo | None = None) -> Iterable[Any]:
+    def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
         """
         Yield each decoded upstream item composing *decoded_downstream*.
 
-        *tz* is the paired upstream mapper's timezone (``None`` for naive / non-temporal
-        mappers). Windows whose member count depends on the local calendar (currently only
-        :class:`DayWindow`, across DST transitions) use it; others ignore it.
+        This is the stable one-argument public contract. Custom ``Window``
+        subclasses only need to implement this method. Calendar-sensitive
+        windows that must vary with the upstream mapper's timezone should
+        override :meth:`to_upstream_tz` instead of changing this signature.
         """
+
+    def to_upstream_tz(self, decoded_downstream: Any, tz: tzinfo | None) -> Iterable[Any]:
+        """
+        Yield decoded upstream items for *decoded_downstream*, with optional timezone.
+
+        Extension point for calendar-sensitive windows (currently
+        :class:`DayWindow` across DST transitions). The base implementation
+        ignores *tz* and delegates to :meth:`to_upstream`, so existing custom
+        subclasses that only implement the one-argument ``to_upstream`` keep
+        working without changes.
+
+        :class:`~airflow.partition_mappers.base.RollupMapper` always calls this
+        method (never ``to_upstream`` directly) and passes the upstream mapper's
+        :attr:`~airflow.partition_mappers.base.PartitionMapper.tzinfo`.
+        """
+        return self.to_upstream(decoded_downstream)
 
     def serialize(self) -> dict[str, Any]:
         return {"direction": self.direction.value}
@@ -150,7 +167,7 @@ class HourWindow(Window):
 
     expected_decoded_type: ClassVar[type] = datetime
 
-    def to_upstream(self, period_start: datetime, tz: tzinfo | None = None) -> Iterable[datetime]:
+    def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         # Minute steps within an hour are unaffected by DST (offsets shift on hour boundaries).
         return _build_directional_steps(
             period_start, 60, lambda s, i: s + timedelta(minutes=i), self.direction
@@ -164,12 +181,17 @@ class DayWindow(Window):
     With a UTC (or naive) upstream mapper a day is always 24 hours, so the
     window yields the canonical 24 steps. When the paired upstream mapper uses
     a local timezone (e.g. ``StartOfDayMapper(timezone="America/New_York")``)
-    the window is DST-aware: it enumerates the *real* local hours of that
-    calendar day by stepping through the period in UTC, so it yields 23 members
-    on a spring-forward day and 25 on a fall-back day instead of a fixed 24.
-    This keeps the expected upstream key set matched to the hours that actually
-    occur, so a spring-forward rollup is no longer held forever waiting for a
-    key (e.g. ``"2024-03-10T02"``) that never arrives.
+    the window is DST-aware via :meth:`to_upstream_tz`: it enumerates the
+    *real* local hours of that calendar day by stepping through the period in
+    UTC, so it yields 23 members on a spring-forward day and 25 on a fall-back
+    day instead of a fixed 24. This keeps the expected upstream key set matched
+    to the hours that actually occur, so a spring-forward rollup is no longer
+    held forever waiting for a key (e.g. ``"2024-03-10T02"``) that never arrives.
+
+    Direct calls to :meth:`to_upstream` (without a timezone) always yield the
+    fixed 24 naive hourly steps. :class:`~airflow.partition_mappers.base.RollupMapper`
+    uses :meth:`to_upstream_tz` so local-timezone upstream mappers get DST-correct
+    membership automatically.
 
     .. note::
 
@@ -182,12 +204,20 @@ class DayWindow(Window):
 
     expected_decoded_type: ClassVar[type] = datetime
 
-    def to_upstream(self, period_start: datetime, tz: tzinfo | None = None) -> Iterable[datetime]:
+    def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
+        # Fixed 24 naive hourly steps. DST-aware enumeration lives on to_upstream_tz.
+        return _build_directional_steps(period_start, 24, lambda s, i: s + timedelta(hours=i), self.direction)
+
+    def to_upstream_tz(self, period_start: datetime, tz: tzinfo | None) -> Iterable[datetime]:
+        """
+        Yield the real local hours of the calendar day when *tz* is set.
+
+        When *tz* is ``None`` (UTC / naive upstream mapper), delegates to the
+        fixed-count :meth:`to_upstream`. Calendar-sensitive extension point —
+        see :meth:`Window.to_upstream_tz`.
+        """
         if tz is None:
-            # UTC / naive upstream mapper: a day is always 24 unambiguous hourly steps.
-            return _build_directional_steps(
-                period_start, 24, lambda s, i: s + timedelta(hours=i), self.direction
-            )
+            return self.to_upstream(period_start)
         return self._local_hours(period_start, tz, self.direction)
 
     @staticmethod
@@ -228,7 +258,7 @@ class WeekWindow(Window):
 
     expected_decoded_type: ClassVar[type] = datetime
 
-    def to_upstream(self, period_start: datetime, tz: tzinfo | None = None) -> Iterable[datetime]:
+    def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         # Day-grain steps are DST-safe (a calendar day is one key regardless of its length).
         return _build_directional_steps(period_start, 7, lambda s, i: s + timedelta(days=i), self.direction)
 
@@ -245,7 +275,7 @@ class MonthWindow(Window):
 
     expected_decoded_type: ClassVar[type] = datetime
 
-    def to_upstream(self, period_start: datetime, tz: tzinfo | None = None) -> Iterable[datetime]:
+    def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         # Not expressible via _build_directional_steps: the member count is not fixed (28-31)
         # and BACKWARD is an open-closed (prev_month_start, anchor] generator, not a
         # shift-then-forward mirror of FORWARD.
@@ -271,7 +301,7 @@ class QuarterWindow(Window):
 
     expected_decoded_type: ClassVar[type] = datetime
 
-    def to_upstream(self, period_start: datetime, tz: tzinfo | None = None) -> Iterable[datetime]:
+    def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
         return _build_directional_steps(period_start, 3, _shift_months, self.direction)
 
@@ -281,7 +311,7 @@ class YearWindow(Window):
 
     expected_decoded_type: ClassVar[type] = datetime
 
-    def to_upstream(self, period_start: datetime, tz: tzinfo | None = None) -> Iterable[datetime]:
+    def to_upstream(self, period_start: datetime) -> Iterable[datetime]:
         _require_day_one(period_start, type(self))
         return _build_directional_steps(period_start, 12, _shift_months, self.direction)
 
@@ -334,7 +364,7 @@ class SegmentWindow(Window):
 
     _segments: frozenset[str] = attrs.field(converter=_convert_segments)
 
-    def to_upstream(self, decoded_downstream: Any, tz: tzinfo | None = None) -> frozenset[str]:
+    def to_upstream(self, decoded_downstream: Any) -> frozenset[str]:
         """Return the full declared segment set, ignoring the downstream anchor."""
         return self._segments
 

@@ -16,14 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timedelta
+from typing import Any
 from unittest import mock
 
+import pendulum
 import pytest
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
 from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.partition_mappers.temporal import (
     StartOfDayMapper,
     StartOfHourMapper,
@@ -67,6 +71,9 @@ class TestDayWindow:
         # timezone-agnostic and yields a fixed 24 naive hourly steps.
         spring_forward = datetime(2024, 3, 10)
         assert list(DayWindow().to_upstream(spring_forward)) == [datetime(2024, 3, 10, h) for h in range(24)]
+        assert list(DayWindow().to_upstream_tz(spring_forward, None)) == [
+            datetime(2024, 3, 10, h) for h in range(24)
+        ]
 
         fall_back = datetime(2024, 11, 3)
         assert list(DayWindow().to_upstream(fall_back)) == [datetime(2024, 11, 3, h) for h in range(24)]
@@ -101,6 +108,18 @@ class TestDayWindow:
         )
         assert len(mapper.to_upstream("2024-11-03")) == 24
 
+    def test_day_window_fall_back_with_offset_format_yields_25_keys(self):
+        """With ``%z`` in input_format the two fall-back 01:00 hours are distinct keys."""
+        mapper = RollupMapper(
+            upstream_mapper=StartOfDayMapper(timezone="America/New_York", input_format="%Y-%m-%dT%H%z"),
+            window=DayWindow(),
+        )
+        upstream_keys = mapper.to_upstream("2024-11-03")
+        assert len(upstream_keys) == 25
+        # Both EST (-0500) and EDT (-0400) 01:00 instants appear.
+        assert "2024-11-03T01-0400" in upstream_keys
+        assert "2024-11-03T01-0500" in upstream_keys
+
     def test_day_window_non_dst_local_day_yields_24_keys(self):
         """A local-timezone day with no DST transition still yields exactly 24 keys."""
         mapper = RollupMapper(
@@ -116,6 +135,37 @@ class TestDayWindow:
             window=DayWindow(),
         )
         assert len(mapper.to_upstream("2024-03-10")) == 24
+
+    def test_day_window_fixed_offset_timezone_yields_24_keys(self):
+        """A fixed-offset timezone has no DST transitions; always 24 keys."""
+        mapper = RollupMapper(
+            upstream_mapper=StartOfDayMapper(
+                timezone=pendulum.fixed_timezone(5 * 3600 + 30 * 60),  # +05:30
+                input_format="%Y-%m-%dT%H",
+            ),
+            window=DayWindow(),
+        )
+        # Use a US Eastern DST date; fixed +05:30 still yields 24.
+        assert len(mapper.to_upstream("2024-03-10")) == 24
+        assert len(mapper.to_upstream("2024-11-03")) == 24
+
+    def test_day_window_australia_sydney_dst(self):
+        """Southern-hemisphere DST: spring-forward and fall-back in Australia/Sydney."""
+        # 2024-10-06 Australia/Sydney springs forward (02:00 → 03:00): 23 hours.
+        spring = RollupMapper(
+            upstream_mapper=StartOfDayMapper(timezone="Australia/Sydney", input_format="%Y-%m-%dT%H"),
+            window=DayWindow(),
+        )
+        spring_keys = spring.to_upstream("2024-10-06")
+        assert len(spring_keys) == 23
+        assert "2024-10-06T02" not in spring_keys
+
+        # 2024-04-07 Australia/Sydney falls back: 24 distinct keys without %z.
+        fall = RollupMapper(
+            upstream_mapper=StartOfDayMapper(timezone="Australia/Sydney", input_format="%Y-%m-%dT%H"),
+            window=DayWindow(),
+        )
+        assert len(fall.to_upstream("2024-04-07")) == 24
 
     def test_day_window_backward_spring_forward_local_tz_includes_anchor(self):
         """Backward local-timezone day windows mirror forward semantics and still skip the DST gap."""
@@ -139,6 +189,44 @@ class TestDayWindow:
         assert len(upstream_keys) == 24
         assert "2024-11-03T00" not in upstream_keys
         assert "2024-11-04T00" in upstream_keys
+
+
+class TestToUpstreamTzShim:
+    """Custom Window subclasses keep the one-arg to_upstream contract via to_upstream_tz."""
+
+    def test_custom_one_arg_window_works_with_rollup(self):
+        class CustomOneArgWindow(Window):
+            expected_decoded_type = str
+
+            def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
+                return (decoded_downstream, f"{decoded_downstream}-extra")
+
+        mapper = RollupMapper(
+            upstream_mapper=FixedKeyMapper("all"),
+            window=CustomOneArgWindow(),
+        )
+        # FixedKeyMapper.tzinfo is None; RollupMapper must not pass tz positionally
+        # into CustomOneArgWindow.to_upstream.
+        assert mapper.to_upstream("all") == frozenset({"all", "all-extra"})
+
+    def test_base_to_upstream_tz_delegates_to_to_upstream(self):
+        class CustomOneArgWindow(Window):
+            def to_upstream(self, decoded_downstream: Any) -> Iterable[Any]:
+                return (decoded_downstream,)
+
+        window = CustomOneArgWindow()
+        assert list(window.to_upstream_tz("anchor", tz=None)) == ["anchor"]
+        assert list(window.to_upstream_tz("anchor", tz=pendulum.timezone("UTC"))) == ["anchor"]
+
+
+class TestPartitionMapperTzinfoContract:
+    def test_base_mapper_tzinfo_is_none(self):
+        assert FixedKeyMapper("all").tzinfo is None
+
+    def test_temporal_mapper_exposes_configured_tzinfo(self):
+        mapper = StartOfDayMapper(timezone="America/New_York")
+        assert mapper.tzinfo is not None
+        assert str(mapper.tzinfo) == "America/New_York"
 
 
 class TestWeekWindow:
