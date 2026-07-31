@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-30T10:30:19.096775
+# This constraints file was automatically generated on 2026-07-31T10:18:57.719743
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -304,7 +304,7 @@ facebook_business==25.0.3
 fastapi-cli==0.0.32
 fastapi==0.136.3
 fastavro==1.12.2
-fastcore==2.1.10
+fastcore==2.1.12
 fastjsonschema==2.21.2
 fastuuid==0.14.0
 filelock==3.32.0
@@ -405,7 +405,7 @@ httpr==0.5.2
 httptools==0.8.0
 httpx2==2.9.1
 httpx==0.28.1
-huggingface_hub==1.24.0
+huggingface_hub==1.25.1
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -548,7 +548,7 @@ portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.26.0
-prompt_toolkit==3.0.52
+prompt_toolkit==3.0.53
 propcache==0.5.2
 proto-plus==1.28.2
 protobuf==6.33.6
@@ -630,7 +630,7 @@ s3transfer==0.19.2
 sagemaker_studio==1.0.26
 scikit-learn==1.9.0
 scipy==1.17.1
-scramp==1.4.14
+scramp==1.4.15
 scrapbook==0.5.0
 segment-analytics-python==2.3.6
 sendgrid==6.12.5

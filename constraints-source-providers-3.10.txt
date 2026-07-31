@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-30T10:19:32.548469
+# This constraints file was automatically generated on 2026-07-31T10:17:20.337877
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -463,8 +463,8 @@ openapi-schema-validator==0.9.0
 openapi-spec-validator==0.9.0
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.51.0
-openlineage-python==1.51.0
+openlineage-integration-common==1.52.0
+openlineage-python==1.52.0
 openlineage_sql==1.51.0
 openpyxl==3.1.5
 opensearch-protobufs==1.2.0
