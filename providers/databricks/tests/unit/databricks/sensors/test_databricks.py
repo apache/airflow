@@ -68,16 +68,18 @@ class TestDatabricksSQLStatementsSensor:
         assert op.statement_id == STATEMENT_ID
         assert op.warehouse_id == WAREHOUSE_ID
 
-    @pytest.mark.parametrize(
-        ("kwargs", "match"),
-        [
-            ({"statement": STATEMENT, "statement_id": STATEMENT_ID}, "Cannot provide both"),
-            ({}, "One of either statement or statement_id"),
-        ],
-    )
-    def test_statement_combination_validated_at_execute(self, kwargs, match):
-        op = DatabricksSQLStatementsSensor(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, **kwargs)
-        with pytest.raises(AirflowException, match=match):
+    def test_both_statements_included_validated_at_init(self):
+        with pytest.raises(AirflowException, match="Cannot provide both"):
+            DatabricksSQLStatementsSensor(
+                statement=STATEMENT,
+                statement_id=STATEMENT_ID,
+                task_id=TASK_ID,
+                warehouse_id=WAREHOUSE_ID,
+            )
+
+    def test_both_statements_missing_validated_at_execute(self):
+        op = DatabricksSQLStatementsSensor(task_id=TASK_ID, warehouse_id=WAREHOUSE_ID)
+        with pytest.raises(AirflowException, match="One of either statement or statement_id"):
             op.execute(None)
 
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
