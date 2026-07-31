@@ -23,11 +23,11 @@ import time
 import warnings
 from base64 import urlsafe_b64decode
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any
 from urllib.parse import urljoin
 
 import requests
-from fastapi import FastAPI
+from fastapi import Cookie, FastAPI
 from keycloak import KeycloakOpenID
 from keycloak.exceptions import KeycloakPostError
 from requests.adapters import HTTPAdapter
@@ -92,6 +92,11 @@ TEAM_SCOPED_RESOURCES = frozenset(
 )
 
 
+def _get_keycloak_jwt(user: Annotated[KeycloakAuthManagerUser | None, Cookie(default=None)] = None):
+    """Populate Keycloak user from cookies."""
+    return user
+
+
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     """
     Keycloak auth manager.
@@ -129,19 +134,18 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return self._http_session
 
     def deserialize_user(self, token: dict[str, Any]) -> KeycloakAuthManagerUser:
-        return KeycloakAuthManagerUser(
-            user_id=token.pop("user_id"),
-            name=token.pop("name"),
-            access_token=token.pop("access_token"),
-            refresh_token=token.pop("refresh_token"),
-        )
+        user = _get_keycloak_jwt()
+        if user is None:
+            raise ValueError("Couldn't deserialise user from Cookies.")
+        if user_id := token.pop("user_id"):
+            if user.get_id() != user_id:
+                raise ValueError("Keycloak user in Cookies does not match Airflow JWT.")
+        return user
 
     def serialize_user(self, user: KeycloakAuthManagerUser) -> dict[str, Any]:
         return {
             "user_id": user.get_id(),
             "name": user.get_name(),
-            "access_token": user.access_token,
-            "refresh_token": user.refresh_token,
         }
 
     def get_url_login(self, **kwargs) -> str:

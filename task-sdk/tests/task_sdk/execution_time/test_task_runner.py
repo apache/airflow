@@ -2246,6 +2246,7 @@ class TestRuntimeTaskInstance:
             password="passwordvalue",
             schema="schemavalues",
             extra='{"extra__asana__workspace": "extra1"}',
+            port=None,
         )
 
         mock_supervisor_comms.send.return_value = conn
@@ -2945,6 +2946,10 @@ class TestRuntimeTaskInstance:
             run_type="scheduled",
             state="success",
             consumed_asset_events=[],
+            data_interval_start=None,
+            data_interval_end=None,
+            end_date=None,
+            partition_key=None,
         )
 
         mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)
@@ -2974,6 +2979,10 @@ class TestRuntimeTaskInstance:
             run_type="scheduled",
             state="success",
             consumed_asset_events=[],
+            data_interval_start=None,
+            data_interval_end=None,
+            end_date=None,
+            partition_key=None,
         )
 
         mock_supervisor_comms.send.return_value = PreviousDagRunResult(dag_run=dag_run_data)

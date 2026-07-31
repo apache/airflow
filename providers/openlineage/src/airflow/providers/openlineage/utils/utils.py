@@ -1045,15 +1045,18 @@ class DagRunInfo(InfoJsonEncodable):
         dag_versions = safe_getattr(dagrun, "dag_versions", [])
         if not dag_versions:
             return None
+        # The DagVersion rows themselves are lazy-loaded, so reading their columns can still hit
+        # a detached session even though fetching the list above succeeded.
         current_version = dag_versions[-1]
         if key == "bundle_name":
-            return current_version.bundle_name
+            return safe_getattr(current_version, "bundle_name")
         if key == "bundle_version":
-            return current_version.bundle_version
+            return safe_getattr(current_version, "bundle_version")
         if key == "version_id":
-            return str(current_version.id)
+            version_id = safe_getattr(current_version, "id")
+            return str(version_id) if version_id is not None else None
         if key == "version_number":
-            return current_version.version_number
+            return safe_getattr(current_version, "version_number")
         raise ValueError(f"Unsupported key: {key}`")
 
     @classmethod
@@ -1062,13 +1065,30 @@ class DagRunInfo(InfoJsonEncodable):
         if not AIRFLOW_V_3_3_PLUS or not airflow_conf.getboolean("core", "multi_team", fallback=False):
             return None
 
-        from airflow.models.dagbundle import DagBundleModel
+        # The Execution API delivers the team name on the DagRun payload it sends to the task
+        # runner, so task events resolve it from there rather than through the bundle lookup below,
+        # which needs a metadata DB session the task runner does not have.
+        # `hasattr` rather than a None check -- a team-less run legitimately carries None, while
+        # the scheduler's ORM DagRun has no such attribute at all.
+        if hasattr(dagrun, "team_name"):
+            return dagrun.team_name
 
-        bundle_name = cls.dag_version_info(dagrun, "bundle_name")
-        if not isinstance(bundle_name, str):
+        try:
+            bundle_name = cls.dag_version_info(dagrun, "bundle_name")
+            if not isinstance(bundle_name, str):
+                return None
+
+            from airflow.models.dagbundle import DagBundleModel
+
+            return DagBundleModel.get_team_name(bundle_name)
+        except Exception as e:
+            log.warning(
+                "OpenLineage failed to resolve the team name for dag `%s`: %s.",
+                safe_getattr(dagrun, "dag_id"),
+                e,
+            )
+            log.debug("Exception details:", exc_info=True)
             return None
-
-        return DagBundleModel.get_team_name(bundle_name)
 
 
 class TaskInstanceInfo(InfoJsonEncodable):
@@ -1387,23 +1407,28 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
 def get_airflow_state_run_facet(
     dag_id: str, run_id: str, task_ids: list[str], dag_run_state: DagRunState
 ) -> dict[str, AirflowStateRunFacet]:
-    tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
+    try:
+        tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
 
-    def get_task_duration(ti):
-        if ti.duration is not None:
-            return ti.duration
-        if ti.end_date is not None and ti.start_date is not None:
-            return (ti.end_date - ti.start_date).total_seconds()
-        # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
-        return 0.0
+        def get_task_duration(ti):
+            if ti.duration is not None:
+                return ti.duration
+            if ti.end_date is not None and ti.start_date is not None:
+                return (ti.end_date - ti.start_date).total_seconds()
+            # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
+            return 0.0
 
-    return {
-        "airflowState": AirflowStateRunFacet(
-            dagRunState=dag_run_state,
-            tasksState={ti.task_id: ti.state for ti in tis},
-            tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
-        )
-    }
+        return {
+            "airflowState": AirflowStateRunFacet(
+                dagRunState=dag_run_state,
+                tasksState={ti.task_id: ti.state for ti in tis},
+                tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
+            )
+        }
+    except Exception as e:
+        log.warning("Failed to build AirflowStateRunFacet for DagRun %s/%s: %s.", dag_id, run_id, e)
+        log.debug("Exception details:", exc_info=True)
+        return {}
 
 
 def is_dag_run_asset_triggered(
