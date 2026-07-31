@@ -202,8 +202,6 @@ def generate_task_lifecycle_diagram():
         )
         cond_defer_signal_raised >> Edge(label="NO") >> cond_skip_signal
         cond_defer_signal_raised >> Edge(label="YES") >> state_deferred
-        state_deferred >> Edge(label="Triggerer monitors trigger") >> component_triggerer
-        component_triggerer >> Edge(label="trigger fires,\nScheduler re-schedules task") >> state_scheduled
         cond_skip_signal >> Edge(label="NO") >> cond_sensor_reschedule
         cond_skip_signal >> Edge(label="YES") >> state_skipped
         cond_sensor_reschedule >> Edge(label="NO") >> cond_fail_mark
