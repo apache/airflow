@@ -237,14 +237,11 @@ def _add_and_prime_mapped_ti(
     set_committed_value(ti, "dag_run", dag_run)
 
 
-def _recalculate_dagrun_queued_at_deadlines(
-    dagrun: DagRun, new_queued_at: datetime, session: Session
-) -> None:
+def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session) -> None:
     """
     Recalculate deadline times for deadlines that reference dagrun.queued_at.
 
     :param dagrun: The DagRun whose deadlines should be recalculated
-    :param new_queued_at: The new queued_at timestamp to use for calculation
     :param session: Database session
 
     :meta private:
@@ -267,12 +264,9 @@ def _recalculate_dagrun_queued_at_deadlines(
     from airflow.serialization.decoders import decode_deadline_alert_model, resolve_deadline_alert_interval
 
     for deadline, deadline_alert in results:
-        # We can't use evaluate_with() since the new queued_at is not written to the DB yet, and
-        # interval is stored as JSON, so it has to be decoded rather than passed to timedelta().
         try:
-            interval = resolve_deadline_alert_interval(
-                decode_deadline_alert_model(deadline_alert), session=session
-            )
+            decoded_alert = decode_deadline_alert_model(deadline_alert)
+            interval = resolve_deadline_alert_interval(decoded_alert, session=session)
         except (ValueError, TypeError):
             # Either step can fail: the alert may hold a payload the decoder refuses, or a
             # variable-backed interval may point at a Variable that is missing or non-numeric.
@@ -286,7 +280,16 @@ def _recalculate_dagrun_queued_at_deadlines(
             )
             continue
 
-        new_deadline_time = new_queued_at + interval
+        new_deadline_time = decoded_alert.reference.evaluate_with(
+            session=session,
+            interval=interval,
+            dagrun=dagrun,
+            dag_id=dagrun.dag_id,
+            run_id=dagrun.run_id,
+        )
+
+        if new_deadline_time is None:
+            continue
 
         log.debug(
             "Recalculating deadline %s for DagRun %s.%s: old=%s, new=%s",
@@ -542,7 +545,7 @@ def clear_task_instances(
                     parent_context=parent_trace_context(dr.conf),
                 )
 
-                _recalculate_dagrun_queued_at_deadlines(dr, dr.queued_at, session)
+                _recalculate_dagrun_queued_at_deadlines(dr, session=session)
 
                 if was_finished:
                     dr.state = dag_run_state
