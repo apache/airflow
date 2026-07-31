@@ -453,3 +453,50 @@ class TestCleanupCommands:
         """Test Windows cleanup rejects paths outside expected base directory."""
         with pytest.raises(ValueError, match="Invalid job directory"):
             build_windows_cleanup_command("C:\\temp\\other_dir")
+
+    @pytest.mark.parametrize(
+        "base_dir, job_dir",
+        [
+            pytest.param("/tmp-data/airflow-ssh-jobs", "/tmp-data/airflow-ssh-jobs/job_123", id="custom"),
+            pytest.param(
+                "/tmp-data/airflow-ssh-jobs/", "/tmp-data/airflow-ssh-jobs/job_123", id="trailing-sep"
+            ),
+            pytest.param("/opt/jobs", "/opt/jobs/job_123", id="unrelated-to-default"),
+        ],
+    )
+    def test_posix_cleanup_accepts_configured_base_dir(self, base_dir, job_dir):
+        """A remote_base_dir outside the platform default must not be rejected at cleanup."""
+        cmd = build_posix_cleanup_command(job_dir, base_dir)
+        assert cmd == f"rm -rf '{job_dir}'"
+
+    def test_windows_cleanup_accepts_configured_base_dir(self):
+        """A Windows remote_base_dir outside the platform default must not be rejected."""
+        cmd = build_windows_cleanup_command("D:\\jobs\\job_123", "D:\\jobs")
+        encoded_script = cmd.split("-EncodedCommand ")[1]
+        decoded_script = base64.b64decode(encoded_script).decode("utf-16-le")
+        assert "D:\\jobs\\job_123" in decoded_script
+
+    @pytest.mark.parametrize(
+        "builder, base_dir, job_dir",
+        [
+            pytest.param(build_posix_cleanup_command, "/opt/jobs", "/opt/other/job_123", id="posix-sibling"),
+            pytest.param(
+                build_posix_cleanup_command,
+                "/opt/jobs",
+                "/tmp/airflow-ssh-jobs/job_123",
+                id="posix-platform-default",
+            ),
+            pytest.param(
+                build_windows_cleanup_command, "D:\\jobs", "D:\\other\\job_123", id="windows-sibling"
+            ),
+        ],
+    )
+    def test_cleanup_rejects_paths_outside_configured_base_dir(self, builder, base_dir, job_dir):
+        """Passing a base dir must narrow the guard to it, not disable the guard."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            builder(job_dir, base_dir)
+
+    def test_posix_cleanup_rejects_prefix_lookalike(self):
+        """A sibling directory sharing the base dir's name prefix is not under it."""
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            build_posix_cleanup_command("/opt/jobs-evil/job_123", "/opt/jobs")

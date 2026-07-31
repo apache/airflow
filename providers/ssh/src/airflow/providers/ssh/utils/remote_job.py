@@ -30,18 +30,26 @@ POSIX_DEFAULT_BASE_DIR = "/tmp/airflow-ssh-jobs"
 WINDOWS_DEFAULT_BASE_DIR = "$env:TEMP\\airflow-ssh-jobs"
 
 
-def _validate_job_dir(job_dir: str, remote_os: Literal["posix", "windows"]) -> None:
+def _validate_job_dir(
+    job_dir: str, remote_os: Literal["posix", "windows"], base_dir: str | None = None
+) -> None:
     """
     Validate that job_dir is under the expected base directory.
 
+    The base directory is configurable via ``SSHRemoteJobOperator(remote_base_dir=...)``,
+    so validating against the platform default would reject every custom one.
+
     :param job_dir: The job directory path to validate
     :param remote_os: Operating system type
+    :param base_dir: Base directory the job dir must be under; defaults to the
+        platform default when not set
     :raises ValueError: If job_dir doesn't start with the expected base path
     """
-    if remote_os == "posix":
-        expected_prefix = POSIX_DEFAULT_BASE_DIR + "/"
-    else:
-        expected_prefix = WINDOWS_DEFAULT_BASE_DIR + "\\"
+    sep = "\\" if remote_os == "windows" else "/"
+    if base_dir is None:
+        base_dir = POSIX_DEFAULT_BASE_DIR if remote_os == "posix" else WINDOWS_DEFAULT_BASE_DIR
+    # RemoteJobPaths joins with a single separator, so tolerate a trailing one here.
+    expected_prefix = base_dir.rstrip(sep) + sep
 
     if not job_dir.startswith(expected_prefix):
         raise ValueError(
@@ -456,27 +464,29 @@ if (Test-Path $path) {{
     return f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded_script}"
 
 
-def build_posix_cleanup_command(job_dir: str) -> str:
+def build_posix_cleanup_command(job_dir: str, base_dir: str | None = None) -> str:
     """
     Build a POSIX command to clean up the job directory.
 
     :param job_dir: Path to the job directory
+    :param base_dir: Base directory the job dir must be under; defaults to the platform default
     :return: Shell command to remove the directory
     :raises ValueError: If job_dir is not under the expected base directory
     """
-    _validate_job_dir(job_dir, "posix")
+    _validate_job_dir(job_dir, "posix", base_dir)
     return f"rm -rf '{job_dir}'"
 
 
-def build_windows_cleanup_command(job_dir: str) -> str:
+def build_windows_cleanup_command(job_dir: str, base_dir: str | None = None) -> str:
     """
     Build a PowerShell command to clean up the job directory.
 
     :param job_dir: Path to the job directory
+    :param base_dir: Base directory the job dir must be under; defaults to the platform default
     :return: PowerShell command to remove the directory
     :raises ValueError: If job_dir is not under the expected base directory
     """
-    _validate_job_dir(job_dir, "windows")
+    _validate_job_dir(job_dir, "windows", base_dir)
     escaped_path = job_dir.replace("'", "''")
     script = f"Remove-Item -Recurse -Force -Path '{escaped_path}' -ErrorAction SilentlyContinue"
     script_bytes = script.encode("utf-16-le")

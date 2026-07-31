@@ -504,6 +504,37 @@ class TestSSHRemoteJobOperator:
         assert self.mock_hook.exec_ssh_client_command.call_count == 2
         mock_sleep.assert_called_once()
 
+    def test_cleanup_uses_configured_remote_base_dir(self):
+        """A custom remote_base_dir must survive cleanup, which runs after deferral (#69813)."""
+        self.mock_hook.exec_ssh_client_command.return_value = (0, b"", b"")
+        job_dir = "/tmp-data/airflow-ssh-jobs/test_job_123"
+
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_base_dir="/tmp-data/airflow-ssh-jobs",
+        )
+
+        op._cleanup_remote_job(job_dir, "posix")
+
+        assert self.mock_hook.exec_ssh_client_command.call_count == 1
+        assert job_dir in self.mock_hook.exec_ssh_client_command.call_args.args[1]
+
+    def test_cleanup_still_rejects_job_dir_outside_remote_base_dir(self):
+        """The guard must narrow to the configured base dir rather than being lifted."""
+        op = SSHRemoteJobOperator(
+            task_id="test_task",
+            ssh_conn_id="test_conn",
+            command="/path/to/script.sh",
+            remote_base_dir="/tmp-data/airflow-ssh-jobs",
+        )
+
+        with pytest.raises(ValueError, match="Invalid job directory"):
+            op._cleanup_remote_job("/tmp-data/elsewhere/test_job_123", "posix")
+
+        self.mock_hook.exec_ssh_client_command.assert_not_called()
+
     def test_cleanup_gives_up_after_retries_without_raising(self):
         """When every cleanup attempt fails the task is not failed; the dir is left in place."""
         self.mock_hook.exec_ssh_client_command.side_effect = Exception("connection refused")
