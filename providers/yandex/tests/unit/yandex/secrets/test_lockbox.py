@@ -321,6 +321,42 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
+    def test_another_teams_secret_is_not_reachable(self, mock_get_payload, mock_get_secrets):
+        """A caller scoped to one team must not reach another team's secret by naming it.
+
+        The target secret exists and is resolvable, so a backend that falls through to the
+        team agnostic name returns its value. Only refusing that fall-through returns None.
+        """
+        mock_get_secrets.return_value = [
+            secret_pb.Secret(id="123", name="airflow/connections/teama//my_db"),
+        ]
+        mock_get_payload.return_value = payload_pb.Payload(
+            entries=[payload_pb.Payload.Entry(text_value="teama-conn")]
+        )
+
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("teama//my_db", team_name="teamb") is None
+        mock_get_payload.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
+    def test_team_whose_name_extends_the_callers_is_not_reachable(self, mock_get_payload, mock_get_secrets):
+        """A prefix match on the caller's own namespace is not proof of ownership."""
+        mock_get_secrets.return_value = [
+            secret_pb.Secret(id="123", name="airflow/connections/teama//prod//my_db"),
+        ]
+        mock_get_payload.return_value = payload_pb.Payload(
+            entries=[payload_pb.Payload.Entry(text_value="teama-prod-conn")]
+        )
+
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("teama//prod//my_db", team_name="teama") is None
+        mock_get_payload.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
     def test_yandex_lockbox_secret_backend__get_secret_value(self, mock_get_payload, mock_get_secrets):
         target_name = "target_name"
         target_text = "target_text"
