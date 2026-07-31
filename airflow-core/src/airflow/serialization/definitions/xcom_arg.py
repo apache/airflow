@@ -22,7 +22,7 @@ from functools import singledispatch
 from typing import TYPE_CHECKING, Any
 
 import attrs
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, tuple_
 from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
@@ -157,18 +157,6 @@ class SchedulerZipXComArg(SchedulerXComArg):
             yield from arg.iter_references()
 
 
-def _match_referenced_tasks(model: Any, keys: Iterable[tuple[str, str]]) -> tuple[Any, Any]:
-    """
-    Build filters selecting rows of ``model`` for any of the given ``(dag_id, task_id)``.
-
-    Matching the two columns independently rather than as a row value keeps the query
-    portable. That is wider than the key set only if the keys span several Dags, which
-    the callers never do, and callers read results back by exact key regardless.
-    """
-    dag_ids, task_ids = zip(*keys)
-    return model.dag_id.in_(set(dag_ids)), model.task_id.in_(set(task_ids))
-
-
 def prefetch_map_lengths(
     xcom_args: Iterable[SchedulerXComArg], run_id: str, *, session: Session
 ) -> dict[tuple[str, str], int]:
@@ -194,7 +182,7 @@ def prefetch_map_lengths(
             select(TaskMap.dag_id, TaskMap.task_id, TaskMap.length).where(
                 TaskMap.run_id == run_id,
                 TaskMap.map_index < 0,
-                *_match_referenced_tasks(TaskMap, unmapped),
+                tuple_(TaskMap.dag_id, TaskMap.task_id).in_(sorted(unmapped)),
             )
         )
         lengths.update(((dag_id, task_id), length) for dag_id, task_id, length in rows)
@@ -204,7 +192,7 @@ def prefetch_map_lengths(
                 select(TaskInstance.dag_id, TaskInstance.task_id)
                 .where(
                     TaskInstance.run_id == run_id,
-                    *_match_referenced_tasks(TaskInstance, mapped),
+                    tuple_(TaskInstance.dag_id, TaskInstance.task_id).in_(sorted(mapped)),
                     # Special NULL treatment is needed because 'state' can be NULL.
                     # The "IN" part would produce "NULL NOT IN ..." and eventually
                     # "NULl = NULL", which is a big no-no in SQL.
@@ -225,7 +213,7 @@ def prefetch_map_lengths(
                         XComModel.run_id == run_id,
                         XComModel.map_index >= 0,
                         XComModel.key == XCOM_RETURN_KEY,
-                        *_match_referenced_tasks(XComModel, finished),
+                        tuple_(XComModel.dag_id, XComModel.task_id).in_(sorted(finished)),
                     )
                     .group_by(XComModel.dag_id, XComModel.task_id)
                 )

@@ -101,6 +101,30 @@ def test_map_lengths_resolve_nested_zip_leaves_in_one_batch(dag_maker, session):
     assert lengths == {"a": 2}
 
 
+def test_expand_kwargs_resolves_concatenated_upstreams_in_one_batch(dag_maker, session):
+    with dag_maker(dag_id="expand_kwargs_upstreams", session=session, serialized=True) as dag:
+
+        @dag.task
+        def emit_a(): ...
+
+        @dag.task
+        def emit_b(): ...
+
+        @dag.task
+        def show(a): ...
+
+        show.expand_kwargs(emit_a().concat(emit_b()))
+
+    dag_run = dag_maker.create_dagrun()
+    for task_id, length in (("emit_a", 2), ("emit_b", 3)):
+        _add_task_map(session, dag_run, task_id, length)
+    session.commit()
+
+    expand_input = _get_expand_input(dag_maker)
+    with assert_queries_count(1, session=session):
+        assert expand_input.get_total_map_length(dag_run.run_id, session=session) == 5
+
+
 def _make_mapped_upstream_dag(dag_maker, session):
     """Build ``show.expand(a=<mapped task>, b=<unmapped task>)`` with ``a`` expanded to 2 instances."""
     with dag_maker(dag_id="mapped_upstream", session=session, serialized=True) as dag:
