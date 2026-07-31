@@ -248,24 +248,24 @@ eleventyComputed:
         </button>
         {% endfor %}
       </div>
-      {% set hasExternalIntegrations = false %}
+      {% set hasExternalServices = false %}
       {% for conn in conns %}
-        {% if conn.external_integrations and conn.external_integrations.length > 0 %}{% set hasExternalIntegrations = true %}{% endif %}
+        {% if conn.external_services and conn.external_services.length > 0 %}{% set hasExternalServices = true %}{% endif %}
       {% endfor %}
-      {% if hasExternalIntegrations %}
+      {% if hasExternalServices %}
       <table class="conn-integrations-table">
         <thead>
           <tr class="conn-integrations-header">
             <th>Connection type</th>
-            <th>Upstream providers</th>
+            <th>External services</th>
           </tr>
         </thead>
         <tbody>
           {% for conn in conns %}
-          {% if conn.external_integrations and conn.external_integrations.length > 0 %}
+          {% if conn.external_services and conn.external_services.length > 0 %}
           <tr class="conn-integrations-row">
             <td><code>{{ conn.conn_type or conn.connection_type }}</code></td>
-            <td class="conn-integrations-list">{{ conn.external_integrations | join(", ") }}</td>
+            <td class="conn-integrations-list">{{ conn.external_services | join(", ") }}</td>
           </tr>
           {% endif %}
           {% endfor %}

@@ -375,7 +375,7 @@ class Provider:
     categories: list[dict] = field(default_factory=list)
     connection_types: list[dict] = field(
         default_factory=list
-    )  # {conn_type, hook_class, docs_url, external_integrations}
+    )  # {conn_type, hook_class, docs_url, external_services}
     requires_python: str = ""  # e.g., ">=3.10"
     dependencies: list[str] = field(default_factory=list)  # from pyproject.toml
     optional_extras: dict[str, list[str]] = field(default_factory=dict)  # {extra_name: [deps]}
@@ -784,14 +784,14 @@ def main():
         for conn in provider_yaml.get("connection-types", []):
             conn_type = conn.get("connection-type", "")
             hook_class = conn.get("hook-class-name", "")
-            external_integrations = conn.get("external-integrations", [])
+            external_services = conn.get("external-services", [])
             if conn_type:
                 connection_types.append(
                     {
                         "conn_type": conn_type,
                         "hook_class": hook_class,
                         "docs_url": resolve_connection_docs_url(conn_type, conn_url_map, base_docs_url),
-                        "external_integrations": external_integrations,
+                        "external_services": external_services,
                     }
                 )
 

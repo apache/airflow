@@ -471,8 +471,8 @@
                         },
                         "additionalProperties": false
                     },
-                    "external-integrations": {
-                        "description": "List of upstream provider/service names this connection type reaches (e.g. 'Anthropic', 'AWS Bedrock', 'Ollama')",
+                    "external-services": {
+                        "description": "List of upstream provider/service names this connection type reaches over the network (e.g. 'Anthropic', 'AWS Bedrock', 'Ollama'). Not to be confused with the top-level 'integrations' key, which describes framework integrations and drives docs/logo/tag generation.",
                         "type": "array",
                         "items": {
                             "type": "string"

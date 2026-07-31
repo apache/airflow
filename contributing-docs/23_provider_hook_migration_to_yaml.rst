@@ -60,6 +60,30 @@ Customizations for standard connection fields:
       placeholders:
         port: '5432'
 
+external-services
+~~~~~~~~~~~~~~~~~
+
+List of upstream provider or model-serving services that this connection type
+reaches over the network (e.g. ``OpenAI``, ``AWS Bedrock``, ``Ollama``). The registry
+renders this list as a table on the provider's version page, so someone browsing the
+registry can see at a glance which external services a given connection type talks
+to.
+
+This is unrelated to the top-level ``integrations`` key in ``provider.yaml``, which
+describes *framework* integrations (e.g. Kubernetes, Docker) and drives the
+provider's docs pages, logo, and tags. ``external-services`` only applies inside a
+``connection-types`` entry and only lists services reached over the network — it has
+no effect on docs generation, logos, or tags.
+
+.. code-block:: yaml
+
+    connection-types:
+      - hook-class-name: airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIAzureHook
+        hook-name: "Pydantic AI (Azure OpenAI)"
+        connection-type: pydanticai-azure
+        external-services:
+          - Azure OpenAI
+
 conn-fields
 ~~~~~~~~~~~
 
