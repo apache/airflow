@@ -8,6 +8,7 @@
     "Variables": "변수들"
   },
   "allOperators": "모든 오퍼레이터",
+  "allTeams": "모든 팀",
   "appearance": {
     "appearance": "외관",
     "darkMode": "다크 모드",
@@ -83,6 +84,7 @@
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
   "dagRunId": "Dag 실행 ID",
+  "dagRunState": "Dag 실행 상태",
   "dagWarnings": "Dag 경고/오류",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
@@ -224,6 +226,9 @@
   "selected": "선택됨",
   "showDetailsPanel": "세부 정보 패널 펼치기",
   "signedInAs": "로그인한 사용자",
+  "slot": "슬롯",
+  "slot_one": "슬롯",
+  "slot_other": "슬롯",
   "source": {
     "hide": "소스 숨기기",
     "hotkey": "s",
