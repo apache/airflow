@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Support for ``pyexasol`` 1.x has been dropped; this provider now requires ``pyexasol>=2,<3``.
+  ``pyexasol`` 2 ships a ``py.typed`` marker, so its type hints are now enforced against the hook.
+  The public behaviour of ``ExasolHook`` is unchanged -- ``run``, ``get_records``, ``get_first`` and
+  the pandas export still accept the same ``sql`` and ``parameters`` arguments. Only named
+  (mapping) query parameters are supported, matching what Exasol can bind; passing a positional
+  sequence as ``parameters`` now raises a clear ``TypeError`` instead of failing inside the driver.
+  If you pin ``pyexasol`` in your environment, upgrade it to a ``2.x`` release before upgrading this
+  provider.
+
+* ``Migrate Exasol provider to pyexasol 2 (#69431)``
+
 4.10.4
 ......
 
