@@ -149,14 +149,14 @@ MODULE_TYPES: dict[str, dict] = {
         "level": "flat",
         "suffixes": [],
         "label": "DB Managers",
-        "icon": "D",
+        "icon": "M",
     },
     "dialect": {
         "yaml_key": "dialects",
         "level": "flat",
         "suffixes": [],
         "label": "Dialects",
-        "icon": "C",
+        "icon": "D",
     },
 }
 

@@ -87,11 +87,11 @@
   {
     "id": "db_manager",
     "label": "DB Managers",
-    "icon": "D"
+    "icon": "M"
   },
   {
     "id": "dialect",
     "label": "Dialects",
-    "icon": "C"
+    "icon": "D"
   }
 ]
