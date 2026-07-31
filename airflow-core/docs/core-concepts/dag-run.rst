@@ -66,7 +66,7 @@ to ``True``. With that setup, a Dag run is usually scheduled *after* its
 associated data interval has ended, so a run covering 2020-01-01 generally does
 not start until after 2020-01-02 00:00:00.
 
-See :ref:`Differences between "trigger" and "data interval" timetables` for a
+See :ref:`timetables comparison <Differences between "trigger" and "data interval" timetables>` for a
 side-by-side comparison, including how ``logical_date`` and ``run_id`` differ.
 
 All dates in Airflow are tied to the data interval concept in some way. The
@@ -77,10 +77,13 @@ equals the trigger time. With a non-zero ``interval=`` on a trigger timetable
 it is ``trigger_time - interval``. For a data-interval timetable it is the
 start of the contiguous window, not when the Dag is actually executed.
 
-Similarly, since the ``start_date`` argument for the Dag and its tasks points to
-the same logical date, it marks the start of scheduling for the Dag (the first
-possible logical date), not when tasks in the Dag will start running. In other
-words, a Dag run will only be scheduled once the timetable reaches ``start_date``.
+Similarly, the ``start_date`` argument for the Dag and its tasks marks the
+earliest *trigger time* (``run_after``) the scheduler will create, not when
+tasks start running, and not necessarily the first logical date (see the
+non-zero ``interval=`` case above). A run is only created once the timetable
+reaches that bound. For a data-interval timetable, ``start_date`` is also the
+start of the first data interval, so that first run does not execute until the
+window closes, one schedule period after ``start_date``.
 
 .. tip::
 
@@ -166,11 +169,18 @@ the scheduler would immediately create a run for the most recently completed
 interval (2016-01-01 through 2016-01-02), and the next run would cover
 2016-01-02 through 2016-01-03 after that interval ends.
 
-Be aware that using a ``datetime.timedelta`` object as ``schedule`` follows the
-same default-vs-data-interval split via ``[scheduler] create_delta_data_intervals``.
-For a more detailed description of the differences, see
-:ref:`Differences between "trigger" and "data interval" timetables` and
-:ref:`Differences between the cron and delta data interval timetables`.
+Be aware that using a ``datetime.timedelta`` object as ``schedule`` is not the
+same as a cron string, even though Airflow 3 also defaults timedelta schedules
+to a trigger timetable (:ref:`DeltaTriggerTimetable`, via
+``[scheduler] create_delta_data_intervals``). A delta has no wall-clock boundary
+to snap to, so with ``catchup=False`` the first run lands at pickup time
+(**2016-01-02 06:00** in this example), with ``data_interval_start`` and
+``data_interval_end`` both equal to that moment. If instead you enable the data-interval delta
+timetable (``create_delta_data_intervals=True``), the first run covers one
+schedule interval ending now (2016-01-01 06:00 through 2016-01-02 06:00). For a
+more detailed description of the differences, see
+:ref:`timetables comparison <Differences between "trigger" and "data interval" timetables>` and
+:ref:`cron vs delta data intervals <Differences between the cron and delta data interval timetables>`.
 
 If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have
 created a Dag Run for each scheduled run time between ``start_date`` and "now"
