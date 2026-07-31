@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import tempfile
 from datetime import datetime
 from unittest import mock
@@ -46,12 +47,26 @@ from tests_common.test_utils.version_compat import (
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.common.compat.sdk import DagRunTriggerException
+
+    # Older, already-released Airflow 3.x versions (exercised by the provider's compat test
+    # matrix) predate `reattach_on_existing` on `DagRunTriggerException`.
+    DAGRUN_TRIGGER_EXCEPTION_SUPPORTS_REATTACH = (
+        "reattach_on_existing" in inspect.signature(DagRunTriggerException.__init__).parameters
+    )
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
+
+
+def _dag_run_already_exists(dag_run: DagRun) -> DagRunAlreadyExists:
+    """Build DagRunAlreadyExists across the Airflow 2.x / 3.x constructor signature change."""
+    if "execution_date" in inspect.signature(DagRunAlreadyExists.__init__).parameters:
+        return DagRunAlreadyExists(dag_run, dag_run.logical_date, dag_run.run_id)  # type: ignore[call-arg]
+    return DagRunAlreadyExists(dag_run)
+
 
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 DEFAULT_RUN_ID = "testing_run_id"
@@ -133,7 +148,8 @@ class TestDagRunOperator:
             assert exc_info.value.logical_date is None
             assert exc_info.value.reset_dag_run is False
             assert exc_info.value.skip_when_already_exists is False
-            assert exc_info.value.reattach_on_existing is False
+            if DAGRUN_TRIGGER_EXCEPTION_SUPPORTS_REATTACH:
+                assert exc_info.value.reattach_on_existing is False
             assert exc_info.value.wait_for_completion is False
             assert exc_info.value.allowed_states == [DagRunState.SUCCESS]
             assert exc_info.value.failed_states == [DagRunState.FAILED]
@@ -169,7 +185,8 @@ class TestDagRunOperator:
             assert exc_info.value.logical_date is not None
             assert exc_info.value.reset_dag_run is False
             assert exc_info.value.skip_when_already_exists is False
-            assert exc_info.value.reattach_on_existing is False
+            if DAGRUN_TRIGGER_EXCEPTION_SUPPORTS_REATTACH:
+                assert exc_info.value.reattach_on_existing is False
             assert exc_info.value.wait_for_completion is False
             assert exc_info.value.allowed_states == [DagRunState.SUCCESS]
             assert exc_info.value.failed_states == [DagRunState.FAILED]
@@ -265,6 +282,11 @@ class TestDagRunOperator:
             skip_when_already_exists=skip_when_already_exists,
             reattach_on_existing=True,
         )
+
+        if not DAGRUN_TRIGGER_EXCEPTION_SUPPORTS_REATTACH:
+            with pytest.raises(NotImplementedError, match="requires Airflow 3.x task execution support"):
+                task.execute(context={})
+            return
 
         with pytest.raises(DagRunTriggerException) as exc_info:
             task.execute(context={})
@@ -963,7 +985,7 @@ class TestDagRunOperatorAF2:
         existing_dag_run.run_id = "dummy_run_id"
         existing_dag_run.logical_date = DEFAULT_DATE
         existing_dag_run.state = DagRunState.SUCCESS
-        mock_trigger_dag.side_effect = DagRunAlreadyExists(existing_dag_run)
+        mock_trigger_dag.side_effect = _dag_run_already_exists(existing_dag_run)
         ti = mock.MagicMock(spec=TaskInstance)
 
         task._trigger_dag_af_2({"task_instance": ti}, "dummy_run_id", DEFAULT_DATE)
@@ -993,7 +1015,7 @@ class TestDagRunOperatorAF2:
         existing_dag_run.run_id = "dummy_run_id"
         existing_dag_run.logical_date = DEFAULT_DATE
         existing_dag_run.state = DagRunState.FAILED
-        mock_trigger_dag.side_effect = DagRunAlreadyExists(existing_dag_run)
+        mock_trigger_dag.side_effect = _dag_run_already_exists(existing_dag_run)
 
         with pytest.raises(AirflowException, match=f"{TRIGGERED_DAG_ID} failed"):
             task._trigger_dag_af_2(
@@ -1022,7 +1044,7 @@ class TestDagRunOperatorAF2:
         existing_dag_run.dag_id = TRIGGERED_DAG_ID
         existing_dag_run.run_id = "dummy_run_id"
         existing_dag_run.logical_date = DEFAULT_DATE
-        mock_trigger_dag.side_effect = DagRunAlreadyExists(existing_dag_run)
+        mock_trigger_dag.side_effect = _dag_run_already_exists(existing_dag_run)
         mock_task_defer = mock.MagicMock(side_effect=task.defer)
 
         with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(TaskDeferred):
@@ -1049,7 +1071,7 @@ class TestDagRunOperatorAF2:
         existing_dag_run = mock.MagicMock(spec=DagRun)
         existing_dag_run.dag_id = TRIGGERED_DAG_ID
         existing_dag_run.run_id = "dummy_run_id"
-        mock_trigger_dag.side_effect = DagRunAlreadyExists(existing_dag_run)
+        mock_trigger_dag.side_effect = _dag_run_already_exists(existing_dag_run)
 
         with pytest.raises(AirflowSkipException):
             task._trigger_dag_af_2(
@@ -1076,7 +1098,7 @@ class TestDagRunOperatorAF2:
         existing_dag_run.dag_id = TRIGGERED_DAG_ID
         existing_dag_run.run_id = "dummy_run_id"
         existing_dag_run.logical_date = DEFAULT_DATE
-        mock_trigger_dag.side_effect = DagRunAlreadyExists(existing_dag_run)
+        mock_trigger_dag.side_effect = _dag_run_already_exists(existing_dag_run)
         mock_get_current.return_value = mock.MagicMock(spec=DagModel)
         dag = mock_get_dag.return_value
         ti = mock.MagicMock(spec=TaskInstance)
