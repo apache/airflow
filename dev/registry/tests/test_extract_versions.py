@@ -138,7 +138,7 @@ class TestExtractModulesFromYamlDictShapedSections:
         list(DICT_SHAPED_CLASS_LEVEL_SECTIONS.items()),
     )
     def test_dict_shaped_section_produces_module(self, yaml_key, type_and_field):
-        mod_type, class_path_field = type_and_field
+        mod_type, class_path_field, _integration_field = type_and_field
         class_path = f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"
         provider_yaml = {yaml_key: [{class_path_field: class_path}]}
 
@@ -160,9 +160,13 @@ class TestExtractModulesFromYamlDictShapedSections:
                     class_path_field: f"airflow.providers.test.{yaml_key.replace('-', '_')}.example.ExampleClass"
                 }
             ]
-            for yaml_key, (_, class_path_field) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items()
+            for yaml_key, (
+                _,
+                class_path_field,
+                _integration_field,
+            ) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items()
         }
 
         modules = _extract_class_level_modules(provider_yaml)
 
-        assert {m["type"] for m in modules} == {t for t, _ in DICT_SHAPED_CLASS_LEVEL_SECTIONS.values()}
+        assert {m["type"] for m in modules} == {t for t, _, _ in DICT_SHAPED_CLASS_LEVEL_SECTIONS.values()}

@@ -99,7 +99,7 @@ class TestDerivedLookups:
         assert set(CLASS_LEVEL_CATEGORY_OVERRIDES.keys()) <= set(CLASS_LEVEL_SECTIONS.keys())
 
     def test_dict_shaped_class_level_sections_are_subset_of_flat(self):
-        for yaml_key, (type_id, _field_name) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+        for yaml_key, (type_id, _field_name, _integration_field) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
             assert yaml_key in FLAT_LEVEL_SECTIONS
             assert FLAT_LEVEL_SECTIONS[yaml_key] == type_id
 

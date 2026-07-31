@@ -352,7 +352,11 @@ def extract_modules_from_yaml(
 
     # Dict-shaped class-level sections (each entry is a dict carrying the
     # class path under a section-specific field name, see types.py).
-    for yaml_key, (mod_type, class_path_field) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+    for yaml_key, (
+        mod_type,
+        class_path_field,
+        _integration_field,
+    ) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
         category = CLASS_LEVEL_CATEGORY_OVERRIDES.get(yaml_key, yaml_key)
         desc_suffix = FQCN_DESC_SUFFIXES[mod_type]
         for entry in provider_yaml.get(yaml_key, []):

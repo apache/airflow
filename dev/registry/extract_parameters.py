@@ -629,57 +629,36 @@ def discover_classes_from_provider(
                 )
             )
 
-    # --- Plugins (dict entries with "name" + a class-path field, see types.py) ---
-    plugin_class_field = DICT_SHAPED_CLASS_LEVEL_SECTIONS["plugins"][1]
-    for plugin in provider_yaml.get("plugins", []):
-        if not isinstance(plugin, dict):
-            continue
-        if not (class_path := plugin.get(plugin_class_field, "")):
-            continue
-        if (resolved := _resolve_dotted_path(class_path)) is None:
-            continue
-        module_path, class_name, candidate = resolved
-        if candidate is None or not inspect.isclass(candidate):
-            log.warning("%s is not a class", class_path)
-            continue
+    # --- Dict-shaped class-level sections (plugins, dialects; each entry is a
+    # dict carrying an integration-name field plus a class-path field, see types.py) ---
+    for section_name, (
+        module_type,
+        class_field,
+        integration_field,
+    ) in DICT_SHAPED_CLASS_LEVEL_SECTIONS.items():
+        for entry in provider_yaml.get(section_name, []):
+            if not isinstance(entry, dict):
+                continue
+            if not (class_path := entry.get(class_field, "")):
+                continue
+            if (resolved := _resolve_dotted_path(class_path)) is None:
+                continue
+            module_path, class_name, candidate = resolved
+            if candidate is None or not inspect.isclass(candidate):
+                log.warning("%s is not a class", class_path)
+                continue
 
-        discovered.append(
-            make_entry(
-                candidate,
-                class_name,
-                "plugin",
-                class_path,
-                module_path,
-                integration=plugin.get("name", ""),
-                category=CLASS_LEVEL_CATEGORY_OVERRIDES.get("plugins", "plugins"),
+            discovered.append(
+                make_entry(
+                    candidate,
+                    class_name,
+                    module_type,
+                    class_path,
+                    module_path,
+                    integration=entry.get(integration_field, ""),
+                    category=CLASS_LEVEL_CATEGORY_OVERRIDES.get(section_name, section_name),
+                )
             )
-        )
-
-    # --- Dialects (dict entries with "dialect-type" + a class-path field, see types.py) ---
-    dialect_class_field = DICT_SHAPED_CLASS_LEVEL_SECTIONS["dialects"][1]
-    for dialect in provider_yaml.get("dialects", []):
-        if not isinstance(dialect, dict):
-            continue
-        if not (class_path := dialect.get(dialect_class_field, "")):
-            continue
-        if (resolved := _resolve_dotted_path(class_path)) is None:
-            continue
-        module_path, class_name, candidate = resolved
-        if candidate is None or not inspect.isclass(candidate):
-            log.warning("%s is not a class", class_path)
-            continue
-
-        discovered.append(
-            make_entry(
-                candidate,
-                class_name,
-                "dialect",
-                class_path,
-                module_path,
-                integration=dialect.get("dialect-type", ""),
-                category=CLASS_LEVEL_CATEGORY_OVERRIDES.get("dialects", "dialects"),
-            )
-        )
 
     # --- Task decorators (class-name key in each entry) ---
     for decorator in provider_yaml.get("task-decorators", []):

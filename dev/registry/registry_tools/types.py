@@ -191,11 +191,9 @@ TYPE_SUFFIXES: dict[str, list[str]] = {type_id: info["suffixes"] for type_id, in
 # list full class paths rather than simple entries).
 #
 # "plugins" and "dialects" are also flat/class-path sections, but each entry is a
-# dict (plugin-class / dialect-class-name) rather than a bare string, and the
-# integration-name field they carry differs between the two, so extract_parameters.py
-# still walks them with their own loops instead of this generic one. The class-path
-# field name itself is shared via DICT_SHAPED_CLASS_LEVEL_SECTIONS below so both
-# extract_versions.py and extract_parameters.py read it from one place.
+# dict (plugin-class / dialect-class-name) rather than a bare string, so they are
+# handled by the generic dict-shaped loop driven by DICT_SHAPED_CLASS_LEVEL_SECTIONS
+# below instead of this table.
 CLASS_LEVEL_SECTIONS: dict[str, str] = {
     "notifications": "notifier",
     "secrets-backends": "secret",
@@ -207,13 +205,14 @@ CLASS_LEVEL_SECTIONS: dict[str, str] = {
     "db-managers": "db_manager",
 }
 
-# Maps yaml section key -> (type id, class-path field name) for dict-shaped
-# class-level sections (each yaml entry is a dict, not a bare class-path
-# string), shared by extract_versions.py and extract_parameters.py so the
-# field name is defined exactly once.
-DICT_SHAPED_CLASS_LEVEL_SECTIONS: dict[str, tuple[str, str]] = {
-    "plugins": ("plugin", "plugin-class"),
-    "dialects": ("dialect", "dialect-class-name"),
+# Maps yaml section key -> (type id, class-path field name, integration-name
+# field name) for dict-shaped class-level sections (each yaml entry is a dict,
+# not a bare class-path string). Shared by extract_versions.py and
+# extract_parameters.py so both walk these sections with a single generic loop
+# instead of one per section, and so the field names are defined exactly once.
+DICT_SHAPED_CLASS_LEVEL_SECTIONS: dict[str, tuple[str, str, str]] = {
+    "plugins": ("plugin", "plugin-class", "name"),
+    "dialects": ("dialect", "dialect-class-name", "dialect-type"),
 }
 
 # Maps yaml section key -> category string for class-level (FQCN) sections.
