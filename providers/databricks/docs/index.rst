@@ -105,7 +105,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.13.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``requests``                                ``>=2.32.0,<3``
-``databricks-sql-connector``                ``>=4.0.0``
+``databricks-sql-connector``                ``>=4.4.0``
 ``aiohttp``                                 ``>=3.14.0,<4``
 ``mergedeep``                               ``>=1.3.4``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
