@@ -375,7 +375,6 @@ providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py::1
 providers/opensearch/src/airflow/providers/opensearch/operators/opensearch.py::9
 providers/pagerduty/src/airflow/providers/pagerduty/hooks/pagerduty.py::1
 providers/pagerduty/src/airflow/providers/pagerduty/hooks/pagerduty_events.py::2
-providers/postgres/src/airflow/providers/postgres/hooks/postgres.py::2
 providers/presto/src/airflow/providers/presto/hooks/presto.py::1
 providers/samba/src/airflow/providers/samba/transfers/gcs_to_samba.py::1
 providers/segment/src/airflow/providers/segment/hooks/segment.py::2
