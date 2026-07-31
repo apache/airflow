@@ -49,7 +49,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const dagId = dagRun.dag_id;
   const dagRunId = dagRun.dag_run_id;
 
-  const findOnGrid = () =>
+  const showInGrid = () =>
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -69,7 +69,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
       <HeaderCard
         actions={
           <>
-            <IconButton label={translate("dagRun.findOnGrid")} onClick={findOnGrid} variant="outline">
+            <IconButton label={translate("dagRun.showInGrid")} onClick={showInGrid} variant="outline">
               <LuScanSearch />
             </IconButton>
             <NeedsReviewButtonWithModal dagId={dagId} runId={dagRunId} />
