@@ -1801,6 +1801,16 @@ class TestPostAssetMaterialize(TestAssets):
         session.commit()
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_materialize_records_triggering_user_display_name(self, mock_display_name, test_client):
+        response = test_client.post("/assets/1/materialize")
+        assert response.status_code == 200
+        assert response.json()["triggering_user_name"] == "Jane Doe"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200(self, test_client):
         response = test_client.post("/assets/1/materialize")
         assert response.status_code == 200

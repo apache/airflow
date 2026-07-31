@@ -800,7 +800,7 @@ def trigger_dag_run(
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=triggered_by,
-            triggering_user_name=user.get_name(),
+            triggering_user_name=user.get_display_name(),
             state=DagRunState.QUEUED,
             partition_key=params["partition_key"],
             bundle_version=body.bundle_version,
