@@ -452,20 +452,6 @@ class DagFileProcessorManager(LoggingMixin):
         """Clean up stale DAG bundle version usage records."""
         BundleUsageTrackingManager().remove_stale_bundle_versions()
 
-    @staticmethod
-    def _file_name_from_fileloc(fileloc: str) -> str:
-        """
-        If a python file comes from a zip module, return just the path to the zip file.
-
-        file parsing stats are keyed by the top-level filename (path/to/archive.zip).
-        in order to correctly link DAGs to their relevant parsing stats, we need to normalize
-        fileloc to the archive file location, if applicable.
-        """
-        if ".zip" in fileloc:
-            return fileloc[: fileloc.index(".zip") + 4]
-
-        return fileloc
-
     @provide_session
     def deactivate_stale_dags(
         self,
@@ -520,9 +506,11 @@ class DagFileProcessorManager(LoggingMixin):
             # When the Dag's last_parsed_time is more than the stale_dag_threshold older than the
             # Dag file's last_finish_time, the Dag is considered stale as has apparently been removed from the file,
             # This is especially relevant for Dag files that generate Dags in a dynamic manner.
-            file_info = DagFileInfo(
-                rel_path=Path(self._file_name_from_fileloc(dag.relative_fileloc)), bundle_name=dag.bundle_name
-            )
+            rel_path = Path(dag.relative_fileloc)
+            file_info = DagFileInfo(rel_path=rel_path, bundle_name=dag.bundle_name)
+            if file_info not in last_parsed:
+                # Zip-packaged dags are keyed by the archive path, not the inner file, so try the parent as well
+                file_info = DagFileInfo(rel_path=rel_path.parent, bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
                     self.log.info(

@@ -576,7 +576,6 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == expected
 
         # Verify running it again produces same order
-        manager._files = []
         manager.prepare_file_queue(known_files=known_files)
         assert manager._file_queue == expected
 
@@ -1016,7 +1015,6 @@ class TestDagFileProcessorManager:
             run_count=1,
             last_num_of_db_queries=1,
         )
-        manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
         active_dag_count = session.scalar(
@@ -1061,11 +1059,12 @@ class TestDagFileProcessorManager:
         manager._dag_bundles = [bundle]
 
         test_dag_path = DagFileInfo(
-            rel_path=Path(test_zip_path),
+            rel_path=Path("test_zip.zip"),
+            bundle_path=Path(test_zip_path).parent,
             bundle_name="testing",
         )
         dagbag = DagBag(
-            test_zip_path,
+            test_dag_path.absolute_path,
             bundle_path=test_dag_path.bundle_path,
         )
 
@@ -1082,7 +1081,6 @@ class TestDagFileProcessorManager:
             run_count=1,
             last_num_of_db_queries=1,
         )
-        manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
         active_dag_count = session.scalar(
