@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import pytest
-from opentelemetry import context, trace
+from opentelemetry import baggage, context, propagate, trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.sampling import (
     ALWAYS_OFF,
@@ -35,6 +35,7 @@ from airflow_shared.observability.traces import (
     build_trace_state_entries,
     get_task_span_detail_level,
     new_dagrun_trace_carrier,
+    new_task_run_carrier,
 )
 
 
@@ -360,3 +361,30 @@ class TestGetTaskSpanDetailLevel:
 
         span = trace.get_current_span(ctx)
         assert get_task_span_detail_level(span) == 3
+
+
+class TestCarriersUseConfiguredPropagators:
+    """
+    Carriers are written by the globally configured propagators, not a fixed W3C one.
+
+    Under the default ``OTEL_PROPAGATORS=tracecontext,baggage`` that means baggage rides along,
+    which is what lets a vendor propagate implementation-specific details across the boundary.
+    """
+
+    @pytest.fixture
+    def baggage_attached(self):
+        token = context.attach(baggage.set_baggage("tenant", "acme"))
+        yield
+        context.detach(token)
+
+    def test_dagrun_carrier_carries_baggage(self, baggage_attached):
+        carrier = new_dagrun_trace_carrier()
+        assert baggage.get_all(propagate.extract(carrier)) == {"tenant": "acme"}
+
+    def test_task_run_carrier_carries_baggage(self, baggage_attached):
+        carrier = new_task_run_carrier(new_dagrun_trace_carrier())
+        assert baggage.get_all(propagate.extract(carrier)) == {"tenant": "acme"}
+
+    def test_no_baggage_leaves_carrier_untouched(self):
+        """Deployments not using baggage keep emitting exactly traceparent/tracestate."""
+        assert set(new_dagrun_trace_carrier()) <= {"traceparent", "tracestate"}

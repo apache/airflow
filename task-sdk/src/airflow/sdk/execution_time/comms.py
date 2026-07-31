@@ -108,10 +108,7 @@ except ImportError:
     # Available on Unix and Windows (so "everywhere") but lets be safe
     recv_fds = None  # type: ignore[assignment]
 
-from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
-_trace_propagator = TraceContextTextMapPropagator()
-
+from opentelemetry import propagate as otel_propagate
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -194,7 +191,7 @@ class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, o
     """
     body: dict[str, Any] | None
     context_carrier: dict[str, str] | None = None
-    """W3C trace context carrier (traceparent + tracestate) of the task runner's active span.
+    """Trace context carrier of the task runner's active span, written by the configured propagators.
 
     The supervisor extracts this to restore the task runner's trace context before making outbound HTTP
     calls, so that server-side spans (e.g. POST /xcoms/…) appear as children of the correct task span
@@ -237,7 +234,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
-        _trace_propagator.inject(carrier)
+        otel_propagate.inject(carrier)
         return _RequestFrame(id=next(self.id_counter), body=msg.model_dump(), context_carrier=carrier or None)
 
     @property
