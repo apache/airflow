@@ -166,10 +166,16 @@ updates:
       edge-ui-package-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
       edge-ui-security-updates:
         patterns:
           - "*"
         applies-to: security-updates
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     cooldown:
