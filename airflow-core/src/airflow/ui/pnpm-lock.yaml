@@ -55,7 +55,7 @@ importers:
         version: 1.2.3
       '@monaco-editor/react':
         specifier: ^4.7.0
-        version: 4.7.0(monaco-editor@0.55.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 4.7.0(monaco-editor@0.56.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-query':
         specifier: ^5.101.4
         version: 5.101.4(react@19.2.8)
@@ -99,8 +99,8 @@ importers:
         specifier: ^1.11.21
         version: 1.11.21
       elkjs:
-        specifier: ^0.11.1
-        version: 0.11.1
+        specifier: ^0.12.0
+        version: 0.12.0
       html-to-image:
         specifier: ^1.11.13
         version: 1.11.13
@@ -114,14 +114,14 @@ importers:
         specifier: ^4.0.1
         version: 4.0.1
       katex:
-        specifier: ^0.17.0
-        version: 0.17.0
+        specifier: ^0.18.1
+        version: 0.18.1
       mermaid:
         specifier: ^11.16.0
         version: 11.16.0
       monaco-editor:
-        specifier: ^0.55.1
-        version: 0.55.1
+        specifier: ^0.56.0
+        version: 0.56.0
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -426,6 +426,11 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  '@babel/parser@7.29.8':
+    resolution: {integrity: sha512-E8lTAYNB1KW+FH+VGJuZM1ioAx2E6oVlvQFRrf5P8ZZmsiJXYAD9vTFV7yyEURNzgh1dFqMZuO6tUwcARbqFCA==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
+
   '@babel/runtime@7.26.10':
     resolution: {integrity: sha512-2WJMeRQPHKSPemqk/awGrAiuFfzBmOIPXKizAsVhWH9YJqLZ0H+HS4c8loHGgW6utJ3E/ejXQUsiGaQy2NZ9Fw==}
     engines: {node: '>=6.9.0'}
@@ -460,6 +465,10 @@ packages:
 
   '@babel/types@7.29.7':
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/types@7.29.8':
+    resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
 
   '@bcoe/v8-coverage@1.0.2':
@@ -815,36 +824,42 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-arm64-musl@1.1.5':
     resolution: {integrity: sha512-lAryqH7IteztmCXQXk0etKj4wBQ7Gx5S6LjKhsgp9zb8I5bsuvU/2llH1hDQcjsFeqIsovMVN339/8pUDDBXxA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rolldown/binding-linux-ppc64-gnu@1.1.5':
     resolution: {integrity: sha512-fsK/sNBnxzBlL4O1JNrZakVQxPspqpED5dLtNsZS9oOKmtSpdNIzxH2kkol5HYTWJN47sE20ztMJPxfZ89qGOg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-s390x-gnu@1.1.5':
     resolution: {integrity: sha512-gLYb4BIadlfTOYT5gO503n8zQjXflgzpD0FcyKh0Mzx3rqCZKnHoJWV9xe1KXUJ5lx2JfcSHr/mhzS0PC/McAA==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-x64-gnu@1.1.5':
     resolution: {integrity: sha512-FjcpEKUyJygHgs1o50VYNvkt5+7Le/VEdYt0AkRpkL33MnyQfwr8l5mXwMmfmTbyMPr5vJLC+8/Gd9gXnwU1QQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-x64-musl@1.1.5':
     resolution: {integrity: sha512-Me+PfPI2TMeOQk0gYWfLQZtTktrmzbr8cDboqX83XKc7UrgAi55gF+2dUkWdxd19n55Essp2yeca+O9N5rBxHg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rolldown/binding-openharmony-arm64@1.1.5':
     resolution: {integrity: sha512-yc5WrLzXks6zCQfn9Oxr8pORKyl/pF+QjHmW/Qx3qu0oyrrNC+y2JLTU1E2rcWYAmzlnqngWXHQjy51VzW70Vw==}
@@ -921,36 +936,42 @@ packages:
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@swc/core-linux-arm64-musl@1.15.46':
     resolution: {integrity: sha512-imyRpNEcUzFQFV2LE4jL68ErvmKEuZCbvZru77iQREunJ+bR4i658cupTgtG1mLYM3F1Tzy3Sb9xYb02KghWTg==}
     engines: {node: '>=10'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@swc/core-linux-ppc64-gnu@1.15.46':
     resolution: {integrity: sha512-ctEfcl/HcUeomK33cbySiHZm98GEDIxTm1EkpBsYCiHxElYBzvTXVeuQT2YwbUXn9XCrjiw4ipyUNk33k26qRg==}
     engines: {node: '>=10'}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@swc/core-linux-s390x-gnu@1.15.46':
     resolution: {integrity: sha512-DxlMdnt84TtRVTv7WL/thWyz9+QU8QZNNoAP9rrk0P68LziuhfePp8MjQ44zIprpTHTsEwyziIuGUUN5iSC1bQ==}
     engines: {node: '>=10'}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@swc/core-linux-x64-gnu@1.15.46':
     resolution: {integrity: sha512-SKxI7J6t90XPl8hRUqtJi9NfGdunN/E/vZMc7Bc0figeRdOPDBT+Tm8g7cx9xM0T0mewh2l+8dewa3Am27/P+A==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@swc/core-linux-x64-musl@1.15.46':
     resolution: {integrity: sha512-qj9T6B7bosI0VEsrWOVXZN1OXxS8Tp63ywyrLxNdOycnUtLdkgYcoBsN5y8ImnDDsnwrEWZOy1e+J4xSe7mA3Q==}
     engines: {node: '>=10'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@swc/core-win32-arm64-msvc@1.15.46':
     resolution: {integrity: sha512-8p7l4c3LU+eA5g9Et1JPhNeMC1oQwXTGU+uah8DPIBX7YXzqswvaBtyKVmXefVGi/DJU1x3YJsc3mbAp9aWzSQ==}
@@ -1835,8 +1856,8 @@ packages:
     resolution: {integrity: sha512-7oFy703dxfY3/NLxC1fh2SUCQ0H9rmAY+5EpDVfXjUTTs+HEwR2nYaqLv+GWcTsumwxPfiz6CzCNkwXwBUwqCA==}
     engines: {node: 18 || 20 || >=22}
 
-  brace-expansion@5.0.8:
-    resolution: {integrity: sha512-JZyDyq3D4AUifKTPOB7DELf6XsB3WdPuNxCtob1vFXPsSXhdAiHBWJ/tJ8HAc9aH84BK+5JFZLNkJKx3G9kzQg==}
+  brace-expansion@5.0.9:
+    resolution: {integrity: sha512-ScQ4IuvIEF1TMlP7Zt+vjJ//9zlPb2SDcxWxM3bk8s6t6GGdJ7KO1dCcTidOPJKePW30LE/2cT7wCyPho9/Wxg==}
     engines: {node: 20 || >=22}
 
   braces@3.0.3:
@@ -2307,11 +2328,11 @@ packages:
   dom-helpers@5.2.1:
     resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
 
-  dompurify@3.2.7:
-    resolution: {integrity: sha512-WhL/YuveyGXJaerVlMYGWhvQswa7myDG17P7Vu65EWC05o8vfeNbvNf4d/BOvH99+ZW+LlQsc1GDKMa1vNK6dw==}
-
   dompurify@3.4.11:
     resolution: {integrity: sha512-zhlUV12GsaRzMsf9q5M254YhA4+VuF0fG+QFqu6aYpoGlKtz+w8//jBcGVYBgQkR5GHjUomejY84AV+/uPbWdw==}
+
+  dompurify@3.4.8:
+    resolution: {integrity: sha512-yb1cEmaOum7wFvOCSQxyfgVlv5D47Rc30iZWoMpbDIWTnJ6grDDQyu2KFJzB2k7u0pMuJcQ1zphH//fFnw2tjQ==}
 
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
@@ -2324,8 +2345,8 @@ packages:
   electron-to-chromium@1.5.396:
     resolution: {integrity: sha512-yHiw2Y3C3H9U6TMbOfoWK/BPreiOPXRfTWPBwQBoZG6/8TB6eOPnsy5oaRYuatR7Fw2SJ4kKforgufeo7fq0EQ==}
 
-  elkjs@0.11.1:
-    resolution: {integrity: sha512-zxxR9k+rx5ktMwT/FwyLdPCrq7xN6e4VGGHH8hA01vVYKjTFik7nHOxBnAYtrgYUB1RpAiLvA1/U2YraWxyKKg==}
+  elkjs@0.12.0:
+    resolution: {integrity: sha512-YZcKynxVxYoKIOEpywEPwCFdg+BTbxQRNf3pbwdDCvc8O3kQD8bmIwSxKU1eOTVc4Xo+VG9Te+575mlfvOrhEQ==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -3096,12 +3117,12 @@ packages:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
     engines: {node: '>=4.0'}
 
-  katex@0.16.45:
-    resolution: {integrity: sha512-pQpZbdBu7wCTmQUh7ufPmLr0pFoObnGUoL/yhtwJDgmmQpbkg/0HSVti25Fu4rmd1oCR6NGWe9vqTWuWv3GcNA==}
+  katex@0.16.47:
+    resolution: {integrity: sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==}
     hasBin: true
 
-  katex@0.17.0:
-    resolution: {integrity: sha512-Vdw0ATsQ9V+LuegM/BTwQqV/6cTl5lbGcIrU+BCgLxyf6bo38ybOr372tuSIxir3CN720flu1meYR6XzNMwQnw==}
+  katex@0.18.1:
+    resolution: {integrity: sha512-Td8GCYSxDAoMhHOlKmCFMJ/hz5qlAAb71n66Dryw9nfCVfumLo7nhuotbvKom/XPADmrYC3O5QR71EPq4DarJQ==}
     hasBin: true
 
   keyv@4.5.4:
@@ -3162,24 +3183,28 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-arm64-musl@1.32.0:
     resolution: {integrity: sha512-UpQkoenr4UJEzgVIYpI80lDFvRmPVg6oqboNHfoH4CQIfNA+HOrZ7Mo7KZP02dC6LjghPQJeBsvXhJod/wnIBg==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-linux-x64-gnu@1.32.0:
     resolution: {integrity: sha512-V7Qr52IhZmdKPVr+Vtw8o+WLsQJYCTd8loIfpDaMRWGUZfBOYEJeyJIkqGIDMZPwPx24pUMfwSxxI8phr/MbOA==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-x64-musl@1.32.0:
     resolution: {integrity: sha512-bYcLp+Vb0awsiXg/80uCRezCYHNg1/l3mt0gzHnWV9XP1W5sKa5/TCdGWaR/zBM2PeF/HbsQv/j2URNOiVuxWg==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-win32-arm64-msvc@1.32.0:
     resolution: {integrity: sha512-8SbC8BR40pS6baCM8sbtYDSwEVQd4JlFTOlaD3gWGHfThTcABnNDBda6eTZeqbofalIJhFx0qKzgHJmcPTnGdw==}
@@ -3453,8 +3478,8 @@ packages:
   mlly@1.8.0:
     resolution: {integrity: sha512-l8D9ODSRWLe2KHJSifWGwBqpTZXIXTeo8mlKjY+E2HAakaTeNpqAyBZ8GSqLzHgw4XmHmC8whvpjJNMbFZN7/g==}
 
-  monaco-editor@0.55.1:
-    resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
+  monaco-editor@0.56.0:
+    resolution: {integrity: sha512-sXboRm3BeBeLm938eaiyLMe0OxzfXIlZvbv4ir/jVgQy1zDhWjgmny0WoN45fuDKhCCQsYMbBJrv/A6jd8aCUg==}
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
@@ -4750,6 +4775,11 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.7
 
+  '@babel/parser@7.29.8':
+    dependencies:
+      '@babel/types': 7.29.8
+    optional: true
+
   '@babel/runtime@7.26.10':
     dependencies:
       regenerator-runtime: 0.14.1
@@ -4792,6 +4822,12 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@babel/types@7.29.8':
+    dependencies:
+      '@babel/helper-string-parser': 7.29.7
+      '@babel/helper-validator-identifier': 7.29.7
+    optional: true
 
   '@bcoe/v8-coverage@1.0.2': {}
 
@@ -5085,10 +5121,10 @@ snapshots:
     dependencies:
       state-local: 1.0.7
 
-  '@monaco-editor/react@4.7.0(monaco-editor@0.55.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@monaco-editor/react@4.7.0(monaco-editor@0.56.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@monaco-editor/loader': 1.5.0
-      monaco-editor: 0.55.1
+      monaco-editor: 0.56.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
@@ -6570,7 +6606,7 @@ snapshots:
     dependencies:
       balanced-match: 4.0.4
 
-  brace-expansion@5.0.8:
+  brace-expansion@5.0.9:
     dependencies:
       balanced-match: 4.0.4
 
@@ -7052,11 +7088,11 @@ snapshots:
       '@babel/runtime': 7.29.7
       csstype: 3.2.3
 
-  dompurify@3.2.7:
+  dompurify@3.4.11:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
-  dompurify@3.4.11:
+  dompurify@3.4.8:
     optionalDependencies:
       '@types/trusted-types': 2.0.7
 
@@ -7070,7 +7106,7 @@ snapshots:
 
   electron-to-chromium@1.5.396: {}
 
-  elkjs@0.11.1: {}
+  elkjs@0.12.0: {}
 
   emoji-regex@8.0.0: {}
 
@@ -7996,11 +8032,11 @@ snapshots:
       object.assign: 4.1.7
       object.values: 1.2.1
 
-  katex@0.16.45:
+  katex@0.16.47:
     dependencies:
       commander: 8.3.0
 
-  katex@0.17.0:
+  katex@0.18.1:
     dependencies:
       commander: 8.3.0
 
@@ -8111,8 +8147,8 @@ snapshots:
 
   magicast@0.3.5:
     dependencies:
-      '@babel/parser': 7.29.7
-      '@babel/types': 7.29.7
+      '@babel/parser': 7.29.8
+      '@babel/types': 7.29.8
       source-map-js: 1.2.1
     optional: true
 
@@ -8325,7 +8361,7 @@ snapshots:
       dayjs: 1.11.21
       dompurify: 3.4.11
       es-toolkit: 1.49.0
-      katex: 0.16.45
+      katex: 0.16.47
       khroma: 2.1.0
       marked: 16.4.2
       roughjs: 4.6.6
@@ -8414,7 +8450,7 @@ snapshots:
     dependencies:
       '@types/katex': 0.16.8
       devlop: 1.1.0
-      katex: 0.16.45
+      katex: 0.16.47
       micromark-factory-space: 2.0.1
       micromark-util-character: 2.1.1
       micromark-util-symbol: 2.0.1
@@ -8548,7 +8584,7 @@ snapshots:
 
   minimatch@10.2.6:
     dependencies:
-      brace-expansion: 5.0.8
+      brace-expansion: 5.0.9
 
   minimatch@3.1.5:
     dependencies:
@@ -8573,9 +8609,9 @@ snapshots:
       pkg-types: 1.3.1
       ufo: 1.6.1
 
-  monaco-editor@0.55.1:
+  monaco-editor@0.56.0:
     dependencies:
-      dompurify: 3.2.7
+      dompurify: 3.4.8
       marked: 14.0.0
 
   ms@2.1.3: {}
@@ -9033,7 +9069,7 @@ snapshots:
       '@types/katex': 0.16.8
       hast-util-from-html-isomorphic: 2.0.0
       hast-util-to-text: 4.0.2
-      katex: 0.16.45
+      katex: 0.16.47
       unist-util-visit-parents: 6.0.1
       vfile: 6.0.3
 
