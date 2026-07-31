@@ -92,6 +92,15 @@ class CloudSqlOperationStatus:
     UNKNOWN = "UNKNOWN"
 
 
+# Statuses that mean an administrative operation is still in flight on the instance. Cloud SQL
+# serializes admin operations per instance, so a new import/export submitted while one of these is
+# active fails with HTTP 409 ``operationInProgress``. Keying off an explicit set (rather than
+# ``status != DONE``) avoids treating UNKNOWN/unexpected statuses as in-progress and poking forever.
+CLOUD_SQL_NON_TERMINAL_STATUSES = frozenset(
+    {CloudSqlOperationStatus.PENDING, CloudSqlOperationStatus.RUNNING}
+)
+
+
 class CloudSQLHook(GoogleBaseHook):
     """
     Hook for Google Cloud SQL APIs.
@@ -428,6 +437,29 @@ class CloudSQLHook(GoogleBaseHook):
             .get(project=project_id, operation=operation_name)
             .execute(num_retries=self.num_retries)
         )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_operations(self, instance: str, project_id: str, max_results: int | None = None) -> list[dict]:
+        """
+        List administrative operations for a Cloud SQL instance.
+
+        Must be called with keyword arguments because ``project_id`` is injected by the
+        ``fallback_to_default_project_id`` decorator.
+
+        :param instance: Name of the Cloud SQL instance whose operations are listed.
+        :param project_id: Project ID of the project that contains the instance.
+        :param max_results: Optional maximum number of operations to return per page.
+        :return: The list of operation resources for the instance (may be empty).
+        """
+        response = (
+            self.get_conn()
+            .operations()
+            .list(project=project_id, instance=instance, maxResults=max_results)
+            .execute(num_retries=self.num_retries)
+        )
+        # ``operations.list`` already filters server-side by ``instance``; keep a defensive
+        # client-side filter on ``targetId`` in case the API ever returns broader results.
+        return [op for op in response.get("items", []) if op.get("targetId") == instance]
 
     @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
