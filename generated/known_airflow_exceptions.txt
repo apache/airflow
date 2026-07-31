@@ -361,7 +361,6 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/synaps
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/msgraph.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/wasb.py::4
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/local_to_adls.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/sftp_to_wasb.py::1
 providers/microsoft/azure/tests/unit/microsoft/azure/hooks/test_asb.py::3
 providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_asb.py::3
