@@ -25,6 +25,7 @@ import pytest
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
@@ -186,6 +187,10 @@ def test_target_time_still_templated_raises_clear_error():
         trigger.serialize()
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS,
+    reason="BaseTrigger.render_template_fields was added in Airflow 3.3.0 (#55068).",
+)
 @pytest.mark.asyncio
 async def test_run_resolves_target_time_rendered_by_triggerer():
     """
