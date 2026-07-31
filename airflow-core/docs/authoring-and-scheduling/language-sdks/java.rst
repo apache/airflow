@@ -663,9 +663,14 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - Default
      - Description
    * - ``jars_root``
-     - *(required)*
+     - *(optional)*
      - One or more directories scanned recursively for ``.jar`` files. Accepts a string,
-       a path, or a list of strings/paths.
+       a path, or a list of strings/paths. When omitted, JARs are located through a Dag
+       bundle instead (see the note below).
+   * - ``dag_bundle_name``
+     - *(auto: task's own bundle)*
+     - Name of a configured Dag bundle to load JARs from. Mutually exclusive with
+       ``jars_root``.
    * - ``java_executable``
      - ``"java"``
      - Path to the ``java`` binary.  Defaults to ``java`` on ``$PATH``.
@@ -682,6 +687,17 @@ All ``kwargs`` in the ``coordinators`` config entry are passed to the
      - ``10.0``
      - Seconds to wait for the JVM subprocess to connect after launch.  Increase this if your
        JVM startup is slow (e.g. on constrained hardware or with a large classpath).
+
+.. note::
+
+  **Locating JARs.** ``jars_root`` and ``dag_bundle_name`` are mutually exclusive, and both
+  are optional:
+
+  * Set ``jars_root`` to scan explicit filesystem directories you manage yourself.
+  * Set ``dag_bundle_name`` to load JARs from a configured Dag bundle (its latest version), so
+    they are delivered and versioned through the same bundle machinery as your Dags.
+  * Leave both unset (the default) to load JARs from the **task's own** Dag bundle, pinned to
+    the version the run was created with.
 
 .. note::
 
