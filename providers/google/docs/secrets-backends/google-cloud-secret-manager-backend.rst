@@ -196,6 +196,42 @@ To check the variables is correctly read from the backend secret, you can use ``
     $ airflow variables get first-variable
     secret_content
 
+Multi-team lookup
+=================
+
+In multi-team mode this backend looks for a team-scoped secret first and falls back to the
+team-agnostic name when no team-scoped secret exists.
+
+For connections:
+
+* Team-scoped: ``{connections_prefix}{sep}{team_name}--{conn_id}``
+* Team-agnostic fallback: ``{connections_prefix}{sep}{conn_id}``
+
+For variables:
+
+* Team-scoped: ``{variables_prefix}{sep}{team_name}--{key}``
+* Team-agnostic fallback: ``{variables_prefix}{sep}{key}``
+
+The team name and the secret id are separated by ``--``, while ``sep`` (default ``-``) separates
+the prefix from what follows. So with ``connections_prefix="airflow-connections"``,
+``team_name="team_a"`` and ``conn_id="smtp_default"``, the backend looks up
+``airflow-connections-team_a--smtp_default`` before falling back to
+``airflow-connections-smtp_default``.
+
+.. note::
+
+    Unlike the Azure Key Vault backend, this backend does **not** normalise underscores to the
+    separator. The secret id keeps the exact form you request it under, in the team-scoped name
+    as well as the team-agnostic one.
+
+Because a team name may itself contain ``--``, an id that contains ``--`` is ambiguous — team
+``team_a`` with conn_id ``prod--db`` and team ``team_a--prod`` with conn_id ``db`` would name the
+same secret. Such an id is therefore never resolved, for team-scoped and team-agnostic lookups
+alike, and the backend never parses an id to infer which team it belongs to. Avoid ``--`` in
+connection ids and variable keys when running in multi-team mode.
+
+``get_config`` is not team-scoped and is unaffected by any of the above.
+
 Clean up
 ========
 
