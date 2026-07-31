@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -34,7 +33,9 @@ if TYPE_CHECKING:
     from airflow.providers.http.hooks.http import HttpHook
     from airflow.sdk import Context
 
-IDEMPOTENT_METHODS = {"GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"}
+# Idempotent methods per RFC 9110 §9.2.2 (formerly RFC 7231).
+# PUT and DELETE are idempotent even though they are not safe; PATCH is not idempotent.
+IDEMPOTENT_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE"})
 
 
 class HttpOperator(BaseOperator):
@@ -144,16 +145,6 @@ class HttpOperator(BaseOperator):
         self.deferrable = deferrable
         self.retry_args = retry_args
         self.request_kwargs = request_kwargs or {}
-        if self.deferrable and self.method.upper() not in IDEMPOTENT_METHODS:
-            warnings.warn(
-                f"HttpOperator with deferrable=True and method={self.method} may send duplicate "
-                "requests if the Triggerer restarts. Deferrable mode executes the request in "
-                "the Triggerer, which may be re-run on restart. Use only with idempotent methods "
-                "or use HttpSensor/EventSensor for polling. "
-                "See https://github.com/apache/airflow/issues/67945",
-                UserWarning,
-                stacklevel=2,
-            )
 
     @property
     def hook(self) -> HttpHook:
@@ -176,6 +167,18 @@ class HttpOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         if self.deferrable:
+            # One advisory per task attempt (not per page / not on trigger reconstruct).
+            # Deferrable mode runs the HTTP call in the Triggerer; a restart can re-run it.
+            method = (self.method or "").upper()
+            if method not in IDEMPOTENT_METHODS:
+                self.log.warning(
+                    "HttpOperator with deferrable=True and method=%s may send duplicate "
+                    "requests if the Triggerer restarts. Deferrable mode executes the request in "
+                    "the Triggerer, which may be re-run on restart. Use only with idempotent methods "
+                    "or use HttpSensor/EventSensor for polling. "
+                    "See https://github.com/apache/airflow/issues/67945",
+                    self.method,
+                )
             self.execute_async(context=context)
         else:
             return self.execute_sync(context=context)
