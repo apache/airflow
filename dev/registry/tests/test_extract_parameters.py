@@ -1183,5 +1183,5 @@ class TestResolveDottedPath:
             ),
         ),
     )
-    def test__resolve_dottted_path(self, class_path: str, expected: tuple[str, str, object]):
+    def test__resolve_dotted_path(self, class_path: str, expected: tuple[str, str, object]):
         assert _resolve_dotted_path(class_path) == expected
