@@ -39,9 +39,14 @@ To run the sensor in deferrable mode, set ``deferrable=True``. See :ref:`deferri
 TimeSensor
 ==========
 
-Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to end sensing after time specified. ``TimeSensor`` can be run in deferrable mode, if a Triggerer is available.
+Use the :class:`~airflow.providers.standard.sensors.time.TimeSensor` to end sensing after time specified. ``TimeSensor`` can be run in deferrable mode, if a Triggerer is available.
 
-Time will be evaluated against ``data_interval_end`` if present for the Dag run, otherwise ``run_after`` will be used.
+Time is evaluated against the wall-clock date in the Dag's timezone at execution time (poke, deferral, or trigger start), not against ``data_interval_end`` or ``run_after``. For interval-relative behavior, use :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor`.
+
+When ``start_from_trigger=True``, the sensor starts on the triggerer via
+:class:`~airflow.providers.standard.triggers.temporal.TimeOfDayTrigger`. The trigger
+stores only the parse-stable ``target_time`` and timezone; the concrete moment is
+resolved when the trigger starts, so repeated Dag parses do not create new Dag versions.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
