@@ -1,0 +1,1 @@
+Added the ``dag.serialization.version_created`` and ``dag.serialization.version_updated`` metrics, which count Dag serializations in each of the two situations where serialization happens: when a new Dag version is created, and when the latest Dag version is updated in place.
