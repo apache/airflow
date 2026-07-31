@@ -72,7 +72,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -419,6 +419,7 @@ def _build_ti_summaries(
             start_date=ti.start_date,
             end_date=ti.end_date,
             dag_version_number=getattr(ti, "version_number", None),
+            has_note=bool(getattr(ti, "has_note", False)),
         )
     if not ti_details:
         return None
@@ -513,6 +514,13 @@ def get_grid_ti_summaries_stream(
         # database connection open for the entire stream duration.
         # See https://github.com/apache/airflow/issues/65010.
 
+        has_note_subq = (
+            exists()
+            .where(TaskInstanceNote.ti_id == TaskInstance.id)
+            .correlate(TaskInstance)
+            .label("has_note")
+        )
+
         for run_id in run_ids or []:
             with create_session(scoped=False) as session:
                 tis = session.execute(
@@ -523,6 +531,7 @@ def get_grid_ti_summaries_stream(
                         TaskInstance.start_date,
                         TaskInstance.end_date,
                         DagVersion.version_number,
+                        has_note_subq,
                     )
                     .outerjoin(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
                     .where(TaskInstance.dag_id == dag_id)

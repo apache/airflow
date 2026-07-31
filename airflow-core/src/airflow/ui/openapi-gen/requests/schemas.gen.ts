@@ -9870,6 +9870,11 @@ export const $LightGridTaskInstanceSummary = {
                 }
             ],
             title: 'Dag Version Number'
+        },
+        has_note: {
+            type: 'boolean',
+            title: 'Has Note',
+            default: false
         }
     },
     type: 'object',
