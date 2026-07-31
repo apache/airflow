@@ -33,6 +33,13 @@ module.exports = function () {
         }
       }
     }
+    // explore.njk shows only the first six as badges, so rank before slicing
+    // (as its Top/Incubating rows already do) — otherwise the row is whatever
+    // providers.json happened to list first, and widening a category's
+    // membership silently pushes the well-known names off it.
+    matched.sort(
+      (a, b) => (b.pypi_downloads?.monthly || 0) - (a.pypi_downloads?.monthly || 0),
+    );
     map[category.id] = matched;
   }
   return map;
