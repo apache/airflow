@@ -47,6 +47,9 @@ class ConsumeFromTopicOperator(BaseOperator):
         defaults to None
     :param return_apply_function_results: Whether to collect non-None return values from the per-message
         ``apply_function`` and return them as a list. This option does not apply to ``apply_function_batch``.
+        ``None`` results are dropped, so the returned list does not align positionally with the consumed
+        messages. Results are returned through normal task return handling and may be stored in XCom,
+        so avoid enabling this for large result sets.
     :param commit_cadence: When consumers should commit offsets ("never", "end_of_batch","end_of_operator"),
         defaults to "end_of_operator";
         if end_of_operator, the commit() is called based on the max_messages arg. Commits are made after the
