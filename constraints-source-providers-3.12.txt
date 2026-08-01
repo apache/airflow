@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-07-29T10:10:29.222487
+# This constraints file was automatically generated on 2026-08-01T17:13:48.978493
 # via `uv sync --resolution highest for the "v3-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -493,7 +493,7 @@ pagefind_bin==1.5.2
 pagerduty==7.0.0
 pandas-gbq==0.35.0
 pandas-stubs==3.0.3.260530
-pandas==3.0.5
+pandas==2.3.3
 pandocfilters==1.5.1
 papermill==2.7.0
 paramiko==3.5.1
