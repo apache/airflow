@@ -186,6 +186,20 @@ config_list: list[_TableConfig] = [
         dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    # Carries no foreign key, so rows are left behind when the partition Dag run they describe
+    # is cascade-deleted with its dag_run. Only such orphans may be purged: rows whose partition
+    # Dag run still exists are the evidence the scheduler evaluates to decide when that pending
+    # run fires, so age alone must not delete them.
+    _TableConfig(
+        table_name="partitioned_asset_key_log",
+        recency_column_name="created_at",
+        extra_columns=["asset_partition_dag_run_id"],
+        extra_filters=[
+            column("asset_partition_dag_run_id").not_in(
+                select(column("id")).select_from(table("asset_partition_dag_run"))
+            )
+        ],
+    ),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
     _TableConfig(
