@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from pydantic_ai.exceptions import ModelRetry
+from pydantic_core import ValidationError
 
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.tool_definition import _SUPPORTS_RETURN_SCHEMA
@@ -64,6 +65,23 @@ class TestSQLToolsetGetTools:
         tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
         for tool in tools.values():
             assert tool.tool_def.description
+
+    @pytest.mark.parametrize(
+        ("name", "valid_args"),
+        [
+            ("get_schema", {"table_name": "users"}),
+            ("query", {"sql": "SELECT 1"}),
+            ("check_query", {"sql": "SELECT 1"}),
+        ],
+    )
+    def test_args_validator_enforces_required_keys(self, name, valid_args):
+        ts = SQLToolset("pg_default")
+        tools = asyncio.run(ts.get_tools(ctx=MagicMock()))
+        validator = tools[name].args_validator
+
+        assert validator.validate_python(valid_args) == valid_args
+        with pytest.raises(ValidationError):
+            validator.validate_python({})
 
     @pytest.mark.skipif(
         not _SUPPORTS_RETURN_SCHEMA, reason="pydantic-ai too old for ToolDefinition.return_schema"

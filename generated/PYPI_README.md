@@ -135,7 +135,7 @@ pip install 'apache-airflow[postgres,google]==3.3.0' \
 ```
 
 For information on installing provider distributions, check
-[providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
+[providers](https://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
 ## Official source code
 

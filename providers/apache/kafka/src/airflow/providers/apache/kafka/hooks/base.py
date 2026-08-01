@@ -97,9 +97,15 @@ class KafkaBaseHook(BaseHook):
             if isinstance(value, str):
                 config[key] = import_string(value)
 
-    @cached_property
-    def get_conn(self) -> Any:
-        """Get the configuration object."""
+    def _build_config(self) -> dict[str, Any]:
+        """
+        Build the confluent-kafka configuration for this connection.
+
+        Resolves callback options provided as dotted-path strings and injects the
+        managed OAuth token callback (Google Managed Kafka or Amazon MSK IAM) when
+        applicable, so that establishing a connection and testing it always use an
+        identical configuration.
+        """
         config = self.get_connection(self.kafka_config_id).extra_dejson
         self._resolve_callbacks(config)
 
@@ -127,7 +133,12 @@ class KafkaBaseHook(BaseHook):
             config.update({"oauth_cb": token})
         else:
             self._maybe_add_msk_iam_oauth(config, bootstrap_servers)
-        return self._get_client(config)
+        return config
+
+    @cached_property
+    def get_conn(self) -> Any:
+        """Get the configuration object."""
+        return self._get_client(self._build_config())
 
     def _maybe_add_msk_iam_oauth(self, config: dict[str, Any], bootstrap_servers: str | None) -> None:
         """
@@ -172,10 +183,10 @@ class KafkaBaseHook(BaseHook):
     def test_connection(self) -> tuple[bool, str]:
         """Test Connectivity from the UI."""
         try:
-            config = self.get_connection(self.kafka_config_id).extra_dejson
-            # Resolve callbacks so that configured dotted-path strings
-            # (e.g. oauth_cb) are exercised by the test as well.
-            self._resolve_callbacks(config)
+            # Build the config exactly as a real connection would, so resolved
+            # dotted-path callbacks and the managed OAuth token callback (Google
+            # Managed Kafka or Amazon MSK IAM) are exercised by the UI test too.
+            config = self._build_config()
             t = AdminClient(config).list_topics(timeout=10)
             if t:
                 return True, "Connection successful."
