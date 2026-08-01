@@ -257,6 +257,62 @@ class TestTiSelfScopeEnforcement:
         assert "does not match" in resp.json()["detail"]
 
 
+class TestCbSelfScopeEnforcement:
+    """Routes with the ``cb:self`` scope reject a token minted for a different callback.
+
+    This is the check that makes a workload token unforgeable at the callback boundary: a worker
+    presenting a token whose subject is not this callback id is refused before the route body runs.
+    """
+
+    PATH_CB_ID = "00000000-0000-0000-0000-0000000000c1"
+    OTHER_CB_ID = "00000000-0000-0000-0000-0000000000c2"
+
+    @pytest.fixture
+    def app(self):
+        app = FastAPI()
+
+        authenticated_router = APIRouter(dependencies=[Security(require_auth)])
+        cb_self_router = APIRouter(dependencies=[Security(require_auth, scopes=["cb:self"])])
+
+        @cb_self_router.post("/{callback_id}/run")
+        def run_endpoint(callback_id: str):
+            return {"ok": True}
+
+        authenticated_router.include_router(cb_self_router, prefix="/callbacks")
+        app.include_router(authenticated_router)
+        return app
+
+    def _override_jwt(self, app: FastAPI, token_cb_id: UUID):
+        async def mock_jwt(request: Request):
+            return TIToken(id=token_cb_id, claims=TIClaims(scope="execution"))
+
+        app.dependency_overrides[_jwt_bearer] = mock_jwt
+
+    def test_matching_subject_is_accepted(self, app):
+        self._override_jwt(app, self.PATH_CB_ID)
+        client = TestClient(app)
+
+        resp = client.post(
+            f"/callbacks/{self.PATH_CB_ID}/run",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+        assert resp.status_code == 200
+
+    def test_mismatched_subject_is_rejected(self, app):
+        """A token minted for one callback cannot claim another."""
+        self._override_jwt(app, self.OTHER_CB_ID)
+        client = TestClient(app)
+
+        resp = client.post(
+            f"/callbacks/{self.PATH_CB_ID}/run",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+        assert resp.status_code == 403
+        assert "does not match" in resp.json()["detail"]
+
+
 class TestGetTeamNameDep:
     """Tests for get_team_name_dep avoiding unnecessary async sessions."""
 

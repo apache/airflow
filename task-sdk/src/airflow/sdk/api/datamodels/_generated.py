@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2026-06-30"
+API_VERSION: Final[str] = "2026-08-01"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -61,6 +61,19 @@ class AssetProfile(BaseModel):
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
     type: Annotated[str, Field(title="Type")]
+
+
+class CallbackState(str, Enum):
+    """
+    All possible states of callbacks.
+    """
+
+    SCHEDULED = "scheduled"
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
 
 
 class ConnectionResponse(BaseModel):
@@ -652,6 +665,15 @@ class AssetStateStoreResponse(BaseModel):
         extra="forbid",
     )
     value: JsonValue | None
+
+
+class CallbackRunResponse(BaseModel):
+    """
+    Returned when a worker claims a callback for execution.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    state: CallbackState
 
 
 class ConnectionTestResultBody(BaseModel):
