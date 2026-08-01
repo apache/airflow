@@ -22,7 +22,6 @@ import time
 from contextlib import suppress
 from importlib import import_module
 from io import StringIO
-from pathlib import Path
 from unittest.mock import MagicMock, call, mock_open, patch
 from uuid import uuid4
 
@@ -826,11 +825,12 @@ class TestDBCleanup:
         """
         import pkgutil
 
-        proj_root = Path(__file__).parents[2].resolve()
-        mods = list(
-            f"airflow.models.{name}"
-            for _, name, _ in pkgutil.iter_modules([str(proj_root / "airflow/models")])
-        )
+        import airflow.models
+
+        # Walk the package's own __path__ rather than rebuilding it from this file's
+        # location: a path guessed relative to the test resolves to nothing once the
+        # sources move, leaving the assertions below with an empty set to check.
+        mods = [f"airflow.models.{name}" for _, name, _ in pkgutil.iter_modules(airflow.models.__path__)]
 
         all_models = {}
         for mod_name in mods:
@@ -870,12 +870,26 @@ class TestDBCleanup:
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
+            "team",  # leave alone - team configuration, not run data
+            # Purged indirectly: each of these hangs off a cleaned table by an
+            # ON DELETE CASCADE foreign key, so the rows go when the parent does.
+            "asset_partition_dag_run",  # cascade from dag_run
+            "asset_watcher",  # cascade from trigger
+            "dag_favorite",  # cascade from dag
+            "deadline_alert",  # cascade from serialized_dag, which follows dag
+            "hitl_detail",  # cascade from task_instance
+            "hitl_detail_history",  # cascade from task_instance_history
+            "task_inlet_asset_reference",  # cascade from dag
+            "asset_state_store",  # cascade from asset, which is itself left alone
         }
 
         from airflow.utils.db_cleanup import config_dict
 
         print(f"all_models={set(all_models)}")
         print(f"excl+conf={exclusion_list.union(config_dict)}")
+        # Without this the two assertions below hold trivially for an empty set,
+        # which is how a table can go unnoticed by this check for several releases.
+        assert all_models, "discovered no models, so this check would pass vacuously"
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
 

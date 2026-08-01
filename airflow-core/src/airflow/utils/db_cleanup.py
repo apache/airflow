@@ -186,6 +186,9 @@ config_list: list[_TableConfig] = [
         dependent_tables=["task_instance", "task_state_store", "deadline"],
     ),
     _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
+    # Carries no foreign key, so nothing removes these rows when the partition Dag run they
+    # describe is cascade-deleted with its dag_run; only age can bound the table.
+    _TableConfig(table_name="partitioned_asset_key_log", recency_column_name="created_at"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
     _TableConfig(
