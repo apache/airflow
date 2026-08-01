@@ -113,6 +113,34 @@ class TestSecretsManagerBackend:
         assert backend.get_conn_value(conn_id="my_team--prod--test_postgres", team_name="my_team") is None
 
     @mock_aws
+    def test_team_scoped_lookup_cannot_reach_a_longer_teams_namespace(self):
+        """The team scoped name is not safe by construction -- the id can extend it.
+
+        Team ``my_team`` asking for ``prod--test_postgres`` builds exactly the name team
+        ``my_team--prod`` builds for ``test_postgres``, so the team scoped lookup *hits*
+        another team's secret. Refusing only the team agnostic fall-through leaves this
+        open, because the fall-through is never reached.
+        """
+        secret_id = "airflow/connections/my_team--prod--test_postgres"
+        create_param = {"Name": secret_id, "SecretString": "postgresql://airflow:airflow@host:5432/airflow"}
+        backend = SecretsManagerBackend()
+        backend.client.create_secret(**create_param)
+
+        assert backend.get_conn_value(conn_id="prod--test_postgres", team_name="my_team") is None
+
+    @mock_aws
+    def test_refusing_an_ambiguous_id_is_logged(self, caplog):
+        """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged."""
+        backend = SecretsManagerBackend()
+
+        assert backend.get_conn_value(conn_id="prod--test_postgres") is None
+        assert backend.get_variable(key="prod--hello") is None
+
+        refusals = [r for r in caplog.records if "is ambiguous and is not looked up" in r.getMessage()]
+        assert len(refusals) == 2
+        assert all(r.levelname == "WARNING" for r in refusals)
+
+    @mock_aws
     def test_team_caller_falls_back_to_global_connection(self):
         secret_id = "airflow/connections/test_postgres"
         create_param = {
