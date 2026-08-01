@@ -353,8 +353,9 @@ By default, ``catchup`` is ``False`` (Airflow config
 re-enabled. The timetable instead selects the most recently applicable
 scheduled run time:
 
-- For a trigger timetable, typically the latest cron tick (or delta boundary)
-  that is not after "now" and not before ``start_date``.
+- For CronTriggerTimetable_, the latest cron tick that is not after "now" and
+  not before ``start_date``. For DeltaTriggerTimetable_, pickup time itself —
+  a delta has no wall-clock tick to snap to.
 - For a data-interval timetable, the most recently completed interval whose end
   is not after "now".
 
@@ -418,13 +419,13 @@ is designed around the contiguous data window each run processes.
 Switching between trigger and data interval timetables on an existing Dag
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The two kinds of timetable anchor ``logical_date`` differently: a trigger
-timetable uses the trigger time, a data interval timetable uses
-``data_interval_start``. Switching a Dag from a trigger timetable to a data
-interval timetable when it already has existing dagruns will skip one
-scheduled run, because the next run is advanced one period to avoid colliding
-with the previous run's ``logical_date``. The reverse direction (data
-interval -> trigger) does not skip a run.
+The two kinds of timetable can disagree on ``logical_date`` for the same
+schedule tick: a zero-width trigger run uses the trigger time, while a
+data-interval run uses ``data_interval_start``. Switching a Dag from a
+trigger timetable to a data-interval timetable when it already has existing
+dagruns will skip one scheduled run, because the next run is advanced one
+period to avoid colliding with the previous run's ``logical_date``. The
+reverse direction (data interval -> trigger) does not skip a run.
 
 This transition can happen without editing a Dag, in two ways:
 
