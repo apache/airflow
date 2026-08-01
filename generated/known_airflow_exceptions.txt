@@ -179,7 +179,7 @@ providers/databricks/src/airflow/providers/databricks/operators/databricks_repos
 providers/databricks/src/airflow/providers/databricks/operators/databricks_sql.py::8
 providers/databricks/src/airflow/providers/databricks/operators/databricks_workflow.py::4
 providers/databricks/src/airflow/providers/databricks/plugins/databricks_workflow.py::7
-providers/databricks/src/airflow/providers/databricks/sensors/databricks.py::4
+providers/databricks/src/airflow/providers/databricks/sensors/databricks.py::3
 providers/databricks/src/airflow/providers/databricks/sensors/databricks_partition.py::4
 providers/databricks/src/airflow/providers/databricks/sensors/databricks_sql.py::1
 providers/databricks/src/airflow/providers/databricks/utils/databricks.py::3
