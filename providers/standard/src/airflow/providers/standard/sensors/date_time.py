@@ -115,10 +115,13 @@ class DateTimeSensorAsync(DateTimeSensor):
 
         self.start_from_trigger = start_from_trigger
         if self.start_from_trigger:
-            self.start_trigger_args.trigger_kwargs = dict(
-                moment=self._moment,
-                end_from_trigger=self.end_from_trigger,
-            )
+            if isinstance(self.target_time, str) and "{{" in self.target_time:
+                self.start_from_trigger = False
+            else:
+                self.start_trigger_args.trigger_kwargs = dict(
+                    moment=self._moment,
+                    end_from_trigger=self.end_from_trigger,
+                )
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
