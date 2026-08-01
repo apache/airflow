@@ -21,6 +21,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.providers.keycloak.auth_manager.constants import CONF_SECTION_NAME, CONF_USE_SEPARATE_COOKIES_KEY
 
 from tests_common.test_utils.config import conf_vars
 
@@ -37,9 +38,10 @@ class TestLoginRouter:
         assert "location" in response.headers
         assert response.headers["location"] == redirect_url
 
+    @pytest.mark.parametrize("separate_cookies", ["True", "False"])
     @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
-    def test_login_callback(self, mock_get_keycloak_client, mock_get_auth_manager, client):
+    def test_login_callback(self, mock_get_keycloak_client, mock_get_auth_manager, client, separate_cookies):
         code = "code"
         token = "token"
         state = "state"
@@ -57,11 +59,12 @@ class TestLoginRouter:
         mock_auth_manager = Mock()
         mock_get_auth_manager.return_value = mock_auth_manager
         mock_auth_manager.generate_jwt.return_value = token
-        response = client.get(
-            AUTH_MANAGER_FASTAPI_APP_PREFIX + f"/login_callback?code={code}&state={state}",
-            follow_redirects=False,
-            cookies={"_oauth_state": state},
-        )
+        with conf_vars({(CONF_SECTION_NAME, CONF_USE_SEPARATE_COOKIES_KEY): separate_cookies}):
+            response = client.get(
+                AUTH_MANAGER_FASTAPI_APP_PREFIX + f"/login_callback?code={code}&state={state}",
+                follow_redirects=False,
+                cookies={"_oauth_state": state},
+            )
         mock_keycloak_client.token.assert_called_once_with(
             grant_type="authorization_code",
             code=code,
@@ -79,6 +82,12 @@ class TestLoginRouter:
         assert "_token" in response.cookies
         assert response.cookies["_token"] == token
         assert response.cookies["_id_token"] == "id_token"
+        if separate_cookies == "True":
+            assert response.cookies["_access_token"] == "access_token"
+            assert response.cookies["_refresh_token"] == "refresh_token"
+        if separate_cookies == "False":
+            assert "_access_token" not in response.cookies
+            assert "_refresh_token" not in response.cookies
 
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_login_sets_secure_state_cookie_behind_tls_proxy(self, mock_get_keycloak_client, client):

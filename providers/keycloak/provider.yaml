@@ -111,3 +111,11 @@ config:
         version_added: 0.4.0
         example: "3"
         default: "3"
+      use_separate_cookies:
+        description: |
+          (Experimental) Move Keycloak JWT tokens to separate cookies from the Airflow JWT.
+          This reduces the size of the Airflow JWT and avoids browsers failing to set the cookie.
+        type: boolean
+        version_added: ~
+        example: ~
+        default: "False"

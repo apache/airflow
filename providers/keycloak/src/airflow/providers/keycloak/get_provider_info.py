@@ -85,6 +85,13 @@ def get_provider_info():
                         "example": "3",
                         "default": "3",
                     },
+                    "use_separate_cookies": {
+                        "description": "(Experimental) Move Keycloak JWT tokens to separate cookies from the Airflow JWT.\nThis reduces the size of the Airflow JWT and avoids browsers failing to set the cookie.\n",
+                        "type": "boolean",
+                        "version_added": None,
+                        "example": None,
+                        "default": "False",
+                    },
                 },
             }
         },
