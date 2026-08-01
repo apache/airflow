@@ -76,7 +76,8 @@ class TestGCSToS3Operator:
             )
 
     @mock.patch("airflow.providers.google.__version__", "10.2.0")
-    def test_match_glob_requires_recent_google_provider(self):
+    @pytest.mark.parametrize("match_glob", [f"**/*{DELIMITER}", ""])
+    def test_match_glob_requires_recent_google_provider(self, match_glob):
         with pytest.raises(ValueError, match="match_glob"):
             GCSToS3Operator(
                 task_id=TASK_ID,
@@ -84,7 +85,7 @@ class TestGCSToS3Operator:
                 prefix=PREFIX,
                 dest_aws_conn_id="aws_default",
                 dest_s3_key=S3_BUCKET,
-                match_glob=f"**/*{DELIMITER}",
+                match_glob=match_glob,
             )
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
