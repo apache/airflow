@@ -115,10 +115,11 @@ class TestNodeCoordinatorAttributes:
         with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
             NodeCoordinator(dag_bundle_name="ghost")
 
-    def test_build_command_scans_given_roots(self, tmp_path):
-        # The base resolves roots and hands them in; the subclass just scans them.
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        # Co-located mode: no configured root, so the subclass must scan the roots
+        # the base hands in rather than a configured bundles_root field.
         bundle = write_bundle(tmp_path)
-        coordinator = NodeCoordinator(bundles_root=tmp_path)
+        coordinator = NodeCoordinator()
         command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])
         assert command == ["node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
