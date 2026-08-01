@@ -5,7 +5,6 @@ go 1.25.0
 require github.com/apache/airflow/go-sdk v0.0.0
 
 require (
-	github.com/MatusOllah/slogcolor v1.6.0 // indirect
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/evanphx/go-hclog-slog v0.0.0-20240717231540-be48fc4c4df5 // indirect
 	github.com/fatih/color v1.18.0 // indirect
