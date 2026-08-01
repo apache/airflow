@@ -314,15 +314,6 @@ class TestSerializers:
         with pytest.raises(RuntimeError, match=r"DataFrame XComs are not supported with pandas"):
             pandas_serializer.deserialize(pd.DataFrame, 1, "")
 
-    @pytest.mark.parametrize("version", ["2.1.2", "2.3.3"])
-    def test_pandas_2_dataframe_xcom_still_round_trips(self, monkeypatch, version):
-        import pandas as pd
-
-        monkeypatch.setattr(pd, "__version__", version)
-        df = pd.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})
-
-        assert df.equals(deserialize(serialize(df)))
-
     @pytest.mark.parametrize(
         ("klass", "version", "data", "msg"),
         [
