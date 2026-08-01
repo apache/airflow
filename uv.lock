@@ -2079,7 +2079,7 @@ requires-dist = [
     { name = "cadwyn", specifier = ">=6.1.1" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "cron-descriptor", specifier = ">=1.2.24" },
-    { name = "croniter", specifier = ">=2.0.2" },
+    { name = "croniter", specifier = ">=6.2.2" },
     { name = "cryptography", specifier = ">=44.0.3" },
     { name = "deprecated", specifier = ">=1.2.13" },
     { name = "dill", specifier = ">=0.2.2" },
@@ -2133,7 +2133,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.50" },
     { name = "starlette", specifier = ">=1.0.1" },
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
-    { name = "structlog", specifier = ">=25.4.0" },
+    { name = "structlog", specifier = ">=26.1.0" },
     { name = "svcs", specifier = ">=25.1.0" },
     { name = "tabulate", specifier = ">=0.9.0" },
     { name = "tenacity", specifier = ">=8.3.0" },
@@ -2215,7 +2215,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich-argparse", specifier = ">=1.0.0" },
-    { name = "structlog", specifier = ">=25.4.0" },
+    { name = "structlog", specifier = ">=26.1.0" },
     { name = "tabulate", specifier = ">=0.9.0" },
     { name = "tenacity", specifier = ">=9.1.4" },
     { name = "uuid6", specifier = ">=2024.7.10" },
@@ -2225,7 +2225,7 @@ provides-extras = ["dev"]
 [package.metadata.requires-dev]
 codegen = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
-    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.41.0" },
+    { name = "datamodel-code-generator", extras = ["http"], specifier = ">=0.71.0" },
 ]
 dev = [
     { name = "apache-airflow-ctl", extras = ["dev"], editable = "airflow-ctl" },
@@ -6850,8 +6850,8 @@ requires-dist = [
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-common-sql", editable = "providers/common/sql" },
     { name = "attrs", specifier = ">=22.2" },
-    { name = "openlineage-integration-common", specifier = ">=1.47.0" },
-    { name = "openlineage-python", specifier = ">=1.47.0" },
+    { name = "openlineage-integration-common", specifier = ">=1.52.0" },
+    { name = "openlineage-python", specifier = ">=1.52.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54" },
 ]
 provides-extras = ["sqlalchemy"]
@@ -8567,7 +8567,7 @@ mypy = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "structlog", specifier = ">=25.4.0" }]
+requires-dist = [{ name = "structlog", specifier = ">=26.1.0" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
@@ -8597,7 +8597,7 @@ mypy = [
 requires-dist = [
     { name = "opentelemetry-api", specifier = ">=1.27.0" },
     { name = "pluggy", specifier = ">=1.5.0" },
-    { name = "structlog", specifier = ">=25.4.0" },
+    { name = "structlog", specifier = ">=26.1.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -8630,7 +8630,7 @@ mypy = [
 requires-dist = [
     { name = "msgspec", specifier = ">=0.19.0" },
     { name = "pygtrie", specifier = ">=2.5.0" },
-    { name = "structlog", specifier = ">=25.4.0" },
+    { name = "structlog", specifier = ">=26.1.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -8712,7 +8712,7 @@ requires-dist = [
     { name = "opentelemetry-proto", marker = "extra == 'otel'", specifier = ">=1.27.0,<9999" },
     { name = "pendulum", specifier = ">=3.1.0" },
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
-    { name = "structlog", specifier = ">=25.4.0" },
+    { name = "structlog", specifier = ">=26.1.0" },
 ]
 provides-extras = ["otel", "statsd", "datadog", "all"]
 
@@ -8791,7 +8791,7 @@ requires-dist = [
     { name = "packaging", specifier = ">=25.0" },
     { name = "pendulum", specifier = ">=3.1.0" },
     { name = "pygtrie", specifier = ">=2.5.0" },
-    { name = "structlog", specifier = ">=25.4.0" },
+    { name = "structlog", specifier = ">=26.1.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -9053,7 +9053,7 @@ requires-dist = [
     { name = "sentry-sdk", marker = "extra == 'sentry'", specifier = ">=2.30.0" },
     { name = "statsd", marker = "extra == 'all'", specifier = ">=3.3.0" },
     { name = "statsd", marker = "extra == 'statsd'", specifier = ">=3.3.0" },
-    { name = "structlog", specifier = ">=25.4.0" },
+    { name = "structlog", specifier = ">=26.1.0" },
     { name = "tenacity", specifier = ">=8.3.0" },
     { name = "typing-extensions", specifier = ">=4.14.1" },
 ]
@@ -9061,7 +9061,7 @@ provides-extras = ["all", "datadog", "otel", "sentry", "statsd"]
 
 [package.metadata.requires-dev]
 codegen = [
-    { name = "datamodel-code-generator", extras = ["http"], specifier = "==0.41.0" },
+    { name = "datamodel-code-generator", extras = ["http"], specifier = ">=0.71.0" },
     { name = "openapi-spec-validator", specifier = ">=0.7.1" },
     { name = "rich", specifier = ">=13.6.0" },
     { name = "svcs", specifier = ">=25.1.0" },
@@ -11397,23 +11397,22 @@ wheels = [
 
 [[package]]
 name = "datamodel-code-generator"
-version = "0.41.0"
+version = "0.71.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "argcomplete" },
-    { name = "black" },
+    { name = "black", marker = "sys_platform != 'emscripten'" },
     { name = "genson" },
     { name = "inflect" },
-    { name = "isort" },
+    { name = "isort", marker = "sys_platform != 'emscripten'" },
     { name = "jinja2" },
-    { name = "packaging" },
     { name = "pydantic" },
     { name = "pyyaml" },
-    { name = "tomli", marker = "python_full_version < '3.12'" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/21/a0/f3a08b0e2068eae40a170c8485d0a68bfe54210df4b8a67ee4fe27bae681/datamodel_code_generator-0.41.0.tar.gz", hash = "sha256:f5ded2baab48488c09ce91c564e486dee9145029c53016f1befb732313d66411", size = 473910, upload-time = "2025-12-05T16:50:19.049Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/f5/f4ce23d99503b147c9ec514dc995a96d3b4d2a3284252ad665f875a3145d/datamodel_code_generator-0.71.0.tar.gz", hash = "sha256:d27cd7a0d10f9b2db74a41db7f3e050c226da9cf0afb4916a7ab56275ebacbf2", size = 1684916, upload-time = "2026-07-24T15:32:04.334Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/11/9cec012b7764443a7b03bf3725ea56481a3f6d45c363a15406d57d048cf9/datamodel_code_generator-0.41.0-py3-none-any.whl", hash = "sha256:02caf2372d298844d6080fe805770161cac9aa720f143f349cee6ca76b50e5bf", size = 158701, upload-time = "2025-12-05T16:50:17.796Z" },
+    { url = "https://files.pythonhosted.org/packages/c6/4d/556cb290170f41b97ce50fd872e10a266f141d7a38352bb3071e4ae61f41/datamodel_code_generator-0.71.0-py3-none-any.whl", hash = "sha256:680b68338d59e98a0559eeb54d8e5ca33c35b3ec0bef922ec2cc783f2cb28e9a", size = 452379, upload-time = "2026-07-24T15:32:02.467Z" },
 ]
 
 [package.optional-dependencies]
@@ -17517,7 +17516,7 @@ wheels = [
 
 [[package]]
 name = "openlineage-integration-common"
-version = "1.51.0"
+version = "1.52.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -17526,12 +17525,12 @@ dependencies = [
     { name = "pyyaml" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/0d/d4579be921fb5ed547296f1b12725b3b288a0dba720de58f8949069a64a9/openlineage_integration_common-1.51.0-py3-none-any.whl", hash = "sha256:765917edb89768f1303a51775b182f83e0e0a293fb716be20e4331b8a256e771", size = 61680, upload-time = "2026-07-06T11:46:40.872Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/66/7d8adfff44cffac121836c33baedbf93e85fda814f6cf2821cb38e995c55/openlineage_integration_common-1.52.0-py3-none-any.whl", hash = "sha256:b003b812535b9f2b9570a7dbedc8c8913713b3e971abda77edfdb9234542d548", size = 67467, upload-time = "2026-07-23T14:40:31.011Z" },
 ]
 
 [[package]]
 name = "openlineage-python"
-version = "1.51.0"
+version = "1.52.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -17542,7 +17541,7 @@ dependencies = [
     { name = "requests" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/33/ec58ea03fbcb32bc62c4d012e9d2a0710817e423fff41b2880241f9c95f3/openlineage_python-1.51.0-py3-none-any.whl", hash = "sha256:bbf03eeb2271ccb23dc6b7a5f39e9968585d10160fa1d7ac345d07f59b45f568", size = 114334, upload-time = "2026-07-06T11:46:41.801Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/77/2f5b471c93c8c89f8777a18e0a05abd8dd14abf76f71bcd57f5e3c90d8e5/openlineage_python-1.52.0-py3-none-any.whl", hash = "sha256:e1bd73b3066021eecf69cc5c3571f6fd7e253768ea941f2c76f18969ea0ecb20", size = 116447, upload-time = "2026-07-23T14:40:32.073Z" },
 ]
 
 [[package]]

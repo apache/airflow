@@ -2988,6 +2988,51 @@ export type DeleteDagAssetQueuedEventData = {
 
 export type DeleteDagAssetQueuedEventResponse = void;
 
+export type GetAssetsUiData = {
+    dagIds?: Array<(string)>;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `group_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    groupPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    groupPrefixPattern?: string | null;
+    lastAssetEventTimestampGt?: string | null;
+    lastAssetEventTimestampGte?: string | null;
+    lastAssetEventTimestampLt?: string | null;
+    lastAssetEventTimestampLte?: string | null;
+    limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    namePrefixPattern?: string | null;
+    offset?: number;
+    onlyActive?: boolean;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, group, created_at, updated_at, last_asset_event_timestamp`
+     */
+    orderBy?: Array<(string)>;
+    /**
+     * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
+     */
+    uri?: Array<(string)>;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    uriPattern?: string | null;
+    /**
+     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     */
+    uriPrefixPattern?: string | null;
+};
+
+export type GetAssetsUiResponse = AssetCollectionResponse;
+
 export type NextRunAssetsData = {
     dagId: string;
 };
@@ -5110,6 +5155,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/assets': {
+        get: {
+            req: GetAssetsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetCollectionResponse;
                 /**
                  * Validation Error
                  */
