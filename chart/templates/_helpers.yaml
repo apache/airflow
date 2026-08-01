@@ -1205,4 +1205,3 @@ Usage:
           path: namespace
   {{- end }}
 {{- end -}}
-

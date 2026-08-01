@@ -370,14 +370,15 @@ class TestAirflowCommon:
         )
         # JWT secret is only injected into scheduler (and api-server); not into workers,
         # webserver, triggerer, dag-processor (security: no JWT where not needed).
+        # It is rendered last, as a dedicated helper appended after the standard env.
         expected_vars_with_jwt = [
             "AIRFLOW_HOME",
             "AIRFLOW__CORE__FERNET_KEY",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__API__SECRET_KEY",
-            "AIRFLOW__API_AUTH__JWT_SECRET",
             "AIRFLOW__CELERY__BROKER_URL",
+            "AIRFLOW__API_AUTH__JWT_SECRET",
         ]
         expected_vars_no_jwt = [
             "AIRFLOW_HOME",
