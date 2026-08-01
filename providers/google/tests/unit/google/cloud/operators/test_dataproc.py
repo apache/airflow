@@ -998,6 +998,20 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 
         assert op.project_id == GCP_PROJECT
         assert op.cluster_name == "cluster_name"
+        assert op.cluster_config is None
+        assert op._legacy_cluster_kwargs["num_workers"] == 2
+        assert op._legacy_cluster_kwargs["zone"] == "zone"
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_deprecated_kwargs_cluster_config_built_in_execute(self, mock_hook, to_dict_mock):
+        mock_hook.return_value.create_cluster.result.return_value = None
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID, region=GCP_REGION, project_id=GCP_PROJECT,
+            cluster_name="cluster_name", num_workers=2, zone="zone",
+        )
+        assert op.cluster_config is None
+        op.execute(context=self.mock_context)
         assert op.cluster_config["worker_config"]["num_instances"] == 2
         assert "zones/zone" in op.cluster_config["master_config"]["machine_type_uri"]
 
@@ -1519,6 +1533,32 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
             metadata=METADATA,
         )
         mock_hook.return_value.wait_for_operation.assert_not_called()
+
+
+@pytest.mark.db_test
+@pytest.mark.need_serialized_dag
+def test_create_cluster_operator_legacy_kwargs_survive_serialization_and_render(
+    dag_maker, create_task_instance_of_operator
+):
+    ti = create_task_instance_of_operator(
+        DataprocCreateClusterOperator,
+        dag_id=TEST_DAG_ID,
+        task_id=TASK_ID,
+        region=GCP_REGION,
+        project_id=GCP_PROJECT,
+        cluster_name=CLUSTER_NAME,
+        num_workers=2,
+        zone="{{ 'templated-zone' }}",
+        gcp_conn_id=GCP_CONN_ID,
+    )
+    serialized_dag = dag_maker.get_serialized_data()
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
+    deserialized_task = deserialized_dag.tasks[0]
+    assert deserialized_task._legacy_cluster_kwargs["zone"] == "{{ 'templated-zone' }}"
+
+    context = {"dag": dag_maker.dag, "ti": ti}
+    rendered_task = ti.render_templates(context=context)
+    assert rendered_task._legacy_cluster_kwargs["zone"] == "templated-zone"
 
 
 @pytest.mark.db_test
