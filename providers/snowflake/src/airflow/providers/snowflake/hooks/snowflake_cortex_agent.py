@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any, Literal, overload
 from urllib.parse import quote
 
@@ -27,6 +28,14 @@ from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook, _validate
 JsonDict = dict[str, Any]
 JsonList = list[JsonDict]
 JsonResponse = JsonDict | JsonList
+
+
+class CreateMode(str, Enum):
+    """Resource creation modes for Cortex Agents."""
+
+    ERROR_IF_EXISTS = "errorIfExists"
+    OR_REPLACE = "orReplace"
+    IF_NOT_EXISTS = "ifNotExists"
 
 
 class SnowflakeCortexAgentHook(SnowflakeHook):
@@ -64,6 +73,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         params: JsonDict | None = None,
         timeout: int | None = None,
         response_type: Literal["dict"],
+        allow_empty: bool = False,
     ) -> JsonDict: ...
 
     @overload
@@ -76,6 +86,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         params: JsonDict | None = None,
         timeout: int | None = None,
         response_type: Literal["list"],
+        allow_empty: Literal[False] = False,
     ) -> JsonList: ...
 
     def _request(
@@ -87,6 +98,7 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
         params: JsonDict | None = None,
         timeout: int | None = None,
         response_type: Literal["dict", "list"],
+        allow_empty: bool = False,
     ) -> JsonResponse:
 
         response = requests.request(
@@ -110,6 +122,9 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
 
         response.raise_for_status()
 
+        if not response.content and allow_empty:
+            return {}
+
         data = response.json()
 
         if response_type == "dict":
@@ -124,6 +139,43 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             raise TypeError("Expected list[dict] response, got list containing non-dict elements")
 
         return data
+
+    def _build_agent_payload(
+        self,
+        *,
+        comment: str | None = None,
+        profile: dict[str, Any] | None = None,
+        models: dict[str, Any] | None = None,
+        instructions: dict[str, Any] | None = None,
+        orchestration: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_resources: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Build a Cortex Agent request payload."""
+        payload: dict[str, Any] = {}
+
+        if comment is not None:
+            payload["comment"] = comment
+
+        if profile is not None:
+            payload["profile"] = profile
+
+        if models is not None:
+            payload["models"] = models
+
+        if instructions is not None:
+            payload["instructions"] = instructions
+
+        if orchestration is not None:
+            payload["orchestration"] = orchestration
+
+        if tools is not None:
+            payload["tools"] = tools
+
+        if tool_resources is not None:
+            payload["tool_resources"] = tool_resources
+
+        return payload
 
     def run_agent(
         self,
@@ -214,6 +266,114 @@ class SnowflakeCortexAgentHook(SnowflakeHook):
             payload=payload,
             timeout=timeout,
             response_type="dict",
+        )
+
+    def create_agent(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        comment: str | None = None,
+        profile: dict[str, Any] | None = None,
+        models: dict[str, Any] | None = None,
+        instructions: dict[str, Any] | None = None,
+        orchestration: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_resources: dict[str, Any] | None = None,
+        create_mode: CreateMode = CreateMode.ERROR_IF_EXISTS,
+        timeout: int | None = 600,
+    ) -> JsonDict:
+        """
+        Create a Snowflake Cortex Agent.
+
+        :param database: Database in which to create the agent.
+        :param schema: Schema in which to create the agent.
+        :param agent_name: Name of the Cortex Agent.
+        :param comment: Optional comment. Optional. Defaults to ``None``.
+        :param profile: Agent profile configuration. Optional. Defaults to ``None``.
+        :param models: Model configuration. Optional. Defaults to ``None``.
+        :param instructions: Agent instructions. Optional. Defaults to ``None``.
+        :param orchestration: Orchestration configuration. Optional. Defaults to ``None``.
+        :param tools: Agent tools. Optional. Defaults to ``None``.
+        :param tool_resources: Tool resource configuration. Optional. Defaults to ``None``.
+        :param create_mode: Resource creation mode. One of ``errorIfExists``, ``orReplace``
+            or ``ifNotExists``. Optional. Defaults to ``errorIfExists``.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent request
+            to complete. Defaults to ``600``.
+        :return: JSON response confirming creation.
+        """
+        payload = {
+            "name": agent_name,
+            **self._build_agent_payload(
+                comment=comment,
+                profile=profile,
+                models=models,
+                instructions=instructions,
+                orchestration=orchestration,
+                tools=tools,
+                tool_resources=tool_resources,
+            ),
+        }
+
+        endpoint = f"/api/v2/databases/{quote(database, safe='')}/schemas/{quote(schema, safe='')}/agents"
+
+        return self._request(
+            method="POST",
+            endpoint=endpoint,
+            payload=payload,
+            params={"createMode": create_mode.value},
+            timeout=timeout,
+            response_type="dict",
+        )
+
+    def update_agent(
+        self,
+        *,
+        database: str,
+        schema: str,
+        agent_name: str,
+        comment: str | None = None,
+        profile: dict[str, Any] | None = None,
+        models: dict[str, Any] | None = None,
+        instructions: dict[str, Any] | None = None,
+        orchestration: dict[str, Any] | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        tool_resources: dict[str, Any] | None = None,
+        timeout: int | None = 600,
+    ) -> JsonDict:
+        """
+        Update a Snowflake Cortex Agent.
+
+        :param database: Database containing the agent.
+        :param schema: Schema containing the agent.
+        :param agent_name: Name of the Cortex Agent.
+        :param timeout: Maximum time in seconds to wait for the Cortex Agent request
+            to complete. Defaults to ``600``.
+        :return: JSON response confirming the update, or an empty dictionary when
+            Snowflake returns a successful response without a body.
+        """
+        endpoint = (
+            f"/api/v2/databases/{quote(database, safe='')}"
+            f"/schemas/{quote(schema, safe='')}"
+            f"/agents/{quote(agent_name, safe='')}"
+        )
+
+        return self._request(
+            method="PUT",
+            endpoint=endpoint,
+            payload=self._build_agent_payload(
+                comment=comment,
+                profile=profile,
+                models=models,
+                instructions=instructions,
+                orchestration=orchestration,
+                tools=tools,
+                tool_resources=tool_resources,
+            ),
+            timeout=timeout,
+            response_type="dict",
+            allow_empty=True,
         )
 
     def describe_agent(
