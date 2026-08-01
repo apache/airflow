@@ -45,7 +45,12 @@ class TaskInstanceDTO(TaskInstance):
     pool_slots: int
     priority_weight: int
 
-    external_executor_id: str | None = Field(default=None, exclude=True)
+    # NOT excluded: the durable launch token must reach the worker so it can echo
+    # it back on POST /run for stale-executor fencing. Executors that pre-assign
+    # external_executor_id (Celery, Kubernetes) rely on this surviving serialization
+    # into the workload JSON that is shipped to the worker/pod. executor_config stays
+    # excluded — it is a scheduler-only concern the worker never reads.
+    external_executor_id: str | None = Field(default=None)
     executor_config: dict | None = Field(default=None, exclude=True)
 
     # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?

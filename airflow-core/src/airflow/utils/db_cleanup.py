@@ -191,11 +191,16 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
-        dependent_tables=["task_instance_history", "xcom"],
+        dependent_tables=["task_instance_history", "task_instance_launch", "xcom"],
         dag_id_column_name="dag_id",
     ),
     _TableConfig(
         table_name="task_instance_history", recency_column_name="start_date", dag_id_column_name="dag_id"
+    ),
+    _TableConfig(
+        table_name="task_instance_launch",
+        recency_column_name="created_at",
+        dag_id_column_name="dag_id",
     ),
     _TableConfig(
         table_name="task_state_store",
