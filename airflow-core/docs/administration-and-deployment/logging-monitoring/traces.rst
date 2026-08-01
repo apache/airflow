@@ -135,9 +135,12 @@ run — from the UI/API "Trigger with config" dialog, the ``airflow dags trigger
 
         {"airflow/dagrun_parent_trace_context": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}
 
-    A carrier mapping is read by the configured propagators, so under the default
-    ``OTEL_PROPAGATORS=tracecontext,baggage`` it accepts ``traceparent``, ``tracestate`` and
-    ``baggage``, and a deployment running a vendor propagator can supply that propagator's own keys.
+    The two forms are read differently, on purpose. The bare-string shorthand is *defined* as a W3C
+    ``traceparent`` — its value syntax, not just its key name — so it is always parsed as one,
+    regardless of ``OTEL_PROPAGATORS``. A carrier mapping is read by the configured propagators
+    instead, so under the default ``OTEL_PROPAGATORS=tracecontext,baggage`` it accepts
+    ``traceparent``, ``tracestate`` and ``baggage``, and a deployment running a vendor propagator can
+    supply that propagator's own keys. Use the mapping form when you are not propagating W3C.
 
     .. code-block:: json
 
