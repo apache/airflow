@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import re
 from functools import cached_property
 from typing import Any
 
@@ -162,6 +161,10 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         if conn_id == self.yc_connection_id:
             return None
 
+        if self._names_a_team_namespace(conn_id):
+            self._log_refusal("connection", conn_id)
+            return None
+
         return self._get_secret_value(self.connections_prefix, conn_id, team_name=team_name)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
@@ -173,6 +176,10 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         :return: Variable Value
         """
         if self.variables_prefix is None:
+            return None
+
+        if self._names_a_team_namespace(key):
+            self._log_refusal("variable", key)
             return None
 
         return self._get_secret_value(self.variables_prefix, key, team_name=team_name)
@@ -254,37 +261,36 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         """
         Whether ``secret_id`` spells out a team scoped secret name.
 
-        A team scoped secret is named ``<team><team sep><key>``, so an id that already contains
-        the team separator makes the team agnostic lookup resolve a secret inside some team's
-        namespace. That lookup is refused for such an id.
+        A team scoped secret is named ``<team><team sep><key>``, so an id that itself contains
+        the team separator makes the built name ambiguous: team ``a`` with key ``b//c`` and team
+        ``a//b`` with key ``c`` produce the same string. Such an id is refused for *every*
+        lookup -- team scoped as well as team agnostic -- because the ambiguity exists in both
+        directions and the caller's own namespace is not a safe harbour for it.
 
-        The id is never parsed to work out *which* team it names, because it cannot be: a team
-        name may itself contain the separator, so nothing distinguishes one team's namespace
-        from another whose name extends it. Comparing the id against the prefix the caller's
-        own team builds looks equivalent and is not. Only the caller's own namespace is ever
-        constructed, never parsed.
+        The id is never parsed to work out *which* team it names, because it cannot be: nothing
+        in the string distinguishes the two readings above. Comparing the id against the prefix
+        the caller's own team builds looks equivalent and is not -- a caller in team ``a`` would
+        match ``a//b``'s namespace on the prefix and read its secrets. Only the caller's own
+        namespace is ever constructed, never parsed.
         """
-        team_sep = re.escape(self.sep * TEAM_SEP_MULTIPLIER)
-        return bool(re.fullmatch(rf".+{team_sep}.+", secret_id))
+        return self.sep * TEAM_SEP_MULTIPLIER in secret_id
+
+    def _log_refusal(self, kind: str, secret_id: str) -> None:
+        self.log.warning(
+            "%s id %r contains %r, which separates the team name from the key in a team scoped "
+            "secret name. Such an id is ambiguous and is not looked up. Returning None.",
+            kind.capitalize(),
+            secret_id,
+            self.sep * TEAM_SEP_MULTIPLIER,
+        )
 
     def _get_secret_value(self, prefix: str, key: str, team_name: str | None = None) -> str | None:
-        # A key that spells out a team namespace is only ever resolvable through the team
-        # scoped lookup below; the team agnostic one would land inside some team's namespace.
-        # With no team in scope there is nothing left to try, so refuse before listing secrets
-        # rather than paying for a remote call whose result cannot be used.
-        names_a_team_namespace = self._names_a_team_namespace(key)
-        if names_a_team_namespace and not team_name:
-            return None
-
         secrets = self._get_secrets()
         secret: secret_pb.Secret | None = None
-        # Tried first and safe by construction: it can only build the caller's own namespace.
+        # The team scoped name is tried first. Keys that would make it name a namespace other
+        # than the caller's own are refused by the callers before reaching here.
         if team_name:
             secret = self._find_secret(secrets, prefix, self._build_team_secret_name("", team_name, key))
-
-        # Falling through would resolve a secret inside some team's namespace, so it is refused.
-        if not secret and names_a_team_namespace:
-            return None
 
         if not secret:
             secret = self._find_secret(secrets, prefix, key)
