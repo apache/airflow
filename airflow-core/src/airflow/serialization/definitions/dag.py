@@ -1202,7 +1202,7 @@ class SerializedDAG:
                         external_dag = dag_bag.get_latest_version_of_dag(tii.dag_id, session=session)
 
                         if not external_dag:
-                            raise DagNotFound(f"Could not find dag {tii.dag_id}")
+                            raise DagNotFound(f"Could not find Dag {tii.dag_id}")
 
                         downstream = external_dag.partial_subset(
                             task_ids=[tii.task_id],

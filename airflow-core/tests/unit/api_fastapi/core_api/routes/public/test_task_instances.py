@@ -21,6 +21,7 @@ import datetime as dt
 import itertools
 import math
 import os
+import uuid
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -28,6 +29,7 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
+from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import joinedload
 
@@ -51,6 +53,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.sdk import BaseOperator
+from airflow.serialization.definitions.dag import MaxRecursionDepthError
 from airflow.state.metastore import MetastoreBackend
 from airflow.utils.platform import getuser
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -3735,80 +3738,45 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert dagrun.state == "running"
         assert all(ti.state == "running" for ti in tis)
 
+    @pytest.mark.parametrize(
+        ("post_body", "include_downstream_dags"),
+        [
+            ({"dry_run": True, "only_failed": False, "include_downstream_dags": True}, True),
+            ({"dry_run": True, "only_failed": False, "include_downstream": True}, True),
+            ({"dry_run": True, "only_failed": False}, False),
+            (
+                {
+                    "dry_run": True,
+                    "only_failed": False,
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "include_downstream_dags": True,
+                },
+                True,
+            ),
+        ],
+    )
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
-    def test_include_downstream_dags_sets_include_dependent_dags(self, mock_clear, test_client, session):
-        """include_downstream_dags=True must be forwarded to dag.clear() as include_dependent_dags=True."""
+    def test_include_downstream(self, mock_clear, post_body, include_downstream_dags, test_client, session):
         self.create_task_instances(session)
         response = test_client.post(
             "/dags/example_python_operator/clearTaskInstances",
-            json={"dry_run": True, "only_failed": False, "include_downstream_dags": True},
+            json=post_body,
         )
         assert response.status_code == 200
         assert mock_clear.call_count == 1
-        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
+        assert mock_clear.call_args.kwargs["include_dependent_dags"] is include_downstream_dags
 
+    @pytest.mark.parametrize(
+        "post_body",
+        [
+            {"dry_run": True, "only_failed": False, "dag_run_id": "TEST_DAG_RUN_ID"},
+            {"dry_run": True, "only_failed": False},
+        ],
+    )
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
-    def test_include_downstream_sets_include_dependent_dags(self, mock_clear, test_client, session):
-        """include_downstream=True must also set include_dependent_dags=True (restoring Airflow 2 behavior)."""
+    def test_passes_request_dag_bag_to_clear(self, mock_clear, post_body, test_client, session):
         self.create_task_instances(session)
-        response = test_client.post(
-            "/dags/example_python_operator/clearTaskInstances",
-            json={"dry_run": True, "only_failed": False, "include_downstream": True},
-        )
-        assert response.status_code == 200
-        assert mock_clear.call_count == 1
-        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
-
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
-    def test_default_does_not_set_include_dependent_dags(self, mock_clear, test_client, session):
-        """Without downstream flags, include_dependent_dags must default to False."""
-        self.create_task_instances(session)
-        response = test_client.post(
-            "/dags/example_python_operator/clearTaskInstances",
-            json={"dry_run": True, "only_failed": False},
-        )
-        assert response.status_code == 200
-        assert mock_clear.call_count == 1
-        assert mock_clear.call_args.kwargs["include_dependent_dags"] is False
-
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
-    def test_run_id_path_sets_include_dependent_dags(self, mock_clear, test_client, session):
-        """dag_run_id code path: include_downstream_dags=True → include_dependent_dags=True."""
-        self.create_task_instances(session)
-        response = test_client.post(
-            "/dags/example_python_operator/clearTaskInstances",
-            json={
-                "dry_run": True,
-                "only_failed": False,
-                "dag_run_id": "TEST_DAG_RUN_ID",
-                "include_downstream_dags": True,
-            },
-        )
-        assert response.status_code == 200
-        assert mock_clear.call_count == 1
-        assert mock_clear.call_args.kwargs["include_dependent_dags"] is True
-
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
-    def test_run_id_path_passes_request_dag_bag_to_clear(self, mock_clear, test_client, session):
-        """dag_run_id code path: the request-scoped dag_bag must reach dag.clear()."""
-        self.create_task_instances(session)
-        response = test_client.post(
-            "/dags/example_python_operator/clearTaskInstances",
-            json={"dry_run": True, "only_failed": False, "dag_run_id": "TEST_DAG_RUN_ID"},
-        )
-
-        assert response.status_code == 200
-        assert mock_clear.call_count == 1
-        assert mock_clear.call_args.kwargs["dag_bag"] is test_client.app.state.dag_bag
-
-    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear", return_value=[])
-    def test_date_range_path_passes_request_dag_bag_to_clear(self, mock_clear, test_client, session):
-        """Date-range code path (no dag_run_id): the request-scoped dag_bag must reach dag.clear()."""
-        self.create_task_instances(session)
-        response = test_client.post(
-            "/dags/example_python_operator/clearTaskInstances",
-            json={"dry_run": True, "only_failed": False},
-        )
+        response = test_client.post("/dags/example_python_operator/clearTaskInstances", json=post_body)
 
         assert response.status_code == 200
         assert mock_clear.call_count == 1
@@ -3821,8 +3789,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         self, mock_get_auth_manager, mock_dag_clear, mock_clear_tis, test_client, session
     ):
         """TIs from child Dags the caller cannot edit must be excluded when include_dependent_dags=True."""
-        import uuid
-
         self.create_task_instances(session)
 
         parent_dag_id = "example_python_operator"
@@ -3863,8 +3829,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
     def test_cyclic_external_task_marker_returns_400(self, mock_clear, test_client, session):
         """A cyclic or too-deep ExternalTaskMarker chain must return 400, not 500."""
-        from airflow.serialization.definitions.dag import MaxRecursionDepthError
-
         self.create_task_instances(session)
         mock_clear.side_effect = MaxRecursionDepthError(
             "Maximum recursion depth 1 reached for ExternalTaskMarker marker_task."
@@ -3888,13 +3852,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
 
         assert response.status_code == 404
-        assert "child_dag" in response.json()["detail"]
+        assert response.json()["detail"] == "Could not find Dag child_dag"
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.clear")
     def test_invalid_external_task_marker_logical_date_returns_400(self, mock_clear, test_client, session):
         """A non-ISO logical_date rendered from an ExternalTaskMarker template must return 400, not 500."""
-        from pendulum.parsing.exceptions import ParserError
-
         self.create_task_instances(session)
         mock_clear.side_effect = ParserError("Unable to parse string [not-a-date]")
         response = test_client.post(

@@ -980,7 +980,7 @@ def post_clear_task_instances(
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
 
     if include_dependent_dags:
-        # Ensure proper access to downstream dags/tasks with dag.clear and include_dependent_dags
+        # Ensure proper access to downstream Dags/tasks with dag.clear and include_dependent_dags
         auth_manager = get_auth_manager()
         all_dag_ids = {ti.dag_id for ti in task_instances}  # Retrieve all Dag ID's from task instances
 
@@ -994,7 +994,7 @@ def post_clear_task_instances(
             if auth_manager.is_authorized_dag(
                 method="PUT",
                 access_entity=DagAccessEntity.TASK_INSTANCE,
-                details=DagDetails(id=other_dag_id, team_name=dag_id_to_team.get(dependent_dag_id)),
+                details=DagDetails(id=dependent_dag_id, team_name=dag_id_to_team.get(dependent_dag_id)),
                 user=user,
             )
         }

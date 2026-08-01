@@ -232,7 +232,7 @@ def test_clear_dependent_dags_deserializes_child_dag_once_across_multiple_marker
 
 
 def test_clear_raises_when_recursion_depth_exceeded(dag_maker, session):
-    """AirflowException is raised when the dependency chain depth exceeds recursion_depth."""
+    """MaxRecursionDepthError is raised when the dependency chain depth exceeds recursion_depth."""
     with dag_maker("parent_dag", session=session, schedule=None):
         ExternalTaskMarker(
             task_id="trigger_child",

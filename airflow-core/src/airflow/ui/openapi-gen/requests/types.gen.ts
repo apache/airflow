@@ -710,7 +710,7 @@ export type ClearTaskInstancesBody = {
     prevent_running_task?: boolean;
     note?: string | null;
     /**
-     * If True, also clear tasks in downstream DAGs that are linked via ExternalTaskMarker. Follows transitive dependencies up to the recursion_depth configured on each ExternalTaskMarker.
+     * If True, also clear tasks in downstream Dags that are linked via ExternalTaskMarker. Follows transitive dependencies up to the recursion_depth configured on each ExternalTaskMarker.
      */
     include_downstream_dags?: boolean;
 };
