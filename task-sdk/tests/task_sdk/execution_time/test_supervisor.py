@@ -68,7 +68,12 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TaskInstanceState,
 )
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import (
+    AirflowRuntimeError,
+    ErrorType,
+    TaskAlreadyRunningError,
+    TaskInstanceSupersededError,
+)
 from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
@@ -263,6 +268,49 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise_task(**kw)
+
+    def test_supervise_handles_superseded_task(self, mocker):
+        """
+        Test that supervise_task returns 0 when TaskInstanceSupersededError is raised.
+
+        This verifies that when coordinator.execute_task propagates TaskInstanceSupersededError,
+        the supervisor gracefully handles it, logs with INFO level, and exits without consuming a retry.
+        """
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="task1",
+            dag_id="dag1",
+            run_id="run1",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        )
+
+        # Mock the coordinator to raise TaskInstanceSupersededError immediately
+        mock_coordinator = mocker.Mock()
+        mock_coordinator.execute_task.side_effect = TaskInstanceSupersededError(
+            "Task instance superseded (stale executor token)"
+        )
+
+        # Mock get_coordinator_manager to return our mock coordinator
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.get_coordinator_manager"
+        ).return_value.for_queue.return_value = mock_coordinator
+
+        # Create minimal mock client
+        mock_client = mocker.Mock(spec=sdk_client.Client)
+
+        # Call supervise_task - should catch TaskInstanceSupersededError and return 0
+        exit_code = supervise_task(
+            ti=ti,
+            dag_rel_path="dummy.py",
+            token="token",
+            client=mock_client,
+            bundle_info=BundleInfo(name="test", version=None),
+        )
+
+        # Assert exit code is 0 (no retry consumed)
+        assert exit_code == 0
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -803,7 +851,9 @@ class TestWatchedSubprocess:
         assert exit_code == 0, captured_logs
 
         # Validate calls to the client
-        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
+        mock_client.task_instances.start.assert_called_once_with(
+            ti.id, mocker.ANY, mocker.ANY, external_executor_id=None
+        )
         mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
         mock_client.task_instances.defer.assert_called_once_with(
             ti.id,

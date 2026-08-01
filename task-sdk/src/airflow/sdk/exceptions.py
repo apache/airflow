@@ -403,6 +403,10 @@ class TaskAlreadyRunningError(AirflowException):
     """Raised when a task is already running on another worker."""
 
 
+class TaskInstanceSupersededError(AirflowException):
+    """Raised when a task executor's token has been superseded or is stale."""
+
+
 class FailFastDagInvalidTriggerRule(AirflowException):
     """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
 

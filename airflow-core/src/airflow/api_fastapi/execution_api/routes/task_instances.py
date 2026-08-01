@@ -89,6 +89,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.hitl import HITLDetail
 from airflow.models.log import Log
+from airflow.models.task_instance_launch import TERMINAL_STATES, TaskInstanceLaunch
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.taskreschedule import TaskReschedule
@@ -170,6 +171,7 @@ def ti_run(
             TI.unixname,
             TI.pid,
             TI.dag_version_id,
+            TI.external_executor_id,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -186,6 +188,25 @@ def ti_run(
         ti = session.execute(old).one()
         log.debug("Retrieved task instance details", state=ti.state, dag_id=ti.dag_id, task_id=ti.task_id)
     except NoResultFound:
+        # TI not found - check if we have a token to validate against launch records
+        payload_token = ti_run_payload.external_executor_id
+        if payload_token:
+            # Check if this token has a known launch record
+            launch = TaskInstanceLaunch.get_by_token(payload_token, session=session)
+            if launch and launch.state in TERMINAL_STATES:
+                # Token is known but in a terminal state (consumed or superseded)
+                log.warning(
+                    "Stale executor token for missing task instance", token=payload_token, state=launch.state
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "reason": "stale_executor_launch",
+                        "message": "Executor token is stale or has been superseded",
+                    },
+                )
+            # Token is unknown/null - ambiguous, could be upgrade scenario or stale executor
+            # Let the 404 be returned
         log.error("Task Instance not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -193,6 +214,39 @@ def ti_run(
                 "reason": "not_found",
                 "message": "Task Instance not found",
             },
+        )
+
+    # Validate launch token if provided (launch record presence drives enforcement)
+    # If TI has a DB token and that token has a launch record, enforce strict matching
+    payload_token = ti_run_payload.external_executor_id
+    db_token = ti.external_executor_id
+
+    if db_token:
+        # Check if this DB token has an active/terminal launch record
+        launch_record = TaskInstanceLaunch.get_by_token(db_token, session=session)
+        if launch_record:
+            # Launch record exists - enforce strict matching
+            if payload_token != db_token:
+                log.error(
+                    "External executor ID mismatch for known launch record",
+                    payload_token=payload_token,
+                    db_token=db_token,
+                    launch_state=launch_record.state,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail={
+                        "reason": "stale_executor_launch",
+                        "message": "Executor token does not match known launch record",
+                    },
+                )
+    elif payload_token and payload_token != db_token:
+        # No launch record exists, preserve rolling compatibility
+        # Only enforce if both have tokens and they differ
+        log.debug(
+            "Token mismatch but no launch record (rolling upgrade scenario)",
+            payload_token=payload_token,
+            db_token=db_token,
         )
 
     # We exclude_unset to avoid updating fields that are not set in the payload
@@ -264,6 +318,32 @@ def ti_run(
     try:
         result = session.execute(query)
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
+
+        # Mark the launch record as consumed if we have a token and the transition to RUNNING succeeded.
+        # Only mark on successful transitions from QUEUED/RESTARTING (not on duplicate RUNNING requests).
+        if payload_token and previous_state in (TaskInstanceState.QUEUED, TaskInstanceState.RESTARTING):
+            marked = TaskInstanceLaunch.mark_consumed(
+                token=payload_token,
+                session=session,
+            )
+            if marked:
+                log.debug("Marked launch token as consumed", token=payload_token)
+            else:
+                # If mark_consumed returns False, the record was already consumed or missing
+                # Only allow on duplicate RUNNING request (same host/user/pid), otherwise it's a conflict
+                if previous_state == TaskInstanceState.RUNNING:
+                    log.debug("Launch token already consumed (duplicate request)", token=payload_token)
+                else:
+                    # Roll back the update since mark_consumed failed and this isn't a duplicate
+                    session.rollback()
+                    log.error("Failed to mark launch token as consumed", token=payload_token)
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail={
+                            "reason": "stale_executor_launch",
+                            "message": "Launch record not found or already consumed",
+                        },
+                    )
 
         dr = (
             session.scalars(

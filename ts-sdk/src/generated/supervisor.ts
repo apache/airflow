@@ -194,6 +194,7 @@ export type Hostname = string | null;
 export type ContextCarrier = {
   [k: string]: unknown;
 } | null;
+export type ExternalExecutorId = string | null;
 export type Queue = string;
 export type IsFailureCallback = boolean | null;
 export type Type12 = "DagCallbackRequest";
@@ -976,6 +977,7 @@ export interface TaskInstance {
   map_index?: MapIndex;
   hostname?: Hostname;
   context_carrier?: ContextCarrier;
+  external_executor_id?: ExternalExecutorId;
   queue?: Queue;
 }
 /**

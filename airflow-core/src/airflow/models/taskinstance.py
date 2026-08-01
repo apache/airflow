@@ -90,6 +90,7 @@ from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
+from airflow.models.task_instance_launch import TaskInstanceLaunch
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -1070,6 +1071,14 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     def prepare_db_for_next_try(self, session: Session):
         """Update the metadata with all the records needed to put this TI in queued for the next try."""
         from airflow.models.taskinstancehistory import TaskInstanceHistory
+
+        # Supersede any active launch record for this task instance before clearing.
+        # This prevents stale executor tokens from being reused in subsequent attempts.
+        if self.external_executor_id:
+            TaskInstanceLaunch.mark_superseded(
+                token=self.external_executor_id,
+                session=session,
+            )
 
         TaskInstanceHistory.record_ti(self, session=session)
         session.execute(delete(TaskReschedule).filter_by(ti_id=self.id))

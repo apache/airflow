@@ -159,7 +159,9 @@ def test_workload_ti_round_trips_through_sdk_generated_model():
     )
 
     dumped = ti.model_dump(mode="json")
-    assert "external_executor_id" not in dumped
+    # The durable launch token is carried by external_executor_id, which must reach
+    # the worker so it can echo it back on POST /run for stale-executor fencing.
+    assert dumped["external_executor_id"] == "celery-id"
     assert "executor_config" not in dumped
     # Executor-side scheduling fields stay on the workload wire (older workers
     # deserialize the workload with a model that requires them) but are not
