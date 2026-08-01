@@ -69,7 +69,7 @@ class TestDatabricksSQLStatementsSensor:
         assert op.warehouse_id == WAREHOUSE_ID
 
     def test_both_statements_included_validated_at_init(self):
-        with pytest.raises(AirflowException, match="Cannot provide both"):
+        with pytest.raises(ValueError, match="Cannot provide both"):
             DatabricksSQLStatementsSensor(
                 statement=STATEMENT,
                 statement_id=STATEMENT_ID,
