@@ -27,7 +27,6 @@ from urllib.parse import quote_plus, urlencode
 import jaydebeapi
 from sqlalchemy.engine import URL
 
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -154,10 +153,10 @@ class JdbcHook(DbApiHook):
         conn = self.connection
         sqlalchemy_query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(sqlalchemy_query, dict):
-            raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
+            raise TypeError("The parameter 'sqlalchemy_query' must be of type dict!")
         sqlalchemy_scheme = conn.extra_dejson.get("sqlalchemy_scheme")
         if sqlalchemy_scheme is None:
-            raise AirflowException(
+            raise ValueError(
                 "The parameter 'sqlalchemy_scheme' must be defined in extra for JDBC connections!"
             )
         return URL.create(
