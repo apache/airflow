@@ -111,10 +111,6 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 class DefaultHelpParser(argparse.ArgumentParser):
     """CustomParser to display help message."""
 
-    def _check_value(self, action, value):
-        """Override _check_value and check conditionally added command."""
-        super()._check_value(action, value)
-
     def error(self, message):
         """Override error and use print_help instead of print_usage."""
         self.print_help()
@@ -280,17 +276,6 @@ ARG_DAG_ID = Arg(
     flags=("dag_id",),
     type=str,
     help="The Dag ID",
-)
-ARG_RUN_ID = Arg(
-    flags=("run_id",),
-    type=str,
-    nargs="?",
-    help="The run ID of the Dag run (pass this or --logical-date, not both)",
-)
-ARG_LOGICAL_DATE = Arg(
-    flags=("--logical-date",),
-    type=str,
-    help="The logical date of the Dag run with a timezone offset (pass this or run_id, not both)",
 )
 ARG_DAG_RUN_ID = Arg(
     flags=("--run-id",),

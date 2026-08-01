@@ -236,6 +236,26 @@ class TestSmtpHook:
         assert msg["To"] == ",".join(recipients)
 
     @patch(smtplib_string)
+    def test_build_mime_message_escapes_attachment_filename(self, mock_smtplib, tmp_path):
+        # A quote in the filename must not break out of the quoted
+        # Content-Disposition value and inject extra parameters.
+        malicious = 'report.txt"; x-evil="1'
+        attachment = tmp_path / malicious
+        attachment.write_bytes(b"data")
+        with SmtpHook() as smtp_hook:
+            msg, _ = smtp_hook._build_mime_message(
+                mail_from=FROM_EMAIL,
+                to=TO_EMAIL,
+                subject=TEST_SUBJECT,
+                html_content=TEST_BODY,
+                files=[os.fspath(attachment)],
+            )
+
+        part = msg.get_payload()[-1]
+        assert part.get_filename() == malicious
+        assert "x-evil" not in dict(part.get_params(header="Content-Disposition"))
+
+    @patch(smtplib_string)
     def test_send_smtp(self, mock_smtplib):
         mock_send_mime = mock_smtplib.SMTP_SSL().sendmail
         with SmtpHook() as smtp_hook, tempfile.NamedTemporaryFile() as attachment:

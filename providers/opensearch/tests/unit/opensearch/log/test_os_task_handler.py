@@ -879,8 +879,14 @@ class TestBuildStructuredLogFields:
         assert result["level"] == "ERROR"
         assert "levelname" not in result
 
-    def test_at_timestamp_mapped_to_timestamp(self):
+    def test_at_timestamp_mapped_to_timestamp_if_no_timestamp_present(self):
         hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z"}
+        result = _build_log_fields(hit)
+        assert result["timestamp"] == "2024-01-01T00:00:00Z"
+        assert "@timestamp" not in result
+
+    def test_at_timestamp_not_included_if_timestamp_present(self):
+        hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z", "timestamp": "2024-01-01T00:00:00Z"}
         result = _build_log_fields(hit)
         assert result["timestamp"] == "2024-01-01T00:00:00Z"
         assert "@timestamp" not in result
