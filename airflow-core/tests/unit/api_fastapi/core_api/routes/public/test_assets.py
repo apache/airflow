@@ -2151,6 +2151,32 @@ class TestPostAssetMaterialize(TestAssets):
         assert dag_run.partition_key == "2025-06-01T00:00:00"
         assert dag_run.partition_date == timezone.datetime(2025, 6, 1)
 
+    @pytest.mark.parametrize("team_name", ["team_b", None])
+    def test_authorizes_against_the_dags_team(self, test_client, session, team_name):
+        """The Dag is resolved from the asset, so its team must be resolved and passed too.
+
+        A team-aware auth manager distinguishes a team-scoped Dag from a global one by this field,
+        so leaving it ``None`` asks about a differently-scoped resource than the one being acted on.
+        """
+        recorded = []
+
+        auth_manager = mock.Mock()
+        auth_manager.is_authorized_dag.side_effect = lambda **kw: recorded.append(kw) or True
+
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.assets.get_auth_manager",
+                return_value=auth_manager,
+            ),
+            mock.patch.object(DagModel, "get_team_name", return_value=team_name),
+        ):
+            test_client.post("/assets/1/materialize")
+
+        assert recorded, "the authorization check did not run"
+        details = recorded[0]["details"]
+        assert details.id == self.DAG_ASSET1_ID
+        assert details.team_name == team_name
+
 
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
