@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 import pytest
 from moto import mock_aws
 
-from airflow.providers.amazon.aws.secrets.secrets_manager import SecretsManagerBackend
+from airflow.providers.amazon.aws.secrets.secrets_manager import TEAM_SEP, SecretsManagerBackend
 
 
 class TestSecretsManagerBackend:
@@ -91,6 +92,69 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.create_secret(**create_param)
 
         assert secrets_manager_backend.get_conn_value(conn_id="my_team--test_postgres") is None
+
+    @mock_aws
+    def test_another_teams_secret_is_not_reachable(self):
+        """A caller scoped to one team must not reach another team's secret by naming it."""
+        secret_id = "airflow/connections/my_team--test_postgres"
+        create_param = {"Name": secret_id, "SecretString": "postgresql://airflow:airflow@host:5432/airflow"}
+        backend = SecretsManagerBackend()
+        backend.client.create_secret(**create_param)
+
+        assert backend.get_conn_value(conn_id="my_team--test_postgres", team_name="other_team") is None
+
+    @mock_aws
+    def test_team_whose_name_extends_the_callers_is_not_reachable(self):
+        """A prefix match on the caller's own namespace is not proof of ownership."""
+        secret_id = "airflow/connections/my_team--prod--test_postgres"
+        create_param = {"Name": secret_id, "SecretString": "postgresql://airflow:airflow@host:5432/airflow"}
+        backend = SecretsManagerBackend()
+        backend.client.create_secret(**create_param)
+
+        assert backend.get_conn_value(conn_id="my_team--prod--test_postgres", team_name="my_team") is None
+
+    @mock_aws
+    def test_team_scoped_lookup_cannot_reach_a_longer_teams_namespace(self):
+        """The team scoped name is not safe by construction -- the id can extend it.
+
+        Team ``my_team`` asking for ``prod--test_postgres`` builds exactly the name team
+        ``my_team--prod`` builds for ``test_postgres``, so the team scoped lookup *hits*
+        another team's secret. Refusing only the team agnostic fall-through leaves this
+        open, because the fall-through is never reached.
+        """
+        secret_id = "airflow/connections/my_team--prod--test_postgres"
+        create_param = {"Name": secret_id, "SecretString": "postgresql://airflow:airflow@host:5432/airflow"}
+        backend = SecretsManagerBackend()
+        backend.client.create_secret(**create_param)
+
+        assert backend.get_conn_value(conn_id="prod--test_postgres", team_name="my_team") is None
+
+    @mock_aws
+    def test_refusing_an_ambiguous_id_is_logged(self, caplog):
+        """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged.
+
+        Asserted on the record's structured ``args`` rather than the rendered message, so
+        rewording the warning does not silently stop this from testing anything.
+        """
+        backend = SecretsManagerBackend()
+
+        assert backend.get_conn_value(conn_id="prod--test_postgres") is None
+        assert backend.get_variable(key="prod--hello") is None
+        assert backend.get_config(key="prod--sql_alchemy_conn") is None
+
+        # Airflow logs through structlog, which renders the format args into ``msg`` before the
+        # stdlib record is built -- ``record.args`` is empty, so there is no structured payload
+        # to assert on. Assert on level, logger and the refused id (the load-bearing data)
+        # rather than the wording, so rephrasing the warning does not break this.
+        refusals = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and r.name.endswith(type(backend).__name__)
+        ]
+        assert len(refusals) == 3
+        for refused_id in ("prod--test_postgres", "prod--hello", "prod--sql_alchemy_conn"):
+            assert sum(refused_id in r.msg for r in refusals) == 1
+        assert all(TEAM_SEP in r.msg for r in refusals)
 
     @mock_aws
     def test_team_caller_falls_back_to_global_connection(self):
