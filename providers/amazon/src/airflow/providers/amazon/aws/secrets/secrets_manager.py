@@ -262,6 +262,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.config_prefix is None:
             return None
 
+        if self._names_a_team_namespace(key):
+            self._log_refusal("configuration option", key)
+            return None
+
         return self._get_secret(self.config_prefix, key, self.config_lookup_pattern)
 
     def _get_secret_value(self, secret_id: str, secrets_path: str) -> str | None:
@@ -314,15 +318,17 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             )
             return None
 
-    def _names_a_team_namespace(self, secret_id: str) -> bool:
+    @staticmethod
+    def _names_a_team_namespace(secret_id: str) -> bool:
         """
         Whether ``secret_id`` spells out a team scoped secret name.
 
         A team scoped secret is named ``<team><TEAM_SEP><secret id>``, so an id that itself
         contains the team separator makes the built name ambiguous: team ``a`` with id ``b--c``
-        and team ``a--b`` with id ``c`` produce the same string. Such an id is refused for
-        *every* lookup -- team scoped as well as team agnostic -- because the ambiguity exists
-        in both directions and the caller's own namespace is not a safe harbour for it.
+        and team ``a--b`` with id ``c`` produce the same string. Such an id is refused by every
+        getter -- connections, variables and configuration options, team scoped as well as team
+        agnostic -- because the ambiguity exists in both directions and the caller's own
+        namespace is not a safe harbour for it.
 
         The id is never parsed to work out *which* team it names, because it cannot be: nothing
         in the string distinguishes the two readings above. Comparing the id against the prefix

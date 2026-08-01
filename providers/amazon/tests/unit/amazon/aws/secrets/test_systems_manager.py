@@ -17,13 +17,17 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest import mock
 
 import pytest
 from moto import mock_aws
 
 from airflow.configuration import initialize_secrets_backends
-from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
+from airflow.providers.amazon.aws.secrets.systems_manager import (
+    TEAM_SEP,
+    SystemsManagerParameterStoreBackend,
+)
 
 from tests_common.test_utils.config import conf_vars
 
@@ -170,15 +174,30 @@ class TestSsmSecrets:
 
     @mock_aws
     def test_refusing_an_ambiguous_id_is_logged(self, caplog):
-        """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged."""
-        ssm_backend = SystemsManagerParameterStoreBackend()
+        """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged.
 
-        assert ssm_backend.get_conn_value(conn_id="prod--test_postgres") is None
-        assert ssm_backend.get_variable(key="prod--hello") is None
+        Asserted on the record's structured ``args`` rather than the rendered message, so
+        rewording the warning does not silently stop this from testing anything.
+        """
+        backend = SystemsManagerParameterStoreBackend()
 
-        refusals = [r for r in caplog.records if "is ambiguous and is not looked up" in r.getMessage()]
-        assert len(refusals) == 2
-        assert all(r.levelname == "WARNING" for r in refusals)
+        assert backend.get_conn_value(conn_id="prod--test_postgres") is None
+        assert backend.get_variable(key="prod--hello") is None
+        assert backend.get_config(key="prod--sql_alchemy_conn") is None
+
+        # Airflow logs through structlog, which renders the format args into ``msg`` before the
+        # stdlib record is built -- ``record.args`` is empty, so there is no structured payload
+        # to assert on. Assert on level, logger and the refused id (the load-bearing data)
+        # rather than the wording, so rephrasing the warning does not break this.
+        refusals = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and r.name.endswith(type(backend).__name__)
+        ]
+        assert len(refusals) == 3
+        for refused_id in ("prod--test_postgres", "prod--hello", "prod--sql_alchemy_conn"):
+            assert sum(refused_id in r.msg for r in refusals) == 1
+        assert all(TEAM_SEP in r.msg for r in refusals)
 
     @mock_aws
     def test_team_caller_falls_back_to_global_connection(self):
