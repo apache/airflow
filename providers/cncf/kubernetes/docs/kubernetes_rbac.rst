@@ -32,8 +32,9 @@ used by the component that talks to the Kubernetes API:
 * the triggerer for deferrable Kubernetes operators that monitor pods or jobs.
 
 Use these rules as a starting point and reduce or extend them for your
-deployment. For example, use a ``Role`` for a single namespace and a
-``ClusterRole`` only when Airflow must work across namespaces.
+deployment. Use a ``Role`` for permissions within a single namespace. Use a
+``ClusterRole`` when permissions must cover multiple namespaces or
+cluster-scoped resources.
 
 The examples below show the RBAC rules. Bind the ``Role`` or ``ClusterRole`` to
 the ``ServiceAccount`` used by the Airflow component that makes the Kubernetes
@@ -85,8 +86,8 @@ deployment commonly needs these permissions:
        verbs: ["list", "watch"]
 
 ``pods/exec`` is needed when an operator uses exec-based functionality, such as
-retrieving XCom from the sidecar container. ``events`` access is used for
-Kubernetes event reporting.
+retrieving XCom from the sidecar container. ``events`` access is used to read
+Kubernetes events for diagnostics.
 
 Job launch permissions
 ----------------------
@@ -116,11 +117,13 @@ the pod launch section.
 
 For deferrable job operators, the worker creates the Job before deferring and
 the triggerer polls Job status. If the triggerer uses in-cluster credentials,
-bind the triggerer's ``ServiceAccount`` to the Job status permissions and any
-pod permissions needed for logs or XCom.
+bind the triggerer's ``ServiceAccount`` to the Job status permissions. When
+XCom is enabled, the triggerer also needs permission to get pods and exec into
+the XCom sidecar container. The worker reads pod logs after the task resumes.
 
-``KubernetesDeleteJobOperator`` and ``KubernetesPatchJobOperator`` can use a
-smaller rule set if they only delete or patch existing jobs.
+``KubernetesPatchJobOperator`` only needs permission to patch jobs.
+``KubernetesDeleteJobOperator`` reads Job status before deleting a Job, so it
+needs permission to get ``jobs/status`` and delete jobs.
 
 Cleanup permissions
 -------------------
@@ -162,7 +165,7 @@ Some operators act on Kubernetes custom resources:
        verbs: ["get"]
 
 * ``KubernetesCreateResourceOperator`` and ``KubernetesDeleteResourceOperator``
-  apply or delete the resources from the YAML you provide. Grant permissions
+  create or delete the resources from the YAML you provide. Grant permissions
   for every Kubernetes resource kind in that YAML.
 * ``KubernetesInstallKueueOperator`` applies the upstream Kueue installation
   manifests and usually needs broad cluster-level permissions because those
