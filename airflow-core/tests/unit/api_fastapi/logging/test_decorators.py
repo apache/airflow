@@ -130,6 +130,141 @@ class TestMaskVariableFields:
         assert result == {"value": "***"}
 
 
+class TestMaskBulkFields:
+    """The bulk endpoints nest their entities, and the masking has to reach them.
+
+    A ``BulkBody`` has exactly one top-level field, ``actions``; the entities carrying the
+    secrets sit two levels down, in ``actions[].entities[]``. Both maskers dispatch on
+    top-level key names, so a bulk body previously presented them with the single key
+    ``actions`` -- neither ``val``/``value`` for variables, nor ``extra`` for connections --
+    and the payload was written to the audit log as supplied.
+    """
+
+    def test_bulk_variable_values_are_masked(self):
+        result = _mask_variable_fields(
+            {
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"key": "campaign_signing_material", "value": "VARVAL_LEAK_token"},
+                            {"key": "other", "val": "VARVAL_LEAK_alias"},
+                        ],
+                        "action_on_existence": "overwrite",
+                    }
+                ]
+            }
+        )
+        assert result == {
+            "actions": [
+                {
+                    "action": "create",
+                    "entities": [
+                        {"key": "campaign_signing_material", "value": "***"},
+                        {"key": "other", "val": "***"},
+                    ],
+                    "action_on_existence": "overwrite",
+                }
+            ]
+        }
+
+    def test_bulk_connection_extra_is_masked(self):
+        """``extra`` is the load-bearing case for connections.
+
+        Key-name redaction already covered a nested ``password`` -- but only while
+        ``hide_sensitive_var_conn_fields`` is enabled, which is a deployment setting and is off
+        in this test environment. ``extra`` was never covered by it at all: the name is not a
+        recognised sensitive field, and the value is a JSON *string*, which ``redact`` returns
+        unchanged. Masking ``extra`` is structural here, so it does not depend on that setting.
+        """
+        result = _mask_connection_fields(
+            {
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {
+                                "connection_id": "c1",
+                                "conn_type": "http",
+                                "password": "CONN_LEAK_pw",
+                                "extra": json.dumps({"token": "CONN_LEAK_token", "region": "eu"}),
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+        entity = result["actions"][0]["entities"][0]
+        assert entity["extra"] == {"token": "***", "region": "***"}
+        assert entity["connection_id"] == "c1"
+        # every value is gone, only the key names of ``extra`` remain
+        assert "CONN_LEAK_token" not in json.dumps(result)
+
+    @pytest.mark.parametrize(
+        ("body", "masker"),
+        [
+            (
+                {"actions": [{"action": "create", "entities": [{"key": "k", "value": "LEAK_v"}]}]},
+                _mask_variable_fields,
+            ),
+            (
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [{"connection_id": "c", "extra": json.dumps({"t": "LEAK_v"})}],
+                        }
+                    ]
+                },
+                _mask_connection_fields,
+            ),
+        ],
+        ids=["variables", "connections"],
+    )
+    def test_no_secret_survives_in_the_serialized_entry(self, body, masker):
+        """The audit entry is serialized whole, so assert on the serialization, not one field."""
+        assert "LEAK_v" not in json.dumps(masker(body))
+
+    def test_multiple_actions_and_entities_are_all_masked(self):
+        result = _mask_variable_fields(
+            {
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [{"key": "a", "value": "s1"}, {"key": "b", "value": "s2"}],
+                    },
+                    {"action": "update", "entities": [{"key": "c", "value": "s3"}]},
+                ]
+            }
+        )
+        values = [e["value"] for a in result["actions"] for e in a["entities"]]
+        assert values == ["***", "***", "***"]
+
+    def test_delete_by_key_entities_are_left_alone(self):
+        """``delete`` may list bare keys rather than entity objects; those carry no secret."""
+        body = {"actions": [{"action": "delete", "entities": ["key_one", "key_two"]}]}
+        assert _mask_variable_fields(body) == body
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"key": "k", "value": "secret"},
+            {"actions": "not-a-list"},
+            {"actions": [{"action": "create"}]},
+            {"actions": [{"action": "create", "entities": "not-a-list"}]},
+            {"actions": ["not-a-dict"]},
+        ],
+        ids=["flat-body", "actions-not-list", "no-entities", "entities-not-list", "action-not-dict"],
+    )
+    def test_non_bulk_and_malformed_shapes_do_not_raise(self, body):
+        """The masker runs on request bodies before validation, so it must not add a failure mode."""
+        _mask_variable_fields(body)
+        _mask_connection_fields(body)
+
+    def test_flat_body_still_takes_the_single_entity_path(self):
+        assert _mask_variable_fields({"key": "k", "value": "secret"}) == {"key": "k", "value": "***"}
+
+
 class TestActionLoggingUserFields:
     """The audit Log records the raw identifier in ``owner`` and the human-friendly
     ``get_display_name()`` in ``owner_display_name``."""

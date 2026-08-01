@@ -45,8 +45,51 @@ def _sanitize_for_stdlib_log(value: str) -> str:
     return value.replace("\r", " ").replace("\n", " ")
 
 
+def _mask_bulk_entities(extra_fields, mask_entity):
+    """
+    Apply per-entity masking to a bulk request body.
+
+    A ``BulkBody`` has exactly one top-level field, ``actions``; the entities carrying the
+    secrets sit two levels down, in ``actions[].entities[]``. The per-entity maskers below
+    inspect top-level key names, so handing them a bulk body means they see only the key
+    ``actions`` and pass its whole payload through untouched. Reach the entities first.
+
+    Returns ``None`` when the body is not bulk-shaped, so callers fall back to flat masking.
+    """
+    actions = extra_fields.get("actions")
+    if not isinstance(actions, list):
+        return None
+
+    masked_actions = []
+    for action in actions:
+        if not isinstance(action, dict):
+            masked_actions.append(action)
+            continue
+        entities = action.get("entities")
+        if not isinstance(entities, list):
+            masked_actions.append(action)
+            continue
+        # ``delete`` actions may list bare id/key strings rather than entity objects;
+        # those carry no secret and are left as they are.
+        masked_actions.append(
+            {
+                **action,
+                "entities": [mask_entity(e) if isinstance(e, dict) else e for e in entities],
+            }
+        )
+    return {**extra_fields, "actions": masked_actions}
+
+
 def _mask_connection_fields(extra_fields):
-    """Mask connection fields."""
+    """Mask connection fields, for either a single-entity or a bulk request body."""
+    bulk = _mask_bulk_entities(extra_fields, _mask_connection_entity)
+    if bulk is not None:
+        return bulk
+    return _mask_connection_entity(extra_fields)
+
+
+def _mask_connection_entity(extra_fields):
+    """Mask the fields of one connection."""
     result = {}
     for k, v in extra_fields.items():
         if k == "extra" and v:
@@ -67,6 +110,14 @@ def _mask_connection_fields(extra_fields):
 
 
 def _mask_variable_fields(extra_fields):
+    """Mask variable values, for either a single-entity or a bulk request body."""
+    bulk = _mask_bulk_entities(extra_fields, _mask_variable_entity)
+    if bulk is not None:
+        return bulk
+    return _mask_variable_entity(extra_fields)
+
+
+def _mask_variable_entity(extra_fields):
     """
     Mask the variable value.
 
