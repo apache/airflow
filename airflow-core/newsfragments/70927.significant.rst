@@ -1,0 +1,28 @@
+Callbacks are claimed through the Execution API before they run
+
+A CeleryExecutor worker now claims a callback through the Execution API
+(``POST /execution/callbacks/{callback_id}/run``) before importing and running
+it, transitioning the callback ``QUEUED -> RUNNING``. Previously a callback was
+executed without the worker making any authenticated call first, so the workload
+token minted for it was never validated by the API server.
+
+**Behaviour changes:**
+
+- A ``3.4`` worker requires an API server that serves the new endpoint. Mixed
+  deployments negotiate the API version, so a worker talking to an older API
+  server continues to behave as though the endpoint does not exist.
+- Callbacks now emit an intermediate ``RUNNING`` state, matching the documented
+  ``QUEUED -> RUNNING -> SUCCESS/FAILED`` lifecycle.
+- A redelivered or replayed callback message that reaches a callback already
+  ``RUNNING`` or in a terminal state is refused rather than executed again.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes
