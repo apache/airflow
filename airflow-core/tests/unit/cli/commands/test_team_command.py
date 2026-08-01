@@ -88,6 +88,26 @@ class TestCliTeams:
         with pytest.raises(SystemExit, match="Invalid team name"):
             team_command.team_create(self.parser.parse_args(["teams", "create", "test with space"]))
 
+    def test_team_create_rejects_a_name_differing_only_in_case(self):
+        """Two teams differing only in case would share one secrets namespace.
+
+        The environment secrets backend upper-cases the team name when building the variable
+        name, so ``data_eng`` and ``Data_Eng`` both resolve ``AIRFLOW_CONN__DATA_ENG___<ID>``
+        and each team would read the other's Connections and Variables.
+        """
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data_eng"]))
+
+        with pytest.raises(SystemExit, match="differs only in case from the existing team"):
+            team_command.team_create(self.parser.parse_args(["teams", "create", "Data_Eng"]))
+
+        assert self.session.scalar(select(Team).where(Team.name == "Data_Eng")) is None
+
+    def test_team_create_allows_a_name_differing_by_more_than_case(self):
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data_eng"]))
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data_eng2"]))
+
+        assert self.session.scalar(select(Team).where(Team.name == "data_eng2")) is not None
+
     def test_team_create_whitespace_name(self):
         """Test team creation with whitespace-only name."""
         with pytest.raises(SystemExit, match="Team name cannot be empty"):
