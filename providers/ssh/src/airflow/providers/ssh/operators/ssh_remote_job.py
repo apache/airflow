@@ -65,7 +65,9 @@ class SSHRemoteJobOperator(BaseOperator):
     :param remote_host: Override the host from the connection (templated)
     :param environment: Environment variables to set for the command (templated)
     :param remote_base_dir: Base directory for job artifacts (templated).
-        Defaults to /tmp/airflow-ssh-jobs on POSIX, C:\\Windows\\Temp\\airflow-ssh-jobs on Windows
+        Defaults to ``/tmp/airflow-ssh-jobs`` on POSIX and
+        ``$env:TEMP\airflow-ssh-jobs`` on Windows. Custom values must be
+        literal paths and are not expanded by the remote shell.
     :param poll_interval: Seconds between status polls (default: 5)
     :param log_chunk_size: Max bytes to read per poll (default: 65536)
     :param timeout: Hard timeout in seconds for the entire operation

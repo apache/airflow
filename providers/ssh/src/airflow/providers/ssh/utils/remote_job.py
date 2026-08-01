@@ -30,6 +30,32 @@ from typing import Literal
 POSIX_DEFAULT_BASE_DIR = "/tmp/airflow-ssh-jobs"
 WINDOWS_DEFAULT_BASE_DIR = "$env:TEMP\\airflow-ssh-jobs"
 
+# The default Windows base dir above is a PowerShell *expression*, not a literal path:
+# it must be expanded via Join-Path. Every other path is emitted as a single-quoted
+# PowerShell literal, where "$env:TEMP" is inert text -- PowerShell would try to resolve
+# a nonexistent "$env" PSDrive and fail (#70438). WINDOWS_TEMP_PREFIX lets
+# ``_powershell_path`` recognize that one sentinel and expand only its prefix, while a
+# user-supplied ``remote_base_dir`` (a real path) always stays a literal.
+WINDOWS_TEMP_PREFIX = "$env:TEMP"
+
+
+def _powershell_path(path: str) -> str:
+    """
+    Render a path as a PowerShell expression.
+
+    Most paths are emitted as literals. Paths under the built-in
+    ``$env:TEMP`` base directory are emitted as expressions so the
+    environment variable is expanded at runtime.
+    """
+    if path == WINDOWS_TEMP_PREFIX or path.startswith(WINDOWS_TEMP_PREFIX + "\\"):
+        relative = path[len(WINDOWS_TEMP_PREFIX) :].lstrip("\\")
+        if not relative:
+            return WINDOWS_TEMP_PREFIX
+        escaped_relative = relative.replace("'", "''")
+        return f"(Join-Path $env:TEMP '{escaped_relative}')"
+    escaped_path = path.replace("'", "''")
+    return f"'{escaped_path}'"
+
 
 def _validate_job_dir(job_dir: str, remote_os: Literal["posix", "windows"]) -> None:
     """
@@ -269,35 +295,29 @@ def build_windows_wrapper_command(
     def ps_escape(s: str) -> str:
         return s.replace("'", "''")
 
-    job_dir = ps_escape(paths.job_dir)
-    log_file = ps_escape(paths.log_file)
-    exit_code_file = ps_escape(paths.exit_code_file)
-    exit_code_tmp = ps_escape(paths.exit_code_tmp_file)
-    pid_file = ps_escape(paths.pid_file)
-    status_file = ps_escape(paths.status_file)
     escaped_command = ps_escape(command)
     job_id = ps_escape(paths.job_id)
 
     child_script = f"""$ErrorActionPreference = 'Continue'
-$env:LOG_FILE = '{log_file}'
-$env:STATUS_FILE = '{status_file}'
+$env:LOG_FILE = {_powershell_path(paths.log_file)}
+$env:STATUS_FILE = {_powershell_path(paths.status_file)}
 {env_setup}
 {escaped_command}
 $ec = $LASTEXITCODE
 if ($null -eq $ec) {{ $ec = 0 }}
-Set-Content -NoNewline -Path '{exit_code_tmp}' -Value $ec
-Move-Item -Force -Path '{exit_code_tmp}' -Destination '{exit_code_file}'
+Set-Content -NoNewline -Path {_powershell_path(paths.exit_code_tmp_file)} -Value $ec
+Move-Item -Force -Path {_powershell_path(paths.exit_code_tmp_file)} -Destination {_powershell_path(paths.exit_code_file)}
 """
     child_script_bytes = child_script.encode("utf-16-le")
     encoded_script = base64.b64encode(child_script_bytes).decode("ascii")
 
-    wrapper = f"""$jobDir = '{job_dir}'
+    wrapper = f"""$jobDir = {_powershell_path(paths.job_dir)}
 New-Item -ItemType Directory -Force -Path $jobDir | Out-Null
-$log = '{log_file}'
+$log = {_powershell_path(paths.log_file)}
 '' | Set-Content -Path $log
 
 $p = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-NonInteractive', '-EncodedCommand', '{encoded_script}') -RedirectStandardOutput $log -RedirectStandardError $log -PassThru -WindowStyle Hidden
-Set-Content -NoNewline -Path '{pid_file}' -Value $p.Id
+Set-Content -NoNewline -Path {_powershell_path(paths.pid_file)} -Value $p.Id
 Write-Output '{job_id}'
 """
     wrapper_bytes = wrapper.encode("utf-16-le")
@@ -329,8 +349,7 @@ def build_windows_log_tail_command(log_file: str, offset: int, max_bytes: int) -
     :param max_bytes: Maximum bytes to read
     :return: PowerShell command that outputs the log chunk
     """
-    escaped_path = log_file.replace("'", "''")
-    script = f"""$path = '{escaped_path}'
+    script = f"""$path = {_powershell_path(log_file)}
 if (Test-Path $path) {{
   try {{
     $fs = [System.IO.File]::Open($path, 'Open', 'Read', 'ReadWrite')
@@ -366,8 +385,7 @@ def build_windows_file_size_command(file_path: str) -> str:
     :param file_path: Path to the file
     :return: PowerShell command that outputs the file size
     """
-    escaped_path = file_path.replace("'", "''")
-    script = f"""$path = '{escaped_path}'
+    script = f"""$path = {_powershell_path(file_path)}
 if (Test-Path $path) {{
   (Get-Item $path).Length
 }} else {{
@@ -396,8 +414,7 @@ def build_windows_completion_check_command(exit_code_file: str) -> str:
     :param exit_code_file: Path to the exit code file
     :return: PowerShell command that outputs exit code if done, empty otherwise
     """
-    escaped_path = exit_code_file.replace("'", "''")
-    script = f"""$path = '{escaped_path}'
+    script = f"""$path = {_powershell_path(exit_code_file)}
 if (Test-Path $path) {{
   $txt = Get-Content -Raw -Path $path
   if ($txt -match '^[0-9]+$') {{ $txt.Trim() }}
@@ -449,8 +466,7 @@ def build_windows_kill_command(pid_file: str) -> str:
     :param pid_file: Path to the PID file
     :return: PowerShell command to kill the process
     """
-    escaped_path = pid_file.replace("'", "''")
-    script = f"""$path = '{escaped_path}'
+    script = f"""$path = {_powershell_path(pid_file)}
 if (Test-Path $path) {{
   $procId = Get-Content $path
   & taskkill.exe /PID $procId /T /F 2>$null
@@ -481,8 +497,7 @@ def build_windows_cleanup_command(job_dir: str) -> str:
     :raises ValueError: If job_dir is not under the expected base directory
     """
     _validate_job_dir(job_dir, "windows")
-    escaped_path = job_dir.replace("'", "''")
-    script = f"Remove-Item -Recurse -Force -Path '{escaped_path}' -ErrorAction SilentlyContinue"
+    script = f"Remove-Item -Recurse -Force -Path {_powershell_path(job_dir)} -ErrorAction SilentlyContinue"
     script_bytes = script.encode("utf-16-le")
     encoded_script = base64.b64encode(script_bytes).decode("ascii")
     return f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded_script}"
