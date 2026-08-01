@@ -238,10 +238,19 @@ class TestJavaCoordinatorAttributes:
         assert coordinator.jars_root == [pathlib.Path("/airflow/java-bundles")]
 
     def test_jars_root_optional_defaults_to_empty(self):
-        # Neither an explicit root nor dag_bundle_name: co-located mode, valid.
-        coordinator = JavaCoordinator()
+        # Neither an explicit root nor dag_bundle_name: co-located mode, valid
+        # once an explicit main_class disambiguates the entrypoint.
+        coordinator = JavaCoordinator(main_class="com.example.Main")
         assert coordinator.jars_root == []
         assert coordinator.dag_bundle_name is None
+
+    def test_colocated_mode_requires_main_class(self):
+        with pytest.raises(ValueError, match="requires 'main_class' when 'jars_root' is not set"):
+            JavaCoordinator()
+
+    def test_explicit_root_does_not_require_main_class(self, tmp_path):
+        coordinator = JavaCoordinator(jars_root=tmp_path)
+        assert coordinator.main_class == ""
 
     def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
         with pytest.raises(ValueError, match="at most one of 'jars_root' or 'dag_bundle_name'"):
@@ -251,12 +260,13 @@ class TestJavaCoordinatorAttributes:
     def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = False
         with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
-            JavaCoordinator(dag_bundle_name="ghost")
+            JavaCoordinator(main_class="com.example.Main", dag_bundle_name="ghost")
 
-    def test_build_command_scans_given_roots(self, tmp_path):
-        # The base resolves roots and hands them in; the subclass just scans them.
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        # Co-located mode: no configured root, so the subclass must scan the roots
+        # the base hands in rather than a configured jars_root field.
         _make_jar(tmp_path / "app.jar", main_class="com.example.TaskRunner", schema_version="2026-06-16")
-        coordinator = JavaCoordinator(jars_root=tmp_path)
+        coordinator = JavaCoordinator(main_class="com.example.TaskRunner")
         command, schema_version = coordinator._build_execute_task_command(what=_make_ti(), roots=[tmp_path])
         assert command[0] == "java"
         assert command[-1] == "com.example.TaskRunner"

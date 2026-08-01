@@ -29,7 +29,11 @@ import pytest
 from sqlalchemy import func, select, update
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _guess_best_bundle_for_fileloc
+from airflow.dag_processing.bundles.manager import (
+    DagBundlesManager,
+    _configured_bundle_names,
+    _guess_best_bundle_for_fileloc,
+)
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -167,6 +171,15 @@ def test_get_bundle():
     assert bundle.version is None
 
 
+@pytest.fixture(autouse=True)
+def _clear_configured_bundle_names_cache():
+    # _configured_bundle_names is a process-global cache; clear it so tests that
+    # set different bundle configs don't observe each other's cached result.
+    _configured_bundle_names.cache_clear()
+    yield
+    _configured_bundle_names.cache_clear()
+
+
 def test_is_bundle_configured():
     """is_bundle_configured reports membership without constructing the bundle."""
     with patch.dict(
@@ -174,6 +187,22 @@ def test_is_bundle_configured():
     ):
         assert DagBundlesManager.is_bundle_configured("my-test-bundle") is True
         assert DagBundlesManager.is_bundle_configured("bundle-that-doesn't-exist") is False
+
+
+def test_is_bundle_configured_does_not_import_bundle_class():
+    """A validly-named bundle whose class is unimportable is still reported as configured.
+
+    The check reads names only; the class is imported lazily at materialization,
+    so an unimportable classpath must not make a coordinator fail at construction.
+    """
+    config = [{"name": "artifacts", "classpath": "does.not.exist.Bundle", "kwargs": {}}]
+    with patch.dict(os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(config)}):
+        assert DagBundlesManager.is_bundle_configured("artifacts") is True
+
+
+def test_is_bundle_configured_empty_config():
+    with patch.dict(os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": "[]"}):
+        assert DagBundlesManager.is_bundle_configured("anything") is False
 
 
 @pytest.fixture
