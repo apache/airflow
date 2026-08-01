@@ -42,19 +42,19 @@ role to a worker service account:
 
 .. code-block:: yaml
 
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: RoleBinding
-    metadata:
-      name: airflow-pod-launcher-binding
-      namespace: airflow
-    subjects:
-      - kind: ServiceAccount
-        name: airflow-worker
-        namespace: airflow
-    roleRef:
-      apiGroup: rbac.authorization.k8s.io
-      kind: Role
-      name: airflow-pod-launcher
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: RoleBinding
+   metadata:
+     name: airflow-pod-launcher-binding
+     namespace: airflow
+   subjects:
+     - kind: ServiceAccount
+       name: airflow-worker
+       namespace: airflow
+   roleRef:
+     apiGroup: rbac.authorization.k8s.io
+     kind: Role
+     name: airflow-pod-launcher
 
 Pod launch permissions
 ----------------------
@@ -65,24 +65,24 @@ deployment commonly needs these permissions:
 
 .. code-block:: yaml
 
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: Role
-    metadata:
-      name: airflow-pod-launcher
-      namespace: airflow
-    rules:
-      - apiGroups: [""]
-        resources: ["pods"]
-        verbs: ["create", "get", "list", "watch", "patch", "delete"]
-      - apiGroups: [""]
-        resources: ["pods/log"]
-        verbs: ["get"]
-      - apiGroups: [""]
-        resources: ["pods/exec"]
-        verbs: ["create", "get"]
-      - apiGroups: [""]
-        resources: ["events"]
-        verbs: ["list", "watch"]
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     name: airflow-pod-launcher
+     namespace: airflow
+   rules:
+     - apiGroups: [""]
+       resources: ["pods"]
+       verbs: ["create", "get", "list", "watch", "patch", "delete"]
+     - apiGroups: [""]
+       resources: ["pods/log"]
+       verbs: ["get"]
+     - apiGroups: [""]
+       resources: ["pods/exec"]
+       verbs: ["create", "get"]
+     - apiGroups: [""]
+       resources: ["events"]
+       verbs: ["list", "watch"]
 
 ``pods/exec`` is needed when an operator uses exec-based functionality, such as
 retrieving XCom from the sidecar container. ``events`` access is used for
@@ -97,18 +97,18 @@ permissions:
 
 .. code-block:: yaml
 
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: Role
-    metadata:
-      name: airflow-job-launcher
-      namespace: airflow
-    rules:
-      - apiGroups: ["batch"]
-        resources: ["jobs"]
-        verbs: ["create", "get", "list", "watch", "patch", "delete"]
-      - apiGroups: ["batch"]
-        resources: ["jobs/status"]
-        verbs: ["get", "watch"]
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     name: airflow-job-launcher
+     namespace: airflow
+   rules:
+     - apiGroups: ["batch"]
+       resources: ["jobs"]
+       verbs: ["create", "get", "list", "watch", "patch", "delete"]
+     - apiGroups: ["batch"]
+       resources: ["jobs/status"]
+       verbs: ["get", "watch"]
 
 When a job operator waits for completion, streams pod logs, reads XCom, or
 cleans up discovered pods, it also needs the relevant pod permissions from
@@ -130,15 +130,15 @@ job only needs pod list and delete permissions in the namespace it cleans:
 
 .. code-block:: yaml
 
-    apiVersion: rbac.authorization.k8s.io/v1
-    kind: Role
-    metadata:
-      name: airflow-pod-cleanup
-      namespace: airflow
-    rules:
-      - apiGroups: [""]
-        resources: ["pods"]
-        verbs: ["list", "delete"]
+   apiVersion: rbac.authorization.k8s.io/v1
+   kind: Role
+   metadata:
+     name: airflow-pod-cleanup
+     namespace: airflow
+   rules:
+     - apiGroups: [""]
+       resources: ["pods"]
+       verbs: ["list", "delete"]
 
 Custom resource permissions
 ---------------------------
@@ -154,12 +154,12 @@ Some operators act on Kubernetes custom resources:
 
   .. code-block:: yaml
 
-      - apiGroups: ["sparkoperator.k8s.io"]
-        resources: ["sparkapplications"]
-        verbs: ["create", "get", "delete"]
-      - apiGroups: ["sparkoperator.k8s.io"]
-        resources: ["sparkapplications/status"]
-        verbs: ["get"]
+     - apiGroups: ["sparkoperator.k8s.io"]
+       resources: ["sparkapplications"]
+       verbs: ["create", "get", "delete"]
+     - apiGroups: ["sparkoperator.k8s.io"]
+       resources: ["sparkapplications/status"]
+       verbs: ["get"]
 
 * ``KubernetesCreateResourceOperator`` and ``KubernetesDeleteResourceOperator``
   apply or delete the resources from the YAML you provide. Grant permissions
@@ -171,31 +171,6 @@ Some operators act on Kubernetes custom resources:
 Official Helm chart
 -------------------
 
-If you deploy Airflow with the :doc:`official Helm chart <helm-chart:index>`,
-the chart can create the common Kubernetes RBAC resources for you when
-``rbac.create`` is ``true``.
-
-Relevant chart settings include:
-
-* ``allowPodLaunching`` for pod launcher permissions,
-* ``allowJobLaunching`` for job launcher permissions,
-* ``cleanup.enabled`` for KubernetesExecutor pod cleanup permissions,
-* ``apiServer.allowPodLogReading`` for API server pod log reading permissions,
-* ``multiNamespaceMode`` when Airflow needs access beyond the release
-  namespace.
-
-The chart binds pod launcher permissions to the triggerer when the triggerer is
-enabled. If you use deferrable job operators with in-cluster triggerer
-credentials, also ensure the triggerer's ``ServiceAccount`` has the required
-Job permissions.
-
-The chart templates are a useful reference when maintaining custom manifests:
-
-* ``chart/templates/rbac/pod-launcher-role.yaml``
-* ``chart/templates/rbac/job-launcher-role.yaml``
-* ``chart/templates/rbac/pod-cleanup-role.yaml``
-* ``chart/templates/rbac/pod-log-reader-role.yaml``
-* ``chart/templates/rbac/pod-launcher-rolebinding.yaml``
-* ``chart/templates/rbac/job-launcher-rolebinding.yaml``
-* ``chart/templates/rbac/pod-cleanup-rolebinding.yaml``
-* ``chart/templates/rbac/pod-log-reader-rolebinding.yaml``
+If you use the :doc:`official Apache Airflow Helm Chart <helm-chart:index>` to
+deploy your environment, see its documentation for details about the
+permissions and settings that the Chart manages.
