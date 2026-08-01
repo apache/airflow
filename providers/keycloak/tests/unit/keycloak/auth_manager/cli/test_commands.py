@@ -567,15 +567,17 @@ class TestCommands:
         mock_update_admin_permission_resources.assert_called_once_with(client, "test-id", _dry_run=False)
         mock_ensure_group_policy.assert_called_once_with(client, "test-id", "team-a", _dry_run=False)
         assert mock_ensure_aggregate_policy.call_count == 4
-        mock_attach_policy.assert_any_call(
-            client,
-            "test-id",
-            permission_name="ReadOnly-team-a",
-            policy_name="Allow-Viewer-team-a",
-            scope_names=["GET", "LIST"],
-            resource_names=["Dag:team-a", "Team:team-a"],
-            _dry_run=False,
-        )
+        for role_name in TEAM_ROLE_NAMES:
+            mock_attach_policy.assert_any_call(
+                client,
+                "test-id",
+                permission_name="ReadOnly-team-a",
+                policy_name=f"Allow-{role_name}-team-a",
+                scope_names=["GET", "LIST"],
+                resource_names=["Dag:team-a", "Team:team-a"],
+                decision_strategy="AFFIRMATIVE",
+                _dry_run=False,
+            )
         mock_attach_policy.assert_any_call(
             client,
             "test-id",

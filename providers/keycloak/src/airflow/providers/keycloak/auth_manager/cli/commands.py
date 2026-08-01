@@ -792,6 +792,7 @@ def _attach_team_permissions(
         policy_name=_team_role_policy_name(team, "Viewer"),
         scope_names=["GET", "LIST"],
         resource_names=team_readable_resources,
+        decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )
     for role_name in ("User", "Op", "Admin"):
@@ -802,6 +803,7 @@ def _attach_team_permissions(
             policy_name=_team_role_policy_name(team, role_name),
             scope_names=["GET", "LIST"],
             resource_names=team_readable_resources,
+            decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
     _attach_policy_to_scope_permission(
