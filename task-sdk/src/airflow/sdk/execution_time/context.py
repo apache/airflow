@@ -323,9 +323,22 @@ def _mask_and_deserialize_variable(raw: str, key: str, deserialize_json: bool) -
         return raw
     val = json.loads(raw)
     if isinstance(val, str):
+        # No key names of its own, so the variable's key decides whether it is masked.
         mask_secret(val, key)
     elif isinstance(val, dict):
+        # ``add_mask`` walks a dict per key and masks by the *inner* key name, ignoring the
+        # name passed here.
         mask_secret(val)
+    elif isinstance(val, list):
+        # A list was previously skipped entirely, even though ``add_mask`` walks iterables --
+        # the same list nested one level inside a dict was masked, only a top-level one was not.
+        #
+        # It is passed under the variable's key, not anonymously: a list has no key names of
+        # its own, so bare values inside follow the same rule as the plain-string case above.
+        # Masking them unconditionally would add every element to the global pattern set, so a
+        # list of ordinary values such as region names would be redacted everywhere it appeared.
+        # Dicts *inside* the list are still masked by their own key names.
+        mask_secret(val, key)
     return val
 
 
