@@ -66,6 +66,8 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
             has_uploaded = self.write(log, remote_loc)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
+            elif has_uploaded:
+                local_loc.write_text("")
 
     @cached_property
     def hook(self):
@@ -193,7 +195,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         """
         if append and self.wasb_log_exists(remote_log_location):
             old_log = self.wasb_read(remote_log_location)
-            log = f"{old_log}\n{log}" if old_log else log
+            if old_log:
+                sep = "" if old_log.endswith("\n") else "\n"
+                log = f"{old_log}{sep}{log}"
 
         try:
             self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
