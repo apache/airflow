@@ -397,10 +397,11 @@ class TestExecutableCoordinatorAttributes:
         assert coordinator.dag_bundle_name == "artifacts"
         mock_manager.is_bundle_configured.assert_called_once_with("artifacts")
 
-    def test_build_command_scans_given_roots(self, tmp_path):
-        # The base resolves roots and hands them in; the subclass just scans them.
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        # Co-located mode: no configured root, so the subclass must scan the roots
+        # the base hands in rather than a configured executables_root field.
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
-        coordinator = ExecutableCoordinator(executables_root=[tmp_path])
+        coordinator = ExecutableCoordinator()
         command, schema_version = coordinator._build_execute_task_command(
             what=_make_ti(dag_id="tutorial_dag"), roots=[tmp_path]
         )
