@@ -242,8 +242,25 @@ class TestTimeSensor:
         assert TimeSensor.start_trigger_args.trigger_kwargs["target_time"] == "00:00:00"
 
     # --- E9 HEADLINE: serialization stable across datetime.now() values ---
-    def test_start_from_trigger_keeps_serialized_dag_hash_stable(self):
+    @staticmethod
+    def _serialized_dag_payload(dag) -> dict:
+        """Serialized-Dag dict on every supported Airflow version.
+
+        ``SerializedDAG.to_dict`` exists on 2.11 and 3.0-3.2 but was removed on main;
+        ``LazyDeserializedDAG.from_dag`` only exists on 3.3+. Parse-time churn shows up
+        in this payload first, whichever API produces it.
+        """
+        from airflow.serialization.serialized_objects import SerializedDAG
+
+        if hasattr(SerializedDAG, "to_dict"):
+            return SerializedDAG.to_dict(dag)
         from airflow.serialization.serialized_objects import LazyDeserializedDAG
+
+        return LazyDeserializedDAG.from_dag(dag).data
+
+    def test_start_from_trigger_keeps_serialized_dag_hash_stable(self):
+        import hashlib
+        import json
 
         def build_hash() -> str:
             with DAG(
@@ -257,7 +274,8 @@ class TestTimeSensor:
                     start_from_trigger=True,
                     end_from_trigger=True,
                 )
-            return LazyDeserializedDAG.from_dag(dag).hash
+            payload = self._serialized_dag_payload(dag)
+            return hashlib.md5(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
 
         with time_machine.travel("2025-01-01 00:00:00", tick=False):
             first_hash = build_hash()
@@ -268,7 +286,6 @@ class TestTimeSensor:
 
     def test_start_from_trigger_serialized_dict_identical_across_parses(self):
         """SerializedDAG payload must be byte-identical when now() differs (E9)."""
-        from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
         def build_data():
             with DAG(
@@ -281,7 +298,7 @@ class TestTimeSensor:
                     target_time=time(10, 0),
                     start_from_trigger=True,
                 )
-            return LazyDeserializedDAG.from_dag(dag).data
+            return self._serialized_dag_payload(dag)
 
         with time_machine.travel("2025-01-01 00:00:00", tick=False):
             first = build_data()

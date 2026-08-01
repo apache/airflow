@@ -22,18 +22,21 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 import pendulum
-from pendulum.tz.timezone import FixedTimezone
+from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.triggers.base import BaseTrigger, TaskSuccessEvent, TriggerEvent
 
 
-def _parse_timezone(value: str | int | datetime.tzinfo) -> datetime.tzinfo:
-    """Return a tzinfo from an IANA name, fixed offset (seconds), or existing tzinfo."""
-    if isinstance(value, datetime.tzinfo):
+def _parse_timezone(value: str | int | datetime.tzinfo) -> Timezone | FixedTimezone:
+    """Return a pendulum timezone from an IANA name, fixed offset (seconds), or existing tzinfo."""
+    if isinstance(value, (Timezone, FixedTimezone)):
         return value
-    # pendulum.timezone accepts IANA names (str) and fixed offsets (int seconds).
-    return pendulum.timezone(value)  # type: ignore[arg-type, return-value]
+    if isinstance(value, datetime.tzinfo):
+        # Generic tzinfo (zoneinfo, datetime.timezone): rebuild a pendulum zone from its
+        # IANA name or fixed offset so pendulum's DST arithmetic gets a native zone type.
+        return pendulum.timezone(serializable_timezone(value))
+    return pendulum.timezone(value)
 
 
 def serializable_timezone(tzinfo: datetime.tzinfo | None) -> str | int:
@@ -84,6 +87,7 @@ def resolve_time_of_day_moment(
     Resolve ``target_time`` on "today" in ``tz`` to a UTC-aware moment.
 
     Semantics:
+
     - **Already passed today**: still returns today's occurrence (caller succeeds immediately).
       Does *not* roll forward to the next day.
     - **Non-existent local time** (spring-forward gap, e.g. 02:30 America/New_York on DST start):
