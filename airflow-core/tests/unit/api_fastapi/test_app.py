@@ -25,6 +25,8 @@ from fastapi import FastAPI
 import airflow.api_fastapi.app as app_module
 import airflow.plugins_manager as plugins_manager
 
+from tests_common.test_utils.config import conf_vars
+
 pytestmark = pytest.mark.db_test
 
 
@@ -134,6 +136,22 @@ class TestGetCookiePath:
         """When base_url contains a nested subpath, get_cookie_path() should return it."""
         with mock.patch.object(app_module, "API_ROOT_PATH", "/org/team-a/airflow/"):
             assert app_module.get_cookie_path() == "/org/team-a/airflow/"
+
+
+@pytest.mark.parametrize(
+    ("scheme", "ssl_cert", "exp"),
+    [
+        ("http", "", False),
+        ("https", "", True),
+        ("http", "/foo/bar/cert.crt", True),
+        ("https", "/foo/bar/cert/crt", True),
+    ],
+)
+def test_request_cookie_is_secure(scheme, ssl_cert, exp):
+    request = mock.Mock()
+    request.base_url.scheme = scheme
+    with conf_vars({("api", "ssl_cert"): ssl_cert}):
+        assert app_module.request_cookie_is_secure(request) == exp
 
 
 def test_create_auth_manager_thread_safety():
