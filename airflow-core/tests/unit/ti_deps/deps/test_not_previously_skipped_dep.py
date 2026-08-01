@@ -25,6 +25,7 @@ from airflow.models import DagRun, TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import BranchPythonOperator
+from airflow.sdk import task_group
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import (
     XCOM_SKIPMIXIN_FOLLOWED,
@@ -44,6 +45,19 @@ def clean_db(session):
     yield
     session.execute(delete(DagRun))
     session.execute(delete(TaskInstance))
+
+
+def _ti(dr, task_id: str, map_index: int = -1):
+    """Return the DagRun task instance for ``task_id`` / ``map_index``."""
+    matches = [ti for ti in dr.task_instances if ti.task_id == task_id and ti.map_index == map_index]
+    if matches:
+        return matches[0]
+    # Mapped expansion may not have materialized yet; fall back and set map_index.
+    matches = [ti for ti in dr.task_instances if ti.task_id == task_id]
+    assert matches, f"No task instance for {task_id}"
+    ti = matches[0]
+    ti.map_index = map_index
+    return ti
 
 
 def test_no_parent(session, dag_maker):
@@ -141,6 +155,128 @@ def test_parent_skip_branch(session, dag_maker):
     assert len(list(dep.get_dep_statuses(tis["op2"], DepContext(), session=session))) == 1
     assert not dep.is_met(tis["op2"], session=session)
     assert tis["op2"].state == State.SKIPPED
+
+
+@pytest.mark.parametrize("expand_kwargs", [False, True])
+def test_branch_in_mapped_task_group_skips_same_map_index_sibling(session, dag_maker, expand_kwargs):
+    """
+    Branch operators inside mapped TaskGroups write SkipMixin XComs with their
+    runtime map_index even though the operator itself is not a MappedOperator.
+
+    Regression for https://github.com/apache/airflow/issues/67265 — without
+    looking up XCom at the child's map_index, non-selected siblings run instead
+    of being skipped.
+    """
+    start_date = pendulum.datetime(2020, 1, 1)
+    with dag_maker(
+        f"test_mapped_task_group_branch_skip_dag_{expand_kwargs}",
+        schedule=None,
+        start_date=start_date,
+        session=session,
+    ):
+
+        @task_group(group_id="group")
+        def mapped_group(value):
+            _ = value
+            branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "group.followed")
+            skipped = EmptyOperator(task_id="skipped")
+            followed = EmptyOperator(task_id="followed")
+            branch >> [skipped, followed]
+
+        if expand_kwargs:
+            mapped_group.expand_kwargs([{"value": 1}, {"value": 2}])
+        else:
+            mapped_group.expand(value=[1, 2])
+
+    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+
+    branch_ti = _ti(dr, "group.branch", map_index=1)
+    skipped_ti = _ti(dr, "group.skipped", map_index=1)
+    followed_ti = _ti(dr, "group.followed", map_index=1)
+
+    # Branch is not a MappedOperator, but lives in a mapped TaskGroup.
+    assert branch_ti.task.is_mapped is False
+    assert branch_ti.task.get_closest_mapped_task_group() is not None
+
+    branch_ti.state = State.SUCCESS
+    session.merge(branch_ti)
+    session.merge(skipped_ti)
+    session.merge(followed_ti)
+    XComModel.set(
+        key=XCOM_SKIPMIXIN_KEY,
+        value={XCOM_SKIPMIXIN_FOLLOWED: ["group.followed"]},
+        dag_id=dr.dag_id,
+        task_id="group.branch",
+        run_id=dr.run_id,
+        map_index=1,
+        session=session,
+    )
+    session.flush()
+
+    dep = NotPreviouslySkippedDep()
+
+    # Non-selected sibling at the same map_index must be skipped.
+    assert len(list(dep.get_dep_statuses(skipped_ti, DepContext(), session=session))) == 1
+    assert not dep.is_met(skipped_ti, session=session)
+    assert skipped_ti.state == State.SKIPPED
+
+    # Selected sibling at the same map_index must still be runnable.
+    assert len(list(dep.get_dep_statuses(followed_ti, DepContext(), session=session))) == 0
+    assert dep.is_met(followed_ti, session=session)
+    assert followed_ti.state != State.SKIPPED
+
+
+@pytest.mark.parametrize("expand_kwargs", [False, True])
+def test_branch_in_mapped_task_group_does_not_cross_map_index(session, dag_maker, expand_kwargs):
+    """
+    SkipMixin XCom for map_index=0 must not skip the sibling at map_index=1.
+    """
+    start_date = pendulum.datetime(2020, 1, 1)
+    with dag_maker(
+        f"test_mapped_task_group_branch_no_cross_dag_{expand_kwargs}",
+        schedule=None,
+        start_date=start_date,
+        session=session,
+    ):
+
+        @task_group(group_id="group")
+        def mapped_group(value):
+            _ = value
+            branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "group.followed")
+            skipped = EmptyOperator(task_id="skipped")
+            followed = EmptyOperator(task_id="followed")
+            branch >> [skipped, followed]
+
+        if expand_kwargs:
+            mapped_group.expand_kwargs([{"value": "a"}, {"value": "b"}])
+        else:
+            mapped_group.expand(value=["a", "b"])
+
+    dr = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
+
+    branch_0 = _ti(dr, "group.branch", map_index=0)
+    skipped_1 = _ti(dr, "group.skipped", map_index=1)
+
+    branch_0.state = State.SUCCESS
+    session.merge(branch_0)
+    session.merge(skipped_1)
+    # Only map_index=0 decided to skip "group.skipped".
+    XComModel.set(
+        key=XCOM_SKIPMIXIN_KEY,
+        value={XCOM_SKIPMIXIN_FOLLOWED: ["group.followed"]},
+        dag_id=dr.dag_id,
+        task_id="group.branch",
+        run_id=dr.run_id,
+        map_index=0,
+        session=session,
+    )
+    session.flush()
+
+    dep = NotPreviouslySkippedDep()
+    # map_index=1 has no SkipMixin XCom yet → dep is met (no decision).
+    assert len(list(dep.get_dep_statuses(skipped_1, DepContext(), session=session))) == 0
+    assert dep.is_met(skipped_1, session=session)
+    assert skipped_1.state != State.SKIPPED
 
 
 def test_parent_not_executed(session, dag_maker):
