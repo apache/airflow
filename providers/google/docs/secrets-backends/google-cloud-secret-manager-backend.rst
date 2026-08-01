@@ -220,7 +220,7 @@ the prefix from what follows. So with ``connections_prefix="airflow-connections"
 
 .. note::
 
-    Unlike the Azure Key Vault backend, this backend does **not** normalise underscores to the
+    Unlike the Azure Key Vault backend, this backend does **not** normalize underscores to the
     separator. The secret id keeps the exact form you request it under, in the team-scoped name
     as well as the team-agnostic one.
 

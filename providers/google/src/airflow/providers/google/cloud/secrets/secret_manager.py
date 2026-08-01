@@ -218,7 +218,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         """
         Build a team scoped secret name using a dedicated separator before the secret id.
 
-        The secret id is used verbatim. Normalising it (``_`` -> ``sep``, as the Azure Key
+        The secret id is used verbatim. Normalizing it (``_`` -> ``sep``, as the Azure Key
         Vault backend does) would let a plain id manufacture ``TEAM_SEP``: team ``a`` asking
         for ``b__c`` would build the same name as team ``a--b`` asking for ``c``. It would
         also contradict this backend's naming, which keeps underscores everywhere else --
@@ -236,7 +236,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         with id ``b--c`` and team ``a--b`` with id ``c`` produce the same string. Such an id
         is refused for *every* lookup -- team scoped as well as team agnostic -- because the
         ambiguity exists in both directions and the caller's own namespace is not a safe
-        harbour for it.
+        harbor for it.
 
         The id is never parsed to work out *which* team it names, because it cannot be:
         nothing in the string distinguishes the two readings above. Comparing the id against
@@ -246,8 +246,8 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         The raw id is matched. Routing it through :meth:`build_path` first, as the Azure
         backend does, is wrong here: the inherited implementation prepends a separator to an
-        empty prefix (``'' -> '-smtp_default'``) and normalises nothing, so the guard would
-        both mis-anchor and miss ids whose separator only appears after normalisation.
+        empty prefix (``'' -> '-smtp_default'``) and normalizes nothing, so the guard would
+        both mis-anchor and miss ids whose separator only appears after normalization.
         """
         return TEAM_SEP in secret_id
 
