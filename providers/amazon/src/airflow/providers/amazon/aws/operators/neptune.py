@@ -93,7 +93,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:NeptuneStartDbClusterOperator`
 
-    :param db_cluster_id: The DB cluster identifier of the Neptune DB cluster to be started.
+    :param cluster_id: The DB cluster identifier of the Neptune DB cluster to be started.
     :param wait_for_completion: Whether to wait for the cluster to start. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to start.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
@@ -117,7 +117,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
 
     def __init__(
         self,
-        db_cluster_id: str,
+        cluster_id: str,
         wait_for_completion: bool = True,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
@@ -125,7 +125,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.cluster_id = db_cluster_id
+        self.cluster_id = cluster_id
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
@@ -211,7 +211,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:NeptuneStartDbClusterOperator`
 
-    :param db_cluster_id: The DB cluster identifier of the Neptune DB cluster to be stopped.
+    :param cluster_id: The DB cluster identifier of the Neptune DB cluster to be stopped.
     :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
@@ -234,7 +234,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
 
     def __init__(
         self,
-        db_cluster_id: str,
+        cluster_id: str,
         wait_for_completion: bool = True,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
@@ -242,7 +242,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.cluster_id = db_cluster_id
+        self.cluster_id = cluster_id
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.waiter_delay = waiter_delay
