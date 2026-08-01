@@ -372,7 +372,7 @@ class TestBaseChartTest:
         ],
     )
     @pytest.mark.parametrize(
-        ("flower_routing_values", "flower_routing_resource", "api_versions"),
+        ("routing_values", "flower_routing_resource", "webserver_routing_resource", "api_versions"),
         [
             pytest.param(
                 {
@@ -384,8 +384,9 @@ class TestBaseChartTest:
                     "flower": {"enabled": True},
                 },
                 ("flower-ingress", "Ingress", "flower-ingress"),
+                ("ingress", "Ingress", "airflow-ingress"),
                 [],
-                id="flower-ingress",
+                id="ingress",
             ),
             pytest.param(
                 {
@@ -402,8 +403,31 @@ class TestBaseChartTest:
                     },
                 },
                 ("flower-httproute", "HTTPRoute", "flower-httproute"),
+                ("ingress", "Ingress", "airflow-ingress"),
                 ["gateway.networking.k8s.io/v1"],
                 id="flower-httproute",
+            ),
+            pytest.param(
+                {
+                    "ingress": {"apiServer": {"enabled": True}},
+                    "flower": {
+                        "enabled": True,
+                        "httpRoute": {
+                            "enabled": True,
+                            "parentRefs": [{"name": "main-gateway"}],
+                        },
+                    },
+                    "webserver": {
+                        "httpRoute": {
+                            "enabled": True,
+                            "parentRefs": [{"name": "main-gateway"}],
+                        },
+                    },
+                },
+                ("flower-httproute", "HTTPRoute", "flower-httproute"),
+                ("webserver-httproute", "HTTPRoute", "webserver-httproute"),
+                ["gateway.networking.k8s.io/v1"],
+                id="httproute",
             ),
         ],
     )
@@ -411,8 +435,9 @@ class TestBaseChartTest:
         self,
         airflow_version,
         executor,
-        flower_routing_values,
+        routing_values,
         flower_routing_resource,
+        webserver_routing_resource,
         api_versions,
     ):
         """Test labels are correctly applied on all objects created by this chart."""
@@ -445,7 +470,7 @@ class TestBaseChartTest:
                 {"name": "class1", "value": 10000},
             ],
         }
-        values.update(flower_routing_values)
+        values.update(routing_values)
 
         if airflow_version != "default":
             values["airflowVersion"] = airflow_version
@@ -457,6 +482,9 @@ class TestBaseChartTest:
         }
 
         flower_routing_name, flower_routing_kind, flower_routing_component = flower_routing_resource
+        webserver_routing_name, webserver_routing_kind, webserver_routing_component = (
+            webserver_routing_resource
+        )
 
         kind_names_tuples = [
             (f"{release_name}-airflow-cleanup", "ServiceAccount", "airflow-cleanup-pods"),
@@ -535,7 +563,11 @@ class TestBaseChartTest:
                 (f"{release_name}-webserver", "Service", "webserver"),
                 (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
                 (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
-                (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
+                (
+                    f"{release_name}-{webserver_routing_name}",
+                    webserver_routing_kind,
+                    webserver_routing_component,
+                ),
             ]
 
         cleanup_kubernetes_executor_only_objects = {

@@ -485,7 +485,7 @@ Gateway API (HTTPRoute)
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 As an alternative to ``Ingress``, the chart can create
-`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` resources for the API server and Flower.
+`Kubernetes Gateway API <https://gateway-api.sigs.k8s.io/>`_ ``HTTPRoute`` resources for the API server, Flower, and the Webserver.
 This requires the Gateway API CRDs to be installed in the cluster and a ``Gateway`` to already exist —
 the chart only creates the ``HTTPRoute`` resources and attaches them to the Gateway via ``parentRefs``.
 
@@ -515,13 +515,34 @@ the chart only creates the ``HTTPRoute`` resources and attaches them to the Gate
        hostnames:
          - flower.example.com
 
+The Webserver exists only on Airflow 2 (the API server replaces it on Airflow 3), so its ``HTTPRoute``
+is configured in an Airflow 2 deployment:
+
+.. code-block:: yaml
+   :caption: values.yaml (Airflow 2)
+
+   defaultAirflowTag: "2.11.0"
+   airflowVersion: "2.11.0"
+
+   webserver:
+     httpRoute:
+       enabled: true
+       parentRefs:
+         - name: main-gateway
+           namespace: gateway-system
+           sectionName: https
+       hostnames:
+         - airflow.example.com
+
 Flower HTTPRoute resources are only created when Flower itself is created, so ``flower.enabled`` must be
 ``true`` and the executor must include ``CeleryExecutor`` or ``CeleryKubernetesExecutor``.
 
-For fine-grained routing, supply ``apiServer.httpRoute.rules`` or ``flower.httpRoute.rules`` directly —
-the entry mirrors the upstream ``HTTPRouteRule`` schema and overrides the default rule generated from
-the corresponding ``apiServer.httpRoute.path`` and ``apiServer.httpRoute.pathType``, or
-``flower.httpRoute.path`` and ``flower.httpRoute.pathType`` values.
+For fine-grained routing, supply ``apiServer.httpRoute.rules``, ``flower.httpRoute.rules``, or
+``webserver.httpRoute.rules`` directly — the entry mirrors the upstream ``HTTPRouteRule`` schema and
+overrides the default rule generated from the corresponding
+``apiServer.httpRoute.path`` and ``apiServer.httpRoute.pathType``,
+``flower.httpRoute.path`` and ``flower.httpRoute.pathType``, or
+``webserver.httpRoute.path`` and ``webserver.httpRoute.pathType`` values.
 
 .. note::
 
