@@ -31,11 +31,16 @@ VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 # environment variable name: AIRFLOW_CONN__<TEAM>___<ID>.
 TEAM_SEP = "___"
 
-# What ``airflow teams create`` accepts as a team name, so what a team
-# namespace can actually be spelled with.
-# Kept in sync with ``airflow.cli.commands.team_command``. Underscores are excluded
-# there so that this namespace stays unambiguous to read back.
-_TEAM_NAME_CHARS = r"[a-zA-Z0-9-]{3,50}"
+# What ``airflow teams create`` and ``airflow teams sync`` accept as a team name, so what a
+# team namespace can actually be spelled with. A *single* underscore is allowed; two in a row
+# are not, which is what keeps this namespace unambiguous -- see ``_names_a_team_namespace``.
+#
+# Imported by ``airflow.cli.commands.team_command`` rather than restated there, so the two
+# cannot drift apart; ``test_team_name_pattern_is_shared`` pins that. Deliberately unanchored
+# and always used with ``re.fullmatch``: ``re.match`` against a ``$``-anchored pattern also
+# accepts a trailing newline, which would admit a name this guard cannot recognise.
+TEAM_NAME_PATTERN = r"(?!.*__)[a-zA-Z0-9_-]{3,50}"
+_TEAM_NAME = re.compile(TEAM_NAME_PATTERN)
 
 
 class EnvironmentVariablesBackend(BaseSecretsBackend):
@@ -82,14 +87,17 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         ``AIRFLOW_CONN_`` / ``AIRFLOW_VAR_`` -- land inside some team's namespace, so that
         lookup is refused for such an id.
 
-        The match is a single unambiguous one because team names cannot contain an underscore
-        (``TEAM_NAME_PATTERN``). Without that rule a team name could itself span the ``___``
-        separator, leaving ``_a___b___c`` readable as team ``a`` with id ``b___c`` *or* team
-        ``a___b`` with id ``c``, with nothing in the string to choose between them -- which is
-        what previously forced this check to try every split and to test each candidate
-        against the team name rule.
+        The split is unambiguous because a team name cannot contain two consecutive
+        underscores (``TEAM_NAME_PATTERN``), so it cannot contain the ``___`` separator and
+        the *first* separator in the string is always the real one. Without that rule
+        ``_a___b___c`` reads as team ``a`` with id ``b___c`` *or* team ``a___b`` with id
+        ``c``, with nothing to choose between them -- which is what previously forced this
+        check to try every split, and what left the collision below open.
 
         An id whose leading segment could not be a team name is still resolved: it names no
         team's namespace, so refusing it would block a legitimate team agnostic secret.
         """
-        return re.fullmatch(rf"_{_TEAM_NAME_CHARS}{TEAM_SEP}.+", secret_id) is not None
+        if not secret_id.startswith("_"):
+            return False
+        team, sep, rest = secret_id[1:].partition(TEAM_SEP)
+        return bool(sep) and bool(rest) and _TEAM_NAME.fullmatch(team) is not None

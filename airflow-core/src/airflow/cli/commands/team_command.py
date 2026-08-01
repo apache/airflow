@@ -30,6 +30,9 @@ from airflow.models.connection import Connection
 from airflow.models.pool import Pool
 from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.models.variable import Variable
+from airflow.secrets.environment_variables import (
+    TEAM_NAME_PATTERN as _TEAM_NAME_PATTERN,
+)
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -48,10 +51,12 @@ def _show_teams(teams, output):
     )
 
 
-# Underscores are excluded deliberately: a team name is embedded in the
-# `_<TEAM>___<SECRET_ID>` environment variable namespace, and a team name that could
-# itself contain the `___` separator makes that name ambiguous to read back.
-TEAM_NAME_PATTERN = r"^[a-zA-Z0-9-]{3,50}$"
+# Imported from the secrets backend rather than restated, so the CLI and the guard that
+# depends on it cannot drift apart. Two consecutive underscores are excluded deliberately: a
+# team name is embedded in the `_<TEAM>___<SECRET_ID>` environment variable namespace, and a
+# name that could itself contain the `___` separator makes that namespace ambiguous to read
+# back. A single underscore is fine.
+TEAM_NAME_PATTERN = _TEAM_NAME_PATTERN
 
 
 def _case_collision(team_name: str, existing_names) -> str | None:
@@ -83,7 +88,7 @@ def _extract_team_name(args):
     team_name = args.name.strip()
     if not team_name:
         raise SystemExit("Team name cannot be empty")
-    if not re.match(TEAM_NAME_PATTERN, team_name):
+    if not re.fullmatch(TEAM_NAME_PATTERN, team_name):
         raise SystemExit(f"Invalid team name: must match regex {TEAM_NAME_PATTERN}")
     return team_name
 
@@ -213,14 +218,24 @@ def team_sync(args, *, session=NEW_SESSION):
     # -- the environment secrets backend decides whether a supplied secret id could name a
     # team namespace by testing the leading segment against this pattern, and an unvalidated
     # short name such as "a" would make that test miss.
-    invalid = sorted(name for name in dag_bundle_teams if not re.match(TEAM_NAME_PATTERN, name))
+    existing_names = Team.get_all_team_names(session=session)
+
+    # Both the incoming names and the ones already stored have to satisfy the rule. `teams
+    # sync` shipped without any validation, so a deployment upgrading into this version can
+    # already hold a name the secrets guard cannot recognise -- and that guard is what keeps
+    # one team's namespace out of another's reach. Checking only the bundle config would miss
+    # a team created by an earlier sync and since dropped from the config.
+    invalid = sorted(
+        {name for name in dag_bundle_teams if not re.fullmatch(TEAM_NAME_PATTERN, name)}
+        | {name for name in existing_names if not re.fullmatch(TEAM_NAME_PATTERN, name)}
+    )
     if invalid:
         raise SystemExit(
-            f"Invalid team name(s) in the dag bundle config: {', '.join(invalid)}. "
-            f"Team names must match regex {TEAM_NAME_PATTERN}."
+            f"Invalid team name(s): {', '.join(invalid)}. "
+            f"Team names must match regex {TEAM_NAME_PATTERN}. "
+            "Names already stored must be corrected before syncing; while one is present, "
+            "secrets for that team are not isolated."
         )
-
-    existing_names = Team.get_all_team_names(session=session)
     # Check the incoming names against each other as well as against the stored ones: a bundle
     # config can introduce both halves of a collision in the same sync.
     seen: set[str] = set(existing_names)

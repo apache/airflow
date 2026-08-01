@@ -24,6 +24,7 @@ import pytest
 from airflow.cli.commands.team_command import TEAM_NAME_PATTERN
 from airflow.secrets.environment_variables import (
     CONN_ENV_PREFIX,
+    TEAM_SEP,
     VAR_ENV_PREFIX,
     EnvironmentVariablesBackend,
 )
@@ -156,6 +157,48 @@ class TestEnvironmentVariablesBackendTeamScope:
         monkeypatch.setenv(env_prefix + SECRET_ID.upper(), GLOBAL_VALUE)
 
         assert lookup(env_prefix, method, SECRET_ID, team_name) == GLOBAL_VALUE
+
+    def test_a_valid_team_name_can_never_contain_the_separator(self):
+        """The invariant the namespace split rests on.
+
+        ``_names_a_team_namespace`` partitions on the *first* ``___`` and treats what precedes
+        it as the whole team name. That is only sound while no valid team name can itself
+        contain ``___`` -- otherwise ``_a___b___c`` reads as team ``a`` with id ``b___c`` or
+        team ``a___b`` with id ``c``, and the guard has to guess.
+        """
+        import re
+
+        from airflow.secrets.environment_variables import TEAM_NAME_PATTERN
+
+        candidates = [
+            "team_a",
+            "teama",
+            "a-b-c",
+            "x_y_z",
+            "team_a___prod",
+            "a___b",
+            "team__x",
+            "___",
+            "ab",
+            "a",
+        ]
+        for name in candidates:
+            if re.fullmatch(TEAM_NAME_PATTERN, name):
+                assert TEAM_SEP not in name, f"{name!r} is accepted as a team name yet spans {TEAM_SEP!r}"
+
+    def test_the_bare_id_collision_is_no_longer_expressible(self):
+        """A caller in ``team_a`` asking for ``prod___dbconn`` used to read ``team_a___prod``'s secret.
+
+        Both names build ``AIRFLOW_CONN__TEAM_A___PROD___DBCONN``, and the *scoped* lookup hits,
+        so no amount of guarding the team agnostic fall-through closes it. It is closed instead
+        by ``team_a___prod`` no longer being a name a team can have.
+        """
+        import re
+
+        from airflow.secrets.environment_variables import TEAM_NAME_PATTERN
+
+        assert re.fullmatch(TEAM_NAME_PATTERN, "team_a") is not None
+        assert re.fullmatch(TEAM_NAME_PATTERN, "team_a___prod") is None
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", [None, *TEAM_NAMES])
