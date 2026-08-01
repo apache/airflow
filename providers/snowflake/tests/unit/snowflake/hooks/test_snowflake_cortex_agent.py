@@ -479,7 +479,7 @@ class TestSnowflakeCortexAgentHook:
             },
             json=expected_payload,
             params=expected_params,
-            timeout=None,
+            timeout=REQUEST_TIMEOUT,
         )
 
     @mock.patch(f"{MODULE_PATH}.requests.request")
@@ -531,7 +531,7 @@ class TestSnowflakeCortexAgentHook:
                 "instructions": {"response": "Always answer in one sentence."},
             },
             params=None,
-            timeout=None,
+            timeout=REQUEST_TIMEOUT,
         )
 
     @mock.patch(f"{MODULE_PATH}.requests.request")
