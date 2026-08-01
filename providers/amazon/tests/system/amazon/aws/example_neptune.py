@@ -67,11 +67,11 @@ with DAG(
     cluster_id = f"{env_id}-cluster"
 
     # [START howto_operator_start_neptune_cluster]
-    start_cluster = NeptuneStartDbClusterOperator(task_id="start_task", db_cluster_id=cluster_id)
+    start_cluster = NeptuneStartDbClusterOperator(task_id="start_task", cluster_id=cluster_id)
     # [END howto_operator_start_neptune_cluster]
 
     # [START howto_operator_stop_neptune_cluster]
-    stop_cluster = NeptuneStopDbClusterOperator(task_id="stop_task", db_cluster_id=cluster_id)
+    stop_cluster = NeptuneStopDbClusterOperator(task_id="stop_task", cluster_id=cluster_id)
     # [END howto_operator_stop_neptune_cluster]
 
     chain(
