@@ -320,7 +320,7 @@ You will be prompted to enter the password if the connection is successful.
 
 .. note::
    ``psycopg2`` works on every Airflow version these executors support. From Airflow 3.2.0 you may use
-   ``postgresql+psycopg://`` instead, provided psycopg3 is installed. Airflow before 3.2.0 does not
+   ``postgresql+psycopg://`` instead, provided ``psycopg`` (v3) is installed. Airflow before 3.2.0 does not
    guarantee SQLAlchemy 2.0 (2.11 and 3.0.x pin ``<2.0``), and SQLAlchemy 1.4 has no
    ``postgresql+psycopg`` dialect — Airflow fails to start with ``sqlalchemy.exc.NoSuchModuleError``.
 
