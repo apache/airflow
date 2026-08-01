@@ -21,6 +21,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
+import { useLocalStorage } from "usehooks-ts";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -46,6 +47,7 @@ import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { RouterLink } from "src/components/ui";
 import { ActionBar } from "src/components/ui/ActionBar";
+import { Switch } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig";
@@ -259,7 +261,10 @@ export const DagRuns = () => {
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
-  const { pageSize } = pagination;
+  // Cursor pagination (default) skips COUNT(*) for performance (#65604).
+  // Offset mode restores the total DagRun count heading (#70856).
+  const [showExactCount, setShowExactCount] = useLocalStorage("dagRuns:showExactCount", false);
+  const { pageIndex, pageSize } = pagination;
   const filteredState = searchParams.get(STATE_PARAM);
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
@@ -314,7 +319,7 @@ export const DagRuns = () => {
       bundleVersion: bundleVersion ?? undefined,
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       consumingAssetPattern: filteredConsumingAsset ?? undefined,
-      cursor: cursor ?? "",
+      ...(showExactCount ? { offset: pageIndex * pageSize } : { cursor: cursor ?? "" }),
       dagId: dagId ?? "~",
       ...dagIdPatternArg,
       dagVersion:
@@ -346,8 +351,9 @@ export const DagRuns = () => {
     },
   );
 
-  const nextCursor = data?.next_cursor ?? undefined;
-  const previousCursor = data?.previous_cursor ?? undefined;
+  const nextCursor = showExactCount ? undefined : (data?.next_cursor ?? undefined);
+  const previousCursor = showExactCount ? undefined : (data?.previous_cursor ?? undefined);
+  const totalEntries = showExactCount ? (data?.total_entries ?? 0) : undefined;
 
   const { allRowsSelected, clearSelections, deselectKeys, handleRowSelect, handleSelectAll, selectedRows } =
     useRowSelection({
@@ -373,13 +379,26 @@ export const DagRuns = () => {
     >
       <Flex alignItems="center" justifyContent="space-between">
         <DagRunsFilters dagId={dagId} />
-        <ExpandCollapseButtons
-          collapseLabel={translate("common:collapseAllExtra")}
-          expandLabel={translate("common:expandAllExtra")}
-          isExpanded={open}
-          onCollapse={onClose}
-          onExpand={onOpen}
-        />
+        <HStack gap={3}>
+          <Switch
+            checked={showExactCount}
+            onCheckedChange={(details) => {
+              setShowExactCount(details.checked);
+              if (details.checked) {
+                setTableURLState({ ...tableURLState, cursor: undefined });
+              }
+            }}
+          >
+            {translate("dagRun.showExactCount", { defaultValue: "Show total count" })}
+          </Switch>
+          <ExpandCollapseButtons
+            collapseLabel={translate("common:collapseAllExtra")}
+            expandLabel={translate("common:expandAllExtra")}
+            isExpanded={open}
+            onCollapse={onClose}
+            onExpand={onOpen}
+          />
+        </HStack>
       </Flex>
       <DataTable
         columns={columns}
@@ -391,6 +410,7 @@ export const DagRuns = () => {
         nextCursor={nextCursor}
         onStateChange={setTableURLState}
         previousCursor={previousCursor}
+        total={totalEntries}
       />
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
