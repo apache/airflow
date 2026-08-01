@@ -544,7 +544,7 @@ class TestConfigLint:
             "Invalid value `True` set for `execute_tasks_new_python_interpreter` "
             "configuration parameter in `core` section." in normalized_output
         )
-        assert "Only the Edge executor still honours this setting." in normalized_output
+        assert "Only the Edge worker still reads this setting." in normalized_output
 
     @conf_vars({("core", "execute_tasks_new_python_interpreter"): "False"})
     def test_lint_ignores_execute_tasks_new_python_interpreter(self, stdout_capture):

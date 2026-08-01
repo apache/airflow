@@ -226,9 +226,9 @@ core:
 
         .. note::
 
-            Since Airflow 3.0 only the Edge executor honours this option. Executors that run tasks
-            through the task SDK supervisor, including ``CeleryExecutor`` and ``LocalExecutor``,
-            always fork the task from the worker.
+            Since Airflow 3.0 this option is only read by the Edge worker. Executors that run
+            tasks through the task SDK supervisor, including ``CeleryExecutor`` and
+            ``LocalExecutor``, no longer consult it.
       default: "False"
       example: ~
       version_added: 2.0.0

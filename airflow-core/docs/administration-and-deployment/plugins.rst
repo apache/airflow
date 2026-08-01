@@ -97,7 +97,7 @@ and re-parsing all of Airflow's code and startup routines. This approach offers 
 This does mean that if you use plugins in your tasks, and want them to update you will either
 need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor). The
 ``core.execute_tasks_new_python_interpreter`` setting used to offer a way around that, but since
-Airflow 3.0 it is only honoured by the Edge executor.
+Airflow 3.0 it is only read by the Edge worker.
 
 (Modules only imported by Dag files on the other hand do not suffer this problem, as Dag files are not
 loaded/parsed in any long-running Airflow process.)
