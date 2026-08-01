@@ -1181,7 +1181,7 @@ config:
 
           When unset, no ACL is sent and the bucket's default object ownership applies.
         type: string
-        version_added: 9.33.0
+        version_added: 9.34.0
         example: bucket-owner-full-control
         default: ~
   aws_batch_executor:
