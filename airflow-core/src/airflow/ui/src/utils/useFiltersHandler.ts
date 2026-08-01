@@ -73,10 +73,12 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.EVENT_DATE_RANGE
   | SearchParamsKeys.EVENT_TYPE
   | SearchParamsKeys.EXECUTOR_CLASS
+  | SearchParamsKeys.GROUP_PATTERN
   | SearchParamsKeys.HOSTNAME
   | SearchParamsKeys.JOB_STATE
   | SearchParamsKeys.JOB_TYPE
   | SearchParamsKeys.KEY_PATTERN
+  | SearchParamsKeys.LAST_ASSET_EVENT_TIMESTAMP_RANGE
   | SearchParamsKeys.LOGICAL_DATE_RANGE
   | SearchParamsKeys.MAP_INDEX
   | SearchParamsKeys.MISSED
@@ -97,6 +99,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.SUBJECT_SEARCH
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
+  | SearchParamsKeys.TEAMS
   | SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;

@@ -156,6 +156,123 @@ def update_dependabot(new_branch: str, prev_branch: str, new_dash: str) -> None:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
+  # The remaining directories are mirrored onto {new_branch} as well. Dependabot raises security
+  # updates against the default branch only, so a fixed version reaches the maintenance branch
+  # through its own version updates - Dependabot resolves and regenerates the lock file on that
+  # branch, which a cherry-picked lock file diff from main cannot do. Majors stay ignored, so a
+  # fix that needs a major bump still has to be backported by hand.
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /providers/edge3/src/airflow/providers/edge3/plugins/www
+    schedule:
+      interval: "weekly"
+    target-branch: {new_branch}
+    groups:
+      {new_dash}-edge-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /providers/fab/src/airflow/providers/fab/www
+    schedule:
+      interval: daily
+    target-branch: {new_branch}
+    groups:
+      {new_dash}-fab-ui-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /registry
+    schedule:
+      interval: "weekly"
+    target-branch: {new_branch}
+    groups:
+      {new_dash}-registry-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /dev/react-plugin-tools/react_plugin_template
+    schedule:
+      interval: "weekly"
+    target-branch: {new_branch}
+    groups:
+      {new_dash}-ui-plugin-template-package-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "uv"
+    cooldown:
+      default-days: 4
+    directory: "/dev/breeze"
+    schedule:
+      interval: "weekly"
+    target-branch: {new_branch}
+    groups:
+      {new_dash}-uv-dependency-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "gomod"
+    cooldown:
+      default-days: 4
+    directory: "/go-sdk"
+    schedule:
+      interval: "weekly"
+    target-branch: {new_branch}
+    groups:
+      {new_dash}-go-sdk-dependency-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
 """
     prev_comment = f"  # Repeat dependency updates on {prev_branch} branch as well"
     content = content.replace(prev_comment, pip_npm_block + prev_comment, 1)

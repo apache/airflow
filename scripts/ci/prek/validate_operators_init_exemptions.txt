@@ -1,0 +1,25 @@
+# Known violations that predate the template-field constructor checks, exempted so the
+# prek hook can enforce the rule on new code while these are burned down.
+#
+# Format: <repo-relative-path>::<ClassName>  (one class per line)
+#
+# Fixing a class MUST remove its entry in the same PR — the hook fails on stale entries.
+# Burn-down tracked at https://github.com/apache/airflow/issues/70296
+providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStartDbClusterOperator
+providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::NeptuneStopDbClusterOperator
+providers/amazon/src/airflow/providers/amazon/aws/transfers/gcs_to_s3.py::GCSToS3Operator
+providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py::KubernetesPodOperator
+providers/google/src/airflow/providers/google/cloud/operators/cloud_batch.py::CloudBatchSubmitJobOperator
+providers/google/src/airflow/providers/google/cloud/operators/cloud_build.py::CloudBuildCreateBuildOperator
+providers/google/src/airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py::CloudDataTransferServiceCreateJobOperator
+providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::DataprocCreateClusterOperator
+providers/google/src/airflow/providers/google/cloud/operators/dataproc.py::DataprocSubmitJobOperator
+providers/google/src/airflow/providers/google/cloud/operators/functions.py::CloudFunctionDeployFunctionOperator
+providers/google/src/airflow/providers/google/cloud/operators/gcs.py::GCSFileTransformOperator
+providers/google/src/airflow/providers/google/cloud/sensors/bigquery_dts.py::BigQueryDataTransferServiceTransferRunSensor
+providers/google/src/airflow/providers/google/cloud/sensors/cloud_composer.py::CloudComposerExternalTaskSensor
+providers/google/src/airflow/providers/google/cloud/transfers/azure_fileshare_to_gcs.py::AzureFileShareToGCSOperator
+providers/google/src/airflow/providers/google/cloud/transfers/gcs_to_bigquery.py::GCSToBigQueryOperator
+providers/google/src/airflow/providers/google/marketing_platform/operators/campaign_manager.py::GoogleCampaignManagerDeleteReportOperator
+providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/gcs_to_wasb.py::GCSToAzureBlobStorageOperator
+providers/microsoft/psrp/src/airflow/providers/microsoft/psrp/operators/psrp.py::PsrpOperator

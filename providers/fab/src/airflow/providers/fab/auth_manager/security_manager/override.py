@@ -320,6 +320,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_EDIT, RESOURCE_ASSET),
         (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL),
@@ -331,6 +332,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ADMIN_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG_ALL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR_ALL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),

@@ -590,7 +590,8 @@ The wire protocol is defined in
 requires changes in **both** `schema.json` (Python side) and
 `execution/Comm.kt` + `execution/Client.kt` (JVM side).
 
-See [Architectural Design Records](./adr) in the `adr` directory to learn more.
+See the [Architectural Decision Records](../airflow-core/adr/lang-sdk) in `airflow-core/adr/lang-sdk` to learn more — they
+cover the coordinator architecture and core integration surfaces shared by all language SDKs.
 
 ### Repository layout
 
@@ -609,7 +610,6 @@ java-sdk/
 │                 #   calls to the Airflow log store
 ├── log4j2/       # Log4j 2 appender; routes Log4j 2 events to the Airflow log store
 ├── example/      # End-to-end example bundle (annotation + interface APIs, Java source)
-├── adr/          # Architectural Decision Records for the Java SDK
 └── buildSrc/     # Shared Gradle convention plugins (Java version, lint, etc.)
 ```
 

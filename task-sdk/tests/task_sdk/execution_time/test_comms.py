@@ -96,6 +96,7 @@ class TestCommsDecoder:
                     "state": "success",
                     "conf": None,
                     "consumed_asset_events": [],
+                    "partition_key": None,
                 },
                 "max_tries": 0,
                 "should_retry": False,

@@ -98,9 +98,16 @@ class VariableDetails:
 class AccessView(Enum):
     """Enum of specific views the user tries to access."""
 
+    # Audit log rows not tied to a Dag -- Connection, Variable, Pool, … operations:
+    # there is no per-Dag key to authorize on, so they get their own admin-by-default
+    # view rather than riding on Dag-level ``DagAccessEntity.AUDIT_LOG`` access.
+    AUDIT_LOGS_ALL = "AUDIT_LOGS_ALL"
     CLUSTER_ACTIVITY = "CLUSTER_ACTIVITY"
     DOCS = "DOCS"
     IMPORT_ERRORS = "IMPORT_ERRORS"
+    # Import errors for files with no registered Dag: there is no per-Dag key to
+    # authorize on, so they get their own admin-by-default view.
+    IMPORT_ERRORS_ALL = "IMPORT_ERRORS_ALL"
     JOBS = "JOBS"
     PLUGINS = "PLUGINS"
     PROVIDERS = "PROVIDERS"
