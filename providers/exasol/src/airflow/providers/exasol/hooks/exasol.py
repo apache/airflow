@@ -131,6 +131,54 @@ class ExasolHook(DbApiHook):
             )
         return self.sqlalchemy_url.render_as_string(hide_password=False)
 
+    @staticmethod
+    def _serialize_query_params(
+        parameters: Iterable | Mapping[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        """
+        Coerce hook-level parameters to the mapping pyexasol accepts.
+
+        pyexasol 2 ships type hints where ``query_params`` is ``dict | None`` (Exasol
+        binds named parameters only). ``DbApiHook`` allows a broader
+        ``Iterable | Mapping | None`` type, so convert mappings to a plain ``dict`` and
+        reject positional sequences -- which Exasol cannot bind -- with a clear error
+        instead of forwarding an unsupported value.
+        """
+        if parameters is None:
+            return None
+        if isinstance(parameters, Mapping):
+            return dict(parameters)
+        raise TypeError(
+            "Exasol only supports named query parameters passed as a mapping; "
+            f"got {type(parameters).__name__}. Positional parameters are not supported."
+        )
+
+    def _execute_statements(
+        self,
+        conn: ExaConnection,
+        sql: str | list[str],
+        query_params: dict[str, Any] | None,
+    ) -> ExaStatement:
+        """
+        Execute ``sql`` and return the last statement's open cursor.
+
+        Mirrors :meth:`run`: a string is executed as a single statement, and a list is
+        executed sequentially with the final statement's cursor returned so the caller
+        can fetch from it. Intermediate cursors are closed as we go.
+        """
+        if isinstance(sql, str):
+            statements = [sql] if sql.strip() else []
+        else:
+            statements = list(sql)
+        cur: ExaStatement | None = None
+        for statement in statements:
+            if cur is not None:
+                cur.close()
+            cur = conn.execute(statement, query_params)
+        if cur is None:
+            raise ValueError("List of SQL statements is empty")
+        return cur
+
     def _get_pandas_df(
         self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> pd.DataFrame:
@@ -145,7 +193,7 @@ class ExasolHook(DbApiHook):
         ``pyexasol.ExaConnection.export_to_pandas``.
         """
         with closing(self.get_conn()) as conn:
-            df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
+            df = conn.export_to_pandas(sql, query_params=self._serialize_query_params(parameters), **kwargs)
             return df
 
     @deprecated(
@@ -188,7 +236,11 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        query_params = self._serialize_query_params(parameters)
+        with (
+            closing(self.get_conn()) as conn,
+            closing(self._execute_statements(conn, sql, query_params)) as cur,
+        ):
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -205,7 +257,11 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+        query_params = self._serialize_query_params(parameters)
+        with (
+            closing(self.get_conn()) as conn,
+            closing(self._execute_statements(conn, sql, query_params)) as cur,
+        ):
             send_sql_hook_lineage(
                 context=self,
                 sql=sql,
@@ -329,12 +385,13 @@ class ExasolHook(DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
         _last_result = None
+        query_params = self._serialize_query_params(parameters)
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
             results = []
             for sql_statement in sql_list:
                 self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                with closing(conn.execute(sql_statement, parameters)) as exa_statement:
+                with closing(conn.execute(sql_statement, query_params)) as exa_statement:
                     if handler is not None:
                         result = self._make_common_data_structure(handler(exa_statement))
 

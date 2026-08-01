@@ -194,11 +194,20 @@ class TestExasolHook:
 
     def test_run_with_parameters(self):
         sql = "SQL"
-        parameters = ("param1", "param2")
+        parameters = {"param1": "value1", "param2": "value2"}
         self.db_hook.run(sql, autocommit=True, parameters=parameters)
         self.conn.set_autocommit.assert_called_once_with(True)
+        # pyexasol 2 binds named parameters only; the mapping is forwarded as a plain dict.
         self.conn.execute.assert_called_once_with(sql, parameters)
         self.conn.commit.assert_not_called()
+
+    @pytest.mark.parametrize("parameters", [("param1", "param2"), ["param1", "param2"]])
+    def test_run_rejects_positional_parameters(self, parameters):
+        # Exasol binds named parameters only; a positional sequence cannot be bound, so the
+        # hook rejects it at the boundary instead of forwarding an unsupported value to pyexasol.
+        with pytest.raises(TypeError, match="named query parameters"):
+            self.db_hook.run("SQL", parameters=parameters)
+        self.conn.execute.assert_not_called()
 
     def test_run_multi_queries(self):
         sql = ["SQL1", "SQL2"]
@@ -250,6 +259,36 @@ class TestExasolHook:
         assert call_kw["sql"] == sql
         assert call_kw["sql_parameters"] is None
         assert call_kw["cur"] is self.cur
+
+    def test_get_records_with_mapping_parameters(self):
+        sql = "SELECT * FROM t WHERE id = :id"
+        parameters = {"id": 1}
+        self.db_hook.get_records(sql, parameters=parameters)
+        # The mapping is forwarded to pyexasol as ``query_params`` (a plain dict), not a cast.
+        self.conn.execute.assert_called_once_with(sql, parameters)
+        self.cur.fetchall.assert_called_once()
+
+    def test_get_records_multi_queries(self):
+        # A list of statements is executed sequentially (mirroring ``run``); records are fetched
+        # from the last statement's cursor.
+        sql = ["SQL1", "SQL2"]
+        self.db_hook.get_records(sql)
+        assert self.conn.execute.call_count == 2
+        self.conn.execute.assert_any_call("SQL1", None)
+        self.conn.execute.assert_called_with("SQL2", None)
+        self.cur.fetchall.assert_called_once()
+
+    def test_get_records_rejects_positional_parameters(self):
+        with pytest.raises(TypeError, match="named query parameters"):
+            self.db_hook.get_records("SELECT 1", parameters=("a", "b"))
+        self.conn.execute.assert_not_called()
+
+    def test_get_first_with_mapping_parameters(self):
+        sql = "SELECT * FROM t WHERE id = :id"
+        parameters = {"id": 1}
+        self.db_hook.get_first(sql, parameters=parameters)
+        self.conn.execute.assert_called_once_with(sql, parameters)
+        self.cur.fetchone.assert_called_once()
 
     @mock.patch("airflow.providers.common.sql.hooks.sql.send_sql_hook_lineage")
     def test_get_df_hook_lineage(self, mock_send_lineage):
