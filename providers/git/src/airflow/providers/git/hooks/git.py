@@ -26,6 +26,7 @@ import shlex
 import stat
 import tempfile
 import warnings
+from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from urllib.parse import quote as urlquote
@@ -140,13 +141,11 @@ class GitHook(BaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-        if (self.github_app_id is not None and self.github_installation_id is None) or (
-            self.github_app_id is None and self.github_installation_id is not None
-        ):
+        if None in (self.github_app_id, self.github_installation_id):
             raise ValueError(
                 "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
             )
-        if self.github_app_id is not None and self.github_installation_id is not None:
+        else:  # noqa: RET506
             if self.key_file and not self.private_key:
                 with open(self.key_file, encoding="utf-8") as key_file:
                     self.private_key = key_file.read()
@@ -154,12 +153,13 @@ class GitHook(BaseHook):
                 raise ValueError(
                     f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
                 )
+            if self.auth_token:
+                raise ValueError("Password field must be empty to use GitHub App Auth")
             # Store the PEM separately so configure_hook_env() does not treat it as an SSH key.
             # Keep `private_key` populated for callers/tests that expect it to be available,
             # but also keep a dedicated attribute so configure_hook_env() can avoid
             # treating the GitHub App PEM as an SSH key.
             self.github_app_private_key = self.private_key
-            self.auth_token = ""
         self._process_git_auth_url()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
@@ -236,9 +236,6 @@ class GitHook(BaseHook):
         return "x-access-token", access_token.token, github_app_token_exp
 
     def _ensure_github_app_token(self) -> None:
-        if self.github_app_id is None or self.github_installation_id is None:
-            return
-
         TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
         if (
             self.github_app_token_exp is None
@@ -251,7 +248,7 @@ class GitHook(BaseHook):
             self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
 
     @contextlib.contextmanager
-    def _github_app_askpass_env(self):
+    def _github_app_askpass_env(self) -> Generator[None]:
         if not self.auth_token:
             yield
             return
@@ -292,7 +289,7 @@ class GitHook(BaseHook):
                     self.env["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
                     os.environ["GIT_TERMINAL_PROMPT"] = old_terminal_prompt
 
-    def _process_git_auth_url(self):
+    def _process_git_auth_url(self) -> None:
         if not isinstance(self.repo_url, str):
             return
         if self.auth_token and self.repo_url.startswith("https://"):
@@ -349,9 +346,8 @@ class GitHook(BaseHook):
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        self._ensure_github_app_token()
-
         if self.github_app_id is not None and self.github_installation_id is not None:
+            self._ensure_github_app_token()
             with self._github_app_askpass_env():
                 yield
             return
