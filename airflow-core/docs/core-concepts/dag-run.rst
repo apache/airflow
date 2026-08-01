@@ -184,7 +184,7 @@ more detailed description of the differences, see
 
 If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have
 created a Dag Run for each scheduled run time between ``start_date`` and "now"
-that had not yet run (or had been cleared), and would execute them sequentially.
+that had not yet run (or had been cleared).
 With the default trigger timetable that means every midnight from 2015-12-01
 through 2016-01-02 inclusive. With a data-interval timetable, the still-open
 interval that ends at the next midnight is not created yet.
