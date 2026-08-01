@@ -49,6 +49,8 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     # Connection test routes run from a queued worker context (workload-only).
     "PATCH /connection-tests/{connection_test_id}": {"workload"},
     "GET /connection-tests/{connection_test_id}/connection": {"workload"},
+    # A queued worker claims its callback (workload-only) before running it.
+    "POST /callbacks/{callback_id}/run": {"workload"},
 }
 
 

@@ -23,6 +23,7 @@ from airflow.api_fastapi.execution_api.routes import (
     asset_events,
     asset_state_store,
     assets,
+    callbacks,
     connection_tests,
     connections,
     dag_runs,
@@ -49,6 +50,7 @@ authenticated_router = VersionedAPIRouter(dependencies=[Security(require_auth)])
 
 authenticated_router.include_router(assets.router, prefix="/assets", tags=["Assets"])
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])
+authenticated_router.include_router(callbacks.router, prefix="/callbacks", tags=["Callbacks"])
 authenticated_router.include_router(
     connection_tests.router, prefix="/connection-tests", tags=["Connection Tests"]
 )

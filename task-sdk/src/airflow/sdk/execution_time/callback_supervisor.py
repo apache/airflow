@@ -22,6 +22,7 @@ import os
 import signal
 import sys
 import time
+import uuid
 from importlib import import_module
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -432,6 +433,14 @@ def supervise_callback(
             logger, log_file_descriptor = _configure_logging(log_path, client)
         else:
             logger = structlog.get_logger(logger_name="callback").bind()
+
+        # Claim the callback through the Execution API *before* importing and running it. This is
+        # the only point at which the workload token is redeemed: unlike a task, a callback makes
+        # no other authenticated API call, so without this the token minted for it is never
+        # checked. The server validates the token (workload scope, subject == this callback id)
+        # and transitions the callback QUEUED -> RUNNING; a missing, forged, or mismatched token
+        # is rejected here and the callback body never runs.
+        client.callbacks.run(uuid.UUID(str(id)))
 
         try:
             process = CallbackSubprocess.start(

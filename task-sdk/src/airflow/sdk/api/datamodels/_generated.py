@@ -63,6 +63,19 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
+class CallbackState(str, Enum):
+    """
+    All possible states of callbacks.
+    """
+
+    SCHEDULED = "scheduled"
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
@@ -656,6 +669,15 @@ class AssetStateStoreResponse(BaseModel):
         extra="forbid",
     )
     value: JsonValue | None
+
+
+class CallbackRunResponse(BaseModel):
+    """
+    Returned when a worker claims a callback for execution.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    state: CallbackState
 
 
 class ConnectionTestResultBody(BaseModel):

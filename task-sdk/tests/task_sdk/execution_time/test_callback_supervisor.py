@@ -547,3 +547,57 @@ class TestCallbackSubprocessStart:
             self.mock_super_start.call_args.kwargs["target"]()
 
         assert exc_info.value.code == 1
+
+
+class TestSuperviseCallbackClaimsBeforeExecuting:
+    """The callback is claimed through the Execution API *before* it is imported and run.
+
+    This is the boundary that stops an unauthenticated message on the Celery broker from reaching
+    callback execution: the claim call redeems the workload token, and nothing runs until it does.
+    """
+
+    CB_ID = "00000000-0000-0000-0000-0000000000cb"
+
+    def _supervise(self, client, start_mock):
+        from airflow.sdk.execution_time.callback_supervisor import supervise_callback
+
+        with patch(
+            "airflow.sdk.execution_time.callback_supervisor.CallbackSubprocess.start",
+            start_mock,
+        ):
+            return supervise_callback(
+                id=self.CB_ID,
+                callback_path="tests.does.not.matter",
+                callback_kwargs={},
+                dag_rel_path=Path("dag.py"),
+                token="a-token",
+                server="http://localhost:9999",
+                client=client,
+            )
+
+    def test_claim_runs_before_the_subprocess_starts(self):
+        import uuid
+
+        order = []
+        client = Mock()
+        client.callbacks.run.side_effect = lambda *a, **k: order.append("claim")
+
+        start_mock = Mock()
+        start_mock.side_effect = lambda *a, **k: (order.append("start"), Mock(wait=Mock(return_value=0)))[1]
+
+        self._supervise(client, start_mock)
+
+        client.callbacks.run.assert_called_once_with(uuid.UUID(self.CB_ID))
+        assert order == ["claim", "start"], "the callback must be claimed before it is started"
+
+    def test_a_rejected_claim_prevents_the_subprocess_from_starting(self):
+        """If the server refuses the claim (forged/mismatched/replayed token), nothing executes."""
+        client = Mock()
+        client.callbacks.run.side_effect = RuntimeError("403 Forbidden: token does not match callback")
+
+        start_mock = Mock()
+
+        with pytest.raises(RuntimeError, match="token does not match callback"):
+            self._supervise(client, start_mock)
+
+        start_mock.assert_not_called()
