@@ -32,7 +32,7 @@ from contextlib import contextmanager, suppress
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, column, func, inspect, literal, select, table, text
+from sqlalchemy import and_, column, func, inspect, literal, or_, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -42,6 +42,7 @@ from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.models.callback import TERMINAL_STATES
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -187,7 +188,6 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="asset_event", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
-    _TableConfig(table_name="sla_miss", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(
         table_name="task_instance",
         recency_column_name="start_date",
@@ -205,7 +205,22 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date", dag_id_column_name="dag_id"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp", dag_id_column_name="dag_id"),
     _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp", dag_id_column_name="dag_id"),
-    _TableConfig(table_name="callback_request", recency_column_name="created_at"),
+    _TableConfig(
+        table_name="callback",
+        recency_column_name="created_at",
+        extra_columns=["state"],
+        # A callback that can still run owns its deadline row through an ON DELETE CASCADE
+        # foreign key, so purging one would silently drop a deadline that has not fired yet.
+        # Dag-processor callbacks carry no state and are deleted as they are dispatched; any
+        # that outlive the retention window were orphaned and no deadline references them.
+        extra_filters=[
+            or_(
+                column("state").in_(sorted(TERMINAL_STATES)),
+                column("state").is_(None),
+            )
+        ],
+        dependent_tables=["deadline"],
+    ),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
     _TableConfig(
