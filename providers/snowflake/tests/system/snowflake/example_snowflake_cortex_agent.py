@@ -24,12 +24,20 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.snowflake.hooks.snowflake_cortex_agent import CreateMode
 from airflow.providers.snowflake.operators.snowflake_cortex_agent import (
+    SnowflakeCortexAgentCreateOperator,
+    SnowflakeCortexAgentDeleteOperator,
     SnowflakeCortexAgentOperator,
+    SnowflakeCortexAgentUpdateOperator,
 )
 
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 DAG_ID = "example_snowflake_cortex_agent"
+
+DATABASE = "DEFAULT_DATABASE"
+SCHEMA = "DEFAULT_SCHEMA"
+AGENT_NAME = "default_agent"
 
 with DAG(
     DAG_ID,
@@ -39,12 +47,39 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
+    # [START howto_operator_snowflake_cortex_agent_create]
+    create_agent = SnowflakeCortexAgentCreateOperator(
+        task_id="create_agent",
+        database=DATABASE,
+        schema=SCHEMA,
+        agent_name=AGENT_NAME,
+        comment="Created by Airflow",
+        instructions={
+            "response": "Respond in a friendly and concise manner.",
+        },
+        create_mode=CreateMode.ERROR_IF_EXISTS,
+    )
+    # [END howto_operator_snowflake_cortex_agent_create]
+
+    # [START howto_operator_snowflake_cortex_agent_update]
+    update_agent = SnowflakeCortexAgentUpdateOperator(
+        task_id="update_agent",
+        database=DATABASE,
+        schema=SCHEMA,
+        agent_name=AGENT_NAME,
+        comment="Updated by Airflow",
+        instructions={
+            "response": "Respond in one sentence.",
+        },
+    )
+    # [END howto_operator_snowflake_cortex_agent_update]
+
     # [START howto_operator_snowflake_cortex_agent]
     run_agent = SnowflakeCortexAgentOperator(
         task_id="run_agent",
-        database="DEFAULT_DATABASE",
-        schema="DEFAULT_SCHEMA",
-        agent_name="default_agent",
+        database=DATABASE,
+        schema=SCHEMA,
+        agent_name=AGENT_NAME,
         messages=[
             {
                 "role": "user",
@@ -58,6 +93,18 @@ with DAG(
         ],
     )
     # [END howto_operator_snowflake_cortex_agent]
+
+    # [START howto_operator_snowflake_cortex_agent_delete]
+    delete_agent = SnowflakeCortexAgentDeleteOperator(
+        task_id="delete_agent",
+        database=DATABASE,
+        schema=SCHEMA,
+        agent_name=AGENT_NAME,
+        if_exists=True,
+    )
+    # [END howto_operator_snowflake_cortex_agent_delete]
+
+    create_agent >> update_agent >> run_agent >> delete_agent
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

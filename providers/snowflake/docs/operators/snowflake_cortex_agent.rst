@@ -83,3 +83,44 @@ See the :doc:`Snowflake connection </connections/snowflake>` page for the full f
 A hook instance keeps its resolved key-pair JWT and reuses it within its renewal window instead of
 signing a new one on every request. This benefits code that calls ``SnowflakeCortexAgentHook``
 several times on the same instance; the operator makes one request per ``execute`` call.
+.. _howto/operator:SnowflakeCortexAgentCreateOperator:
+
+SnowflakeCortexAgentCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To create a Snowflake Cortex Agent you can use
+:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentCreateOperator`.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_cortex_agent_create]
+    :end-before: [END howto_operator_snowflake_cortex_agent_create]
+    :dedent: 4
+
+.. _howto/operator:SnowflakeCortexAgentUpdateOperator:
+
+SnowflakeCortexAgentUpdateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To update an existing Snowflake Cortex Agent you can use
+:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentUpdateOperator`.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_cortex_agent_update]
+    :end-before: [END howto_operator_snowflake_cortex_agent_update]
+    :dedent: 4
+
+.. _howto/operator:SnowflakeCortexAgentDeleteOperator:
+
+SnowflakeCortexAgentDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To delete a Snowflake Cortex Agent you can use
+:class:`~airflow.providers.snowflake.operators.snowflake_cortex_agent.SnowflakeCortexAgentDeleteOperator`.
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_cortex_agent.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_cortex_agent_delete]
+    :end-before: [END howto_operator_snowflake_cortex_agent_delete]
+    :dedent: 4
