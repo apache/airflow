@@ -31,6 +31,7 @@ import structlog
 from opentelemetry import propagate, trace
 from opentelemetry.context import context
 from opentelemetry.trace import StatusCode
+from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
     Enum,
@@ -220,15 +221,20 @@ def parent_trace_context(conf) -> context.Context | None:
         return None
     match conf.get(DAGRUN_PARENT_TRACE_CONTEXT_KEY):
         case str() as traceparent:
+            # The shorthand's *value* syntax is W3C, not just its key name, so it keeps
+            # being parsed as W3C whatever OTEL_PROPAGATORS says -- handing it to a
+            # propagator expecting another format would silently drop the parent.
+            extract = TraceContextTextMapPropagator().extract
             carrier = {"traceparent": traceparent}
         case dict() as raw:
             # Keep only str members: a non-str tracestate reaches TraceState.from_header
             # unvalidated and raises TypeError, which would drop the otherwise-valid parent.
+            extract = propagate.extract
             carrier = {k: v for k, v in raw.items() if isinstance(v, str)}
         case _:
             return None
     try:
-        ctx = propagate.extract(carrier)
+        ctx = extract(carrier)
     except Exception:
         # Never let a malformed conf value fail run creation; fall back to a root trace.
         return None
