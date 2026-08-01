@@ -285,17 +285,25 @@ class TestCloudSecretManagerBackendTeamScope:
     EXTENDING_TEAM = "team_a--prod"
 
     @staticmethod
-    def _backend(mock_client_callable, store):
-        """Back the backend with an in-memory secret store keyed by full secret name."""
+    def _backend(mock_client_callable):
+        """
+        Build a backend over an in-memory secret store keyed by full secret name.
+
+        The store is returned rather than taken as an argument so tests can populate it after
+        building the backend -- the lookup closes over it by reference. Names are derived from
+        the backend, so it has to exist first.
+        """
+        store: dict[str, str] = {}
         client = mock.MagicMock()
         client.get_secret.side_effect = lambda secret_id, project_id, **kwargs: store.get(secret_id)
         mock_client_callable.return_value = client
-        return CloudSecretManagerBackend(
+        backend = CloudSecretManagerBackend(
             connections_prefix=CONNECTIONS_PREFIX,
             variables_prefix=VARIABLES_PREFIX,
             config_prefix=CONFIG_PREFIX,
             project_id=PROJECT_ID,
         )
+        return backend, store
 
     @staticmethod
     def _team_name(backend, team, secret_id, prefix=CONNECTIONS_PREFIX):
@@ -305,9 +313,8 @@ class TestCloudSecretManagerBackendTeamScope:
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_team_scoped_secret_is_resolved_for_its_own_team(self, mock_client, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
-        store = {self._team_name(backend, self.TEAM, CONN_ID): CONN_URI}
-        backend = self._backend(mock_client, store)
+        backend, store = self._backend(mock_client)
+        store[self._team_name(backend, self.TEAM, CONN_ID)] = CONN_URI
 
         assert backend.get_conn_value(conn_id=CONN_ID, team_name=self.TEAM) == CONN_URI
 
@@ -316,10 +323,9 @@ class TestCloudSecretManagerBackendTeamScope:
     def test_team_scoped_secret_is_not_resolved_for_another_team(self, mock_client, mock_get_creds):
         """The whole point: team B must not reach team A's secret by spelling out its name."""
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
+        backend, store = self._backend(mock_client)
         encoded = f"{self.TEAM}--{CONN_ID}"
-        store = {self._team_name(backend, self.TEAM, CONN_ID): CONN_URI}
-        backend = self._backend(mock_client, store)
+        store[self._team_name(backend, self.TEAM, CONN_ID)] = CONN_URI
 
         assert backend.get_conn_value(conn_id=encoded, team_name=self.OTHER_TEAM) is None
 
@@ -327,10 +333,9 @@ class TestCloudSecretManagerBackendTeamScope:
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_team_scoped_secret_is_not_resolved_without_a_team_scope(self, mock_client, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
+        backend, store = self._backend(mock_client)
         encoded = f"{self.TEAM}--{CONN_ID}"
-        store = {self._team_name(backend, self.TEAM, CONN_ID): CONN_URI}
-        backend = self._backend(mock_client, store)
+        store[self._team_name(backend, self.TEAM, CONN_ID)] = CONN_URI
 
         assert backend.get_conn_value(conn_id=encoded) is None
 
@@ -339,10 +344,8 @@ class TestCloudSecretManagerBackendTeamScope:
     def test_team_whose_name_extends_the_callers_is_not_readable(self, mock_client, mock_get_creds):
         """A prefix match on the caller's namespace is not proof of ownership."""
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
-        target = self._team_name(backend, self.EXTENDING_TEAM, CONN_ID)
-        store = {target: CONN_URI}
-        backend = self._backend(mock_client, store)
+        backend, store = self._backend(mock_client)
+        store[self._team_name(backend, self.EXTENDING_TEAM, CONN_ID)] = CONN_URI
         encoded = f"{self.EXTENDING_TEAM}--{CONN_ID}"
 
         assert backend.get_conn_value(conn_id=encoded, team_name=self.TEAM) is None
@@ -353,9 +356,8 @@ class TestCloudSecretManagerBackendTeamScope:
     @mock.patch(MODULE_NAME + "._SecretManagerClient")
     def test_team_agnostic_secret_is_resolved_for_any_team_scope(self, mock_client, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
-        store = {backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP): CONN_URI}
-        backend = self._backend(mock_client, store)
+        backend, store = self._backend(mock_client)
+        store[backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)] = CONN_URI
 
         assert backend.get_conn_value(conn_id=CONN_ID) == CONN_URI
         assert backend.get_conn_value(conn_id=CONN_ID, team_name=self.TEAM) == CONN_URI
@@ -365,10 +367,9 @@ class TestCloudSecretManagerBackendTeamScope:
     def test_team_scoped_variable_is_not_resolved_for_another_team(self, mock_client, mock_get_creds):
         """Variables share the lookup, so they must be scoped identically."""
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
+        backend, store = self._backend(mock_client)
         encoded = f"{self.TEAM}--{VAR_KEY}"
-        store = {self._team_name(backend, self.TEAM, VAR_KEY, VARIABLES_PREFIX): VAR_VALUE}
-        backend = self._backend(mock_client, store)
+        store[self._team_name(backend, self.TEAM, VAR_KEY, VARIABLES_PREFIX)] = VAR_VALUE
 
         assert backend.get_variable(key=VAR_KEY, team_name=self.TEAM) == VAR_VALUE
         assert backend.get_variable(key=encoded, team_name=self.OTHER_TEAM) is None
@@ -383,7 +384,7 @@ class TestCloudSecretManagerBackendTeamScope:
         agrees with the implementation by construction and cannot see a naming defect.
         """
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
+        backend, _ = self._backend(mock_client)
 
         assert (
             backend._build_team_secret_name(CONNECTIONS_PREFIX, "team_a", "test_postgres")
@@ -407,9 +408,9 @@ class TestCloudSecretManagerBackendTeamScope:
         team ``team_a--prod`` stores ``conn`` under.
         """
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
+        backend, store = self._backend(mock_client)
         victim = backend._build_team_secret_name(CONNECTIONS_PREFIX, self.EXTENDING_TEAM, CONN_ID)
-        backend = self._backend(mock_client, {victim: CONN_URI})
+        store[victim] = CONN_URI
 
         assert backend.get_conn_value(conn_id=f"prod__{CONN_ID}", team_name=self.TEAM) is None
         # the two names must not coincide in the first place
@@ -425,10 +426,9 @@ class TestCloudSecretManagerBackendTeamScope:
         honouring the id for its own team would still hand one team the other's secret.
         """
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
+        backend, store = self._backend(mock_client)
         ambiguous = f"prod{TEAM_SEP}{CONN_ID}"
-        store = {backend._build_team_secret_name(CONNECTIONS_PREFIX, self.TEAM, ambiguous): CONN_URI}
-        backend = self._backend(mock_client, store)
+        store[backend._build_team_secret_name(CONNECTIONS_PREFIX, self.TEAM, ambiguous)] = CONN_URI
 
         assert backend.get_conn_value(conn_id=ambiguous, team_name=self.TEAM) is None
 
@@ -437,7 +437,7 @@ class TestCloudSecretManagerBackendTeamScope:
     def test_refusing_an_ambiguous_id_is_logged(self, mock_client, mock_get_creds, caplog):
         """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged."""
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
+        backend, _ = self._backend(mock_client)
         ambiguous = f"prod{TEAM_SEP}{CONN_ID}"
 
         assert backend.get_conn_value(conn_id=ambiguous) is None
@@ -458,9 +458,8 @@ class TestCloudSecretManagerBackendTeamScope:
         this convention comes from, and there is no team namespace for a config key to invade.
         """
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        backend = self._backend(mock_client, {})
+        backend, store = self._backend(mock_client)
         key = f"some{TEAM_SEP}option"
-        store = {backend.build_path(CONFIG_PREFIX, key, SEP): "config-value"}
-        backend = self._backend(mock_client, store)
+        store[backend.build_path(CONFIG_PREFIX, key, SEP)] = "config-value"
 
         assert backend.get_config(key) == "config-value"
