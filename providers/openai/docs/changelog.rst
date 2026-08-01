@@ -20,6 +20,21 @@
 Changelog
 ---------
 
+.. note::
+    ``OpenAITriggerBatchOperator`` now fails the task when a deferred batch ends in a
+    non-success state. Previously only ``status="error"`` raised, so a batch that was
+    **cancelled** while the task was deferred completed **successfully** with no results,
+    and an unrecognized or missing trigger event either succeeded silently or crashed with
+    ``TypeError: 'NoneType' object is not subscriptable``.
+
+    This aligns the deferrable path with the non-deferrable one, which has raised for
+    ``CANCELLED``/``CANCELLING`` since ``OpenAIHook.wait_for_batch`` was fixed.
+
+    Dags whose batches are cancelled will now fail where they previously reported success.
+    That is the intended correction — the earlier green runs produced no batch output — but
+    if you were relying on cancellation being treated as success, handle it explicitly, for
+    example with a trigger rule or by catching ``OpenAIBatchJobException`` downstream.
+
 1.8.1
 .....
 
