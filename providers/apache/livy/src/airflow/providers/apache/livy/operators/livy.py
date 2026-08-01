@@ -37,9 +37,9 @@ try:
 except ImportError:
 
     class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow 2 fallback: no task_state_store, so the operator always submits a fresh batch."""
+        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
 
-        external_id_key: str = "remote_job_id"
+        external_id_key: str = "livy_batch_id"
 
         def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
             # Swallow ``durable`` so it doesn't reach BaseOperator; crash recovery is a no-op here.
