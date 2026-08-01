@@ -1111,6 +1111,7 @@ workers:
       containerLifecycleHooks: {}
 
     # Resource configuration for pods created with pod-template-file
+    readonlyKerberosCache: true
     resources: {}
     #  limits:
     #   cpu: 100m
