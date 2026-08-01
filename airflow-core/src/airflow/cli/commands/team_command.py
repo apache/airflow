@@ -48,7 +48,10 @@ def _show_teams(teams, output):
     )
 
 
-TEAM_NAME_PATTERN = r"^[a-zA-Z0-9_-]{3,50}$"
+# Underscores are excluded deliberately: a team name is embedded in the
+# `_<TEAM>___<SECRET_ID>` environment variable namespace, and a team name that could
+# itself contain the `___` separator makes that name ambiguous to read back.
+TEAM_NAME_PATTERN = r"^[a-zA-Z0-9-]{3,50}$"
 
 
 def _case_collision(team_name: str, existing_names) -> str | None:

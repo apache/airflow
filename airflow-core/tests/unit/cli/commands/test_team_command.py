@@ -92,21 +92,30 @@ class TestCliTeams:
         """Two teams differing only in case would share one secrets namespace.
 
         The environment secrets backend upper-cases the team name when building the variable
-        name, so ``data_eng`` and ``Data_Eng`` both resolve ``AIRFLOW_CONN__DATA_ENG___<ID>``
+        name, so ``data-eng`` and ``Data-Eng`` both resolve ``AIRFLOW_CONN__DATA-ENG___<ID>``
         and each team would read the other's Connections and Variables.
         """
-        team_command.team_create(self.parser.parse_args(["teams", "create", "data_eng"]))
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data-eng"]))
 
         with pytest.raises(SystemExit, match="differs only in case from the existing team"):
-            team_command.team_create(self.parser.parse_args(["teams", "create", "Data_Eng"]))
+            team_command.team_create(self.parser.parse_args(["teams", "create", "Data-Eng"]))
 
-        assert self.session.scalar(select(Team).where(Team.name == "Data_Eng")) is None
+        assert self.session.scalar(select(Team).where(Team.name == "Data-Eng")) is None
 
     def test_team_create_allows_a_name_differing_by_more_than_case(self):
-        team_command.team_create(self.parser.parse_args(["teams", "create", "data_eng"]))
-        team_command.team_create(self.parser.parse_args(["teams", "create", "data_eng2"]))
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data-eng"]))
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data-eng2"]))
 
-        assert self.session.scalar(select(Team).where(Team.name == "data_eng2")) is not None
+        assert self.session.scalar(select(Team).where(Team.name == "data-eng2")) is not None
+
+    def test_team_create_rejects_underscore(self):
+        """An underscore in a team name would make the secrets namespace ambiguous.
+
+        A team secret is stored as ``_<TEAM>___<ID>``; a team name that could itself contain
+        the ``___`` separator leaves that string readable as two different (team, id) pairs.
+        """
+        with pytest.raises(SystemExit, match="Invalid team name"):
+            team_command.team_create(self.parser.parse_args(["teams", "create", "team_a"]))
 
     def test_team_create_whitespace_name(self):
         """Test team creation with whitespace-only name."""

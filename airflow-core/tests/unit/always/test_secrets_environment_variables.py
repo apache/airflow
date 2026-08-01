@@ -17,18 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+import re
+
 import pytest
 
+from airflow.cli.commands.team_command import TEAM_NAME_PATTERN
 from airflow.secrets.environment_variables import (
     CONN_ENV_PREFIX,
     VAR_ENV_PREFIX,
     EnvironmentVariablesBackend,
 )
 
-# A team specific secret is stored as ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. Team names may contain
-# underscores (they are validated against ``^[a-zA-Z0-9_-]{3,50}$``), so both shapes are exercised.
-TEAM_NAMES = ["team_a", "teama"]
-OTHER_TEAM_NAME = "team_b"
+# A team specific secret is stored as ``<PREFIX>_<TEAM_NAME>___<SECRET_ID>``. Team names cannot
+# contain an underscore (``^[a-zA-Z0-9-]{3,50}$``), which is what keeps that name unambiguous to
+# read back; both a hyphenated and a plain name are exercised.
+TEAM_NAMES = ["team-a", "teama"]
+OTHER_TEAM_NAME = "team-b"
 SECRET_ID = "dbconn"
 TEAM_VALUE = "team-scoped-value"
 GLOBAL_VALUE = "team-agnostic-value"
@@ -115,22 +119,23 @@ class TestEnvironmentVariablesBackendTeamScope:
         assert lookup(env_prefix, method, secret_id, team_name) == GLOBAL_VALUE
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
-    def test_team_whose_name_extends_the_callers_is_not_readable(self, monkeypatch, env_prefix, method):
-        """A team name may contain the ``___`` separator, so one team's namespace can start with another's.
+    def test_a_team_name_cannot_span_the_separator(self, monkeypatch, env_prefix, method):
+        """The namespace is unambiguous only because a team name cannot contain an underscore.
 
-        Caller in ``team_a`` supplies ``_team_a___prod___dbconn``. That id starts with the
-        ``_TEAM_A___`` prefix the caller's own team builds, so a prefix-equals-ownership check
-        clears it; the team scoped lookup then misses and the team agnostic lookup lands on
-        ``AIRFLOW_CONN__TEAM_A___PROD___DBCONN`` -- team ``team_a___prod``'s secret.
+        ``_team-a___prod___dbconn`` has exactly one reading -- team ``team-a`` with the id
+        ``prod___dbconn`` -- and is refused as that team's namespace. Were ``team-a___prod``
+        also a legal team name, the same string would equally read as *that* team with the id
+        ``dbconn``, and nothing in it would choose between them. That second reading is what
+        the name rule removes, and what previously forced this guard to try every split.
         """
-        caller_team, target_team = "team_a", "team_a___prod"
-        monkeypatch.setenv(team_env_var(env_prefix, target_team), TEAM_VALUE)
+        assert not re.match(TEAM_NAME_PATTERN, "team-a___prod")
 
-        assert lookup(env_prefix, method, team_scoped_id(target_team), caller_team) is None
-        # and the owning team still cannot reach it by the namespaced spelling either
-        assert lookup(env_prefix, method, team_scoped_id(target_team), target_team) is None
-        # while the owning team reaches it normally, with the bare id
-        assert lookup(env_prefix, method, SECRET_ID, target_team) == TEAM_VALUE
+        monkeypatch.setenv(f"{env_prefix}_TEAM-A___PROD___DBCONN", TEAM_VALUE)
+
+        assert lookup(env_prefix, method, "_team-a___prod___dbconn", "team-b") is None
+        assert lookup(env_prefix, method, "_team-a___prod___dbconn", None) is None
+        # and its owner reaches it the normal way, with the bare id and its team scope
+        assert lookup(env_prefix, method, "prod___dbconn", "team-a") == TEAM_VALUE
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     @pytest.mark.parametrize("team_name", TEAM_NAMES)
