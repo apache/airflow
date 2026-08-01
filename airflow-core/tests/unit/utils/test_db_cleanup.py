@@ -22,7 +22,6 @@ import time
 from contextlib import suppress
 from importlib import import_module
 from io import StringIO
-from pathlib import Path
 from unittest.mock import MagicMock, call, mock_open, patch
 from uuid import uuid4
 
@@ -826,11 +825,12 @@ class TestDBCleanup:
         """
         import pkgutil
 
-        proj_root = Path(__file__).parents[2].resolve()
-        mods = list(
-            f"airflow.models.{name}"
-            for _, name, _ in pkgutil.iter_modules([str(proj_root / "airflow/models")])
-        )
+        import airflow.models
+
+        # Walk the package's own __path__ rather than rebuilding it from this file's
+        # location: a path guessed relative to the test resolves to nothing once the
+        # sources move, leaving the assertions below with an empty set to check.
+        mods = [f"airflow.models.{name}" for _, name, _ in pkgutil.iter_modules(airflow.models.__path__)]
 
         all_models = {}
         for mod_name in mods:
@@ -870,12 +870,30 @@ class TestDBCleanup:
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
+            "team",  # leave alone - team configuration, not run data
+            # leave alone - per-asset key/value state, upserted in place (PK is asset_id+key),
+            # so it is bounded and current, not accumulating history; removed with its asset
+            "asset_state_store",
+            # Purged indirectly: each of these hangs off a cleaned table by an
+            # ON DELETE CASCADE foreign key, so the rows go when the parent does.
+            # cascade from dag_run once the partition run has fired; while it is still
+            # pending its created_dag_run_id is NULL, so those rows are not cleaned
+            "asset_partition_dag_run",
+            "asset_watcher",  # cascade from trigger
+            "dag_favorite",  # cascade from dag
+            "deadline_alert",  # cascade from serialized_dag, which cascades from dag_version
+            "hitl_detail",  # cascade from task_instance
+            "hitl_detail_history",  # cascade from task_instance_history
+            "task_inlet_asset_reference",  # cascade from dag
         }
 
         from airflow.utils.db_cleanup import config_dict
 
         print(f"all_models={set(all_models)}")
         print(f"excl+conf={exclusion_list.union(config_dict)}")
+        # Without this the two assertions below hold trivially for an empty set,
+        # which is how a table can go unnoticed by this check for several releases.
+        assert all_models, "discovered no models, so this check would pass vacuously"
         assert set(all_models) - exclusion_list.union(config_dict) == set()
         assert exclusion_list.isdisjoint(config_dict)
 
@@ -1426,10 +1444,19 @@ class TestCallbackCleanup:
             ("failed", False),
             (None, False),
             ("scheduled", True),
+            ("pending", True),
             ("queued", True),
             ("running", True),
         ],
-        ids=["success", "failed", "dag-processor-null-state", "scheduled", "queued", "running"],
+        ids=[
+            "success",
+            "failed",
+            "dag-processor-null-state",
+            "scheduled",
+            "pending",
+            "queued",
+            "running",
+        ],
     )
     def test_only_finished_callbacks_are_purged(self, state, should_survive):
         old = pendulum.now(tz="UTC").subtract(days=30)
@@ -1516,6 +1543,73 @@ class TestCallbackCleanup:
 
         with create_session() as session:
             assert session.scalar(select(func.count()).select_from(Deadline)) == 1
+
+
+@pytest.mark.db_test
+class TestPartitionedAssetKeyLogCleanup:
+    """Only orphaned key-log rows may go: live ones drive pending partition-run evaluation."""
+
+    def setup_method(self):
+        with create_session() as session:
+            session.execute(text("DELETE FROM partitioned_asset_key_log"))
+            session.execute(text("DELETE FROM asset_partition_dag_run"))
+            session.commit()
+
+    teardown_method = setup_method
+
+    @staticmethod
+    def _add_key_log(session, apdr_id, created_at):
+        from airflow.models.asset import PartitionedAssetKeyLog
+
+        row = PartitionedAssetKeyLog(
+            asset_id=1,
+            asset_event_id=1,
+            asset_partition_dag_run_id=apdr_id,
+            source_partition_key="2024-01-01",
+            target_dag_id="cleanup_probe_dag",
+            target_partition_key="2024-01-01",
+        )
+        row.created_at = created_at
+        session.add(row)
+        session.flush()
+        return row.id
+
+    def test_only_orphaned_key_log_rows_are_purged(self):
+        from airflow.models.asset import AssetPartitionDagRun, PartitionedAssetKeyLog
+
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+
+        with create_session() as session:
+            apdr = AssetPartitionDagRun(target_dag_id="cleanup_probe_dag", partition_key="2024-01-01")
+            session.add(apdr)
+            session.flush()
+            ids = {
+                "old orphan": self._add_key_log(session, apdr_id=apdr.id + 1000, created_at=old),
+                "old but live": self._add_key_log(session, apdr_id=apdr.id, created_at=old),
+                "recent orphan": self._add_key_log(
+                    session, apdr_id=apdr.id + 1000, created_at=pendulum.now(tz="UTC")
+                ),
+            }
+            session.commit()
+
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["partitioned_asset_key_log"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as session:
+            surviving = set(session.scalars(select(PartitionedAssetKeyLog.id)).all())
+
+        assert ids["old orphan"] not in surviving
+        assert ids["old but live"] in surviving, "evidence for a pending partition run must not be deleted"
+        assert ids["recent orphan"] in surviving, "age filter still applies to orphans"
 
 
 def _delete_test_timestamp():
