@@ -30,11 +30,11 @@ def composer_dag_run_date_field(composer_airflow_version: int) -> str:
     return "execution_date" if composer_airflow_version < 3 else "logical_date"
 
 
-def normalize_to_utc(dt: datetime) -> datetime:
+def normalize_to_utc(value: datetime) -> datetime:
     """Normalize a datetime to UTC; naive values are treated as UTC."""
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def parse_composer_airflow_datetime(value: Any) -> datetime | None:
@@ -44,30 +44,27 @@ def parse_composer_airflow_datetime(value: Any) -> datetime | None:
     Returns ``None`` when the value is missing/null so callers can skip those
     runs (Airflow 3 can emit null ``logical_date`` for some run types).
 
-    Naive datetimes are treated as UTC to avoid worker-local timezone footguns
-    when comparing against window bounds.
+    Naive datetimes are treated as UTC so comparisons against window bounds do
+    not silently depend on the worker's local timezone.
     """
     if value is None or value == "":
         return None
-    if isinstance(value, datetime):
-        dt = value
-    else:
-        dt = parser.parse(value)
-    return normalize_to_utc(dt)
+    parsed = value if isinstance(value, datetime) else parser.parse(value)
+    return normalize_to_utc(parsed)
 
 
 def is_in_execution_window(
-    run_dt: datetime,
+    run_date: datetime,
     start_date: datetime,
     end_date: datetime,
 ) -> bool:
     """
-    Return whether ``run_dt`` falls in the half-open window ``[start_date, end_date)``.
+    Return whether ``run_date`` falls in the half-open window ``[start_date, end_date)``.
 
     Start is inclusive so schedule-aligned runs at ``start_date`` are detected.
     End remains exclusive.
     """
-    run_ts = normalize_to_utc(run_dt).timestamp()
+    run_ts = normalize_to_utc(run_date).timestamp()
     start_ts = normalize_to_utc(start_date).timestamp()
     end_ts = normalize_to_utc(end_date).timestamp()
     return start_ts <= run_ts < end_ts
