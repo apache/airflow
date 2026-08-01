@@ -185,10 +185,12 @@ class TestSsmSecrets:
         assert backend.get_variable(key="prod--hello") is None
         assert backend.get_config(key="prod--sql_alchemy_conn") is None
 
-        # Airflow logs through structlog, which renders the format args into ``msg`` before the
-        # stdlib record is built -- ``record.args`` is empty, so there is no structured payload
-        # to assert on. Assert on level, logger and the refused id (the load-bearing data)
-        # rather than the wording, so rephrasing the warning does not break this.
+        # ``getMessage()`` rather than ``msg``: how a record carries its payload depends on the
+        # Airflow version. Here structlog renders the format args into ``msg`` before the stdlib
+        # record exists, so ``args`` is empty; on the versions the provider compat tests run
+        # against, plain stdlib logging leaves ``msg`` as the format string with the values in
+        # ``args``. ``getMessage()`` renders in both. Assert on level, logger and the refused id
+        # (the load-bearing data) rather than the wording, so rephrasing the warning is free.
         refusals = [
             r
             for r in caplog.records
@@ -196,8 +198,8 @@ class TestSsmSecrets:
         ]
         assert len(refusals) == 3
         for refused_id in ("prod--test_postgres", "prod--hello", "prod--sql_alchemy_conn"):
-            assert sum(refused_id in r.msg for r in refusals) == 1
-        assert all(TEAM_SEP in r.msg for r in refusals)
+            assert sum(refused_id in r.getMessage() for r in refusals) == 1
+        assert all(TEAM_SEP in r.getMessage() for r in refusals)
 
     @mock_aws
     def test_team_caller_falls_back_to_global_connection(self):
