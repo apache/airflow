@@ -119,15 +119,9 @@ class ServerResponseError(httpx.HTTPStatusError):
         # pulled in explicitly here or ``.json()`` raises ``httpx.ResponseNotRead``.
         response.read()
 
-        if 400 <= response.status_code < 500:
-            return cls(
-                message=f"Client error message: {response.json()}",
-                request=response.request,
-                response=response,
-            )
-
+        error_kind = "Client" if response.status_code < 500 else "Server"
         return cls(
-            message=f"Server error message: {response.json()}",
+            message=f"{error_kind} error message: {response.json()}",
             request=response.request,
             response=response,
         )
