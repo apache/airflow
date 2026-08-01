@@ -367,7 +367,7 @@ class TestFastApiSecurity:
     async def test_requires_access_backfill_authorized_from_body(
         self, mock_get_auth_manager, mock_get_team_name
     ):
-        """When backfill_id is missing or not int, dag_id can come from request body (POST backfill)."""
+        """With no backfill_id in the path, dag_id comes from the request body (POST backfill)."""
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -430,7 +430,10 @@ class TestFastApiSecurity:
     async def test_requires_access_backfill_backfill_not_found_falls_back_to_body(
         self, mock_get_auth_manager, mock_get_team_name
     ):
-        """When backfill_id is int but Backfill not found, dag_id from body is used."""
+        """When backfill_id is int but Backfill not found, dag_id from body is used.
+
+        Not exploitable: the handler answers 404 before acting, so no cross-Dag action follows.
+        """
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -452,6 +455,48 @@ class TestFastApiSecurity:
             method="POST",
             access_entity=DagAccessEntity.RUN,
             details=DagDetails(id="fallback_dag_id", team_name="team1"),
+            user=user,
+        )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("backfill_id", ["42", "42.0", "42.00"])
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_authorizes_the_backfill_the_handler_will_act_on(
+        self, mock_get_auth_manager, mock_get_team_name, backfill_id
+    ):
+        """The dependency must resolve the same backfill the handler does, for every spelling.
+
+        The endpoints declare ``backfill_id: NonNegativeInt``, and pydantic's lax mode coerces
+        ``"42.0"`` and ``"42.00"`` to ``42`` -- both are spellings the handler accepts and serves
+        against backfill 42. Parsing with ``int()`` here rejected them and left ``dag_id``
+        unresolved, so the two disagreed about which Dag the request concerned.
+        """
+        auth_manager = Mock()
+        auth_manager.is_authorized_dag.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = "team1"
+
+        backfill = Mock()
+        backfill.dag_id = "backfill_dag"
+        session = Mock()
+        session.scalars.return_value.one_or_none.return_value = backfill
+
+        request = Mock()
+        request.path_params = {"backfill_id": backfill_id}
+        request.query_params = {"dag_id": "some_other_dag"}
+        request.json = AsyncMock(return_value={"dag_id": "some_other_dag"})
+
+        user = Mock()
+
+        await requires_access_backfill("PUT")(request, user, session)
+
+        # the backfill's own Dag, not the one supplied on the request
+        auth_manager.is_authorized_dag.assert_called_once_with(
+            method="PUT",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="backfill_dag", team_name="team1"),
             user=user,
         )
 

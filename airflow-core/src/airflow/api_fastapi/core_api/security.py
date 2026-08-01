@@ -27,6 +27,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
+from pydantic import NonNegativeInt, TypeAdapter, ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -390,6 +391,12 @@ ReadableBackfillsFilterDep = Annotated[
 ]
 
 
+# The type the backfill routes declare for the `backfill_id` path parameter. Shared with
+# `requires_access_backfill` so the authorization decision parses the id exactly as the handler
+# does; see the comment there for why any divergence is a cross-Dag authorization bypass.
+_BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
+
+
 def requires_access_backfill(
     method: ResourceMethod,
 ) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
@@ -405,8 +412,20 @@ def requires_access_backfill(
         # Try to retrieve the dag_id from the backfill_id path param
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
-            backfill_id = int(backfill_id_raw) if backfill_id_raw is not None else None
-        except ValueError:
+            # Parse with the *same* type the endpoints declare for this path parameter, so this
+            # dependency and the handler always resolve the same backfill -- and therefore the
+            # same Dag.
+            #
+            # `int()` is not that parser: pydantic's lax mode accepts strings `int()` rejects,
+            # so "1.0" and "1.00" validate to 1 for the handler while `int()` raised here. Since
+            # dependencies resolve before the endpoint's own parameter validation, that left
+            # `dag_id` unresolved for a request the handler went on to serve against backfill 1.
+            backfill_id = (
+                _BACKFILL_ID_ADAPTER.validate_python(backfill_id_raw) if backfill_id_raw is not None else None
+            )
+        except ValidationError:
+            # Rejected by the endpoint's parser too, so the handler cannot run: FastAPI answers
+            # 422 before it is reached. Left as None, preserving that response.
             backfill_id = None
 
         if backfill_id is not None:
