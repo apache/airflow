@@ -1234,7 +1234,7 @@ class TestGitDagBundle:
             with mock.patch("airflow.providers.git.bundles.git.Repo.clone_from") as mock_clone:
                 mock_clone.side_effect = NoSuchPathError("Path not found")
                 bundle = GitDagBundle(name="test", tracking_ref="main")
-                with pytest.raises(AirflowException) as exc_info:
+                with pytest.raises(FileNotFoundError) as exc_info:
                     bundle._clone_repo_if_required()
 
                 assert str(exc_info.value) == f"Repository path: {bundle.bare_repo_path} not found"
