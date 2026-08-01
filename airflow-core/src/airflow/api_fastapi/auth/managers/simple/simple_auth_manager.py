@@ -396,11 +396,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
 
     def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
         """Register the all-admins middleware when ``[core] simple_auth_manager_all_admins`` is set."""
+        middleware = super().get_fastapi_middlewares()
         if not conf.getboolean("core", "simple_auth_manager_all_admins"):
-            return []
+            return middleware
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
-        return [(SimpleAllAdminMiddleware, {})]
+        return middleware + [(SimpleAllAdminMiddleware, {})]
 
     def get_fastapi_app(self) -> FastAPI | None:
         """

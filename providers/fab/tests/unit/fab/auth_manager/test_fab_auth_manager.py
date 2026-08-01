@@ -39,6 +39,7 @@ from airflow.utils.db import resetdb
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_4_PLUS
 from unit.fab.auth_manager.test_utils import create_user, delete_user
 
 with suppress(ImportError):
@@ -328,8 +329,12 @@ class TestFabAuthManager:
         """No middleware is registered when public access is not configured."""
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = None
+        base_middleware = []
+        if AIRFLOW_V_3_4_PLUS:
+            base_middleware.append(auth_manager_with_appbuilder.get_jwt_refresh_middleware())
+
         try:
-            assert auth_manager_with_appbuilder.get_fastapi_middlewares() == []
+            assert auth_manager_with_appbuilder.get_fastapi_middlewares() == base_middleware
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
@@ -339,12 +344,16 @@ class TestFabAuthManager:
 
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+
+        base_middleware = []
+        if AIRFLOW_V_3_4_PLUS:
+            base_middleware.append(auth_manager_with_appbuilder.get_jwt_refresh_middleware())
         try:
             middlewares = auth_manager_with_appbuilder.get_fastapi_middlewares()
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
-        assert middlewares == [(FabAuthRolePublicMiddleware, {})]
+        assert middlewares == base_middleware + [(FabAuthRolePublicMiddleware, {})]
 
     @pytest.mark.parametrize(
         ("auth_type", "method"),

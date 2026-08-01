@@ -26,6 +26,8 @@ from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 
+from tests_common.test_utils.config import conf_vars
+
 
 class TestJWTRefreshMiddleware:
     @pytest.fixture
@@ -43,15 +45,15 @@ class TestJWTRefreshMiddleware:
     def mock_user(self):
         return MagicMock(spec=BaseUser)
 
-    @patch.object(JWTRefreshMiddleware, "_refresh_user")
     @pytest.mark.asyncio
-    async def test_dispatch_no_token(self, mock_refresh_user, middleware, mock_request):
+    async def test_dispatch_no_token(self, middleware, mock_request):
         call_next = AsyncMock(return_value=Response())
 
-        await middleware.dispatch(mock_request, call_next)
+        response = await middleware.dispatch(mock_request, call_next)
 
         call_next.assert_called_once_with(mock_request)
-        mock_refresh_user.assert_not_called()
+
+        assert response.headers.getlist("set-cookie") == []
 
     @patch.object(
         JWTRefreshMiddleware,
@@ -101,10 +103,8 @@ class TestJWTRefreshMiddleware:
     @pytest.mark.asyncio
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")
-    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.conf")
     async def test_dispatch_with_refreshed_user(
         self,
-        mock_conf,
         mock_resolve_user_from_token,
         mock_get_auth_manager,
         middleware,
@@ -118,10 +118,10 @@ class TestJWTRefreshMiddleware:
         mock_get_auth_manager.return_value = mock_auth_manager
         mock_auth_manager.refresh_user.return_value = refreshed_user
         mock_auth_manager.generate_jwt.return_value = "new_token"
-        mock_conf.get.return_value = ""
 
         call_next = AsyncMock(return_value=Response())
-        response = await middleware.dispatch(mock_request, call_next)
+        with conf_vars({("api", "base_url"): ""}):
+            response = await middleware.dispatch(mock_request, call_next)
 
         from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDLEWARE
 
@@ -146,15 +146,15 @@ class TestJWTRefreshMiddleware:
             pytest.param("http", "", False, id="http-no-local-ssl-cert"),
         ],
     )
+    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.request_cookie_is_secure")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")
-    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.conf")
     @pytest.mark.asyncio
     async def test_dispatch_cookie_secure_flag(
         self,
-        mock_conf,
         mock_resolve_user_from_token,
         mock_get_auth_manager,
+        mock_request_cookie_is_secure,
         middleware,
         mock_request,
         mock_user,
@@ -171,10 +171,11 @@ class TestJWTRefreshMiddleware:
         mock_get_auth_manager.return_value = mock_auth_manager
         mock_auth_manager.refresh_user.return_value = refreshed_user
         mock_auth_manager.generate_jwt.return_value = "new_token"
-        mock_conf.get.return_value = ssl_cert
+        mock_request_cookie_is_secure.return_value = expected_secure
 
         call_next = AsyncMock(return_value=Response())
-        response = await middleware.dispatch(mock_request, call_next)
+        with conf_vars({("api", "ssl_cert"): ssl_cert}):
+            response = await middleware.dispatch(mock_request, call_next)
 
         set_cookie_headers = response.headers.get("set-cookie", "")
         if expected_secure:
@@ -185,11 +186,9 @@ class TestJWTRefreshMiddleware:
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_cookie_path", return_value="/team-a/")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.get_auth_manager")
     @patch("airflow.api_fastapi.auth.middlewares.refresh_token.resolve_user_from_token")
-    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.conf")
     @pytest.mark.asyncio
     async def test_dispatch_cookie_uses_subpath(
         self,
-        mock_conf,
         mock_resolve_user_from_token,
         mock_get_auth_manager,
         mock_cookie_path,
@@ -205,10 +204,10 @@ class TestJWTRefreshMiddleware:
         mock_get_auth_manager.return_value = mock_auth_manager
         mock_auth_manager.refresh_user.return_value = refreshed_user
         mock_auth_manager.generate_jwt.return_value = "new_token"
-        mock_conf.get.return_value = ""
 
         call_next = AsyncMock(return_value=Response())
-        response = await middleware.dispatch(mock_request, call_next)
+        with conf_vars({("api", "base_url"): ""}):
+            response = await middleware.dispatch(mock_request, call_next)
 
         set_cookie_headers = response.headers.getlist("set-cookie")
         assert any("Path=/team-a/" in h for h in set_cookie_headers)
@@ -223,11 +222,9 @@ class TestJWTRefreshMiddleware:
         "_refresh_user",
         side_effect=HTTPException(status_code=403, detail="Invalid JWT token"),
     )
-    @patch("airflow.api_fastapi.auth.middlewares.refresh_token.conf")
     @pytest.mark.asyncio
     async def test_dispatch_invalid_token_clears_root_cookie(
         self,
-        mock_conf,
         mock_refresh_user,
         mock_cookie_path,
         middleware,
@@ -235,10 +232,10 @@ class TestJWTRefreshMiddleware:
     ):
         """When a stale _token exists at root path, clearing must target both the subpath and root."""
         mock_request.cookies = {COOKIE_NAME_JWT_TOKEN: "stale_root_token"}
-        mock_conf.get.return_value = ""
 
         call_next = AsyncMock(return_value=Response(status_code=401))
-        response = await middleware.dispatch(mock_request, call_next)
+        with conf_vars({("api", "base_url"): ""}):
+            response = await middleware.dispatch(mock_request, call_next)
 
         set_cookie_headers = response.headers.getlist("set-cookie")
         # Expect two delete cookies: one at the subpath and one at root "/"
