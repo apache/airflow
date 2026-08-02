@@ -85,7 +85,7 @@ dependencies = [
     "cadwyn>=6.1.1",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
-    "croniter>=2.0.2",
+    "croniter>=6.2.2",
     # Cryptography could be upgraded to 46.0.5, but it does not have overlap with earlier versions
     # Of Airflow which were limited to <46.0.0 also earlier provider versions will not be compatible with newer
     # airflow if we do not have overlapping version. We could set minimum version to 46.0.0 when we drop
@@ -161,7 +161,7 @@ dependencies = [
     # Start of shared logging dependencies
     "msgspec>=0.19.0",
     "pygtrie>=2.5.0",
-    "structlog>=25.4.0",
+    "structlog>=26.1.0",
     # End of shared logging dependencies
     # Start of shared configuration dependencies
     "pyyaml>=6.0.3",

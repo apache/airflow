@@ -47,14 +47,19 @@ except ImportError:
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.providers.common.compat.sdk import conf
+from airflow.providers.keycloak.auth_manager.constants import (
+    COOKIE_NAME_ACCESS_TOKEN,
+    COOKIE_NAME_ID_TOKEN,
+    COOKIE_NAME_NAME,
+    COOKIE_NAME_OAUTH_STATE,
+    COOKIE_NAME_REFRESH_TOKEN,
+    COOKIE_NAME_USER_ID,
+)
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
-
-COOKIE_NAME_ID_TOKEN = "_id_token"
-COOKIE_NAME_OAUTH_STATE = "_oauth_state"
 
 
 def _login_callback_url(request: Request) -> str:
@@ -136,6 +141,20 @@ def login_callback(request: Request):
         COOKIE_NAME_ID_TOKEN, tokens["id_token"], path=cookie_path, secure=secure, httponly=True
     )
 
+    response.set_cookie(COOKIE_NAME_USER_ID, userinfo["sub"], path=cookie_path, secure=secure, httponly=True)
+
+    response.set_cookie(
+        COOKIE_NAME_NAME, userinfo["preferred_username"], path=cookie_path, secure=secure, httponly=True
+    )
+
+    response.set_cookie(
+        COOKIE_NAME_ACCESS_TOKEN, tokens["access_token"], path=cookie_path, secure=secure, httponly=True
+    )
+
+    response.set_cookie(
+        COOKIE_NAME_REFRESH_TOKEN, tokens["refresh_token"], path=cookie_path, secure=secure, httponly=True
+    )
+
     return response
 
 
@@ -182,6 +201,25 @@ def logout_callback(request: Request):
     )
     response.delete_cookie(
         key=COOKIE_NAME_ID_TOKEN,
+        path=cookie_path,
+        secure=secure,
+        httponly=True,
+    )
+    response.delete_cookie(key=COOKIE_NAME_USER_ID, path=cookie_path, secure=secure, httponly=True)
+    response.delete_cookie(
+        key=COOKIE_NAME_NAME,
+        path=cookie_path,
+        secure=secure,
+        httponly=True,
+    )
+    response.delete_cookie(
+        key=COOKIE_NAME_ACCESS_TOKEN,
+        path=cookie_path,
+        secure=secure,
+        httponly=True,
+    )
+    response.delete_cookie(
+        key=COOKIE_NAME_REFRESH_TOKEN,
         path=cookie_path,
         secure=secure,
         httponly=True,

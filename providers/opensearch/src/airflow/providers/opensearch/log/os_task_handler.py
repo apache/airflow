@@ -104,11 +104,11 @@ def _format_error_detail(error_detail: Any) -> str | None:
 
 def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter an OpenSearch hit to ``TASK_LOG_FIELDS`` and ensure compatibility with StructuredLogMessage."""
-    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS or k == "@timestamp"}
+    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS}
 
-    # Map @timestamp to timestamp
-    if "@timestamp" in fields and "timestamp" not in fields:
-        fields["timestamp"] = fields.pop("@timestamp")
+    # Map @timestamp to timestamp but not include `@timestamp` in log fields
+    if "@timestamp" in hit_dict and "timestamp" not in fields:
+        fields["timestamp"] = hit_dict["@timestamp"]
 
     # Map levelname to level
     if "levelname" in fields and "level" not in fields:
