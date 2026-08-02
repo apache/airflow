@@ -25,14 +25,9 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-// monaco-editor ships .d.ts only for `editor.api`; contribution side-effect imports have
-// no typings of their own.
-declare module "monaco-editor/esm/vs/editor/contrib/folding/browser/folding";
-declare module "monaco-editor/esm/vs/base/browser/ui/codicons/codiconStyles";
-
-// The Python basic-language module exports its Monarch grammar (`conf` / `language`)
+// The Python language definition exports its Monarch grammar (`conf` / `language`)
 // but ships no `.d.ts` of its own.
-declare module "monaco-editor/esm/vs/basic-languages/python/python.js" {
+declare module "monaco-editor/languages/definitions/python/python" {
   // `import(...)` type syntax is required here: a top-level `import type` would turn this
   // ambient declaration file into a module and break the `ImportMeta` augmentation above.
   /* eslint-disable @typescript-eslint/consistent-type-imports */
