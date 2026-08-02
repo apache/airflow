@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -199,10 +200,19 @@ class TestAzureKeyVaultBackend:
 
         assert backend.get_conn_value("prod--my_db") is None
         assert backend.get_variable("prod__hello") is None
+        assert backend.get_config("prod--sql_alchemy_conn") is None
 
-        refusals = [r for r in caplog.records if "is ambiguous and is not looked up" in r.getMessage()]
-        assert len(refusals) == 2
-        assert all(r.levelname == "WARNING" for r in refusals)
+        # Airflow logs through structlog, which renders the format args into ``msg`` before the
+        # stdlib record is built, so ``record.args`` is empty and there is nothing structured to
+        # assert on. Assert on level, logger and the refused id rather than the wording.
+        refusals = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING and r.name.endswith(type(backend).__name__)
+        ]
+        assert len(refusals) == 3
+        for refused_id in ("prod--my_db", "prod__hello", "prod--sql_alchemy_conn"):
+            assert sum(refused_id in r.getMessage() for r in refusals) == 1
         mock_client.get_secret.assert_not_called()
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend._get_secret")
