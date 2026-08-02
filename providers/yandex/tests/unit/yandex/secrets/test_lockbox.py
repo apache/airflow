@@ -321,6 +321,79 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
+    def test_another_teams_secret_is_not_reachable(self, mock_get_payload, mock_get_secrets):
+        """A caller scoped to one team must not reach another team's secret by naming it.
+
+        The target secret exists and is resolvable, so a backend that falls through to the
+        team agnostic name returns its value. Only refusing that fall-through returns None.
+        """
+        mock_get_secrets.return_value = [
+            secret_pb.Secret(id="123", name="airflow/connections/teama//my_db"),
+        ]
+        mock_get_payload.return_value = payload_pb.Payload(
+            entries=[payload_pb.Payload.Entry(text_value="teama-conn")]
+        )
+
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("teama//my_db", team_name="teamb") is None
+        mock_get_payload.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
+    def test_team_whose_name_extends_the_callers_is_not_reachable(self, mock_get_payload, mock_get_secrets):
+        """A prefix match on the caller's own namespace is not proof of ownership."""
+        mock_get_secrets.return_value = [
+            secret_pb.Secret(id="123", name="airflow/connections/teama//prod//my_db"),
+        ]
+        mock_get_payload.return_value = payload_pb.Payload(
+            entries=[payload_pb.Payload.Entry(text_value="teama-prod-conn")]
+        )
+
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("teama//prod//my_db", team_name="teama") is None
+        mock_get_payload.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
+    def test_team_scoped_lookup_cannot_reach_a_longer_teams_namespace(
+        self, mock_get_payload, mock_get_secrets
+    ):
+        """The team scoped name is not safe by construction -- the key can extend it.
+
+        Team ``teama`` asking for ``prod//my_db`` builds exactly the name team ``teama//prod``
+        builds for ``my_db``, so the team scoped lookup *finds* another team's secret. Refusing
+        only the team agnostic fall-through leaves this open, because the fall-through is never
+        reached.
+        """
+        mock_get_secrets.return_value = [
+            secret_pb.Secret(id="123", name="airflow/connections/teama//prod//my_db"),
+        ]
+        mock_get_payload.return_value = payload_pb.Payload(
+            entries=[payload_pb.Payload.Entry(text_value="teama-prod-conn")]
+        )
+
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("prod//my_db", team_name="teama") is None
+        mock_get_payload.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    def test_refusing_an_ambiguous_id_is_logged(self, mock_get_secrets, caplog):
+        """A silent ``None`` is indistinguishable from a missing secret, so the refusal is logged."""
+        backend = LockboxSecretBackend()
+
+        assert backend.get_conn_value("prod//my_db") is None
+        assert backend.get_variable("prod//hello") is None
+
+        refusals = [r for r in caplog.records if "is ambiguous and is not looked up" in r.getMessage()]
+        assert len(refusals) == 2
+        assert all(r.levelname == "WARNING" for r in refusals)
+        mock_get_secrets.assert_not_called()
+
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secrets")
+    @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_payload")
     def test_yandex_lockbox_secret_backend__get_secret_value(self, mock_get_payload, mock_get_secrets):
         target_name = "target_name"
         target_text = "target_text"

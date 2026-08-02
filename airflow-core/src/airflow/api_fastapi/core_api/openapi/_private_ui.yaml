@@ -1,10 +1,22 @@
 openapi: 3.1.0
 info:
   title: Airflow API
-  description: Airflow API. All endpoints located under ``/api/v2`` can be used safely,
-    are stable and backward compatible. Endpoints located under ``/ui`` are dedicated
-    to the UI and are subject to breaking change depending on the need of the frontend.
-    Users should not rely on those but use the public ones instead.
+  description: "Airflow API. All endpoints located under ``/api/v2`` can be used safely,\
+    \ are stable and backward compatible. Endpoints located under ``/ui`` are dedicated\
+    \ to the UI and are subject to breaking change depending on the need of the frontend.\
+    \ Users should not rely on those but use the public ones instead.\n\n**Filtering\
+    \ with pattern parameters.** Many list endpoints accept ``*_pattern`` and ``*_prefix_pattern``\
+    \ query parameters. Unless a parameter's own description says otherwise, ``*_pattern``\
+    \ is a case-insensitive substring match (SQL ``ILIKE '%term%'``) where ``%`` matches\
+    \ any sequence and ``_`` matches any single character (e.g. ``%customer_%``) \u2014\
+    \ convenient, but it cannot use B-tree indexes, so it is slow on large tables.\
+    \ ``*_prefix_pattern`` matches the start of the value, is case-sensitive and index-friendly\
+    \ (prefer it at scale); there ``%`` and ``_`` are literal and trailing non-alphanumeric\
+    \ characters are stripped so the range scan stays index-compatible under locale-aware\
+    \ collations (e.g. ``test_`` matches values starting with ``test``, and ``s3://``\
+    \ matches ``s3``). In both, ``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches\
+    \ everything. Regular expressions are not supported by these parameters; regex-capable\
+    \ endpoints expose a separate parameter."
   version: '2'
 paths:
   /ui/auth/menus:
@@ -69,6 +81,206 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/assets:
+    get:
+      tags:
+      - Asset
+      summary: Get Assets
+      description: Get assets. Like the public endpoint, but also supports sorting
+        by group and last asset event timestamp.
+      operationId: get_assets_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
+          title: Name Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: name_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Name Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: uri
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: Exact-match filter on the full asset URI. Compiles to an indexed
+            equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+            to match multiple assets.
+          title: Uri
+        description: Exact-match filter on the full asset URI. Compiles to an indexed
+          equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``)
+          to match multiple assets.
+      - name: uri_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `uri_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
+          title: Uri Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `uri_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: uri_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Uri Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: group_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `group_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
+          title: Group Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `group_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: group_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Group Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Dag Ids
+      - name: only_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Only Active
+      - name: last_asset_event_timestamp_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Asset Event Timestamp Gte
+      - name: last_asset_event_timestamp_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Asset Event Timestamp Gt
+      - name: last_asset_event_timestamp_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Asset Event Timestamp Lte
+      - name: last_asset_event_timestamp_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Asset Event Timestamp Lt
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id, name,
+            uri, group, created_at, updated_at, last_asset_event_timestamp`'
+          default:
+          - -last_asset_event_timestamp
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id, name, uri, group,
+          created_at, updated_at, last_asset_event_timestamp`'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -363,20 +575,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
-            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
-            \ the database from using B-tree indexes, which can be very slow on large\
-            \ tables. Prefer the equivalent ``dag_id_prefix_pattern`` parameter when\
-            \ possible."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
           title: Dag Id Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
-          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
-          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
-          \ the equivalent ``dag_id_prefix_pattern`` parameter when possible."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: dag_id_prefix_pattern
         in: query
         required: false
@@ -384,23 +589,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "Prefix match \u2014 returns items whose value starts with\
-            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
-            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
-            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
-            \ characters in the prefix are stripped before matching so the range scan\
-            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
-            \ effectively matches items starting with `test`, and `s3://` matches\
-            \ items starting with `s3`."
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
           title: Dag Id Prefix Pattern
-        description: "Prefix match \u2014 returns items whose value starts with the\
-          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
-          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
-          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
-          \ characters in the prefix are stripped before matching so the range scan\
-          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
-          \ effectively matches items starting with `test`, and `s3://` matches items\
-          \ starting with `s3`."
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -408,20 +601,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
-            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
-            \ the database from using B-tree indexes, which can be very slow on large\
-            \ tables. Prefer the equivalent ``dag_display_name_prefix_pattern`` parameter\
-            \ when possible."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `dag_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+            \ with pattern parameters\"."
           title: Dag Display Name Pattern
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
-          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
-          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
-          \ the equivalent ``dag_display_name_prefix_pattern`` parameter when possible."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `dag_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
+          \ with pattern parameters\"."
       - name: dag_display_name_prefix_pattern
         in: query
         required: false
@@ -429,23 +615,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "Prefix match \u2014 returns items whose value starts with\
-            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
-            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
-            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
-            \ characters in the prefix are stripped before matching so the range scan\
-            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
-            \ effectively matches items starting with `test`, and `s3://` matches\
-            \ items starting with `s3`."
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
           title: Dag Display Name Prefix Pattern
-        description: "Prefix match \u2014 returns items whose value starts with the\
-          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
-          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
-          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
-          \ characters in the prefix are stripped before matching so the range scan\
-          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
-          \ effectively matches items starting with `test`, and `s3://` matches items\
-          \ starting with `s3`."
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       - name: exclude_stale
         in: query
         required: false
@@ -551,6 +725,14 @@ paths:
           description: Filter Dags by asset dependency (name or URI)
           title: Asset Dependency
         description: Filter Dags by asset dependency (name or URI)
+      - name: timetable_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Timetable Type
       - name: has_pending_actions
         in: query
         required: false
@@ -566,6 +748,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGWithLatestDagRunsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/timetable_types:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Timetable Types
+      description: Get timetable types used by readable Dags.
+      operationId: get_dag_timetable_types_ui
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: timetable_type_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Timetable Type Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagTimetableTypeCollectionResponse'
         '422':
           description: Validation Error
           content:
@@ -963,13 +1197,12 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, created_at,
-            name, interval`'
+            name`'
           default:
           - created_at
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id, created_at, name,
-          interval`'
+          with `-` for descending order. Supported attributes: `id, created_at, name`'
       responses:
         '200':
           description: Successful Response
@@ -1036,13 +1269,6 @@ paths:
           - type: string
           - type: 'null'
           title: Root
-      - name: external_dependencies
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: External Dependencies
       - name: version_number
         in: query
         required: false
@@ -1058,12 +1284,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/StructureDataResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
@@ -1289,19 +1509,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
-            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
-            \ the database from using B-tree indexes, which can be very slow on large\
-            \ tables. Prefer the equivalent ``triggering_user`` parameter when possible."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `triggering_user` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Triggering User
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
-          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
-          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
-          \ the equivalent ``triggering_user`` parameter when possible."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `triggering_user` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: triggering_user_prefix
         in: query
         required: false
@@ -1309,23 +1523,37 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "Prefix match \u2014 returns items whose value starts with\
-            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
-            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
-            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
-            \ characters in the prefix are stripped before matching so the range scan\
-            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
-            \ effectively matches items starting with `test`, and `s3://` matches\
-            \ items starting with `s3`."
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
           title: Triggering User Prefix
-        description: "Prefix match \u2014 returns items whose value starts with the\
-          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
-          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
-          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
-          \ characters in the prefix are stripped before matching so the range scan\
-          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
-          \ effectively matches items starting with `test`, and `s3://` matches items\
-          \ starting with `s3`."
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
+          title: Run Id Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Run Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -1462,19 +1690,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-            \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular\
-            \ expressions are **not** supported. \n\n**Performance note:** this full-match\
-            \ pattern is evaluated as ``ILIKE '%term%'`` and most of the time prevents\
-            \ the database from using B-tree indexes, which can be very slow on large\
-            \ tables. Prefer the equivalent ``triggering_user`` parameter when possible."
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `triggering_user` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
           title: Triggering User
-        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
-          \ Use the pipe `|` operator for OR logic (e.g. `dag1 | dag2`). Regular expressions\
-          \ are **not** supported. \n\n**Performance note:** this full-match pattern\
-          \ is evaluated as ``ILIKE '%term%'`` and most of the time prevents the database\
-          \ from using B-tree indexes, which can be very slow on large tables. Prefer\
-          \ the equivalent ``triggering_user`` parameter when possible."
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `triggering_user` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: triggering_user_prefix
         in: query
         required: false
@@ -1482,23 +1704,37 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "Prefix match \u2014 returns items whose value starts with\
-            \ the given string (case-sensitive, index-friendly). Use the pipe `|`\
-            \ operator for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard\
-            \ characters (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
-            \ characters in the prefix are stripped before matching so the range scan\
-            \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
-            \ effectively matches items starting with `test`, and `s3://` matches\
-            \ items starting with `s3`."
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
           title: Triggering User Prefix
-        description: "Prefix match \u2014 returns items whose value starts with the\
-          \ given string (case-sensitive, index-friendly). Use the pipe `|` operator\
-          \ for OR logic (e.g. `dag1|dag2`). Use `~` to match all. Wildcard characters\
-          \ (`%`, `_`) are treated as literal characters. Trailing non-alphanumeric\
-          \ characters in the prefix are stripped before matching so the range scan\
-          \ stays index-compatible under locale-aware collations \u2014 e.g. `test_`\
-          \ effectively matches items starting with `test`, and `s3://` matches items\
-          \ starting with `s3`."
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with\
+            \ pattern parameters\"."
+          title: Run Id Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `run_id_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
+      - name: run_id_prefix_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-sensitive, index-friendly prefix match. See "Filtering
+            with pattern parameters".
+          title: Run Id Prefix Pattern
+        description: Case-sensitive, index-friendly prefix match. See "Filtering with
+          pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -1882,6 +2118,40 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AssetAliasResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        group:
+          type: string
+          title: Group
+      type: object
+      required:
+      - id
+      - name
+      - group
+      title: AssetAliasResponse
+      description: Asset alias serializer for responses.
+    AssetCollectionResponse:
+      properties:
+        assets:
+          items:
+            $ref: '#/components/schemas/AssetResponse'
+          type: array
+          title: Assets
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - assets
+      - total_entries
+      title: AssetCollectionResponse
+      description: Asset collection response.
     AssetExpressionAlias:
       properties:
         alias:
@@ -1999,6 +2269,98 @@ components:
       title: AssetExpressionRef
       description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}``
         or ``{"asset_ref": {"uri": ...}}``.'
+    AssetResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        uri:
+          type: string
+          title: Uri
+        group:
+          type: string
+          title: Group
+        extra:
+          anyOf:
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
+            type: object
+          - type: 'null'
+          title: Extra
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        scheduled_dags:
+          items:
+            $ref: '#/components/schemas/DagScheduleAssetReference'
+          type: array
+          title: Scheduled Dags
+        producing_tasks:
+          items:
+            $ref: '#/components/schemas/TaskOutletAssetReference'
+          type: array
+          title: Producing Tasks
+        consuming_tasks:
+          items:
+            $ref: '#/components/schemas/TaskInletAssetReference'
+          type: array
+          title: Consuming Tasks
+        aliases:
+          items:
+            $ref: '#/components/schemas/AssetAliasResponse'
+          type: array
+          title: Aliases
+        watchers:
+          items:
+            $ref: '#/components/schemas/AssetWatcherResponse'
+          type: array
+          title: Watchers
+        last_asset_event:
+          anyOf:
+          - $ref: '#/components/schemas/LastAssetEventResponse'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - name
+      - uri
+      - group
+      - created_at
+      - updated_at
+      - scheduled_dags
+      - producing_tasks
+      - consuming_tasks
+      - aliases
+      - watchers
+      title: AssetResponse
+      description: Asset serializer for responses.
+    AssetWatcherResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        trigger_id:
+          type: integer
+          title: Trigger Id
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+      type: object
+      required:
+      - name
+      - trigger_id
+      - created_date
+      title: AssetWatcherResponse
+      description: Asset watcher serializer for responses.
     AuthenticatedMeResponse:
       properties:
         id:
@@ -2152,6 +2514,14 @@ components:
           - type: string
           - type: 'null'
           title: Team
+        asset_condition_type:
+          anyOf:
+          - type: string
+            enum:
+            - or-gate
+            - and-gate
+          - type: 'null'
+          title: Asset Condition Type
       type: object
       required:
       - id
@@ -2742,6 +3112,27 @@ components:
       - asset_materialization
       title: DagRunType
       description: Class with DagRun types.
+    DagScheduleAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      additionalProperties: false
+      type: object
+      required:
+      - dag_id
+      - created_at
+      - updated_at
+      title: DagScheduleAssetReference
+      description: Dag schedule reference serializer for assets.
     DagTagResponse:
       properties:
         name:
@@ -2760,6 +3151,22 @@ components:
       - dag_display_name
       title: DagTagResponse
       description: Dag Tag serializer for responses.
+    DagTimetableTypeCollectionResponse:
+      properties:
+        timetable_types:
+          items:
+            type: string
+          type: array
+          title: Timetable Types
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - timetable_types
+      - total_entries
+      title: DagTimetableTypeCollectionResponse
+      description: Timetable types used by Dags.
     DagVersionResponse:
       properties:
         id:
@@ -2859,9 +3266,13 @@ components:
           type: string
           title: Reference Type
         interval:
-          type: number
+          anyOf:
+          - type: number
+          - type: 'null'
           title: Interval
-          description: Interval in seconds between deadline evaluations.
+          description: Interval in seconds between the reference time and the deadline.
+            Null for a dynamic interval (e.g. a VariableInterval) whose value is only
+            resolved at scheduler evaluation time.
         created_at:
           type: string
           format: date-time
@@ -2870,7 +3281,6 @@ components:
       required:
       - id
       - reference_type
-      - interval
       - created_at
       title: DeadlineAlertResponse
       description: DeadlineAlert serializer for responses.
@@ -2984,11 +3394,6 @@ components:
           - type: string
           - type: 'null'
           title: Label
-        is_source_asset:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Is Source Asset
       type: object
       required:
       - source_id
@@ -3440,6 +3845,24 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    JsonValue: {}
+    LastAssetEventResponse:
+      properties:
+        id:
+          anyOf:
+          - type: integer
+            minimum: 0.0
+          - type: 'null'
+          title: Id
+        timestamp:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Timestamp
+      type: object
+      title: LastAssetEventResponse
+      description: Last asset event response serializer.
     LightGridTaskInstanceSummary:
       properties:
         task_id:
@@ -3637,6 +4060,14 @@ components:
           - type: string
           - type: 'null'
           title: Team
+        asset_condition_type:
+          anyOf:
+          - type: string
+            enum:
+            - or-gate
+            - and-gate
+          - type: 'null'
+          title: Asset Condition Type
         children:
           anyOf:
           - items:
@@ -3667,14 +4098,6 @@ components:
           - type: string
           - type: 'null'
           title: Operator
-        asset_condition_type:
-          anyOf:
-          - type: string
-            enum:
-            - or-gate
-            - and-gate
-          - type: 'null'
-          title: Asset Condition Type
         ui_color:
           anyOf:
           - type: string
@@ -3942,6 +4365,31 @@ components:
       - nodes
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    TaskInletAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        task_id:
+          type: string
+          title: Task Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      additionalProperties: false
+      type: object
+      required:
+      - dag_id
+      - task_id
+      - created_at
+      - updated_at
+      title: TaskInletAssetReference
+      description: Task inlet reference serializer for assets.
     TaskInstanceResponse:
       properties:
         id:
@@ -4215,6 +4663,31 @@ components:
       - awaiting_input
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
+    TaskOutletAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        task_id:
+          type: string
+          title: Task Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      additionalProperties: false
+      type: object
+      required:
+      - dag_id
+      - task_id
+      - created_at
+      - updated_at
+      title: TaskOutletAssetReference
+      description: Task outlet reference serializer for assets.
     TeamCollectionResponse:
       properties:
         teams:

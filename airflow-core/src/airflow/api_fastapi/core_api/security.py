@@ -265,12 +265,22 @@ class PermittedDagWarningFilter(PermittedDagFilter):
 
 
 class PermittedEventLogFilter(PermittedDagFilter):
-    """A parameter that filters the permitted even logs for the user."""
+    """A parameter that filters the permitted event logs for the user."""
+
+    def __init__(self, value: set[str] | None = None, *, include_non_dag_logs: bool = False):
+        super().__init__(value)
+        self.include_non_dag_logs = include_non_dag_logs
 
     def to_orm(self, select: Select) -> Select:
-        # Event Logs not related to Dags have dag_id as None and are always returned.
-        # return select.where(Log.dag_id.in_(self.value or set()) or Log.dag_id.is_(None))
-        return select.where(or_(Log.dag_id.in_(self.value or set()), Log.dag_id.is_(None)))
+        permitted_dag_logs = Log.dag_id.in_(self.value or set())
+        if not self.include_non_dag_logs:
+            return select.where(permitted_dag_logs)
+        # Event logs not related to a Dag have dag_id as None. They record Connection,
+        # Variable, Pool, … operations, so they carry no per-Dag key to authorize on and
+        # are gated on ``AccessView.AUDIT_LOGS_ALL`` instead of Dag-level audit access.
+        # Filtering here rather than after the fact keeps unauthorized rows out of the
+        # count and pagination too, so their existence does not leak either.
+        return select.where(or_(permitted_dag_logs, Log.dag_id.is_(None)))
 
 
 class PermittedTIFilter(PermittedDagFilter):
@@ -339,9 +349,32 @@ ReadableDagWarningsFilterDep = Annotated[
 ReadableTIFilterDep = Annotated[
     PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedTIFilter))
 ]
-ReadableEventLogsFilterDep = Annotated[
-    PermittedTIFilter, Depends(permitted_dag_filter_factory("GET", PermittedEventLogFilter))
-]
+
+
+def readable_event_logs_filter_factory() -> Callable[[BaseUser, BaseAuthManager], PermittedEventLogFilter]:
+    """
+    Create a callable for Depends in FastAPI that returns the event-log filter for the user.
+
+    Event logs need their own factory rather than ``permitted_dag_filter_factory``: besides
+    the readable Dag ids, the filter needs to know whether the user may read audit rows that
+    are not tied to a Dag, which is a separate authorization decision.
+    """
+
+    def depends_readable_event_logs_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedEventLogFilter:
+        return PermittedEventLogFilter(
+            auth_manager.get_authorized_dag_ids(user=user, method="GET"),
+            include_non_dag_logs=auth_manager.authorize_view(
+                access_view=AccessView.AUDIT_LOGS_ALL, user=user
+            ),
+        )
+
+    return depends_readable_event_logs_filter
+
+
+ReadableEventLogsFilterDep = Annotated[PermittedEventLogFilter, Depends(readable_event_logs_filter_factory())]
 ReadableXComFilterDep = Annotated[
     PermittedXComFilter, Depends(permitted_dag_filter_factory("GET", PermittedXComFilter))
 ]
@@ -423,7 +456,22 @@ def requires_access_event_log(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="'event_log_id' must be an integer",
                 )
-            dag_id = session.scalar(select(Log.dag_id).where(Log.id == event_log_id))
+            # Select the id alongside dag_id: a NULL dag_id and a missing row both come back
+            # as None from a bare ``Log.dag_id`` scalar, and they authorize differently.
+            row = session.execute(select(Log.id, Log.dag_id).where(Log.id == event_log_id)).one_or_none()
+            if row is not None and row.dag_id is None:
+                # The row records an operation that is not tied to a Dag, so there is no
+                # per-Dag key to authorize on: gate it on ``AccessView.AUDIT_LOGS_ALL``,
+                # the same view the list endpoint's filter uses for these rows.
+                _requires_access(
+                    is_authorized_callback=lambda: get_auth_manager().authorize_view(
+                        access_view=AccessView.AUDIT_LOGS_ALL, user=user
+                    ),
+                )
+                return
+            # A missing row keeps the Dag-level check so the route can answer 404 rather
+            # than turning an unknown id into a permission error.
+            dag_id = row.dag_id if row is not None else None
 
         requires_access_dag(method, DagAccessEntity.AUDIT_LOG, dag_id)(
             request,
@@ -1007,12 +1055,13 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
 
     # According to WHATWG for http/https /// is interpreted as // whereas urllib doesnt
     # this leads to an inconsistency where python returns a target url with /// as a valid url
-    # The same thing also happens with \ where under WHATWG \ are translated to /
-    target_url = unquote(target_url).strip()
-    if target_url.startswith(("//", "/\\", "\\/", "\\\\")):
+    # The same thing also happens with \ where under WHATWG \ are translated to /, including
+    # after a scheme, so "https:\\host" is an authority for a browser but a path for urllib.
+    target_url = unquote(target_url).strip().replace("\\", "/")
+    if target_url.startswith("//"):
         return False
     for base_url, parsed_base in parsed_bases:
-        parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
+        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
 
         base_path = parsed_base.path or "/"
         target_path = parsed_target.path or "/"

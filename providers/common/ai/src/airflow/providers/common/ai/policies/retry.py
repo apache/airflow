@@ -28,6 +28,8 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
+from airflow.providers.common.compat.sdk import redact
+
 try:
     from airflow.sdk.definitions.retry_policy import (
         ExceptionRetryPolicy,
@@ -100,6 +102,28 @@ class LLMRetryPolicy(RetryPolicy):
         falling back.  Defaults to 30s.  The LLM provider's own timeout
         (e.g. 600s for Anthropic) is much longer; this keeps the retry
         decision path fast even when the provider is degraded.
+    :param redact_exception: When ``True`` (the default), the exception's
+        string representation is passed through Airflow's secrets masker
+        (:func:`~airflow.sdk.log.redact`) before being added to the prompt.
+        Set to ``False`` only if you are certain your exception messages
+        contain no sensitive data and you need the raw text for accurate
+        classification.
+
+    .. warning::
+        The exception's string representation is sent to the configured
+        external LLM provider (OpenAI, Anthropic, Bedrock, Vertex, Ollama,
+        etc.) as part of the classification prompt, so it may leak whatever
+        the failing task put in the exception message — connection strings,
+        credential fragments, PII, or other secrets. By default
+        ``_classify()`` runs the message through Airflow's secrets masker
+        (:func:`~airflow.sdk.log.redact`, controlled by ``redact_exception``),
+        which masks values already registered via ``mask_secret()`` (for
+        example, connection passwords Airflow captured while resolving the
+        failing task's connections). This does **not** perform
+        general-purpose PII detection and will not catch arbitrary sensitive
+        strings that were never registered as secrets. You are still
+        responsible for confirming that your task's exception messages are
+        safe to send to a third-party LLM provider.
     """
 
     def __init__(
@@ -109,12 +133,15 @@ class LLMRetryPolicy(RetryPolicy):
         instructions: str | None = None,
         fallback_rules: list[RetryRule] | None = None,
         timeout: float = 30.0,
+        *,
+        redact_exception: bool = True,
     ) -> None:
         self.llm_conn_id = llm_conn_id
         self.model_id = model_id
         self.instructions = instructions or DEFAULT_INSTRUCTIONS
         self.fallback_rules = fallback_rules
         self.timeout = timeout
+        self.redact_exception = redact_exception
 
     def evaluate(
         self,
@@ -147,10 +174,11 @@ class LLMRetryPolicy(RetryPolicy):
             instructions=self.instructions,
         )
 
+        exception_message = redact(str(exception)) if self.redact_exception else str(exception)
         prompt = (
             f"Classify this error from a data pipeline task "
             f"(attempt {try_number} of {max_tries}):\n\n"
-            f"{type(exception).__name__}: {exception}"
+            f"{type(exception).__name__}: {exception_message}"
         )
 
         from pydantic_ai.settings import ModelSettings

@@ -192,7 +192,7 @@ Stopping docker-compose
 .......................
 
 When you finish testing (or when you updated dependencies and rebuild your images),
-you likely want to stop the running containers. You can stop the the running containers by running:
+you likely want to stop the running containers. You can stop the running containers by running:
 
 .. code-block:: bash
 

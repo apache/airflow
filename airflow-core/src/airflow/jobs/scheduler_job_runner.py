@@ -85,6 +85,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
+    association_table,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.backfill import Backfill, BackfillDagRun
@@ -543,6 +544,80 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
+    def _task_concurrency_allows_execution(
+        self,
+        *,
+        task_instance: TI,
+        concurrency_map: ConcurrencyMap,
+        session: Session,
+        starved_tasks: set[tuple[str, str]],
+        starved_tasks_task_dagrun_concurrency: set[tuple[str, str, str]],
+    ) -> bool:
+        """Evaluate task-level concurrency constraints for a task instance."""
+        dag_id = task_instance.dag_id
+        task_id = task_instance.task_id
+        run_id = task_instance.run_id
+
+        serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
+            dag_run=task_instance.dag_run,
+            session=session,
+        )
+
+        # If the DAG is missing, fail all scheduled TIs for this DAG.
+        if not serialized_dag:
+            self.log.error(
+                "DAG '%s' for task instance %s not found in serialized_dag table",
+                dag_id,
+                task_instance,
+            )
+
+            session.execute(
+                update(TI)
+                .where(TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
+                .values(state=TaskInstanceState.FAILED)
+                .execution_options(synchronize_session="fetch")
+            )
+
+            return False
+
+        if not serialized_dag.has_task(task_id):
+            return True
+
+        task = serialized_dag.get_task(task_id)
+
+        task_concurrency_limit = task.max_active_tis_per_dag
+
+        if task_concurrency_limit is not None:
+            current_task_concurrency = concurrency_map.task_concurrency_map[(dag_id, task_id)]
+
+            if current_task_concurrency >= task_concurrency_limit:
+                self.log.info(
+                    "Not executing %s since the task concurrency for this task has been reached.",
+                    task_instance,
+                )
+
+                starved_tasks.add((dag_id, task_id))
+                return False
+
+        task_dagrun_concurrency_limit = task.max_active_tis_per_dagrun
+
+        if task_dagrun_concurrency_limit is not None:
+            current_task_dagrun_concurrency = concurrency_map.task_dagrun_concurrency_map[
+                (dag_id, run_id, task_id)
+            ]
+
+            if current_task_dagrun_concurrency >= task_dagrun_concurrency_limit:
+                self.log.info(
+                    "Not executing %s since the task concurrency per DAG run for this task has been reached.",
+                    task_instance,
+                )
+
+                starved_tasks_task_dagrun_concurrency.add((dag_id, run_id, task_id))
+
+                return False
+
+        return True
+
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
         Find TIs that are ready for execution based on conditions.
@@ -868,71 +943,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     starved_dags.add(dag_id)
                     continue
 
-                if task_instance.dag_model.has_task_concurrency_limits:
-                    # Many dags don't have a task_concurrency, so where we can avoid loading the full
-                    # serialized DAG the better.
-                    serialized_dag = self.scheduler_dag_bag.get_dag_for_run(
-                        dag_run=task_instance.dag_run, session=session
+                # Many DAGs do not define task concurrency limits, so avoid
+                # loading the serialized DAG unless required.
+                if task_instance.dag_model.has_task_concurrency_limits and not (
+                    self._task_concurrency_allows_execution(
+                        task_instance=task_instance,
+                        concurrency_map=concurrency_map,
+                        session=session,
+                        starved_tasks=starved_tasks,
+                        starved_tasks_task_dagrun_concurrency=(starved_tasks_task_dagrun_concurrency),
                     )
-                    # If the dag is missing, fail the task and continue to the next task.
-                    if not serialized_dag:
-                        self.log.error(
-                            "DAG '%s' for task instance %s not found in serialized_dag table",
-                            dag_id,
-                            task_instance,
-                        )
-                        session.execute(
-                            update(TI)
-                            .where(TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
-                            .values(state=TaskInstanceState.FAILED)
-                            .execution_options(synchronize_session="fetch")
-                        )
-                        continue
-
-                    task_concurrency_limit: int | None = None
-                    if serialized_dag.has_task(task_instance.task_id):
-                        task_concurrency_limit = serialized_dag.get_task(
-                            task_instance.task_id
-                        ).max_active_tis_per_dag
-
-                    if task_concurrency_limit is not None:
-                        current_task_concurrency = concurrency_map.task_concurrency_map[
-                            (task_instance.dag_id, task_instance.task_id)
-                        ]
-
-                        if current_task_concurrency >= task_concurrency_limit:
-                            self.log.info(
-                                "Not executing %s since the task concurrency for this task has been reached.",
-                                task_instance,
-                            )
-                            starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                            continue
-
-                    task_dagrun_concurrency_limit: int | None = None
-                    if serialized_dag.has_task(task_instance.task_id):
-                        task_dagrun_concurrency_limit = serialized_dag.get_task(
-                            task_instance.task_id
-                        ).max_active_tis_per_dagrun
-
-                    if task_dagrun_concurrency_limit is not None:
-                        current_task_dagrun_concurrency = concurrency_map.task_dagrun_concurrency_map[
-                            (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
-                        ]
-
-                        if current_task_dagrun_concurrency >= task_dagrun_concurrency_limit:
-                            self.log.info(
-                                "Not executing %s since the task concurrency per DAG run for"
-                                " this task has been reached.",
-                                task_instance,
-                            )
-                            starved_tasks_task_dagrun_concurrency.add(
-                                (
-                                    task_instance.dag_id,
-                                    task_instance.run_id,
-                                    task_instance.task_id,
-                                )
-                            )
-                            continue
+                ):
+                    continue
 
                 if executor_obj := self._try_to_load_executor(
                     task_instance, session, team_name=dag_id_to_team_name.get(task_instance.dag_id, NOTSET)
@@ -2681,48 +2703,63 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 )
                             ),
                         ),
-                        AssetEvent.timestamp <= triggered_date,
                         AssetEvent.timestamp > func.coalesce(*event_window_floor),
+                        AssetEvent.timestamp <= triggered_date,
+                        ~(
+                            select(association_table.c.event_id)
+                            .join(DagRun, DagRun.id == association_table.c.dag_run_id)
+                            .where(
+                                DagRun.dag_id == dag.dag_id,
+                                association_table.c.event_id == AssetEvent.id,
+                            )
+                            .exists()
+                        ),
                     )
                     .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
                 )
             )
-
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
-                ),
-                logical_date=None,
-                data_interval=None,
-                run_after=triggered_date,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
-            team_name = (
-                self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
-                if self._multi_team
-                else None
-            )
-            stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
-            dag_run.consumed_asset_events.extend(asset_events)
-            self.log.info(
-                "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
-                dag.dag_id,
-                dag_run.run_id,
-                len(asset_events),
-            )
-
-            # Delete only consumed ADRQ rows to avoid dropping newly queued events
-            # (e.g. DagRun triggered by asset A while a new event for asset B arrives).
+            if asset_events:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    run_after=triggered_date,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+                team_name = (
+                    self._get_team_names_for_dag_ids([dag.dag_id], session).get(dag.dag_id)
+                    if self._multi_team
+                    else None
+                )
+                stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
+                dag_run.consumed_asset_events.extend(asset_events)
+                self.log.info(
+                    "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                    dag.dag_id,
+                    dag_run.run_id,
+                    len(asset_events),
+                )
+            else:
+                self.log.info(
+                    "No DagRun created for '%s' at '%s' - asset events already consumed or none found",
+                    dag.dag_id,
+                    triggered_date,
+                )
+            # Always delete ADRQ rows for this batch to prevent stale entries accumulating,
+            # including when all events were already consumed by a concurrent DagRun.
             adrq_pks = [(record.asset_id, record.target_dag_id) for record in queued_adrqs]
             result = cast(
                 "CursorResult",
                 session.execute(
                     delete(AssetDagRunQueue).where(
-                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks)
+                        tuple_(AssetDagRunQueue.asset_id, AssetDagRunQueue.target_dag_id).in_(adrq_pks),
+                        AssetDagRunQueue.created_at <= triggered_date,
                     )
                 ),
             )
@@ -2952,7 +2989,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     duration,
                     tags=prune_dict(
                         {
-                            "dag_id": dag_run.dag_id,
+                            **dag_run.stats_tags,
                             "team_name": self._get_team_names_for_dag_ids([dag_run.dag_id], session).get(
                                 dag_run.dag_id
                             )

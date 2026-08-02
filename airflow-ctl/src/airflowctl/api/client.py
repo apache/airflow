@@ -67,7 +67,6 @@ from airflowctl.exceptions import (
     AirflowCtlCredentialNotFoundException,
     AirflowCtlException,
     AirflowCtlKeyringException,
-    AirflowCtlNotFoundException,
 )
 
 if TYPE_CHECKING:
@@ -517,8 +516,6 @@ def get_client(
             kind=kind,
         )
         yield api_client
-    except AirflowCtlNotFoundException as e:
-        raise e
     finally:
         if api_client:
             api_client.close()

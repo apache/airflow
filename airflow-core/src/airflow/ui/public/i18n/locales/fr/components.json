@@ -16,6 +16,7 @@
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
     "scheduleNotBackfillable": "La planification de ce Dag ne prend pas en charge les rattrapages",
+    "schedulerPriorityHint": "Les exécutions de Dag de rattrapage sont ordonnées après les exécutions de Dag hors rattrapage à chaque cycle du planificateur. Les exécutions de rattrapage peuvent rester en file plus longtemps si d'autres exécutions hors rattrapage sont présentes.",
     "selectDescription": "Exécuter ce Dag pour une plage de dates",
     "selectLabel": "Rattrapage",
     "title": "Lancer un rattrapage",
@@ -68,6 +69,7 @@
     "lastTaskInstance_many": "Dernières {{count}} Task Instances",
     "lastTaskInstance_one": "Dernière Task Instance",
     "lastTaskInstance_other": "Dernières {{count}} Task Instances",
+    "medianTotalDuration": "Total : {{duration}}",
     "queuedDuration": "Durée en file d'attente",
     "runAfter": "Exécuté après",
     "runDuration": "Durée d'exécution"
@@ -78,6 +80,7 @@
     "files_other": "{{count}} fichiers"
   },
   "flexibleForm": {
+    "durationPlaceholder": "Saisissez la durée au format ISO 8601",
     "placeholder": "Sélectionner une valeur",
     "placeholderArray": "Entrez chaque mot sur une ligne séparée",
     "placeholderExamples": "Commencez à taper pour voir les options",
@@ -85,6 +88,7 @@
     "validationErrorArrayNotArray": "La valeur doit être un tableau.",
     "validationErrorArrayNotNumbers": "Tous les éléments du tableau doivent être des nombres.",
     "validationErrorArrayNotObject": "Tous les éléments du tableau doivent être des objets.",
+    "validationErrorDuration": "Format de durée ISO 8601 invalide",
     "validationErrorRequired": "Ce champ est requis"
   },
   "graph": {
@@ -142,6 +146,7 @@
     "loading": "Chargement des informations du Dag...",
     "loadingFailed": "Échec du chargement des informations du Dag. Veuillez réessayer.",
     "manualRunDenied": "Les exécutions manuelles ne sont pas autorisées pour ce Dag",
+    "partitionKeyHelp": "Optionnel - s'applique uniquement aux Dags partitionnés",
     "runIdHelp": "Optionnel – sera généré s'il n'est pas fourni",
     "selectDescription": "Déclencher une exécution unique de ce Dag",
     "selectLabel": "Exécution unique",

@@ -40,11 +40,10 @@ from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
-from airflow.utils import timezone
 
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
@@ -229,18 +228,21 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
-        if delimiter:
-            warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.match_glob = match_glob
 
+    def _warn_on_deprecated_template_fields(self) -> None:
+        if self.delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead. Planned removal date: October 5, 2026.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
     def execute(self, context: Context) -> list:
+        self._warn_on_deprecated_template_fields()
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

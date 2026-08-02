@@ -29,7 +29,7 @@ import pendulum
 import pytest
 from opensearchpy.exceptions import NotFoundError
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import OpensearchResponse
 from airflow.providers.opensearch.log.os_task_handler import (
@@ -43,10 +43,8 @@ from airflow.providers.opensearch.log.os_task_handler import (
     get_os_kwargs_from_config,
     getattr_nested,
 )
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -150,7 +148,7 @@ def _assert_missing_log_message(logs):
 class TestOpensearchTaskHandler:
     DAG_ID = "dag_for_testing_os_task_handler"
     TASK_ID = "task_for_testing_os_log_handler"
-    LOGICAL_DATE = datetime(2016, 1, 1)
+    LOGICAL_DATE = timezone.datetime(2016, 1, 1)
     LOG_ID = f"{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1"
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{OpensearchTaskHandler._clean_date(LOGICAL_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
@@ -537,7 +535,7 @@ class TestOpensearchTaskHandler:
         assert self.os_task_handler._render_log_id(ti, 1) == self.JSON_LOG_ID
 
     def test_clean_date(self):
-        clean_logical_date = OpensearchTaskHandler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
+        clean_logical_date = OpensearchTaskHandler._clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
 
     @pytest.mark.db_test
@@ -881,8 +879,14 @@ class TestBuildStructuredLogFields:
         assert result["level"] == "ERROR"
         assert "levelname" not in result
 
-    def test_at_timestamp_mapped_to_timestamp(self):
+    def test_at_timestamp_mapped_to_timestamp_if_no_timestamp_present(self):
         hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z"}
+        result = _build_log_fields(hit)
+        assert result["timestamp"] == "2024-01-01T00:00:00Z"
+        assert "@timestamp" not in result
+
+    def test_at_timestamp_not_included_if_timestamp_present(self):
+        hit = {"event": "msg", "@timestamp": "2024-01-01T00:00:00Z", "timestamp": "2024-01-01T00:00:00Z"}
         result = _build_log_fields(hit)
         assert result["timestamp"] == "2024-01-01T00:00:00Z"
         assert "@timestamp" not in result

@@ -37,6 +37,10 @@ log = logging.getLogger(__name__)
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
+# Separator between the team name and the secret id in a team scoped secret name.
+# Matches the convention the other secrets backends use.
+TEAM_SEP = "--"
+
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
@@ -166,7 +170,11 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.connections_prefix is None:
             return None
 
-        return self._get_secret(self.connections_prefix, conn_id)
+        if self._names_a_team_namespace(conn_id):
+            self._log_refusal("connection", conn_id)
+            return None
+
+        return self._get_secret(self.connections_prefix, conn_id, team_name)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
@@ -179,7 +187,11 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         if self.variables_prefix is None:
             return None
 
-        return self._get_secret(self.variables_prefix, key)
+        if self._names_a_team_namespace(key):
+            self._log_refusal("variable", key)
+            return None
+
+        return self._get_secret(self.variables_prefix, key, team_name)
 
     def get_config(self, key: str) -> str | None:
         """
@@ -193,12 +205,75 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key)
 
-    def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
+    def _log_refusal(self, kind: str, secret_id: str) -> None:
+        self.log.warning(
+            "%s id %r contains %r, which separates the team name from the secret id in a team "
+            "scoped secret name. Such an id is ambiguous and is not looked up. Returning None.",
+            kind.capitalize(),
+            secret_id,
+            TEAM_SEP,
+        )
+
+    def _build_team_secret_name(self, path_prefix: str, team_name: str, secret_id: str) -> str:
+        """
+        Build a team scoped secret name using a dedicated separator before the secret id.
+
+        The secret id is used verbatim. Normalizing it (``_`` -> ``sep``, as the Azure Key
+        Vault backend does) would let a plain id manufacture ``TEAM_SEP``: team ``a`` asking
+        for ``b__c`` would build the same name as team ``a--b`` asking for ``c``. It would
+        also contradict this backend's naming, which keeps underscores everywhere else --
+        unlike Azure, this backend does not override :meth:`build_path`.
+        """
+        team_prefix = self.build_path(path_prefix, team_name, self.sep)
+        return f"{team_prefix}{TEAM_SEP}{secret_id}"
+
+    def _names_a_team_namespace(self, secret_id: str) -> bool:
+        """
+        Whether ``secret_id`` spells out a team scoped secret name.
+
+        A team scoped secret is named ``<prefix><sep><team><TEAM_SEP><secret id>``, so an id
+        that itself contains the team separator makes the built name ambiguous: team ``a``
+        with id ``b--c`` and team ``a--b`` with id ``c`` produce the same string. Such an id
+        is refused for *every* lookup -- team scoped as well as team agnostic -- because the
+        ambiguity exists in both directions and the caller's own namespace is not a safe
+        harbor for it.
+
+        The id is never parsed to work out *which* team it names, because it cannot be:
+        nothing in the string distinguishes the two readings above. Comparing the id against
+        the prefix the caller's own team builds looks equivalent and is not -- a caller in
+        team ``a`` would match ``a--b``'s namespace on the prefix and read its secrets. Only
+        the caller's own namespace is ever constructed, never parsed.
+
+        The raw id is matched. Routing it through :meth:`build_path` first, as the Azure
+        backend does, is wrong here: the inherited implementation prepends a separator to an
+        empty prefix (``'' -> '-smtp_default'``) and normalizes nothing, so the guard would
+        both mis-anchor and miss ids whose separator only appears after normalization.
+        """
+        return TEAM_SEP in secret_id
+
+    def _get_secret(self, path_prefix: str, secret_id: str, team_name: str | None = None) -> str | None:
         """
         Get secret value from the SecretManager based on prefix.
 
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
+        :param team_name: Team the lookup is scoped to (if any)
         """
-        secret_id = self.build_path(path_prefix, secret_id, self.sep)
-        return self.client.get_secret(secret_id=secret_id, project_id=self.project_id)
+        # ``self.client`` builds a new ``_SecretManagerClient`` -- and with it a real gRPC
+        # client -- on every access, so it is bound once for both lookups below.
+        client = self.client
+
+        # The team scoped name is tried first and is safe by construction: it can only ever
+        # build the caller's own namespace. Ids that would make that name ambiguous are
+        # refused by the callers before reaching here.
+        if team_name:
+            team_secret = client.get_secret(
+                secret_id=self._build_team_secret_name(path_prefix, team_name, secret_id),
+                project_id=self.project_id,
+            )
+            if team_secret is not None:
+                return team_secret
+
+        return client.get_secret(
+            secret_id=self.build_path(path_prefix, secret_id, self.sep), project_id=self.project_id
+        )
