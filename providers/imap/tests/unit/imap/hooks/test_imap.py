@@ -409,6 +409,39 @@ class TestImapHook:
         mock_open_method.assert_not_called()
         mock_open_method.return_value.write.assert_not_called()
 
+    @patch("airflow.providers.imap.hooks.imap.os.altsep", None)
+    @patch("airflow.providers.imap.hooks.imap.os.sep", "/")
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("../test1.csv", True),
+            ("subdir/../../test1.csv", True),
+            ("..", True),
+            ("test1.csv", False),
+            ("report..final.csv", False),
+            # On POSIX a backslash is an ordinary filename character, not a separator.
+            ("..\\..\\test1.csv", False),
+        ],
+    )
+    def test_is_escaping_current_directory_on_posix(self, name, expected):
+        assert ImapHook()._is_escaping_current_directory(name) is expected
+
+    @patch("airflow.providers.imap.hooks.imap.os.altsep", "/")
+    @patch("airflow.providers.imap.hooks.imap.os.sep", "\\")
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("..\\..\\test1.csv", True),
+            ("../../test1.csv", True),
+            ("subdir\\..\\..\\test1.csv", True),
+            ("..", True),
+            ("test1.csv", False),
+            ("report..final.csv", False),
+        ],
+    )
+    def test_is_escaping_current_directory_on_windows(self, name, expected):
+        assert ImapHook()._is_escaping_current_directory(name) is expected
+
     @patch("airflow.providers.imap.hooks.imap.os.path.islink", return_value=True)
     @patch(open_string, new_callable=mock_open)
     @patch(imaplib_string)

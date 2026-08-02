@@ -93,6 +93,10 @@ class TestLangSdkBuildGoBundle:
         # The workspace mirrors the repo layout, with go-sdk swapped for the upstream copy.
         assert (workspace_example.parent / "go-sdk" / "marker.go").read_text() == "upstream"
         assert (tmp_path / "go-artifacts" / kubernetes_commands.LANG_SDK_GO_BUNDLE_NAME).exists()
+        # The scratch copy is re-tidied against the upstream go-sdk before packing, in the same dir.
+        tidy_call = mock_run.call_args_list[0]
+        assert tidy_call.args[0] == ["go", "mod", "tidy"]
+        assert tidy_call.kwargs["cwd"] == workspace_example
 
     @mock.patch.object(kubernetes_commands, "run_command")
     def test_container_mode_runs_in_docker(self, mock_run, tmp_path, go_example, upstream_go_sdk):
@@ -108,6 +112,11 @@ class TestLangSdkBuildGoBundle:
         assert repo_mount.split(":")[0] != str(go_example.parent)
         home_mount = next(m for m in mounts if m.endswith("/.home"))
         assert home_mount.startswith(str(go_example / ".home"))
+        # The scratch copy is re-tidied in the same container image before packing.
+        tidy_cmd = mock_run.call_args_list[0].args[0]
+        assert tidy_cmd[0] == "docker"
+        assert kubernetes_commands.LANG_SDK_GO_BUILDER_IMAGE in tidy_cmd
+        assert tidy_cmd[-3:] == ["go", "mod", "tidy"]
 
 
 class TestLangSdkBuildJavaJar:
