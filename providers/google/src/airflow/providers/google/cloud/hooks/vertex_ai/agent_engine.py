@@ -191,8 +191,11 @@ class AgentEngineHook(GoogleBaseHook):
         """
         client = self.get_reasoning_engine_execution_service_client(location=location)
         name = client.reasoning_engine_path(project_id, location, agent_engine_id)
+        request: dict[str, Any] = {"name": name, "class_method": class_method}
+        if input_data is not None:
+            request["input"] = input_data
         return client.query_reasoning_engine(
-            request={"name": name, "input": input_data, "class_method": class_method},
+            request=request,
             retry=retry,
             timeout=timeout,
             metadata=metadata,

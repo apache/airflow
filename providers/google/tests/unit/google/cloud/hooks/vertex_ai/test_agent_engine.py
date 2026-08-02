@@ -163,6 +163,27 @@ class TestAgentEngineHookWithDefaultProjectId:
         )
         assert result == mock_get_client.return_value.query_reasoning_engine.return_value
 
+    @mock.patch(
+        AGENT_ENGINE_STRING.format("AgentEngineHook.get_reasoning_engine_execution_service_client"),
+        autospec=True,
+    )
+    def test_query_agent_engine_without_input_data(self, mock_get_client):
+        self.hook.query_agent_engine(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            agent_engine_id=AGENT_ENGINE_ID,
+        )
+
+        mock_get_client.return_value.query_reasoning_engine.assert_called_once_with(
+            request={
+                "name": mock_get_client.return_value.reasoning_engine_path.return_value,
+                "class_method": "query",
+            },
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
     @mock.patch(AGENT_ENGINE_STRING.format("AgentEngineHook.get_agent_engine_client"), autospec=True)
     def test_run_query_job(self, mock_get_client):
         result = self.hook.run_query_job(
