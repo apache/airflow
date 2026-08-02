@@ -391,7 +391,10 @@ class KubernetesExecutor(BaseExecutor):
 
         self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
-        self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
+
+        # We record only the task instance keys in pod_launch_attempts, because only task pods can be requeued for pre-execution failures. Callback pods have no task instance row to query for pre-execution failure detection, so they are never requeued and never enter pod_launch_attempts.
+        if isinstance(key, TaskInstanceKey):
+            self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
         self.task_queue.put(job)
 
     # TODO: Remove this once the minimum supported version is 3.3+, and defer to BaseExecutor.queue_workload.
