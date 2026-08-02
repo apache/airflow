@@ -352,6 +352,37 @@ class TestCliDags:
             assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
+    def test_cli_list_dags_with_multiple_dag_versions(self, dag_maker, stdout_capture, session):
+        clear_db_dags()
+
+        with dag_maker("test_dag_versions", schedule=None, start_date=DEFAULT_DATE):
+            EmptyOperator(task_id="task1")
+        # A version with task instances is kept rather than updated in place, so the next sync
+        # adds a second row for the same dag_id.
+        dag_maker.create_dagrun()
+
+        with DAG("test_dag_versions", schedule=None, start_date=DEFAULT_DATE) as dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        sync_dag_to_db(dag)
+
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SerializedDagModel)
+                .where(SerializedDagModel.dag_id == "test_dag_versions")
+            )
+            == 2
+        )
+
+        args = self.parser.parse_args(["dags", "list", "--columns", "dag_id", "--output", "json"])
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_dags(args)
+            assert json.loads(temp_stdout.getvalue()) == [{"dag_id": "test_dag_versions"}]
+
+        # Rebuild Test DB for other tests
+        self.setup_class()
+
     def test_cli_list_local_dags(self, stdout_capture):
         # Clear the database
         clear_db_dags()
