@@ -22,6 +22,7 @@ import logging
 import os
 import signal
 import sys
+from concurrent.futures.process import BrokenProcessPool
 from datetime import timedelta
 from unittest import mock
 
@@ -537,21 +538,160 @@ def register_signals():
 
 
 @pytest.mark.execution_timeout(200)
-@pytest.mark.quarantined
-def test_send_workloads_to_celery_hang(register_signals):
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils._get_celery_app_for_workload")
+def test_send_workloads_to_celery_hang(mock_get_app, register_signals):
     """
     Test that celery_executor does not hang after many runs.
     """
+    # execute_workload (Airflow 3+) and execute_command (Airflow 2) so the test runs on both.
+    mock_get_app.return_value.tasks = {
+        "execute_workload": MockWorkload(),
+        "execute_command": MockWorkload(),
+    }
     executor = celery_executor.CeleryExecutor()
 
-    workload = MockWorkload()
-    workload_tuples_to_send = [(None, None, None, workload) for _ in range(26)]
+    workload_tuples_to_send = [(None, mock.MagicMock(), None, None) for _ in range(26)]
 
     for _ in range(250):
-        # This loop can hang on Linux if celery_executor does something wrong with
-        # multiprocessing.
+        # This loop used to hang on Linux when publishing forked a worker pool: a worker could
+        # inherit a lock held by a thread fork() did not copy and block forever acquiring it.
         results = executor._send_workloads_to_celery(workload_tuples_to_send)
-        assert results == [(None, None, 1) for _ in workload_tuples_to_send]
+        assert [(key, result) for key, _, result in results] == [(None, 1) for _ in workload_tuples_to_send]
+
+
+@pytest.mark.parametrize("num_workloads", [1, 2, 26])
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils.send_workload_to_executor")
+def test_send_workloads_to_celery_never_forks(mock_send, num_workloads, monkeypatch):
+    """Publishing happens in-process, so the scheduler cannot deadlock on an inherited lock."""
+    mock_send.side_effect = lambda tup: (tup[0], None, 1)
+
+    def fail_on_fork(*args, **kwargs):
+        raise AssertionError("publishing must not start a worker process")
+
+    monkeypatch.setattr("os.fork", fail_on_fork)
+    monkeypatch.setattr("concurrent.futures.ProcessPoolExecutor.__init__", fail_on_fork)
+
+    executor = celery_executor.CeleryExecutor()
+    executor._sync_parallelism = 8
+
+    results = executor._send_workloads_to_celery([(i, None, None, None) for i in range(num_workloads)])
+
+    assert results == [(i, None, 1) for i in range(num_workloads)]
+
+
+class TestStateFetchMpContext:
+    """The bulk state-fetch pool must not fork from the multi-threaded scheduler."""
+
+    def test_defaults_to_non_fork(self):
+        ctx = celery_executor_utils._get_state_fetch_mp_context()
+
+        assert ctx.get_start_method() in ("forkserver", "spawn")
+
+    @pytest.mark.parametrize("section", ["celery", "core"])
+    def test_honours_configured_start_method(self, section):
+        with conf_vars({(section, "mp_start_method"): "spawn"}):
+            ctx = celery_executor_utils._get_state_fetch_mp_context()
+
+        assert ctx.get_start_method() == "spawn"
+
+    def test_celery_section_takes_precedence_over_core(self):
+        with conf_vars({("core", "mp_start_method"): "fork", ("celery", "mp_start_method"): "spawn"}):
+            ctx = celery_executor_utils._get_state_fetch_mp_context()
+
+        assert ctx.get_start_method() == "spawn"
+
+    def test_explicit_fork_is_honoured_with_a_warning(self, caplog):
+        # caplog.text (not the structlog-only `.entries`) keeps this working on the older
+        # Airflow versions the provider supports, where caplog is plain pytest's fixture.
+        with caplog.at_level(logging.WARNING, logger=celery_executor_utils.log.name):
+            with conf_vars({("celery", "mp_start_method"): "fork"}):
+                ctx = celery_executor_utils._get_state_fetch_mp_context()
+
+        assert ctx.get_start_method() == "fork"
+        assert "deadlock" in caplog.text
+
+    def test_unavailable_start_method_falls_back(self, caplog):
+        with caplog.at_level(logging.WARNING, logger=celery_executor_utils.log.name):
+            with conf_vars({("celery", "mp_start_method"): "not-a-method"}):
+                ctx = celery_executor_utils._get_state_fetch_mp_context()
+
+        assert ctx.get_start_method() in ("forkserver", "spawn")
+        assert "is not available on this platform" in caplog.text
+
+
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
+def test_bulk_state_fetcher_passes_non_fork_context(mock_pool):
+    """The state-fetch pool is constructed with an explicit non-fork context."""
+    mock_pool.return_value.map.return_value = []
+    fetcher = celery_executor_utils.BulkStateFetcher(2)
+
+    fetcher._get_many_using_multiprocessing([mock.MagicMock(), mock.MagicMock()])
+
+    ctx = mock_pool.call_args.kwargs["mp_context"]
+    assert ctx.get_start_method() != "fork"
+
+
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
+def test_bulk_state_fetcher_reuses_pool_across_syncs(mock_pool):
+    """forkserver/spawn workers re-import Airflow, so the pool must outlive a single sync."""
+    mock_pool.return_value.map.return_value = []
+    fetcher = celery_executor_utils.BulkStateFetcher(2)
+
+    fetcher._get_many_using_multiprocessing([mock.MagicMock()])
+    fetcher._get_many_using_multiprocessing([mock.MagicMock()])
+
+    mock_pool.assert_called_once()
+
+
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
+def test_bulk_state_fetcher_recreates_broken_pool(mock_pool):
+    """A dead worker breaks the pool permanently, so it is discarded and retried once."""
+    first, second = mock.MagicMock(), mock.MagicMock()
+    first.map.side_effect = BrokenProcessPool("worker died")
+    second.map.return_value = [("task-1", "success", None)]
+    mock_pool.side_effect = [first, second]
+    fetcher = celery_executor_utils.BulkStateFetcher(2)
+
+    result = fetcher._get_many_using_multiprocessing([mock.MagicMock()])
+
+    assert mock_pool.call_count == 2
+    first.shutdown.assert_called_once()
+    assert result == {"task-1": ("success", None)}
+
+
+@pytest.mark.parametrize("wait", [True, False])
+@mock.patch("airflow.providers.celery.executors.celery_executor_utils.ProcessPoolExecutor")
+def test_bulk_state_fetcher_shutdown(mock_pool, wait):
+    mock_pool.return_value.map.return_value = []
+    fetcher = celery_executor_utils.BulkStateFetcher(2)
+    fetcher._get_many_using_multiprocessing([mock.MagicMock()])
+
+    fetcher.shutdown(wait=wait)
+
+    mock_pool.return_value.shutdown.assert_called_once_with(wait=wait, cancel_futures=not wait)
+    assert fetcher._sync_pool is None
+
+
+def test_bulk_state_fetcher_shutdown_without_pool_is_a_noop():
+    """end()/terminate() must be safe when the pool was never created (Redis and DB backends)."""
+    celery_executor_utils.BulkStateFetcher(2).shutdown()
+
+
+@pytest.mark.parametrize(
+    ("method", "expected_wait"),
+    [("end", True), ("terminate", False)],
+)
+def test_executor_shuts_down_state_fetch_pool(method, expected_wait):
+    executor = celery_executor.CeleryExecutor()
+
+    with mock.patch.object(executor.bulk_state_fetcher, "shutdown") as mock_shutdown:
+        with mock.patch.object(executor, "sync"):
+            getattr(executor, method)()
+
+    if expected_wait:
+        mock_shutdown.assert_called_once_with()
+    else:
+        mock_shutdown.assert_called_once_with(wait=False)
 
 
 def _has_external_executor_id_field() -> bool:
@@ -993,8 +1133,8 @@ class TestMultiTeamCeleryExecutor:
         """
         Test that _process_tasks (v2) and _process_workloads (v3) pass the correct team_name for task routing.
 
-        With the ProcessPoolExecutor approach, we pass team_name instead of task objects to avoid
-        pickling issues. The subprocess reconstructs the team-specific Celery app from the team_name.
+        We pass team_name instead of task objects, so the publisher builds the team-specific
+        Celery app from the team_name.
         """
         # Set up team A config.
         monkeypatch.setenv("AIRFLOW__TEAM_A___CELERY__BROKER_URL", "redis://team-a:6379/0")

@@ -26,11 +26,9 @@ CeleryExecutor.
 from __future__ import annotations
 
 import logging
-import math
 import operator
 import time
 from collections import Counter
-from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, cast
 
@@ -143,8 +141,6 @@ class CeleryExecutor(BaseExecutor):
 
         self.celery_app = create_celery_app(self.conf)
 
-        # Celery doesn't support bulk sending the workloads (which can become a bottleneck on bigger clusters)
-        # so we use a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
         self._sync_parallelism = self.conf.getint("celery", "SYNC_PARALLELISM", fallback=0)
         if self._sync_parallelism == 0:
@@ -158,14 +154,6 @@ class CeleryExecutor(BaseExecutor):
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
-
-    def _num_workloads_per_send_process(self, to_send_count: int) -> int:
-        """
-        How many Celery workloads should each worker process send.
-
-        :return: Number of workloads that should be sent per process
-        """
-        return max(1, math.ceil(to_send_count / self._sync_parallelism))
 
     def _process_tasks(self, task_tuples: Sequence[TaskTuple]) -> None:
         # Airflow V2 compatibility path — converts task tuples into workload-compatible tuples.
@@ -241,22 +229,13 @@ class CeleryExecutor(BaseExecutor):
     def _send_workloads_to_celery(self, workload_tuples_to_send: Sequence[WorkloadInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_workload_to_executor
 
-        if len(workload_tuples_to_send) == 1 or self._sync_parallelism == 1:
-            # One tuple, or max one process -> send it in the main thread.
-            return list(map(send_workload_to_executor, workload_tuples_to_send))
-
-        # Use chunks instead of a work queue to reduce context switching
-        # since workloads are roughly uniform in size.
-        chunksize = self._num_workloads_per_send_process(len(workload_tuples_to_send))
-        num_processes = min(len(workload_tuples_to_send), self._sync_parallelism)
-
-        # Use ProcessPoolExecutor with team_name instead of workload objects to avoid pickling issues.
-        # Subprocesses reconstruct the team-specific Celery app from the team name and existing config.
-        with ProcessPoolExecutor(max_workers=num_processes) as send_pool:
-            key_and_async_results = list(
-                send_pool.map(send_workload_to_executor, workload_tuples_to_send, chunksize=chunksize)
-            )
-        return key_and_async_results
+        # Publish in this process rather than in a worker pool. Publishing a workload is a single
+        # short broker round-trip, so a pool costs more to start than the sends it parallelizes at
+        # any batch size the scheduler produces ([scheduler] max_tis_per_query defaults to 16).
+        # Forking the pool from the multi-threaded scheduler was also a deadlock risk: a worker
+        # could inherit a mutex held by a thread fork() did not copy and block forever acquiring
+        # it, stalling the scheduling loop with no way to recover short of a restart.
+        return list(map(send_workload_to_executor, workload_tuples_to_send))
 
     def sync(self) -> None:
         if not self.workloads:
@@ -309,9 +288,10 @@ class CeleryExecutor(BaseExecutor):
             ):
                 time.sleep(5)
         self.sync()
+        self.bulk_state_fetcher.shutdown()
 
     def terminate(self):
-        pass
+        self.bulk_state_fetcher.shutdown(wait=False)
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         # The scheduler pre-assigns external_executor_id at queuing time (committed to DB
