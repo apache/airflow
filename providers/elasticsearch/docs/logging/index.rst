@@ -37,6 +37,19 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
     [elasticsearch]
     host = <host>:<port>
 
+On Airflow 3.x you can also route remote logging to Elasticsearch through the provider
+dispatch mechanism by adding an ``elasticsearch://`` scheme to
+``[logging] remote_base_log_folder``:
+
+.. code-block:: ini
+
+    [logging]
+    remote_logging = True
+    remote_base_log_folder = elasticsearch://
+
+    [elasticsearch]
+    host = <host>:<port>
+
 To output task logs to stdout in JSON format, the following config could be used:
 
 .. code-block:: ini

@@ -833,6 +833,8 @@ class TestCliConfigMethods:
             ("assets", "get", "Retrieve an asset by its ID"),
             ("connections", "get", "Retrieve a connection by its ID"),
             ("taskinstances", "list", "List all task instances for a given Dag run"),
+            ("taskinstances", "get", "Get a task instance for a given Dag run"),
+            ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )

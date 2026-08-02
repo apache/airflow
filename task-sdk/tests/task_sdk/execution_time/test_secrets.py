@@ -36,6 +36,9 @@ class TestExecutionAPISecretsBackend:
             host="example.com",
             port=443,
             schema="https",
+            login=None,
+            password=None,
+            extra=None,
         )
         conn_result = ConnectionResult.from_conn_response(conn_response)
         mock_supervisor_comms.send.return_value = conn_result

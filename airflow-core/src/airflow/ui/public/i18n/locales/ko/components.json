@@ -7,9 +7,15 @@
     "backwards": "거꾸로 실행",
     "dateRange": "날짜 범위",
     "errorStartDateBeforeEndDate": "시작일은 종료일보다 빨라야 합니다.",
+    "exceptionReason": {
+      "alreadyExists": "이미 존재함",
+      "inFlight": "진행 중",
+      "unknown": "알 수 없음"
+    },
     "maxRuns": "최대 활성 실행 수",
     "missingAndErroredRuns": "누락되었거나 오류가 발생한 실행",
     "missingRuns": "누락된 실행",
+    "notCreatedReason": "생성되지 않은 이유",
     "overrideExistingParams": "기존 실행의 매개변수 덮어쓰기",
     "permissionDenied": "드라이 런 실패: 백필 생성 권한이 없습니다.",
     "reprocessBehavior": "재처리 동작",
@@ -29,7 +35,8 @@
     "validation": {
       "datesRequired": "데이터 구간 시작일과 종료일이 모두 제공되어야 합니다.",
       "startBeforeEnd": "데이터 구간 시작일은 데이터 구간 종료일보다 작거나 같아야 합니다."
-    }
+    },
+    "viewSlots": "백필 #{{id}}의 슬롯 보기"
   },
   "banner": {
     "backfillInProgress": "백필 진행 중",
@@ -65,6 +72,7 @@
     "lastDagRun_other": "마지막 {{count}}개 Dag 실행",
     "lastTaskInstance_one": "마지막 태스크 인스턴스",
     "lastTaskInstance_other": "마지막 {{count}}개 태스크 인스턴스",
+    "medianTotalDuration": "총: {{duration}}",
     "queuedDuration": "대기열 대기 시간",
     "runAfter": "실행 후",
     "runDuration": "실행 기간"
@@ -112,6 +120,10 @@
     "location": "{{name}}의 {{line}}번째 줄"
   },
   "reparseDag": "Dag 재구문 분석",
+  "slowestTaskInstances": {
+    "empty": "이 범위에 완료된 태스크 인스턴스가 없습니다",
+    "title": "가장 느린 태스크 인스턴스"
+  },
   "sortedAscending": "오름차순 정렬됨",
   "sortedDescending": "내림차순 정렬됨",
   "sortedUnsorted": "정렬되지 않음",
