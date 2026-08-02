@@ -536,31 +536,122 @@ class TestSecurityContext:
         ]
         assert "volume-permissions" in init_container_names
 
-    def test_disable_defaults_component_level_override_still_applied(self):
+    @pytest.mark.parametrize(
+        ("component_values", "show_only", "security_context_path"),
+        [
+            (
+                {"scheduler": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/scheduler/scheduler-deployment.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"apiServer": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/api-server/api-server-deployment.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"dagProcessor": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"triggerer": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/triggerer/triggerer-deployment.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"workers": {"celery": {"securityContexts": {"pod": {"runAsUser": 8000}}}}},
+                "templates/workers/worker-deployment.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"flower": {"enabled": True, "securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/flower/flower-deployment.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"statsd": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/statsd/statsd-deployment.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"pgbouncer": {"enabled": True, "securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"redis": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/redis/redis-statefulset.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"createUserJob": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/jobs/create-user-job.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {"migrateDatabaseJob": {"securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/jobs/migrate-database-job.yaml",
+                "spec.template.spec.securityContext",
+            ),
+            (
+                {
+                    "executor": "CeleryExecutor,KubernetesExecutor",
+                    "cleanup": {"enabled": True, "securityContexts": {"pod": {"runAsUser": 8000}}},
+                },
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "spec.jobTemplate.spec.template.spec.securityContext",
+            ),
+            (
+                {"databaseCleanup": {"enabled": True, "securityContexts": {"pod": {"runAsUser": 8000}}}},
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
+                "spec.jobTemplate.spec.template.spec.securityContext",
+            ),
+        ],
+        ids=[
+            "scheduler",
+            "apiServer",
+            "dagProcessor",
+            "triggerer",
+            "workers.celery",
+            "flower",
+            "statsd",
+            "pgbouncer",
+            "redis",
+            "createUserJob",
+            "migrateDatabaseJob",
+            "cleanup",
+            "databaseCleanup",
+        ],
+    )
+    def test_disable_defaults_component_level_override_still_applied(
+        self, component_values, show_only, security_context_path
+    ):
         """A component-level securityContexts override takes priority over global disableDefaults."""
-        ctx_value = {"runAsUser": 8000}
+        docs = render_chart(
+            values={"securityContexts": {"disableDefaults": True}, **component_values},
+            show_only=[show_only],
+        )
+
+        assert jmespath.search(security_context_path, docs[0]) == {"runAsUser": 8000}
+
+    def test_disable_defaults_workers_volume_permissions_init_container_still_added(self):
+        """disableDefaults must not suppress the volume-permissions init container injection."""
         docs = render_chart(
             values={
                 "securityContexts": {"disableDefaults": True},
-                "scheduler": {"securityContexts": {"pod": ctx_value}},
                 "workers": {
                     "celery": {
-                        "securityContexts": {"pod": ctx_value},
+                        "securityContexts": {"pod": {"runAsUser": 8000}},
                         "persistence": {"enabled": True, "fixPermissions": True},
                     }
                 },
             },
-            show_only=[
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-            ],
+            show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        for doc in docs:
-            assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
-
         init_container_names = [
-            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[1])
+            c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
         assert "volume-permissions" in init_container_names
 
