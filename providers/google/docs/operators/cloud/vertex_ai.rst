@@ -53,7 +53,7 @@ To get an Agent Engine you can use
 To query an Agent Engine synchronously you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.agent_engine.RunAgentQueryOperator`.
 The operator calls the public ``query_reasoning_engine`` GAPIC method and returns
-the Agent Engine output directly without using Google Cloud Storage.
+the serialized response without using Google Cloud Storage.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_agent_engine.py
     :language: python

@@ -237,7 +237,7 @@ class RunAgentQueryOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-    def execute(self, context: Context) -> JsonValue:
+    def execute(self, context: Context) -> dict[str, JsonValue]:
         self.log.info("Querying Agent Engine %s.", self.agent_engine_id)
         response = self.hook.query_agent_engine(
             project_id=self.project_id,
@@ -250,7 +250,7 @@ class RunAgentQueryOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         self.log.info("Agent Engine %s returned a response.", self.agent_engine_id)
-        return QueryReasoningEngineResponse.to_dict(response).get("output")
+        return QueryReasoningEngineResponse.to_dict(response)
 
 
 class RunQueryJobOperator(GoogleCloudBaseOperator):
