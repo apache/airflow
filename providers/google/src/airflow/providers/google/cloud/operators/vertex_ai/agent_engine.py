@@ -37,6 +37,7 @@ from airflow.providers.google.cloud.triggers.vertex_ai import AgentEngineQueryJo
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from pydantic import JsonValue
     from vertexai._genai import types
 
     from airflow.providers.common.compat.sdk import Context
@@ -169,20 +170,27 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
         return result
 
 
-class QueryAgentEngineOperator(GoogleCloudBaseOperator):
+class RunAgentQueryOperator(GoogleCloudBaseOperator):
     """
     Query a Vertex AI Agent Engine synchronously.
 
-    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
-    :param location: Required. The ID of the Google Cloud location that the service belongs to.
-    :param agent_engine_id: Required. The Agent Engine ID.
-    :param input_data: Optional. Input for the Agent Engine class method in JSON object format.
-    :param class_method: Optional. The Agent Engine class method to invoke. Defaults to ``query``.
-    :param retry: Designation of what errors, if any, should be retried.
-    :param timeout: The timeout for this request.
-    :param metadata: Strings which should be sent along with the request as metadata.
-    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
+    :param project_id: Required (templated). The ID of the Google Cloud project that the service
+        belongs to.
+    :param location: Required (templated). The ID of the Google Cloud location that the service
+        belongs to.
+    :param agent_engine_id: Required (templated). The Agent Engine ID.
+    :param input_data: Optional (templated). Input for the Agent Engine class method in JSON object
+        format. Defaults to ``None``.
+    :param class_method: Optional (templated). The Agent Engine class method to invoke. Defaults to
+        ``query``.
+    :param retry: Designation of what errors, if any, should be retried. Defaults to ``DEFAULT``.
+    :param timeout: The timeout for this request. Defaults to ``None``.
+    :param metadata: Strings which should be sent along with the request as metadata. Defaults to
+        an empty tuple.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud (templated). Defaults
+        to ``google_cloud_default``.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials
+        (templated). Defaults to ``None``.
     """
 
     template_fields = (
@@ -229,7 +237,7 @@ class QueryAgentEngineOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> JsonValue:
         self.log.info("Querying Agent Engine %s.", self.agent_engine_id)
         response = self.hook.query_agent_engine(
             project_id=self.project_id,
