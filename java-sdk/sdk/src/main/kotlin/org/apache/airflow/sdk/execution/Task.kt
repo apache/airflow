@@ -27,6 +27,7 @@ import org.apache.airflow.sdk.execution.comm.RetryTask
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.SucceedTask
 import org.apache.airflow.sdk.execution.comm.TaskState
+import java.lang.reflect.InvocationTargetException
 import java.time.OffsetDateTime
 
 internal object TaskResult {
@@ -60,6 +61,8 @@ internal object TaskResult {
     it.endDate = endDate
     it.renderedMapIndex = renderedMapIndex
   }
+
+  fun failure(shouldRetry: Boolean) = if (shouldRetry) retry() else of(TaskState.State.FAILED)
 }
 
 internal object TaskRunner {
@@ -71,17 +74,30 @@ internal object TaskRunner {
     client: Client,
   ): Any {
     val task = bundle.dags[request.ti.dagId]?.tasks[request.ti.taskId] ?: return TaskResult.of(TaskState.State.REMOVED)
+    val instance =
+      try {
+        task.getDeclaredConstructor().newInstance()
+      } catch (e: InvocationTargetException) {
+        val cause = e.cause ?: e
+        logger.error(
+          "Task class constructor threw an exception",
+          mapOf("ti" to request.ti, "taskClass" to task.name, "error" to cause, "trace" to cause.stackTraceToString()),
+        )
+        // Retrying cannot help: instantiation fails the same way on every try.
+        return TaskResult.failure(shouldRetry = false)
+      } catch (e: Throwable) {
+        logger.error(
+          "Cannot instantiate task class. A task class must be concrete and declare a public no-argument constructor",
+          mapOf("ti" to request.ti, "taskClass" to task.name, "error" to e, "trace" to e.stackTraceToString()),
+        )
+        return TaskResult.failure(shouldRetry = false)
+      }
     return try {
-      task.getDeclaredConstructor().newInstance().execute(Context.from(request), client)
+      instance.execute(Context.from(request), client)
       TaskResult.success()
     } catch (e: Throwable) {
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
-      e.printStackTrace()
-      if (request.tiContext.shouldRetry) {
-        TaskResult.retry()
-      } else {
-        TaskResult.of(TaskState.State.FAILED)
-      }
+      TaskResult.failure(request.tiContext.shouldRetry)
     }
   }
 }
