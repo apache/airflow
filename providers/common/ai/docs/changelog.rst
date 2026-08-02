@@ -74,7 +74,7 @@ Misc
 
 * ``Add dataclasses-json floor to common.ai llamaindex extra (#69755)``
 * ``Add a Retry Policies category to the provider registry (#70499)``
-* ``Remove noqa:S101 from production code (#70378)``
+* ``Mark asserts under 'TYPE_CHECKING' in 'DocumentLoaderOperator' (#70378)``
 * ``Mark KubernetesPodOperator and AgentOperator as durable capable (#70289)``
 
 Doc-only

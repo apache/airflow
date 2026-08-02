@@ -67,7 +67,7 @@ Doc-only
 ~~~~~~~~
 
 * ``Document effect of state-store cleanup for operators with durable execution (#70721)``
-* ``Remove hard-coded deferrable crawler run from example_glue system test (#70206)``
+* ``Remove hard-coded deferrable crawler run from example_glue (#70206)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

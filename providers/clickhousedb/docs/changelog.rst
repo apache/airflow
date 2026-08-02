@@ -41,6 +41,7 @@ Misc
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
    * ``Prepare providers release 2026-07-22 (#70256)``
 
+
 1.0.0
 .....
 

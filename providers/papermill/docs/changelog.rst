@@ -41,6 +41,7 @@ Misc
    * ``Use common.compat.sdk for timezone imports in providers (#70492)``
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
    * ``Prepare provider documentation 2026-06-16 (#68642)``
+   * ``[main] Upgrade important CI environment (#68322)``
 
 3.13.1
 ......

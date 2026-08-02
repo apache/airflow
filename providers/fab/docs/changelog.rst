@@ -38,8 +38,8 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Bump eslint (#70697)``
-* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#70604)``
+* ``Bump eslint to 10.8.0 (#70697)``
+* ``Bump prettier to 3.9.6, stylelint to 17.14.1, webpack to 5.109.0 (#70604)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

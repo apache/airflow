@@ -4223,7 +4223,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-clickhousedb"
-version = "1.0.1"
+version = "1.0.0"
 source = { editable = "providers/clickhousedb" }
 dependencies = [
     { name = "apache-airflow" },

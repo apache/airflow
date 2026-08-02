@@ -39,7 +39,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add '--min-completed-minutes' to 'cleanup-pods' to prevent KPO race condition (#70595)``
+* ``Add '--min-completed-minutes' to 'cleanup-pods' to prevent KubernetesPodOperator race condition (#70595)``
 * ``Add opt-in concurrent pod creation to KubernetesExecutor (#68480)``
 
 Bug Fixes
@@ -59,7 +59,7 @@ Doc-only
 ~~~~~~~~
 
 * ``Document Kubernetes RBAC permissions (#68716)``
-* ``Documenting effect if task state store cleanup for KPO (#70722)``
+* ``Documenting effect if task state store cleanup for KubernetesPodOperator (#70722)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
