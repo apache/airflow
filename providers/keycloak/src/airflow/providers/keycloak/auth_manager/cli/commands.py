@@ -301,6 +301,7 @@ def _attach_default_role_permissions(
             policy_name=_role_policy_name(role_name),
             scope_names=_get_extended_resource_methods() + ["LIST"],
             resource_names=[],
+            decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
         )
 
