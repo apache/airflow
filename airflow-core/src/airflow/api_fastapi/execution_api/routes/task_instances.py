@@ -942,10 +942,12 @@ def update_dag_run_note(
             detail={"reason": "not_found", "message": "Task Instance not found"},
         )
 
-    # Reuse the public API note logic so both editing paths stay consistent. A None/empty note
-    # from runtime clears it (removes the row), matching the UI/public API. Runtime notes carry no
-    # acting user, so they are stored unattributed (user_id=None).
-    patch_dag_run_note(dag_run=dag_run, note=body.note or "", user_id=None)
+    if body.note is None:
+        return
+
+    # Reuse the public API note logic so both editing paths stay consistent. Runtime notes carry
+    # no acting user, so they are stored unattributed (user_id=None).
+    patch_dag_run_note(dag_run=dag_run, note=body.note, user_id=None)
 
 
 @ti_id_router.put(

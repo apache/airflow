@@ -4542,7 +4542,7 @@ class TestTIDagRunNoteUpdate:
 
         response = client.patch(
             f"/execution/task-instances/{ti_id}/dag-run-note",
-            json={"note": None},
+            json={"note": ""},
         )
 
         assert response.status_code == 204
@@ -4553,6 +4553,29 @@ class TestTIDagRunNoteUpdate:
         # Clearing removes the note row entirely, same as the UI/public API path.
         assert dag_run.note is None
         assert dag_run.dag_run_note is None
+
+    def test_null_note_leaves_existing_dag_run_note_unchanged(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_null_note_leaves_existing_dag_run_note_unchanged",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.dag_run.note = ("Keep existing note", "user_id")
+        ti_id = ti.id
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/dag-run-note",
+            json={"note": None},
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+        dag_run = session.get(TaskInstance, ti_id).dag_run
+        assert dag_run.note == "Keep existing note"
+        assert dag_run.dag_run_note.user_id == "user_id"
 
     def test_update_dag_run_note_task_instance_not_found(self, client, session):
         response = client.patch(
