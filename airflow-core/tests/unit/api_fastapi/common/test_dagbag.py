@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import math
 from unittest import mock
 
 import pytest
@@ -92,8 +93,9 @@ class TestCreateDagBag:
         ("cache_size", "cache_ttl", "expected_use_cache", "expected_dags_type"),
         [
             pytest.param(64, 3600, True, TTLCache, id="default_ttl_cache"),
-            pytest.param(0, 3600, False, dict, id="size_zero_unbounded"),
+            pytest.param(0, 3600, True, TTLCache, id="size_zero_ttl_only"),
             pytest.param(64, 0, True, LRUCache, id="ttl_zero_lru_only"),
+            pytest.param(0, 0, False, dict, id="size_zero_ttl_zero_unbounded"),
         ],
     )
     @mock.patch("airflow.api_fastapi.common.dagbag.conf")
@@ -110,3 +112,14 @@ class TestCreateDagBag:
         dag_bag = create_dag_bag()
         assert dag_bag._use_cache is expected_use_cache
         assert isinstance(dag_bag._dags, expected_dags_type)
+
+    @mock.patch("airflow.api_fastapi.common.dagbag.conf")
+    def test_create_dag_bag_ttl_only_has_no_size_cap(self, mock_conf):
+        from airflow.api_fastapi.common.dagbag import create_dag_bag
+
+        mock_conf.getint.side_effect = lambda section, key, fallback: {
+            "dag_cache_size": 0,
+            "dag_cache_ttl": 3600,
+        }.get(key, fallback)
+
+        assert create_dag_bag()._dags.maxsize == math.inf
