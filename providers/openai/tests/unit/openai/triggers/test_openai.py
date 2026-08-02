@@ -228,7 +228,7 @@ class TestOpenAIBatchTrigger:
             conn_id=self.CONN_ID,
             batch_id=self.BATCH_ID,
             poll_interval=self.POLL_INTERVAL,
-            end_time=self.END_TIME,
+            timeout=self.TIMEOUT,
         )
         events = [event async for event in trigger.run()]
         assert events == [
