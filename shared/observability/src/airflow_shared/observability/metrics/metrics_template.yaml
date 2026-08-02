@@ -294,6 +294,13 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "triggers.state_mismatch"
+    description: "Number of triggers the Triggerer tracked as running that the trigger runner
+    had no coroutine for, and which were re-created"
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "triggers.succeeded"
     description: "Number of triggers that have fired at least one event"
     type: "counter"
