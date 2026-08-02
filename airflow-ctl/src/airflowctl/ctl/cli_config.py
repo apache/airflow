@@ -32,7 +32,7 @@ from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Any, NamedTuple, cast
+from typing import Any, NamedTuple
 
 import httpx
 import rich
@@ -523,6 +523,14 @@ class CommandFactory:
             defaults_count = len(node.args.defaults)
             required_count = len(positional_args) - defaults_count
             required_param_names: set[str] = {a.arg for a in positional_args[:required_count]}
+            # Parameters whose signature default carries real meaning (e.g. ``limit: int = 100``).
+            # ``argparse`` fills an omitted flag with ``None``, so these have to be dropped from
+            # the call instead of being forwarded, or the method never sees its own default.
+            non_none_default_param_names: set[str] = {
+                arg.arg
+                for arg, default in zip(positional_args[required_count:], node.args.defaults)
+                if not (isinstance(default, ast.Constant) and default.value is None)
+            }
 
             for arg in positional_args:
                 arg_name = arg.arg
@@ -538,6 +546,7 @@ class CommandFactory:
                 "name": func_name,
                 "parameters": args,
                 "required_param_names": required_param_names,
+                "non_none_default_param_names": non_none_default_param_names,
                 "return_type": return_annotation,
                 "parent": parent_node,
             }
@@ -583,11 +592,6 @@ class CommandFactory:
         # Strip " | None" suffix to check the base type
         base_type = type_name.replace(" | None", "").strip()
         return base_type in primitive_types
-
-    @staticmethod
-    def _is_optional_type(type_name: str) -> bool:
-        normalized = str(type_name).replace("typing.", "").strip()
-        return " | None" in normalized or normalized.startswith("Optional[")
 
     @staticmethod
     def _python_type_from_string(type_name: str | type) -> type | Callable:
@@ -809,39 +813,36 @@ class CommandFactory:
             operation_method_object = getattr(operation_class, api_operation["name"])
 
             # Walk through all args and create a dictionary such as args.abc -> {"abc": "value"}
-            method_params: dict[str, Any] = {}
+            method_params = {}
             datamodel = None
             datamodel_param_name = None
             args_dict = vars(args)
+            non_none_default_param_names = api_operation.get("non_none_default_param_names") or set()
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
-                        val = args_dict.get(parameter_key)
-                        is_optional_primitive = self._is_optional_type(parameter_type)
-                        if val is not None or not is_optional_primitive:
-                            method_params[self._sanitize_method_param_key(parameter_key)] = val
+                        value = args_dict[parameter_key]
+                        if value is None and parameter_key in non_none_default_param_names:
+                            continue
+                        method_params[self._sanitize_method_param_key(parameter_key)] = value
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:
-                            if parameter_key not in method_params or not isinstance(
-                                method_params[parameter_key], dict
-                            ):
+                            if parameter_key not in method_params:
                                 method_params[parameter_key] = {}
                                 datamodel_param_name = parameter_key
                             if expanded_parameter in self.excluded_parameters:
                                 continue
                             if expanded_parameter in args_dict.keys():
-                                datamodel_params = cast("dict[str, Any]", method_params[parameter_key])
-                                datamodel_params[self._sanitize_method_param_key(expanded_parameter)] = (
-                                    args_dict[expanded_parameter]
-                                )
+                                method_params[parameter_key][
+                                    self._sanitize_method_param_key(expanded_parameter)
+                                ] = args_dict[expanded_parameter]
 
             if datamodel:
                 if datamodel_param_name:
-                    datamodel_params = cast("dict[str, Any]", method_params[datamodel_param_name])
                     # Apply datamodel-specific defaults (e.g., logical_date for TriggerDAGRunPostBody)
                     method_params[datamodel_param_name] = self._apply_datamodel_defaults(
-                        datamodel, datamodel_params
+                        datamodel, method_params[datamodel_param_name]
                     )
                     method_params[datamodel_param_name] = datamodel.model_validate(
                         method_params[datamodel_param_name]

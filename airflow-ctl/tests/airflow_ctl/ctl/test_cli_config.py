@@ -21,13 +21,13 @@ import argparse
 from argparse import BooleanOptionalAction
 from pathlib import Path
 from textwrap import dedent
-from types import SimpleNamespace
+from unittest import mock
 
 import httpx
 import pytest
 
 from airflowctl.api.datamodels.generated import ClearTaskInstancesBody
-from airflowctl.api.operations import ServerResponseError
+from airflowctl.api.operations import DagRunOperations, ServerResponseError
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
     ActionCommand,
@@ -515,66 +515,6 @@ class TestCliConfigMethods:
 
         assert ctx.value.code == 1
 
-    @staticmethod
-    def _run_list_command_with_dag_id(
-        monkeypatch,
-        *,
-        dag_id_value,
-        dag_id_param_type: str,
-        method_has_default: bool,
-    ):
-        import airflowctl.api.operations as operations
-
-        captured: dict[str, object] = {}
-        dummy_operations_cls: type[object]
-
-        if method_has_default:
-
-            class DummyOperationsWithDefault:
-                def __init__(self, client):
-                    self.client = client
-
-                def list(self, limit: int, dag_id: str = "default-dag"):
-                    captured["limit"] = limit
-                    captured["dag_id"] = dag_id
-                    return {"items": []}
-
-            dummy_operations_cls = DummyOperationsWithDefault
-
-        else:
-
-            class DummyOperationsNoDefault:
-                def __init__(self, client):
-                    self.client = client
-
-                def list(self, limit: int, dag_id: str):
-                    captured["limit"] = limit
-                    captured["dag_id"] = dag_id
-                    return {"items": []}
-
-            dummy_operations_cls = DummyOperationsNoDefault
-
-        monkeypatch.setattr(operations, "DummyOperations", dummy_operations_cls, raising=False)
-        monkeypatch.setattr(
-            "airflowctl.ctl.cli_config.AirflowConsole.print_as",
-            lambda self, data, output: None,
-        )
-
-        command_factory = CommandFactory()
-        command_factory.operations = [
-            {
-                "name": "list",
-                "parameters": [{"limit": "int"}, {"dag_id": dag_id_param_type}],
-                "return_type": "dict",
-                "parent": SimpleNamespace(name="DummyOperations"),
-            }
-        ]
-
-        command_factory._create_func_map_from_operation()
-        generated_func = command_factory.func_map[("list", "DummyOperations")]
-        generated_func(argparse.Namespace(limit=10, dag_id=dag_id_value, output="json"), api_client=object())
-        return captured
-
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
         parser = argparse.ArgumentParser()
@@ -912,35 +852,50 @@ class TestCliConfigMethods:
                         return
         pytest.fail(f"Auto-generated command not found: {group_name} {subcommand_name}")
 
+    @staticmethod
+    def _call_generated_command(monkeypatch, operations_class, method_name: str, **parsed_args):
+        """Run the auto-generated command for ``operations_class.method_name`` and return its call kwargs."""
+        monkeypatch.setattr("airflowctl.ctl.cli_config.AirflowConsole.print_as", lambda *_, **__: None)
+
+        command_factory = CommandFactory()
+        command_factory._inspect_operations()
+        operation = next(
+            op
+            for op in command_factory.operations
+            if op["name"] == method_name and op["parent"].name == operations_class.__name__
+        )
+        command_factory.operations = [operation]
+        command_factory._create_func_map_from_operation()
+
+        namespace = argparse.Namespace(
+            output="json",
+            **{key: parsed_args.get(key) for parameter in operation["parameters"] for key in parameter},
+        )
+        with mock.patch.object(operations_class, method_name, autospec=True) as mocked_method:
+            command_factory.func_map[(method_name, operations_class.__name__)](
+                namespace, api_client=mock.MagicMock()
+            )
+        return mocked_method.call_args.kwargs
+
     @pytest.mark.parametrize(
-        ("dag_id_value", "expected_dag_id"),
+        ("parsed_limit", "limit_is_forwarded"),
         [
-            (None, "default-dag"),
-            ("manual-dag", "manual-dag"),
+            pytest.param(None, False, id="omitted-flag-keeps-signature-default"),
+            pytest.param(25, True, id="explicit-flag-overrides-signature-default"),
         ],
     )
-    def test_create_func_map_handles_optional_primitive_params(
-        self, monkeypatch, dag_id_value, expected_dag_id
+    def test_primitive_param_with_non_none_default_is_not_clobbered(
+        self, monkeypatch, parsed_limit, limit_is_forwarded
     ):
-        """Test optional primitive params are skipped when None and passed when set."""
-        captured = self._run_list_command_with_dag_id(
-            monkeypatch,
-            dag_id_value=dag_id_value,
-            dag_id_param_type="str | None",
-            method_has_default=True,
-        )
+        """``DagRunOperations.list`` declares ``limit: int = 100``; argparse's None must not override it."""
+        call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list", limit=parsed_limit)
 
-        assert captured["limit"] == 10
-        assert captured["dag_id"] == expected_dag_id
+        assert ("limit" in call_kwargs) is limit_is_forwarded
+        if limit_is_forwarded:
+            assert call_kwargs["limit"] == parsed_limit
 
-    def test_create_func_map_keeps_none_for_required_primitive_params(self, monkeypatch):
-        """Test required primitive params are passed even when parsed value is None."""
-        captured = self._run_list_command_with_dag_id(
-            monkeypatch,
-            dag_id_value=None,
-            dag_id_param_type="str",
-            method_has_default=False,
-        )
+    def test_primitive_param_defaulting_to_none_is_still_forwarded(self, monkeypatch):
+        """Only a non-None signature default is worth protecting, so ``state: str | None = None`` still goes through."""
+        call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list")
 
-        assert captured["limit"] == 10
-        assert captured["dag_id"] is None
+        assert call_kwargs["state"] is None
