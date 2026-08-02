@@ -3412,7 +3412,7 @@
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "StorageClass for the scheduler StatefulSet (templated). If unset, workers.celery.persistence.storageClassName is used.",
+                            "description": "StorageClass for the scheduler StatefulSet (templated). If unset, `workers.celery.persistence.storageClassName` is used.",
                             "type": [
                                 "string",
                                 "null"
