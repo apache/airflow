@@ -182,10 +182,12 @@ class AgentEngineHook(GoogleBaseHook):
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param agent_engine_id: Required. The Agent Engine ID.
         :param input_data: Optional. Input for the Agent Engine class method in JSON object format.
+            Defaults to ``None``.
         :param class_method: Optional. The Agent Engine class method to invoke. Defaults to ``query``.
-        :param retry: Designation of what errors, if any, should be retried.
-        :param timeout: The timeout for this request.
-        :param metadata: Strings which should be sent along with the request as metadata.
+        :param retry: Designation of what errors, if any, should be retried. Defaults to ``DEFAULT``.
+        :param timeout: The timeout for this request. Defaults to ``None``.
+        :param metadata: Strings which should be sent along with the request as metadata. Defaults
+            to an empty tuple.
         :param project_id: Optional. The ID of the Google Cloud project. Defaults to the project
             configured in the connection.
         """

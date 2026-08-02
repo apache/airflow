@@ -27,7 +27,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.agent_engine import (
     CreateAgentEngineOperator,
     DeleteAgentEngineOperator,
     GetAgentEngineOperator,
-    QueryAgentEngineOperator,
+    RunAgentQueryOperator,
     RunQueryJobOperator,
     UpdateAgentEngineOperator,
 )
@@ -151,14 +151,14 @@ class TestGetAgentEngineOperator:
         )
 
 
-class TestQueryAgentEngineOperator:
+class TestRunAgentQueryOperator:
     @mock.patch(AGENT_ENGINE_PATH.format("AgentEngineHook"), autospec=True)
     def test_execute(self, mock_hook, context):
         query_output = {"message": "Hello from Agent Engine"}
         mock_hook.return_value.query_agent_engine.return_value = QueryReasoningEngineResponse(
             output=query_output
         )
-        op = QueryAgentEngineOperator(
+        op = RunAgentQueryOperator(
             task_id=TASK_ID,
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
