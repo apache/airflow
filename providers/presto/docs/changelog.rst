@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+5.12.1
+......
+
+Misc
+~~~~
+
+* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-07-22 (#70256)``
+
 5.12.0
 ......
 

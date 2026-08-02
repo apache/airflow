@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+1.8.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use monotonic clock for OpenAIBatchTrigger polling timeout (#69534)``
+* ``Validate trigger events in Openai deferrable tasks (#69506)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 .. note::
     ``OpenAITriggerBatchOperator`` now fails the task when a deferred batch ends in a
     non-success state. Previously only ``status="error"`` raised, so a batch that was

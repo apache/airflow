@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+1.6.7
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CohereEmbeddingOperator input_text normalization before rendering (#70325)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-07-22 (#70256)``
+
 1.6.6
 .....
 

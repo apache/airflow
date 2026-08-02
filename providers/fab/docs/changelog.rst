@@ -20,6 +20,30 @@
 Changelog
 ---------
 
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Gate audit log rows not tied to a Dag on a dedicated AccessView (#70759)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+* ``Add 'get_display_name' to 'BaseUser' interface (#70583)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix asset state store writes forbidden under FAB auth manager (#70478)``
+
+Misc
+~~~~
+
+* ``Bump eslint (#70697)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#70604)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.7.3
 .....
 
