@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-08-02T22:33:56.036841
+# This constraints file was automatically generated on 2026-08-02T23:31:34.378446
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -164,7 +164,7 @@ azure-ai-projects==2.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.41.0
-azure-cosmos==4.16.2
+azure-cosmos==4.16.3
 azure-datalake-store==0.0.53
 azure-identity==1.25.3
 azure-keyvault-secrets==4.11.0
@@ -255,7 +255,7 @@ fastavro==1.12.2
 fastcore==2.1.15
 fastjsonschema==2.22.1
 fastuuid==0.14.0
-filelock==3.32.0
+filelock==3.32.2
 flask-appbuilder==5.2.2
 flask-babel==4.0.0
 flower==2.0.1
