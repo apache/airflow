@@ -1006,10 +1006,15 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecated_kwargs_cluster_config_built_in_execute(self, mock_hook, to_dict_mock):
         mock_hook.return_value.create_cluster.result.return_value = None
-        op = DataprocCreateClusterOperator(
-            task_id=TASK_ID, region=GCP_REGION, project_id=GCP_PROJECT,
-            cluster_name="cluster_name", num_workers=2, zone="zone",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = DataprocCreateClusterOperator(
+                task_id=TASK_ID,
+                region=GCP_REGION,
+                project_id=GCP_PROJECT,
+                cluster_name="cluster_name",
+                num_workers=2,
+                zone="zone",
+            )
         assert op.cluster_config is None
         op.execute(context=self.mock_context)
         assert op.cluster_config["worker_config"]["num_instances"] == 2
@@ -1540,17 +1545,18 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
 def test_create_cluster_operator_legacy_kwargs_survive_serialization_and_render(
     dag_maker, create_task_instance_of_operator
 ):
-    ti = create_task_instance_of_operator(
-        DataprocCreateClusterOperator,
-        dag_id=TEST_DAG_ID,
-        task_id=TASK_ID,
-        region=GCP_REGION,
-        project_id=GCP_PROJECT,
-        cluster_name=CLUSTER_NAME,
-        num_workers=2,
-        zone="{{ 'templated-zone' }}",
-        gcp_conn_id=GCP_CONN_ID,
-    )
+    with pytest.warns(AirflowProviderDeprecationWarning):
+        ti = create_task_instance_of_operator(
+            DataprocCreateClusterOperator,
+            dag_id=TEST_DAG_ID,
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            num_workers=2,
+            zone="{{ 'templated-zone' }}",
+            gcp_conn_id=GCP_CONN_ID,
+        )
     serialized_dag = dag_maker.get_serialized_data()
     deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     deserialized_task = deserialized_dag.tasks[0]
