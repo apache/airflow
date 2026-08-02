@@ -240,3 +240,16 @@ class TestDateTimeSensor:
         )
         assert op.start_from_trigger is True
         assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.parse("2020-01-01T00:00:00+00:00")
+
+    def test_async_start_from_trigger_invalid_static_target_time_fails_fast(self):
+        """
+        A genuinely invalid (non-template, non-parseable) target_time must still raise eagerly at
+        Dag-parse time, not be silently treated as an unrendered template and deferred.
+        """
+        with pytest.raises(ValueError):
+            DateTimeSensorAsync(
+                task_id="async_invalid",
+                target_time="not-a-date",
+                start_from_trigger=True,
+                dag=self.dag,
+            )
