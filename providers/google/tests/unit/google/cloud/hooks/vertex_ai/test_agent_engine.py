@@ -145,6 +145,10 @@ class TestAgentEngineHookWithDefaultProjectId:
             location=GCP_LOCATION,
             agent_engine_id=AGENT_ENGINE_ID,
             input_data=QUERY_INPUT,
+            class_method="custom_query",
+            retry=mock.sentinel.retry,
+            timeout=60,
+            metadata=(("key", "value"),),
         )
 
         mock_get_client.assert_called_once_with(self.hook, location=GCP_LOCATION)
@@ -155,11 +159,11 @@ class TestAgentEngineHookWithDefaultProjectId:
             request={
                 "name": mock_get_client.return_value.reasoning_engine_path.return_value,
                 "input": QUERY_INPUT,
-                "class_method": "query",
+                "class_method": "custom_query",
             },
-            retry=DEFAULT,
-            timeout=None,
-            metadata=(),
+            retry=mock.sentinel.retry,
+            timeout=60,
+            metadata=(("key", "value"),),
         )
         assert result == mock_get_client.return_value.query_reasoning_engine.return_value
 
