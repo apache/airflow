@@ -88,11 +88,9 @@ class DateTimeSensorAsync(DateTimeSensor):
     It is a drop-in replacement for DateTimeSensor.
 
     :param target_time: datetime after which the job succeeds. (templated)
-    :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
-        This requires either a static ``target_time`` (a datetime or ISO-8601 string) or, on
-        Airflow >= 3.3, a templated ``target_time`` that the triggerer can render before the trigger
-        runs. On earlier Airflow versions a templated ``target_time`` cannot be resolved this way, so
-        ``start_from_trigger`` is disabled with a warning and the task defers from the worker instead.
+    :param start_from_trigger: Start the task directly from the triggerer instead of a worker.
+        Supports static ``target_time`` values and, on Airflow >= 3.3, templated
+        ``target_time`` values.
     :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
         during dynamic task mapping. This argument is not used in standard usage.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
@@ -123,9 +121,11 @@ class DateTimeSensorAsync(DateTimeSensor):
             try:
                 moment = self._moment
             except ValueError:
-                # target_time couldn't be parsed as a static datetime at Dag-parse time. This is
-                # the normal, documented case of target_time being a Jinja template, e.g.
-                # "{{ data_interval_end.tomorrow().replace(hour=1) }}" -- not necessarily bad input.
+                if not self._looks_like_template(self.target_time):
+                    # Not a template, and not parseable either -- this is genuinely invalid
+                    # input (e.g. "not-a-date"), so fail fast instead of silently deferring to
+                    # a trigger that could never resolve it either.
+                    raise
                 moment = None
 
             # Replaced rather than mutated: ``start_trigger_args`` is a class attribute, so
@@ -140,11 +140,9 @@ class DateTimeSensorAsync(DateTimeSensor):
                     ),
                 )
             elif AIRFLOW_V_3_3_PLUS:
-                # Hand the raw template string to the trigger under the same name as this
-                # operator's template field ("target_time"). The triggerer renders any
-                # start_trigger_args kwarg whose name matches an operator template field before
-                # running the trigger (see BaseTrigger.task_instance / render_template_fields),
-                # the same mechanism FileSensor relies on for a templated `filepath`.
+                # Pass the unresolved template to the trigger. On Airflow >= 3.3 the
+                # triggerer renders trigger kwargs that correspond to template fields before
+                # starting the trigger.
                 self.start_trigger_args = dataclasses.replace(
                     self.start_trigger_args,
                     trigger_kwargs=dict(
@@ -153,11 +151,6 @@ class DateTimeSensorAsync(DateTimeSensor):
                     ),
                 )
             else:
-                # Airflow < 3.3 triggerers can't render template fields on a trigger before it
-                # runs, so a templated target_time can never be resolved via start_from_trigger.
-                # Falling back to the normal worker-deferred path (execute()) avoids crashing Dag
-                # parsing on every parse cycle; execute() runs after the scheduler/worker has
-                # already rendered target_time normally.
                 self.log.warning(
                     "start_from_trigger=True requires a static target_time on Airflow < 3.3, but "
                     "%r looks like a template for task %r. Disabling start_from_trigger and "
@@ -167,6 +160,11 @@ class DateTimeSensorAsync(DateTimeSensor):
                     self.task_id,
                 )
                 self.start_from_trigger = False
+
+    @staticmethod
+    def _looks_like_template(target_time: Any) -> bool:
+        """Whether ``target_time`` contains unrendered Jinja delimiters."""
+        return isinstance(target_time, str) and ("{{" in target_time or "{%" in target_time)
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
