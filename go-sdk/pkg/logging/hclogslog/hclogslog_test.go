@@ -98,6 +98,28 @@ func TestFlattensGroupsWithDottedKeys(t *testing.T) {
 	assert.EqualValues(t, 1, rec["req.meta.n"])
 }
 
+func TestEmptyKeyAttrsUsePosition(t *testing.T) {
+	var buf bytes.Buffer
+	log := newLogger(&buf, hclog.Trace).
+		With(slog.String("named", "bound"), slog.String("", "bound-empty")).
+		WithGroup("req")
+	log.LogAttrs(t.Context(), slog.LevelInfo, "done",
+		slog.String("named", "record"),
+		slog.String("", "record-empty"),
+		slog.Group("meta",
+			slog.String("", "group-first"),
+			slog.String("named", "group-named"),
+			slog.String("", "group-last"),
+		),
+	)
+
+	rec := decode(t, &buf)
+	assert.Equal(t, "bound-empty", rec["1"])
+	assert.Equal(t, "record-empty", rec["req.1"])
+	assert.Equal(t, "group-first", rec["req.meta.0"])
+	assert.Equal(t, "group-last", rec["req.meta.2"])
+}
+
 func TestUnnamedGroupIsInlinedAndEmptyDropped(t *testing.T) {
 	var buf bytes.Buffer
 	log := newLogger(&buf, hclog.Trace)

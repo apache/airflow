@@ -26,6 +26,7 @@ package hclogslog
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/hashicorp/go-hclog"
 )
@@ -63,8 +64,10 @@ func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 // Handle forwards the record's message, level and attributes to the hclog.Logger.
 func (h *Handler) Handle(_ context.Context, rec slog.Record) error {
 	args := make([]any, 0, rec.NumAttrs()*2)
+	position := 0
 	rec.Attrs(func(a slog.Attr) bool {
-		args = append(args, h.flatten(h.prefix, a)...)
+		args = append(args, h.flatten(h.prefix, position, a)...)
+		position++
 		return true
 	})
 	h.l.Log(translateLevel(rec.Level), rec.Message, args...)
@@ -74,8 +77,8 @@ func (h *Handler) Handle(_ context.Context, rec slog.Record) error {
 // WithAttrs returns a new handler whose records also carry the given attributes.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	args := make([]any, 0, len(attrs)*2)
-	for _, a := range attrs {
-		args = append(args, h.flatten(h.prefix, a)...)
+	for position, a := range attrs {
+		args = append(args, h.flatten(h.prefix, position, a)...)
 	}
 	return &Handler{l: h.l.With(args...), prefix: h.prefix}
 }
@@ -92,13 +95,17 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 // flatten converts a single slog.Attr into a flat list of hclog key/value pairs.
 // Groups are expanded recursively, their keys joined with a dot; an unnamed group
 // is inlined; an empty attribute is dropped.
-func (h *Handler) flatten(prefix string, a slog.Attr) []any {
+func (h *Handler) flatten(prefix string, position int, a slog.Attr) []any {
 	value := a.Value.Resolve()
 	if a.Equal(slog.Attr{}) {
 		return nil
 	}
 	if value.Kind() != slog.KindGroup {
-		return []any{prefix + a.Key, value.Any()}
+		key := a.Key
+		if key == "" {
+			key = strconv.Itoa(position)
+		}
+		return []any{prefix + key, value.Any()}
 	}
 
 	group := value.Group()
@@ -110,8 +117,8 @@ func (h *Handler) flatten(prefix string, a slog.Attr) []any {
 		childPrefix = prefix + a.Key + "."
 	}
 	args := make([]any, 0, len(group)*2)
-	for _, sub := range group {
-		args = append(args, h.flatten(childPrefix, sub)...)
+	for position, sub := range group {
+		args = append(args, h.flatten(childPrefix, position, sub)...)
 	}
 	return args
 }
