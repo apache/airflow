@@ -565,30 +565,23 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     task_instance.trigger_id = None
 
     callback_type = event.task_instance_state
-    handle_via_failure = False
+    should_retry = False
 
     if event.task_instance_state == TaskInstanceState.FAILED:
-        # Load the serialized task: needed both for is_eligible_to_retry() and for
-        # handle_failure() (which asserts self.task / self.task.dag). Mirrors the
-        # scheduler executor-event path (see is_eligible_to_retry / PR #56586).
+        # Load the serialized task so retry eligibility matches the normal task path.
         try:
             from airflow.models.dagbag import DBDagBag
 
             dag = DBDagBag().get_dag_for_run(dag_run=task_instance.dag_run, session=session)
             if dag is not None:
                 task_instance.task = dag.get_task(task_instance.task_id)
-                handle_via_failure = True
+                should_retry = task_instance.is_eligible_to_retry()
         except Exception:
             log.exception(
                 "Could not load task for %s; failing terminally without retry routing", task_instance
             )
-        if handle_via_failure and task_instance.is_eligible_to_retry():
+        if should_retry:
             callback_type = TaskInstanceState.UP_FOR_RETRY
-
-    # Persist trigger_id=None before handle_failure: fetch_handle_failure_context calls
-    # refresh_from_db(keep_local_changes=False), which would otherwise reload the old trigger_id.
-    if handle_via_failure:
-        session.flush()
 
     def _submit_callback_if_necessary() -> None:
         """Submit a callback request if the task state is SUCCESS, FAILED, or UP_FOR_RETRY."""
@@ -638,14 +631,15 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
                 task_instance.xcom_push(key=key, value=value)
 
     # Send the callback before handle_failure (mirrors the scheduler executor-event ordering):
-    # handle_failure -> save_to_db commits, which also persists the DatabaseCallbackSink row atomically.
+    # the callback request should reflect the retry/terminal decision derived above.
     _submit_callback_if_necessary()
 
-    if handle_via_failure:
-        # Canonical failure handling: sets UP_FOR_RETRY/FAILED by retry-eligibility, fires the
-        # on_task_instance_failed listener + failure metrics + Log audit row, and clears
-        # next_method args. Mirrors the scheduler executor-event path (PR #56586).
-        task_instance.handle_failure(error="Task failed via trigger event", session=session)
+    if should_retry:
+        task_instance.end_date = timezone.utcnow()
+        task_instance.set_duration()
+        task_instance.clear_next_method_args()
+        task_instance.prepare_db_for_next_try(session)
+        task_instance.state = TaskInstanceState.UP_FOR_RETRY
     else:
         task_instance.set_state(event.task_instance_state, session=session)
 
