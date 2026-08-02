@@ -39,6 +39,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix ClickHouse test_connection unit test failing with newer clickhouse-connect (#70114)``
    * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare providers release 2026-07-22 (#70256)``
 
 
 1.0.0
