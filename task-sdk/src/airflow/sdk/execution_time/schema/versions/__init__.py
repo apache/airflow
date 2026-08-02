@@ -37,8 +37,13 @@ def get_bundle() -> VersionBundle:
     """
     from cadwyn import HeadVersion, Version, VersionBundle
 
+    from airflow.sdk.execution_time.schema.versions.v2026_08_02 import (
+        TrackDagProcessorSocketCleanupOwnership,
+    )
+
     return VersionBundle(
         HeadVersion(),
+        Version("2026-08-02", TrackDagProcessorSocketCleanupOwnership),
         Version("2026-06-16"),
     )
 
