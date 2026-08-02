@@ -25,8 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MatusOllah/slogcolor"
-	"github.com/fatih/color"
 	cc "github.com/ivanpirog/coloredcobra"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -90,7 +88,6 @@ func Configure(cmd *cobra.Command) error {
 }
 
 func makeLogger(v *viper.Viper) *slog.Logger {
-	opts := *slogcolor.DefaultOptions
 	leveler := &slog.LevelVar{}
 
 	// TODO: Should we have consistency with Airflow's config option? That would mean "logging.logging_level" here
@@ -106,17 +103,20 @@ func makeLogger(v *viper.Viper) *slog.Logger {
 		cobra.CheckErr(err)
 	}
 
-	opts.Level = leveler
-	opts.LevelTags = map[slog.Level]string{
-		logging.LevelTrace: color.New(color.FgHiGreen).Sprint("TRACE"),
-		slog.LevelDebug:    color.New(color.BgCyan, color.FgHiWhite).Sprint("DEBUG"),
-		slog.LevelInfo:     color.New(color.BgGreen, color.FgHiWhite).Sprint("INFO "),
-		slog.LevelWarn:     color.New(color.BgYellow, color.FgHiWhite).Sprint("WARN "),
-		slog.LevelError:    color.New(color.BgRed, color.FgHiWhite).Sprint("ERROR"),
+	opts := &slog.HandlerOptions{
+		Level: leveler,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			// Render our custom TRACE level by name rather than "DEBUG-4"
+			if a.Key == slog.LevelKey {
+				if level, ok := a.Value.Any().(slog.Level); ok && level == logging.LevelTrace {
+					a.Value = slog.StringValue("TRACE")
+				}
+			}
+			return a
+		},
 	}
 
-	log := slog.New(slogcolor.NewHandler(os.Stderr, &opts))
-	return log
+	return slog.New(slog.NewTextHandler(os.Stderr, opts))
 }
 
 func SetupViper(cfgFile string) (*viper.Viper, error) {

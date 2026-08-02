@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+.. note::
+    ``CloudSecretManagerBackend`` now applies the team scope it is given. Previously
+    ``get_conn_value`` and ``get_variable`` accepted a ``team_name`` and dropped it, so every
+    lookup resolved the team-agnostic secret name regardless of the team.
+
+    In multi-team deployments a team-scoped secret must now be stored under
+    ``{prefix}{sep}{team_name}--{secret_id}``; the team-agnostic name is still used as a
+    fallback when no team-scoped secret exists. Secrets that were relied on to resolve for a
+    specific team have to be re-stored under the team-scoped name.
+
+    Connection ids and variable keys containing ``--`` are no longer resolved in either mode,
+    because a team name may itself contain ``--`` and the resulting name would be ambiguous.
+    See :doc:`/secrets-backends/google-cloud-secret-manager-backend` for the full convention.
+
 22.3.0
 ......
 

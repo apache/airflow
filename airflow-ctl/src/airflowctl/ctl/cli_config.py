@@ -111,10 +111,6 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 class DefaultHelpParser(argparse.ArgumentParser):
     """CustomParser to display help message."""
 
-    def _check_value(self, action, value):
-        """Override _check_value and check conditionally added command."""
-        super()._check_value(action, value)
-
     def error(self, message):
         """Override error and use print_help instead of print_usage."""
         self.print_help()
