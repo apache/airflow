@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
+from collections.abc import Callable, Collection, Iterable
 from contextlib import contextmanager
+from functools import partial
 from typing import TYPE_CHECKING
 
 import structlog
@@ -314,6 +315,7 @@ class AssetManager(LoggingMixin):
         api_user_teams: set[str] | None = None,
         api_allow_consumer_teams: list[str] | None = None,
         api_allow_global_consumers: bool = True,
+        callback_sink: list[Callable[[], None]] | None = None,
         **kwargs,
     ) -> AssetEvent | None:
         """
@@ -339,6 +341,8 @@ class AssetManager(LoggingMixin):
             Only used when source_is_api=True.
         :param api_allow_global_consumers: Whether teamless consumers are allowed for an
             API-triggered event. Only used when source_is_api=True. Defaults to True.
+        :param callback_sink: If specified, registration callbacks are added
+            into the list instead of executed inline.
         """
         from airflow.models.dag import DagModel
 
@@ -416,20 +420,23 @@ class AssetManager(LoggingMixin):
         )
 
         asset = asset_model.to_serialized()
-        cls.notify_asset_changed(asset=asset)
-        cls.nofity_asset_event_emitted(
-            asset_event=ListenerAssetEvent(
-                asset=asset,
-                extra=asset_event.extra,
-                source_dag_id=asset_event.source_dag_id,
-                source_task_id=asset_event.source_task_id,
-                source_run_id=asset_event.source_run_id,
-                source_map_index=asset_event.source_map_index,
-                source_aliases=[aam.to_serialized() for aam in asset_alias_models],
-                partition_key=partition_key,
-                partition_date=partition_date,
-            )
+        listener_asset_event = ListenerAssetEvent(
+            asset=asset,
+            extra=asset_event.extra,
+            source_dag_id=asset_event.source_dag_id,
+            source_task_id=asset_event.source_task_id,
+            source_run_id=asset_event.source_run_id,
+            source_map_index=asset_event.source_map_index,
+            source_aliases=[aam.to_serialized() for aam in asset_alias_models],
+            partition_key=partition_key,
+            partition_date=partition_date,
         )
+        if callback_sink is None:
+            cls.notify_asset_changed(asset=asset)
+            cls.nofity_asset_event_emitted(asset_event=listener_asset_event)
+        else:
+            callback_sink.append(partial(cls.notify_asset_changed, asset=asset))
+            callback_sink.append(partial(cls.nofity_asset_event_emitted, asset_event=listener_asset_event))
 
         team_name = None
         if task_instance and conf.getboolean("core", "multi_team"):
