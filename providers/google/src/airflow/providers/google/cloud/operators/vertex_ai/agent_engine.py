@@ -23,6 +23,9 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.cloud.aiplatform_v1.types import QueryReasoningEngineResponse
+
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.cloud.hooks.vertex_ai.agent_engine import (
     AgentEngineHook,
@@ -33,6 +36,7 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.vertex_ai import AgentEngineQueryJobTrigger
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
     from vertexai._genai import types
 
     from airflow.providers.common.compat.sdk import Context
@@ -163,6 +167,82 @@ class GetAgentEngineOperator(GoogleCloudBaseOperator):
         result = _serialize_agent_engine(agent_engine)
         self.log.info("Agent Engine %s was retrieved.", self.agent_engine_id)
         return result
+
+
+class QueryAgentEngineOperator(GoogleCloudBaseOperator):
+    """
+    Query a Vertex AI Agent Engine synchronously.
+
+    :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the service belongs to.
+    :param agent_engine_id: Required. The Agent Engine ID.
+    :param input_data: Optional. Input for the Agent Engine class method in JSON object format.
+    :param class_method: Optional. The Agent Engine class method to invoke. Defaults to ``query``.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term credentials.
+    """
+
+    template_fields = (
+        "project_id",
+        "location",
+        "agent_engine_id",
+        "input_data",
+        "class_method",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        location: str,
+        agent_engine_id: str,
+        input_data: dict[str, Any] | None = None,
+        class_method: str = "query",
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.agent_engine_id = agent_engine_id
+        self.input_data = input_data
+        self.class_method = class_method
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    @cached_property
+    def hook(self) -> AgentEngineHook:
+        return AgentEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context) -> Any:
+        self.log.info("Querying Agent Engine %s.", self.agent_engine_id)
+        response = self.hook.query_agent_engine(
+            project_id=self.project_id,
+            location=self.location,
+            agent_engine_id=self.agent_engine_id,
+            input_data=self.input_data,
+            class_method=self.class_method,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        self.log.info("Agent Engine %s returned a response.", self.agent_engine_id)
+        return QueryReasoningEngineResponse.to_dict(response).get("output")
 
 
 class RunQueryJobOperator(GoogleCloudBaseOperator):
