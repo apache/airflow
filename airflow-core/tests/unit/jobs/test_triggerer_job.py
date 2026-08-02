@@ -3288,31 +3288,45 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
 
 
 class TestCheckForUnhandledTriggers:
-    """Tests for supervisor-vs-subprocess trigger count mismatch detection."""
+    """Tests for recovery of triggers the runner has no coroutine for."""
 
-    def test_mismatch_shuts_down(self, jobless_supervisor):
-        jobless_supervisor.running_triggers = {1, 2, 3}
+    @pytest.mark.parametrize(
+        ("running_triggers", "running_ids", "expected_after"),
+        [
+            pytest.param({1, 2, 3}, {1, 2, 3}, {1, 2, 3}, id="in-sync"),
+            pytest.param(set(), set(), set(), id="no-triggers"),
+            pytest.param({1, 2, 3}, {1, 2}, {1, 2}, id="one-unhandled"),
+            pytest.param({1, 2, 3}, set(), set(), id="all-unhandled"),
+        ],
+    )
+    def test_unhandled_triggers_are_dropped_not_shut_down(
+        self, jobless_supervisor, mocker, running_triggers, running_ids, expected_after
+    ):
+        incr = mocker.patch("airflow.jobs.triggerer_job_runner.stats.incr", autospec=True)
+        jobless_supervisor.running_triggers = set(running_triggers)
+        jobless_supervisor.cancelling_triggers = set(running_triggers)
 
-        jobless_supervisor.check_for_unhandled_triggers(num_running=0)
-        assert jobless_supervisor.stop is True
+        jobless_supervisor.check_for_unhandled_triggers(running_ids)
 
-    def test_matching_counts_no_shutdown(self, jobless_supervisor):
-        jobless_supervisor.running_triggers = {1, 2, 3}
-
-        jobless_supervisor.check_for_unhandled_triggers(num_running=3)
+        unhandled = running_triggers - running_ids
         assert jobless_supervisor.stop is False
+        assert jobless_supervisor.running_triggers == expected_after
+        assert jobless_supervisor.cancelling_triggers == expected_after
+        assert (
+            mocker.call("triggers.state_mismatch", len(unhandled), tags={}) in incr.call_args_list
+        ) is bool(unhandled)
 
-    def test_no_triggers_no_shutdown(self, jobless_supervisor):
-        jobless_supervisor.running_triggers = set()
+    def test_dropped_trigger_is_recreated_next_loop(self, jobless_supervisor, mocker):
+        """Dropping an unhandled id is what lets update_triggers rebuild its workload."""
+        build = mocker.patch.object(
+            TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[]
+        )
+        jobless_supervisor.running_triggers = {1, 2}
 
-        jobless_supervisor.check_for_unhandled_triggers(num_running=0)
-        assert jobless_supervisor.stop is False
+        jobless_supervisor.check_for_unhandled_triggers({1})
+        jobless_supervisor.update_triggers({1, 2})
 
-    def test_subprocess_more_than_expected_shuts_down(self, jobless_supervisor):
-        jobless_supervisor.running_triggers = {1}
-
-        jobless_supervisor.check_for_unhandled_triggers(num_running=3)
-        assert jobless_supervisor.stop is True
+        assert build.call_args.args[1] == {2}
 
     def test_handle_request_checks_before_adding_to_create(self, jobless_supervisor, mocker):
         """The check fires after finished processing but before to_create is added to running_triggers."""
@@ -3327,7 +3341,7 @@ class TestCheckForUnhandledTriggers:
                 events=None,
                 failures=None,
                 finished=[1],
-                num_running=1,
+                running_ids={2},
             ),
             log=MagicMock(spec=FilteringBoundLogger),
             req_id=1,
@@ -3346,7 +3360,7 @@ class TestCheckForUnhandledTriggers:
                 events=None,
                 failures=[(3, ["Traceback..."])],
                 finished=[3],
-                num_running=2,
+                running_ids={1, 2},
             ),
             log=MagicMock(spec=FilteringBoundLogger),
             req_id=1,
@@ -3366,7 +3380,7 @@ class TestCreationFailureInFinished:
         msg = runner.process_trigger_events(finished_ids=[10])
 
         assert msg.finished == [10, 42]
-        assert msg.num_running == 0
+        assert msg.running_ids == set()
 
     def test_serialization_failure_not_in_finished(self):
         runner = TriggerRunner()
@@ -3376,4 +3390,13 @@ class TestCreationFailureInFinished:
         msg = runner.process_trigger_events(finished_ids=[])
 
         assert msg.finished is None
-        assert msg.num_running == 1
+        assert msg.running_ids == {42}
+
+    def test_caller_finished_ids_not_mutated(self):
+        runner = TriggerRunner()
+        runner.failed_triggers.append((42, ValueError("bad classpath")))
+        finished_ids = [10]
+
+        runner.process_trigger_events(finished_ids=finished_ids)
+
+        assert finished_ids == [10]

@@ -330,7 +330,8 @@ class messages:
         # Format of list[str] is the exc traceback format
         failures: list[tuple[int, list[str] | None]] | None = None
         finished: list[int] | None = None
-        num_running: int = 0
+        # Ids the runner has a live coroutine for
+        running_ids: set[int] = set()
 
     class TriggerStateSync(BaseModel):
         type: Literal["TriggerStateSync"] = "TriggerStateSync"
@@ -602,7 +603,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                         # handle leaks for every failed upload.
                         factory.close()
 
-            self.check_for_unhandled_triggers(msg.num_running)
+            self.check_for_unhandled_triggers(msg.running_ids)
 
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
@@ -784,20 +785,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         """Remove triggers that are no longer needed."""
         Trigger.clean_unused()
 
-    def check_for_unhandled_triggers(self, num_running: int) -> None:
+    def check_for_unhandled_triggers(self, running_ids: set[int]) -> None:
         """
-        Shut down if the subprocess trigger count disagrees with the supervisor.
+        Re-create triggers we track as running that the runner has no coroutine for.
 
-        Only valid between finished-removal and to_create-addition in ``_handle_request``.
+        Only valid between finished-removal and to_create-addition in ``_handle_request``, where the
+        two sides agree. Dropping the leftovers lets :meth:`update_triggers` rebuild them.
         """
-        expected = len(self.running_triggers)
-        if expected != num_running:
-            log.error(
-                "Trigger count mismatch: expected %d, subprocess reports %d. Shutting down.",
-                expected,
-                num_running,
-            )
-            self.stop = True
+        unhandled = self.running_triggers - running_ids
+        if not unhandled:
+            return
+        log.error("Triggers have no coroutine in the runner; re-creating", trigger_ids=sorted(unhandled))
+        self.running_triggers -= unhandled
+        self.cancelling_triggers -= unhandled
+        stats.incr("triggers.state_mismatch", len(unhandled), tags=prune_dict({"team_name": self.team_name}))
 
     def handle_failed_triggers(self):
         """
@@ -1516,6 +1517,7 @@ class TriggerRunner:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
         events_to_send: list[TriggerEventEntry] = []
         failures_to_send: list[tuple[int, list[str] | None]] = []
+        finished_to_send = list(finished_ids)
 
         while self.events:
             events_to_send.append(self.events.popleft())
@@ -1525,13 +1527,13 @@ class TriggerRunner:
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
             failures_to_send.append((trigger_id, tb))
             if trigger_id not in self.triggers:
-                finished_ids.append(trigger_id)
+                finished_to_send.append(trigger_id)
 
         return messages.TriggerStateChanges(
             events=events_to_send if events_to_send else None,
-            finished=finished_ids if finished_ids else None,
+            finished=finished_to_send if finished_to_send else None,
             failures=failures_to_send if failures_to_send else None,
-            num_running=len(self.triggers),
+            running_ids=set(self.triggers),
         )
 
     def sanitize_trigger_events(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
@@ -1560,7 +1562,7 @@ class TriggerRunner:
             events=events_to_send if events_to_send else None,
             finished=msg.finished,
             failures=msg.failures,
-            num_running=msg.num_running,
+            running_ids=msg.running_ids,
         )
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:
