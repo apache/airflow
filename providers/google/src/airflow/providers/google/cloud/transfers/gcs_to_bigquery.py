@@ -364,6 +364,8 @@ class GCSToBigQueryOperator(BaseOperator):
             self.src_fmt_configs = {}
         if self.schema_object_bucket is None:
             self.schema_object_bucket = self.bucket
+            # Not captured in the rendered-template view (it defaults after rendering), so log it.
+            self.log.info("schema_object_bucket not set, defaulting to bucket %s", self.bucket)
         self._warn_on_deprecated_template_fields()
 
         hook = BigQueryHook(
