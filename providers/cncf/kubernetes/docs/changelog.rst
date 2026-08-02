@@ -33,7 +33,7 @@ Changelog
 .. note::
     ``airflow kubernetes cleanup-pods`` now takes ``--min-completed-minutes``, which defaults to
     ``1``. Terminal pods are therefore no longer deleted immediately; pass
-    ``--min-completed-minutes 0`` to restore the previous behaviour. The delay closes a race
+    ``--min-completed-minutes 0`` to restore the previous behavior. The delay closes a race
     where cleanup removed a pod before ``await_pod_completion`` had read its final state.
 
 Features

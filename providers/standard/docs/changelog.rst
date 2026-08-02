@@ -45,7 +45,7 @@ Changelog
     ``hitl_summary_extra`` dict instead -- ``self.hitl_summary_extra["key"] = value``. Reading
     ``hitl_summary`` is unchanged: it still returns the merged summary including those entries.
 
-    ``ExternalTaskSensor``'s ``poll_interval`` is deprecated in favour of ``poke_interval``.
+    ``ExternalTaskSensor``'s ``poll_interval`` is deprecated in favor of ``poke_interval``.
     The old name still works, but the effective deferrable poll interval for users who set
     neither now comes from ``BaseSensorOperator.poke_interval`` (60s) instead of the previous
     hard-coded 2s. Set ``poke_interval`` explicitly to keep a faster cadence.

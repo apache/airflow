@@ -41,7 +41,7 @@ Changelog
     sqlglot cannot type, are refused before the query runs. This closes a bypass where
     ``pg_read_file()``, ``query_to_xml()`` and ``COPY ... FROM PROGRAM`` reached data and files
     outside ``allowed_tables``. Project UDFs and a few common builtins such as
-    ``json_build_object`` also parse as untyped; pass them in the new ``allowed_functions``
+    ``json_build_object`` are also not recognized; pass them in the new ``allowed_functions``
     argument to permit them. The database role remains the real security boundary.
 
 Features
