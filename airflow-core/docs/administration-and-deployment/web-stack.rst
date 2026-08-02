@@ -142,8 +142,8 @@ The following configuration options are available in the ``[api]`` section:
 - ``server_type``: ``uvicorn`` (default) or ``gunicorn``
 - ``worker_refresh_interval``: Seconds between worker refresh cycles (0 = disabled, default)
 - ``worker_refresh_batch_size``: Number of workers to refresh per cycle (default: 1)
-- ``dag_cache_size``: Max cached SerializedDAG versions in the API server (default: 64, 0 = unbounded)
-- ``dag_cache_ttl``: TTL in seconds for cached DAGs (default: 3600, 0 = LRU only)
+- ``dag_cache_size``: Max cached SerializedDAG versions in the API server (default: 64, 0 = no size cap)
+- ``dag_cache_ttl``: TTL in seconds for cached DAGs (default: 3600, 0 = LRU only, both 0 = no eviction)
 
 When to Use Gunicorn
 ^^^^^^^^^^^^^^^^^^^^
