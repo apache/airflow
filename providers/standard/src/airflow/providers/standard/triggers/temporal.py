@@ -37,15 +37,9 @@ class DateTimeTrigger(BaseTrigger):
     The provided datetime MUST be in UTC.
 
     :param moment: when to yield event
-    :param target_time: a Jinja-templated ``target_time`` string that has not yet been rendered.
-        Used instead of ``moment`` only when this trigger is created via ``start_from_trigger`` with
-        a ``target_time`` that could not be resolved to a concrete datetime at Dag-parse time (i.e.
-        it is a template).
-        Mutually exclusive with ``moment``. ``target_time`` is one of ``DateTimeSensor``'s
-        ``template_fields``, so the triggerer renders it in place (see
-        ``BaseTrigger.render_template_fields``) before ``run()`` is invoked; it is then parsed into
-        ``moment`` on first use. This mirrors how ``FileSensor`` defers rendering of a templated
-        ``filepath`` to the triggerer.
+    :param target_time: Templated ``target_time`` value to resolve when the trigger runs. Used
+        instead of ``moment`` when the target time cannot be determined during operator
+        initialization. Mutually exclusive with ``moment``.
     :param end_from_trigger: whether the trigger should mark the task successful after time condition
         reached or resume the task after time condition reached.
     """
@@ -64,9 +58,6 @@ class DateTimeTrigger(BaseTrigger):
             raise TypeError("DateTimeTrigger accepts only one of 'moment' or 'target_time', not both")
 
         self.end_from_trigger = end_from_trigger
-        # Kept around (and, when set, treated as a template field, see task_instance.setter in
-        # BaseTrigger) so an unrendered `target_time` can be handed to the triggerer and rendered
-        # there before `run()`/`serialize()` need a concrete moment.
         self.target_time = target_time
 
         self.moment: pendulum.DateTime | None
@@ -85,6 +76,9 @@ class DateTimeTrigger(BaseTrigger):
         if self.moment is not None:
             return self.moment
         if not self.target_time:
+            # __init__ guarantees one of moment/target_time is set; this only trips if
+            # target_time is cleared after construction, which would otherwise surface as a
+            # confusing AttributeError below instead of this clear message.
             raise TypeError("DateTimeTrigger requires either 'moment' or 'target_time' to be set")
         try:
             parsed = timezone.parse(self.target_time)
@@ -98,13 +92,8 @@ class DateTimeTrigger(BaseTrigger):
         return self.moment
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        # `target_time` is deliberately not round-tripped here: it is folded into a concrete
-        # `moment` by `_resolve_moment()` before serialization, the same way `TimeDeltaTrigger`
-        # folds `delta` into `moment` (see the exclusion for this class in
-        # scripts/ci/prek/check_trigger_serialize_init.py). By the time serialize() is called,
-        # target_time has either already been rendered by the triggerer (see
-        # BaseTrigger.render_template_fields) or resolution raises a clear error -- there is no
-        # unrendered template left to preserve.
+        # `target_time` folds into `moment` here, same as `TimeDeltaTrigger` folds `delta` into
+        # `moment` (see the exclusion for this class in check_trigger_serialize_init.py).
         return (
             "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
             {"moment": self._resolve_moment(), "end_from_trigger": self.end_from_trigger},
