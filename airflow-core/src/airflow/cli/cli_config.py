@@ -1681,6 +1681,13 @@ TEAMS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.team_command.team_sync"),
         args=(ARG_VERBOSE,),
     ),
+    ActionCommand(
+        name="verify",
+        help="Verify multi-team configuration",
+        description=("Verify that the multi-team configuration is internally consistent.\n"),
+        func=lazy_load_command("airflow.cli.commands.team_command.team_verify"),
+        args=(ARG_VERBOSE,),
+    ),
 )
 STATE_STORE_COMMANDS = (
     ActionCommand(

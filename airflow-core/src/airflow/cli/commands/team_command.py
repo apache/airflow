@@ -238,3 +238,46 @@ def team_sync(args, *, session=NEW_SESSION):
 
     if teams_added > 0:
         print(f"{teams_added} teams added.")
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@provide_session
+def team_verify(args, *, session=NEW_SESSION):
+    """Verify that the multi-team configuration is consistent."""
+    if not conf.getboolean("core", "multi_team"):
+        print("Multi-team is not enabled.")
+        return
+
+    issues: list[str] = []
+
+    teams = session.scalars(select(Team)).all()
+
+    for team in teams:
+        default_pool_name = Pool.get_default_team_pool_name(team.name)
+
+        default_pool = session.scalar(
+            select(Pool).where(
+                Pool.pool == default_pool_name,
+                Pool.team_name == team.name,
+            )
+        )
+
+        if default_pool is None:
+            issues.append(f"Team '{team.name}' is missing default pool '{default_pool_name}'.")
+
+    existing_teams = {team.name for team in teams}
+
+    for bundle_name, bundle in DagBundlesManager()._bundle_config.items():
+        if bundle.team_name and bundle.team_name not in existing_teams:
+            issues.append(f"DAG bundle '{bundle_name}' references unknown team '{bundle.team_name}'.")
+
+    if issues:
+        print("Verification failed.\n")
+
+        for issue in issues:
+            print(f"✗ {issue}")
+
+        raise SystemExit(1)
+
+    print("Verification succeeded.")

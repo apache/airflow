@@ -475,3 +475,63 @@ class TestCliTeams:
 
         assert pool is not None
         assert pool.team_name == "team1"
+
+    def test_team_verify_multi_team_disabled(self, stdout_capture):
+        with conf_vars({("core", "multi_team"): "False"}):
+            with stdout_capture as stdout:
+                team_command.team_verify(self.parser.parse_args(["teams", "verify"]))
+
+        assert "Multi-team is not enabled." in stdout.getvalue()
+
+    def test_team_verify_success(self, stdout_capture):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+        ]
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            team_command.team_sync(self.parser.parse_args(["teams", "sync"]))
+
+            with stdout_capture as stdout:
+                team_command.team_verify(self.parser.parse_args(["teams", "verify"]))
+
+        assert "Verification succeeded." in stdout.getvalue()
+
+    def test_team_verify_missing_default_pool(self):
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(SystemExit):
+                team_command.team_verify(self.parser.parse_args(["teams", "verify"]))
+
+    def test_team_verify_unknown_bundle_team(self, stdout_capture):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "missing-team",
+            },
+        ]
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with stdout_capture as stdout:
+                with pytest.raises(SystemExit):
+                    team_command.team_verify(self.parser.parse_args(["teams", "verify"]))
+
+        assert "references unknown team 'missing-team'" in stdout.getvalue()
