@@ -110,18 +110,16 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.headers.get("content-type") != "application/json":
             return None
 
-        if 400 <= response.status_code < 500:
-            response.read()
-            return cls(
-                message=f"Client error message: {response.json()}",
-                request=response.request,
-                response=response,
-            )
+        # httpx runs response event hooks before it reads the body, so the body has to be
+        # pulled in explicitly here or ``.json()`` raises ``httpx.ResponseNotRead``.
+        response.read()
 
-        msg = response.json()
-
-        self = cls(message=msg, request=response.request, response=response)
-        return self
+        error_kind = "Client" if response.status_code < 500 else "Server"
+        return cls(
+            message=f"{error_kind} error message: {response.json()}",
+            request=response.request,
+            response=response,
+        )
 
 
 def _check_flag_and_exit_if_server_response_error(func):
