@@ -22,9 +22,10 @@ package org.apache.airflow.sdk.execution
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.supervisorScope
 import org.apache.airflow.sdk.ApiError
-import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.execution.comm.GetVariable
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TaskInstance
@@ -99,7 +100,10 @@ class CommsTest {
     Assertions.assertEquals(expected, actual)
   }
 
-  private fun responseFrame(id: Int): ByteArray {
+  private fun responseFrame(
+    id: Int,
+    key: String = "return_value",
+  ): ByteArray {
     val out = ByteArrayOutputStream()
     MessagePack.newDefaultPacker(out).use { packer ->
       packer.packArrayHeader(3)
@@ -108,7 +112,7 @@ class CommsTest {
       packer.packString("type")
       packer.packString("XComResult")
       packer.packString("key")
-      packer.packString("return_value")
+      packer.packString(key)
       packer.packString("value")
       packer.packInt(1)
       packer.packNil()
@@ -116,27 +120,93 @@ class CommsTest {
     return out.toByteArray()
   }
 
+  private fun unknownTypeFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(1)
+      packer.packString("type")
+      packer.packString("SomeFutureMessage")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
+    writeByteArray(Frame.lengthPrefix(payload.size))
+    writeByteArray(payload)
+  }
+
+  private suspend fun ByteChannel.readOneRequest() {
+    val prefix = readByteArray(4)
+    readByteArray(Frame.parseLengthPrefix(prefix))
+  }
+
   @Test
-  @DisplayName("Should reject a response whose id does not match the request")
-  fun rejectsResponseWhoseIdDoesNotMatchRequest() {
+  @DisplayName("Should discard a frame with no matching waiter and still deliver the correct response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun discardsUnmatchedFrameAndDeliversCorrectResponse() {
     val toClient = ByteChannel(autoFlush = true)
     val fromClient = ByteChannel(autoFlush = true)
-    val comm = CoordinatorComm(Bundle(emptyList()), toClient, fromClient)
+    val comm = CoordinatorComm(toClient, fromClient)
 
-    val error =
-      Assertions.assertThrows(ApiError::class.java) {
+    val result =
+      runBlocking {
+        // A frame whose id (99) matches no in-flight request.
+        // The dispatcher must drop the stray frame and still hand id 0 to its waiter.
+        toClient.writeFrame(responseFrame(99, key = "stray"))
+        toClient.writeFrame(responseFrame(0, key = "return_value"))
+        comm.communicate<XComResult>(GetVariable().also { it.key = "k" })
+      }
+
+    Assertions.assertEquals("return_value", result.key)
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should keep many requests in flight and match out-of-order responses")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun allowsMultipleInFlightRequestsAnsweredOutOfOrder() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val n = 10
+
+    // Collect every request before answering any, then reply in reverse order.
+    val server =
+      Thread {
         runBlocking {
-          // The first request is sent with id 0. The 99 doesn't match 0.
-          val payload = responseFrame(99)
-          toClient.writeByteArray(Frame.lengthPrefix(payload.size))
-          toClient.writeByteArray(payload)
-          comm.communicate<XComResult>(GetVariable().also { it.key = "k" })
+          val ids =
+            (0 until n).map {
+              val prefix = fromClient.readByteArray(4)
+              val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix))
+              CoordinatorComm.decode(payload).id
+            }
+          ids.reversed().forEach { toClient.writeFrame(responseFrame(it)) }
         }
       }
-    Assertions.assertTrue(
-      error.message!!.contains("does not match"),
-      "expected an id-mismatch error, got: ${error.message}",
-    )
+    server.start()
+
+    val errors = ConcurrentLinkedQueue<Throwable>()
+    val results = ConcurrentLinkedQueue<XComResult>()
+    val workers =
+      (1..n).map {
+        Thread {
+          try {
+            results.add(runBlocking { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) })
+          } catch (e: Throwable) {
+            errors.add(e)
+          }
+        }
+      }
+    workers.forEach { it.start() }
+    workers.forEach { it.join() }
+    server.join()
+
+    Assertions.assertTrue(errors.isEmpty(), "concurrent in-flight calls failed: $errors")
+    Assertions.assertEquals(n, results.size)
+    comm.close()
   }
 
   @Test
@@ -145,7 +215,7 @@ class CommsTest {
   fun publicClientSurvivesConcurrentThreadCalls() {
     val toClient = ByteChannel(autoFlush = true)
     val fromClient = ByteChannel(autoFlush = true)
-    val comm = CoordinatorComm(Bundle(emptyList()), toClient, fromClient)
+    val comm = CoordinatorComm(toClient, fromClient)
     val details =
       StartupDetails().also {
         it.ti =
@@ -163,9 +233,7 @@ class CommsTest {
           repeat(n) {
             val prefix = fromClient.readByteArray(4)
             val payload = fromClient.readByteArray(Frame.parseLengthPrefix(prefix))
-            val response = responseFrame(CoordinatorComm.decode(payload).id)
-            toClient.writeByteArray(Frame.lengthPrefix(response.size))
-            toClient.writeByteArray(response)
+            toClient.writeFrame(responseFrame(CoordinatorComm.decode(payload).id))
           }
         }
       }
@@ -189,5 +257,105 @@ class CommsTest {
 
     Assertions.assertTrue(errors.isEmpty(), "concurrent public-client calls failed: $errors")
     Assertions.assertEquals(n, results.size)
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should fail a pending call when the coordinator socket closes")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun failsPendingCallWhenSocketCloses() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    Assertions.assertThrows(ApiError::class.java) {
+      runBlocking {
+        val call = async { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+        // No response is ever written; closing the read side must surface an
+        // error to the waiting caller instead of hanging forever.
+        toClient.flushAndClose()
+        call.await()
+      }
+    }
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should fail a call that is still in flight when the comm is closed")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun closeFailsInFlightCall() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    Assertions.assertThrows(ApiError::class.java) {
+      runBlocking {
+        val call = async { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+        fromClient.readOneRequest()
+        // The waiter awaits in the caller's own scope, so closing the comm should make it stop waiting.
+        comm.close()
+        call.await()
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Should fail only the request whose response cannot be decoded")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun undecodableResponseFailsOnlyItsOwnRequest() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    runBlocking {
+      supervisorScope {
+        // Start the calls one at a time so their ids are known: 0, then 1.
+        val undecodable = async { comm.communicate<XComResult>(GetVariable().also { it.key = "a" }) }
+        fromClient.readOneRequest()
+        val healthy = async { comm.communicate<XComResult>(GetVariable().also { it.key = "b" }) }
+        fromClient.readOneRequest()
+
+        toClient.writeFrame(unknownTypeFrame(0))
+        toClient.writeFrame(responseFrame(1))
+
+        Assertions.assertInstanceOf(
+          ApiError::class.java,
+          runCatching { undecodable.await() }.exceptionOrNull(),
+          "a response naming an unknown type should fail its own request",
+        )
+        // The dispatcher survived the bad frame, so the other call still lands.
+        Assertions.assertEquals("return_value", healthy.await().key)
+      }
+    }
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("Should keep the original cause when a malformed frame stops the dispatcher")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun malformedFramePreservesOriginalCause() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    val failure =
+      runBlocking {
+        supervisorScope {
+          val call = async { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+          fromClient.readOneRequest()
+          // Msgpack nil where the frame envelope belongs: without an id there is no
+          // request to attribute the failure to, so every waiter goes down with it.
+          toClient.writeFrame(byteArrayOf(0xc0.toByte()))
+          runCatching { call.await() }.exceptionOrNull()
+        }
+      }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
+    val causes = generateSequence(failure) { it.cause }.toList()
+    Assertions.assertTrue(
+      causes.any { it !is ApiError },
+      "the underlying decode failure should be preserved, got: $causes",
+    )
+    comm.close()
   }
 }

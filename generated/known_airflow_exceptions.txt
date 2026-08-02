@@ -33,7 +33,7 @@ devel-common/src/tests_common/test_utils/sftp_system_helpers.py::1
 devel-common/src/tests_common/test_utils/watcher.py::1
 providers/airbyte/src/airflow/providers/airbyte/hooks/airbyte.py::8
 providers/airbyte/src/airflow/providers/airbyte/operators/airbyte.py::3
-providers/airbyte/src/airflow/providers/airbyte/sensors/airbyte.py::6
+providers/airbyte/src/airflow/providers/airbyte/sensors/airbyte.py::5
 providers/alibaba/src/airflow/providers/alibaba/cloud/hooks/analyticdb_spark.py::6
 providers/alibaba/src/airflow/providers/alibaba/cloud/hooks/oss.py::11
 providers/alibaba/src/airflow/providers/alibaba/cloud/operators/analyticdb_spark.py::1
@@ -69,7 +69,7 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/batch.py::5
 providers/amazon/src/airflow/providers/amazon/aws/operators/bedrock.py::6
 providers/amazon/src/airflow/providers/amazon/aws/operators/comprehend.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/datasync.py::10
-providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::6
+providers/amazon/src/airflow/providers/amazon/aws/operators/dms.py::5
 providers/amazon/src/airflow/providers/amazon/aws/operators/ec2.py::1
 providers/amazon/src/airflow/providers/amazon/aws/operators/ecs.py::7
 providers/amazon/src/airflow/providers/amazon/aws/operators/eks.py::12
@@ -85,7 +85,7 @@ providers/amazon/src/airflow/providers/amazon/aws/operators/neptune.py::4
 providers/amazon/src/airflow/providers/amazon/aws/operators/rds.py::4
 providers/amazon/src/airflow/providers/amazon/aws/operators/redshift_cluster.py::9
 providers/amazon/src/airflow/providers/amazon/aws/operators/redshift_data.py::2
-providers/amazon/src/airflow/providers/amazon/aws/operators/s3.py::5
+providers/amazon/src/airflow/providers/amazon/aws/operators/s3.py::4
 providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker.py::22
 providers/amazon/src/airflow/providers/amazon/aws/operators/sagemaker_unified_studio.py::2
 providers/amazon/src/airflow/providers/amazon/aws/operators/step_function.py::2
@@ -147,7 +147,6 @@ providers/apache/pinot/src/airflow/providers/apache/pinot/hooks/pinot.py::1
 providers/apache/spark/src/airflow/providers/apache/spark/hooks/spark_sql.py::2
 providers/apache/spark/src/airflow/providers/apache/spark/hooks/spark_submit.py::10
 providers/arangodb/src/airflow/providers/arangodb/hooks/arangodb.py::9
-providers/arangodb/src/airflow/providers/arangodb/operators/arangodb.py::1
 providers/atlassian/jira/src/airflow/providers/atlassian/jira/hooks/jira.py::1
 providers/celery/src/airflow/providers/celery/executors/celery_executor_utils.py::2
 providers/celery/src/airflow/providers/celery/executors/default_celery.py::2
@@ -361,7 +360,6 @@ providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/synaps
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/data_factory.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/msgraph.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/sensors/wasb.py::4
-providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/local_to_adls.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/transfers/sftp_to_wasb.py::1
 providers/microsoft/azure/tests/unit/microsoft/azure/hooks/test_asb.py::3
 providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_asb.py::3
@@ -376,7 +374,6 @@ providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py::1
 providers/opensearch/src/airflow/providers/opensearch/operators/opensearch.py::9
 providers/pagerduty/src/airflow/providers/pagerduty/hooks/pagerduty.py::1
 providers/pagerduty/src/airflow/providers/pagerduty/hooks/pagerduty_events.py::2
-providers/postgres/src/airflow/providers/postgres/hooks/postgres.py::2
 providers/presto/src/airflow/providers/presto/hooks/presto.py::1
 providers/samba/src/airflow/providers/samba/transfers/gcs_to_samba.py::1
 providers/segment/src/airflow/providers/segment/hooks/segment.py::2

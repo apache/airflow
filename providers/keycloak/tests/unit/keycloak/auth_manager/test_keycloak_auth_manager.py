@@ -122,19 +122,33 @@ def _clear_filter_cache():
 
 
 class TestKeycloakAuthManager:
-    def test_deserialize_user(self, auth_manager):
-        result = auth_manager.deserialize_user(
-            {
-                "user_id": "user_id",
-                "name": "name",
-                "access_token": "access_token",
-                "refresh_token": "refresh_token",
-            }
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager._get_keycloak_jwt")
+    def test_deserialize_user(self, mock_get_keycloak_jwt, auth_manager):
+        mock_get_keycloak_jwt.return_value = KeycloakAuthManagerUser(
+            user_id="user_id", name="name", access_token="access_token", refresh_token="refresh_token"
         )
+        result = auth_manager.deserialize_user({"user_id": "user_id", "name": "name"})
         assert result.user_id == "user_id"
         assert result.name == "name"
         assert result.access_token == "access_token"
         assert result.refresh_token == "refresh_token"
+
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager._get_keycloak_jwt")
+    def test_deserialize_user_missing(self, mock_get_keycloak_jwt, auth_manager):
+        mock_get_keycloak_jwt.return_value = None
+        with pytest.raises(ValueError, match="Couldn't deserialise user from Cookies."):
+            auth_manager.deserialize_user({"user_id": "user_id", "name": "name"})
+
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager._get_keycloak_jwt")
+    def test_deserialize_user_doesnt_match(self, mock_get_keycloak_jwt, auth_manager):
+        mock_get_keycloak_jwt.return_value = KeycloakAuthManagerUser(
+            user_id="user_2",
+            name="name",
+            access_token="access_token",
+            refresh_token="refresh_token",
+        )
+        with pytest.raises(ValueError, match="Keycloak user in Cookies does not match Airflow JWT."):
+            auth_manager.deserialize_user({"user_id": "user_id", "name": "name"})
 
     def test_serialize_user(self, auth_manager):
         result = auth_manager.serialize_user(
@@ -145,8 +159,6 @@ class TestKeycloakAuthManager:
         assert result == {
             "user_id": "user_id",
             "name": "name",
-            "access_token": "access_token",
-            "refresh_token": "refresh_token",
         }
 
     def test_get_url_login(self, auth_manager):
@@ -1148,6 +1160,126 @@ class TestKeycloakAuthManager:
         assert result1 == dag_ids
         assert result2 == dag_ids
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_connection",
+        side_effect=lambda *, details, **kw: {"conn_0": True, "conn_1": False, "conn_2": True}[
+            details.conn_id
+        ],
+    )
+    def test_filter_authorized_connections(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_connections(
+            conn_ids={"conn_0", "conn_1", "conn_2"}, user=user, method="GET"
+        )
+
+        assert result == {"conn_0", "conn_2"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_connections_empty(self, auth_manager, user):
+        result = auth_manager.filter_authorized_connections(conn_ids=set(), user=user, method="GET")
+        assert result == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_connection", return_value=False)
+    def test_filter_authorized_connections_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_connections(
+            conn_ids={"conn_0", "conn_1"}, user=user, method="GET"
+        )
+
+        assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_connection", return_value=True)
+    def test_filter_authorized_connections_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        conn_ids = {"conn_0", "conn_1"}
+
+        result1 = auth_manager.filter_authorized_connections(conn_ids=conn_ids, user=user, method="GET")
+        result2 = auth_manager.filter_authorized_connections(conn_ids=conn_ids, user=user, method="GET")
+
+        assert result1 == conn_ids
+        assert result2 == conn_ids
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_pool",
+        side_effect=lambda *, details, **kw: {"pool_0": True, "pool_1": False, "pool_2": True}[details.name],
+    )
+    def test_filter_authorized_pools(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_pools(
+            pool_names={"pool_0", "pool_1", "pool_2"}, user=user, method="GET"
+        )
+
+        assert result == {"pool_0", "pool_2"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_pools_empty(self, auth_manager, user):
+        result = auth_manager.filter_authorized_pools(pool_names=set(), user=user, method="GET")
+        assert result == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
+    def test_filter_authorized_pools_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_pools(
+            pool_names={"pool_0", "pool_1"}, user=user, method="GET"
+        )
+
+        assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=True)
+    def test_filter_authorized_pools_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        pool_names = {"pool_0", "pool_1"}
+
+        result1 = auth_manager.filter_authorized_pools(pool_names=pool_names, user=user, method="GET")
+        result2 = auth_manager.filter_authorized_pools(pool_names=pool_names, user=user, method="GET")
+
+        assert result1 == pool_names
+        assert result2 == pool_names
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_variable",
+        side_effect=lambda *, details, **kw: {"var_0": True, "var_1": False, "var_2": True}[details.key],
+    )
+    def test_filter_authorized_variables(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_variables(
+            variable_keys={"var_0", "var_1", "var_2"}, user=user, method="GET"
+        )
+
+        assert result == {"var_0", "var_2"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_variables_empty(self, auth_manager, user):
+        result = auth_manager.filter_authorized_variables(variable_keys=set(), user=user, method="GET")
+        assert result == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_variable", return_value=False)
+    def test_filter_authorized_variables_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_variables(
+            variable_keys={"var_0", "var_1"}, user=user, method="GET"
+        )
+
+        assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_variable", return_value=True)
+    def test_filter_authorized_variables_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        variable_keys = {"var_0", "var_1"}
+
+        result1 = auth_manager.filter_authorized_variables(
+            variable_keys=variable_keys, user=user, method="GET"
+        )
+        result2 = auth_manager.filter_authorized_variables(
+            variable_keys=variable_keys, user=user, method="GET"
+        )
+
+        assert result1 == variable_keys
+        assert result2 == variable_keys
         assert mock_is_authorized.call_count == 2
 
     @pytest.mark.parametrize(
