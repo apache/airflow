@@ -66,14 +66,14 @@ class AzureBatchTrigger(BaseTrigger):
 
     def _get_incomplete_tasks(
         self,
-        tasks: list[batch_models.CloudTask],
-    ) -> list[batch_models.CloudTask]:
+        tasks: list[batch_models.BatchTask],
+    ) -> list[batch_models.BatchTask]:
         """Return tasks that have not yet completed."""
-        return [task for task in tasks if task.state != batch_models.TaskState.completed]
+        return [task for task in tasks if task.state != batch_models.BatchTaskState.COMPLETED]
 
     def _build_trigger_event(
         self,
-        tasks: list[batch_models.CloudTask],
+        tasks: list[batch_models.BatchTask],
     ) -> TriggerEvent | None:
         """
         Convert Batch task states to TriggerEvent.
@@ -95,7 +95,8 @@ class AzureBatchTrigger(BaseTrigger):
         failed_tasks = [
             task.id
             for task in tasks
-            if task.execution_info and task.execution_info.result == batch_models.TaskExecutionResult.failure
+            if task.execution_info
+            and task.execution_info.result == batch_models.BatchTaskExecutionResult.FAILURE
         ]
 
         if failed_tasks:
@@ -124,7 +125,7 @@ class AzureBatchTrigger(BaseTrigger):
 
         try:
             while time.time() <= self.end_time:
-                tasks = await asyncio.to_thread(lambda: list(hook.connection.task.list(self.job_id)))
+                tasks = await asyncio.to_thread(lambda: list(hook.connection.list_tasks(self.job_id)))
 
                 event = self._build_trigger_event(tasks)
 
@@ -145,7 +146,7 @@ class AzureBatchTrigger(BaseTrigger):
 
             # Final check before timeout event in case job completed
             # during the last sleep interval.
-            tasks = await asyncio.to_thread(lambda: list(hook.connection.task.list(self.job_id)))
+            tasks = await asyncio.to_thread(lambda: list(hook.connection.list_tasks(self.job_id)))
 
             event = self._build_trigger_event(tasks)
 
