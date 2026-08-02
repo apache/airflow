@@ -153,9 +153,9 @@ class DocumentLoaderOperator(BaseOperator):
 
     def execute(self, context: Context) -> list[dict[str, Any]]:
         # file_type and source_path can each be *supplied* (as non-None argument) yet still
-        # render to None. These aren't provision checks (that already happened in __init__); 
-        # they guard the rendered value itself, since _parse_bytes/_resolve_files need a real 
-        # value to work with. Checking this in __init__ would validate the unrendered template 
+        # render to None. These aren't provision checks (that already happened in __init__);
+        # they guard the rendered value itself, since _parse_bytes/_resolve_files need a real
+        # value to work with. Checking this in __init__ would validate the unrendered template
         # string instead of the value actually used here.
         if self.source_bytes is not None and self.file_type is None:
             raise ValueError("'file_type' is required when using 'source_bytes' (e.g. '.pdf').")
