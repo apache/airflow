@@ -185,7 +185,7 @@ class TestRunAgentQueryOperator:
             timeout=60,
             metadata=(("key", "value"),),
         )
-        assert result == query_output
+        assert result == {"output": query_output}
 
 
 class TestRunQueryJobOperator:
