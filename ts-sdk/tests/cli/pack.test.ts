@@ -22,7 +22,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   EMBEDDED_METADATA_PREFIX,
@@ -36,6 +36,7 @@ import { AIRFLOW_METADATA_SENTINEL } from "../../src/coordinator/manifest.js";
 const FIXTURE_ENTRY = fileURLToPath(new URL("fixtures/entry.ts", import.meta.url));
 const NOISY_ENTRY = fileURLToPath(new URL("fixtures/noisy-entry.ts", import.meta.url));
 const EMPTY_ENTRY = fileURLToPath(new URL("fixtures/empty-entry.ts", import.meta.url));
+const SUSPICIOUS_ENTRY = fileURLToPath(new URL("fixtures/suspicious-entry.ts", import.meta.url));
 const SDK_INDEX = fileURLToPath(new URL("../../src/index.ts", import.meta.url));
 const SDK_VERSION = (
   JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf-8")) as {
@@ -186,5 +187,20 @@ describe("runPack", () => {
     await expect(runPack([EMPTY_ENTRY, "--outdir", outdir])).rejects.toThrow("registered no tasks");
     expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(false);
     expect(existsSync(path.join(outdir, "bundle.pack-staging.mjs"))).toBe(false);
+  });
+
+  it("warns on a suspicious dag id but still packs", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      await runPack([SUSPICIOUS_ENTRY, "--outdir", outdir]);
+      expect(warn).toHaveBeenCalledWith(
+        'warning: dag id "bad dag" must be made of alphanumeric characters, dashes, dots, and underscores; the Airflow server will reject it',
+      );
+    } finally {
+      warn.mockRestore();
+    }
+
+    expect(existsSync(path.join(outdir, "bundle.mjs"))).toBe(true);
   });
 });
