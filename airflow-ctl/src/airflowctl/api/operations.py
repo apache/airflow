@@ -104,15 +104,12 @@ def _build_query_params(**values: Any) -> dict[str, Any]:
 
 
 def _has_json_body(response: httpx.Response) -> bool:
-    """
-    Check whether a response declares a JSON body.
-
-    Media types are case-insensitive and may carry parameters (RFC 9110), so a proxy in
-    front of the API server that rewrites ``application/json`` into
-    ``application/json; charset=utf-8`` must not defeat the check — otherwise the friendly
-    error handling built on :class:`ServerResponseError` is silently skipped and callers
-    get a bare ``httpx.HTTPStatusError`` instead.
-    """
+    """Check whether a response declares a JSON body."""
+    # Media types are case-insensitive and may carry parameters (RFC 9110), so a proxy in
+    # front of the API server that rewrites "application/json" into
+    # "application/json; charset=utf-8" must not defeat the check — otherwise the friendly
+    # error handling built on ServerResponseError is silently skipped and callers get a
+    # bare httpx.HTTPStatusError instead.
     media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
     return media_type == "application/json" or media_type.endswith("+json")
 
