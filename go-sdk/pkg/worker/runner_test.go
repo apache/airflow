@@ -28,11 +28,9 @@ import (
 
 	"github.com/cappuccinotm/slogx/slogt"
 	"github.com/google/uuid"
-	"github.com/jarcoal/httpmock"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"resty.dev/v3"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/pkg/api"
@@ -41,6 +39,14 @@ import (
 )
 
 const ExecutionAPIServer = "http://localhost:9999/execution"
+
+func httpResponse(status int) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Status:     http.StatusText(status),
+		Header:     http.Header{},
+	}
+}
 
 func newTestWorkLoad(id string, dagId string) api.ExecuteTaskWorkload {
 	if dagId == "" {
@@ -73,11 +79,9 @@ func newTestWorkLoad(id string, dagId string) api.ExecuteTaskWorkload {
 
 type WorkerSuite struct {
 	suite.Suite
-	worker    worker.Worker
-	registry  bundlev1.Registry
-	client    *mocks.ClientInterface
-	ti        *mocks.TaskInstancesClient
-	transport *httpmock.MockTransport
+	worker   worker.Worker
+	registry bundlev1.Registry
+	client   *mocks.ClientWithResponsesInterface
 }
 
 func TestWorkerSuite(t *testing.T) {
@@ -91,14 +95,11 @@ func (s *WorkerSuite) SetupSuite() {
 	s.registry = bundlev1.New()
 	s.worker = worker.NewWithBundle(s.registry, slog.New(slogt.Handler(s.T())))
 
-	s.transport = httpmock.NewMockTransport()
-	s.client = &mocks.ClientInterface{}
-	s.ti = &mocks.TaskInstancesClient{}
+	s.client = &mocks.ClientWithResponsesInterface{}
 	s.worker = s.worker.WithHeartbeatInterval(100 * time.Millisecond).WithClient(s.client)
 }
 
 func (s *WorkerSuite) TearDownSuite() {
-	s.ti.AssertExpectations(s.T())
 	s.client.AssertExpectations(s.T())
 }
 
@@ -106,33 +107,33 @@ func (s *WorkerSuite) TearDownSuite() {
 // that it has been called
 func (s *WorkerSuite) ExpectTaskRun(taskId string) {
 	s.T().Helper()
-	s.ti.EXPECT().
-		Run(mock.Anything, uuid.MustParse(taskId), mock.Anything).
-		Return(&api.TIRunContext{}, nil)
-	s.client.EXPECT().TaskInstances().Return(s.ti)
+	s.client.EXPECT().
+		TaskInstanceRunWithResponse(mock.Anything, uuid.MustParse(taskId), mock.Anything).
+		Return(&api.TaskInstanceRunResponse{HTTPResponse: httpResponse(http.StatusOK), JSON200: &api.TIRunContext{}}, nil)
 }
 
 // ExpectTaskState sets up a matcher for the "/task-instances/{id}/state" with the given state end point
 func (s *WorkerSuite) ExpectTaskState(taskId string, state api.TerminalTIState) {
 	s.T().Helper()
-	s.ti.EXPECT().
-		UpdateState(mock.AnythingOfType("context.backgroundCtx"), uuid.MustParse(taskId), mock.AnythingOfType("*api.TIUpdateStatePayload")).
-		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIUpdateStatePayload) error {
+	s.client.EXPECT().
+		TaskInstanceUpdateStateWithResponse(mock.Anything, uuid.MustParse(taskId), mock.AnythingOfType("api.TIUpdateStatePayload")).
+		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body api.TaskInstanceUpdateStateJSONRequestBody, reqEditors ...api.RequestEditorFn) (*api.TaskInstanceUpdateStateResponse, error) {
+			resp := &api.TaskInstanceUpdateStateResponse{
+				HTTPResponse: httpResponse(http.StatusNoContent),
+			}
 			if payload, err := body.AsTITerminalStatePayload(); err == nil {
 				if payload.State == api.TerminalStateNonSuccess(state) {
-					return nil
+					return resp, nil
 				}
 			} else {
 				payload, err := body.AsTISuccessStatePayload()
 				if err == nil && payload.State == api.TISuccessStatePayloadState(state) {
-					return nil
+					return resp, nil
 				}
 			}
-			return fmt.Errorf("Error")
+			return nil, fmt.Errorf("Error")
 		}).
 		Once()
-
-	s.client.EXPECT().TaskInstances().Return(s.ti)
 }
 
 // TestTaskNotRegisteredErrors checks that when a task cannot be found we report "success" on the Workload but
@@ -143,11 +144,7 @@ func (s *WorkerSuite) TestTaskNotRegisteredErrors() {
 	s.ExpectTaskState(id, api.TerminalTIStateFailed)
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 
-	s.NoError(
-		err,
-		"ExecuteTaskWorkload should not report an error %#v",
-		s.transport.GetCallCountInfo(),
-	)
+	s.NoError(err, "ExecuteTaskWorkload should not report an error")
 }
 
 // TestStartContextErrorTaskDoesntStart checks that if the /run endpoint returns an error that task doesn't
@@ -166,11 +163,9 @@ func (s *WorkerSuite) TestStartContextErrorTaskDoesntStart() {
 	})
 
 	// Setup the mock
-	s.ti.EXPECT().
-		Run(mock.Anything, uuid.MustParse(id), mock.Anything).
+	s.client.EXPECT().
+		TaskInstanceRunWithResponse(mock.Anything, uuid.MustParse(id), mock.Anything).
 		Return(nil, fmt.Errorf("simulated start context error"))
-
-	s.client.EXPECT().TaskInstances().Return(s.ti)
 
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 
@@ -200,15 +195,16 @@ func (s *WorkerSuite) TestTaskHeartbeatsWhileRunning() {
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateSuccess)
-	s.ti.EXPECT().
-		Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).
-		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body *api.TIHeartbeatInfo) error {
+	s.client.EXPECT().
+		TaskInstanceHeartbeatWithResponse(mock.Anything, uuid.MustParse(id), mock.Anything).
+		RunAndReturn(func(ctx context.Context, taskInstanceId uuid.UUID, body api.TIHeartbeatInfo, reqEditors ...api.RequestEditorFn) (*api.TaskInstanceHeartbeatResponse, error) {
 			if taskInstanceId.String() == id {
 				callCount.Add(1)
 			}
-			return nil
+			return &api.TaskInstanceHeartbeatResponse{
+				HTTPResponse: httpResponse(http.StatusNoContent),
+			}, nil
 		})
-	s.client.EXPECT().TaskInstances().Return(s.ti)
 
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 	s.NoError(err, "ExecuteTaskWorkload should not report an error")
@@ -236,17 +232,9 @@ func (s *WorkerSuite) TestTaskHeartbeatConflictStopsTask() {
 
 	s.ExpectTaskRun(id)
 	s.ExpectTaskState(id, api.TerminalTIStateFailed)
-	s.ti.EXPECT().
-		Heartbeat(mock.Anything, uuid.MustParse(id), mock.Anything).
-		Return(&api.GeneralHTTPError{
-			Response: &resty.Response{
-				RawResponse: &http.Response{
-					Status:     "409 Conflict",
-					StatusCode: http.StatusConflict,
-				},
-			},
-		})
-	s.client.EXPECT().TaskInstances().Return(s.ti)
+	s.client.EXPECT().
+		TaskInstanceHeartbeatWithResponse(mock.Anything, uuid.MustParse(id), mock.Anything).
+		Return(&api.TaskInstanceHeartbeatResponse{HTTPResponse: httpResponse(http.StatusConflict)}, nil)
 
 	err := s.worker.ExecuteTaskWorkload(context.Background(), testWorkload)
 	s.NoError(err)

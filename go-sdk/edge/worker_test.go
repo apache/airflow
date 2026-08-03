@@ -42,26 +42,30 @@ func TestFetchJobDoesNotLogToken(t *testing.T) {
 		require.Equal(t, http.MethodPost, r.Method)
 		require.Equal(t, "/edge_worker/v1/jobs/fetch/test-worker", r.URL.Path)
 
+		queue := "default"
+		var command edgeapi.EdgeJobFetched_Command
+		require.NoError(t, command.FromExecuteTask(edgeapi.ExecuteTask{
+			BundleInfo: edgeapi.BundleInfo{
+				Name:    "example-bundle",
+				Version: &version,
+			},
+			DagRelPath: "dags/example.py",
+			LogPath:    &logPath,
+			Ti: edgeapi.TaskInstanceDTO{
+				DagId:          "example_dag",
+				Queue:          &queue,
+				RunId:          "manual__2026-06-10T00:00:00+00:00",
+				TaskId:         "example_task",
+				TryNumber:      2,
+				PoolSlots:      1,
+				PriorityWeight: 1,
+			},
+			Token: secretToken,
+		}))
+
 		w.Header().Set("Content-Type", "application/json")
 		err := json.NewEncoder(w).Encode(edgeapi.EdgeJobFetched{
-			Command: edgeapi.ExecuteTask{
-				BundleInfo: edgeapi.BundleInfo{
-					Name:    "example-bundle",
-					Version: &version,
-				},
-				DagRelPath: "dags/example.py",
-				LogPath:    &logPath,
-				Ti: edgeapi.TaskInstance{
-					DagId:          "example_dag",
-					Queue:          "default",
-					RunId:          "manual__2026-06-10T00:00:00+00:00",
-					TaskId:         "example_task",
-					TryNumber:      2,
-					PoolSlots:      1,
-					PriorityWeight: 1,
-				},
-				Token: secretToken,
-			},
+			Command:          command,
 			ConcurrencySlots: 3,
 			DagId:            "example_dag",
 			MapIndex:         -1,
@@ -73,7 +77,7 @@ func TestFetchJobDoesNotLogToken(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client, err := edgeapi.NewClient(server.URL + "/")
+	client, err := edgeapi.NewClientWithResponses(server.URL + "/")
 	require.NoError(t, err)
 
 	w := &worker{

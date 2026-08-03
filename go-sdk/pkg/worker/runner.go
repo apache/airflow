@@ -52,13 +52,13 @@ type (
 		ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTaskWorkload) error
 
 		WithServer(server string) (Worker, error)
-		WithClient(client api.ClientInterface) Worker
+		WithClient(client api.ClientWithResponsesInterface) Worker
 		WithHeartbeatInterval(interval time.Duration) Worker
 	}
 
 	worker struct {
 		Bundle
-		client            api.ClientInterface
+		client            api.ClientWithResponsesInterface
 		logger            *slog.Logger
 		heartbeatInterval time.Duration
 		reportTimeout     time.Duration
@@ -95,7 +95,7 @@ func (w *worker) WithHeartbeatInterval(interval time.Duration) Worker {
 	return &newWorker
 }
 
-func (w *worker) WithClient(client api.ClientInterface) Worker {
+func (w *worker) WithClient(client api.ClientWithResponsesInterface) Worker {
 	newWorker := *w
 	newWorker.client = client
 	return &newWorker
@@ -127,7 +127,7 @@ func (h *heartbeater) Run(
 	h.logger.DebugContext(ctx, "Starting heartbeater", "heartbeat", h.heartbeatInterval)
 
 	workload := ctx.Value(sdkcontext.WorkloadContextKey).(api.ExecuteTaskWorkload)
-	client := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+	client := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientWithResponsesInterface)
 
 	ticker := time.NewTicker(h.heartbeatInterval)
 	defer ticker.Stop()
@@ -137,23 +137,27 @@ func (h *heartbeater) Run(
 			// TODO: Record when last successful heartbeat was, and fail+abort if we haven't managed to record
 			// one recently enough
 
-			err := client.TaskInstances().
-				Heartbeat(ctx, workload.TI.Id, &api.TIHeartbeatInfo{
+			resp, err := client.TaskInstanceHeartbeatWithResponse(
+				ctx,
+				workload.TI.Id,
+				api.TIHeartbeatInfo{
 					Hostname: Hostname,
 					Pid:      os.Getpid(),
-				})
+				},
+			)
 			if err != nil {
 				h.logger.InfoContext(ctx, "heartbeating", slog.Any("error", err))
+				continue
 			}
 
 			var httpError *api.GeneralHTTPError
-			if errors.As(err, &httpError) {
-				resp := httpError.Response
-				if resp != nil && resp.StatusCode() == 404 || resp.StatusCode() == 409 {
+			if errors.As(api.CheckResponse(resp, resp.HTTPResponse), &httpError) {
+				code := httpError.Response.StatusCode
+				if code == 404 || code == 409 {
 					h.logger.ErrorContext(
 						ctx,
 						"Server indicated the task shouldn't be running anymore",
-						"status_code", resp.StatusCode(),
+						"status_code", code,
 						"details", httpError.JSON,
 					)
 					// Log something in the task log file too
@@ -161,7 +165,7 @@ func (h *heartbeater) Run(
 						ctx,
 						"Server indicated the task shouldn't be running anymore. Terminating workload",
 						"status_code",
-						resp.StatusCode(),
+						code,
 						"details",
 						httpError.JSON,
 					)
@@ -197,30 +201,26 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 	)
 
 	workloadClient := w.client
-	if c, ok := workloadClient.(*api.Client); ok {
+	if c, ok := workloadClient.(*api.ClientWithResponses); ok {
 		var err error
 		workloadClient, err = c.WithBearerToken(workload.Token)
 		if err != nil {
 			logger.ErrorContext(ctx, "Could not create client", slog.Any("error", err))
 			return err
 		}
-
-		c = workloadClient.(*api.Client)
-		c.Client.SetLogger(&logging.RestyLoggerBridge{Handler: logger.Handler(), Context: ctx})
-		c.Client.SetDebug(viper.GetBool("api_client.debug"))
 	}
 
 	reportStateFailed := func(ctx context.Context) error {
-		body := &api.TIUpdateStatePayload{}
+		body := api.TIUpdateStatePayload{}
 		body.FromTITerminalStatePayload(api.TITerminalStatePayload{
 			State:   api.TerminalStateNonSuccess(api.TerminalTIStateFailed),
 			EndDate: time.Now().UTC(),
 		})
-		return workloadClient.TaskInstances().UpdateState(
-			ctx,
-			workload.TI.Id,
-			body,
-		)
+		resp, err := workloadClient.TaskInstanceUpdateStateWithResponse(ctx, workload.TI.Id, body)
+		if err != nil {
+			return err
+		}
+		return api.CheckResponse(resp, resp.HTTPResponse)
 	}
 
 	// Store the configured API client in the context so we can get it out for accessing Variables etc.
@@ -254,15 +254,21 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 	// TODO: Timeout etc on the context
 	// TODO: Add in retries on the api client
 
-	runtimeContext, err := workloadClient.TaskInstances().
-		Run(ctx, workload.TI.Id, &api.TIEnterRunningPayload{
+	runResp, err := workloadClient.TaskInstanceRunWithResponse(
+		ctx,
+		workload.TI.Id,
+		api.TIEnterRunningPayload{
 			Hostname:  Hostname,
 			Unixname:  Username,
 			Pid:       PID,
-			State:     api.Running,
+			State:     api.TIEnterRunningPayloadStateRunning,
 			StartDate: time.Now().UTC(),
-		})
+		},
+	)
 	if err != nil {
+		return err
+	}
+	if err := api.CheckResponse(runResp, runResp.HTTPResponse); err != nil {
 		var httpError *api.GeneralHTTPError
 		if errors.As(err, &httpError) {
 			resp := httpError.Response
@@ -270,7 +276,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 				taskContext,
 				"Server reported error when attempting to start task",
 				slog.Any("error", httpError),
-				slog.Int("status_code", resp.StatusCode()),
+				slog.Int("status_code", resp.StatusCode),
 				slog.Group(
 					"request",
 					"url",
@@ -284,6 +290,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 		}
 		return err
 	}
+	runtimeContext := runResp.JSON200
 
 	taskContext = context.WithValue(taskContext, sdkcontext.RuntimeTIContextKey, runtimeContext)
 
@@ -325,7 +332,7 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 	stopHeartbeating()
 
 	var finalState api.TerminalTIState
-	body := &api.TIUpdateStatePayload{}
+	body := api.TIUpdateStatePayload{}
 
 	if errors.Is(context.Cause(taskContext), ErrTaskCancelledAfterFailedHeartbeat) {
 		// We've already logged when we failed to heartbeat, don't do it again
@@ -365,11 +372,10 @@ func (w *worker) ExecuteTaskWorkload(ctx context.Context, workload api.ExecuteTa
 			State:   api.TISuccessStatePayloadState(finalState),
 		})
 	}
-	err = workloadClient.TaskInstances().UpdateState(
-		ctx,
-		workload.TI.Id,
-		body,
-	)
+	updateResp, err := workloadClient.TaskInstanceUpdateStateWithResponse(ctx, workload.TI.Id, body)
+	if err == nil {
+		err = api.CheckResponse(updateResp, updateResp.HTTPResponse)
+	}
 	if err != nil {
 		taskLogger.Error(
 			"Error reporting final state to server",

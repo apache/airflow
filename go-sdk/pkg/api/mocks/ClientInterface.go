@@ -5,7 +5,12 @@
 package mocks
 
 import (
+	"context"
+	"io"
+	"net/http"
+
 	"github.com/apache/airflow/go-sdk/pkg/api"
+	"github.com/oapi-codegen/runtime/types"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -36,370 +41,3326 @@ func (_m *ClientInterface) EXPECT() *ClientInterface_Expecter {
 	return &ClientInterface_Expecter{mock: &_m.Mock}
 }
 
-// AssetEvents provides a mock function for the type ClientInterface
-func (_mock *ClientInterface) AssetEvents() api.AssetEventsClient {
-	ret := _mock.Called()
+// ClearDagRun provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) ClearDagRun(ctx context.Context, dagId string, runId string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for AssetEvents")
+		panic("no return value specified for ClearDagRun")
 	}
 
-	var r0 api.AssetEventsClient
-	if returnFunc, ok := ret.Get(0).(func() api.AssetEventsClient); ok {
-		r0 = returnFunc()
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, reqEditors...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(api.AssetEventsClient)
+			r0 = ret.Get(0).(*http.Response)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ClientInterface_AssetEvents_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AssetEvents'
-type ClientInterface_AssetEvents_Call struct {
+// ClientInterface_ClearDagRun_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearDagRun'
+type ClientInterface_ClearDagRun_Call struct {
 	*mock.Call
 }
 
-// AssetEvents is a helper method to define mock.On call
-func (_e *ClientInterface_Expecter) AssetEvents() *ClientInterface_AssetEvents_Call {
-	return &ClientInterface_AssetEvents_Call{Call: _e.mock.On("AssetEvents")}
+// ClearDagRun is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) ClearDagRun(ctx interface{}, dagId interface{}, runId interface{}, reqEditors ...interface{}) *ClientInterface_ClearDagRun_Call {
+	return &ClientInterface_ClearDagRun_Call{Call: _e.mock.On("ClearDagRun",
+		append([]interface{}{ctx, dagId, runId}, reqEditors...)...)}
 }
 
-func (_c *ClientInterface_AssetEvents_Call) Run(run func()) *ClientInterface_AssetEvents_Call {
+func (_c *ClientInterface_ClearDagRun_Call) Run(run func(ctx context.Context, dagId string, runId string, reqEditors ...api.RequestEditorFn)) *ClientInterface_ClearDagRun_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 3 {
+			variadicArgs = args[3].([]api.RequestEditorFn)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
 	})
 	return _c
 }
 
-func (_c *ClientInterface_AssetEvents_Call) Return(assetEventsClient api.AssetEventsClient) *ClientInterface_AssetEvents_Call {
-	_c.Call.Return(assetEventsClient)
+func (_c *ClientInterface_ClearDagRun_Call) Return(response *http.Response, err error) *ClientInterface_ClearDagRun_Call {
+	_c.Call.Return(response, err)
 	return _c
 }
 
-func (_c *ClientInterface_AssetEvents_Call) RunAndReturn(run func() api.AssetEventsClient) *ClientInterface_AssetEvents_Call {
+func (_c *ClientInterface_ClearDagRun_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_ClearDagRun_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Assets provides a mock function for the type ClientInterface
-func (_mock *ClientInterface) Assets() api.AssetsClient {
-	ret := _mock.Called()
+// DeleteVariable provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) DeleteVariable(ctx context.Context, variableKey string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, variableKey, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, variableKey)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for Assets")
+		panic("no return value specified for DeleteVariable")
 	}
 
-	var r0 api.AssetsClient
-	if returnFunc, ok := ret.Get(0).(func() api.AssetsClient); ok {
-		r0 = returnFunc()
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, variableKey, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, variableKey, reqEditors...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(api.AssetsClient)
+			r0 = ret.Get(0).(*http.Response)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, variableKey, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ClientInterface_Assets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Assets'
-type ClientInterface_Assets_Call struct {
+// ClientInterface_DeleteVariable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteVariable'
+type ClientInterface_DeleteVariable_Call struct {
 	*mock.Call
 }
 
-// Assets is a helper method to define mock.On call
-func (_e *ClientInterface_Expecter) Assets() *ClientInterface_Assets_Call {
-	return &ClientInterface_Assets_Call{Call: _e.mock.On("Assets")}
+// DeleteVariable is a helper method to define mock.On call
+//   - ctx context.Context
+//   - variableKey string
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) DeleteVariable(ctx interface{}, variableKey interface{}, reqEditors ...interface{}) *ClientInterface_DeleteVariable_Call {
+	return &ClientInterface_DeleteVariable_Call{Call: _e.mock.On("DeleteVariable",
+		append([]interface{}{ctx, variableKey}, reqEditors...)...)}
 }
 
-func (_c *ClientInterface_Assets_Call) Run(run func()) *ClientInterface_Assets_Call {
+func (_c *ClientInterface_DeleteVariable_Call) Run(run func(ctx context.Context, variableKey string, reqEditors ...api.RequestEditorFn)) *ClientInterface_DeleteVariable_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
 
-func (_c *ClientInterface_Assets_Call) Return(assetsClient api.AssetsClient) *ClientInterface_Assets_Call {
-	_c.Call.Return(assetsClient)
+func (_c *ClientInterface_DeleteVariable_Call) Return(response *http.Response, err error) *ClientInterface_DeleteVariable_Call {
+	_c.Call.Return(response, err)
 	return _c
 }
 
-func (_c *ClientInterface_Assets_Call) RunAndReturn(run func() api.AssetsClient) *ClientInterface_Assets_Call {
+func (_c *ClientInterface_DeleteVariable_Call) RunAndReturn(run func(ctx context.Context, variableKey string, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_DeleteVariable_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Connections provides a mock function for the type ClientInterface
-func (_mock *ClientInterface) Connections() api.ConnectionsClient {
-	ret := _mock.Called()
+// DeleteXcom provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) DeleteXcom(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.DeleteXcomParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for Connections")
+		panic("no return value specified for DeleteXcom")
 	}
 
-	var r0 api.ConnectionsClient
-	if returnFunc, ok := ret.Get(0).(func() api.ConnectionsClient); ok {
-		r0 = returnFunc()
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.DeleteXcomParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.DeleteXcomParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(api.ConnectionsClient)
+			r0 = ret.Get(0).(*http.Response)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.DeleteXcomParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ClientInterface_Connections_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Connections'
-type ClientInterface_Connections_Call struct {
+// ClientInterface_DeleteXcom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteXcom'
+type ClientInterface_DeleteXcom_Call struct {
 	*mock.Call
 }
 
-// Connections is a helper method to define mock.On call
-func (_e *ClientInterface_Expecter) Connections() *ClientInterface_Connections_Call {
-	return &ClientInterface_Connections_Call{Call: _e.mock.On("Connections")}
+// DeleteXcom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - params *api.DeleteXcomParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) DeleteXcom(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_DeleteXcom_Call {
+	return &ClientInterface_DeleteXcom_Call{Call: _e.mock.On("DeleteXcom",
+		append([]interface{}{ctx, dagId, runId, taskId, key, params}, reqEditors...)...)}
 }
 
-func (_c *ClientInterface_Connections_Call) Run(run func()) *ClientInterface_Connections_Call {
+func (_c *ClientInterface_DeleteXcom_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.DeleteXcomParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_DeleteXcom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 *api.DeleteXcomParams
+		if args[5] != nil {
+			arg5 = args[5].(*api.DeleteXcomParams)
+		}
+		var arg6 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 6 {
+			variadicArgs = args[6].([]api.RequestEditorFn)
+		}
+		arg6 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
 	})
 	return _c
 }
 
-func (_c *ClientInterface_Connections_Call) Return(connectionsClient api.ConnectionsClient) *ClientInterface_Connections_Call {
-	_c.Call.Return(connectionsClient)
+func (_c *ClientInterface_DeleteXcom_Call) Return(response *http.Response, err error) *ClientInterface_DeleteXcom_Call {
+	_c.Call.Return(response, err)
 	return _c
 }
 
-func (_c *ClientInterface_Connections_Call) RunAndReturn(run func() api.ConnectionsClient) *ClientInterface_Connections_Call {
+func (_c *ClientInterface_DeleteXcom_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.DeleteXcomParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_DeleteXcom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// DagRuns provides a mock function for the type ClientInterface
-func (_mock *ClientInterface) DagRuns() api.DagRunsClient {
-	ret := _mock.Called()
+// GetAssetByName provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetAssetByName(ctx context.Context, params *api.GetAssetByNameParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, params)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for DagRuns")
+		panic("no return value specified for GetAssetByName")
 	}
 
-	var r0 api.DagRunsClient
-	if returnFunc, ok := ret.Get(0).(func() api.DagRunsClient); ok {
-		r0 = returnFunc()
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetAssetByNameParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetAssetByNameParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, params, reqEditors...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(api.DagRunsClient)
+			r0 = ret.Get(0).(*http.Response)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *api.GetAssetByNameParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ClientInterface_DagRuns_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DagRuns'
-type ClientInterface_DagRuns_Call struct {
+// ClientInterface_GetAssetByName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAssetByName'
+type ClientInterface_GetAssetByName_Call struct {
 	*mock.Call
 }
 
-// DagRuns is a helper method to define mock.On call
-func (_e *ClientInterface_Expecter) DagRuns() *ClientInterface_DagRuns_Call {
-	return &ClientInterface_DagRuns_Call{Call: _e.mock.On("DagRuns")}
+// GetAssetByName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *api.GetAssetByNameParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetAssetByName(ctx interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetAssetByName_Call {
+	return &ClientInterface_GetAssetByName_Call{Call: _e.mock.On("GetAssetByName",
+		append([]interface{}{ctx, params}, reqEditors...)...)}
 }
 
-func (_c *ClientInterface_DagRuns_Call) Run(run func()) *ClientInterface_DagRuns_Call {
+func (_c *ClientInterface_GetAssetByName_Call) Run(run func(ctx context.Context, params *api.GetAssetByNameParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetAssetByName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *api.GetAssetByNameParams
+		if args[1] != nil {
+			arg1 = args[1].(*api.GetAssetByNameParams)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
 
-func (_c *ClientInterface_DagRuns_Call) Return(dagRunsClient api.DagRunsClient) *ClientInterface_DagRuns_Call {
-	_c.Call.Return(dagRunsClient)
+func (_c *ClientInterface_GetAssetByName_Call) Return(response *http.Response, err error) *ClientInterface_GetAssetByName_Call {
+	_c.Call.Return(response, err)
 	return _c
 }
 
-func (_c *ClientInterface_DagRuns_Call) RunAndReturn(run func() api.DagRunsClient) *ClientInterface_DagRuns_Call {
+func (_c *ClientInterface_GetAssetByName_Call) RunAndReturn(run func(ctx context.Context, params *api.GetAssetByNameParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetAssetByName_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// TaskInstances provides a mock function for the type ClientInterface
-func (_mock *ClientInterface) TaskInstances() api.TaskInstancesClient {
-	ret := _mock.Called()
+// GetAssetByUri provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetAssetByUri(ctx context.Context, params *api.GetAssetByUriParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, params)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for TaskInstances")
+		panic("no return value specified for GetAssetByUri")
 	}
 
-	var r0 api.TaskInstancesClient
-	if returnFunc, ok := ret.Get(0).(func() api.TaskInstancesClient); ok {
-		r0 = returnFunc()
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetAssetByUriParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetAssetByUriParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, params, reqEditors...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(api.TaskInstancesClient)
+			r0 = ret.Get(0).(*http.Response)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *api.GetAssetByUriParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ClientInterface_TaskInstances_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstances'
-type ClientInterface_TaskInstances_Call struct {
+// ClientInterface_GetAssetByUri_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAssetByUri'
+type ClientInterface_GetAssetByUri_Call struct {
 	*mock.Call
 }
 
-// TaskInstances is a helper method to define mock.On call
-func (_e *ClientInterface_Expecter) TaskInstances() *ClientInterface_TaskInstances_Call {
-	return &ClientInterface_TaskInstances_Call{Call: _e.mock.On("TaskInstances")}
+// GetAssetByUri is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *api.GetAssetByUriParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetAssetByUri(ctx interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetAssetByUri_Call {
+	return &ClientInterface_GetAssetByUri_Call{Call: _e.mock.On("GetAssetByUri",
+		append([]interface{}{ctx, params}, reqEditors...)...)}
 }
 
-func (_c *ClientInterface_TaskInstances_Call) Run(run func()) *ClientInterface_TaskInstances_Call {
+func (_c *ClientInterface_GetAssetByUri_Call) Run(run func(ctx context.Context, params *api.GetAssetByUriParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetAssetByUri_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *api.GetAssetByUriParams
+		if args[1] != nil {
+			arg1 = args[1].(*api.GetAssetByUriParams)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
 
-func (_c *ClientInterface_TaskInstances_Call) Return(taskInstancesClient api.TaskInstancesClient) *ClientInterface_TaskInstances_Call {
-	_c.Call.Return(taskInstancesClient)
+func (_c *ClientInterface_GetAssetByUri_Call) Return(response *http.Response, err error) *ClientInterface_GetAssetByUri_Call {
+	_c.Call.Return(response, err)
 	return _c
 }
 
-func (_c *ClientInterface_TaskInstances_Call) RunAndReturn(run func() api.TaskInstancesClient) *ClientInterface_TaskInstances_Call {
+func (_c *ClientInterface_GetAssetByUri_Call) RunAndReturn(run func(ctx context.Context, params *api.GetAssetByUriParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetAssetByUri_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// TaskReschedules provides a mock function for the type ClientInterface
-func (_mock *ClientInterface) TaskReschedules() api.TaskReschedulesClient {
-	ret := _mock.Called()
+// GetAssetEventByAssetAlias provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetAssetEventByAssetAlias(ctx context.Context, params *api.GetAssetEventByAssetAliasParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, params)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for TaskReschedules")
+		panic("no return value specified for GetAssetEventByAssetAlias")
 	}
 
-	var r0 api.TaskReschedulesClient
-	if returnFunc, ok := ret.Get(0).(func() api.TaskReschedulesClient); ok {
-		r0 = returnFunc()
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetAssetEventByAssetAliasParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetAssetEventByAssetAliasParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, params, reqEditors...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(api.TaskReschedulesClient)
+			r0 = ret.Get(0).(*http.Response)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *api.GetAssetEventByAssetAliasParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ClientInterface_TaskReschedules_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskReschedules'
-type ClientInterface_TaskReschedules_Call struct {
+// ClientInterface_GetAssetEventByAssetAlias_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAssetEventByAssetAlias'
+type ClientInterface_GetAssetEventByAssetAlias_Call struct {
 	*mock.Call
 }
 
-// TaskReschedules is a helper method to define mock.On call
-func (_e *ClientInterface_Expecter) TaskReschedules() *ClientInterface_TaskReschedules_Call {
-	return &ClientInterface_TaskReschedules_Call{Call: _e.mock.On("TaskReschedules")}
+// GetAssetEventByAssetAlias is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *api.GetAssetEventByAssetAliasParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetAssetEventByAssetAlias(ctx interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetAssetEventByAssetAlias_Call {
+	return &ClientInterface_GetAssetEventByAssetAlias_Call{Call: _e.mock.On("GetAssetEventByAssetAlias",
+		append([]interface{}{ctx, params}, reqEditors...)...)}
 }
 
-func (_c *ClientInterface_TaskReschedules_Call) Run(run func()) *ClientInterface_TaskReschedules_Call {
+func (_c *ClientInterface_GetAssetEventByAssetAlias_Call) Run(run func(ctx context.Context, params *api.GetAssetEventByAssetAliasParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetAssetEventByAssetAlias_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *api.GetAssetEventByAssetAliasParams
+		if args[1] != nil {
+			arg1 = args[1].(*api.GetAssetEventByAssetAliasParams)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
 
-func (_c *ClientInterface_TaskReschedules_Call) Return(taskReschedulesClient api.TaskReschedulesClient) *ClientInterface_TaskReschedules_Call {
-	_c.Call.Return(taskReschedulesClient)
+func (_c *ClientInterface_GetAssetEventByAssetAlias_Call) Return(response *http.Response, err error) *ClientInterface_GetAssetEventByAssetAlias_Call {
+	_c.Call.Return(response, err)
 	return _c
 }
 
-func (_c *ClientInterface_TaskReschedules_Call) RunAndReturn(run func() api.TaskReschedulesClient) *ClientInterface_TaskReschedules_Call {
+func (_c *ClientInterface_GetAssetEventByAssetAlias_Call) RunAndReturn(run func(ctx context.Context, params *api.GetAssetEventByAssetAliasParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetAssetEventByAssetAlias_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Variables provides a mock function for the type ClientInterface
-func (_mock *ClientInterface) Variables() api.VariablesClient {
-	ret := _mock.Called()
+// GetAssetEventByAssetNameUri provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetAssetEventByAssetNameUri(ctx context.Context, params *api.GetAssetEventByAssetNameUriParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, params)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for Variables")
+		panic("no return value specified for GetAssetEventByAssetNameUri")
 	}
 
-	var r0 api.VariablesClient
-	if returnFunc, ok := ret.Get(0).(func() api.VariablesClient); ok {
-		r0 = returnFunc()
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetAssetEventByAssetNameUriParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetAssetEventByAssetNameUriParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, params, reqEditors...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(api.VariablesClient)
+			r0 = ret.Get(0).(*http.Response)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *api.GetAssetEventByAssetNameUriParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ClientInterface_Variables_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Variables'
-type ClientInterface_Variables_Call struct {
+// ClientInterface_GetAssetEventByAssetNameUri_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAssetEventByAssetNameUri'
+type ClientInterface_GetAssetEventByAssetNameUri_Call struct {
 	*mock.Call
 }
 
-// Variables is a helper method to define mock.On call
-func (_e *ClientInterface_Expecter) Variables() *ClientInterface_Variables_Call {
-	return &ClientInterface_Variables_Call{Call: _e.mock.On("Variables")}
+// GetAssetEventByAssetNameUri is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *api.GetAssetEventByAssetNameUriParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetAssetEventByAssetNameUri(ctx interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetAssetEventByAssetNameUri_Call {
+	return &ClientInterface_GetAssetEventByAssetNameUri_Call{Call: _e.mock.On("GetAssetEventByAssetNameUri",
+		append([]interface{}{ctx, params}, reqEditors...)...)}
 }
 
-func (_c *ClientInterface_Variables_Call) Run(run func()) *ClientInterface_Variables_Call {
+func (_c *ClientInterface_GetAssetEventByAssetNameUri_Call) Run(run func(ctx context.Context, params *api.GetAssetEventByAssetNameUriParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetAssetEventByAssetNameUri_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *api.GetAssetEventByAssetNameUriParams
+		if args[1] != nil {
+			arg1 = args[1].(*api.GetAssetEventByAssetNameUriParams)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
 
-func (_c *ClientInterface_Variables_Call) Return(variablesClient api.VariablesClient) *ClientInterface_Variables_Call {
-	_c.Call.Return(variablesClient)
+func (_c *ClientInterface_GetAssetEventByAssetNameUri_Call) Return(response *http.Response, err error) *ClientInterface_GetAssetEventByAssetNameUri_Call {
+	_c.Call.Return(response, err)
 	return _c
 }
 
-func (_c *ClientInterface_Variables_Call) RunAndReturn(run func() api.VariablesClient) *ClientInterface_Variables_Call {
+func (_c *ClientInterface_GetAssetEventByAssetNameUri_Call) RunAndReturn(run func(ctx context.Context, params *api.GetAssetEventByAssetNameUriParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetAssetEventByAssetNameUri_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Xcoms provides a mock function for the type ClientInterface
-func (_mock *ClientInterface) Xcoms() api.XcomsClient {
-	ret := _mock.Called()
+// GetConnection provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetConnection(ctx context.Context, connectionId string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, connectionId, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, connectionId)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for Xcoms")
+		panic("no return value specified for GetConnection")
 	}
 
-	var r0 api.XcomsClient
-	if returnFunc, ok := ret.Get(0).(func() api.XcomsClient); ok {
-		r0 = returnFunc()
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, connectionId, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, connectionId, reqEditors...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(api.XcomsClient)
+			r0 = ret.Get(0).(*http.Response)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, connectionId, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// ClientInterface_Xcoms_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Xcoms'
-type ClientInterface_Xcoms_Call struct {
+// ClientInterface_GetConnection_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetConnection'
+type ClientInterface_GetConnection_Call struct {
 	*mock.Call
 }
 
-// Xcoms is a helper method to define mock.On call
-func (_e *ClientInterface_Expecter) Xcoms() *ClientInterface_Xcoms_Call {
-	return &ClientInterface_Xcoms_Call{Call: _e.mock.On("Xcoms")}
+// GetConnection is a helper method to define mock.On call
+//   - ctx context.Context
+//   - connectionId string
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetConnection(ctx interface{}, connectionId interface{}, reqEditors ...interface{}) *ClientInterface_GetConnection_Call {
+	return &ClientInterface_GetConnection_Call{Call: _e.mock.On("GetConnection",
+		append([]interface{}{ctx, connectionId}, reqEditors...)...)}
 }
 
-func (_c *ClientInterface_Xcoms_Call) Run(run func()) *ClientInterface_Xcoms_Call {
+func (_c *ClientInterface_GetConnection_Call) Run(run func(ctx context.Context, connectionId string, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetConnection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
 
-func (_c *ClientInterface_Xcoms_Call) Return(xcomsClient api.XcomsClient) *ClientInterface_Xcoms_Call {
-	_c.Call.Return(xcomsClient)
+func (_c *ClientInterface_GetConnection_Call) Return(response *http.Response, err error) *ClientInterface_GetConnection_Call {
+	_c.Call.Return(response, err)
 	return _c
 }
 
-func (_c *ClientInterface_Xcoms_Call) RunAndReturn(run func() api.XcomsClient) *ClientInterface_Xcoms_Call {
+func (_c *ClientInterface_GetConnection_Call) RunAndReturn(run func(ctx context.Context, connectionId string, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetConnection_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDagRunState provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetDagRunState(ctx context.Context, dagId string, runId string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDagRunState")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetDagRunState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDagRunState'
+type ClientInterface_GetDagRunState_Call struct {
+	*mock.Call
+}
+
+// GetDagRunState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetDagRunState(ctx interface{}, dagId interface{}, runId interface{}, reqEditors ...interface{}) *ClientInterface_GetDagRunState_Call {
+	return &ClientInterface_GetDagRunState_Call{Call: _e.mock.On("GetDagRunState",
+		append([]interface{}{ctx, dagId, runId}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetDagRunState_Call) Run(run func(ctx context.Context, dagId string, runId string, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetDagRunState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 3 {
+			variadicArgs = args[3].([]api.RequestEditorFn)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetDagRunState_Call) Return(response *http.Response, err error) *ClientInterface_GetDagRunState_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetDagRunState_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetDagRunState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDrCount provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetDrCount(ctx context.Context, params *api.GetDrCountParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, params)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDrCount")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetDrCountParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetDrCountParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *api.GetDrCountParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetDrCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDrCount'
+type ClientInterface_GetDrCount_Call struct {
+	*mock.Call
+}
+
+// GetDrCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *api.GetDrCountParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetDrCount(ctx interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetDrCount_Call {
+	return &ClientInterface_GetDrCount_Call{Call: _e.mock.On("GetDrCount",
+		append([]interface{}{ctx, params}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetDrCount_Call) Run(run func(ctx context.Context, params *api.GetDrCountParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetDrCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *api.GetDrCountParams
+		if args[1] != nil {
+			arg1 = args[1].(*api.GetDrCountParams)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetDrCount_Call) Return(response *http.Response, err error) *ClientInterface_GetDrCount_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetDrCount_Call) RunAndReturn(run func(ctx context.Context, params *api.GetDrCountParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetDrCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMappedXcomByIndex provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetMappedXcomByIndex(ctx context.Context, dagId string, runId string, taskId string, key string, offset int, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, offset, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, offset)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMappedXcomByIndex")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, int, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, offset, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, int, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, offset, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, int, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, offset, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetMappedXcomByIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMappedXcomByIndex'
+type ClientInterface_GetMappedXcomByIndex_Call struct {
+	*mock.Call
+}
+
+// GetMappedXcomByIndex is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - offset int
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetMappedXcomByIndex(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, offset interface{}, reqEditors ...interface{}) *ClientInterface_GetMappedXcomByIndex_Call {
+	return &ClientInterface_GetMappedXcomByIndex_Call{Call: _e.mock.On("GetMappedXcomByIndex",
+		append([]interface{}{ctx, dagId, runId, taskId, key, offset}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetMappedXcomByIndex_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, offset int, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetMappedXcomByIndex_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		var arg6 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 6 {
+			variadicArgs = args[6].([]api.RequestEditorFn)
+		}
+		arg6 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetMappedXcomByIndex_Call) Return(response *http.Response, err error) *ClientInterface_GetMappedXcomByIndex_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetMappedXcomByIndex_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, offset int, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetMappedXcomByIndex_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMappedXcomBySlice provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetMappedXcomBySlice(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMappedXcomBySlice")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.GetMappedXcomBySliceParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetMappedXcomBySlice_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMappedXcomBySlice'
+type ClientInterface_GetMappedXcomBySlice_Call struct {
+	*mock.Call
+}
+
+// GetMappedXcomBySlice is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - params *api.GetMappedXcomBySliceParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetMappedXcomBySlice(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetMappedXcomBySlice_Call {
+	return &ClientInterface_GetMappedXcomBySlice_Call{Call: _e.mock.On("GetMappedXcomBySlice",
+		append([]interface{}{ctx, dagId, runId, taskId, key, params}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetMappedXcomBySlice_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetMappedXcomBySlice_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 *api.GetMappedXcomBySliceParams
+		if args[5] != nil {
+			arg5 = args[5].(*api.GetMappedXcomBySliceParams)
+		}
+		var arg6 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 6 {
+			variadicArgs = args[6].([]api.RequestEditorFn)
+		}
+		arg6 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetMappedXcomBySlice_Call) Return(response *http.Response, err error) *ClientInterface_GetMappedXcomBySlice_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetMappedXcomBySlice_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetMappedXcomBySliceParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetMappedXcomBySlice_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetPreviousSuccessfulDagrun provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetPreviousSuccessfulDagrun(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPreviousSuccessfulDagrun")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetPreviousSuccessfulDagrun_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPreviousSuccessfulDagrun'
+type ClientInterface_GetPreviousSuccessfulDagrun_Call struct {
+	*mock.Call
+}
+
+// GetPreviousSuccessfulDagrun is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetPreviousSuccessfulDagrun(ctx interface{}, taskInstanceId interface{}, reqEditors ...interface{}) *ClientInterface_GetPreviousSuccessfulDagrun_Call {
+	return &ClientInterface_GetPreviousSuccessfulDagrun_Call{Call: _e.mock.On("GetPreviousSuccessfulDagrun",
+		append([]interface{}{ctx, taskInstanceId}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetPreviousSuccessfulDagrun_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetPreviousSuccessfulDagrun_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetPreviousSuccessfulDagrun_Call) Return(response *http.Response, err error) *ClientInterface_GetPreviousSuccessfulDagrun_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetPreviousSuccessfulDagrun_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetPreviousSuccessfulDagrun_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetStartDate provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetStartDate(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetStartDate")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetStartDate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetStartDate'
+type ClientInterface_GetStartDate_Call struct {
+	*mock.Call
+}
+
+// GetStartDate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetStartDate(ctx interface{}, taskInstanceId interface{}, reqEditors ...interface{}) *ClientInterface_GetStartDate_Call {
+	return &ClientInterface_GetStartDate_Call{Call: _e.mock.On("GetStartDate",
+		append([]interface{}{ctx, taskInstanceId}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetStartDate_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetStartDate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetStartDate_Call) Return(response *http.Response, err error) *ClientInterface_GetStartDate_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetStartDate_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetStartDate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetTaskInstanceCount provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetTaskInstanceCount(ctx context.Context, params *api.GetTaskInstanceCountParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, params)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTaskInstanceCount")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetTaskInstanceCountParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetTaskInstanceCountParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *api.GetTaskInstanceCountParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetTaskInstanceCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTaskInstanceCount'
+type ClientInterface_GetTaskInstanceCount_Call struct {
+	*mock.Call
+}
+
+// GetTaskInstanceCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *api.GetTaskInstanceCountParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetTaskInstanceCount(ctx interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetTaskInstanceCount_Call {
+	return &ClientInterface_GetTaskInstanceCount_Call{Call: _e.mock.On("GetTaskInstanceCount",
+		append([]interface{}{ctx, params}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetTaskInstanceCount_Call) Run(run func(ctx context.Context, params *api.GetTaskInstanceCountParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetTaskInstanceCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *api.GetTaskInstanceCountParams
+		if args[1] != nil {
+			arg1 = args[1].(*api.GetTaskInstanceCountParams)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetTaskInstanceCount_Call) Return(response *http.Response, err error) *ClientInterface_GetTaskInstanceCount_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetTaskInstanceCount_Call) RunAndReturn(run func(ctx context.Context, params *api.GetTaskInstanceCountParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetTaskInstanceCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetTaskInstanceStates provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetTaskInstanceStates(ctx context.Context, params *api.GetTaskInstanceStatesParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, params)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTaskInstanceStates")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetTaskInstanceStatesParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *api.GetTaskInstanceStatesParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *api.GetTaskInstanceStatesParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetTaskInstanceStates_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTaskInstanceStates'
+type ClientInterface_GetTaskInstanceStates_Call struct {
+	*mock.Call
+}
+
+// GetTaskInstanceStates is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params *api.GetTaskInstanceStatesParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetTaskInstanceStates(ctx interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetTaskInstanceStates_Call {
+	return &ClientInterface_GetTaskInstanceStates_Call{Call: _e.mock.On("GetTaskInstanceStates",
+		append([]interface{}{ctx, params}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetTaskInstanceStates_Call) Run(run func(ctx context.Context, params *api.GetTaskInstanceStatesParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetTaskInstanceStates_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *api.GetTaskInstanceStatesParams
+		if args[1] != nil {
+			arg1 = args[1].(*api.GetTaskInstanceStatesParams)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetTaskInstanceStates_Call) Return(response *http.Response, err error) *ClientInterface_GetTaskInstanceStates_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetTaskInstanceStates_Call) RunAndReturn(run func(ctx context.Context, params *api.GetTaskInstanceStatesParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetTaskInstanceStates_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVariable provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetVariable(ctx context.Context, variableKey string, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, variableKey, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, variableKey)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVariable")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, variableKey, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, variableKey, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, variableKey, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetVariable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVariable'
+type ClientInterface_GetVariable_Call struct {
+	*mock.Call
+}
+
+// GetVariable is a helper method to define mock.On call
+//   - ctx context.Context
+//   - variableKey string
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetVariable(ctx interface{}, variableKey interface{}, reqEditors ...interface{}) *ClientInterface_GetVariable_Call {
+	return &ClientInterface_GetVariable_Call{Call: _e.mock.On("GetVariable",
+		append([]interface{}{ctx, variableKey}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetVariable_Call) Run(run func(ctx context.Context, variableKey string, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetVariable_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetVariable_Call) Return(response *http.Response, err error) *ClientInterface_GetVariable_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetVariable_Call) RunAndReturn(run func(ctx context.Context, variableKey string, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetVariable_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetXcom provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) GetXcom(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetXcomParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetXcom")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.GetXcomParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.GetXcomParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.GetXcomParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_GetXcom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetXcom'
+type ClientInterface_GetXcom_Call struct {
+	*mock.Call
+}
+
+// GetXcom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - params *api.GetXcomParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) GetXcom(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_GetXcom_Call {
+	return &ClientInterface_GetXcom_Call{Call: _e.mock.On("GetXcom",
+		append([]interface{}{ctx, dagId, runId, taskId, key, params}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_GetXcom_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetXcomParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_GetXcom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 *api.GetXcomParams
+		if args[5] != nil {
+			arg5 = args[5].(*api.GetXcomParams)
+		}
+		var arg6 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 6 {
+			variadicArgs = args[6].([]api.RequestEditorFn)
+		}
+		arg6 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_GetXcom_Call) Return(response *http.Response, err error) *ClientInterface_GetXcom_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_GetXcom_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.GetXcomParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_GetXcom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// HeadXcom provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) HeadXcom(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.HeadXcomParams, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for HeadXcom")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.HeadXcomParams, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.HeadXcomParams, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.HeadXcomParams, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, params, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_HeadXcom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HeadXcom'
+type ClientInterface_HeadXcom_Call struct {
+	*mock.Call
+}
+
+// HeadXcom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - params *api.HeadXcomParams
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) HeadXcom(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}, reqEditors ...interface{}) *ClientInterface_HeadXcom_Call {
+	return &ClientInterface_HeadXcom_Call{Call: _e.mock.On("HeadXcom",
+		append([]interface{}{ctx, dagId, runId, taskId, key, params}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_HeadXcom_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.HeadXcomParams, reqEditors ...api.RequestEditorFn)) *ClientInterface_HeadXcom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 *api.HeadXcomParams
+		if args[5] != nil {
+			arg5 = args[5].(*api.HeadXcomParams)
+		}
+		var arg6 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 6 {
+			variadicArgs = args[6].([]api.RequestEditorFn)
+		}
+		arg6 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_HeadXcom_Call) Return(response *http.Response, err error) *ClientInterface_HeadXcom_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_HeadXcom_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.HeadXcomParams, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_HeadXcom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PutVariable provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) PutVariable(ctx context.Context, variableKey string, body api.PutVariableJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, variableKey, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, variableKey, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for PutVariable")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, api.PutVariableJSONRequestBody, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, variableKey, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, api.PutVariableJSONRequestBody, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, variableKey, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, api.PutVariableJSONRequestBody, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, variableKey, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_PutVariable_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PutVariable'
+type ClientInterface_PutVariable_Call struct {
+	*mock.Call
+}
+
+// PutVariable is a helper method to define mock.On call
+//   - ctx context.Context
+//   - variableKey string
+//   - body api.PutVariableJSONRequestBody
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) PutVariable(ctx interface{}, variableKey interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_PutVariable_Call {
+	return &ClientInterface_PutVariable_Call{Call: _e.mock.On("PutVariable",
+		append([]interface{}{ctx, variableKey, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_PutVariable_Call) Run(run func(ctx context.Context, variableKey string, body api.PutVariableJSONRequestBody, reqEditors ...api.RequestEditorFn)) *ClientInterface_PutVariable_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 api.PutVariableJSONRequestBody
+		if args[2] != nil {
+			arg2 = args[2].(api.PutVariableJSONRequestBody)
+		}
+		var arg3 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 3 {
+			variadicArgs = args[3].([]api.RequestEditorFn)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_PutVariable_Call) Return(response *http.Response, err error) *ClientInterface_PutVariable_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_PutVariable_Call) RunAndReturn(run func(ctx context.Context, variableKey string, body api.PutVariableJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_PutVariable_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PutVariableWithBody provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) PutVariableWithBody(ctx context.Context, variableKey string, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, variableKey, contentType, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, variableKey, contentType, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for PutVariableWithBody")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, io.Reader, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, variableKey, contentType, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, io.Reader, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, variableKey, contentType, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, io.Reader, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, variableKey, contentType, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_PutVariableWithBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PutVariableWithBody'
+type ClientInterface_PutVariableWithBody_Call struct {
+	*mock.Call
+}
+
+// PutVariableWithBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - variableKey string
+//   - contentType string
+//   - body io.Reader
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) PutVariableWithBody(ctx interface{}, variableKey interface{}, contentType interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_PutVariableWithBody_Call {
+	return &ClientInterface_PutVariableWithBody_Call{Call: _e.mock.On("PutVariableWithBody",
+		append([]interface{}{ctx, variableKey, contentType, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_PutVariableWithBody_Call) Run(run func(ctx context.Context, variableKey string, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn)) *ClientInterface_PutVariableWithBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 io.Reader
+		if args[3] != nil {
+			arg3 = args[3].(io.Reader)
+		}
+		var arg4 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 4 {
+			variadicArgs = args[4].([]api.RequestEditorFn)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_PutVariableWithBody_Call) Return(response *http.Response, err error) *ClientInterface_PutVariableWithBody_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_PutVariableWithBody_Call) RunAndReturn(run func(ctx context.Context, variableKey string, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_PutVariableWithBody_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetXcom provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) SetXcom(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body api.SetXcomJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetXcom")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, api.SetXcomJSONRequestBody, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, params, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, api.SetXcomJSONRequestBody, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, params, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.SetXcomParams, api.SetXcomJSONRequestBody, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, params, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_SetXcom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetXcom'
+type ClientInterface_SetXcom_Call struct {
+	*mock.Call
+}
+
+// SetXcom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - params *api.SetXcomParams
+//   - body api.SetXcomJSONRequestBody
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) SetXcom(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_SetXcom_Call {
+	return &ClientInterface_SetXcom_Call{Call: _e.mock.On("SetXcom",
+		append([]interface{}{ctx, dagId, runId, taskId, key, params, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_SetXcom_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body api.SetXcomJSONRequestBody, reqEditors ...api.RequestEditorFn)) *ClientInterface_SetXcom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 *api.SetXcomParams
+		if args[5] != nil {
+			arg5 = args[5].(*api.SetXcomParams)
+		}
+		var arg6 api.SetXcomJSONRequestBody
+		if args[6] != nil {
+			arg6 = args[6].(api.SetXcomJSONRequestBody)
+		}
+		var arg7 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 7 {
+			variadicArgs = args[7].([]api.RequestEditorFn)
+		}
+		arg7 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6,
+			arg7...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_SetXcom_Call) Return(response *http.Response, err error) *ClientInterface_SetXcom_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_SetXcom_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, body api.SetXcomJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_SetXcom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetXcomWithBody provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) SetXcomWithBody(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params, contentType, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, taskId, key, params, contentType, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetXcomWithBody")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, string, io.Reader, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, taskId, key, params, contentType, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, *api.SetXcomParams, string, io.Reader, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, taskId, key, params, contentType, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, *api.SetXcomParams, string, io.Reader, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, taskId, key, params, contentType, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_SetXcomWithBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetXcomWithBody'
+type ClientInterface_SetXcomWithBody_Call struct {
+	*mock.Call
+}
+
+// SetXcomWithBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - taskId string
+//   - key string
+//   - params *api.SetXcomParams
+//   - contentType string
+//   - body io.Reader
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) SetXcomWithBody(ctx interface{}, dagId interface{}, runId interface{}, taskId interface{}, key interface{}, params interface{}, contentType interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_SetXcomWithBody_Call {
+	return &ClientInterface_SetXcomWithBody_Call{Call: _e.mock.On("SetXcomWithBody",
+		append([]interface{}{ctx, dagId, runId, taskId, key, params, contentType, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_SetXcomWithBody_Call) Run(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn)) *ClientInterface_SetXcomWithBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 *api.SetXcomParams
+		if args[5] != nil {
+			arg5 = args[5].(*api.SetXcomParams)
+		}
+		var arg6 string
+		if args[6] != nil {
+			arg6 = args[6].(string)
+		}
+		var arg7 io.Reader
+		if args[7] != nil {
+			arg7 = args[7].(io.Reader)
+		}
+		var arg8 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 8 {
+			variadicArgs = args[8].([]api.RequestEditorFn)
+		}
+		arg8 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6,
+			arg7,
+			arg8...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_SetXcomWithBody_Call) Return(response *http.Response, err error) *ClientInterface_SetXcomWithBody_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_SetXcomWithBody_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, taskId string, key string, params *api.SetXcomParams, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_SetXcomWithBody_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstanceHeartbeat provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstanceHeartbeat(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceHeartbeatJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstanceHeartbeat")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstanceHeartbeatJSONRequestBody, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstanceHeartbeatJSONRequestBody, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, api.TaskInstanceHeartbeatJSONRequestBody, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstanceHeartbeat_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstanceHeartbeat'
+type ClientInterface_TaskInstanceHeartbeat_Call struct {
+	*mock.Call
+}
+
+// TaskInstanceHeartbeat is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - body api.TaskInstanceHeartbeatJSONRequestBody
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstanceHeartbeat(ctx interface{}, taskInstanceId interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstanceHeartbeat_Call {
+	return &ClientInterface_TaskInstanceHeartbeat_Call{Call: _e.mock.On("TaskInstanceHeartbeat",
+		append([]interface{}{ctx, taskInstanceId, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstanceHeartbeat_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceHeartbeatJSONRequestBody, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstanceHeartbeat_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 api.TaskInstanceHeartbeatJSONRequestBody
+		if args[2] != nil {
+			arg2 = args[2].(api.TaskInstanceHeartbeatJSONRequestBody)
+		}
+		var arg3 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 3 {
+			variadicArgs = args[3].([]api.RequestEditorFn)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceHeartbeat_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstanceHeartbeat_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceHeartbeat_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceHeartbeatJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstanceHeartbeat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstanceHeartbeatWithBody provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstanceHeartbeatWithBody(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstanceHeartbeatWithBody")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstanceHeartbeatWithBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstanceHeartbeatWithBody'
+type ClientInterface_TaskInstanceHeartbeatWithBody_Call struct {
+	*mock.Call
+}
+
+// TaskInstanceHeartbeatWithBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - contentType string
+//   - body io.Reader
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstanceHeartbeatWithBody(ctx interface{}, taskInstanceId interface{}, contentType interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstanceHeartbeatWithBody_Call {
+	return &ClientInterface_TaskInstanceHeartbeatWithBody_Call{Call: _e.mock.On("TaskInstanceHeartbeatWithBody",
+		append([]interface{}{ctx, taskInstanceId, contentType, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstanceHeartbeatWithBody_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstanceHeartbeatWithBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 io.Reader
+		if args[3] != nil {
+			arg3 = args[3].(io.Reader)
+		}
+		var arg4 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 4 {
+			variadicArgs = args[4].([]api.RequestEditorFn)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceHeartbeatWithBody_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstanceHeartbeatWithBody_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceHeartbeatWithBody_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstanceHeartbeatWithBody_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstancePutRenderedFields provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstancePutRenderedFields(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstancePutRenderedFieldsJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstancePutRenderedFields")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstancePutRenderedFieldsJSONRequestBody, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstancePutRenderedFieldsJSONRequestBody, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, api.TaskInstancePutRenderedFieldsJSONRequestBody, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstancePutRenderedFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstancePutRenderedFields'
+type ClientInterface_TaskInstancePutRenderedFields_Call struct {
+	*mock.Call
+}
+
+// TaskInstancePutRenderedFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - body api.TaskInstancePutRenderedFieldsJSONRequestBody
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstancePutRenderedFields(ctx interface{}, taskInstanceId interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstancePutRenderedFields_Call {
+	return &ClientInterface_TaskInstancePutRenderedFields_Call{Call: _e.mock.On("TaskInstancePutRenderedFields",
+		append([]interface{}{ctx, taskInstanceId, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstancePutRenderedFields_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstancePutRenderedFieldsJSONRequestBody, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstancePutRenderedFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 api.TaskInstancePutRenderedFieldsJSONRequestBody
+		if args[2] != nil {
+			arg2 = args[2].(api.TaskInstancePutRenderedFieldsJSONRequestBody)
+		}
+		var arg3 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 3 {
+			variadicArgs = args[3].([]api.RequestEditorFn)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstancePutRenderedFields_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstancePutRenderedFields_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstancePutRenderedFields_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstancePutRenderedFieldsJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstancePutRenderedFields_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstancePutRenderedFieldsWithBody provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstancePutRenderedFieldsWithBody(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstancePutRenderedFieldsWithBody")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstancePutRenderedFieldsWithBody'
+type ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call struct {
+	*mock.Call
+}
+
+// TaskInstancePutRenderedFieldsWithBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - contentType string
+//   - body io.Reader
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstancePutRenderedFieldsWithBody(ctx interface{}, taskInstanceId interface{}, contentType interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call {
+	return &ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call{Call: _e.mock.On("TaskInstancePutRenderedFieldsWithBody",
+		append([]interface{}{ctx, taskInstanceId, contentType, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 io.Reader
+		if args[3] != nil {
+			arg3 = args[3].(io.Reader)
+		}
+		var arg4 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 4 {
+			variadicArgs = args[4].([]api.RequestEditorFn)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstancePutRenderedFieldsWithBody_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstanceRun provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstanceRun(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceRunJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstanceRun")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstanceRunJSONRequestBody, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstanceRunJSONRequestBody, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, api.TaskInstanceRunJSONRequestBody, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstanceRun_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstanceRun'
+type ClientInterface_TaskInstanceRun_Call struct {
+	*mock.Call
+}
+
+// TaskInstanceRun is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - body api.TaskInstanceRunJSONRequestBody
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstanceRun(ctx interface{}, taskInstanceId interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstanceRun_Call {
+	return &ClientInterface_TaskInstanceRun_Call{Call: _e.mock.On("TaskInstanceRun",
+		append([]interface{}{ctx, taskInstanceId, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstanceRun_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceRunJSONRequestBody, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstanceRun_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 api.TaskInstanceRunJSONRequestBody
+		if args[2] != nil {
+			arg2 = args[2].(api.TaskInstanceRunJSONRequestBody)
+		}
+		var arg3 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 3 {
+			variadicArgs = args[3].([]api.RequestEditorFn)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceRun_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstanceRun_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceRun_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceRunJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstanceRun_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstanceRunWithBody provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstanceRunWithBody(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstanceRunWithBody")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstanceRunWithBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstanceRunWithBody'
+type ClientInterface_TaskInstanceRunWithBody_Call struct {
+	*mock.Call
+}
+
+// TaskInstanceRunWithBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - contentType string
+//   - body io.Reader
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstanceRunWithBody(ctx interface{}, taskInstanceId interface{}, contentType interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstanceRunWithBody_Call {
+	return &ClientInterface_TaskInstanceRunWithBody_Call{Call: _e.mock.On("TaskInstanceRunWithBody",
+		append([]interface{}{ctx, taskInstanceId, contentType, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstanceRunWithBody_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstanceRunWithBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 io.Reader
+		if args[3] != nil {
+			arg3 = args[3].(io.Reader)
+		}
+		var arg4 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 4 {
+			variadicArgs = args[4].([]api.RequestEditorFn)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceRunWithBody_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstanceRunWithBody_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceRunWithBody_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstanceRunWithBody_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstanceSkipDownstream provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstanceSkipDownstream(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceSkipDownstreamJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstanceSkipDownstream")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstanceSkipDownstreamJSONRequestBody, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstanceSkipDownstreamJSONRequestBody, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, api.TaskInstanceSkipDownstreamJSONRequestBody, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstanceSkipDownstream_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstanceSkipDownstream'
+type ClientInterface_TaskInstanceSkipDownstream_Call struct {
+	*mock.Call
+}
+
+// TaskInstanceSkipDownstream is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - body api.TaskInstanceSkipDownstreamJSONRequestBody
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstanceSkipDownstream(ctx interface{}, taskInstanceId interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstanceSkipDownstream_Call {
+	return &ClientInterface_TaskInstanceSkipDownstream_Call{Call: _e.mock.On("TaskInstanceSkipDownstream",
+		append([]interface{}{ctx, taskInstanceId, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstanceSkipDownstream_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceSkipDownstreamJSONRequestBody, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstanceSkipDownstream_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 api.TaskInstanceSkipDownstreamJSONRequestBody
+		if args[2] != nil {
+			arg2 = args[2].(api.TaskInstanceSkipDownstreamJSONRequestBody)
+		}
+		var arg3 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 3 {
+			variadicArgs = args[3].([]api.RequestEditorFn)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceSkipDownstream_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstanceSkipDownstream_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceSkipDownstream_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceSkipDownstreamJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstanceSkipDownstream_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstanceSkipDownstreamWithBody provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstanceSkipDownstreamWithBody(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstanceSkipDownstreamWithBody")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstanceSkipDownstreamWithBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstanceSkipDownstreamWithBody'
+type ClientInterface_TaskInstanceSkipDownstreamWithBody_Call struct {
+	*mock.Call
+}
+
+// TaskInstanceSkipDownstreamWithBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - contentType string
+//   - body io.Reader
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstanceSkipDownstreamWithBody(ctx interface{}, taskInstanceId interface{}, contentType interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstanceSkipDownstreamWithBody_Call {
+	return &ClientInterface_TaskInstanceSkipDownstreamWithBody_Call{Call: _e.mock.On("TaskInstanceSkipDownstreamWithBody",
+		append([]interface{}{ctx, taskInstanceId, contentType, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstanceSkipDownstreamWithBody_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstanceSkipDownstreamWithBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 io.Reader
+		if args[3] != nil {
+			arg3 = args[3].(io.Reader)
+		}
+		var arg4 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 4 {
+			variadicArgs = args[4].([]api.RequestEditorFn)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceSkipDownstreamWithBody_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstanceSkipDownstreamWithBody_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceSkipDownstreamWithBody_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstanceSkipDownstreamWithBody_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstanceUpdateState provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstanceUpdateState(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceUpdateStateJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstanceUpdateState")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstanceUpdateStateJSONRequestBody, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, api.TaskInstanceUpdateStateJSONRequestBody, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, api.TaskInstanceUpdateStateJSONRequestBody, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstanceUpdateState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstanceUpdateState'
+type ClientInterface_TaskInstanceUpdateState_Call struct {
+	*mock.Call
+}
+
+// TaskInstanceUpdateState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - body api.TaskInstanceUpdateStateJSONRequestBody
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstanceUpdateState(ctx interface{}, taskInstanceId interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstanceUpdateState_Call {
+	return &ClientInterface_TaskInstanceUpdateState_Call{Call: _e.mock.On("TaskInstanceUpdateState",
+		append([]interface{}{ctx, taskInstanceId, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstanceUpdateState_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceUpdateStateJSONRequestBody, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstanceUpdateState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 api.TaskInstanceUpdateStateJSONRequestBody
+		if args[2] != nil {
+			arg2 = args[2].(api.TaskInstanceUpdateStateJSONRequestBody)
+		}
+		var arg3 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 3 {
+			variadicArgs = args[3].([]api.RequestEditorFn)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceUpdateState_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstanceUpdateState_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceUpdateState_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, body api.TaskInstanceUpdateStateJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstanceUpdateState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TaskInstanceUpdateStateWithBody provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TaskInstanceUpdateStateWithBody(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId, contentType, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TaskInstanceUpdateStateWithBody")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, string, io.Reader, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, contentType, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TaskInstanceUpdateStateWithBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TaskInstanceUpdateStateWithBody'
+type ClientInterface_TaskInstanceUpdateStateWithBody_Call struct {
+	*mock.Call
+}
+
+// TaskInstanceUpdateStateWithBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - contentType string
+//   - body io.Reader
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TaskInstanceUpdateStateWithBody(ctx interface{}, taskInstanceId interface{}, contentType interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TaskInstanceUpdateStateWithBody_Call {
+	return &ClientInterface_TaskInstanceUpdateStateWithBody_Call{Call: _e.mock.On("TaskInstanceUpdateStateWithBody",
+		append([]interface{}{ctx, taskInstanceId, contentType, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TaskInstanceUpdateStateWithBody_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn)) *ClientInterface_TaskInstanceUpdateStateWithBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 io.Reader
+		if args[3] != nil {
+			arg3 = args[3].(io.Reader)
+		}
+		var arg4 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 4 {
+			variadicArgs = args[4].([]api.RequestEditorFn)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceUpdateStateWithBody_Call) Return(response *http.Response, err error) *ClientInterface_TaskInstanceUpdateStateWithBody_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TaskInstanceUpdateStateWithBody_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TaskInstanceUpdateStateWithBody_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TriggerDagRun provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TriggerDagRun(ctx context.Context, dagId string, runId string, body api.TriggerDagRunJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TriggerDagRun")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, api.TriggerDagRunJSONRequestBody, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, api.TriggerDagRunJSONRequestBody, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, api.TriggerDagRunJSONRequestBody, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TriggerDagRun_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TriggerDagRun'
+type ClientInterface_TriggerDagRun_Call struct {
+	*mock.Call
+}
+
+// TriggerDagRun is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - body api.TriggerDagRunJSONRequestBody
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TriggerDagRun(ctx interface{}, dagId interface{}, runId interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TriggerDagRun_Call {
+	return &ClientInterface_TriggerDagRun_Call{Call: _e.mock.On("TriggerDagRun",
+		append([]interface{}{ctx, dagId, runId, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TriggerDagRun_Call) Run(run func(ctx context.Context, dagId string, runId string, body api.TriggerDagRunJSONRequestBody, reqEditors ...api.RequestEditorFn)) *ClientInterface_TriggerDagRun_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 api.TriggerDagRunJSONRequestBody
+		if args[3] != nil {
+			arg3 = args[3].(api.TriggerDagRunJSONRequestBody)
+		}
+		var arg4 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 4 {
+			variadicArgs = args[4].([]api.RequestEditorFn)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TriggerDagRun_Call) Return(response *http.Response, err error) *ClientInterface_TriggerDagRun_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TriggerDagRun_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, body api.TriggerDagRunJSONRequestBody, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TriggerDagRun_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TriggerDagRunWithBody provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) TriggerDagRunWithBody(ctx context.Context, dagId string, runId string, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, dagId, runId, contentType, body, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, dagId, runId, contentType, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TriggerDagRunWithBody")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, io.Reader, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, dagId, runId, contentType, body, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, io.Reader, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, dagId, runId, contentType, body, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, io.Reader, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, dagId, runId, contentType, body, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_TriggerDagRunWithBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TriggerDagRunWithBody'
+type ClientInterface_TriggerDagRunWithBody_Call struct {
+	*mock.Call
+}
+
+// TriggerDagRunWithBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dagId string
+//   - runId string
+//   - contentType string
+//   - body io.Reader
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) TriggerDagRunWithBody(ctx interface{}, dagId interface{}, runId interface{}, contentType interface{}, body interface{}, reqEditors ...interface{}) *ClientInterface_TriggerDagRunWithBody_Call {
+	return &ClientInterface_TriggerDagRunWithBody_Call{Call: _e.mock.On("TriggerDagRunWithBody",
+		append([]interface{}{ctx, dagId, runId, contentType, body}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_TriggerDagRunWithBody_Call) Run(run func(ctx context.Context, dagId string, runId string, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn)) *ClientInterface_TriggerDagRunWithBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 io.Reader
+		if args[4] != nil {
+			arg4 = args[4].(io.Reader)
+		}
+		var arg5 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 5 {
+			variadicArgs = args[5].([]api.RequestEditorFn)
+		}
+		arg5 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_TriggerDagRunWithBody_Call) Return(response *http.Response, err error) *ClientInterface_TriggerDagRunWithBody_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_TriggerDagRunWithBody_Call) RunAndReturn(run func(ctx context.Context, dagId string, runId string, contentType string, body io.Reader, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_TriggerDagRunWithBody_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ValidateInletsAndOutlets provides a mock function for the type ClientInterface
+func (_mock *ClientInterface) ValidateInletsAndOutlets(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn) (*http.Response, error) {
+	var tmpRet mock.Arguments
+	if len(reqEditors) > 0 {
+		tmpRet = _mock.Called(ctx, taskInstanceId, reqEditors)
+	} else {
+		tmpRet = _mock.Called(ctx, taskInstanceId)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ValidateInletsAndOutlets")
+	}
+
+	var r0 *http.Response
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, ...api.RequestEditorFn) (*http.Response, error)); ok {
+		return returnFunc(ctx, taskInstanceId, reqEditors...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, types.UUID, ...api.RequestEditorFn) *http.Response); ok {
+		r0 = returnFunc(ctx, taskInstanceId, reqEditors...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*http.Response)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, types.UUID, ...api.RequestEditorFn) error); ok {
+		r1 = returnFunc(ctx, taskInstanceId, reqEditors...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClientInterface_ValidateInletsAndOutlets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ValidateInletsAndOutlets'
+type ClientInterface_ValidateInletsAndOutlets_Call struct {
+	*mock.Call
+}
+
+// ValidateInletsAndOutlets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - taskInstanceId types.UUID
+//   - reqEditors ...api.RequestEditorFn
+func (_e *ClientInterface_Expecter) ValidateInletsAndOutlets(ctx interface{}, taskInstanceId interface{}, reqEditors ...interface{}) *ClientInterface_ValidateInletsAndOutlets_Call {
+	return &ClientInterface_ValidateInletsAndOutlets_Call{Call: _e.mock.On("ValidateInletsAndOutlets",
+		append([]interface{}{ctx, taskInstanceId}, reqEditors...)...)}
+}
+
+func (_c *ClientInterface_ValidateInletsAndOutlets_Call) Run(run func(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn)) *ClientInterface_ValidateInletsAndOutlets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 types.UUID
+		if args[1] != nil {
+			arg1 = args[1].(types.UUID)
+		}
+		var arg2 []api.RequestEditorFn
+		var variadicArgs []api.RequestEditorFn
+		if len(args) > 2 {
+			variadicArgs = args[2].([]api.RequestEditorFn)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *ClientInterface_ValidateInletsAndOutlets_Call) Return(response *http.Response, err error) *ClientInterface_ValidateInletsAndOutlets_Call {
+	_c.Call.Return(response, err)
+	return _c
+}
+
+func (_c *ClientInterface_ValidateInletsAndOutlets_Call) RunAndReturn(run func(ctx context.Context, taskInstanceId types.UUID, reqEditors ...api.RequestEditorFn) (*http.Response, error)) *ClientInterface_ValidateInletsAndOutlets_Call {
 	_c.Call.Return(run)
 	return _c
 }

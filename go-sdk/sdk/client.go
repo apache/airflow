@@ -20,8 +20,8 @@ package sdk
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -51,14 +51,16 @@ func (*client) GetVariable(ctx context.Context, key string) (string, error) {
 		return env, nil
 	}
 
-	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientWithResponsesInterface)
 
-	resp, err := httpClient.Variables().Get(ctx, key)
+	resp, err := httpClient.GetVariableWithResponse(ctx, key)
 	if err != nil {
-		var httpError *api.GeneralHTTPError
-		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
-			err = fmt.Errorf("%w: %q", VariableNotFound, key)
-		}
+		return "", err
+	}
+	if resp.StatusCode() == http.StatusNotFound {
+		return "", fmt.Errorf("%w: %q", VariableNotFound, key)
+	}
+	if err := api.CheckResponse(resp, resp.HTTPResponse); err != nil {
 		return "", err
 	}
 	// TODO: register secret-named variables with a SecretsMasker so the
@@ -67,7 +69,7 @@ func (*client) GetVariable(ctx context.Context, key string) (string, error) {
 	// Pairs with the "TODO: mask secrets here" hook in
 	// pkg/worker/runner.go's task log handler — both halves are needed
 	// before secret masking actually works end-to-end.
-	return *resp.Value, nil
+	return *resp.JSON200.Value, nil
 }
 
 // UnmarshalJSONVariable implements AirflowClient.
@@ -90,18 +92,20 @@ func (*client) GetConnection(ctx context.Context, connID string) (Connection, er
 	// "TODO: mask secrets here" hook in pkg/worker/runner.go's task log
 	// handler and the matching TODO on GetVariable above.
 
-	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientWithResponsesInterface)
 
-	resp, err := httpClient.Connections().Get(ctx, connID)
+	resp, err := httpClient.GetConnectionWithResponse(ctx, connID)
 	if err != nil {
-		var httpError *api.GeneralHTTPError
-		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
-			err = fmt.Errorf("%w: %q", ConnectionNotFound, connID)
-		}
+		return Connection{}, err
+	}
+	if resp.StatusCode() == http.StatusNotFound {
+		return Connection{}, fmt.Errorf("%w: %q", ConnectionNotFound, connID)
+	}
+	if err := api.CheckResponse(resp, resp.HTTPResponse); err != nil {
 		return Connection{}, err
 	}
 
-	return ConnFromAPIResponse(resp)
+	return ConnFromAPIResponse(resp.JSON200)
 }
 
 func (c *client) PushXCom(
@@ -116,13 +120,20 @@ func (c *client) PushXCom(
 		params.MapIndex = ti.MapIndex
 	}
 
-	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
-	_, err := httpClient.Xcoms().
-		SetResponse(ctx, ti.DagId, ti.RunId, ti.TaskId, key, &params, &value)
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientWithResponsesInterface)
+	resp, err := httpClient.SetXcomWithResponse(
+		ctx,
+		ti.DagId,
+		ti.RunId,
+		ti.TaskId,
+		key,
+		&params,
+		value,
+	)
 	if err != nil {
 		return err
 	}
-	return nil
+	return api.CheckResponse(resp, resp.HTTPResponse)
 }
 
 func (*client) GetXCom(
@@ -136,15 +147,17 @@ func (*client) GetXCom(
 		MapIndex: mapIndex,
 	}
 
-	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
-	res, err := httpClient.Xcoms().Get(ctx, dagId, runId, taskId, key, &params)
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientWithResponsesInterface)
+	resp, err := httpClient.GetXcomWithResponse(ctx, dagId, runId, taskId, key, &params)
 	if err != nil {
-		var httpError *api.GeneralHTTPError
-		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
-			err = fmt.Errorf("%w: %q", XComNotFound, key)
-		}
+		return nil, err
+	}
+	if resp.StatusCode() == http.StatusNotFound {
+		return nil, fmt.Errorf("%w: %q", XComNotFound, key)
+	}
+	if err := api.CheckResponse(resp, resp.HTTPResponse); err != nil {
 		return nil, err
 	}
 	// TODO: We probably  want to do some level of xcom deser here
-	return res.Value, nil
+	return resp.JSON200.Value, nil
 }

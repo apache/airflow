@@ -19,13 +19,11 @@ package sdk
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"resty.dev/v3"
 
 	"github.com/apache/airflow/go-sdk/pkg/api"
 	apiMock "github.com/apache/airflow/go-sdk/pkg/api/mocks"
@@ -35,22 +33,17 @@ import (
 type ClientSuite struct {
 	suite.Suite
 
-	apiClient         *apiMock.ClientInterface
-	variablesClient   *apiMock.VariablesClient
-	connectionsClient *apiMock.ConnectionsClient
-	ctx               context.Context
+	apiClient *apiMock.ClientWithResponsesInterface
+	ctx       context.Context
 }
 
 var AnyContext any = mock.MatchedBy(func(_ context.Context) bool { return true })
 
-func makeHTTPError(status int, statusMessage string) error {
-	return &api.GeneralHTTPError{
-		Response: &resty.Response{
-			RawResponse: &http.Response{
-				Status:     fmt.Sprintf("%d %s", status, statusMessage),
-				StatusCode: status,
-			},
-		},
+func httpResponse(status int) *http.Response {
+	return &http.Response{
+		StatusCode: status,
+		Status:     http.StatusText(status),
+		Header:     http.Header{},
 	}
 }
 
@@ -59,24 +52,20 @@ func TestClientSuite(t *testing.T) {
 }
 
 func (s *ClientSuite) SetupTest() {
-	c := apiMock.NewClientInterface(s.T())
-	vars := apiMock.NewVariablesClient(s.T())
-	conns := apiMock.NewConnectionsClient(s.T())
-	c.EXPECT().Variables().Maybe().Return(vars)
-	c.EXPECT().Connections().Maybe().Return(conns)
-
+	c := apiMock.NewClientWithResponsesInterface(s.T())
 	s.apiClient = c
-	s.variablesClient = vars
-	s.connectionsClient = conns
 	s.ctx = context.WithValue(context.Background(), sdkcontext.ApiClientContextKey, c)
 }
 
 func (s *ClientSuite) TestGetVariable() {
 	key := "my_var"
 	expected := `some"raw"value`
-	s.variablesClient.EXPECT().
-		Get(AnyContext, key).
-		Return(&api.VariableResponse{Value: &expected}, nil)
+	s.apiClient.EXPECT().
+		GetVariableWithResponse(AnyContext, key).
+		Return(&api.GetVariableResponse{
+			HTTPResponse: httpResponse(http.StatusOK),
+			JSON200:      &api.VariableResponse{Value: &expected},
+		}, nil)
 
 	c := &client{}
 	val, err := c.GetVariable(s.ctx, key)
@@ -86,7 +75,9 @@ func (s *ClientSuite) TestGetVariable() {
 
 func (s *ClientSuite) TestGetVariable_404Error() {
 	key := "my_var"
-	s.variablesClient.EXPECT().Get(AnyContext, key).Return(nil, makeHTTPError(404, "Not Found"))
+	s.apiClient.EXPECT().
+		GetVariableWithResponse(AnyContext, key).
+		Return(&api.GetVariableResponse{HTTPResponse: httpResponse(http.StatusNotFound)}, nil)
 
 	c := &client{}
 	_, err := c.GetVariable(s.ctx, key)
@@ -100,7 +91,7 @@ func (s *ClientSuite) TestGetVariable_EnvFirst() {
 	val, err := c.GetVariable(s.ctx, "my_var")
 	s.Require().NoError(err)
 	s.Equal("value1", val)
-	s.variablesClient.AssertNotCalled(s.T(), "Get")
+	s.apiClient.AssertNotCalled(s.T(), "GetVariableWithResponse")
 }
 
 func (s *ClientSuite) TestGetConnection() {
@@ -191,9 +182,12 @@ func (s *ClientSuite) TestGetConnection() {
 
 	for name, tc := range tests {
 		s.Run(name, func() {
-			s.connectionsClient.EXPECT().
-				Get(AnyContext, tc.connId).
-				Return(tc.apiResponse, nil)
+			s.apiClient.EXPECT().
+				GetConnectionWithResponse(AnyContext, tc.connId).
+				Return(&api.GetConnectionResponse{
+					HTTPResponse: httpResponse(http.StatusOK),
+					JSON200:      tc.apiResponse,
+				}, nil)
 
 			c := &client{}
 			gotConn, err := c.GetConnection(s.ctx, tc.connId)

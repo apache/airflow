@@ -18,58 +18,109 @@
 package api
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"maps"
+	"net/http"
 
 	"github.com/google/uuid"
-	"resty.dev/v3"
 )
 
 const API_VERSION = "2025-05-20"
 
-//go:generate -command openapi-gen go run github.com/ashb/oapi-resty-codegen@latest --config oapi-codegen.yml
+//go:generate -command openapi-gen go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest --config oapi-codegen.yml
 
-//go:generate openapi-gen https://airflow.staged.apache.org/schemas/execution-api/2025-05-20.json
+//go:generate openapi-gen https://airflow.apache.org/schemas/execution-api/2025-05-20.json
 
-func correlationIdInjector(_ *resty.Client, req *resty.Request) error {
-	if uuid, err := uuid.NewV7(); err != nil {
-		return err
-	} else {
-		req.Header.Set("Correlation-Id", uuid.String())
-	}
+// apiVersionInjector sets the constant Airflow-API-Version header on every request.
+func apiVersionInjector(_ context.Context, req *http.Request) error {
+	req.Header.Set("Airflow-API-Version", API_VERSION)
 	return nil
 }
 
-func NewDefaultClient(server string, opts ...ClientOption) (ClientInterface, error) {
-	rc := resty.New()
-	rc.SetBaseURL(server)
-	rc.SetHeader("Airflow-API-Version", API_VERSION)
-	return NewClient(
-		server,
-		WithClient(rc),
-		WithRequestMiddleware(correlationIdInjector),
+// correlationIdInjector sets a fresh Correlation-Id header on every request.
+func correlationIdInjector(_ context.Context, req *http.Request) error {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Correlation-Id", id.String())
+	return nil
+}
+
+// NewDefaultClient returns a client for the Execution API rooted at server, with
+// the API-version and correlation-id request editors installed.
+func NewDefaultClient(server string, opts ...ClientOption) (*ClientWithResponses, error) {
+	defaults := []ClientOption{
+		WithRequestEditorFn(apiVersionInjector),
+		WithRequestEditorFn(correlationIdInjector),
+	}
+	return NewClientWithResponses(server, append(defaults, opts...)...)
+}
+
+// WithBearerToken returns a copy of the client (reusing the underlying HTTP doer
+// and request editors) that adds a Bearer token to the Authorization header of
+// every request. The token is time-limited, so we set the header directly.
+func (c *ClientWithResponses) WithBearerToken(token string) (*ClientWithResponses, error) {
+	inner, ok := c.ClientInterface.(*Client)
+	if !ok {
+		return nil, fmt.Errorf(
+			"WithBearerToken requires the default *Client, got %T",
+			c.ClientInterface,
+		)
+	}
+	authInjector := func(_ context.Context, req *http.Request) error {
+		req.Header.Set("Authorization", "Bearer "+token)
+		return nil
+	}
+	return NewClientWithResponses(
+		inner.Server,
+		WithHTTPClient(inner.Client),
+		func(nc *Client) error {
+			nc.RequestEditors = append(nc.RequestEditors, inner.RequestEditors...)
+			nc.RequestEditors = append(nc.RequestEditors, authInjector)
+			return nil
+		},
 	)
 }
 
-// WithBearerToken creates a copy of the client (reusing the underlying http.Client) adding in a Bearer token auth to all requests
-func (c *Client) WithBearerToken(token string) (ClientInterface, error) {
-	rc := resty.NewWithClient(c.Client.Client())
-	maps.Copy(rc.Header(), c.Client.Header())
-	rc.SetBaseURL(c.Server)
-	rc.SetDebug(c.Client.IsDebug())
-	rc.SetLogger(c.Client.Logger())
+// GeneralHTTPError is returned when the Execution API responds with a non-2xx
+// status. It carries the underlying response so callers can inspect the status
+// code and the originating request.
+type GeneralHTTPError struct {
+	Response *http.Response
+	// JSON holds the decoded error body when it is a JSON object; otherwise Text
+	// holds the raw body.
+	JSON any
+	Text string
+}
 
-	// We don't use SetAuthToken/SetAuthScheme, as that produces a (valid, but annoying) warning about using Auth
-	// over HTTP: "Using sensitive credentials in HTTP mode is not secure." It's a time-limited-token though, so we
-	// can reasonably ignore that here and setting the header directly bypasses that
-	rc.SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
-
-	opts := []ClientOption{
-		WithClient(rc),
+func (e *GeneralHTTPError) Error() string {
+	if e.Text != "" {
+		return fmt.Sprintf("%s: %s", e.Response.Status, e.Text)
 	}
-	for _, mw := range c.RequestMiddleware {
-		opts = append(opts, WithRequestMiddleware(mw))
+	return e.Response.Status
+}
+
+// apiResponse is implemented by every generated typed response wrapper.
+type apiResponse interface {
+	StatusCode() int
+	GetBody() []byte
+}
+
+// CheckResponse returns a *GeneralHTTPError when resp represents a non-2xx
+// response, and nil otherwise. rawResponse is the underlying *http.Response,
+// which the generated wrapper carries as its HTTPResponse field.
+func CheckResponse(resp apiResponse, rawResponse *http.Response) error {
+	if code := resp.StatusCode(); code >= 200 && code < 300 {
+		return nil
 	}
 
-	return NewClient(c.Server, opts...)
+	e := GeneralHTTPError{Response: rawResponse, Text: string(resp.GetBody())}
+	if rawResponse != nil && rawResponse.Header.Get("Content-Type") == "application/json" {
+		if json.Unmarshal(resp.GetBody(), &e.JSON) == nil {
+			e.Text = ""
+		}
+	}
+	return &e
 }

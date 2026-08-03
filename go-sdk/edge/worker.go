@@ -47,7 +47,7 @@ type worker struct {
 	*shared.Discovery
 
 	hostname string
-	client   edgeapi.ClientInterface
+	client   edgeapi.ClientWithResponsesInterface
 	queues   []string
 	logger   *slog.Logger
 
@@ -74,14 +74,16 @@ func buildFetchedJobLogAttrs(job fetchedJobForLog) []slog.Attr {
 		slog.Int("try_number", job.TryNumber),
 		slog.Int("map_index", job.MapIndex),
 		slog.Int("concurrency_slots", job.ConcurrencySlots),
-		slog.String("bundle_name", job.Command.BundleInfo.Name),
 	}
 
-	if job.Command.BundleInfo.Version != nil {
-		attrs = append(attrs, slog.String("bundle_version", *job.Command.BundleInfo.Version))
-	}
-	if job.Command.Ti.Queue != "" {
-		attrs = append(attrs, slog.String("queue", job.Command.Ti.Queue))
+	if cmd, err := job.Command.AsExecuteTask(); err == nil {
+		attrs = append(attrs, slog.String("bundle_name", cmd.BundleInfo.Name))
+		if cmd.BundleInfo.Version != nil {
+			attrs = append(attrs, slog.String("bundle_version", *cmd.BundleInfo.Version))
+		}
+		if cmd.Ti.Queue != nil && *cmd.Ti.Queue != "" {
+			attrs = append(attrs, slog.String("queue", *cmd.Ti.Queue))
+		}
 	}
 
 	return attrs
@@ -137,7 +139,7 @@ func configOrDefault[T cast.Basic](key string, fallback T) T {
 }
 
 func NewWorker(conf config.WorkerConfig) (*worker, error) {
-	client, err := edgeapi.NewClient(conf.ApiURL,
+	client, err := edgeapi.NewDefaultClient(conf.ApiURL,
 		edgeapi.WithEdgeAPIJWTKey([]byte(conf.ApiJWTSecretKey), conf.Issuer),
 		edgeapi.WithRetry(conf.ClientConfig))
 	if err != nil {
@@ -184,12 +186,15 @@ func NewWorker(conf config.WorkerConfig) (*worker, error) {
 }
 
 func (w *worker) Register(ctx context.Context) error {
-	_, err := w.client.Worker().Register(ctx, w.hostname, &edgeapi.WorkerStateBody{
+	resp, err := w.client.RegisterWithResponse(ctx, w.hostname, edgeapi.WorkerStateBody{
 		State:   edgeapi.EdgeWorkerStateStarting,
 		Sysinfo: w.sysInfo,
 		Queues:  &w.queues,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	return edgeapi.CheckResponse(resp, resp.HTTPResponse)
 }
 
 func (w *worker) deregister(ctx context.Context) {
@@ -198,10 +203,13 @@ func (w *worker) deregister(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), DeregisterTimeout)
 	defer cancel()
 
-	_, err := w.client.Worker().SetState(ctx, w.hostname, &edgeapi.WorkerStateBody{
+	resp, err := w.client.SetStateWithResponse(ctx, w.hostname, edgeapi.WorkerStateBody{
 		State:   edgeapi.EdgeWorkerStateOffline,
 		Sysinfo: w.sysInfo,
 	})
+	if err == nil {
+		err = edgeapi.CheckResponse(resp, resp.HTTPResponse)
+	}
 	if err != nil {
 		w.logger.Warn("Unable to report worker shutdown to Edge API server", "err", err)
 	}
@@ -232,7 +240,7 @@ func (w *worker) heartbeat(ctx context.Context) error {
 
 	jobsActive := len(w.activeWorkloads)
 
-	resp, err := w.client.Worker().SetState(ctx, w.hostname, &edgeapi.WorkerStateBody{
+	resp, err := w.client.SetStateWithResponse(ctx, w.hostname, edgeapi.WorkerStateBody{
 		State:      state,
 		Sysinfo:    w.sysInfo,
 		Queues:     &w.queues,
@@ -241,12 +249,16 @@ func (w *worker) heartbeat(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := edgeapi.CheckResponse(resp, resp.HTTPResponse); err != nil {
+		return err
+	}
+	state200 := resp.JSON200
 
-	if resp.Queues != nil {
-		w.queues = *resp.Queues
+	if state200.Queues != nil {
+		w.queues = *state200.Queues
 	}
 
-	switch resp.State {
+	switch state200.State {
 	case edgeapi.EdgeWorkerStateShutdownRequest:
 		w.logger.Info("Shutdown request from server!")
 		w.drain = true
@@ -398,31 +410,35 @@ func (w *worker) fetchJob(ctx context.Context) (*bundlev1.ExecuteTaskWorkload, i
 		slog.Int("freeConcurrency", int(free)),
 		slog.Int("max", int(w.maxConcurrency)),
 	)
-	resp, err := w.client.Jobs().Fetch(ctx, w.hostname, &edgeapi.WorkerQueuesBody{
+	resp, err := w.client.FetchWithResponse(ctx, w.hostname, edgeapi.WorkerQueuesBody{
 		FreeConcurrency: int(free),
 		Queues:          &w.queues,
 	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("unable to get jobs %w", err)
 	}
+	if err := edgeapi.CheckResponse(resp, resp.HTTPResponse); err != nil {
+		return nil, 0, fmt.Errorf("unable to get jobs %w", err)
+	}
 
-	if resp.TaskId == "" {
+	job := resp.JSON200
+	if job == nil || job.TaskId == "" {
 		// Empty response, got nothing!
 		return nil, 0, nil
 	}
 
 	w.logger.Info("Fetched job", "job", fetchedJobForLog(edgeapi.EdgeJobFetched{
-		Command:          resp.Command,
-		ConcurrencySlots: resp.ConcurrencySlots,
-		DagId:            resp.DagId,
-		MapIndex:         resp.MapIndex,
-		RunId:            resp.RunId,
-		TaskId:           resp.TaskId,
-		TryNumber:        resp.TryNumber,
+		Command:          job.Command,
+		ConcurrencySlots: job.ConcurrencySlots,
+		DagId:            job.DagId,
+		MapIndex:         job.MapIndex,
+		RunId:            job.RunId,
+		TaskId:           job.TaskId,
+		TryNumber:        job.TryNumber,
 	}))
 
 	// Round trip via json. Inefficient, but easy to code
-	asJSON, err := json.Marshal(resp.Command)
+	asJSON, err := json.Marshal(job.Command)
 	if err != nil {
 		// TODO: Report this to API server
 		return nil, 0, fmt.Errorf("unable to marshal workload %w", err)
@@ -435,7 +451,7 @@ func (w *worker) fetchJob(ctx context.Context) (*bundlev1.ExecuteTaskWorkload, i
 		return nil, 0, fmt.Errorf("unable to unmarshal into workload %w", err)
 	}
 
-	return &out, int32(resp.ConcurrencySlots), nil
+	return &out, int32(job.ConcurrencySlots), nil
 }
 
 func (w *worker) runWorkload(
@@ -451,7 +467,7 @@ func (w *worker) runWorkload(
 	if workload.TI.MapIndex != nil {
 		mapIndex = *workload.TI.MapIndex
 	}
-	w.client.Jobs().State(
+	w.client.StateWithResponse(
 		ctx,
 		workload.TI.DagId,
 		workload.TI.TaskId,
@@ -475,7 +491,7 @@ func (w *worker) runWorkload(
 		} else if err != nil {
 			jobState = edgeapi.TaskInstanceStateFailed
 		}
-		w.client.Jobs().State(
+		w.client.StateWithResponse(
 			ctx,
 			workload.TI.DagId,
 			workload.TI.TaskId,

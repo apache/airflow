@@ -18,7 +18,13 @@
 package edgeapi
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -27,74 +33,153 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"resty.dev/v3"
 
 	"github.com/apache/airflow/go-sdk/pkg/config"
 )
 
-//go:generate -command openapi-gen go run github.com/ashb/oapi-resty-codegen@latest --config oapi-codegen.yml
+const edgeAPIPathPrefix = "/edge_worker/v1/"
 
-//go:generate openapi-gen https://raw.githubusercontent.com/apache/airflow/refs/tags/providers-edge3/1.3.0/providers/edge3/src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
+//go:generate -command openapi-gen go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest --config oapi-codegen.yml
 
+//go:generate openapi-gen ../../../providers/edge3/src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
+
+// NewDefaultClient returns an Edge worker API client rooted at server.
+func NewDefaultClient(server string, opts ...ClientOption) (*ClientWithResponses, error) {
+	return NewClientWithResponses(server, opts...)
+}
+
+// WithEdgeAPIJWTKey installs a request editor that signs every request with a
+// short-lived HS512 JWT whose "method" claim is the endpoint path. The Edge API
+// server authenticates each request against this per-endpoint token.
 func WithEdgeAPIJWTKey(key []byte, issuer string) ClientOption {
-	return func(c *Client) error {
-		c.SetAuthScheme("")
-
-		mw := func(c *resty.Client, req *resty.Request) error {
-			endpointPath := strings.TrimPrefix(req.RawRequest.URL.String(), c.BaseURL())
-			endpointPath = strings.TrimPrefix(endpointPath, "/edge_worker/v1/")
-			now := time.Now().UTC().Unix()
-			t := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
-				"method": endpointPath,
-				"iss":    issuer,
-				"aud":    "api",
-				"iat":    now,
-				"nbf":    now,
-				"exp":    now + 5,
-			})
-			s, err := t.SignedString(key)
-			if err != nil {
-				return err
-			}
-			req.RawRequest.Header.Set(
-				req.HeaderAuthorizationKey,
-				strings.TrimSpace(req.AuthScheme+" "+s),
-			)
-			return nil
+	editor := func(_ context.Context, req *http.Request) error {
+		endpointPath := req.URL.Path
+		if idx := strings.Index(endpointPath, edgeAPIPathPrefix); idx >= 0 {
+			endpointPath = endpointPath[idx+len(edgeAPIPathPrefix):]
 		}
+		now := time.Now().UTC().Unix()
+		token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
+			"method": endpointPath,
+			"iss":    issuer,
+			"aud":    "api",
+			"iat":    now,
+			"nbf":    now,
+			"exp":    now + 5,
+		})
+		signed, err := token.SignedString(key)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", signed)
+		return nil
+	}
+	return WithRequestEditorFn(editor)
+}
 
-		mws := append(c.RequestMiddleware, resty.PrepareRequestMiddleware, mw)
-		c.SetRequestMiddlewares(mws...)
+// WithRetry installs an HTTP transport that retries transient failures (temporary
+// or timed-out network errors, connection refused, and HTTP 502) up to
+// conf.RetryCount times, backing off between conf.StartWaitTime and
+// conf.MaxWaitTime.
+func WithRetry(conf config.ClientConfig) ClientOption {
+	return func(c *Client) error {
+		base := http.DefaultTransport
+		if hc, ok := c.Client.(*http.Client); ok && hc.Transport != nil {
+			base = hc.Transport
+		}
+		c.Client = &http.Client{Transport: &retryTransport{
+			base:    base,
+			count:   conf.RetryCount,
+			waitMin: conf.StartWaitTime,
+			waitMax: conf.MaxWaitTime,
+		}}
 		return nil
 	}
 }
 
-func WithRetry(conf config.ClientConfig) ClientOption {
-	return func(c *Client) error {
-		c.SetRetryCount(conf.RetryCount).
-			SetRetryWaitTime(conf.StartWaitTime).
-			SetRetryMaxWaitTime(conf.MaxWaitTime).
-			AddRetryConditions(func(r *resty.Response, err error) bool {
-				var opErr *net.OpError
+type retryTransport struct {
+	base    http.RoundTripper
+	count   int
+	waitMin time.Duration
+	waitMax time.Duration
+}
 
-				if errors.As(err, &opErr) {
-					if opErr.Temporary() || opErr.Timeout() {
-						c.Logger().Warnf("Retrying request %v", err)
-						return true
-					}
-					if sysErr, ok := opErr.Err.(*os.SyscallError); ok {
-						if sysErr.Err == syscall.ECONNREFUSED {
-							c.Logger().Warnf("Retrying request %v", err)
-							return true
-						}
-					}
-				}
-				if r.StatusCode() == http.StatusBadGateway {
-					c.Logger().Warnf("Retrying request %v", err)
-					return true
-				}
-				return false
-			}).SetAllowNonIdempotentRetry(true)
+func (t *retryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Buffer the body so it can be replayed on each retry.
+	var body []byte
+	if req.Body != nil {
+		var err error
+		if body, err = io.ReadAll(req.Body); err != nil {
+			return nil, err
+		}
+		_ = req.Body.Close()
+	}
+
+	var resp *http.Response
+	var err error
+	for attempt := 0; ; attempt++ {
+		if body != nil {
+			req.Body = io.NopCloser(bytes.NewReader(body))
+		}
+		resp, err = t.base.RoundTrip(req)
+		if attempt >= t.count || !shouldRetry(resp, err) {
+			return resp, err
+		}
+		slog.Warn("Retrying Edge API request", "attempt", attempt+1, "error", err)
+		wait := t.waitMin * time.Duration(1<<attempt)
+		if wait > t.waitMax || wait <= 0 {
+			wait = t.waitMax
+		}
+		select {
+		case <-time.After(wait):
+		case <-req.Context().Done():
+			return nil, req.Context().Err()
+		}
+	}
+}
+
+func shouldRetry(resp *http.Response, err error) bool {
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		if opErr.Temporary() || opErr.Timeout() {
+			return true
+		}
+		var sysErr *os.SyscallError
+		if errors.As(opErr.Err, &sysErr) && errors.Is(sysErr.Err, syscall.ECONNREFUSED) {
+			return true
+		}
+	}
+	return resp != nil && resp.StatusCode == http.StatusBadGateway
+}
+
+// GeneralHTTPError is returned when the Edge API responds with a non-2xx status.
+type GeneralHTTPError struct {
+	Response *http.Response
+	JSON     any
+	Text     string
+}
+
+func (e *GeneralHTTPError) Error() string {
+	if e.Text != "" {
+		return fmt.Sprintf("%s: %s", e.Response.Status, e.Text)
+	}
+	return e.Response.Status
+}
+
+type apiResponse interface {
+	StatusCode() int
+	GetBody() []byte
+}
+
+// CheckResponse returns a *GeneralHTTPError when resp is a non-2xx response.
+func CheckResponse(resp apiResponse, rawResponse *http.Response) error {
+	if code := resp.StatusCode(); code >= 200 && code < 300 {
 		return nil
 	}
+	e := GeneralHTTPError{Response: rawResponse, Text: string(resp.GetBody())}
+	if rawResponse != nil && rawResponse.Header.Get("Content-Type") == "application/json" {
+		if json.Unmarshal(resp.GetBody(), &e.JSON) == nil {
+			e.Text = ""
+		}
+	}
+	return &e
 }

@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.7.0
 	github.com/ivanpirog/coloredcobra v1.0.2-0.20250501221745-46194c320708
-	github.com/oapi-codegen/runtime v1.1.1
+	github.com/oapi-codegen/runtime v1.6.0
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/pflag v1.0.10
@@ -19,7 +19,6 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
-	resty.dev/v3 v3.0.0-beta.2
 )
 
 require (
@@ -53,7 +52,6 @@ require (
 	github.com/evanphx/go-hclog-slog v0.0.0-20240717231540-be48fc4c4df5
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/google/uuid v1.6.0
-	github.com/jarcoal/httpmock v1.4.0
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/samber/slog-http v1.8.2
