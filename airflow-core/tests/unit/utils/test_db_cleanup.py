@@ -560,7 +560,6 @@ class TestDBCleanup:
         must leave the row in place instead of failing with IntegrityError.
         """
         from airflow.utils.db import reflect_tables
-        from airflow.utils.db_cleanup import ARCHIVE_TABLE_PREFIX, _do_delete
 
         base_date = pendulum.DateTime(2020, 1, 1, tzinfo=pendulum.timezone("UTC"))
         bundle_name = f"race-test-{uuid4()}"
