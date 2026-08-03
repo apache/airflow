@@ -827,31 +827,6 @@ class AssetManager(LoggingMixin):
             return apdr
 
     @classmethod
-    def _queue_dagruns_nonpartitioned_slow_path(
-        cls, asset_id: int, dags_to_queue: set[DagModel], event: AssetEvent, session: Session
-    ) -> None:
-        def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id, created_at=event.timestamp)
-            # Don't error whole transaction when a single RunQueue item conflicts.
-            # https://docs.sqlalchemy.org/en/20/orm/session_transaction.html#using-savepoint
-            try:
-                with session.begin_nested():
-                    existing = session.get(
-                        AssetDagRunQueue, {"target_dag_id": dag.dag_id, "asset_id": asset_id}
-                    )
-                    if existing and existing.created_at >= event.timestamp:
-                        cls.logger().debug("Skipping record %s due to newer timestamp", item)
-                        return dag.dag_id  # already queued with a newer timestamp
-                    session.merge(item)
-            except exc.IntegrityError:
-                cls.logger().debug("Skipping record %s", item, exc_info=True)
-            return dag.dag_id
-
-        queued_results = (_queue_dagrun_if_needed(dag) for dag in dags_to_queue)
-        if queued_dag_ids := [r for r in queued_results if r is not None]:
-            cls.logger().debug("consuming dag ids %s", queued_dag_ids)
-
-    @classmethod
     def _queue_dagruns_nonpartitioned_mysql(
         cls, asset_id: int, dags_to_queue: set[DagModel], event: AssetEvent, session: Session
     ) -> None:
