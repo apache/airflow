@@ -336,16 +336,22 @@ def _execute_callbacks(
             )
         else:
             log.debug("Processing Callback Request", request=request.to_json())
-        with BundleVersionLock(
-            bundle_name=request.bundle_name,
-            bundle_version=request.bundle_version,
-        ):
-            if isinstance(request, TaskCallbackRequest):
-                _execute_task_callbacks(dagbag, request, log)
-            elif isinstance(request, DagCallbackRequest):
-                _execute_dag_callbacks(dagbag, request, log)
-            elif isinstance(request, EmailRequest):
-                _execute_email_callbacks(dagbag, request, log)
+        # A failed request (e.g. the Dag or task was removed since the callback
+        # was scheduled) must not abort the remaining requests in this batch --
+        # they were already popped from the manager's queue and would be lost.
+        try:
+            with BundleVersionLock(
+                bundle_name=request.bundle_name,
+                bundle_version=request.bundle_version,
+            ):
+                if isinstance(request, TaskCallbackRequest):
+                    _execute_task_callbacks(dagbag, request, log)
+                elif isinstance(request, DagCallbackRequest):
+                    _execute_dag_callbacks(dagbag, request, log)
+                elif isinstance(request, EmailRequest):
+                    _execute_email_callbacks(dagbag, request, log)
+        except Exception:
+            log.exception("Failed to execute callback request", request=request.to_json())
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
@@ -361,7 +367,9 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
     ctx_from_server = request.context_from_server
 
     if ctx_from_server is not None and ctx_from_server.last_ti is not None:
-        task = dag.get_task(ctx_from_server.last_ti.task_id)
+        _, task = _get_dag_with_task(dagbag, request.dag_id, ctx_from_server.last_ti.task_id)
+        if TYPE_CHECKING:
+            assert task is not None
 
         runtime_ti = RuntimeTaskInstance.model_construct(
             **ctx_from_server.last_ti.model_dump(exclude_unset=True),
