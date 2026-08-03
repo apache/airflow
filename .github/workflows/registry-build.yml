@@ -60,6 +60,13 @@ on:  # yamllint disable-line rule:truthy
         required: false
         type: boolean
         default: false
+      checkout-ref:
+        description: >
+          Ref the CI image is built from. Defaults to the branch tip; a release publish passes the
+          tag it is publishing so the registry extracts from those sources rather than from main.
+        required: false
+        type: string
+        default: ""
       # `github.event_name` inside a called workflow reports the *caller's* event, never
       # `workflow_call`, so it cannot distinguish the two entry points. An input declared
       # only here can: it defaults to true when called and is undefined (falsy) on a
@@ -117,10 +124,17 @@ jobs:
     with:
       runners: '["ubuntu-22.04"]'
       platform: "linux/amd64"
+      # Empty means the branch tip; a release publish passes the tag it is publishing.
+      checkout-ref: ${{ inputs.checkout-ref }}
       push-image: "false"
       upload-image-artifact: "true"
       # Kept so a standalone registry dispatch reuses the mount cache its last run left behind.
       upload-mount-cache-artifact: "true"
+      # A release ref is cut days or weeks before main, so main's registry cache stops matching at
+      # the first Dockerfile.ci change since the cut. What the previous publish of this same ref
+      # stashed was built from these very sources, so it is the cache main's cannot be.
+      seed-cache-from-stashed-image: ${{ inputs.image-stash-ref != '' }}
+      image-stash-ref: ${{ inputs.image-stash-ref }}
       python-versions: ${{ format('["{0}"]', inputs.python-version) }}
       branch: "main"
       constraints-branch: "constraints-main"
@@ -128,6 +142,9 @@ jobs:
       upgrade-to-newer-dependencies: "false"
       docker-cache: "registry"
       disable-airflow-repo-cache: "false"
+      # Building a release ref against main's cache can fail outright once its pyproject.toml has
+      # diverged; falling back to an uncached build is slow but correct.
+      retry-without-cache: "true"
 
   build-and-publish-registry:
     timeout-minutes: 45
