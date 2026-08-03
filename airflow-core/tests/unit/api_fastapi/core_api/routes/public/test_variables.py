@@ -1528,3 +1528,74 @@ class TestBulkVariables(TestVariableEndpoint):
 
         session.commit()
         assert session.scalars(select(Variable.key).where(Variable.key.in_(keys))).all() == []
+
+
+class TestVariableJsonValueSerialization(TestVariableEndpoint):
+    """``value`` accepts any JSON type, so every write path must store it as JSON, not a Python repr."""
+
+    JSON_VALUES = [
+        (["a", "b"], '[\n  "a",\n  "b"\n]'),
+        ({"k": 1}, '{\n  "k": 1\n}'),
+        (True, "true"),
+        (7, "7"),
+        (None, "null"),
+    ]
+    IDS = ["list", "dict", "bool", "int", "null"]
+
+    @pytest.mark.parametrize(("value", "expected_stored"), JSON_VALUES, ids=IDS)
+    def test_post_stores_json(self, test_client, session, value, expected_stored):
+        response = test_client.post("/variables", json={"key": "json_var", "value": value})
+        assert response.status_code == 201
+
+        stored = session.scalar(select(Variable).where(Variable.key == "json_var"))
+        assert stored.val == expected_stored
+        assert json.loads(stored.val) == value
+
+    @pytest.mark.parametrize(("value", "expected_stored"), JSON_VALUES, ids=IDS)
+    def test_patch_stores_json(self, test_client, session, value, expected_stored):
+        Variable.set(key="json_var", value="original", session=session)
+        session.commit()
+
+        response = test_client.patch("/variables/json_var", json={"key": "json_var", "value": value})
+        assert response.status_code == 200
+
+        session.expire_all()
+        stored = session.scalar(select(Variable).where(Variable.key == "json_var"))
+        assert stored.val == expected_stored
+        assert json.loads(stored.val) == value
+
+    @pytest.mark.parametrize(("value", "expected_stored"), JSON_VALUES, ids=IDS)
+    def test_bulk_create_stores_json(self, test_client, session, value, expected_stored):
+        response = test_client.patch(
+            "/variables",
+            json={"actions": [{"action": "create", "entities": [{"key": "json_var", "value": value}]}]},
+        )
+        assert response.status_code == 200
+        assert response.json()["create"]["success"] == ["json_var"]
+
+        stored = session.scalar(select(Variable).where(Variable.key == "json_var"))
+        assert stored.val == expected_stored
+        assert json.loads(stored.val) == value
+
+    @pytest.mark.parametrize("verb", ["post", "patch", "bulk"])
+    def test_string_value_is_stored_verbatim(self, test_client, session, verb):
+        """A string is already the stored form -- it must not be re-encoded into a quoted JSON string."""
+        if verb == "post":
+            test_client.post("/variables", json={"key": "str_var", "value": "plain string"})
+        elif verb == "patch":
+            Variable.set(key="str_var", value="original", session=session)
+            session.commit()
+            test_client.patch("/variables/str_var", json={"key": "str_var", "value": "plain string"})
+        else:
+            test_client.patch(
+                "/variables",
+                json={
+                    "actions": [
+                        {"action": "create", "entities": [{"key": "str_var", "value": "plain string"}]}
+                    ]
+                },
+            )
+
+        session.expire_all()
+        stored = session.scalar(select(Variable).where(Variable.key == "str_var"))
+        assert stored.val == "plain string"
