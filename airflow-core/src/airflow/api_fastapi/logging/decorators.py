@@ -102,7 +102,11 @@ def _mask_connection_entity(extra_fields):
                     result[k] = {ek: "***" for ek in parsed_extra}
                 else:
                     result[k] = "Expected JSON object in `extra` field, got non-dict JSON"
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, TypeError):
+                # ``extra`` is declared as a string, but this runs on the raw body before
+                # validation, so it can arrive as any JSON type -- a number or an already-decoded
+                # object makes ``json.loads`` raise TypeError rather than JSONDecodeError. Both
+                # are recorded without the value, instead of raising out of the audit-log path.
                 result[k] = "Encountered non-JSON in `extra` field"
         else:
             result[k] = secrets_masker.redact(v, k)

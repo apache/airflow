@@ -131,14 +131,7 @@ class TestMaskVariableFields:
 
 
 class TestMaskBulkFields:
-    """The bulk endpoints nest their entities, and the masking has to reach them.
-
-    A ``BulkBody`` has exactly one top-level field, ``actions``; the entities carrying the
-    secrets sit two levels down, in ``actions[].entities[]``. Both maskers dispatch on
-    top-level key names, so a bulk body previously presented them with the single key
-    ``actions`` -- neither ``val``/``value`` for variables, nor ``extra`` for connections --
-    and the payload was written to the audit log as supplied.
-    """
+    """The bulk endpoints nest their entities, and the masking has to reach them."""
 
     def test_bulk_variable_values_are_masked(self):
         result = _mask_variable_fields(
@@ -260,6 +253,28 @@ class TestMaskBulkFields:
         """The masker runs on request bodies before validation, so it must not add a failure mode."""
         _mask_variable_fields(body)
         _mask_connection_fields(body)
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param({"token": "CONN_LEAK_token"}, id="already-decoded-object"),
+            pytest.param(["CONN_LEAK_token"], id="already-decoded-array"),
+            pytest.param(123, id="number"),
+            pytest.param(True, id="bool"),
+        ],
+    )
+    def test_non_string_extra_does_not_raise_and_does_not_leak(self, extra):
+        """``extra`` reaches this before validation, so it need not be a string.
+
+        ``json.loads`` raises ``TypeError`` rather than ``JSONDecodeError`` for a non-string, which
+        would otherwise escape the audit-log decorator.
+        """
+        body = {"actions": [{"action": "create", "entities": [{"connection_id": "c1", "extra": extra}]}]}
+
+        result = _mask_connection_fields(body)
+
+        assert "CONN_LEAK_token" not in json.dumps(result)
+        assert result["actions"][0]["entities"][0]["connection_id"] == "c1"
 
     def test_flat_body_still_takes_the_single_entity_path(self):
         assert _mask_variable_fields({"key": "k", "value": "secret"}) == {"key": "k", "value": "***"}
