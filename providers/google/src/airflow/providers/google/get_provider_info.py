@@ -1713,7 +1713,11 @@ def get_provider_info():
             {
                 "classpath": "airflow.providers.google.cloud.log.gcs_task_handler.GCSRemoteLogIO",
                 "scheme": "gs",
-            }
+            },
+            {
+                "classpath": "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverRemoteLogIO",
+                "scheme": "stackdriver",
+            },
         ],
         "queues": [
             "airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer"

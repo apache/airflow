@@ -41,6 +41,89 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2020, 8, 10)
 
 
+class TestWasbRemoteLogIOFromConfig:
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "~/airflow/logs",
+            ("logging", "remote_base_log_folder"): "wasb://path/to/logs",
+            ("logging", "delete_local_logs"): "True",
+            ("azure_remote_logging", "remote_wasb_log_container"): "my-container",
+        }
+    )
+    def test_from_config(self):
+        subject = WasbRemoteLogIO.from_config()
+
+        assert subject.remote_base == "path/to/logs"
+        assert subject.base_log_folder == Path(os.path.expanduser("~/airflow/logs"))
+        assert subject.delete_local_copy is True
+        assert subject.wasb_container == "my-container"
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "remote_base_log_folder"): "wasb://path/to/logs",
+            ("logging", "delete_local_logs"): "False",
+            ("logging", "remote_task_handler_kwargs"): '{"delete_local_copy": true, "max_bytes": 1024}',
+        }
+    )
+    def test_from_config_applies_io_kwargs_and_filters_file_handler_kwargs(self):
+        subject = WasbRemoteLogIO.from_config()
+
+        assert subject.delete_local_copy is True
+        assert not hasattr(subject, "max_bytes")
+        assert subject.wasb_container == "airflow-logs"
+
+    @conf_vars({("logging", "remote_task_handler_kwargs"): '["not", "a", "dict"]'})
+    def test_from_config_rejects_non_dict_remote_task_handler_kwargs(self):
+        with pytest.raises(ValueError, match="remote_task_handler_kwargs"):
+            WasbRemoteLogIO.from_config()
+
+    def test_provider_registers_wasb_scheme(self):
+        from airflow.providers_manager import ProvidersManager
+
+        manager = ProvidersManager()
+        if not hasattr(manager, "remote_logging_handler_by_scheme"):
+            pytest.skip("Airflow core does not support remote logging provider dispatch")
+
+        info = manager.remote_logging_handler_by_scheme("wasb")
+
+        assert info is not None
+        assert info.classpath == "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbRemoteLogIO"
+
+    @pytest.mark.parametrize(
+        "manager_classpath",
+        [
+            pytest.param("airflow.providers_manager.ProvidersManager", id="core"),
+            pytest.param(
+                "airflow.sdk.providers_manager_runtime.ProvidersManagerTaskRuntime", id="task-runtime"
+            ),
+        ],
+    )
+    @conf_vars(
+        {
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): "wasb://path/to/logs",
+            ("logging", "remote_log_conn_id"): "wasb_default",
+        }
+    )
+    def test_resolve_remote_task_log_uses_provider_dispatch_not_local_settings(self, manager_classpath):
+        factory = pytest.importorskip("airflow._shared.logging.factory")
+        from airflow._shared.module_loading import import_string
+        from airflow.configuration import conf
+
+        with mock.patch.object(factory, "discover_remote_log_handler", autospec=True) as legacy_discover:
+            remote_task_log, conn_id = factory.resolve_remote_task_log(
+                conf=conf,
+                providers_manager=import_string(manager_classpath)(),
+                import_string=import_string,
+            )
+
+        assert isinstance(remote_task_log, WasbRemoteLogIO)
+        assert remote_task_log.remote_base == "path/to/logs"
+        assert conn_id == "wasb_default"
+        legacy_discover.assert_not_called()
+
+
 class TestWasbTaskHandler:
     @pytest.fixture(autouse=True)
     def ti(self, create_task_instance, create_log_template):
