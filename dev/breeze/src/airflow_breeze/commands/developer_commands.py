@@ -822,7 +822,6 @@ def _build_python_docs(
     *,
     generated_path: Path,
     builder: str,
-    python: str,
     clean_build: bool,
     clean_inventory_cache: bool,
     refresh_airflow_inventories: bool,
@@ -838,9 +837,14 @@ def _build_python_docs(
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
+    # Docs are always built on the default Python. The Sphinx configuration mocks third-party
+    # modules, and what that mocking does depends on the interpreter - on 3.12 functools copies
+    # __type_params__, for which a mock returns another mock rather than a tuple, so providers
+    # decorating methods with functools.wraps over a mocked callable fail to import. Letting a
+    # caller pick the interpreter here silently changes what the docs build can document.
     build_params = BuildCiParams(
         github_repository=github_repository,
-        python=python,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         builder=builder,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=build_params)
@@ -895,7 +899,7 @@ def _build_python_docs(
     )
     shell_params = ShellParams(
         github_repository=github_repository,
-        python=python,
+        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         mount_sources=MOUNT_ALL,
     )
     result = execute_command_in_shell(shell_params, project_name="breeze-docs", command=cmd)
@@ -942,7 +946,6 @@ def _build_python_docs(
 @option_github_repository
 @option_include_not_ready_providers
 @option_include_removed_providers
-@option_python
 @click.option(
     "--one-pass-only",
     help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
@@ -987,7 +990,6 @@ def build_docs(
     include_commits: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
-    python: str,
     distributions_list: str,
     spellcheck_only: bool,
     sdk: tuple[str, ...],
@@ -1018,7 +1020,6 @@ def build_docs(
             include_commits=include_commits,
             one_pass_only=one_pass_only,
             package_filter=package_filter,
-            python=python,
             distributions_list=distributions_list,
             spellcheck_only=spellcheck_only,
             doc_packages=doc_packages,

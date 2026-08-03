@@ -96,7 +96,7 @@ jobs:
       airflow-version: ${{ steps.parameters.outputs.airflow-version }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
-      default-python-version: "3.10"
+      default-python-version: ${{ steps.default_python.outputs.default-python-version }}
       registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
       registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
     if: contains(fromJSON('[
@@ -160,6 +160,21 @@ jobs:
             exit 0
           fi
           python3 dev/registry/derive_wave_providers.py
+      - name: "Derive the default Python version"
+        id: default_python
+        shell: bash
+        # `breeze build-docs` always documents on breeze's default Python, so the image this
+        # workflow builds for it has to be that same one. Reading the constant keeps the two from
+        # drifting apart and silently making the docs job build an image nothing then uses.
+        run: |
+          DEFAULT_PYTHON=$(python3 -c "
+          import re, pathlib
+          text = pathlib.Path('dev/breeze/src/airflow_breeze/global_constants.py').read_text()
+          versions = re.search(r'^ALL_PYTHON_MAJOR_MINOR_VERSIONS\s*=\s*\[(.*?)\]', text, re.M | re.S)
+          print(re.findall(r'\"([0-9]+\.[0-9]+)\"', versions.group(1))[0])
+          ")
+          echo "Default Python version: '${DEFAULT_PYTHON}'"
+          echo "default-python-version=${DEFAULT_PYTHON}" >> "${GITHUB_OUTPUT}"
       - name: "Input parameters summary"
         shell: bash
         id: parameters
