@@ -126,13 +126,12 @@ class BulkVariableService(BulkService[VariableBody]):
 
             for variable in action.entities:
                 if variable.key in create_keys:
-                    should_serialize_json = isinstance(variable.value, (dict, list))
+                    # VariableBody already JSON-encodes non-string values, so no serialize_json here.
                     Variable.set(
                         key=variable.key,
                         value=variable.value,
                         description=variable.description,
                         session=self.session,
-                        serialize_json=should_serialize_json,
                     )
                     results.success.append(variable.key)
 
