@@ -172,8 +172,10 @@ Endpoint                                                                        
 /assets                                                                            GET    Assets.can_read                                                   Viewer
 /assets/{uri}                                                                      GET    Assets.can_read                                                   Viewer
 /assets/events                                                                     GET    Assets.can_read                                                   Viewer
-/eventLogs                                                                         GET    Audit Logs.can_read                                               Viewer
-/eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Viewer
+/eventLogs                                                                         GET    Audit Logs.can_read                                               Admin
+                                                                                          All Audit Logs.can_read (for rows not tied to a Dag)
+/eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Admin
+                                                                                          All Audit Logs.can_read (for rows not tied to a Dag)
 /importErrors                                                                      GET    ImportError.can_read                                              Viewer
 /importErrors/{import_error_id}                                                    GET    ImportError.can_read                                              Viewer
 /health                                                                            GET    None                                                              Public
