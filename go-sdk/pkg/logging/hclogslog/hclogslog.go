@@ -35,6 +35,13 @@ import (
 type Handler struct {
 	l      hclog.Logger
 	prefix string
+	// basePos is how many positional slots the bound (WithAttrs) attributes at
+	// the current group scope already consumed. Record attributes continue from
+	// it so an empty-keyed bound attr and an empty-keyed record attr never
+	// synthesize the same numeric key (which hclog would emit as a duplicate JSON
+	// key, silently dropping one value). Reset to zero by WithGroup, since a new
+	// group prefix already namespaces its keys.
+	basePos int
 }
 
 // Adapt returns an slog.Handler that emits records through the given hclog.Logger.
@@ -64,7 +71,7 @@ func (h *Handler) Enabled(_ context.Context, level slog.Level) bool {
 // Handle forwards the record's message, level and attributes to the hclog.Logger.
 func (h *Handler) Handle(_ context.Context, rec slog.Record) error {
 	args := make([]any, 0, rec.NumAttrs()*2)
-	position := 0
+	position := h.basePos
 	rec.Attrs(func(a slog.Attr) bool {
 		args = append(args, h.flatten(h.prefix, position, a)...)
 		position++
@@ -77,10 +84,10 @@ func (h *Handler) Handle(_ context.Context, rec slog.Record) error {
 // WithAttrs returns a new handler whose records also carry the given attributes.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	args := make([]any, 0, len(attrs)*2)
-	for position, a := range attrs {
-		args = append(args, h.flatten(h.prefix, position, a)...)
+	for i, a := range attrs {
+		args = append(args, h.flatten(h.prefix, h.basePos+i, a)...)
 	}
-	return &Handler{l: h.l.With(args...), prefix: h.prefix}
+	return &Handler{l: h.l.With(args...), prefix: h.prefix, basePos: h.basePos + len(attrs)}
 }
 
 // WithGroup returns a new handler that qualifies subsequent attribute keys with

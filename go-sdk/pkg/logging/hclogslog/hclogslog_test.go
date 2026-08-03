@@ -120,6 +120,20 @@ func TestEmptyKeyAttrsUsePosition(t *testing.T) {
 	assert.Equal(t, "group-last", rec["req.meta.2"])
 }
 
+func TestEmptyKeyBoundAndRecordDoNotCollide(t *testing.T) {
+	var buf bytes.Buffer
+	// No WithGroup between the bound and record attrs, so both share the empty
+	// prefix; record positions must continue past the bound ones rather than
+	// restart at 0, otherwise both empty-keyed attrs synthesize key "0" and hclog
+	// emits a duplicate JSON key that drops the bound value.
+	log := newLogger(&buf, hclog.Trace).With(slog.String("", "bound"))
+	log.Info("m", slog.String("", "record"))
+
+	rec := decode(t, &buf)
+	assert.Equal(t, "bound", rec["0"])
+	assert.Equal(t, "record", rec["1"])
+}
+
 func TestUnnamedGroupIsInlinedAndEmptyDropped(t *testing.T) {
 	var buf bytes.Buffer
 	log := newLogger(&buf, hclog.Trace)
