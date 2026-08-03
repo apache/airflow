@@ -243,10 +243,6 @@ class Credentials:
                 "the --api-token flag to any command.\n"
                 "Use `airflowctl auth login --skip-keyring ...` to dismiss this error."
             ) from e
-        except TypeError as e:
-            # This happens when the token is None, which is not allowed by keyring
-            if self.api_token is None and self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.") from e
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
