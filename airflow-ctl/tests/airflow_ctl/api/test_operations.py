@@ -250,6 +250,23 @@ class TestBaseOperations:
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
 
+    def test_execute_list_sends_offset_to_server(self):
+        """``offset`` must reach the server on the first request, not only on subsequent pages."""
+        mock_client = Mock()
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "c"}, {"name": "d"}], "total_entries": 6})),
+            Mock(content=json.dumps({"hellos": [{"name": "e"}, {"name": "f"}], "total_entries": 6})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(
+            path="hello", data_model=HelloCollectionResponse, offset=2, limit=2
+        )
+
+        assert [call.kwargs["params"]["offset"] for call in mock_client.get.call_args_list] == [2, 4]
+        # The paging loop resumes at offset + limit, so a dropped offset also skips rows 2-3.
+        assert [hello.name for hello in response.hellos] == ["c", "d", "e", "f"]
+
     @pytest.mark.parametrize("limit", [0, -1])
     def test_execute_list_rejects_non_positive_limit(self, limit):
         mock_client = Mock()
