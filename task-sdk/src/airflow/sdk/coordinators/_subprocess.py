@@ -431,12 +431,8 @@ class SubprocessCoordinator(BaseCoordinator):
         """Subclass's explicit artifact roots; empty (the default) selects task-bundle mode."""
         return []
 
-    def _validate_artifact_source(self) -> None:
-        """Run subclass-specific validation after classification; default no-op."""
-
     def __attrs_post_init__(self) -> None:
         self._classify_artifact_source(self._explicit_artifact_roots, root_kwarg=self._root_kwarg)
-        self._validate_artifact_source()
 
     def _classify_artifact_source(self, configured: Sequence[pathlib.Path], *, root_kwarg: str) -> None:
         """
@@ -566,12 +562,23 @@ class SubprocessCoordinator(BaseCoordinator):
                 # Hold the version lock across start()/wait() so bundle cleanup
                 # cannot rmtree a version this task is still reading from,
                 # mirroring task_runner.main() for the Python task path.
-                from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
+                from airflow.dag_processing.bundles.base import (  # noqa: SDK002
+                    BundleVersionLock,
+                    unpack_bundle_version,
+                )
 
+                # NAMED_BUNDLE resolves "latest" with no pinned version, so
+                # resolved_bundle.version is None and the lock would be a silent
+                # no-op. Pin the concrete current version so the lock protects the read.
+                lock_version = resolved_bundle.version
+                if lock_version is None:
+                    lock_version, _ = unpack_bundle_version(
+                        resolved_bundle.get_current_version(), resolved_bundle
+                    )
                 stack.enter_context(
                     BundleVersionLock(
                         bundle_name=resolved_bundle.name,
-                        bundle_version=resolved_bundle.version,
+                        bundle_version=lock_version,
                     )
                 )
             command, subprocess_schema_version = self._build_execute_task_command(what=what, roots=roots)
