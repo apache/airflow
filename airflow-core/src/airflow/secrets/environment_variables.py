@@ -27,6 +27,21 @@ from airflow.secrets import BaseSecretsBackend
 CONN_ENV_PREFIX = "AIRFLOW_CONN_"
 VAR_ENV_PREFIX = "AIRFLOW_VAR_"
 
+# Separator between the team name and the secret id in a team namespaced
+# environment variable name: AIRFLOW_CONN__<TEAM>___<ID>.
+TEAM_SEP = "___"
+
+# What ``airflow teams create`` and ``airflow teams sync`` accept as a team name, so what a
+# team namespace can actually be spelled with. A *single* underscore is allowed; two in a row
+# are not, which is what keeps this namespace unambiguous -- see ``_names_a_team_namespace``.
+#
+# Imported by ``airflow.cli.commands.team_command`` rather than restated there, so the two
+# cannot drift apart; ``test_team_name_pattern_is_shared`` pins that. Deliberately unanchored
+# and always used with ``re.fullmatch``: ``re.match`` against a ``$``-anchored pattern also
+# accepts a trailing newline, which would admit a name this guard cannot recognise.
+TEAM_NAME_PATTERN = r"(?!.*__)[a-zA-Z0-9_-]{3,50}"
+_TEAM_NAME = re.compile(TEAM_NAME_PATTERN)
+
 
 class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
@@ -68,22 +83,21 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         Whether ``secret_id`` spells out a team namespaced environment variable name.
 
         A team specific secret lives in the ``_<TEAM_NAME>___<SECRET_ID>`` namespace of the
-        environment. An id of that shape therefore makes the team agnostic lookup -- which
-        prepends only ``AIRFLOW_CONN_`` / ``AIRFLOW_VAR_`` -- land inside some team's namespace,
-        so that lookup is refused for such an id.
+        environment. An id of that shape makes the team agnostic lookup -- which prepends only
+        ``AIRFLOW_CONN_`` / ``AIRFLOW_VAR_`` -- land inside some team's namespace, so that
+        lookup is refused for such an id.
 
-        **The id is never attributed to a particular team**, because it cannot be: a team name
-        may itself contain the ``___`` separator, so ``_a___b___c`` is both team ``a`` with id
-        ``b___c`` and team ``a___b`` with id ``c``, and nothing in the string distinguishes them.
-        Only the caller's own namespace is ever constructed, never parsed.
+        The split is unambiguous because a team name cannot contain two consecutive
+        underscores (``TEAM_NAME_PATTERN``), so it cannot contain the ``___`` separator and
+        the *first* separator in the string is always the real one. Without that rule
+        ``_a___b___c`` reads as team ``a`` with id ``b___c`` *or* team ``a___b`` with id
+        ``c``, with nothing to choose between them -- which is what previously forced this
+        check to try every split, and what left the collision below open.
 
-        This is why the check is not "does the id belong to some team other than the caller's".
-        Comparing the id against the prefix the caller's team builds looks equivalent and is not:
-        for a caller in team ``a`` the id ``_a___b___c`` starts with ``_A___``, yet the variable
-        it resolves, ``AIRFLOW_CONN__A___B___C``, is team ``a___b``'s. Treating a prefix match as
-        ownership hands one team the secrets of every team whose name extends it. Callers reach
-        their own team's secrets with the bare id plus their team scope -- handled above, and safe
-        because that path can only ever build the caller's own namespace -- so nothing legitimate
-        needs a namespaced id here.
+        An id whose leading segment could not be a team name is still resolved: it names no
+        team's namespace, so refusing it would block a legitimate team agnostic secret.
         """
-        return re.fullmatch(r"_.+___.+", secret_id) is not None
+        if not secret_id.startswith("_"):
+            return False
+        team, sep, rest = secret_id[1:].partition(TEAM_SEP)
+        return bool(sep) and bool(rest) and _TEAM_NAME.fullmatch(team) is not None

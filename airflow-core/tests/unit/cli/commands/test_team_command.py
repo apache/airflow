@@ -88,6 +88,51 @@ class TestCliTeams:
         with pytest.raises(SystemExit, match="Invalid team name"):
             team_command.team_create(self.parser.parse_args(["teams", "create", "test with space"]))
 
+    def test_team_create_rejects_a_name_differing_only_in_case(self):
+        """Two teams differing only in case would share one secrets namespace.
+
+        The environment secrets backend upper-cases the team name when building the variable
+        name, so ``data-eng`` and ``Data-Eng`` both resolve ``AIRFLOW_CONN__DATA-ENG___<ID>``
+        and each team would read the other's Connections and Variables.
+        """
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data-eng"]))
+
+        with pytest.raises(SystemExit, match="differs only in case from the existing team"):
+            team_command.team_create(self.parser.parse_args(["teams", "create", "Data-Eng"]))
+
+        assert self.session.scalar(select(Team).where(Team.name == "Data-Eng")) is None
+
+    def test_team_create_allows_a_name_differing_by_more_than_case(self):
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data-eng"]))
+        team_command.team_create(self.parser.parse_args(["teams", "create", "data-eng2"]))
+
+        assert self.session.scalar(select(Team).where(Team.name == "data-eng2")) is not None
+
+    def test_team_create_rejects_consecutive_underscores(self):
+        """Two underscores in a row would make the secrets namespace ambiguous.
+
+        A team secret is stored as ``_<TEAM>___<ID>``. A team name that can itself contain the
+        ``___`` separator leaves that string readable as two different (team, id) pairs -- team
+        ``team_a`` with id ``prod___dbconn`` and team ``team_a___prod`` with id ``dbconn`` build
+        byte-identical variable names. Forbidding ``__`` makes the first separator the only one.
+        """
+        with pytest.raises(SystemExit, match="Invalid team name"):
+            team_command.team_create(self.parser.parse_args(["teams", "create", "team_a___prod"]))
+        with pytest.raises(SystemExit, match="Invalid team name"):
+            team_command.team_create(self.parser.parse_args(["teams", "create", "team__x"]))
+
+    def test_team_create_allows_a_single_underscore(self):
+        """A single underscore cannot span the separator, so it stays legal."""
+        team_command.team_create(self.parser.parse_args(["teams", "create", "team_a"]))
+
+        assert self.session.scalar(select(Team).where(Team.name == "team_a")) is not None
+
+    def test_team_name_pattern_is_shared_with_the_secrets_backend(self):
+        """The CLI rule and the guard that depends on it must not drift apart."""
+        from airflow.secrets.environment_variables import TEAM_NAME_PATTERN as backend_pattern
+
+        assert backend_pattern == team_command.TEAM_NAME_PATTERN
+
     def test_team_create_whitespace_name(self):
         """Test team creation with whitespace-only name."""
         with pytest.raises(SystemExit, match="Team name cannot be empty"):
@@ -364,6 +409,71 @@ class TestCliTeams:
         assert "integration-1" in team_names
         assert "integration-2" not in team_names
         assert "integration-3" in team_names
+
+    @pytest.mark.parametrize(
+        "bad_name",
+        [
+            pytest.param("a", id="too-short"),
+            pytest.param("team__x", id="consecutive-underscores"),
+            pytest.param("team_a___prod", id="spans-the-separator"),
+            pytest.param("team1\n", id="trailing-newline"),
+        ],
+    )
+    def test_team_sync_rejects_an_invalid_bundle_team_name(self, bad_name):
+        """``teams sync`` is a second creation path, so it enforces the same rule as ``create``.
+
+        Unlike ``teams create`` this path does not ``.strip()``, so a trailing newline reaches
+        the pattern -- which is why the check has to be ``re.fullmatch`` against an unanchored
+        pattern rather than ``re.match`` against a ``$``-anchored one.
+        """
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": bad_name,
+            },
+        ]
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with pytest.raises(SystemExit, match="Invalid team name"):
+                team_command.team_sync(self.parser.parse_args(["teams", "sync"]))
+
+        assert self.session.scalars(select(Team)).all() == []
+
+    def test_team_sync_rejects_an_invalid_name_already_stored(self):
+        """``teams sync`` shipped with no validation, so stored names can already be invalid.
+
+        The secrets guard decides whether a supplied id could name a team namespace by testing
+        the leading segment against this rule, so a stored name that fails it leaves that team's
+        secrets reachable from another team. Checking only the bundle config would miss a team
+        created by an earlier sync and since dropped from it.
+        """
+        self.session.add(Team(name="ab"))
+        self.session.commit()
+
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+        ]
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with pytest.raises(SystemExit, match="ab"):
+                team_command.team_sync(self.parser.parse_args(["teams", "sync"]))
 
     def test_team_sync(self):
         bundle_config = [
