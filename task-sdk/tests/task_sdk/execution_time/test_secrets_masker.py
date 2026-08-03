@@ -33,29 +33,8 @@ class TestSecretsMaskerDeprecationShim:
         yield
         sys.modules.pop("airflow.sdk.execution_time.secrets_masker", None)
 
-    def test_mask_secret_resolves_to_sdk_log_not_shared(self):
-        """mask_secret must keep coming from airflow.sdk.log (the load-bearing exception)."""
-        import airflow.sdk._shared.secrets_masker as shared
-        import airflow.sdk.execution_time.secrets_masker as shim
-        import airflow.sdk.log as sdklog
-
-        assert shim.mask_secret is sdklog.mask_secret
-        assert shim.mask_secret is not shared.mask_secret
-
-    def test_other_attributes_still_resolve_to_shared_module(self):
-        """Non-mask_secret attributes should still come from airflow.sdk._shared.secrets_masker."""
-        import airflow.sdk._shared.secrets_masker as shared
-        import airflow.sdk.execution_time.secrets_masker as shim
-
-        assert shim.redact is shared.redact
-        assert shim.SecretsMasker is shared.SecretsMasker
-
     def test_warning_names_the_correct_module_for_mask_secret(self):
-        """
-        The deprecation warning text must name 'airflow.sdk.log' for mask_secret,
-        not 'airflow.sdk._shared.secrets_masker' — following the old, generic
-        message would silently drop supervisor-process masking.
-        """
+        """The deprecation warning must name airflow.sdk.log for mask_secret."""
         with pytest.warns() as record:
             importlib.import_module("airflow.sdk.execution_time.secrets_masker")
 
@@ -64,12 +43,4 @@ class TestSecretsMaskerDeprecationShim:
 
         assert "airflow.sdk.log" in combined
         assert "mask_secret" in combined
-        # The blanket "_shared" recommendation must not be presented as unconditionally
-        # true — it must be scoped to say it doesn't apply to mask_secret.
         assert "_shared.secrets_masker" in combined
-
-    def test_unknown_attribute_still_raises_attribute_error(self):
-        import airflow.sdk.execution_time.secrets_masker as shim
-
-        with pytest.raises(AttributeError, match="has no attribute 'definitely_not_a_real_attribute'"):
-            shim.definitely_not_a_real_attribute

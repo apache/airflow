@@ -20,13 +20,8 @@ Compatibility module for secrets_masker.
 
 This module provides backward compatibility for providers that still import
 from airflow.sdk.execution_time.secrets_masker. Most of the implementation
-has been moved to airflow.sdk._shared.secrets_masker, with one deliberate
-exception: ``mask_secret`` is re-exported from airflow.sdk.log instead.
-airflow.sdk.log.mask_secret masks the secret locally AND notifies the
-supervisor process; airflow.sdk._shared.secrets_masker.mask_secret only
-does the former, so importing 'mask_secret' from the _shared module instead
-would silently weaken masking under AIP-72 (the supervisor runs as a
-separate process).
+has been moved to airflow.sdk._shared.secrets_masker, except ``mask_secret``,
+which is re-exported from airflow.sdk.log instead.
 """
 
 from __future__ import annotations
@@ -38,9 +33,8 @@ from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 warnings.warn(
     "Importing from 'airflow.sdk.execution_time.secrets_masker' is deprecated and will be removed in a future "
-    "version. Please use 'airflow.sdk._shared.secrets_masker' instead, EXCEPT for 'mask_secret': that should be "
-    "imported from 'airflow.sdk.log' instead, since 'airflow.sdk._shared.secrets_masker.mask_secret' does not "
-    "notify the supervisor process and using it will silently weaken secret masking.",
+    "version. Please import 'mask_secret' from 'airflow.sdk.log' and everything else from "
+    "'airflow.sdk._shared.secrets_masker'.",
     DeprecatedImportWarning,
     stacklevel=2,
 )
