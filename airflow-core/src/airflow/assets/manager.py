@@ -23,7 +23,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, or_, select
+from sqlalchemy import exc, insert, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -42,6 +42,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
     TaskOutletAssetReference,
+    asset_alias_asset_event_association_table,
 )
 from airflow.models.log import Log
 from airflow.timetables.base import compute_rollup_fingerprint
@@ -393,8 +394,11 @@ class AssetManager(LoggingMixin):
             ).unique()
 
             for asset_alias_model in asset_alias_models:
-                asset_alias_model.asset_events.append(asset_event)
-                session.add(asset_alias_model)
+                session.execute(
+                    insert(asset_alias_asset_event_association_table).values(
+                        alias_id=asset_alias_model.id, event_id=asset_event.id
+                    )
+                )
 
                 dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
