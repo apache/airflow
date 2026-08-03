@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refuse the team agnostic fall-through for a team scoped Lockbox secret name (#70877)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 4.5.0
 .....
 

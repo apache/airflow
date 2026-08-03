@@ -9,7 +9,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.7.0
-	github.com/ivanpirog/coloredcobra v1.0.2-0.20250501221745-46194c320708
 	github.com/oapi-codegen/runtime v1.1.1
 	github.com/spf13/cast v1.10.0
 	github.com/spf13/cobra v1.10.1
@@ -49,10 +48,8 @@ require (
 )
 
 require (
-	github.com/MatusOllah/slogcolor v1.6.0
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/evanphx/go-hclog-slog v0.0.0-20240717231540-be48fc4c4df5
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.18.0 // indirect
 	github.com/google/uuid v1.6.0
 	github.com/jarcoal/httpmock v1.4.0
 	github.com/mattn/go-colorable v0.1.14 // indirect

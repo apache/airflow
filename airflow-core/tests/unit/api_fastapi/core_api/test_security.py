@@ -27,6 +27,7 @@ from airflow import settings
 from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.models.resource_details import (
+    AccessView,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
@@ -468,7 +469,7 @@ class TestFastApiSecurity:
         mock_get_team_name.return_value = "team1"
 
         session = Mock()
-        session.scalar.return_value = "event_log_dag_id"
+        session.execute.return_value.one_or_none.return_value = Mock(id=42, dag_id="event_log_dag_id")
 
         request = Mock()
         request.path_params = {"event_log_id": "42"}
@@ -496,7 +497,7 @@ class TestFastApiSecurity:
         mock_get_team_name.return_value = None
 
         session = Mock()
-        session.scalar.return_value = "unauthorized_dag"
+        session.execute.return_value.one_or_none.return_value = Mock(id=1, dag_id="unauthorized_dag")
 
         request = Mock()
         request.path_params = {"event_log_id": "1"}
@@ -524,7 +525,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
 
         session = Mock()
-        session.scalar.return_value = None
+        session.execute.return_value.one_or_none.return_value = None
 
         request = Mock()
         request.path_params = {"event_log_id": "999"}
@@ -541,6 +542,56 @@ class TestFastApiSecurity:
             user=user,
         )
         mock_get_team_name.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch.object(DagModel, "get_team_name")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_event_log_non_dag_row_uses_audit_logs_all(
+        self, mock_get_auth_manager, mock_get_team_name
+    ):
+        """A row that exists with a NULL dag_id is gated on AUDIT_LOGS_ALL, not the Dag check.
+
+        Such a row records an operation that is not tied to a Dag, so there is no per-Dag key
+        to authorize on. It must not fall through to an unscoped ``DagDetails(id=None)`` check,
+        which any caller holding Dag-level audit access would pass.
+        """
+        auth_manager = Mock()
+        auth_manager.authorize_view.return_value = True
+        mock_get_auth_manager.return_value = auth_manager
+
+        session = Mock()
+        session.execute.return_value.one_or_none.return_value = Mock(id=7, dag_id=None)
+
+        request = Mock()
+        request.path_params = {"event_log_id": "7"}
+        request.query_params = {}
+        user = Mock()
+
+        await requires_access_event_log("GET")(request, user, session)
+
+        auth_manager.authorize_view.assert_called_once_with(access_view=AccessView.AUDIT_LOGS_ALL, user=user)
+        auth_manager.is_authorized_dag.assert_not_called()
+        mock_get_team_name.assert_not_called()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_event_log_non_dag_row_denied(self, mock_get_auth_manager):
+        """Without AUDIT_LOGS_ALL, a non-Dag row is Forbidden rather than returned."""
+        auth_manager = Mock()
+        auth_manager.authorize_view.return_value = False
+        mock_get_auth_manager.return_value = auth_manager
+
+        session = Mock()
+        session.execute.return_value.one_or_none.return_value = Mock(id=7, dag_id=None)
+
+        request = Mock()
+        request.path_params = {"event_log_id": "7"}
+        request.query_params = {}
+
+        with pytest.raises(HTTPException, match="Forbidden"):
+            await requires_access_event_log("GET")(request, Mock(), session)
 
     @pytest.mark.db_test
     @pytest.mark.parametrize("bad_event_log_id", ["abc", "1.5", "1,2", ""])
