@@ -1424,7 +1424,6 @@ export type MaterializeAssetBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
-    bundle_version?: string | null;
 };
 
 /**
@@ -1932,7 +1931,6 @@ export type TriggerDAGRunPostBody = {
 } | null;
     note?: string | null;
     partition_key?: string | null;
-    bundle_version?: string | null;
 };
 
 /**
