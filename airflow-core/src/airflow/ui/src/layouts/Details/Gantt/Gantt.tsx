@@ -48,7 +48,6 @@ type Props = {
   readonly offset?: number;
   readonly runAfterGte?: string | undefined;
   readonly runAfterLte?: string | undefined;
-  readonly runIdPattern?: string | undefined;
   readonly runType?: DagRunType | undefined;
   readonly sharedScrollContainerRef?: RefObject<HTMLDivElement | null>;
   readonly triggeringUser?: string | undefined;
@@ -60,7 +59,6 @@ export const Gantt = ({
   offset,
   runAfterGte,
   runAfterLte,
-  runIdPattern,
   runType,
   sharedScrollContainerRef,
   triggeringUser,
@@ -87,7 +85,6 @@ export const Gantt = ({
     offset,
     runAfterGte,
     runAfterLte,
-    runIdPattern,
     runType,
     triggeringUser,
   });
@@ -98,7 +95,6 @@ export const Gantt = ({
     includeUpstream,
     limit,
     root: filterRoot,
-    runIdPattern,
     runType,
     triggeringUser,
   });
