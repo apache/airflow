@@ -25,24 +25,6 @@ export const AIRFLOW_METADATA_FLAG = "--airflow-metadata";
 /** Marks the manifest line on stdout, which import-time logging may also reach. */
 export const AIRFLOW_METADATA_SENTINEL = "__AIRFLOW_METADATA__ ";
 
-// Mirrors the Python task-SDK KEY_REGEX and validate_key in airflow.sdk.definitions._internal.node.
-// Checked here rather than in Dag()/task() registration: that runs on every
-// bundle module load, including at task-execution-runtime startup, whereas
-// this only runs once, when the bundle is packed.
-const KEY_REGEX = /^[\p{L}\p{N}_.-]+$/u;
-const MAX_KEY_LENGTH = 250;
-
-function validateKey(label: string, value: string): void {
-  if (typeof value !== "string" || !KEY_REGEX.test(value)) {
-    throw new Error(
-      `${label} must be made of alphanumeric characters, dashes, dots, and underscores`,
-    );
-  }
-  if (value.length > MAX_KEY_LENGTH) {
-    throw new Error(`${label} must be less than ${MAX_KEY_LENGTH} characters, not ${value.length}`);
-  }
-}
-
 /** Bundle manifest fields only the built bundle itself knows: the schema
  *  version it was compiled against and the Dag/task pairs it registered.
  *  Registered Dags without tasks appear with an empty `tasks` list so
@@ -56,10 +38,6 @@ export interface BundleManifest {
 export function buildBundleManifest(registry: DagRegistry): BundleManifest {
   const dags: BundleManifest["dags"] = {};
   for (const { dagId, tasks } of listRegistryDags(registry)) {
-    validateKey(`Dag "${dagId}"`, dagId);
-    for (const taskId of tasks) {
-      validateKey(`Task "${taskId}" of Dag "${dagId}"`, taskId);
-    }
     Object.defineProperty(dags, dagId, {
       configurable: true,
       enumerable: true,

@@ -21,9 +21,9 @@
 // artifact NodeCoordinator consumes — `bundle.mjs` with the airflow
 // metadata embedded as a leading `//# airflowMetadata=<base64>` comment.
 //
-// Mirrors airflow-go-pack: build first, then run the built bundle with
-// --airflow-metadata so the manifest comes from the bundle's own task
-// registry and schema version, never from a hand-written sidecar.
+// Build first, then run the built bundle with --airflow-metadata so the
+// manifest comes from the bundle's own task registry and schema version,
+// never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -34,6 +34,7 @@ import {
   AIRFLOW_METADATA_SENTINEL,
   type BundleManifest,
 } from "../coordinator/manifest.js";
+import { warnOnSuspiciousIds } from "./validate.js";
 
 const AIRFLOW_BUNDLE_METADATA_VERSION = "1.0";
 const BUNDLE_FILENAME = "bundle.mjs";
@@ -193,7 +194,7 @@ function isBundleManifest(value: unknown): value is BundleManifest {
 }
 
 function isTaskIdList(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string" && item.length > 0);
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
 // esbuild keeps an entry hashbang as line 1, where the metadata comment must go;
@@ -243,6 +244,7 @@ export async function runPack(argv: readonly string[]): Promise<void> {
         process.stderr.write(`warning: dag ${JSON.stringify(dagId)} has no tasks\n`);
       }
     }
+    warnOnSuspiciousIds(manifest.dags);
 
     const metadataYaml = renderMetadataYaml({
       airflow_bundle_metadata_version: AIRFLOW_BUNDLE_METADATA_VERSION,
