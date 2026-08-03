@@ -75,6 +75,9 @@ from airflow.utils.state import TaskInstanceState
 
 dags_router = AirflowRouter(prefix="/dags", tags=["DAG"])
 
+# Per-dag run counts read at most this many rows per state; the UI shows "N+" at the cap.
+STATE_COUNT_CAP = 1000
+
 
 @dags_router.get(
     "",
