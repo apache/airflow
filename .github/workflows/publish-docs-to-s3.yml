@@ -480,7 +480,14 @@ jobs:
           overwrite: 'true'
 
   publish-docs-to-s3:
-    needs: [build-docs, build-java-sdk-docs, build-info]
+    needs: [build-docs, build-java-sdk-docs, build-info, update-registry]
+    # `update-registry` is skipped for non-provider distributions, and a job whose dependency was
+    # skipped is skipped in turn, so its result is checked rather than implied - which means the
+    # two that are not conditional have to be asserted here as well.
+    if: >
+      !cancelled() && needs.build-docs.result == 'success' &&
+      needs.build-java-sdk-docs.result == 'success' &&
+      needs.update-registry.result != 'failure'
     name: "Publish documentation to S3"
     permissions:
       id-token: write
@@ -624,7 +631,8 @@ jobs:
 
   update-registry:
     # Runs alongside the docs build rather than after it: the registry reads nothing the docs
-    # publish produces, so waiting only added its whole duration to the release manager's wait.
+    # build produces, so ordering the two only added its whole duration to the wait. The publish
+    # does wait for it, so a run reports success once both halves are actually out.
     needs: [build-info]
     if: needs.build-info.outputs.registry-providers != '' || needs.build-info.outputs.registry-full-build == 'true'
     name: "Update Provider Registry"
