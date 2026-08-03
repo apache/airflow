@@ -108,8 +108,8 @@ jobs:
       # Discriminator for every stash this workflow writes. A bare ref would collide with any
       # other workflow stashing an image for the same ref, and the images here are special: built
       # from a release tag rather than a branch tip, and kept for days so the next publish of that
-      # tag reuses them. The prefix keeps them recognisably ours.
-      image-stash-ref: "release-build-${{ inputs.ref }}"
+      # tag reuses them. Naming them after this workflow keeps them recognisably ours.
+      image-stash-ref: "publish-docs-${{ inputs.ref }}"
       registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
       registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
     if: contains(fromJSON('[
