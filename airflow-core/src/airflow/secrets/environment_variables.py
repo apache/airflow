@@ -36,11 +36,8 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
 
     def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         if TEAM_SEP in conn_id:
-            # Refused ahead of the team scoped lookup, not only ahead of the team agnostic
-            # one. The scoped lookup builds PREFIX + _<TEAM>___ + <ID>, so an id that itself
-            # contains the separator makes that string ambiguous: a caller in team `team_a`
-            # asking for `prod___dbconn` builds exactly what team `team_a___prod` builds for
-            # id `dbconn`. That lookup *hits*, so a guard placed after it never runs.
+            # An id containing the separator could collide with another team's namespace
+            # even on the scoped lookup below, so it must be refused before either runs.
             return None
 
         if team_name and (
@@ -60,11 +57,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         :return: Variable Value
         """
         if TEAM_SEP in key:
-            # Refused ahead of the team scoped lookup, not only ahead of the team agnostic
-            # one. The scoped lookup builds PREFIX + _<TEAM>___ + <ID>, so an id that itself
-            # contains the separator makes that string ambiguous: a caller in team `team_a`
-            # asking for `prod___dbconn` builds exactly what team `team_a___prod` builds for
-            # id `dbconn`. That lookup *hits*, so a guard placed after it never runs.
+            # Same collision risk as get_conn_value, see its code comment.
             return None
 
         if team_name and (
