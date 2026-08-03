@@ -624,6 +624,44 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
 
     When using the ``@task_group`` decorator, the decorated-function's docstring will be used as the TaskGroups tooltip in the UI except when a ``tooltip`` value is explicitly supplied.
 
+.. _concepts:taskgroup-retries:
+
+Retrying a TaskGroup
+~~~~~~~~~~~~~~~~~~~~~
+
+A TaskGroup can be retried as a single unit by passing ``retries`` when you create it. This is useful when a
+sequence of tasks only makes sense together — for example a step that collects data followed by a step that
+publishes it — and you want to re-run the whole sequence on failure rather than the entire Dag.
+
+.. code-block:: python
+
+    from airflow.sdk import task_group
+
+
+    @task_group(retries=2)
+    def collect_and_publish():
+        publish(collect())
+
+Once any task inside the group reaches the ``failed`` state — that is, *after* it has exhausted its own
+task-level ``retries`` — and the group still has retry budget left, every task instance in the group is
+cleared and the group runs again. Tasks that are still running are restarted; tasks outside the group are
+left untouched. After the group has been retried ``retries`` times it is left failed, and the Dag run
+proceeds as usual.
+
+Because a group retry re-runs **all** of the group's tasks, including ones that already succeeded:
+
+- Make the group's tasks idempotent — a successful task will run again on the next group attempt.
+- Asset events and other outlets produced by those tasks are emitted again, and each task's ``try_number``
+  keeps increasing, exactly as it would for a manual clear of the group.
+
+.. note::
+
+    This first version intentionally keeps the behavior simple: a group is retried whenever *any* of its
+    tasks fail, and *all* of its tasks are cleared. There is no per-group ``retry_delay``, no configurable
+    retry condition, and no "only the failed tasks" strategy (use task-level ``retries`` for that). Nested
+    retryable groups each keep their own independent counter, and the interaction with ``fail_stop`` Dags is
+    not specially handled. ``retries`` is not supported on a mapped (expanded) TaskGroup and raises an error.
+
 .. _concepts:edge-labels:
 
 Edge Labels

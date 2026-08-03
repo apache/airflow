@@ -203,6 +203,7 @@ def task_group(
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
     group_display_name: str = "",
+    retries: int = 0,
 ) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]: ...
 
 

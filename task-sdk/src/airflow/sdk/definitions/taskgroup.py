@@ -125,6 +125,9 @@ class TaskGroup(TaskGroupMixin, DAGNode):
     :param add_suffix_on_collision: If this task group name already exists,
         automatically add `__1` etc suffixes
     :param group_display_name: If set, this will be the display name for the TaskGroup node in the UI.
+    :param retries: the number of times the whole TaskGroup is retried as a unit when any task
+        inside it fails after exhausting its own task-level retries. On a group retry, every task
+        instance in the group is cleared and re-run. Defaults to 0 (the group is not retried).
     """
 
     _group_id: str | None = attrs.field(
@@ -162,6 +165,8 @@ class TaskGroup(TaskGroupMixin, DAGNode):
     )
 
     add_suffix_on_collision: bool = False
+
+    retries: int = attrs.field(default=0, validator=attrs.validators.instance_of(int))
 
     @dag.validator
     def _validate_dag(self, _attr, dag):
@@ -751,6 +756,11 @@ class MappedTaskGroup(TaskGroup):
     """
 
     _expand_input: DictOfListsExpandInput | ListOfDictsExpandInput = attrs.field(alias="expand_input")
+
+    def __attrs_post_init__(self):
+        if self.retries:
+            raise ValueError("retries is not supported on a mapped (expanded) task group")
+        super().__attrs_post_init__()
 
     def __iter__(self):
         for child in self.children.values():
