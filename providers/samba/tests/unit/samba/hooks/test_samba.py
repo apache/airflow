@@ -21,9 +21,11 @@ from inspect import getfullargspec
 from unittest import mock
 
 import pytest
+import smbclient
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowNotFoundException
+from airflow.providers.samba.hooks import samba as samba_hook_module
 from airflow.providers.samba.hooks.samba import SambaHook
 
 try:
@@ -36,6 +38,21 @@ try:
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 PATH_PARAMETER_NAMES = {"path", "src", "dst"}
+
+
+@pytest.mark.parametrize("name", ["link", "listdir", "lstat", "stat", "walk"])
+def test_wrapped_methods_do_not_copy_type_params(name):
+    """__type_params__ must not be copied off the smbclient callables.
+
+    Sphinx mocks smbclient when building the provider docs, and on Python 3.12+ functools
+    rejects the mock it hands back for that attribute, which broke the whole docs build.
+    """
+    assert "__type_params__" not in samba_hook_module._SMBCLIENT_WRAPPER_ASSIGNMENTS
+    method = getattr(SambaHook, name)
+    assert method.__type_params__ == ()
+    # everything else functools normally copies is still inherited from smbclient
+    assert method.__doc__ == getattr(smbclient, name).__doc__
+    assert method.__wrapped__ is getattr(smbclient, name)
 
 
 class TestSambaHook:
