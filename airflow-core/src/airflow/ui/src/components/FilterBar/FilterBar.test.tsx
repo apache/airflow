@@ -47,3 +47,24 @@ describe("FilterBar preset filters", () => {
     expect(screen.queryByTestId("preset-filters-button")).not.toBeInTheDocument();
   });
 });
+
+describe("FilterBar URL synchronization", () => {
+  const configs = [{ key: "dag_id", label: "Dag ID", type: "text" as const }];
+
+  it("updates an existing filter when its external value changes", () => {
+    const { rerender } = render(
+      <FilterBar configs={configs} initialValues={{ dag_id: "dag_a" }} onFiltersChange={vi.fn()} />,
+      { wrapper },
+    );
+
+    expect(screen.getByText("Dag ID: dag_a")).toBeInTheDocument();
+
+    rerender(<FilterBar configs={configs} initialValues={{ dag_id: "dag_b" }} onFiltersChange={vi.fn()} />);
+
+    expect(screen.getByText("Dag ID: dag_b")).toBeInTheDocument();
+
+    rerender(<FilterBar configs={configs} initialValues={{}} onFiltersChange={vi.fn()} />);
+
+    expect(screen.queryByText("Dag ID: dag_b")).not.toBeInTheDocument();
+  });
+});
