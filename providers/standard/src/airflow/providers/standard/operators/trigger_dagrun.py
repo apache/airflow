@@ -139,6 +139,10 @@ class TriggerDagRunOperator(BaseOperator):
         DAG run conf is immutable and will not be reset on rerun of an existing DAG run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing DAG run will be cleared to rerun.
+    :param reattach_on_existing: When ``True`` and the Dag run already exists, attach to the existing
+        Dag run instead of raising ``DagRunAlreadyExists``. If ``wait_for_completion=True``, the operator
+        waits for the existing Dag run to reach an allowed or failed state. ``reset_dag_run`` and
+        ``skip_when_already_exists`` take precedence over this option.
     :param wait_for_completion: Whether or not wait for DAG run completion. (default: False)
     :param poke_interval: Poke interval to check DAG run status when wait_for_completion=True.
         (default: 60)
@@ -169,6 +173,7 @@ class TriggerDagRunOperator(BaseOperator):
         "conf",
         "wait_for_completion",
         "skip_when_already_exists",
+        "reattach_on_existing",
     )
 
     attributes_not_supported_in_airflow_2 = {
@@ -190,6 +195,7 @@ class TriggerDagRunOperator(BaseOperator):
         logical_date: str | datetime.datetime | None | ArgNotSet = NOTSET,
         run_after: str | datetime.datetime | None | ArgNotSet = NOTSET,
         reset_dag_run: bool = False,
+        reattach_on_existing: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
         allowed_states: list[str | DagRunState] | None = None,
@@ -206,6 +212,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_run_id = trigger_run_id
         self.conf = conf
         self.reset_dag_run = reset_dag_run
+        self.reattach_on_existing = reattach_on_existing
         self.wait_for_completion = wait_for_completion
         self.poke_interval = poke_interval
         if allowed_states:
@@ -319,6 +326,12 @@ class TriggerDagRunOperator(BaseOperator):
         )
 
         parameters = inspect.signature(DagRunTriggerException.__init__).parameters
+        if "reattach_on_existing" in parameters:
+            kwargs_accepted["reattach_on_existing"] = self.reattach_on_existing
+        elif self.reattach_on_existing:
+            raise NotImplementedError(
+                "Setting `reattach_on_existing` requires Airflow 3.x task execution support."
+            )
         if self.note and "note" in parameters:
             kwargs_accepted["note"] = self.note
 
@@ -383,7 +396,13 @@ class TriggerDagRunOperator(BaseOperator):
                     raise AirflowSkipException(
                         "Skipping due to skip_when_already_exists is set to True and DagRunAlreadyExists"
                     )
-                raise e
+                if self.reattach_on_existing:
+                    dag_run = e.dag_run
+                    self.log.info(
+                        "Reattaching to existing Dag run %s on %s", dag_run.run_id, self.trigger_dag_id
+                    )
+                else:
+                    raise e
         if dag_run is None:
             raise RuntimeError("The dag_run should be set here!")
         # Store the run id from the dag run (either created or found above) to
