@@ -238,15 +238,12 @@ class TestJavaCoordinatorAttributes:
         assert coordinator.jars_root == [pathlib.Path("/airflow/java-bundles")]
 
     def test_jars_root_optional_defaults_to_empty(self):
-        # Neither an explicit root nor dag_bundle_name: co-located mode, valid
-        # once an explicit main_class disambiguates the entrypoint.
-        coordinator = JavaCoordinator(main_class="com.example.Main")
+        # Neither an explicit root nor dag_bundle_name: co-located mode. main_class
+        # is optional here — the entrypoint is auto-detected from the bundle scan.
+        coordinator = JavaCoordinator()
         assert coordinator.jars_root == []
         assert coordinator.dag_bundle_name is None
-
-    def test_colocated_mode_requires_main_class(self):
-        with pytest.raises(ValueError, match="requires 'main_class' when 'jars_root' is not set"):
-            JavaCoordinator()
+        assert coordinator.main_class == ""
 
     def test_explicit_root_does_not_require_main_class(self, tmp_path):
         coordinator = JavaCoordinator(jars_root=tmp_path)
@@ -260,7 +257,7 @@ class TestJavaCoordinatorAttributes:
     def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
         mock_manager.is_bundle_configured.return_value = False
         with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
-            JavaCoordinator(main_class="com.example.Main", dag_bundle_name="ghost")
+            JavaCoordinator(dag_bundle_name="ghost")
 
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
         # Co-located mode: no configured root, so the subclass must scan the roots

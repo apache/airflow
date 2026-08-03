@@ -210,19 +210,14 @@ class JavaCoordinator(SubprocessCoordinator):
     def _explicit_artifact_roots(self) -> list[pathlib.Path]:
         return self.jars_root
 
-    def _validate_artifact_source(self) -> None:
-        # Without an explicit root the scan falls back to a whole Dag bundle, where
-        # _JarInfo.find would pick the first executable JAR in walk order — a
-        # non-deterministic entrypoint. Require an explicit main_class in that case.
-        if not self.jars_root and not self.main_class:
-            raise ValueError(
-                "JavaCoordinator requires 'main_class' when 'jars_root' is not set, so the "
-                "entrypoint is unambiguous when scanning a Dag bundle for JARs."
-            )
-
     def _build_execute_task_command(
         self, *, what: TaskInstance, roots: list[pathlib.Path]
     ) -> tuple[list[str], str | None]:
+        # TODO: Scanning a whole Dag bundle without an explicit main_class lets
+        # _JarInfo.find pick the first executable JAR in walk order, so duplicate
+        # entrypoints across bundles resolve non-deterministically — the same
+        # duplicate-dag_id ambiguity the Python Dag path has. Reject it at the
+        # IMPORT_ERROR stage once AIP-85 exposes an interface to raise there.
         jar = _JarInfo.find(roots, self.main_class)
         command = [
             self.java_executable,

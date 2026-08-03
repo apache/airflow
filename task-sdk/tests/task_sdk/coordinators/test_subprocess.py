@@ -1029,6 +1029,37 @@ class TestExecuteTaskBundleWiring:
         assert coordinator.recorded_roots == [[tmp_path]]
         mock_lock.assert_not_called()
 
+    @patch("airflow.dag_processing.bundles.base.BundleVersionLock")
+    @patch("airflow.sdk.execution_time.task_runner.initialize_ti_bundle")
+    @patch.object(_PopenActivitySubprocess, "start")
+    def test_named_bundle_mode_locks_resolved_current_version(
+        self, mock_start, mock_initialize, mock_lock, mock_client, tmp_path
+    ):
+        # NAMED_BUNDLE resolves "latest" with version=None; the lock must pin the
+        # concrete current version so it does not silently become a no-op.
+        from airflow.dag_processing.bundles.base import BundleVersion
+
+        resolved = MagicMock(path=tmp_path, version=None)
+        resolved.name = "artifacts"
+        resolved.get_current_version.return_value = BundleVersion(version="sha-abc", data=None)
+        mock_initialize.return_value = resolved
+        mock_start.return_value.wait.return_value = 0
+
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"], explicit_roots=[])
+        coordinator.dag_bundle_name = "artifacts"
+        coordinator._artifact_source = _ArtifactSource.NAMED_BUNDLE
+
+        coordinator.execute_task(
+            what=_make_ti(),
+            dag_rel_path="dag.py",
+            bundle_info=MagicMock(),
+            client=mock_client,
+            subprocess_logs_to_stdout=False,
+        )
+
+        resolved.get_current_version.assert_called_once_with()
+        mock_lock.assert_called_once_with(bundle_name="artifacts", bundle_version="sha-abc")
+
 
 class TestSetCurrentBundle:
     def test_binds_for_the_block_and_clears_on_exit_allowing_reuse(self):
