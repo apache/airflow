@@ -99,6 +99,22 @@ class TestEnvironmentVariablesBackendTeamScope:
         assert lookup(env_prefix, method, team_scoped_id(team_name), team_name) is None
 
     @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
+    @pytest.mark.parametrize("secret_id", ["_a___b", "_ab___x"])
+    @pytest.mark.parametrize("team_name", [None, *TEAM_NAMES])
+    def test_id_that_cannot_name_a_team_is_still_resolved(
+        self, monkeypatch, env_prefix, method, secret_id, team_name
+    ):
+        """Refusing every ``_x___y`` id would block legitimate team agnostic secrets.
+
+        Team names are validated as ``^[a-zA-Z0-9_-]{3,50}$``, so a one- or two-character
+        leading segment cannot be a team. Such an id names no team's namespace and must stay
+        resolvable through the team agnostic lookup, for any caller.
+        """
+        monkeypatch.setenv(env_prefix + secret_id.upper(), GLOBAL_VALUE)
+
+        assert lookup(env_prefix, method, secret_id, team_name) == GLOBAL_VALUE
+
+    @pytest.mark.parametrize(("env_prefix", "method"), LOOKUPS)
     def test_team_whose_name_extends_the_callers_is_not_readable(self, monkeypatch, env_prefix, method):
         """A team name may contain the ``___`` separator, so one team's namespace can start with another's.
 
