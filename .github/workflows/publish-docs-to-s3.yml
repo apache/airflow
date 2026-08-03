@@ -98,12 +98,12 @@ jobs:
       publish-supervisor-schema: ${{ steps.parameters.outputs.publish-supervisor-schema }}
       # yamllint disable rule:line-length
       skip-write-to-stable-folder: ${{ inputs.skip-write-to-stable-folder && '--skip-write-to-stable-folder' || '' }}
-      # The docs build and the registry extraction get an image each, built in parallel by the
-      # same matrix job. Sharing one image used to mean sharing its Python, which forced the docs
-      # onto 3.12 and broke publishing: Sphinx mocks third-party modules, and on 3.12 functools
-      # copies __type_params__, so mocked decorators raise TypeError and providers fail to import.
-      # Every image cache key already carries the Python version, so the two do not evict each other.
-      docs-python-version: "3.10"
+      # Docs and the registry each build the image they need rather than sharing one. Sharing
+      # meant sharing the Python too, which put the docs on 3.12 and broke publishing: Sphinx
+      # mocks third-party modules, and from 3.12 functools copies __type_params__, so a mocked
+      # decorator raises TypeError and providers fail to import. `breeze build-docs` pins itself
+      # to the default Python, so this follows the same constant rather than restating a version.
+      docs-python-version: ${{ steps.default_python.outputs.default-python-version }}
       registry-python-version: "3.12"
       # Discriminator for every stash this workflow writes. A bare ref would collide with any
       # other workflow stashing an image for the same ref, and the images here are special: built
@@ -174,6 +174,21 @@ jobs:
             exit 0
           fi
           python3 dev/registry/derive_wave_providers.py
+      - name: "Derive the default Python version"
+        id: default_python
+        shell: bash
+        # `breeze build-docs` always documents on breeze's default Python, so the image this
+        # workflow builds for it has to be that same one. Reading the constant keeps the two from
+        # drifting apart and silently making the docs job build an image nothing then uses.
+        run: |
+          DEFAULT_PYTHON=$(python3 -c "
+          import re, pathlib
+          text = pathlib.Path('dev/breeze/src/airflow_breeze/global_constants.py').read_text()
+          versions = re.search(r'^ALL_PYTHON_MAJOR_MINOR_VERSIONS\s*=\s*\[(.*?)\]', text, re.M | re.S)
+          print(re.findall(r'\"([0-9]+\.[0-9]+)\"', versions.group(1))[0])
+          ")
+          echo "Default Python version: '${DEFAULT_PYTHON}'"
+          echo "default-python-version=${DEFAULT_PYTHON}" >> "${GITHUB_OUTPUT}"
       - name: "Input parameters summary"
         shell: bash
         id: parameters
