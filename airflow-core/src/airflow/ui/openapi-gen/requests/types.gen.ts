@@ -4672,6 +4672,7 @@ export type GetDagDeadlineAlertsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
      */
     orderBy?: Array<(string)>;
+    versionNumber?: number | null;
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
