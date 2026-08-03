@@ -286,8 +286,9 @@ def serialize(o: object, depth: int = 0) -> U | None:
         return dct
 
     raise TypeError(
-        f"cannot serialize object of type {cls}. Give it a `serialize()` method (and a matching "
-        "`deserialize(data, version)`), or decorate the class with @dataclass or @attr.define. "
+        f"Cannot serialize object of type {cls}. Give it a `serialize()` method and a "
+        "`deserialize(data, version)` staticmethod, or decorate the class with @dataclass or "
+        "@attr.define. "
         "See: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/serializers.html"
     )
 
@@ -393,7 +394,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     # no deserializer available
     raise TypeError(
         f"No deserializer found for {classname}. It must provide a `deserialize(data, version)` "
-        "classmethod (matching how it serializes), or be decorated with @dataclass or @attr.define. "
+        "staticmethod (matching how it serializes), or be decorated with @dataclass or @attr.define. "
         "See: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/serializers.html"
     )
 
