@@ -20,12 +20,14 @@ from json import JSONDecodeError
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import create_app
-from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -55,6 +57,7 @@ from airflow.api_fastapi.core_api.security import (
     resolve_user_from_token,
 )
 from airflow.models import Connection, Pool, Variable
+from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
@@ -473,22 +476,22 @@ class TestFastApiSecurity:
         against backfill 42. Parsing with ``int()`` here rejected them and left ``dag_id``
         unresolved, so the two disagreed about which Dag the request concerned.
         """
-        auth_manager = Mock()
+        auth_manager = Mock(spec=BaseAuthManager)
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
 
-        backfill = Mock()
+        backfill = Mock(spec=Backfill)
         backfill.dag_id = "backfill_dag"
-        session = Mock()
+        session = Mock(spec=Session)
         session.scalars.return_value.one_or_none.return_value = backfill
 
-        request = Mock()
+        request = Mock(spec=Request)
         request.path_params = {"backfill_id": backfill_id}
         request.query_params = {"dag_id": "some_other_dag"}
         request.json = AsyncMock(return_value={"dag_id": "some_other_dag"})
 
-        user = Mock()
+        user = Mock(spec=BaseUser)
 
         await requires_access_backfill("PUT")(request, user, session)
 
