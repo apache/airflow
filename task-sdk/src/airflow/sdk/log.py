@@ -120,8 +120,7 @@ def configure_logging(
         extra_processors += (mask_logs,)
 
     # NOTE: Do NOT call getattr(remote, "processors") here.
-    # Accessing remote.processors triggers creation of the remote handler
-    # via a cached_property. The configure_logging() call below runs dictConfig() internally,
+    # The configure_logging() call below runs dictConfig() internally,
     # which calls _clearExistingHandlers() -> logging.shutdown() on ALL existing handlers —
     # including the remote handler we would have just built. The handler ends up dead
     # (shutting_down=True) before a single task log is emitted.
