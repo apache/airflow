@@ -85,6 +85,28 @@ class DepContext:
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""
 
+    upstream_task_id_counts: dict[tuple[str, str, frozenset[str]], list[tuple[str, int]]] = attr.ib(
+        factory=dict, repr=False
+    )
+    """
+    Per-pass memo of the trigger-rule upstream task-instance counts, keyed by
+    ``(dag_id, run_id, frozenset of direct-upstream task_ids)``.
+
+    Only populated for the "simple" case where the count-query predicate is exactly
+    ``task_id IN (upstream_ids)`` and is therefore identical for every downstream sharing the same
+    direct upstreams; the mapped-task-group case uses per-ti map-index predicates and is not cached.
+
+    Lifetime is one scheduling pass, like ``finished_tis``, but note it is not a snapshot handed in
+    by the caller: it is filled in as dependencies are evaluated, and invalidated via
+    :meth:`invalidate_upstream_task_id_counts` when a mapped task's instance count changes mid-pass.
+
+    This is deliberately an ``init=True`` field even though callers never pass it. ``attrs.evolve``
+    only carries over fields that ``__init__`` accepts, and
+    :meth:`~airflow.models.taskinstance.TaskInstance.are_dependencies_met` evolves the context for
+    every ``UP_FOR_RESCHEDULE`` task instance. With ``init=False`` those instances would each get a
+    fresh empty dict, so they would neither read the memo nor warm it for anything else.
+    """
+
     def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
         """
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
@@ -103,3 +125,12 @@ class DepContext:
         else:
             finished_tis = self.finished_tis
         return finished_tis
+
+    def invalidate_upstream_task_id_counts(self) -> None:
+        """
+        Drop the memoized trigger-rule upstream counts.
+
+        Call this whenever a mapped task's instance count changes mid-pass, so a downstream evaluated
+        later in the same pass recomputes the count instead of reading a stale one.
+        """
+        self.upstream_task_id_counts.clear()
