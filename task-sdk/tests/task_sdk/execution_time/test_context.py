@@ -430,12 +430,7 @@ class TestVariableAccessor:
 
     @mock.patch("airflow.sdk.execution_time.context.mask_secret")
     def test_var_json_masks_list_values(self, mock_mask_secret, mock_supervisor_comms):
-        """A JSON list is handed to the masker whole, exactly as a dict is.
-
-        ``add_mask`` walks dicts and iterables itself, so the top-level type dispatch was the
-        only thing deciding whether nested values were reached: a list at the top level matched
-        no branch and was skipped, while the same list nested inside a dict was masked.
-        """
+        """A JSON list is handed to the masker whole, exactly as a dict is."""
         accessor = VariableAccessor(deserialize_json=True)
         raw_json = '[{"password": "s3cr3t"}, {"password": "s3cr3t2"}]'
         mock_supervisor_comms.send.return_value = VariableResult(key="db_configs", value=raw_json)
@@ -491,14 +486,7 @@ class TestVariableAccessor:
 
     @mock.patch("airflow.sdk.execution_time.context.mask_secret")
     def test_var_json_list_value_does_not_over_mask(self, mock_mask_secret, mock_supervisor_comms):
-        """var.json with a non-sensitive list variable does not mask individual list elements.
-
-        The list is handed to the masker **under the variable's key**, which is what preserves
-        this: bare values inside a list have no key names of their own, so they follow the
-        variable key's sensitivity. Passing the list anonymously instead would add every element
-        to the global pattern set, and an ordinary value such as a region name would then be
-        redacted everywhere it appeared in the logs.
-        """
+        """var.json with a non-sensitive list variable does not mask individual list elements."""
         accessor = VariableAccessor(deserialize_json=True)
         raw_json = '["us-east-1", "eu-west-1"]'
         mock_supervisor_comms.send.return_value = VariableResult(key="aws_regions", value=raw_json)
