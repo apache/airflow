@@ -29,6 +29,7 @@ from airflow.providers.common.ai.policies.retry import (
     ErrorClassification,
     LLMRetryPolicy,
 )
+from airflow.sdk._shared.secrets_masker import reset_secrets_masker
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryRule
 from airflow.sdk.log import mask_secret
 
@@ -112,6 +113,7 @@ class TestLLMClassifyDecisions:
     @pytest.mark.enable_redact
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_prompt_redacts_known_secrets(self, mock_hook_cls):
+        reset_secrets_masker()
         secret_value = "super-secret-conn-password"
         mask_secret(secret_value)
 
@@ -135,7 +137,7 @@ class TestLLMClassifyDecisions:
     @pytest.mark.enable_redact
     @patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", autospec=True)
     def test_prompt_keeps_raw_message_when_redaction_disabled(self, mock_hook_cls):
-
+        reset_secrets_masker()
         secret_value = "super-secret-conn-password"
         mask_secret(secret_value)
 
