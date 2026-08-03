@@ -585,6 +585,20 @@ Rules:
   so normalize to excluded.
 - Always keep the `(#NNNN)` PR suffix (or, for a collapsed chain, the
   comma-separated list of all involved PRs).
+- **Order entries within each section by merge order, newest first** — the exact
+  order `git log` printed them in Phase 1. `CHANGELOG_TEMPLATE.rst.jinja2`
+  iterates the changes without sorting, so that order *is* the format. It is
+  **not** descending PR number: a long-lived PR merged late carries a low number
+  and still belongs at the top (real example: `#64274` sits second in amazon
+  9.32.0's `Features`). Don't re-sort by PR number and don't group by theme.
+  The excluded block follows the same order. A collapsed chain — one entry
+  naming several PRs — sits at the position of its **first** commit, which is
+  when the change became relevant, not at the position of the later rework.
+- **Never adopt an entry a contributor pre-wrote at the top of
+  `changelog.rst`** — above the first version header — without checking its PR
+  number against `git log`. Those blocks are written before the PR merges, so
+  the number in them is a guess and is often wrong or nonexistent. Keep the
+  prose, replace the reference with the real merge commit's `(#NNNN)`.
 
 #### 4c. Regenerate templates with breeze
 
@@ -671,7 +685,10 @@ provider-by-provider:
   appears before the first version header, or between the `Changelog`
   heading and the first version), notify the release manager immediately —
   it likely means a breaking-change or min-version note was accidentally
-  written at the wrong indentation level or position.
+  written at the wrong indentation level or position. The same applies to a
+  bare `Breaking changes` / `Features` / … heading sitting above the first
+  version header: a contributor pre-wrote it, and it must be folded into the
+  new version section with its PR reference corrected (Phase 4b).
 - Confirm Phase 4d ran: no `# use next version` comment remains where the
   referenced provider was bumped in this wave.
 - **If any inter-provider `>=` floor changed** (Phase 4d resolved a pin, or a
@@ -681,6 +698,26 @@ provider-by-provider:
   *"Provider dependency version bumps detected that should only be performed
   by Release Managers!"*. `git diff` the changed `pyproject.toml` files for
   `apache-airflow-providers-*` `>=` changes and list them for the RM.
+- **Reconcile every new section against `git log` — this gate is mandatory.** Run
+
+  ```bash
+  python3 dev/check_changelog_entries.py --fix
+  ```
+
+  It compares each provider's newest section against the commits actually being
+  released and exits non-zero on four defects that eyeballing the diff misses:
+
+  | Code | Meaning | Action |
+  | --- | --- | --- |
+  | `MISSING` | a released commit has no entry | classify and add it (Phase 3 + 4b) |
+  | `UNKNOWN` | an entry cites a PR outside the release range | replace with the real `(#NNNN)` |
+  | `SECTION` | heading is not one of the template's five | move the entry under a template heading |
+  | `ORDER` | entries are off merge order | repaired by `--fix` |
+
+  Re-run it after **any** rebase of the release branch. A rebase silently pulls
+  new provider commits into the release range without touching `changelog.rst`,
+  and that is exactly how a shipped change ends up undocumented. Only `ORDER`
+  is auto-repairable — resolve every other code by hand before handing off.
 - **Scan the new changelog sections for three entry defects** — grep the lines
   you added: (1) a bullet whose text starts with a lowercase letter → capitalize
   it (Phase 4b); (2) a bullet in a *visible* section (Features / Bug Fixes /
@@ -899,6 +936,12 @@ breaking changes, but a new commit introduced one), create the header
 above the next existing section, matching the order in
 `CHANGELOG_TEMPLATE.rst.jinja2`:
 `Breaking changes` → `Features` → `Bug Fixes` → `Misc` → `Doc-only`.
+
+Insert each entry at its **merge-order position** within the section — new
+commits are newer than everything already there, so they go at the *top*, not
+appended at the bottom. Appending is what drifts incremental providers off the
+format; `check_changelog_entries.py --fix` repairs it either way, so run it
+after this phase.
 
 If you re-bumped the version in Incremental Phase 3.5, also add or remove the
 `.. note::` block about the Airflow min version requirement to match the
