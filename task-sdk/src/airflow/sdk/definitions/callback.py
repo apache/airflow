@@ -32,9 +32,7 @@ class _SerializedCallbackPath(str):
     """
     A callback path which was read back from serialized data.
 
-    The path of a ``Callback`` is checked when the ``Callback`` is first created. Rebuilding
-    that ``Callback`` from its serialized form carries the path in this wrapper so that
-    :meth:`Callback.get_callback_path` keeps it as-is instead of resolving it a second time.
+    See :meth:`Callback.get_callback_path` for what the marker buys.
 
     :meta private:
     """
@@ -118,8 +116,6 @@ class Callback(ABC):
     def deserialize(cls, data: dict, version):
         path = data.pop("path")
         if isinstance(path, str):
-            # Mark the path as coming from serialized data, so that it is taken as it was
-            # stored rather than resolved again. See ``get_callback_path``.
             path = _SerializedCallbackPath(path)
         return cls(callback_callable=path, **data)
 
