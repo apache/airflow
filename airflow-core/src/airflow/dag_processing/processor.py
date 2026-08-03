@@ -328,14 +328,15 @@ def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
     for request in callback_requests:
+        request_json = request.to_json()
         if isinstance(request, (TaskCallbackRequest, EmailRequest)):
             log.debug(
                 "Processing Callback Request",
-                request=request.to_json(),
+                request=request_json,
                 ti_id=str(request.ti.id),
             )
         else:
-            log.debug("Processing Callback Request", request=request.to_json())
+            log.debug("Processing Callback Request", request=request_json)
         # A failed request (e.g. the Dag or task was removed since the callback
         # was scheduled) must not abort the remaining requests in this batch --
         # they were already popped from the manager's queue and would be lost.
@@ -351,7 +352,7 @@ def _execute_callbacks(
                 elif isinstance(request, EmailRequest):
                     _execute_email_callbacks(dagbag, request, log)
         except Exception:
-            log.exception("Failed to execute callback request", request=request.to_json())
+            log.exception("Failed to execute callback request", request=request_json)
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
