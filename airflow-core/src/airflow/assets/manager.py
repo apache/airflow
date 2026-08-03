@@ -385,13 +385,19 @@ class AssetManager(LoggingMixin):
 
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
-            asset_alias_models: Iterable[AssetAliasModel] = session.scalars(
-                select(AssetAliasModel)
-                .where(AssetAliasModel.name.in_(source_alias_names))
-                .options(
-                    joinedload(AssetAliasModel.scheduled_dags).joinedload(DagScheduleAssetAliasReference.dag)
+            asset_alias_models = (
+                session.scalars(
+                    select(AssetAliasModel)
+                    .where(AssetAliasModel.name.in_(source_alias_names))
+                    .options(
+                        joinedload(AssetAliasModel.scheduled_dags).joinedload(
+                            DagScheduleAssetAliasReference.dag
+                        )
+                    )
                 )
-            ).unique()
+                .unique()
+                .all()
+            )
 
             for asset_alias_model in asset_alias_models:
                 session.execute(
