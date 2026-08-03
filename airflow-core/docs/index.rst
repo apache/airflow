@@ -19,7 +19,7 @@ What is Airflow®?
 =========================================
 
 `Apache Airflow® <https://github.com/apache/airflow>`_ is an open-source platform for developing, scheduling,
-and monitoring workflows — from traditional batch-oriented data pipelines to machine learning, model training,
+and monitoring workflows — from traditional time- or event-triggered batch-oriented data pipelines to machine learning, model training,
 and agentic or LLM-based workloads. Airflow's extensible Python framework enables you to build workflows
 connecting with virtually any technology, with a growing set of providers for orchestrating AI and agentic
 tools alongside the rest of your pipeline. A web-based UI helps you visualize, manage, and debug your workflows.
